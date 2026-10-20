@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Attendance check-in mismatch diagnosis
-
-Read-only investigation at f88b06a5e; relevant attendance paths match production
-af519aa54. Reported Oct19 sample first fact14:10:06 Toronto; imported0.585s later.
-All24 class facts imported within1.400s; active mapping and no manual override.
-Confirmed two defects: scan success persists across days/resume without fresh
-validation and shows time without date; teacher Daily does not refresh student
-check-ins until explicit reload/scope change. Scratch diagnostics reproduce both
-(2student+1teacher tests PASS); sources/logs at
-/tmp/pika-attendance-diagnosis-20261019/. No product/production writes or release.
-Earlier phone state unknown; stale prior confirmation likely, not incident-proven.
-Next: expiry/read-only revalidation/date on phone and bounded active teacher refresh.
-Orchestrate native GPT6.1-sol/high teacher trace delivered/verified;1launch plus
-follow-up diagnostic, no rework/conflict. Worker/coordinator tokens unknown;
-weekly remaining17%, DeepSeek dated pause honored; storage healthy295GB.
-
 ## 2026-10-19 — Student attendance confirmation freshness
 
 Requested student-only fix on codex/attendance-confirmation-freshness. POST waits
@@ -729,6 +713,24 @@ Consolidated purge source rebased onto that actual main; only roadmap/history
 overlaps required union, retaining main receipts and one copy of the identical
 already-archived entry. No migration resequencing, stash use or hold change.
 
+## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
+
+Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
+table-scoped DELETE capability only after verified remote completion. Existing
+ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
+private membership replay history is retained. Pending automatic cleanup jobs
+block new intent, including quarantine without an individual operation. Fresh
+read-committed admission avoids stale snapshots. Existing rollback harness adds
+both owner labels, historical generations, scoped/forged denial, failure rollback,
+fresh object-free final purge and saved-status/private-history preservation;
+existing contention harness adds both actual-RPC winner orders. No DB/provider
+execution or shared/production migration application during preparation. Exact281
+source-only profiles and complete capability-table fingerprints extend prior
+seals without rebinding old proofs. Initial focused run caught stale280 counts
+and mocked fingerprints; fixtures corrected without weakening restoration checks.
+Independent review, actual native verification and exact-head CI remain required.
+Production/shared-local249+/live-provider/configuration and activation holds stay.
+
 ## 2026-10-20 — explicit Data API grant compatibility
 
 Prepared migration281 preserving historical001–280 relation ACLs and server-only
@@ -752,3 +754,17 @@ Parenthesized the expression; native PostgreSQL14 validator reproduces the old
 syntax error and compiles all three corrected bodies. Exact temporary parser
 cluster removed, without TCP or persistent DB use. Target PostgreSQL17 execution
 and full ACL equality remain pending the reviewed-head CI at this checkpoint.
+
+Superseding source integration: full CI39439201298/PR Gate passed at795ffb29c,
+then main advanced to attendance281. Grant SQL is now named282 with identical
+9ffd5b83… bytes; baseline replay includes281 and explicitly checks its private
+capability table stays inaccessible directly to service_role. Existing281 seal,
+all historical seals and unknown-tail rejection retained. Owner approved this
+last integration/review and merge; native282/final-head CI remain pending at
+this checkpoint. HQ129 merged089c721 with its reviewed tree unchanged; canonical
+HQ fast-forwarded while preserving the owner company-profile edit. No shared or
+production migration applied. Sol6.1/high worker reconciled bounded unit tests;
+coordinator verified seals/source and owns final integration. Usage/time per
+worker unknown; existing review ledger retained without reset. Integration focused
+gate PASS:3169tests/103files, architecture/policies/TypeScript/lint; audit and
+shell syntax PASS. Final targeted review/CI remain required.

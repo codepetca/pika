@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
-const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/281_explicit_data_api_grants.sql'), 'utf8')
+const migration = readFileSync(resolve(process.cwd(), 'supabase/migrations/282_explicit_data_api_grants.sql'), 'utf8')
 const sql = migration.replace(/--[^\n]*/g, '')
 const grants = [...sql.matchAll(/grant\s+([a-z,\s]+?)\s+on\s+(table|sequence)\s+([a-z_]+\.[a-z_]+)\s+to\s+([a-z_]+)\s*;/gi)]
 const contract = new Map(grants.map(([, privileges, , object]) => [object, privileges.split(',').map(p => p.trim().toUpperCase()).sort()]))
@@ -24,6 +24,7 @@ describe('explicit Data API relation grants', () => {
       'public.course_blueprint_draft_admissions', 'public.course_blueprint_purge_fences',
       'public.managed_storage_writer_revision_seq', 'private.stripe_billing_settings',
       'private.removed_student_cleanup_jobs', 'private.pal_membership_generations',
+      'private.attendance_decommission_delete_capabilities',
     ]) expect(contract.has(object), object).toBe(false)
 
     expect(contract.get('public.auth_sessions')).toEqual(['DELETE', 'SELECT'])

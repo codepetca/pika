@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 
 export const DATA_API_GRANTS_REVIEWED_MIGRATION = Object.freeze({
-  name: '281_explicit_data_api_grants.sql',
+  name: '282_explicit_data_api_grants.sql',
   sha256: '9ffd5b8303ff7e118b9ae4ce5ff8d26c0b0dd16c4c586a6a3e96635a70f9f1db',
 })
 

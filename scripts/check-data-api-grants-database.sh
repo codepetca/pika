@@ -112,7 +112,7 @@ replay() {
     grants_filename="$(basename "$grants_path")"
     grants_number="${grants_filename%%_*}"
     [[ "$grants_number" =~ ^[0-9]{3}$ ]] || continue
-    ((10#$grants_number <= 280)) || continue
+    ((10#$grants_number <= 281)) || continue
     if [[ "$grants_mode" == absent && "$grants_filename" == 075_auth_rls_hardening.sql ]]; then
       # Only fixture SQL is transformed. Historical files remain byte-identical.
       # Suppress the four grants that otherwise hide missing explicit grants.
@@ -143,7 +143,7 @@ apply_explicit_grants() {
   # The new migration must work with the real restricted migration authority.
   docker exec "$grants_owned" psql -U supabase_admin -d postgres -Xq -v ON_ERROR_STOP=1 \
     -c 'alter role postgres nosuperuser' >/dev/null
-  if ! sql < "$grants_root/supabase/migrations/281_explicit_data_api_grants.sql" > "$grants_tmp/migration.log" 2>&1; then
+  if ! sql < "$grants_root/supabase/migrations/282_explicit_data_api_grants.sql" > "$grants_tmp/migration.log" 2>&1; then
     tail -20 "$grants_tmp/migration.log" >&2; exit 1
   fi
   sql < "$grants_root/scripts/check-data-api-grants.sql" >/dev/null
@@ -158,7 +158,7 @@ replay historical
 snapshot "$grants_tmp/historical.jsonl"
 apply_explicit_grants
 snapshot "$grants_tmp/explicit.jsonl"
-compare "$grants_tmp/historical.jsonl" "$grants_tmp/explicit.jsonl" 'normal 280 -> 281'
+compare "$grants_tmp/historical.jsonl" "$grants_tmp/explicit.jsonl" 'normal 281 -> 282'
 echo 'Normal replay: all relation/function ACLs, owners and RLS unchanged.'
 
 reset_fixture
@@ -169,9 +169,9 @@ if cmp -s "$grants_tmp/historical.jsonl" "$grants_tmp/absent.jsonl"; then
 fi
 apply_explicit_grants
 snapshot "$grants_tmp/restored.jsonl"
-compare "$grants_tmp/historical.jsonl" "$grants_tmp/restored.jsonl" 'automatic grants absent -> 281'
+compare "$grants_tmp/historical.jsonl" "$grants_tmp/restored.jsonl" 'automatic grants absent -> 282'
 # Idempotence also protects the immutable baseline on an already-upgraded DB.
 apply_explicit_grants
 snapshot "$grants_tmp/repeated.jsonl"
-compare "$grants_tmp/restored.jsonl" "$grants_tmp/repeated.jsonl" 'repeated 281'
+compare "$grants_tmp/restored.jsonl" "$grants_tmp/repeated.jsonl" 'repeated 282'
 echo 'Absent-default replay: exact historical ACLs restored; clients denied; future defaults closed; repeat stable.'

@@ -39,10 +39,12 @@ Pika uses server-authorized routes and the `service_role` Data API client. That
 role bypasses RLS, but still needs object privileges. RLS policies alone do not
 grant table access. Do not copy generic `anon`/`authenticated` grants from examples.
 
-- Preserve historical migrations 001–280. Migration 281 records the audited
+- Preserve historical migrations 001–281. Migration 282 records the audited
   table/sequence grants explicitly and closes automatic public table/sequence
   grants. It preserves the narrower direct-write revocations introduced by
   contextual RPC migrations; do not replace it with a blanket server-role grant.
+  Migration 281's private attendance-decommission capability table remains
+  inaccessible directly to `service_role`; only its reviewed RPCs can use it.
 - In each new migration that creates a public table, enable RLS, revoke all
   privileges from `PUBLIC`, `anon`, and `authenticated`, and explicitly grant only
   the `service_role` operations required by the server. For an RPC-only table,

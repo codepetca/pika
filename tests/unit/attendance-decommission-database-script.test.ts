@@ -5,6 +5,8 @@ import { join, resolve } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const script = resolve(process.cwd(), 'scripts/check-attendance-decommission-database.sh')
+const compatibility = readFileSync(resolve(process.cwd(),
+  'supabase/migrations/281_attendance_decommission_retained_generations.sql'), 'utf8')
 const grep = execFileSync('/bin/sh', ['-c', 'command -v grep'], { encoding: 'utf8' }).trim()
 let fixtureDirectory: string
 
@@ -41,6 +43,52 @@ function runFixture(project: string, binding: string) {
 }
 
 describe('attendance decommission database harness portability', () => {
+  it('tests incomplete student purge separately from linked attendance guards', () => {
+    const source = readFileSync(script, 'utf8')
+    expect(source).toContain('Unlinked purge conflict fixture gained attendance')
+    expect(source).toContain("'Unlinked purge conflict', 'D15303'")
+    const reservation = source.slice(source.indexOf('-- Existing independently reserved purge work'),
+      source.indexOf("delete from public.student_purge_operations where id='d1530000-0000-4000-8000-000000000041'"))
+    expect(reservation).toContain('public.attendance_student_has_state_v1(')
+    expect(reservation).toContain("'d1530000-0000-4000-8000-000000000012'")
+    expect(reservation).not.toContain("'d1530000-0000-4000-8000-000000000010'")
+    expect(source).not.toMatch(/disable trigger|session_replication_role/)
+  })
+  it('keeps final Classroom purge independently gated and preserves saved replay evidence', () => {
+    const source = readFileSync(script, 'utf8')
+    expect(source).toContain('Fresh attendance-complete Classroom purge did not begin without objects')
+    expect(source).toContain('Attendance-complete Classroom purge did not finalize')
+    expect(source).toContain('Final Classroom purge changed saved fence, other attendance, or private replay history')
+    expect(source).toContain('public.get_hot_archived_classroom_purge_inventory(')
+    expect(source).toContain('public.finalize_hot_archived_classroom_purge(')
+    expect(source).toContain('public.refresh_managed_storage_readiness()')
+    expect(source).toContain('public.activate_managed_storage_enforcement(')
+    expect(source).not.toContain("update public.managed_storage_settings set mode='enforced'")
+    expect(source.match(/select kind,evidence from replay_before except/g)).toHaveLength(2)
+    expect(source).not.toContain('select kind,row from replay_before')
+  })
+  it('keeps deletion authority private and separate from individual student cleanup', () => {
+    expect(compatibility).toContain('capability.transaction_id=txid_current()')
+    expect(compatibility).toContain("operation.state='remote_deleted'")
+    expect(compatibility).toContain('operation.phase=capability.phase')
+    expect(compatibility).toContain('capability.table_name=p_table')
+    expect(compatibility).not.toMatch(/create or replace function private\.removed_academic_delete_allowed/)
+    expect(compatibility).not.toMatch(/(?:update|delete from) private\.(?:attendance_membership_generations|pal_membership_generations|removed_student_cleanup_jobs)/i)
+    expect(compatibility).not.toContain('set_config(')
+    expect(compatibility).toContain("and status in ('queued','processing','retry_wait','quarantined')")
+  })
+  it('requires retained-generation, bounded-delete, failure and pending-job native regressions', () => {
+    const source = readFileSync(script, 'utf8')
+    for (const assertion of [
+      'Private replay evidence changed',
+      'Tick exceeded 500 rows',
+      'Failed tick changed durable state',
+      'Pending cleanup job created destructive intent',
+      'Forged delete capability accepted',
+      'attendance_membership_generation_immutable',
+      'generate_series(1,501)',
+    ]) expect(source).toContain(assertion)
+  })
   it('runs separate rollback-only matrices for both current owner labels', () => {
     const result = runFixture('pika', '0.0.0.0:54322')
     expect(result.status, result.stderr).toBe(0)

@@ -28,6 +28,12 @@ begin
       end loop;
     end loop;
   end loop;
+  -- Migration281 deliberately makes this transaction capability RPC-only.
+  -- The additive grants must not reopen it, even through inherited privileges.
+  if has_table_privilege('service_role', 'private.attendance_decommission_delete_capabilities',
+      'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN') then
+    raise exception 'Direct server privilege leaked on retained attendance capability';
+  end if;
 end;
 $$;
 -- Fail closed for the supported postgres migration creator, including global defaults.
