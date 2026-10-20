@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   clientProps: vi.fn(),
   getAttendanceAccess: vi.fn(),
   getPalApiUrl: vi.fn(),
+  classroomPalRequested: vi.fn(),
+  contextualPal: vi.fn(),
+  legacyPal: vi.fn(),
   getUserDisplayInfo: vi.fn(),
   listActiveTeacherClassrooms: vi.fn(),
   resolvePageAccess: vi.fn(),
@@ -27,8 +30,20 @@ vi.mock('@/lib/auth', () => ({
 }))
 
 vi.mock('@/lib/server/pal-config', () => ({
-  isClassroomPalRequested: () => false,
+  isClassroomPalRequested: () => mocks.classroomPalRequested(),
   getPalApiUrl: () => mocks.getPalApiUrl(),
+}))
+
+vi.mock('@/lib/server/contextual-pal-classroom', () => ({
+  resolveContextualPalClassroomContext: (...args: unknown[]) => mocks.contextualPal(...args),
+}))
+vi.mock('@/lib/server/pal-classroom', () => ({
+  resolvePalClassroomContext: (...args: unknown[]) => mocks.legacyPal(...args),
+}))
+vi.mock('@/integrations/pal', () => ({
+  StudentPalExperience: ({ children, scopeKey }: { children: React.ReactNode; scopeKey: string }) => (
+    <div data-testid="membership-provider" data-scope={scopeKey}>{children}</div>
+  ),
 }))
 
 vi.mock('@/lib/server/bara-attendance-scope', () => ({
@@ -61,9 +76,9 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/ClassroomPageClient', () => ({
-  ClassroomPageClient: ({ initialNow, classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable, testExperienceMode }: { initialNow: number; classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean; testExperienceMode?: string }) => {
+  ClassroomPageClient: ({ initialNow, classroom: classroomRecord, user, classroomRole, initialTab, classroomQrAvailable, testExperienceMode, palEnabled }: { initialNow: number; classroom: unknown; user: { role: string }; classroomRole?: string; initialTab?: string; classroomQrAvailable?: boolean; testExperienceMode?: string; palEnabled?: boolean }) => {
     mocks.clientProps(classroomRecord)
-    return <div data-test-experience={testExperienceMode} data-initial-now={initialNow} data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} />
+    return <div data-test-experience={testExperienceMode} data-initial-now={initialNow} data-testid="classroom-page" data-role={user.role} data-classroom-role={classroomRole || user.role} data-tab={initialTab || ''} data-classroom-qr={String(classroomQrAvailable === true)} data-pal={String(palEnabled === true)} />
   },
 }))
 
@@ -91,6 +106,9 @@ describe('ClassroomPage feature visibility redirects', () => {
     mocks.getCurrentUser.mockReset()
     mocks.getAttendanceAccess.mockResolvedValue({ state: 'disabled', scheduleThrough: null })
     mocks.getPalApiUrl.mockReset()
+    mocks.classroomPalRequested.mockReturnValue(false)
+    mocks.contextualPal.mockReset()
+    mocks.legacyPal.mockReset()
     mocks.getUserDisplayInfo.mockReset()
     mocks.listActiveTeacherClassrooms.mockReset()
     mocks.resolvePageAccess.mockReset()
@@ -120,6 +138,70 @@ describe('ClassroomPage feature visibility redirects', () => {
     expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-test-experience', 'shared')
     expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', role)
     expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-role', role)
+  })
+
+  const memberId = '22222222-2222-4222-8222-222222222222'
+  const scopedContext = { status: 'active', generation_id: '44444444-4444-4444-8444-444444444444',
+    learner_id: `pika-membership-v1-${'a'.repeat(32)}`, scope_key: `pika-classroom-v1-${'b'.repeat(64)}` }
+  function prepareMember(role: 'teacher' | 'student') {
+    mocks.getCurrentUser.mockResolvedValue({ id: memberId, email: 'member@example.test', role })
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [memberId] }))
+    mocks.resolvePageAccess.mockResolvedValue({ mode: 'contextual', context: { relationship: 'member' } })
+    mocks.singleResults.push({ data: { classroom_id: 'classroom-1' }, error: null }, { data: classroom(), error: null })
+  }
+
+  it.each(['teacher', 'student'] as const)('uses the contextual scoped Pal reader for an admitted %s member', async role => {
+    prepareMember(role)
+    mocks.classroomPalRequested.mockReturnValue(true)
+    mocks.contextualPal.mockResolvedValue(scopedContext)
+    mocks.legacyPal.mockResolvedValue({ ...scopedContext, scope_key: 'wrong-legacy-scope' })
+    await renderPage('today')
+    expect(mocks.contextualPal).toHaveBeenCalledExactlyOnceWith({ studentId: memberId, classroomId: 'classroom-1' })
+    expect(mocks.legacyPal).not.toHaveBeenCalled()
+    expect(screen.getByTestId('membership-provider')).toHaveAttribute('data-scope', scopedContext.scope_key)
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-role', role)
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-classroom-role', 'student')
+  })
+
+  it.each(['teacher', 'student'] as const)('does not resolve learner Pal context for an admitted %s owner', async role => {
+    mocks.getCurrentUser.mockResolvedValue({ id: memberId, role })
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [memberId] }))
+    mocks.resolvePageAccess.mockResolvedValue({ mode: 'contextual', context: { relationship: 'owner' } })
+    mocks.classroomPalRequested.mockReturnValue(true)
+    mocks.singleResults.push({ data: { ...classroom(), teacher_id: memberId }, error: null })
+    await renderPage('daily')
+    expect(mocks.contextualPal).not.toHaveBeenCalled()
+    expect(mocks.legacyPal).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('membership-provider')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('offers legacy account Pal only to an admitted %s member with its existing student provider', async role => {
+    prepareMember(role)
+    await renderPage('today')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-pal', String(role === 'student'))
+    expect(mocks.contextualPal).not.toHaveBeenCalled()
+    expect(mocks.legacyPal).not.toHaveBeenCalled()
+  })
+
+  it('keeps academic work when current membership Pal resolution fails without legacy fallback', async () => {
+    prepareMember('teacher')
+    mocks.classroomPalRequested.mockReturnValue(true)
+    mocks.contextualPal.mockRejectedValue(new Error('membership unavailable'))
+    mocks.legacyPal.mockResolvedValue(scopedContext)
+    await renderPage('today')
+    expect(screen.getByTestId('classroom-page')).toHaveAttribute('data-pal', 'false')
+    expect(screen.queryByTestId('membership-provider')).not.toBeInTheDocument()
+    expect(mocks.legacyPal).not.toHaveBeenCalled()
+  })
+
+  it('preserves legacy membership Pal selection for unmatched admission', async () => {
+    prepareMember('student')
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [] }))
+    mocks.classroomPalRequested.mockReturnValue(true)
+    mocks.legacyPal.mockResolvedValue(scopedContext)
+    await renderPage('today')
+    expect(mocks.legacyPal).toHaveBeenCalledExactlyOnceWith({ studentId: memberId, classroomId: 'classroom-1' })
+    expect(mocks.contextualPal).not.toHaveBeenCalled()
   })
 
   it('rejects malformed Test admission before service construction or page relationship resolution', async () => {

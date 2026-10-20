@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Returned Submit browser status contract
-
-C4d312c0a CI38629854794 passed TestBuild, all database/SDK and darkbrowser/PatternLab jobs. Mainbrowser failed newvalidSubmit rejection assertion: expected403, actual400; four othercases passed retries,292passed. Existinggraded/reopen/gradeclear lifecycle passed. Draft restored. Fifthfixbatch aligns only the newSubmit browserassertion with existingclosed-access nativeSQL22023 -> API400 and exact “Test is not active” message; Start/Save403, provenance, unchangedattempt/results, Pendinggrading/noeditingcontrols and idempotence remain strict. Product/API/migration/UI bytes unchanged.
-
-Verified exactnativeerror and fencing through rollback-only derived265contract in existingowned pika_test_return_contract_20261014; fullReturn265contractPASS/ROLLBACK. Initial “already responded” message hypothesis rejected by actualDB beforecommit; validatedclosedaccess check precedesreturned-check. Local125workflow/lifecycle tests,3casecollection/lintPASS; finalfocused and detached targeted review precede retry. Cumulative6reviewturns/4batches before thisfix; user’s explicit review-budgetextension retained, no reset. No canonicalmigration/deployment or newinfrastructure.
-
 ## 2026-10-14 — Ungraded Return integrates latest Gradebook visibility
 
 Final ea751496c CI38635910213 passed every selected job and PRGate. Beforemerge, main advanced to e2db6c57e (PR1592 teacherGradebook marks only after per-student Return), producing continuity conflicts. Draft restored, all six own commits rebased on e2db; preserved both archive marker/history sides in four conflict chunks. No own product/SQL/UI/E2E blob changed; migration265 filename/digest remain aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. No migration resequencing or stash creation/restoration; pre-existing shared stashes untouched.
@@ -644,3 +638,25 @@ eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source i
 unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
 successful preservation and closure gates using direct Node loading. Production,
 shared-local249+, real-account/provider/billing and all activation holds persist.
+
+## 2026-10-19 — Native lifecycle proof and contextual Pal page selection
+
+Separate reviewed disposable001–272 proof passed both rollback contracts, exact
+genuine metadata and actual16 typed RPC/66 archive exchanges. Real stored-byte
+export/readback/bundle verification, replay, cross-class denial, controlled
+postflight uncertainty, source preservation and exact initialized-OFF settings
+restoration passed.183 native actions/814 controls/11,498,419 bytes stayed inside
+original bounds. Immediate independent FIRST passed7,840 source/98,969 dependency
+files and zero process candidates; complete canonical/global equality and positive
+owned cleanup passed lifecycle gates. Review271 accepted this bounded evidence;
+historical failed FIRST remains failed, not replayed or relabeled.
+
+Member SSR selects the contextual Pal reader only for shared contextual members;
+owners never enter learner context, missing optional context keeps academic work,
+and teacher-valued members do not inherit an unavailable legacy account provider.
+27 SSR checks and40 inspected actual-renderer desktop/mobile light/dark captures
+passed. Capture sources/hashes are retained privately; temporary fixture edits
+are removed so existing public widget fixtures and renderers stay unchanged.
+No authenticated-route/provider claim. Native contention/race gates, final review,
+focused checks and final-head CI remain pending. Production/shared-local249+,
+real-account/provider/billing/AI and all rollout holds remain unchanged.

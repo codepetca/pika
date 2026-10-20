@@ -519,6 +519,16 @@ source/offline checks are not native or rollout acceptance. Genuine metadata,
 current-base SQL/SDK/lock/stored-byte proofs, UI matrix, independent review and
 final-head CI remain gates before the next main merge.
 
+Current bounded progress: complete001–272 rollback SQL/genuine metadata, actual
+typed16-RPC Pal/owner read proof and actual private stored-byte archive export,
+replay/denial/postflight uncertainty passed independent evidence review. Fresh
+immediate preservation and exact owned resource cleanup passed. Forty inspected
+actual-renderer visuals cover both labels/relationships and unavailable/legacy
+states across desktop/mobile and light/dark; these fixed-prop fixtures do not
+assert authenticated route or provider compatibility. The named contention/race
+checks and final stable-SHA review/CI remain required; no main merge, batch exit,
+real account/provider operation or rollout is claimed by these partial receipts.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the

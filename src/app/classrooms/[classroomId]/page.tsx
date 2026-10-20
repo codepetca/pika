@@ -8,6 +8,7 @@ import { ClassroomPageClient } from './ClassroomPageClient'
 import type { Classroom } from '@/types'
 import { getPalApiUrl, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { resolvePalClassroomContext } from '@/lib/server/pal-classroom'
+import { resolveContextualPalClassroomContext } from '@/lib/server/contextual-pal-classroom'
 import { StudentPalExperience } from '@/integrations/pal'
 import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import {
@@ -171,10 +172,16 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
   }
 
   const palApiUrl = getPalApiUrl()
+  const sharedMemberPal = testExperienceMode === 'shared' && pageAccess.mode === 'contextual'
+  const resolveMembershipPal = sharedMemberPal ? resolveContextualPalClassroomContext : resolvePalClassroomContext
   const membershipContext = palApiUrl && isClassroomPalRequested()
-    ? await resolvePalClassroomContext({ studentId: user.id, classroomId }).catch(() => null)
+    ? await resolveMembershipPal({ studentId: user.id, classroomId }).catch(() => null)
     : null
-  const palEnabled = palApiUrl !== null && (!isClassroomPalRequested() || membershipContext !== null)
+  // The legacy account provider is mounted only by the student-valued layout.
+  // Admission never provisions an account-level provider for a mixed-role member.
+  const legacyAccountPalAvailable = !sharedMemberPal || user.role === 'student'
+  const palEnabled = palApiUrl !== null && (isClassroomPalRequested()
+    ? membershipContext !== null : legacyAccountPalAvailable)
   const hydratedClassroom = hydrateClassroomRecord(classroomStudentRecord(classroom))
   if (
     tab &&

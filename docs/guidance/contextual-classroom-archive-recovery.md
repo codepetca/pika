@@ -61,9 +61,18 @@ or more than16MiB of serialized UTF-8 JSON by returning NULL. The adapter report
 failure bounds, not subscription classroom quotas. Purge presentation IDs are
 intersected with the verified snapshot by identity sets.
 
-Current implementation evidence: installed SDK with isolated transport plus API
-and SSR-focused regression checks pass. The rollback SQL contract passed against
-an isolated complete001–272 replay, and genuine generated metadata is installed;
-the prerequisite RPC cast is removed. This is not complete native/Storage
-acceptance. Native SDK/stored-byte and preservation verification, visual checks,
-independent final review and exact-head CI remain gates.
+Current bounded evidence: a separately reviewed disposable complete001–272
+replay passed both rollback contracts and genuine metadata generation. Actual
+typed RPCs and the unchanged export coordinator passed private stored-byte
+readback, independent bundle verification, same-key replay, cross-class denial,
+controlled postflight uncertainty and exact tiny-source preservation. Native
+accounting was82 HTTP exchanges,183 database actions,814 controls and11,498,419
+exchange bytes, inside unchanged bounds. Immediate independent preservation
+passed7,840 source/98,969 dependency files; canonical/global resource equality
+and positive owned cleanup were required for the successful lifecycle. All exact
+project resources and workdir are absent. Genuine metadata matches the installed
+file byte-for-byte; no prerequisite cast remains. Independent evidence acceptance
+is scoped to this tiny fixture, not real-provider compatibility, arbitrary source
+objects or the broader races listed above. Final review/CI and the remaining
+documented gates are separate requirements; no rollout or production action is
+implied.
