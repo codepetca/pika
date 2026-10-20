@@ -86,3 +86,42 @@ is scoped to this tiny fixture, not real-provider compatibility, arbitrary sourc
 objects or the broader races listed above. Final review/CI and the remaining
 documented gates are separate requirements; no rollout or production action is
 implied.
+
+## Prepared contextual cold restore
+
+The next dormant boundary adds shared admission to the existing cold-archive
+restore endpoint, without enabling that endpoint's restore canary. The existing
+enabled flag, exact actor UUID allowlist and database-budget configuration remain
+required. Absent or unmatched shared admission retains the legacy teacher route.
+Admission is not ownership: both historical account-role values must independently
+prove the current cold tombstone, immutable archive, classroom and source revision.
+The preflight runs before private downloads, actor reconciliation or reservations.
+
+The existing restore coordinator, byte/manifest/actor checks, staging, transaction
+and durable cleanup remain authoritative. Recovery creates `archived_hot`, never
+`active`; database staging headroom is not a subscription classroom quota. The
+separate existing hot-unarchive writer retains active-classroom entitlements.
+No source actor's historical role is rewritten or ignored during reconciliation.
+
+The adapter binds the supplied operation key to its actor/classroom/archive, and
+conflicting keys fail before private recovery effects. It verifies successful
+results against the current owned archived-hot revision, a completed restore
+ledger and immutable archive evidence. Completed same-key replay after tombstone
+removal uses the same current-owner checks; an old archive creator or a completed
+operation alone does not authorize recovery. These bounded reads are not a new
+serializable transaction or an authorization lock. Existing SQL rechecks the
+tombstone and lifecycle fences when it begins and completes restoration.
+
+Uncertain or malformed evidence returns the existing privacy-safe recovery503
+and preserves the same operation key for manual reconciliation. It neither
+retries automatically, deletes objects, nor asserts that the restore rolled back.
+Purge, compaction policy, retention timers and general page activation are not
+part of this change.
+
+The existing loopback-only recovery drill is being extended to fresh, sequential
+fixtures for both owner labels, contextual nonowner denial before operation
+creation, actual contextual restore and completed replay, and legacy coordinator
+replay. All existing full-row, restored-byte, immutable-archive and teardown
+assertions remain. Source/SDK tests do not establish native PostgreSQL/Storage
+acceptance; the actual guarded CI drill, independent review and final-head CI
+remain gates. No new native result is claimed by this preparation.
