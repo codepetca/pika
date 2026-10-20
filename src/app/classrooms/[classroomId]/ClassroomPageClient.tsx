@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { CalendarDays } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
+import { ClassroomTabBranding } from '@/components/BrowserTabBranding'
 import { TeacherClassroomView, TeacherAssignmentsMarkdownEditor, type AssignmentViewMode } from './TeacherClassroomView'
 import { assignmentsToMarkdown, markdownToAssignments } from '@/lib/assignment-markdown'
 import { StudentTodayTab } from './StudentTodayTab'
@@ -338,6 +339,7 @@ export function ClassroomPageClient({
 
   return (
     <>
+      <ClassroomTabBranding classroom={effectiveClassroom} />
       {classroomPage}
       {!isTeacher && isClassroomFeatureEffectivelyEnabled(featureVisibility, 'achievements', palAvailable) ? (
         <StudentPalAmbientSurfaces key={effectiveClassroom.id} scopeKey={effectiveClassroom.id} />

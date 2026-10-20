@@ -2,6 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ClassroomPageClient } from '@/app/classrooms/[classroomId]/ClassroomPageClient'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
+import { ThemeProvider } from '@/contexts/ThemeContext'
+import { BrowserTabProvider } from '@/components/BrowserTabBranding'
 import type { Assignment, Classroom, LessonPlan } from '@/types'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
 import {
@@ -514,6 +516,25 @@ function renderStudentClient(options?: {
 }
 
 describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
+  it.each(['teacher', 'student'] as const)('registers the active classroom for %s browser tabs', async (role) => {
+    const view = render(
+      <ThemeProvider>
+        <BrowserTabProvider>
+          <MarkdownPreferenceProvider>
+            <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
+              classroom={classroom}
+              user={{ id: `${role}-1`, email: `${role}@example.com`, role }}
+              teacherClassrooms={role === 'teacher' ? [classroom] : []}
+              initialTab={role === 'teacher' ? 'assignments' : 'today'}
+            />
+          </MarkdownPreferenceProvider>
+        </BrowserTabProvider>
+      </ThemeProvider>,
+    )
+    await waitFor(() => expect(document.title).toBe('Physics'))
+    view.unmount()
+  })
+
   beforeEach(() => {
     realGradesOwner.enabled = false
     retainedAnnouncementsOwner.enabled = false

@@ -241,8 +241,8 @@
       "values": [
         {
           "kind": "raw-css-color",
-          "count": 2,
-          "fingerprint": "d77dd721687196b0",
+          "count": 3,
+          "fingerprint": "4f54f9b456ba8366",
           "reason": "theme-bootstrap"
         }
       ]
@@ -328,6 +328,18 @@
           "count": 1,
           "fingerprint": "3eef1ce97dba458a",
           "reason": "special-layer"
+        }
+      ]
+    },
+    {
+      "file": "src/components/BrowserTabBranding.tsx",
+      "reviewBy": "phase-6-theme-parity",
+      "values": [
+        {
+          "kind": "raw-css-color",
+          "count": 2,
+          "fingerprint": "d77dd721687196b0",
+          "reason": "theme-bootstrap"
         }
       ]
     },
