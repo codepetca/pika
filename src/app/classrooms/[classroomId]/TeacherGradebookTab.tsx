@@ -908,7 +908,6 @@ export function TeacherGradebookTab({
       student={selectedStudent}
       columns={visibleAssessmentColumns}
       displayMode={scoreDisplayMode}
-      onClose={() => setSelectedStudentId(null)}
       onItemOpen={openAssessment}
       onItemScoreOpen={openScore}
       isReadOnly={isReadOnly || !itemsAvailable}

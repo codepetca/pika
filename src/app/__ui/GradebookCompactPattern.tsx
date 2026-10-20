@@ -39,7 +39,7 @@ const students: GradebookStudentSummary[] = ['Avery', 'Grace', 'Lucas'].map((nam
 }))
 const noop = () => {}
 
-/** Deterministic evidence using the production toolbar and table owners. */
+/** Deterministic evidence using production toolbar, table, and inspector grades-dialog owners. */
 export function GradebookCompactPattern() {
   const [compactZeroWeightAssessments, setCompactZeroWeightAssessments] = useState(true)
   const [preferences, setPreferences] = useState({ ...DEFAULT_GRADEBOOK_PREFERENCES, showWeights: true })
