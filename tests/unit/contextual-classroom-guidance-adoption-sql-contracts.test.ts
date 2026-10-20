@@ -5,6 +5,9 @@ const rollback='scripts/check-contextual-classroom-guidance-adoption.sql'
 const sql=()=>readFileSync(migration,'utf8')
 const section=(name:string)=>sql().split('create function '+name)[1]?.split('$function$;')[0]??''
 describe('contextual guidance adoption280 SQL source contracts, not PostgreSQL execution',()=>{
+ it('initializes the JSONB counts accumulator with an explicitly typed value for PostgreSQL lint',()=>{
+  expect(section('private.classroom_guidance_adoption_source_v1')).toContain("v_counts jsonb:='{}'::jsonb;")
+ })
  it('parenthesizes CASE expressions inside rollback IF conditions so inner THEN cannot terminate the condition',()=>{
   const s=readFileSync(rollback,'utf8')
   // PL/pgSQL reads IF through the first THEN outside parentheses, not CASE END.

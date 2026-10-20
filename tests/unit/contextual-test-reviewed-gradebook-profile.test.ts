@@ -137,7 +137,7 @@ describe('fixed lifecycle271/272/273/274/275/276/277/278/279/280 reviewed migrat
       ['277_contextual_classroom_owner_list_reorder.sql','957b844652288ef84b66b5960d632a1c9a874602038962be481fa045418335b3'],
       ['278_contextual_classroom_authoring_guidance_read.sql','d315df11d4359751e52dfa0f4942546bb1677328dbfa43b86f11ca5c8f9b8c36'],
       ['279_contextual_classroom_guidance_preview.sql','7542ae0d907691a0e46044790c73523dcff2782821c0a7370a86b4342a898bf3'],
-      ['280_contextual_classroom_guidance_adoption.sql','f3b1f552a3d7fd34ed56c6a3b1d0f8107a10393a522b0cf251ab2d7657faba9b'],
+      ['280_contextual_classroom_guidance_adoption.sql','5786e1b83b3caed6a369f4a497aab5b296cdcee6fc918c12a7e031fcfce29555'],
     ])
   })
   it.each([271,272,273,274,275,276,277,278,279,280].flatMap(number => ['name','digest','bytes','self-hashed-bytes'].map(defect => ({number,defect}))))(

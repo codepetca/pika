@@ -832,6 +832,15 @@ compatibility, the wider attendance/Bara principal and status contracts, and the
 historical Pal fact/token lifecycle policy. Do not merely remove global role
 checks or discard retained history. Batches4–5 remain separately dormant.
 
+PR1629 final metadata/evidence review324 completed clean. Its first ready-head
+CI run39406928092 reached the strict database lint gate and rejected the private
+280 helper's untyped empty-object initializer. The draft correction explicitly
+casts that constant to JSONB and updates only the reviewed migration digest;
+the source regression is RED→GREEN. Public signatures, runtime flow and genuine
+metadata are unchanged. Earlier isolated C5 proof remains bound to its original
+source; targeted delta review and fresh final-head replay/lint are required
+before normal main merge. No deployment, shared-local migration or activation.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

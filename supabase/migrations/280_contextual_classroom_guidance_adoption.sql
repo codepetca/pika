@@ -9,7 +9,7 @@ set lock_timeout = '1s'
 set statement_timeout = '8s'
 as $function$
 declare
- v_blueprint jsonb;v_counts jsonb:='{}';v_source jsonb;v_result jsonb;v_raw_bytes bigint;v_count bigint;v_bytes bigint;
+ v_blueprint jsonb;v_counts jsonb:='{}'::jsonb;v_source jsonb;v_result jsonb;v_raw_bytes bigint;v_count bigint;v_bytes bigint;
  v_assignments jsonb;v_assessments jsonb;v_lesson_templates jsonb;v_materials jsonb;v_surveys jsonb;
 begin
  select pg_catalog.jsonb_build_object('id',b.id,'teacher_id',b.teacher_id,'content_revision',b.content_revision,'title',b.title,'subject',b.subject,'grade_level',b.grade_level,'course_code',b.course_code,'term_template',b.term_template,'overview_markdown',b.overview_markdown,'outline_markdown',b.outline_markdown,'resources_markdown',b.resources_markdown,'authoring_guidance',b.authoring_guidance,'gradebook_use_weights',b.gradebook_use_weights,'gradebook_assignments_weight',b.gradebook_assignments_weight,'gradebook_tests_weight',b.gradebook_tests_weight,'planned_site_slug',b.planned_site_slug,'planned_site_published',b.planned_site_published,'planned_site_config',b.planned_site_config) into v_blueprint from public.course_blueprints b where b.id=p_blueprint_id;

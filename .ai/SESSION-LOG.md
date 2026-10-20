@@ -686,3 +686,14 @@ Genuine280 generated types installed byte-identically242b3c7a (only2RPC addition
 over complete279); full focused3215/127 plus TypeScript/lint/policies PASS.
 322Astra SDK-truth and323Sol carriercomposition reviews clean; final metadata/
 evidence review, draft PR and exact-head CI/main merge remain. All holds unchanged.
+
+Final review324 completed clean and PR1629 entered normal exact-head CI onb0f75836.
+Database contracts reached strict lint, which rejected the untyped empty-object
+initializer in the private280 helper (42804); the PR returned to draft before
+correction. A source regression failed then passed with explicit `'{}'::jsonb.
+Only the initializer and its reviewed migration digest change; public signatures,
+SQL flow and generated types remain identical. Earlier native C5 evidence stays
+bound to its original source, not relabeled. Targeted correction review and a
+fresh final-head CI replay/lint remain required. Production/shared-local249+ and
+all activation holds remain unchanged. Reuse workflow mapping completed read-only;
+linked reuse retains both owners and new-classroom creation limits.
