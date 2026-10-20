@@ -3,10 +3,34 @@
 Owner: Audit Pika security and privacy, `codex/coordinated-classroom-deletion`
 in Pika and Bara. Risk: runtime-platform / destructive privacy workflow.
 
+## Dormant classroom-relationship admission
+
+The prepared shared-experience path admits either account label through the
+existing selector for all three begin/status/advance methods. Absent or unmatched
+admission retains the teacher guard. New intent still requires the current
+archived-hot owner, typed confirmation and existing mappings; saved actor,
+classroom and operation bind status/continuation even after parent deletion.
+All existing database, transport and provider gates remain independent. No
+identity is provisioned and no provider contract or rollout setting is changed.
+Malformed internal operation evidence is unavailable503, not caller-input400;
+uncertain outcomes retain the same-operation reconciliation and durable fence.
+
+The installed-SDK sealed-transport checks are not provider acceptance. The
+existing SQL harness now prepares separate rollback-only matrices for both
+current owner labels, retaining ACL, pause/rescope, receipt and scope checks.
+It does not establish retained-generation cleanup: migration175's immutable
+attendance-generation mapping guard can reject migration153's participant
+mapping deletion after remote completion. Preserve that failure and inspectable
+`remote_deleted` status. A separately reviewed generation-compatible deletion
+boundary and native proof are required before claiming complete decommission
+support for retained memberships. Do not disable the guard, clear a fence or
+delete old membership history to make a fixture pass. Production/shared-local,
+live provider and activation holds are unchanged.
+
 ## Sequence
 
 1. An owning teacher explicitly confirms deletion for one archived-hot classroom.
-   The new teacher-only start endpoint commits a durable Supabase fence before
+   The existing start endpoint commits a durable Supabase fence before
    contacting Bara. Reuse the same UUID after an uncertain response.
 2. Explicit POST ticks use the signed, separately namespaced
    `/api/integrations/pika/decommission/v1` contract. Bara verifies the owner

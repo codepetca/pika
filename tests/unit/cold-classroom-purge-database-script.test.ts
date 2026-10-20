@@ -6,8 +6,19 @@ const script = readFileSync(resolve(
   process.cwd(),
   'scripts/check-cold-archived-classroom-purge-database.sh',
 ), 'utf8')
+const hotScript = readFileSync(resolve(process.cwd(), 'scripts/check-hot-archived-classroom-purge-database.sh'), 'utf8')
 
 describe('cold Classroom purge database fixture', () => {
+  it.each([['hot', hotScript], ['cold', script]])('runs the complete %s rollback matrix for both current owner labels', (_scope, source) => {
+    // This guards source wiring only; the native SQL result must come from isolated CI.
+    expect(source.includes('for fixture_owner_role in teacher student; do')).toBe(true)
+    expect(source.includes('-v fixture_owner_role="$fixture_owner_role"')).toBe(true)
+    const labelUpdate = source.indexOf("set role = :'fixture_owner_role'")
+    expect(labelUpdate).toBeGreaterThan(source.indexOf('begin;'))
+    expect(labelUpdate).toBeLessThan(source.lastIndexOf('rollback;'))
+    expect(source).toMatch(/rollback;\s*SQL\s*done/)
+  })
+
   it('refuses an unexpected database target and requires the final guard', () => {
     expect(script).toContain('com.supabase.cli.project')
     expect(script).toContain('PROJECT_LABEL" != "pika"')

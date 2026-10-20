@@ -826,6 +826,20 @@ checks pass3215 tests/127 files, TypeScript, lint and architecture/UI/design
 policies. Final metadata/evidence review, exact-head CI and normal main merge
 remain; no learner-history, batch3 exit, deployment or activation is claimed.
 
+The prepared permanent-purge workflow also carries its existing owner attendance-
+decommission begin/status/advance continuation. Shared admission selects either
+account label; current archived-hot ownership authorizes new intent, while saved
+actor/classroom/operation authorizes recovery. Existing independent gates, provider
+contract, receipt-before-local-deletion and durable fences remain. Installed-SDK
+sealed-transport/source checks are not live provider acceptance. The rollback SQL
+harness prepares both current owner labels. Retained-generation completion remains
+a concrete separate prerequisite: migration175 can block migration153's participant
+mapping deletion after remote completion. The adapter preserves that failure and
+inspectable saved state; it does not claim learner current-membership history,
+provider mixed-role compatibility or historical Pal policy is complete. No migration
+or activation is included. This continuation shares the still-draft purge PR's
+final review candidate and CI run, not a separate release slice.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
@@ -899,6 +913,32 @@ and retains row/byte/cleanup checks; authored tests are not native acceptance.
 Independent review and successful final-head CI/drill remain required. Purge,
 learner attendance history, remaining services and batch3 exit are still separate;
 all production and activation holds remain unchanged.
+
+Superseding cold-recovery receipt: PR1631 merged normally as
+`f927926a5b4299920fbe90745adf4f2426381dbd` at2026-10-20T13:14:03Z. All ten
+exact-head CI39423632897 checks including PR Gate passed on reviewed
+`01fa8f2c24dcdb48c47546a6768064a58e3e9cac`; its real full-stack archive recovery
+drill passed for both current owner labels. The reviewed and squash trees are
+identical and clean canonical main fast-forwarded. No production/shared-local
+migration, provider/account change or admission/rollout activation followed.
+
+The next prepared owner group covers the eight existing hot/cold purge methods
+as complete impact/start/status/tick workflows, not a new deletion engine.
+Shared admission selects owner-based authorization for either account label;
+legacy dispatch, current owner/representation checks, typed confirmation,
+digests and independent purge gates remain. Completed actor-bound audit/replay
+survives parent deletion, while exact class/archive/operation/scope binding
+prevents substitution. A verified begin result and one claim bound to its exact
+operation and generated lease are required before native advancement/Storage.
+Unknown outcomes fail closed without automatic retry, compensation or rollback
+claims. Existing SQL, durable leases, archive-last processing and cron remain.
+The existing rollback-only SQL matrices are extended to both current owner
+labels after fixture capture without changing historical actors or assertions.
+Source/SDK tests pass; these authored matrices are not yet native acceptance.
+Independent review, actual final-head CI matrices and normal main merge remain
+required. No migration, real deletion, provider/gate/account change, UI or rollout
+activation is authorized. Learner attendance generation integration remains
+separate and earlier records remain owner-visible under the approved policy.
 
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected

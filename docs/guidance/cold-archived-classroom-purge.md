@@ -1,5 +1,29 @@
 # Cold archived Classroom permanent deletion
 
+## Prepared contextual owner boundary
+
+The dormant shared-experience branch admits either account label but retains
+current cold-tombstone/archive ownership for impact and initiation. The existing
+selector, typed confirmation, exact revision/digests, independent rollout gate,
+managed-storage enforcement and SQL fences remain authoritative. Absent or
+unmatched admission keeps the legacy teacher route.
+
+Status, replay and advance bind actor, classroom, archive, operation and cold
+scope. Completed actor-bound audit/replay remains available after finalization
+removes the tombstone; an old operation for another actor, class, archive or scope
+cannot authorize reads or advancement. Begin acknowledgment and single-object
+claims must bind the requested operation and exact generated lease before any
+Storage mutation. Unverified or lost outcomes are privacy-safe uncertainty, not
+permission to retry automatically or delete recovery objects as compensation.
+
+The existing SQL and archive-last ordering are unchanged. Its rollback-only
+suite now repeats for both current owner labels after fixture capture without
+rewriting historical actor snapshots. All existing scope, lease, retry,
+recovery-archive-last and user/Blueprint/other-class preservation checks remain.
+Isolated-transport SDK/source checks do not establish native SQL/provider success;
+independent review and final-head CI are still gates. No real deletion, new
+migration, rollout setting, cron, provider/account change or activation follows.
+
 ## Deletion and preservation contract
 
 This scope permanently removes one teacher-owned `archived_cold` Classroom. It

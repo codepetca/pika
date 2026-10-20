@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — Survey UUID compatibility correction
-
-Independent current-base security review184 completed with no findings;
-compatibility review185 found accepted uppercase UUIDs were compared against
-canonical database IDs as raw strings. Reproduced ten failures, then normalized
-validated actor/parent/child identifiers before RPC arguments and comparisons,
-including the question route's child lookup. Kept output validation, ownership,
-owner-precedence and foreign-parent checks strict.102 focused tests/11 suites,
-lint/audit/diff PASS; genuine001–269 metadata is still required for the same five
-TypeScript diagnostics. Source correction only: no DB/production/activation.
-The user lifted the disposable-local Survey verification hold only. A closed
-current-schema compatibility/types prerequisite runner is being prepared under
-the unchanged bounds; full remaining-proof acceptance is not implied.
-- The owner approved only the disposable269 SDK proof allowance20→60 seconds. Its inert shared SDK companion now has a closed component entrypoint with the same14 calls and the original absolute deadline; the legacy entrypoint remains20 seconds. Carrier regressions cover actual controller expiry, early root deadline and unchanged cleanup. No application, SQL, generated-type or production change; a newly pinned reviewed one-shot prerequisite remains required.
-- Targeted review191 found the controller's own timeout could lose its causal label. The shared proof leaf now emits a fixed component-only deadline type; malformed inputs and unrelated errors stay distinct. Carrier regression checks cover pre/post-guard, own-timer and terminal expiry without dispatch or join changes. The fresh attempt is still unspent; all production and rollout holds remain.
-- After clean review192 and4303 carrier checks, the single fresh269 prerequisite PASSED: cumulative001–269 replay, rollback/effect equality, all14 real SDK calls and genuine CLI types. Exact cleanup, canonical/global resources and immediate source/dependency preservation passed. Generated metadata is mechanically copied from the verified artifact (SHAf5657479); the only delta is12 Survey RPC contracts/60lines. Full remaining concurrency/cancellation/payload proof and existing-screen role workflow remain incomplete; no production/cutover or whole-goal acceptance is implied. Private v3 receipts and outcome are retained by coordinator.
-
-## 2026-10-17 — Complete Survey payload matrix source preparation
-
-Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch, retaining real RPCs, literal-bounded fixtures, complete scoped row/revision restoration and compact versioned receipts.15 CPU/syntax checks pass; native acceptance and timing remain unproved. Product runtime/migration/generated types unchanged. Owner approved remaining-only6000controls/60sSDK; other caps and production/shared-local/cutover holds remain. Draft1614 stays draft; no spent proof replay.
-
 ## 2026-10-18 — Preserve Survey coverage while diagnosing rollback timing
 
 The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
@@ -700,3 +679,58 @@ row/byte/teardown assertions; authored SDK/source checks are not native evidence
 Independent review, final-head CI and that real drill remain gates. Current-
 membership-only learner attendance remains separate; owners retain old records.
 All production, account/provider/billing and cutover holds remain unchanged.
+
+## 2026-10-20 — Dormant contextual purge workflows
+
+Prepared the eight existing hot/cold impact/start/status/tick methods behind the
+existing admission selector. Actual ownership and durable actor/class/archive/
+operation/scope bindings authorize shared callers of either label; legacy
+guards, confirmations/digests, independent gates and SQL state machines remain.
+Completed audit/replay survives parent removal. Malformed/lost results fail
+closed without automatic retries, compensation or rollback claims. Root found
+and fixed exact generated-lease binding before any Storage request: two wrong-
+lease regressions failed before the fix; root independently passed156 tests/6
+suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
+pass. The existing rollback matrices are extended to both current owner labels
+after fixture capture, retaining historical actors and all prior assertions;
+not yet native evidence. Source-only rebase onto1630's actual main merge had no
+conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
+Final focused checks, independent review, real CI matrices and main merge remain.
+No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
+activation change. Production/shared-local249+ and cutover holds remain.
+
+Full security334 review was clean; compatibility335 found the generic409 mapping
+hid the existing fixed attendance-decommission prerequisite signal. Two real-
+PostgREST-envelope regressions failed, then passed after preserving only the
+recognized typed public constant; arbitrary errors remain sanitized. All158
+targeted tests/6 suites pass. Source correction, targeted re-review and final CI
+remain distinct from any provider change or native acceptance.
+
+## 2026-10-20 — Consolidated owner attendance-decommission preparation
+
+Folded all three existing begin/status/advance methods into the still-draft purge
+workflow, using shared admission with legacy teacher behavior retained. Reused
+unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
+verifier maps malformed stored evidence to503, preserves safe service errors and
+validates public result identity/state. Sol6.1/high delivered53 affected tests/3
+suites, TypeScript and scoped lint PASS; root reviewed all source and added a
+rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
+operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
+focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
+commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
+64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
+No native SQL or provider call was made. Retained-generation175 can block153's
+participant mapping deletion after remote completion; preserve the guard/fence
+and inspectable state. Documented as a separate activation prerequisite, not
+claimed complete by mock transport/basic synthetic fixtures. Combined checks,
+proportional independent review, latest-main integration and CI remain. No SQL
+migration, dependency, UI, gate, provider identity, real deletion or activation
+change. All production/shared-local249+ and provider/account/billing/AI holds
+remain. Source writer stopped; attributable active time/tokens unknown.
+
+Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
+all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
+passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
+Consolidated purge source rebased onto that actual main; only roadmap/history
+overlaps required union, retaining main receipts and one copy of the identical
+already-archived entry. No migration resequencing, stash use or hold change.

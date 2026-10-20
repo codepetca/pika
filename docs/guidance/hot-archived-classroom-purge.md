@@ -1,5 +1,36 @@
 # Hot archived classroom permanent deletion
 
+## Prepared contextual owner boundary
+
+The dormant shared-experience branch authorizes an actual classroom owner of
+either historical account label. Absent/unmatched admission retains the legacy
+teacher guard. Admission does not enable managed ownership, purge rollout or a
+canary, and membership or a subscription is not deletion authority.
+
+Impact and initiation retain current hot-archived ownership and the existing
+confirmation, revision and inventory checks. Status and tick bind the durable
+operation to actor, classroom and hot scope. A completed actor-bound audit remains
+readable after deletion removes its classroom; it is not a reason to require a
+now-missing parent or to grant access to another operation.
+
+The adapter validates returned identities and privacy-safe statuses, preserving
+the fixed attendance-decommission prerequisite signal used by the existing dialog.
+Arbitrary native errors remain sanitized. The existing
+coordinator verifies its begin acknowledgment before ticking, and binds a single
+claimed object to the requested operation and generated lease token before any
+Storage request. Missing, malformed or lost evidence fails closed; uncertainty
+does not automatically retry, clean up objects or prove rollback. Existing SQL
+remains the authorization, fencing and deletion authority; no new serialization
+guarantee or state-machine rewrite is introduced.
+
+Installed-SDK isolated-transport checks are not native deletion evidence. The
+existing rollback SQL matrix now runs for both current owner labels after fixture
+capture, preserving historical actors and every ownership, lease, retry,
+reappearance and preservation assertion. The contention check remains unchanged.
+Final exact-head CI must pass those real SQL suites before dormant main merge.
+This changes no UI, cron, migration, provider state, rollout setting or production
+data. Cold deletion remains an independently scoped state machine.
+
 ## Contract
 
 Permanent deletion is available only to the owning teacher for a hot archived
