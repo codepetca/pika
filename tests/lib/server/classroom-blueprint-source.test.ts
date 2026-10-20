@@ -39,6 +39,7 @@ function seedSourceSupabase(overrides?: {
   assessmentDraftError?: any
   classroom?: Record<string, any>
   finalSourceRevision?: number
+  finalClassroom?: Record<string, any>
   assignments?: Array<Record<string, any>>
   assignmentRequirements?: Array<Record<string, any>>
   tests?: Array<Record<string, any>>
@@ -74,8 +75,10 @@ function seedSourceSupabase(overrides?: {
       makeQueryBuilder({ data: classroom, error: null }),
       makeQueryBuilder({
         data: {
+          ...classroom,
           blueprint_source_revision:
             overrides?.finalSourceRevision ?? classroom.blueprint_source_revision,
+          ...overrides?.finalClassroom,
         },
         error: null,
       }),
@@ -144,6 +147,43 @@ describe('classroom blueprint source loader', () => {
       ok: true,
       classroom: { id: 'c-1', teacher_id: 'teacher-1', archived_at: null },
     })
+  })
+
+  it.each([
+    { teacher_id: 'other' }, { archived_at: null },
+    { source_blueprint_id: 'other' }, { source_blueprint_version_id: 'other' },
+  ])('fences admitted archived reuse when current source changes %j', async (finalClassroom) => {
+    seedSourceSupabase({ classroom: { archived_at: '2026-10-01', source_blueprint_id: 'b-1', source_blueprint_version_id: 'v-1' }, finalClassroom })
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1', { archivedReuse: { blueprintId: 'b-1' } })).resolves.toMatchObject({ ok: false, status: 409 })
+  })
+
+  it('rejects an admitted initial classroom owner change before loading children', async () => {
+    seedSourceSupabase({ classroom: { teacher_id: 'other', archived_at: '2026-10-01' } })
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1', { archivedReuse: {} })).resolves.toMatchObject({ ok: false, status: 403 })
+    expect(mockSupabase.from).toHaveBeenCalledTimes(1)
+  })
+
+  it('permits a legacy-teacher active source only with the internal allowance', async () => {
+    seedSourceSupabase({ classroom: { archived_at: null, source_blueprint_id: 'b-1', source_blueprint_version_id: 'v-1' } })
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1', { archivedReuse: { blueprintId: 'b-1', allowActiveLegacy: true } })).resolves.toMatchObject({ ok: true })
+    seedSourceSupabase({ classroom: { archived_at: null, source_blueprint_id: 'b-1', source_blueprint_version_id: 'v-1' } })
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1', { archivedReuse: { blueprintId: 'b-1' } })).resolves.toMatchObject({ ok: false, status: 409 })
+  })
+
+  it.each([
+    { teacher_id: 'other' }, { archived_at: '2026-10-01' },
+    { source_blueprint_id: 'other' }, { source_blueprint_version_id: 'other' }, { blueprint_source_revision: 2 },
+  ])('retains final source checks for the legacy active allowance %j', async (finalClassroom) => {
+    seedSourceSupabase({ classroom: { archived_at: null, source_blueprint_id: 'b-1', source_blueprint_version_id: 'v-1' }, finalClassroom })
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1', { archivedReuse: { blueprintId: 'b-1', allowActiveLegacy: true } })).resolves.toMatchObject({ ok: false, status: 409 })
+  })
+
+  it.each([
+    { teacher_id: 'other' }, { archived_at: null }, { archived_at: '2026-10-02' },
+    { source_blueprint_id: 'other' }, { source_blueprint_version_id: 'other' }, { blueprint_source_revision: 2 },
+  ])('retains archived-source final checks even with the teacher allowance %j', async (finalClassroom) => {
+    seedSourceSupabase({ classroom: { archived_at: '2026-10-01', source_blueprint_id: 'b-1', source_blueprint_version_id: 'v-1' }, finalClassroom })
+    await expect(loadClassroomBlueprintSource('teacher-1', 'c-1', { archivedReuse: { blueprintId: 'b-1', allowActiveLegacy: true } })).resolves.toMatchObject({ ok: false, status: 409 })
   })
 
   it('returns a 500 when nested test question loading fails', async () => {

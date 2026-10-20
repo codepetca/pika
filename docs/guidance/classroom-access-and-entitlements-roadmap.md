@@ -849,6 +849,31 @@ all poisoned/session/restoration assertions. Runtime proof, application and
 SQL are unchanged. All20 leaf tests pass; targeted review and fresh exact-head
 CI remain gates. Cancelled lanes are not passing evidence.
 
+Next bounded source preparation covers the complete archived Use again backend:
+prepare, owned Blueprint list/detail, merge comparison/selected review, stored
+proposal list/apply and new-classroom instantiation. Existing transactions already
+authorize actual owners without account-label checks, so no writer mirror, new
+migration or flag is introduced. Absent/unmatched admission retains the teacher
+guard; admitted owners of either label can use the archived workflow. Linked
+reuse retains both owners. Newly admitted student-labelled actors cannot use
+package/AI/repository proposals, inverse classroom applies or active-source merge
+review. Existing teachers retain those legacy capabilities behind explicit teacher
+guards, including the final active-source proposal apply.
+
+The source seam rechecks owner, archive identity, Blueprint link, Version and
+revision; Blueprint ownership/revision is rechecked after source loading. Stored
+proposal source identity is server-derived and bound to current ownership/lineage.
+Existing automatic whole-provenance promotion and selected-area manual review
+remain distinct; instantiation keeps entitlement locking, stable portable IDs,
+unpublished assessments, runtime-data exclusion and managed-copy settlement.
+These are bounded reads, not a serializable complete-graph or parent-move/truncation
+fix; manual archive authorization remains a server preflight, not a new atomic
+archive predicate. Root independently passed237 CPU checks/15 suites and audit;
+type/lint/architecture checks pass. Independent review, final-base integration,
+required CI and later consolidated workflow evidence remain. General Blueprint
+authoring and the teacher-page entry boundary remain separate; no batch3 exit,
+production/shared-local migration or activation is claimed.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

@@ -253,6 +253,7 @@ async function applyClassroomChanges(args: {
   blueprintRevision: number
   classroomRevision: number
   areas: ReusableArea[]
+  contextual?: boolean
 }): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
   const proposalResult = await applyBlueprintMergeSuggestions(
     args.teacherId,
@@ -263,6 +264,7 @@ async function applyClassroomChanges(args: {
       expectedBlueprintRevision: args.blueprintRevision,
       expectedClassroomRevision: args.classroomRevision,
     },
+    ...(args.contextual ? [{ archivedReuse: true }] : []),
   )
   if (!proposalResult.ok) return proposalResult
   if (
@@ -309,6 +311,7 @@ export async function prepareArchivedClassroomReuse(args: {
   teacherId: string
   classroomId: string
   operationId: string
+  contextual?: boolean
 }): Promise<ArchivedClassroomReuseResult> {
   const access = await assertTeacherOwnsClassroom(args.teacherId, args.classroomId)
   if (!access.ok) return access
@@ -323,7 +326,7 @@ export async function prepareArchivedClassroomReuse(args: {
   const sourceResult = await loadClassroomBlueprintSource(
     args.teacherId,
     args.classroomId,
-    { lessonTemplateTitleMode: 'generic' },
+    { lessonTemplateTitleMode: 'generic', ...(args.contextual ? { archivedReuse: {} } : {}) },
   )
   if (!sourceResult.ok) return sourceResult
   const source = sourceResult.source
@@ -372,6 +375,7 @@ export async function prepareArchivedClassroomReuse(args: {
       args.teacherId,
       blueprint.id,
       args.classroomId,
+      ...(args.contextual ? [{ archivedReuse: true }] : []),
     )
     if (!suggestions.ok) return suggestions
 
@@ -396,6 +400,7 @@ export async function prepareArchivedClassroomReuse(args: {
       blueprintRevision: blueprint.content_revision,
       classroomRevision: source.classroom.blueprint_source_revision,
       areas,
+      contextual: args.contextual,
     })
     return applied.ok ? ready() : applied.status === 409 ? review() : applied
   }
@@ -461,6 +466,7 @@ export async function prepareArchivedClassroomReuse(args: {
     blueprintRevision: blueprint.content_revision,
     classroomRevision: source.classroom.blueprint_source_revision,
     areas,
+    contextual: args.contextual,
   })
   return applied.ok ? ready() : applied.status === 409 ? review() : applied
 }

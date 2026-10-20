@@ -497,10 +497,20 @@ export async function getPublishedActualCourseSite(
   return buildActualCourseSite(classroomRow as Record<string, any>)
 }
 
+async function recheckArchivedReuseBlueprint(teacherId: string, blueprintId: string, revision: number) {
+  const { data, error } = await getSupabase().from('course_blueprints')
+    .select('id,teacher_id,content_revision').eq('id', blueprintId).eq('teacher_id', teacherId).single()
+  if (error || !data || data.id !== blueprintId || data.teacher_id !== teacherId || data.content_revision !== revision) {
+    return { ok: false as const, status: 409, error: 'Blueprint changed while preparing classroom reuse; review and retry' }
+  }
+  return null
+}
+
 export async function getBlueprintMergeSuggestionSet(
   teacherId: string,
   blueprintId: string,
-  classroomId: string
+  classroomId: string,
+  options: { archivedReuse?: boolean; allowActiveLegacy?: boolean } = {},
 ): Promise<{ ok: true; suggestionSet: BlueprintMergeSuggestionSet } | { ok: false; status: number; error: string }> {
   const blueprintResult = await getCourseBlueprintDetail(teacherId, blueprintId)
   if (!blueprintResult.detail) {
@@ -509,8 +519,14 @@ export async function getBlueprintMergeSuggestionSet(
 
   const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
     lessonTemplateTitleMode: 'generic',
+    ...(options.archivedReuse ? { archivedReuse: { blueprintId, ...(options.allowActiveLegacy ? { allowActiveLegacy: true } : {}) } } : {}),
   })
   if (!sourceResult.ok) return sourceResult
+
+  if (options.archivedReuse) {
+    const changed = await recheckArchivedReuseBlueprint(teacherId, blueprintId, blueprintResult.detail.content_revision)
+    if (changed) return changed
+  }
 
   if (sourceResult.source.classroom.source_blueprint_id !== blueprintId) {
     return { ok: false, status: 400, error: 'This classroom was not created from the selected blueprint' }
@@ -744,7 +760,8 @@ export async function applyBlueprintMergeSuggestions(
   expected: {
     expectedBlueprintRevision: number
     expectedClassroomRevision: number
-  }
+  },
+  options: { archivedReuse?: boolean; allowActiveLegacy?: boolean } = {},
 ): Promise<
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
@@ -774,8 +791,14 @@ export async function applyBlueprintMergeSuggestions(
 
   const sourceResult = await loadClassroomBlueprintSource(teacherId, classroomId, {
     lessonTemplateTitleMode: 'generic',
+    ...(options.archivedReuse ? { archivedReuse: { blueprintId, ...(options.allowActiveLegacy ? { allowActiveLegacy: true } : {}) } } : {}),
   })
   if (!sourceResult.ok) return sourceResult
+
+  if (options.archivedReuse) {
+    const changed = await recheckArchivedReuseBlueprint(teacherId, blueprintId, expected.expectedBlueprintRevision)
+    if (changed) return changed
+  }
 
   if (sourceResult.source.classroom.source_blueprint_id !== blueprintId) {
     return { ok: false, status: 400, error: 'This classroom was not created from the selected blueprint' }
