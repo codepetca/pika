@@ -874,6 +874,32 @@ required CI and later consolidated workflow evidence remain. General Blueprint
 authoring and the teacher-page entry boundary remain separate; no batch3 exit,
 production/shared-local migration or activation is claimed.
 
+Superseding2026-10-20 receipt: PR1629 merged normally as
+`ccc7c43104b2710c7380be62aee097b7b047adb1`. All ten checks including PR Gate
+passed on reviewed `8becbe22463bc8ed50d5b0ecdccb7a7e9de4ec19` in39410319150;
+strict warning-level database lint and fresh280 replay passed. The merge tree
+equals the reviewed tree and clean canonical main fast-forwarded. The prior C5
+native proof retains its original source binding; later corrections do not create
+a new native proof. No deployment, shared-local migration or activation followed.
+
+PR1630 subsequently merged as `df5525a9c39b07859c9f4ee05d0dc0a3543bf7c9` after
+all ten39419280434 checks, including PR Gate, passed on reviewed
+`3dda233a82c95a1648819d50c5be8e87443f2011`. The reviewed and merge trees match;
+clean canonical main fast-forwarded. Dormant source acceptance is not general
+Blueprint authoring, a batch3 exit, production deployment or cutover activation.
+
+The next bounded cold-restore adapter is prepared under the existing
+[archive recovery contract](contextual-classroom-archive-recovery.md#prepared-contextual-cold-restore).
+It reuses the existing transaction and operational gates, requires current
+cold ownership before private effects, and binds completion/replay to the current
+owned archived-hot parent, immutable archive and completed restore ledger.
+Cold recovery never reopens a classroom or bypasses hot-unarchive entitlements.
+The existing isolated full-stack recovery drill now covers both owner labels
+and retains row/byte/cleanup checks; authored tests are not native acceptance.
+Independent review and successful final-head CI/drill remain required. Purge,
+learner attendance history, remaining services and batch3 exit are still separate;
+all production and activation holds remain unchanged.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

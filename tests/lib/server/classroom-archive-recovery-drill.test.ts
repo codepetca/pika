@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import {
   assertLocalClassroomArchiveRecoveryDrillTarget,
   CLASSROOM_ARCHIVE_RECOVERY_DRILL_ACK,
@@ -15,6 +17,20 @@ function jwt(payload: Record<string, unknown>): string {
 const localServiceRoleKey = jwt({ iss: 'supabase-demo', role: 'service_role' })
 
 describe('classroom archive recovery drill target guard', () => {
+  it('keeps both owner labels, contextual recovery and legacy replay in the native drill', () => {
+    // Source coverage only; actual PostgreSQL/Storage evidence comes from the guarded CI drill.
+    const source = readFileSync(resolve(process.cwd(), 'scripts/run-classroom-archive-recovery-drill.ts'), 'utf8')
+    expect(source).toContain("await runRecoveryDrill('teacher')")
+    expect(source).toContain("await runRecoveryDrill('student')")
+    expect(source).toContain('role: args.ownerRole')
+    expect(source).toContain('const denied = await restoreContextualClassroomArchive(')
+    expect(source).toContain('const restored = await restoreContextualClassroomArchive(')
+    expect(source).toContain('const restoreReplay = await restoreContextualClassroomArchive(')
+    expect(source).toContain('const legacyRestoreReplay = await restoreClassroomArchive(')
+    expect(source).toContain('await removeFixture(')
+    expect(source).toContain('await assertRowAbsent(supabase, \'classroom_archive_operations\', \'id\', ids.restoreOperation)')
+  })
+
   it.each([
     'http://127.0.0.1:54321',
     'http://localhost:54321/',

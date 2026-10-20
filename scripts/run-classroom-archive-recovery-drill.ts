@@ -10,6 +10,7 @@ import {
 import { compactClassroomArchive } from '@/lib/server/classroom-archive-compaction'
 import { exportClassroomArchive } from '@/lib/server/classroom-archive-operations'
 import { restoreClassroomArchive } from '@/lib/server/classroom-archive-restore-operations'
+import { restoreContextualClassroomArchive } from '@/lib/server/contextual-classroom-cold-restore'
 import { classroomArchiveRestoreObjectPath } from '@/lib/server/classroom-archive-restore'
 import { runClassroomArchiveObjectCleanup } from '@/lib/server/classroom-archive-object-cleanup'
 import { runClassroomArchiveSourceCleanup } from '@/lib/server/classroom-archive-source-cleanup'
@@ -183,6 +184,7 @@ async function assertRowAbsent(
 async function createFixture(args: {
   supabase: SupabaseClient
   ids: FixtureIds
+  ownerRole: 'teacher' | 'student'
   sourceObjectPath: string
   sourceObjectBytes: Uint8Array
 }) {
@@ -190,7 +192,7 @@ async function createFixture(args: {
   await insertFixtureRow(args.supabase, 'users', {
     id: args.ids.teacher,
     email: `archive-recovery-teacher-${runLabel}@example.test`,
-    role: 'teacher',
+    role: args.ownerRole,
   })
   await insertFixtureRow(args.supabase, 'users', {
     id: args.ids.student,
@@ -460,7 +462,7 @@ async function removeFixture(args: {
   }
 }
 
-async function runRecoveryDrill() {
+async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
   const target = assertLocalClassroomArchiveRecoveryDrillTarget({
     acknowledgement: process.env.CLASSROOM_ARCHIVE_RECOVERY_DRILL_ACK,
     serviceRoleKey: process.env.SUPABASE_SECRET_KEY,
@@ -483,7 +485,7 @@ async function runRecoveryDrill() {
   let completed = false
 
   try {
-    await createFixture({ supabase, ids, sourceObjectPath, sourceObjectBytes })
+    await createFixture({ supabase, ids, ownerRole, sourceObjectPath, sourceObjectBytes })
     const expectedRows = await loadFixtureSnapshot(supabase, ids)
 
     const exported = await exportClassroomArchive({
@@ -549,7 +551,22 @@ async function runRecoveryDrill() {
       sourceObjectPath,
     )
 
-    const restored = await restoreClassroomArchive({
+    const denied = await restoreContextualClassroomArchive({
+      supabase,
+      operationId: ids.restoreOperation,
+      archiveId: ids.exportOperation,
+      teacherId: ids.student,
+      classroomId: ids.classrooms,
+      databaseBudgetBytes: 2_147_483_648,
+      supabaseUrl: target.supabaseUrl,
+    })
+    if (denied.ok || denied.status !== 404) {
+      throw new Error('Nonowner was not denied cold recovery')
+    }
+    await assertRowAbsent(supabase, 'classrooms', 'id', ids.classrooms)
+    await assertRowAbsent(supabase, 'classroom_archive_operations', 'id', ids.restoreOperation)
+
+    const restored = await restoreContextualClassroomArchive({
       supabase,
       operationId: ids.restoreOperation,
       archiveId: ids.exportOperation,
@@ -621,7 +638,16 @@ async function runRecoveryDrill() {
       archiveId: ids.exportOperation,
       supabaseUrl: target.supabaseUrl,
     })
-    const restoreReplay = await restoreClassroomArchive({
+    const restoreReplay = await restoreContextualClassroomArchive({
+      supabase,
+      operationId: ids.restoreOperation,
+      archiveId: ids.exportOperation,
+      teacherId: ids.teacher,
+      classroomId: ids.classrooms,
+      databaseBudgetBytes: 2_147_483_648,
+      supabaseUrl: target.supabaseUrl,
+    })
+    const legacyRestoreReplay = await restoreClassroomArchive({
       supabase,
       operationId: ids.restoreOperation,
       archiveId: ids.exportOperation,
@@ -646,6 +672,9 @@ async function runRecoveryDrill() {
     if (!restoreReplay.ok || !restoreReplay.replayed) {
       throw new Error('Archive restore replay was not idempotent')
     }
+    if (!legacyRestoreReplay.ok || !legacyRestoreReplay.replayed) {
+      throw new Error('Legacy archive restore replay was not idempotent')
+    }
     if (!cleanupReplay.ok || cleanupReplay.claimed !== 0) {
       throw new Error('Archive cleanup replay claimed completed work')
     }
@@ -656,6 +685,7 @@ async function runRecoveryDrill() {
       version: 1,
       status: 'passed',
       target: 'loopback-supabase',
+      owner_role: ownerRole,
       fixture_classroom_id: ids.classrooms,
       resource_table_count: Object.keys(exported.resource_counts).length,
       representative_rows_verified: fixtureTables.length + 1,
@@ -664,7 +694,8 @@ async function runRecoveryDrill() {
       deidentified_source_fence_retained: true,
       immutable_archive_retained: true,
       cold_tombstone_removed: true,
-      idempotent_replays_verified: 4,
+      contextual_nonowner_denial_verified: true,
+      idempotent_replays_verified: 5,
     }))
   } finally {
     try {
@@ -683,7 +714,13 @@ async function runRecoveryDrill() {
   }
 }
 
-runRecoveryDrill().catch((error) => {
+async function runRecoveryDrills() {
+  // Each complete round trip gets fresh identities and completes teardown before the next.
+  await runRecoveryDrill('teacher')
+  await runRecoveryDrill('student')
+}
+
+runRecoveryDrills().catch((error) => {
   console.error(error instanceof Error ? error.message : 'Classroom archive recovery drill failed')
   process.exitCode = 1
 })

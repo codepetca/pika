@@ -9,6 +9,8 @@ import {
   restoreClassroomArchive,
 } from '@/lib/server/classroom-archive-restore-operations'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeSharedClassroomArchiveActor } from '@/lib/server/contextual-classroom-archive-recovery'
+import { restoreContextualClassroomArchive } from '@/lib/server/contextual-classroom-cold-restore'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -29,7 +31,8 @@ async function parseRequest(request: NextRequest) {
 }
 
 export const POST = withErrorHandler('RestoreClassroomArchive', async (request, context) => {
-  const user = await requireRole('teacher')
+  const admission = await authorizeSharedClassroomArchiveActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
   const { id, archiveId } = await context.params
   const classroomId = uuidSchema.parse(id)
   const parsedArchiveId = uuidSchema.parse(archiveId)
@@ -63,7 +66,8 @@ export const POST = withErrorHandler('RestoreClassroomArchive', async (request, 
     }, { status: 503 })
   }
 
-  const result = await restoreClassroomArchive({
+  const restore = admission.mode === 'shared' ? restoreContextualClassroomArchive : restoreClassroomArchive
+  const result = await restore({
     supabase: getServiceRoleClient(),
     operationId,
     archiveId: parsedArchiveId,

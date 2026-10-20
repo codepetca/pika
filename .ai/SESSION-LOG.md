@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
-
-PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
-passed. Consolidated manual Test lifecycle/permissions proof passed40exchanges and
-eight inspected captures, retained-work/canonical equality, exact cleanup and
-immediate independent source/dependency preservation. No production changes.
-
-Current-main Survey extraction carries the nine existing-route branches, current
-server/validation/SQL privacy fixes and focused tests, resequencing only filename
-263→269. Root verified17 donor files byte-identical, including SQL1db152f8…;
-package/CI/current generated types and legacy branches remain.119focused tests,
-lint/architecture/diff checks pass. Five TypeScript diagnostics are unresolved
-because the twelve new RPCs are not in the retained genuine generated artifact;
-no hand-written metadata/casts/stubs were added. This is source preparation, not
-ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
-independent cumulative review and final CI remain. All existing serious holds
-unchanged; private extraction map and proof receipts retained by coordinator.
-
 ## 2026-10-17 — Survey UUID compatibility correction
 
 Independent current-base security review184 completed with no findings;
@@ -701,3 +683,20 @@ archive guarantee is claimed. Sol6.1/high source mapping and bounded implementat
 delivered; attributable usage/time unknown. Final checks, independent review,
 parent-main integration and CI remain. All production/shared-local249+,
 provider/account/plan/billing/AI and activation holds remain unchanged.
+
+## 2026-10-20 — Dormant contextual cold recovery
+
+PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
+including strict warning lint, replay and PRGate passed. Canonical main synced;
+no production or shared-local migration/activation. Reuse PR1630 is separately
+reviewed and in CI. Prepared the existing cold-restore route's shared-admission
+dispatch with current-owner preflight, strict operation/archive/ledger binding,
+final archived-hot revision confirmation and completed same-key replay. Existing
+coordinator, immutable bytes, actor reconciliation, canary/budget gates and
+cleanup remain; uncertain outcomes503 without automatic retry/deletion.
+Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
+The existing guarded isolated recovery drill covers both owner labels with actual
+row/byte/teardown assertions; authored SDK/source checks are not native evidence.
+Independent review, final-head CI and that real drill remain gates. Current-
+membership-only learner attendance remains separate; owners retain old records.
+All production, account/provider/billing and cutover holds remain unchanged.
