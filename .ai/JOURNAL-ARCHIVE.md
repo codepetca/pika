@@ -47916,3 +47916,26 @@ two failing deferred500/409 regressions; move mutation-error/retry reset to the
 resource-scope transition, preserving explicit edit/save recovery. Remediation98
 adds no API, permission, styling or database change; targeted re-review and final
 checks/fixture captures follow on the new SHA. Original proof remains historical.
+
+<!-- pika-session-log-archive-batch:d2149e64b6c8347ac89b48c7f41c5a81a7006efc13842d75cfb43ba46f54e929 -->
+## 2026-10-17 — Contextual hot classroom lifecycle foundation
+
+The consolidated Test proof reached an unimplemented dependency: admitted
+classroom PATCH deliberately rejected archive/restore through its metadata-only
+contract. Stopped full browser attempts; preserved failed receipts and verified
+cleanup. Coordinator owns codex/contextual-hot-archive from current main eb4fa32b2.
+Add strict lifecycle dispatch, service-only migration268 and restore entitlement
+checks without widening metadata, changing legacy behavior or activating admission.
+No UI component, plan, retention or Storage change. Risk: consequential classroom
+authorization/lifecycle boundary; risk profile none (no workspace/AI/exam/runtime
+platform behavior). Native verification and generated types remain prerequisites.
+
+Astra/high bounded architect plan accepted after source verification. Sol6.1/high
+workers own SQL/rollback tests and the existing disposable harness's closed268
+profile; coordinator owns API/service/tests/CI/docs/integration. Offline API and SQL
+contract checks pass; actual database/concurrency acceptance is not yet established.
+Independent security and compatibility review required on stable cumulative source.
+Standing routine-approval/review-budget waiver retained, prior172 review turns and
+110 correction batches not reset. All production/shared-local/provider/account/
+admission/home/cutover holds unchanged; no migration applied. Existing harness,
+source/dependency preservation and one-shot exact-target disposal gates retained.

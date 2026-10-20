@@ -159,6 +159,7 @@ const databaseProofInventories = {
     [57, '0a8b62544755aa4dd9054fcde3adfeaf7cfcb0907f14eb35620d0a8b3f0aa7fc'],
     [58, '37efaac2973b745db90ea9d5372950f8bb3f38a26e04f5ead7e503dabb9bed6a'],
     [59, '512a95b3d8cacefb2bb3393b9c133d449c9f5876ece6fba8be93873515bfbb19'],
+    [60, '74065e76b06b13856adf72c0b9af011d9c3a3ecfdada991c4b91a8535f64e368'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -261,6 +262,15 @@ function validateDatabaseInventory(jobs) {
     || guidance[0].step.name !== guidanceName || guidance[0].step.run !== `bash ${guidanceScript}`
     || guidance[0].step.if || !databaseProofs(primary).includes(guidance[0].step))) {
     throw new Error('Canonical classroom authoring guidance database proof is missing, duplicated or changed.')
+  }
+  const previewName = 'Verify contextual dual-owner classroom guidance preview and privileges'
+  const previewScript = 'scripts/check-contextual-classroom-guidance-preview-database.sh'
+  const previews = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === previewName || step.run?.includes(previewScript)).map(step => ({ job, step })))
+  if (previews.length && (previews.length !== 1 || previews[0].job !== primary
+    || previews[0].step.name !== previewName || previews[0].step.run !== `bash ${previewScript}`
+    || previews[0].step.if || !databaseProofs(primary).includes(previews[0].step))) {
+    throw new Error('Canonical classroom guidance preview database proof is missing, duplicated or changed.')
   }
 }
 

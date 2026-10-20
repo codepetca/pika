@@ -723,6 +723,23 @@ required two-UUID Json RPC; removing it reconstructs the entire277 artifact.
 Current-main integration, final checks/review and stable-head CI remain gates.
 No shared-local249+ or production application, activation or phase exit is claimed.
 
+The next prepared read is GET classroom `authoring-guidance/update`: a live-Draft
+preview requires BOTH the current active-classroom owner and the current linked
+Blueprint owner. Prepared279 resolves both identities, frozen structural/adopted
+Version lineage and current live guidance/revision in one service-only invoker
+snapshot. It does not save or adopt a Version; POST remains unchanged and separate.
+Either account label may be admitted; unmatched admission preserves legacy GET.
+Strict private wire decoding returns only the existing normalized preview DTO;
+`changed` compares normalized guidance, not Draft revision or raw JSON. Lifecycle,
+purge, malformed lineage and private aggregate/wire8MiB bounds fail closed without
+new data privileges, locks, truncation, plan quotas or UI notices. Source contracts,
+canonical CI and a finite12-HTTP/18-SQL/60-guard fixture are prepared, including
+dual-owner denials, archived/unlinked behavior, adopted/fallback guidance and
+full63-table fixture/complement preservation. These are CPU/source checks only;
+independent review, one isolated279 proof, genuine generated metadata and exact-head
+CI/normal main merge remain required. Shared-local249+, production, activation and
+all provider/account/billing holds remain unchanged; no phase exit is implied.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
