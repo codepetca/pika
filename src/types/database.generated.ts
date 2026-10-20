@@ -12574,6 +12574,10 @@ export type Database = {
         }
         Returns: Json
       }
+      read_attendance_report_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
       read_attendance_session_for_owner_v1: {
         Args: {
           p_actor_id: string

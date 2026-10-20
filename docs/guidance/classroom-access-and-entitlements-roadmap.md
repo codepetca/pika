@@ -618,8 +618,12 @@ cleanup bookkeeping finding, corrected before this first runtime attempt.
 Genuine275 metadata adds only the new RPC over274; identical-source rebase onto
 the policy-write squash retains the exact exercised product tree. Final focused
 checks pass2610tests/97files plus TypeScript/lint and repository policies.
-Independent metadata/evidence review and exact-head CI remain merge gates.
-Shared-local and production holds are unchanged; no learner-history or batch exit.
+Final CI-only mail-service exclusion correction retained the exercised app/SQL
+bytes;2611tests/97files and independent review296 passed. All ten exact-head
+CI39371975554 attempt2 gates passed; PR1624 normally squash-merged on2026-10-20
+to c10fd9547 with reviewed/squash tree7175fbe7 identical. Canonical clean main
+fast-forwarded. Shared-local and production holds are unchanged; no learner-
+history or batch exit.
 
 The next independent owner read is the Daily Log-derived GET
 `/api/teacher/attendance`. Prepared276 binds actual current ownership, complete
@@ -631,8 +635,23 @@ the existing complete attendance DTO, Unicode-content and Toronto-date rules;
 unmatched GET remains legacy. Private8MiB snapshot/DTO,250000 projected cells and
 32000000 filter-comparison bounds reject rather than truncate; they are not plan
 quotas or new UI notices. SQL rollback and installed-SDK fixture source is
-prepared; native execution, genuine metadata, independent review and exact-head
-CI remain acceptance gates. No learner-history or phase-exit claim. The approved
+prepared. Initial source reviews297/298 passed. Composition299's SQL settlement
+omission was corrected and accepted by300 before execution. One initial attempt
+remains failed because of a generated fixture SQL token; a separate read-only
+lexical probe confirmed the error, a regression went RED then GREEN, and301
+accepted the minimal separator correction and exact isolated recovery. Failed
+evidence remains immutable; only its synthetic Docker resources were removed,
+and temporary files retained privately. One fresh001–276 rehearsal then passed:
+rollback contracts including1004roster/1001days/entries, genuine metadata, twelve
+actual installed-SDK adapter reads, six complete DTO commitments,18SQL/60guards,
+restoration before final reads, complete fixture/complement preservation,
+canonical read-only/global-resource equality and positive owned teardown.
+100actions/1672controls/51235392bytes/12HTTP/max1session/final0open or unsettled;
+original limits retained. Immediate next-tool FIRST independently verified
+7901source/98970dependency files unchanged and zero matching processes before
+post-run actions. Genuine276 adds only the new two-argument RPC; removing it
+reconstructs entire275 bytes. Final metadata/current-main review, focused checks
+and exact-head CI remain acceptance gates. No learner-history or phase-exit claim. The approved
 current-membership-only learner policy remains separate; earlier attendance is
 preserved for the owner. Shared-local249+, production, provider and rollout holds
 remain unchanged.

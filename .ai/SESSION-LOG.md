@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Teacher Gradebook shows graded marks before Return
-
-Branch codex/gradebook-immediate-marks; coordinator owns implementation. User reverses PR1592 teacher-only Return restriction: fully graded assignment/Test marks and saved assessment overrides now appear immediately in cells, totals, class summaries and selected-student inspector. Student Grades keeps its per-document/attempt Return requirement, including overrides. Drafts stay blank and partially scored Tests stay pending without an override. No grading writes, migration, dependency, merge or production operation. Risk profile: none (existing read projection); standard behavioral review.
-
-UI brief: reuse production Gradebook table/inspector and Pattern Lab Gradebook composition; extend only server projection. Teacher+student,1440x900/390x844,light/dark,returned/unreturned and selected inspector; numeric marks are the signal. No new controls, treatments, shared components or experimental pattern; composite interaction changes n/a; no unrelated refactor candidate. Targeted teacher/student regression tests pass, including unreturned manual zero/nonzero overrides, drafts, partial question scores and student disclosure filters. Playwright16 role/viewport/theme/Return cases plus Pattern Lab reference PASS; receipt output/playwright/immediate-marks/receipt.json. Production owners use synthetic API fixtures (teacher payload from route regressions; student disclosure proven separately). Targeted97 tests PASS. Initial focused856 tests:851pass,3 Python3.14 timing failures and2 unchanged infrastructure timeouts; rerun uses installed Python3.13/max-workers1. Final focused gate and fixed-SHA independent review follow in PR/lifecycle evidence.
-
-Storage healthy318GB and weekly allowance43% remaining at startup (account-wide); DeepSeek paused through Dec31. One GPT6.1-Sol/medium visual-verification worker handles ignored screenshot artifacts while coordinator runs source checks. Worker effective configuration/tokens and coordinator task-specific usage unknown. Visual worker delivered in about6minutes including cold Next compile; coordinator inspected full desktop and contact sheets, no corrections or file conflicts. Final code review will use one fresh GPT6.1-Sol/medium reviewer for this bounded standard-risk diff; default7launch/4batch/60minute review caps apply.
-
 ## 2026-10-16 — Unreturned Gradebook mark hatch follow-up
 
 Owner approves adding faint diagonal hatch and hover/focus tooltip to PR1609. Same coordinator/branch codex/gradebook-immediate-marks; PR returned draft before edits. Per-student assignment/Test returned_at now projects explicit null/timestamp into cells, preserving all calculations. Table and inspector use a feature CSS module with semantic muted colour; accessible `Graded · Not returned to student` help supports keyboard/Escape and inspector tap. Returned/blank/standalone/final/average marks stay plain; unknown legacy metadata stays unasserted. Pattern Lab demonstrates both states with returned-only student examples. UI brief docs/guidance/ui/changes/gradebook-unreturned-hatch.md; both roles,1440x900/390x844,light/dark,return and help states. Risk none (existing read projection), standard behavioral review.
@@ -565,3 +557,27 @@ final checks and exact-head CI remain gates. No canonical/shared-local249+,
 production, provider, real account, billing/AI or activation operations. Latest
 owner decision retains current-membership-only learner attendance with earlier
 records preserved for owner; this report does not claim learner provenance.
+
+## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
+
+Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
+c10fd9547 at05:30Z, identical7175fbe7 tree, clean canonical main fast-forwarded.
+Report297/298 source reviews clean. Composition299 settlement predicate omission
+fixed and300 clean with actual-controls RED/GREEN joins/uncertainty regressions.
+First native report6wj8mp remains failed: generated observe SQL glued numeric
+literal to OR. Tiny separate read-only PG fragment confirmed42601; regression
+RED then75/4GREEN. Minimal fixture separator/pin update and exact recovery301
+clean; removed only5containers2volumes1network, retained temp/evidence privately.
+No application permission change or softened poison/cleanup checks.
+Fresh report uTZw3f actual4140JOINED0 passed001–276 rollback SQL, genuine metadata,
+12realSDK adapters/6fullDTO/18SQL/60guards, restoration before final reads, complete
+fixture/complement and canonical/global equality plus owned teardown.100actions,
+1672controls,51235392B,12HTTP,max1session,final0sessions/uncertainSQL/unsettled.
+Immediate NEXTTOOLFIRST60593JOINED0 before any check/edit/CI query confirms7901
+source/98970deps unchanged/0process. Genuine276 fac561c3,443760B installed byte-
+exact after FIRST; deleting only newRPC reconstructs entire275e295 baseline.
+All receipts retain nativeVerified:false; private coordinator outcome records
+actual acceptance separately. Cumulative301reviews/4fix batches preserved under
+task waiver; tokens/effective config unknown. Final metadata/current-main review,
+focused checks and CI remain gates. No prod/shared-local249+, provider, real
+account/plan, billing/AI, admission or activation action; learner provenance separate.
