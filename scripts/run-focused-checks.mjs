@@ -134,7 +134,12 @@ try {
 
   const changedTests = classification.runTestBuild ? paths.filter(isTestFile) : []
   const relatedSources = classification.runTestBuild ? relatedSourcesFor(paths) : []
-  const testInputs = [...new Set([...workflowTestFiles(), ...changedTests, ...relatedSources])]
+  // Migration-profile consumers load SQL from disk, outside Vitest's static
+  // import graph. Include their existing closed-profile suite on SQL changes,
+  // including removals, rather than waiting for native CI to reject the chain.
+  const migrationTests = classification.runTestBuild && paths.some(path => /^supabase\/migrations\/[^/]+\.sql$/.test(path))
+    ? ['tests/unit/contextual-test-reviewed-gradebook-profile.test.ts'] : []
+  const testInputs = [...new Set([...workflowTestFiles(), ...changedTests, ...migrationTests, ...relatedSources])]
   // Vitest related includes a test when the input is either that test itself
   // or one of its imports. Each project/specification is therefore run once.
   const testMode = relatedSources.length ? ['related', '--run'] : ['run']

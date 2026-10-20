@@ -1,3 +1,4 @@
+import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
@@ -57,7 +58,7 @@ const APP_CAPS = Object.freeze({ controls: 4000, actions: 200, totalMs: 900000, 
 const CANONICAL_AFTER_CAPS = Object.freeze({ attempts: 1, bytes: 8 * 1024 * 1024 })
 export function validateTestOwnerReorderReviewedMigrations(migrations: ReturnType<typeof loadAssignmentListReviewedMigrations>) {
   validateAssignmentListMigrationChain(migrations)
-  assert([254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270].includes(migrations.length), 'Unreviewed reorder migration profile')
+  assert([254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272].includes(migrations.length), 'Unreviewed reorder migration profile')
   assert.equal(migrations[253]?.name, '254_contextual_test_owner_reorder.sql')
   if (migrations.length >= 255) validateTestUnpublicationReviewedMigration(migrations[254])
   if (migrations.length >= 256) validateTestOwnerWorkflowReviewedMigration(migrations[255])
@@ -74,7 +75,8 @@ export function validateTestOwnerReorderReviewedMigrations(migrations: ReturnTyp
   if (migrations.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(migrations[266])
   if (migrations.length >= 268) validateClassroomHotLifecycleReviewedMigration(migrations[267])
   if (migrations.length >= 269) validateSurveyWorkflowReviewedMigration(migrations[268])
-  if (migrations.length === 270) validateGradebookWorkflowReviewedMigration(migrations[269])
+  if (migrations.length >= 270) validateGradebookWorkflowReviewedMigration(migrations[269])
+  validateLifecycleServicesReviewedMigrations(migrations)
 }
 type Rows = Record<string, Array<Record<string, unknown>>>
 type Session = Parameters<AssignmentListLifecycleAdapters['executeSql']>[0]

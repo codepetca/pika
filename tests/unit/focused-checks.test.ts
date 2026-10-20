@@ -148,6 +148,28 @@ describe('focused local checks', () => {
       'tests/unit/standalone.test.ts', '--reporter=dot'])
   })
 
+  it.each([false, true])('checks an unchanged dynamic migration-profile reader when SQL changes (related=%s)', related => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')
+    symlinkSync(resolve('node_modules'), join(f.root, 'node_modules'), 'dir')
+    f.write('vitest.config.mjs', "export default { test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] } }")
+    for (const file of workflowTests) f.write(file, "it('workflow', () => expect(true).toBe(true))")
+    const profile = 'tests/unit/contextual-test-reviewed-gradebook-profile.test.ts'
+    // No static SQL import: this models the real filesystem inventory reader.
+    f.write(profile, "import { readdirSync } from 'node:fs'; it('closed current schema', () => expect(readdirSync('supabase/migrations')).toHaveLength(1))")
+    f.write('supabase/migrations/270_current.sql', '-- baseline')
+    f.git('add', '.')
+    f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'closed schema baseline')
+    f.write('supabase/migrations/271_unreviewed.sql', '-- new migration')
+    if (related) f.write('src/changed.ts', 'export const changed = true')
+    const result = f.run(['--max-workers', '2'], false, true)
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.calls).toHaveLength(1)
+    expect(result.calls[0]).toContain(profile)
+    expect(result.output).toContain('closed current schema')
+    expect(result.output).toMatch(/1 failed/)
+  }, 15_000)
+
   it('runs the real selected cases once in each project, retaining standalone tests', () => {
     const f = fixture()
     f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')

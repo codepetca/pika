@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Saved Test work production release
-
-Owner requested production deployment and explicitly approved one application of migrations264/265 to production. Preview38649440242 at merged main9aa3d5e82c96a7f8cbac3047b894d51a88cb161f verified001–263 applied and exactpending264/265; apply38653530319 reported applied-verified and complete265-version history. Read-only production catalog verification matched all six function body hashes, postgres owners, definer modes, empty search paths and intended role ACLs; no student fixtures or write canary. Approval consumed; no retry or further migration authority.
-
-Production PR1594 received cumulative GPT6.1-sol/high release review and targeted ancestry-sync review with no findings. Strict base protection required merging productionc1abdab798 into reviewedmain9aa; syncfad8eba10 changed ZERO files, identical treeee9db358e1dace612a6c8d0411e4e68ef9e11a05. Focused756tests/60files and static checks passed; finalCI38650272929 all10jobs/PRGate PASS. PR1594 merged b95776cb754e27b07e002ea8d3c9ffde38cdc145 at23:23:11UTC (Oct14 Toronto); complete tree matches reviewedmain. Vercel dpl_7fwt3gA23fApVnrkADZi1T9PvHg5 READY; production aliases matched the new deployment. Anonymous read-only GET smoke at23:28:32UTC/19:28Toronto passed login200, me401, Pattern Lab404 and snapshot API404 on both pika.codepet.ca and pika2.codepet.ca. Initial Python HTTP probe encountered local resolver failure; curl and DNS checks succeeded, then all eight curl smoke probes passed.
-
-Release includes saved-unsubmitted AI grading and correct answer/student counts, closed ungraded Return with read-only student work and pending incomplete totals, Return-gated Gradebook marks, reviewed Announcement closing/focus and classroom wizard focus fixes, and Week calendar card/editing refinements. Reopening and feature/provider/account/config controls unchanged. Two actual release-review turns; worker tokens/elapsed and coordinator active effort unknown. Weekly63% remaining and storagehealthy at release preparation; DeepSeek pause throughDec31 honored. Receipts outside retired worktrees: ~/.codex/artifacts/pika/production-1594/. Continuity-only main PR follows verified rollout; it changes no application or SQL.
-
 ## 2026-10-15 — Independent Gradebook zero-weight visibility
 
 Owner requested More actions toggles “Hide 0-weight teacher” and “Hide 0-weight student”, both off by default. Coordinator owns codex/gradebook-zero-weight-filters. Teacher choice persists locally and filters table/inspector/mobile/export columns; student choice persists per classroom and filters server projections for Grades and standalone Classwork marks. Configured assessment weight0 only; positive-weight exclusions and earned0 remain visible, calculations unchanged. Student saves share the existing visibility mutation, rollback on failure, invalidate both caches and fence late classroom responses. Older metadata clients preserve the setting.
@@ -670,3 +662,21 @@ and exclusive spent marker retained; no historical attempt was replayed. Empty
 old-event history does not certify nonempty queued-fact retention. Final composed
 evidence review/CI remain; all production/shared-local249+/real-account/provider/
 billing/AI and admission/rollout holds remain unchanged.
+
+## 2026-10-19 — Exact lifecycle migration profiles and early local selection
+
+Final CI rejected the complete272 source chain because historical lifecycle
+harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
+All eight source profiles and the offline prefix helper now append exact271/272
+filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
+unknown273 or missing/altered/reordered tails. Source-profile reproduction was
+RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
+passed; no SQL, application authorization or native bounds changed.
+
+The local import graph could not select SQL-filesystem consumers. Two real
+Vitest fixtures reproduced false-green selection in run/related modes; the
+focused runner now adds the existing closed-profile suite on migration SQL
+changes. All26 runner regressions pass. Root combined focused gate passes2,495
+tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
+271/272 bytes still match accepted native proofs, which were not rerun. Targeted
+independent review and corrected-head CI remain required. All holds persist.
