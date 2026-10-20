@@ -47981,3 +47981,22 @@ canonical equality and independent source/dependency equality PASS. Genuine268
 generated types installed byte-identically from private artifact1230d8e1…;
 temporary RPC signature removed. Targeted integration review and consolidated
 browser/CI gates remain. No shared-local/production migration or activation.
+
+<!-- pika-session-log-archive-batch:ce3bf4b9174373200f5d849b81f2179c163cc1174ff9836177dfb073b7211d09 -->
+## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
+
+PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
+passed. Consolidated manual Test lifecycle/permissions proof passed40exchanges and
+eight inspected captures, retained-work/canonical equality, exact cleanup and
+immediate independent source/dependency preservation. No production changes.
+
+Current-main Survey extraction carries the nine existing-route branches, current
+server/validation/SQL privacy fixes and focused tests, resequencing only filename
+263→269. Root verified17 donor files byte-identical, including SQL1db152f8…;
+package/CI/current generated types and legacy branches remain.119focused tests,
+lint/architecture/diff checks pass. Five TypeScript diagnostics are unresolved
+because the twelve new RPCs are not in the retained genuine generated artifact;
+no hand-written metadata/casts/stubs were added. This is source preparation, not
+ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
+independent cumulative review and final CI remain. All existing serious holds
+unchanged; private extraction map and proof receipts retained by coordinator.

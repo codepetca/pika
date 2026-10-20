@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-17 — consolidated lifecycle accepted; current-main Survey preparation
-
-PR1613 merged normally asf88b06a5e after all10 exact-head CI checks/PR Gate39080973530
-passed. Consolidated manual Test lifecycle/permissions proof passed40exchanges and
-eight inspected captures, retained-work/canonical equality, exact cleanup and
-immediate independent source/dependency preservation. No production changes.
-
-Current-main Survey extraction carries the nine existing-route branches, current
-server/validation/SQL privacy fixes and focused tests, resequencing only filename
-263→269. Root verified17 donor files byte-identical, including SQL1db152f8…;
-package/CI/current generated types and legacy branches remain.119focused tests,
-lint/architecture/diff checks pass. Five TypeScript diagnostics are unresolved
-because the twelve new RPCs are not in the retained genuine generated artifact;
-no hand-written metadata/casts/stubs were added. This is source preparation, not
-ready for PR/merge. Genuine cumulative001–269 types, remaining native/app proof,
-independent cumulative review and final CI remain. All existing serious holds
-unchanged; private extraction map and proof receipts retained by coordinator.
-
 ## 2026-10-17 — Survey UUID compatibility correction
 
 Independent current-base security review184 completed with no findings;
@@ -701,3 +683,18 @@ archive guarantee is claimed. Sol6.1/high source mapping and bounded implementat
 delivered; attributable usage/time unknown. Final checks, independent review,
 parent-main integration and CI remain. All production/shared-local249+,
 provider/account/plan/billing/AI and activation holds remain unchanged.
+
+## 2026-10-20 — explicit Data API grant compatibility
+
+Prepared migration281 preserving historical001–280 relation ACLs and server-only
+access; closes public postgres relation defaults. Added absent-default replay/ACL
+equality harness, future-object source policy, sealed281 profiles and CI inventory.
+Canonical schema checklist records explicit table/sequence decisions. Cross-project
+audit: RESPMax private/direct SQL unaffected; HQ health SELECT(id) fix prepared
+separately. Sol/high workers handled bounded Pika ACL/harness and HQ audit/fix;
+coordinator verified source and local regressions. Usage90% weekly remaining at
+start; per-worker tokens/total active time unknown. Docker stopped after historical
+replay; full281 native regression pending CI. Owned throwaway container cleanup
+pending Docker availability: pika-data-api-grants-investigate-51450,
+4c25786d7a2417726eaf1d4d898e21df89944bc566fa46f035c4d5ab19de7e09.
+No shared local/production migration, reset, owner-data write or deployment.

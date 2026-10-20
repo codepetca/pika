@@ -6,12 +6,30 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutGuidanceAdoptionProof = (source: string) => source.replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutDataApiProof = (source: string) => source.replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
+const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutGuidancePreviewProof = (source: string) => withoutGuidanceAdoptionProof(source).replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutClassroomGuidanceProof = (source: string) => withoutGuidancePreviewProof(source).replace(/^      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutClassroomReorderProof = (source: string) => withoutClassroomGuidanceProof(source).replace(/^      - name: Verify contextual owner classroom list reorder transactions and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutReportProof = (source: string) => withoutClassroomReorderProof(source).replace(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutSessionProof = (source: string) => withoutReportProof(source).replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+
+describe('explicit Data API grant proof inventory', () => {
+  it('preserves the complete historical inventory and adds one runtime proof', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const historical = selectPlan(extractWorkflow(withoutDataApiProof(workflow())), 'database')[0]
+    expect(current.steps.filter(step => !step.name.startsWith('Verify explicit '))).toEqual(historical.steps)
+    expect(current.steps.filter(step => step.run === 'bash scripts/check-data-api-grants-database.sh')).toHaveLength(1)
+  })
+  it.each(['missing', 'changed-command', 'conditional', 'duplicate'])('rejects a %s runtime grant proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify explicit server-only Data API grants without automatic defaults\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'missing' ? '' : defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : block.replace('check-data-api-grants-database.sh', 'check-data-api-grants-database.sh --skip')
+    expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
 
 describe('recognized Supabase mail exclusion', () => {
   it('excludes mailpit in every canonical startup and refuses the ineffective old alias alone', () => {
@@ -378,7 +396,7 @@ describe('local canonical CI', () => {
   })
 
   it('retains the complete preview inventory before atomic adoption', () => {
-    const source = workflow(), historical = withoutGuidanceAdoptionProof(source)
+    const source = withoutDataApiProof(workflow()), historical = withoutGuidanceAdoptionProof(source)
     const current = selectPlan(extractWorkflow(source), 'database')[0]
     const previous = selectPlan(extractWorkflow(historical), 'database')[0]
     const command = 'bash scripts/check-contextual-classroom-guidance-adoption-database.sh'
