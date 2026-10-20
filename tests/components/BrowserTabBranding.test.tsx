@@ -24,16 +24,19 @@ describe('browser tab branding', () => {
     const classroom = { id: 'first', title: 'Health for Life', theme_color: 'rose' as const }
     const view = render(<BrowserTabProvider><ClassroomTabBranding classroom={classroom} /></BrowserTabProvider>)
     await waitFor(() => expect(document.title).toBe('Health for Life'))
-    expect(document.querySelector('link[rel="icon"]')).toHaveAttribute('href', '/classroom-icons/rose')
+    expect(document.querySelector('link[rel="icon"]')).toHaveAttribute('href', '/pika-icon-light.svg')
     expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#f43f5e')
 
     preference.theme = 'dark'
+    view.rerender(<BrowserTabProvider><ClassroomTabBranding classroom={classroom} /></BrowserTabProvider>)
+    await waitFor(() => expect(document.querySelector('link[rel="icon"]')).toHaveAttribute('href', '/pika-icon-dark.svg'))
+    expect(document.title).toBe('Health for Life')
     view.rerender(<BrowserTabProvider><ClassroomTabBranding classroom={{ id: 'second', title: 'Computer Science', theme_color: 'violet' }} /></BrowserTabProvider>)
     await waitFor(() => expect(document.title).toBe('Computer Science'))
     expect(document.querySelector('meta[name="theme-color"]')).toHaveAttribute('content', '#c084fc')
     view.rerender(<BrowserTabProvider><ClassroomTabBranding classroom={{ id: 'second', title: 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design', theme_color: 'teal' }} /></BrowserTabProvider>)
     await waitFor(() => expect(document.title).toBe('ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design'))
-    expect(document.querySelector('link[rel="icon"]')).toHaveAttribute('href', '/classroom-icons/teal')
+    expect(document.querySelector('link[rel="icon"]')).toHaveAttribute('href', '/pika-icon-dark.svg')
 
     await act(async () => view.rerender(<BrowserTabProvider><div>Home</div></BrowserTabProvider>))
     expect(document.title).toBe('Pika')

@@ -12,10 +12,16 @@ for (const role of ['teacher', 'student'] as const) {
     await page.goto(`/e2e-fixtures/browser-tab-branding?userRole=${role}`)
     await expect(page).toHaveTitle('PPZ3C — Health for Life')
     await expect(page.locator('link[rel="icon"]')).toHaveCount(1)
-    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/rose')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
     await expect(page.locator('meta[name="theme-color"]')).toHaveCount(1)
     await expect(page.locator('#pika-tab-color')).toHaveAttribute('content', theme === 'dark' ? '#fb7185' : '#f43f5e')
     await testInfo.attach('classroom-tab-branding', { body: await page.screenshot(), contentType: 'image/png' })
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme === 'dark' ? 'light' : 'dark'}.svg`)
+    await expect(page).toHaveTitle('PPZ3C — Health for Life')
+    await page.getByRole('button', { name: 'Toggle theme', exact: true }).click()
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
+
 
     const longTitle = 'ICS4U — Introduction to Computer Science: Algorithms, Data Structures, and Software Design'
     await page.getByRole('button', { name: 'Long classroom name', exact: true }).click()
@@ -47,10 +53,10 @@ for (const role of ['teacher', 'student'] as const) {
     await expect(page).toHaveTitle('PPZ3C — Health for Life')
     await page.getByRole('button', { name: 'Classroom 2', exact: true }).click()
     await expect(page).toHaveTitle('ICS4U — Computer Science')
-    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/violet')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
     await page.getByRole('button', { name: 'Edit classroom', exact: true }).click()
     await expect(page).toHaveTitle('Renamed classroom')
-    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', '/classroom-icons/teal')
+    await expect(page.locator('#pika-tab-icon')).toHaveAttribute('href', `/pika-icon-${theme}.svg`)
 
     await page.getByRole('button', { name: 'Home', exact: true }).click()
     await expect(page).toHaveTitle('Pika')

@@ -18,9 +18,7 @@ export function BrowserTabProvider({ children }: { children: ReactNode }) {
     const color = classroom ? getClassroomThemeDefinition(classroom.theme_color) : null
     document.title = classroom ? classroom.title : 'Pika'
     // These nodes belong to the persistent root layout, outside Next's route metadata.
-    document.getElementById('pika-tab-icon')?.setAttribute('href', color
-      ? `/classroom-icons/${color.value}`
-      : `/pika-icon-${theme}.svg`)
+    document.getElementById('pika-tab-icon')?.setAttribute('href', `/pika-icon-${theme}.svg`)
     document.getElementById('pika-tab-color')?.setAttribute('content', color
       ? theme === 'dark' ? color.darkColor : color.color
       : theme === 'dark' ? '#030712' : '#f9fafb')
