@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-16 — Unreturned Gradebook mark hatch follow-up
-
-Owner approves adding faint diagonal hatch and hover/focus tooltip to PR1609. Same coordinator/branch codex/gradebook-immediate-marks; PR returned draft before edits. Per-student assignment/Test returned_at now projects explicit null/timestamp into cells, preserving all calculations. Table and inspector use a feature CSS module with semantic muted colour; accessible `Graded · Not returned to student` help supports keyboard/Escape and inspector tap. Returned/blank/standalone/final/average marks stay plain; unknown legacy metadata stays unasserted. Pattern Lab demonstrates both states with returned-only student examples. UI brief docs/guidance/ui/changes/gradebook-unreturned-hatch.md; both roles,1440x900/390x844,light/dark,return and help states. Risk none (existing read projection), standard behavioral review.
-
-GPT6.1-Sol/medium worker owned server metadata+API tests only:78 API tests PASS; coordinator inspected/integrated without corrections. Same-model visual worker owns ignored evidence only. Coordinator owns UI/tests; initial two provider-free plain inspector tests exposed unnecessary Tooltip mounting, fixed by creating help only for known unreturned marks;41 component tests then PASS. Final focused1246 tests/93files, architecture/UI/design policies,TypeScript,lint and audit PASS. Visual16cases+4focus refresh checks PASS,34captures; root inspected actual light/dark hatch and tooltip. Delta review and CI evidence follow in PR1609 and ~/.codex/artifacts/pika/pr-1609. Prior8ba review/CI retained for unchanged behavior; this user-approved follow-up starts one bounded delta-review session. Weekly39% remaining, storage healthy319GB; task-specific usage/effective worker configuration unknown. Main sync to fb268de6f resolved archive markers/history only; preserved both marker sets and session bodies, with all Gradebook source/test blobs identical to pre-sync53284ea60. No merge, deployment, dependency or database migration authority inferred.
-
 ## 2026-10-17 — Integrate verified Test results coordination with main
 
 Coordinator owns codex/test-results-main-integration at main944c1735c. Ported only
@@ -581,3 +575,22 @@ actual acceptance separately. Cumulative301reviews/4fix batches preserved under
 task waiver; tokens/effective config unknown. Final metadata/current-main review,
 focused checks and CI remain gates. No prod/shared-local249+, provider, real
 account/plan, billing/AI, admission or activation action; learner provenance separate.
+
+## 2026-10-20 — Prepare atomic contextual classroom-list ordering
+
+Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
+79a4. Two Sol6.1/high workers delivered disjoint core/seal and fixture/SDK files;
+root inspected and integrated CI/API-boundary inventory. Migration277 serializes
+the complete active-owned set without requiring creation capacity; one RPC retains
+position/timestamp/archive-revision semantics and unchanged Blueprint/other rows.
+Configured unmatched teachers adopt the same writer; admission absent stays
+legacy. No user-facing layout, DTO, plan quota or notice change. Risk high,
+profile none: consequential ownership/atomic-write boundary. Independent security
+and compatibility reviews, genuine metadata and isolated native acceptance remain
+required. Source-only63tests/7files,1369profile tests/10files and317CI tests/5files
+PASS; audit22TS PASS. Full TypeScript has only the intentionally pending genuine
+277 RPC metadata error; no cast/manual metadata workaround. Cumulative302 prior
+review turns/4 batches retained under standing waiver. Earlier rejoin decision
+remains current-membership-only for learners, retained history owner-only; this
+slice does not implement learner provenance. Production/shared-local249+,
+provider/accounts/billing/AI and all activation holds unchanged.

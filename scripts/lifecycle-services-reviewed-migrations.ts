@@ -1,4 +1,4 @@
-/** Exact source-only271–276 extension. This does not grant migration, native
+/** Exact source-only271–277 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
 import assert from 'node:assert/strict'
@@ -12,11 +12,12 @@ export const LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS = Object.freeze([
   Object.freeze({ name: '274_contextual_attendance_owner_policy_write.sql', sha256: 'a906e4cb19c29cbc0e889577a87f1384fcb9b482f3d3bc6cf0336adcc011d0f9' }),
   Object.freeze({ name: '275_contextual_attendance_owner_session_read.sql', sha256: '49104640e82ee0d359ad56c88906773475d57d4738e0213b508004fd18ff5ed9' }),
   Object.freeze({ name: '276_contextual_attendance_owner_report_read.sql', sha256: '8ad17a6f3a100c8c581b574d81d735ded79a1ff5aae245660e8ae44d75244dbc' }),
+  Object.freeze({ name: '277_contextual_classroom_owner_list_reorder.sql', sha256: '957b844652288ef84b66b5960d632a1c9a874602038962be481fa045418335b3' }),
 ] as const)
 
 export function validateLifecycleServicesReviewedMigrations(migrations: readonly { name: string; sql: string; sha256: string }[]) {
   validateAssignmentListMigrationChain(migrations)
-  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
+  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
   for (const [index, seal] of LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS.entries()) {
     if (migrations.length < 271 + index) continue
     const migration = migrations[270 + index]

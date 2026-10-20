@@ -157,6 +157,7 @@ const databaseProofInventories = {
     [55, '29551a6970c5d118eb2e8c3b4d6f5643b0e0113b968b3fb9297eb64c636770de'],
     [56, '3e0abee1c3953d8d6a0e15b432939ed285ccb19778f8b1af5ae10e7c072208d5'],
     [57, '0a8b62544755aa4dd9054fcde3adfeaf7cfcb0907f14eb35620d0a8b3f0aa7fc'],
+    [58, '37efaac2973b745db90ea9d5372950f8bb3f38a26e04f5ead7e503dabb9bed6a'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -241,6 +242,15 @@ function validateDatabaseInventory(jobs) {
     || reports[0].step.name !== reportName || reports[0].step.run !== `bash ${reportScript}`
     || reports[0].step.if || !databaseProofs(primary).includes(reports[0].step))) {
     throw new Error('Canonical attendance report database proof is missing, duplicated or changed.')
+  }
+  const classroomOrderName = 'Verify contextual owner classroom list reorder transactions and privileges'
+  const classroomOrderScript = 'scripts/check-contextual-classroom-list-reorder-database.sh'
+  const classroomOrders = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === classroomOrderName || step.run?.includes(classroomOrderScript)).map(step => ({ job, step })))
+  if (classroomOrders.length && (classroomOrders.length !== 1 || classroomOrders[0].job !== primary
+    || classroomOrders[0].step.name !== classroomOrderName || classroomOrders[0].step.run !== `bash ${classroomOrderScript}`
+    || classroomOrders[0].step.if || !databaseProofs(primary).includes(classroomOrders[0].step))) {
+    throw new Error('Canonical classroom reorder database proof is missing, duplicated or changed.')
   }
 }
 

@@ -656,6 +656,23 @@ current-membership-only learner policy remains separate; earlier attendance is
 preserved for the owner. Shared-local249+, production, provider and rollout holds
 remain unchanged.
 
+The next prepared lifecycle boundary is atomic classroom-list ordering277.
+With the existing global admission configured, admitted actual owners of either
+account label use one complete-set RPC; unmatched users still require the teacher
+label but use that same atomic writer. With admission absent, the full legacy
+path is unchanged. Subject → sorted owned-operation → classroom/revision locks,
+fresh complete-set checks and exact postconditions prevent partial order commits.
+The creation-entitlement subject lock serializes ownership/set changes only:
+reordering consumes no grant or capacity and still works with creation disabled.
+Only positions and legitimate timestamp/archive-revision effects may change;
+Blueprint lineage and all other rows remain preserved. The private4096-ID work
+bound is not a plan quota or new UI notice. Source-only rollback contracts cover
+1001 classrooms, repeated/empty orders, account labels, denials and injected
+midbatch/postcondition failures. Installed-SDK fixtures, exact277 migration seals
+and the canonical CI proof lane are prepared; actual PostgreSQL/concurrency,
+genuine metadata, independent reviews and exact-head CI remain gates. No schema
+application, admission activation or phase exit is implied.
+
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
