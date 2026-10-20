@@ -5,6 +5,7 @@ import {z} from 'zod'
 import type {Database} from '../src/types/database'
 import {ApiError} from '../src/lib/api-error'
 import {adoptContextualClassroomGuidance} from '../src/lib/server/contextual-classroom-guidance-adoption'
+import {contextualClassroomGuidanceAdoptionSourceSuccessSchema} from '../src/lib/validations/contextual-classroom-guidance-adoption'
 import {CLASSROOM_GUIDANCE_ADOPTION_CAPS as caps,assertClassroomGuidanceAdoptionFixture,assertClassroomGuidanceAdoptionSqlDescriptor,classroomGuidanceAdoptionFreeze as freeze,classroomGuidanceAdoptionHash as hash,classroomGuidanceAdoptionFlows,classroomGuidanceAdoptionSqlDescriptors,classroomGuidanceAdoptionSource,classroomGuidanceAdoptionCanonical,classroomGuidanceAdoptionSnapshotHash,newClassroomGuidanceAdoptionFixture,type ClassroomGuidanceAdoptionFixture,type ClassroomGuidanceAdoptionSqlDescriptor} from './contextual-classroom-guidance-adoption-native-fixture'
 export type ClassroomGuidanceAdoptionProofControls=Readonly<{deadline:number;cleanupDeadline:number;guard:(profile:'baseline-off')=>Promise<void>;
   account:(kind:'request'|'control'|'bytes',count:number)=>void;httpSession:(active:boolean)=>void;sql:(frame:ClassroomGuidanceAdoptionSqlDescriptor)=>Promise<unknown>}>
@@ -18,7 +19,8 @@ export function createClassroomGuidanceAdoptionSdkProof(f:ClassroomGuidanceAdopt
   assertClassroomGuidanceAdoptionFixture(f);assert.equal(target.origin,'http://127.0.0.1:54331');assert(typeof original==='function'&&target.serviceRoleKey.length>0)
   assert(controls.deadline>Date.now()&&controls.deadline-Date.now()<=caps.workMs);assert(controls.cleanupDeadline>controls.deadline&&controls.cleanupDeadline-controls.deadline<=caps.cleanupMs)
   const calls=classroomGuidanceAdoptionFlows(f),frames=classroomGuidanceAdoptionSqlDescriptors(f),used=new Set<string>(),pending=new Set<Promise<unknown>>(),physical:z.infer<typeof receiptSchema>['physical']=[],bindings:z.infer<typeof receiptSchema>['bindings']=[],captures:{sourceSha?:string;savedId?:string}[]=calls.map(()=>({}))
-  let requests=0,httpDispatches=0,sourceRequests=0,writerRequests=0,adapterCalls=0,controlCount=0,guardCalls=0,descriptorCalls=0,bytes=0,sessions=0,maximumSessions=0
+  const boundaryWork=new Set<Promise<unknown>>(),signals:(AbortSignal|null|undefined)[]=[]
+  let requests=0,httpDispatches=0,sourceRequests=0,writerRequests=0,adapterCalls=0,controlCount=0,guardCalls=0,descriptorCalls=0,bytes=0,sessions=0,maximumSessions=0,activeBoundaries=0
   let failed=false,poisoned=false,complete=false,running=false,cell=-1,restoreState:'not-prepared'|'prepared'|'restored'='not-prepared'
   let verificationFailure:VerificationFailure|null=null
   const account=(kind:'request'|'control'|'bytes',n:number)=>{assert(Number.isSafeInteger(n)&&n>=0);if(kind==='request'){httpDispatches+=n;assert(httpDispatches<=caps.requests)}
@@ -27,9 +29,9 @@ export function createClassroomGuidanceAdoptionSdkProof(f:ClassroomGuidanceAdopt
   const bounded=async<T>(p:Promise<T>,deadline:number)=>{let timer:ReturnType<typeof setTimeout>|undefined
     try{return await Promise.race([own(p),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(refused()),Math.max(0,deadline-Date.now()))})])}finally{if(timer)clearTimeout(timer)}}
   const check=()=>assert(!failed&&!poisoned&&Date.now()<controls.deadline)
-  const guard=async(cleanup=false)=>{if(cleanup)assert(Date.now()<controls.cleanupDeadline&&!pending.size&&!sessions&&!poisoned);else check()
+  const guard=async(cleanup=false)=>{assert(!pending.size&&!sessions);if(cleanup)assert(Date.now()<controls.cleanupDeadline&&!boundaryWork.size&&!poisoned);else check()
     assert(++guardCalls<=caps.controls);account('control',1);await bounded(controls.guard('baseline-off'),cleanup?controls.cleanupDeadline:controls.deadline)
-    if(cleanup)assert(Date.now()<controls.cleanupDeadline&&!pending.size&&!sessions&&!poisoned);else check()}
+    assert(!pending.size&&!sessions);if(cleanup)assert(Date.now()<controls.cleanupDeadline&&!boundaryWork.size&&!poisoned);else check()}
   const sql=async(name:ClassroomGuidanceAdoptionSqlDescriptor['name'],cleanup=false)=>{assert(!used.has(name));used.add(name);assert(++descriptorCalls<=caps.sqlFrames)
     const frame=frames.find(r=>r.name===name)!;assertClassroomGuidanceAdoptionSqlDescriptor(f,frame);await guard(cleanup);account('control',1);if(name==='prepare')restoreState='prepared'
     const result=await bounded(controls.sql(frame),cleanup?controls.cleanupDeadline:controls.deadline);assert(Buffer.byteLength(JSON.stringify(result))<=4096)
@@ -45,15 +47,15 @@ export function createClassroomGuidanceAdoptionSdkProof(f:ClassroomGuidanceAdopt
     const aborted=new Promise<never>((_,reject)=>aborter.signal.addEventListener('abort',()=>reject(refused()),{once:true}));void aborted.catch(()=>{})
     const race=<T>(p:Promise<T>)=>Promise.race([own(p),aborted]),release=()=>{if(acquired&&actualSettled&&bodySettled){acquired=false;sessions--;controls.httpSession(false)}}
     try{check();assert(running&&cell>=0&&cell<calls.length&&!caller?.aborted&&!sessions);caller?.addEventListener('abort',abort,{once:true})
-      const call=calls[cell],physicalIndex=2*cell+(phase==='write'?1:0);assert.equal(requests,physicalIndex);assert(!used.has(`http:${physicalIndex}`));used.add(`http:${physicalIndex}`);const args={p_actor_id:call.actorId,p_classroom_id:call.classroomId,p_blueprint_id:call.input.blueprint_id,p_expected_content_version_id:call.input.expected_content_version_id,p_expected_guidance_version_id:call.input.expected_guidance_version_id,p_expected_draft_revision:call.input.expected_draft_revision};const expectedArgs=phase==='source'?args:{...args,p_source_sha256:captures[cell].sourceSha,p_snapshot_canonical:classroomGuidanceAdoptionCanonical(f,call.blueprintIndex),p_snapshot_sha256:classroomGuidanceAdoptionSnapshotHash(f,call.blueprintIndex)};assert(typeof resource==='string'||resource instanceof URL);const url=new URL(String(resource))
+      const call=calls[cell],physicalIndex=2*cell+(phase==='write'?1:0);assert.equal(requests,physicalIndex);assert(!used.has(`http:${physicalIndex}`));used.add(`http:${physicalIndex}`);signals[physicalIndex]=caller;const args={p_actor_id:call.actorId,p_classroom_id:call.classroomId,p_blueprint_id:call.input.blueprint_id,p_expected_content_version_id:call.input.expected_content_version_id,p_expected_guidance_version_id:call.input.expected_guidance_version_id,p_expected_draft_revision:call.input.expected_draft_revision};const expectedArgs=phase==='source'?args:{...args,p_source_sha256:captures[cell].sourceSha,p_snapshot_canonical:classroomGuidanceAdoptionCanonical(f,call.blueprintIndex),p_snapshot_sha256:classroomGuidanceAdoptionSnapshotHash(f,call.blueprintIndex)};assert(typeof resource==='string'||resource instanceof URL);const url=new URL(String(resource))
       assert.equal(url.href,`${target.origin}/rest/v1/rpc/${phase==='source'?'read_classroom_guidance_adoption_source_v1':'save_and_adopt_classroom_guidance_for_owner_v1'}`);assert(init.method==='POST'&&init.body===JSON.stringify(expectedArgs))
       assert(Object.keys(init).every(key=>['method','headers','body','signal','redirect'].includes(key)));assert(init.redirect===undefined||init.redirect==='error')
       const headers=new Headers(init.headers);assert.equal(headers.get('authorization'),`Bearer ${target.serviceRoleKey}`);assert.equal(headers.get('apikey'),target.serviceRoleKey)
       for(const[name]of headers)assert(['authorization','apikey','x-client-info','content-type','accept-profile','content-profile','accept'].includes(name))
-      const requestBytes=Buffer.byteLength(init.body as string);assert(requestBytes<=caps.requestBytes);if(phase==='write')await sql(`source-${cell}`);await guard();assert(!caller?.aborted&&!aborter.signal.aborted)
+      const requestBytes=Buffer.byteLength(init.body as string);assert(requestBytes<=caps.requestBytes);assert(!caller?.aborted&&!aborter.signal.aborted)
       account('request',1);account('bytes',requestBytes);requests++;if(phase==='source')sourceRequests++;else writerRequests++;assert(++sessions<=caps.sessions);maximumSessions=Math.max(maximumSessions,sessions);acquired=true;controls.httpSession(true)
-      // The leaf window covers only actual transport/body work; the caller's SDK signal
-      // remains live through SQL, both guards and all response validation.
+      // Both unchanged request signals cover the live network/body operation only.
+      // Full proof bookkeeping runs after the genuine SDK parser has settled.
       stage='transport';timer=setTimeout(()=>{leafTimedOut=true;abort()},Math.max(1,Math.min(caps.requestMs,controls.deadline-Date.now())))
       const operation=(async()=>{try{const received=await original(url.href,{...init,redirect:'error',signal:aborter.signal});response=received
         if(abandoned||aborter.signal.aborted){await own(Promise.resolve(received.body?.cancel()));bodySettled=true;throw refused()}return received
@@ -68,19 +70,58 @@ export function createClassroomGuidanceAdoptionSdkProof(f:ClassroomGuidanceAdopt
       if(phase==='source'){const source=z.object({source_sha256:sha}).passthrough().parse(raw);assert.deepEqual(raw,classroomGuidanceAdoptionSource(f,cell,source.source_sha256));captures[cell].sourceSha=source.source_sha256}
       else if(cell<3){const saved=z.object({guidance_version:z.object({id:z.string().uuid()}).passthrough()}).passthrough().parse(raw),id=saved.guidance_version.id;assert(cell===2?id===f.dedupVersionId:!f.allocatedIds.includes(id));assert.deepEqual(raw,{actor_id:call.actorId,classroom_id:call.classroomId,blueprint_id:call.input.blueprint_id,content_version_id:call.input.expected_content_version_id,previous_guidance_version_id:call.input.expected_guidance_version_id,source_sha256:captures[cell].sourceSha,guidance_version:{id,course_blueprint_id:call.input.blueprint_id,version_number:2,source_draft_revision:call.input.expected_draft_revision,snapshot_sha256:classroomGuidanceAdoptionSnapshotHash(f,call.blueprintIndex)}});captures[cell].savedId=id}
       else assert.deepEqual(raw,{code:cell===3?'PT409':'PT403',message:cell===3?'class_guidance_adoption_changed':'class_guidance_adoption_forbidden',details:null,hint:null})
-      physical.push({label:call.label,phase,method:'POST',status:phase==='source'?200:call.status,bytes:size,sha256:hash(data),dtoSha256:null});await guard();assert(!caller?.aborted&&!aborter.signal.aborted);return new Response(data,{status:response.status,headers:response.headers})
+      physical.push({label:call.label,phase,method:'POST',status:phase==='source'?200:call.status,bytes:size,sha256:hash(data),dtoSha256:null});assert(!caller?.aborted&&!aborter.signal.aborted);return new Response(data,{status:response.status,headers:response.headers})
     }catch{verificationFailure??=Object.freeze({phase,stage,abort:leafTimedOut?(caller?.aborted?'both':'leaf-request'):(caller?.aborted?'caller':'none')});abandoned=true;failed=true;aborter.abort();throw refused()}
     finally{if(timer)clearTimeout(timer);caller?.removeEventListener('abort',abort)
       if(!bodySettled&&response?.body){try{account('control',1);await bounded(reader?Promise.all([reader.cancel(),reader.closed]).then(()=>{}):response.body.cancel(),controls.cleanupDeadline);bodySettled=true}catch{poisoned=true}}
       reader?.releaseLock();release()}}
   const client=createClient<Database>(target.origin,target.serviceRoleKey,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch:countedFetch}})
+  // Closed, instance-local observation of the REAL returned builder. No result,
+  // argument, signal or abortSignal method is substituted. Native then is lazy,
+  // captured once and invoked once; its fulfilled value keeps reference identity.
+  const rpc:unknown=client.rpc;assert(typeof rpc==='function')
+  const observedRpc=new Proxy(rpc,{apply(native,_receiver,args:unknown[]){
+    const phase=args[0]==='read_classroom_guidance_adoption_source_v1'?'source':'write'
+    assert((args.length===2||args.length===3&&args[2]===undefined)&&(args[0]==='read_classroom_guidance_adoption_source_v1'||args[0]==='save_and_adopt_classroom_guidance_for_owner_v1'))
+    const index=2*cell+(phase==='write'?1:0);assert(running&&cell>=0&&requests===index&&!boundaryWork.size)
+    const call=calls[cell],expected={p_actor_id:call.actorId,p_classroom_id:call.classroomId,p_blueprint_id:call.input.blueprint_id,p_expected_content_version_id:call.input.expected_content_version_id,p_expected_guidance_version_id:call.input.expected_guidance_version_id,p_expected_draft_revision:call.input.expected_draft_revision}
+    assert.deepEqual(args[1],phase==='source'?expected:{...expected,p_source_sha256:captures[cell].sourceSha,p_snapshot_canonical:classroomGuidanceAdoptionCanonical(f,call.blueprintIndex),p_snapshot_sha256:classroomGuidanceAdoptionSnapshotHash(f,call.blueprintIndex)})
+    // Reflection forwards the untouched native call, without inventing pending
+    // generated RPC metadata or widening the application's typed client.
+    const builder:unknown=Reflect.apply(native,client,args)
+    assert(typeof builder==='object'&&builder!==null&&'then'in builder&&typeof builder.then==='function'&&'abortSignal'in builder&&typeof builder.abortSignal==='function')
+    const nativeThen:PromiseLike<unknown>['then']=builder.then.bind(builder);let invoked=false
+    const observedThen:PromiseLike<unknown>['then']=(onfulfilled,onrejected)=>{
+      assert(!invoked);invoked=true
+      const work=Promise.resolve(nativeThen(async value=>{
+        activeBoundaries++
+        try{check();assert(!pending.size&&!sessions&&signals[index]&&!signals[index]?.aborted);assert.equal(physical.length,index+1)
+          if(phase==='source')assert(contextualClassroomGuidanceAdoptionSourceSuccessSchema.safeParse(value).success)
+          await guard()
+          // Deliberate proof scheduling: intervene on the captured settled source
+          // BEFORE adapter canonicalization, not inside the future writer request.
+          if(phase==='source'){await sql(`source-${cell}`);await guard()}
+          return value
+        }catch(error){verificationFailure??=Object.freeze({phase,stage:'postflight',abort:signals[index]?.aborted?'caller':'none'});failed=true;throw error}
+        finally{activeBoundaries--}
+      }))
+      boundaryWork.add(work)
+      return work.finally(()=>boundaryWork.delete(work)).then(onfulfilled,onrejected)
+    }
+    Object.defineProperty(builder,'then',{value:observedThen,writable:false,configurable:false})
+    return builder
+  }})
+  Object.defineProperty(client,'rpc',{value:observedRpc,writable:false,configurable:false})
   const settle=async()=>{let timer:ReturnType<typeof setTimeout>|undefined
-    try{await Promise.race([(async()=>{while(pending.size)await Promise.allSettled([...pending])})(),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(refused()),Math.max(0,controls.cleanupDeadline-Date.now()))})]);assert(!pending.size&&sessions===0&&!poisoned)}
+    try{await Promise.race([(async()=>{while(pending.size||boundaryWork.size)await Promise.allSettled([...pending,...boundaryWork])})(),new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(refused()),Math.max(0,controls.cleanupDeadline-Date.now()))})]);assert(!pending.size&&!boundaryWork.size&&sessions===0&&!poisoned)}
     catch{poisoned=true;throw refused()}finally{if(timer)clearTimeout(timer)}}
+  // An active observer is the owning workflow, not a prior physical operation
+  // at carrier guard/SQL entry. Its own pending operations still count. Scheduled
+  // SDK/parser work counts, and settle always joins the WHOLE boundaryWork set.
   const receipt=()=>freeze(assertClassroomGuidanceAdoptionProofReceipt({version:1,scope:'classroom-guidance-adoption-v1',requests,httpDispatches,sourceRequests,writerRequests,adapterCalls,rpcRequests:0,
-    controls:controlCount,guardCalls,descriptorCalls,bytes,maximumSessions,sessions,unsettled:pending.size,failed,poisoned,complete,restoreState,physical:[...physical],bindings:[...bindings],nativeVerified:false}))
+    controls:controlCount,guardCalls,descriptorCalls,bytes,maximumSessions,sessions,unsettled:pending.size+boundaryWork.size-activeBoundaries,failed,poisoned,complete,restoreState,physical:[...physical],bindings:[...bindings],nativeVerified:false}))
   return Object.freeze({settle,receipt,async sdk(){try{check();assert(!running&&cell===-1);running=true;await sql('prepare');await sql('setup');await sql('witness')
-    for(cell=0;cell<calls.length;cell++){const call=calls[cell];adapterCalls++
+    for(cell=0;cell<calls.length;cell++){const call=calls[cell];await guard();adapterCalls++
       let result:Awaited<ReturnType<typeof actualAdapter>>|undefined,denied:unknown
       try{result=await actualAdapter({supabase:client,actorId:call.actorId,classroomId:call.classroomId,input:call.input})}catch(error){denied=error}check()
       if(call.status===200){assert.equal(denied,undefined);assert.deepEqual(result,{version:2});physical[2*cell+1].dtoSha256=hash(JSON.stringify(result))}

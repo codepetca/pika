@@ -1,5 +1,6 @@
 /** CPU transports only; the installed SDK and captured real adapter are used. */
 import {describe,expect,it,vi} from 'vitest'
+import {createClient} from '@supabase/supabase-js'
 import {createClassroomGuidanceAdoptionSdkProof,assertClassroomGuidanceAdoptionProofReceipt} from '../../scripts/contextual-classroom-guidance-adoption-sdk-proof'
 import {newClassroomGuidanceAdoptionFixture,classroomGuidanceAdoptionFlows,classroomGuidanceAdoptionSource,classroomGuidanceAdoptionCanonical,classroomGuidanceAdoptionSnapshotHash,classroomGuidanceAdoptionHash as hash} from '../../scripts/contextual-classroom-guidance-adoption-native-fixture'
 describe('atomic guidance adoption actual adapter / SDK proof (CPU only)',()=>{
@@ -48,9 +49,57 @@ describe('atomic guidance adoption actual adapter / SDK proof (CPU only)',()=>{
     try{const result=await timingHarness(8100);expect(result.error).toBeNull();expect(result.receipt).toMatchObject({complete:true,requests:12,descriptorCalls:17,guardCalls:58});expect(result.h.original).toHaveBeenCalledTimes(12)}
     finally{vi.restoreAllMocks();vi.useRealTimers()}
   })
-  it('refuses a 10.1s source prefix before writer dispatch when the unchanged caller expires',async()=>{
-    try{const result=await timingHarness(10100);expect(result.error?.message).toBe('classroom_guidance_adoption_proof_refused');expect(result.error?.verificationFailure).toEqual({phase:'write',stage:'preflight',abort:'caller'});expect(result.h.original).toHaveBeenCalledTimes(1);expect(result.proof.receipt()).toMatchObject({requests:1,writerRequests:0,descriptorCalls:6,guardCalls:15,restoreState:'restored',poisoned:false})}
+  it('allows 10.1s bookkeeping only AFTER source SDK settlement and BEFORE a fresh unchanged writer signal exists',async()=>{
+    try{const result=await timingHarness(10100);expect(result.error).toBeNull();expect(result.receipt).toMatchObject({complete:true,requests:12,writerRequests:6,descriptorCalls:17,guardCalls:58});expect(result.h.original).toHaveBeenCalledTimes(12);expect(AbortSignal.timeout).toHaveBeenCalledTimes(12);for(const args of vi.mocked(AbortSignal.timeout).mock.calls)expect(args).toEqual([10000])}
     finally{vi.restoreAllMocks();vi.useRealTimers()}
+  })
+  it('does not claim settled while post-source observer bookkeeping is active',async()=>{
+    const h=harness(),sql=h.controls.sql;let entered!:()=>void,release!:()=>void
+    const ready=new Promise<void>(resolve=>{entered=resolve}),held=new Promise<void>(resolve=>{release=resolve})
+    h.controls.sql=async frame=>{if(frame.name==='source-0'){entered();await held}return sql(frame)}
+    const proof=createClassroomGuidanceAdoptionSdkProof(f,target,h.original,h.controls),run=proof.sdk();await ready
+    let settled=false;const joined=proof.settle().then(()=>{settled=true});await Promise.resolve();expect(settled).toBe(false);expect(proof.receipt().unsettled).toBeGreaterThan(0);expect(h.original).toHaveBeenCalledTimes(1)
+    release();await run;await joined;expect(proof.receipt()).toMatchObject({complete:true,unsettled:0})
+  })
+  it('matches the real carrier zero-prior-unsettled guard and SQL entry checks without treating the active workflow as a prior operation',async()=>{
+    const h=harness(),guard=h.controls.guard,sql=h.controls.sql;let proof:ReturnType<typeof createClassroomGuidanceAdoptionSdkProof>
+    h.controls.guard=async()=>{expect(proof.receipt().unsettled).toBe(0);await guard()}
+    h.controls.sql=async frame=>{expect(proof.receipt().unsettled).toBe(0);return sql(frame)}
+    proof=createClassroomGuidanceAdoptionSdkProof(f,target,h.original,h.controls)
+    await expect(proof.sdk()).resolves.toMatchObject({complete:true,unsettled:0,requests:12,descriptorCalls:17,guardCalls:58});await proof.settle()
+  })
+  it('observes real native builders lazily once, preserving abortSignal/builder identity, args and fulfilled-result identity',async()=>{
+    const probeClient=createClient(target.origin,target.serviceRoleKey),probe=probeClient.rpc('read_classroom_guidance_adoption_source_v1',{})
+    const owner=(key:string)=>{let p=Object.getPrototypeOf(probe);while(!Object.hasOwn(p,key))p=Object.getPrototypeOf(p);return p}
+    const rpc=vi.spyOn(Object.getPrototypeOf(probeClient),'rpc'),abort=vi.spyOn(owner('abortSignal'),'abortSignal'),thenOwner=owner('then'),nativeThen=thenOwner.then
+    let fulfillments=0
+    const then=vi.spyOn(thenOwner,'then').mockImplementation(function(this:object,...args:unknown[]){
+      const callback=args[0];if(typeof callback!=='function')throw Error('CPU expected native fulfillment callback')
+      return Reflect.apply(nativeThen,this,[(value:unknown)=>{
+        fulfillments++;return Promise.resolve(Reflect.apply(callback,undefined,[value])).then(delivered=>{expect(delivered).toBe(value);return delivered})
+      },args[1]])
+    })
+    try{const h=harness();expect(rpc).not.toHaveBeenCalled();expect(then).not.toHaveBeenCalled();await h.proof.sdk()
+      expect(rpc).toHaveBeenCalledTimes(12);expect(then).toHaveBeenCalledTimes(12);expect(abort).toHaveBeenCalledTimes(12);expect(fulfillments).toBe(12)
+      for(let n=0;n<12;n++){const builder=rpc.mock.results[n].value;expect(abort.mock.contexts[n]).toBe(builder);expect(abort.mock.results[n].value).toBe(builder);expect(then.mock.contexts[n]).toBe(builder);expect(rpc.mock.calls[n]).toHaveLength(2);expect(builder.body).toBe(rpc.mock.calls[n][1]);expect(JSON.stringify(rpc.mock.calls[n][1])).toBe(h.bodies[n])}
+    }finally{vi.restoreAllMocks()}
+  })
+  it('refuses observer guard failure before writer dispatch and preserves uncertainty',async()=>{
+    const h=harness(),guard=h.controls.guard;let n=0;h.controls.guard=async()=>{await guard();if(++n===8)throw Error('CPU observer guard closure unknown')}
+    const proof=createClassroomGuidanceAdoptionSdkProof(f,target,h.original,h.controls);await expect(proof.sdk()).rejects.toThrow(/^classroom_guidance_adoption_proof_refused$/);await expect(proof.settle()).rejects.toThrow();expect(h.original).toHaveBeenCalledTimes(1);expect(h.events).not.toContain('sql:source-0');expect(h.events).not.toContain('sql:restore-temporary');expect(proof.receipt()).toMatchObject({poisoned:true,complete:false})
+  })
+  it('stops before intervention or writer when the genuine SDK response parser fails after physical source closure',async()=>{
+    const text=vi.spyOn(Response.prototype,'text').mockRejectedValueOnce(Error('CPU SDK parser fault'))
+    try{const h=harness();await expect(h.proof.sdk()).rejects.toThrow(/^classroom_guidance_adoption_proof_refused$/);expect(text).toHaveBeenCalledTimes(1);expect(h.original).toHaveBeenCalledTimes(1);expect(h.events).not.toContain('sql:source-0');expect(h.proof.receipt()).toMatchObject({requests:1,writerRequests:0,restoreState:'restored',complete:false})}
+    finally{text.mockRestore()}
+  })
+  it('never ignores a caller abort while the genuine SDK request is still live',async()=>{
+    const caller=new AbortController(),timeout=vi.spyOn(AbortSignal,'timeout').mockReturnValue(caller.signal)
+    try{const h=harness();let entered!:()=>void;const ready=new Promise<void>(resolve=>{entered=resolve})
+      const original:typeof fetch=vi.fn(async(_url,init)=>new Promise<Response>((_resolve,reject)=>{init?.signal?.addEventListener('abort',()=>reject(Error('CPU live request aborted')),{once:true});entered()}))
+      const proof=createClassroomGuidanceAdoptionSdkProof(f,target,original,h.controls),result=proof.sdk().then(()=>null,error=>error)
+      await ready;caller.abort();const error=await result;expect(error.verificationFailure).toEqual({phase:'source',stage:'transport',abort:'caller'});expect(timeout).toHaveBeenCalledWith(10000);expect(original).toHaveBeenCalledTimes(1);expect(h.events).not.toContain('sql:source-0');expect(proof.receipt()).toMatchObject({failed:true,complete:false,writerRequests:0})
+    }finally{timeout.mockRestore()}
   })
   it.each(['transport','body']as const)('still enforces the 8s actual %s window and exposes only a frozen finite failure',async stage=>{
     vi.useFakeTimers()

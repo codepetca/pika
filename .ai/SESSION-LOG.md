@@ -662,3 +662,15 @@ source/dependency preservation. Fixed private failure labels contain no payload,
 IDs or raw errors. Cumulative320 review turns/8 correction batches; further
 review and one separately bound proof remain, not runtime acceptance. All holds
 and the separate current-membership-only learner boundary remain unchanged.
+
+The next isolated attempt identified unchanged SDK caller expiry in rehearsal
+preflight (write/preflight/caller); SQL/types passed again and writer dispatch
+remained zero. Rather than extend a live timeout, the prepared closed observer
+now schedules all58 guards/17SQL after genuine SDK settlement, before adapter
+continuation. Interventions are explicitly before canonicalization, after source
+capture. Actual builders, lazy native then, argument/result identity and native
+abortSignal remain; live8s/10s failures still refuse.36/2 CPU tests pass, including
+real attachment zero-prior-unsettled entry and held-observer settlement. Root
+inspected the complete two-path delta; cumulative321 reviews/9 fix batches.
+New source/composition review and a separate fresh native proof remain gates;
+no acceptance, migration application, production release or activation claim.

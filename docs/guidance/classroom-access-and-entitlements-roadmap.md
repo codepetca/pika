@@ -793,6 +793,19 @@ failed attempts remain recorded with positive cleanup and immediate independent
 source/dependency preservation; no successful native SDK/concurrency or merge
 claim is made. Review and a fresh separately bound proof remain gates.
 
+A later isolated attempt identified the remaining failure precisely: the actual
+SDK caller timeout expired during rehearsal-only writer preflight, before writer
+dispatch. Do not extend or suppress that application timeout. The next prepared
+verification scheduling uses genuine SDK result settlement as the boundary:
+after a complete, parsed source response, run the existing guards and source-N
+SQL before delivering that identical result back to the unchanged adapter. Its
+canonicalization and next request's normal timeout then follow. Writer postguards
+likewise follow genuine settlement. All58 guards,17 SQL descriptors,12 actual SDK
+requests and all limits remain; no request/result substitution is permitted.
+This proves interventions after source capture and before canonicalization,
+not the narrower old after-canonicalization timing. Review and native acceptance
+remain pending; no production, account, provider or activation hold is released.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
