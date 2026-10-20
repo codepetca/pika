@@ -4,8 +4,9 @@ import { pathToFileURL } from 'node:url'
 
 // Inspect executable, top-level SQL only. Comments, quoted strings and routine
 // bodies cannot satisfy an ACL decision. Unusual/dynamic DDL requires review.
-function statements(sql) {
-  const result = []
+function statements(sql, depth = 0) {
+  if (depth > 12) throw new Error('Nested executable SQL requires migration policy review')
+  const result = [], literals = []
   let statement = '', dynamicPublicDdl = false, bodyRelationAcl = false, stringRoutineBody = false
   for (let i = 0; i < sql.length;) {
     if (sql.startsWith('--', i)) {
@@ -29,6 +30,7 @@ function statements(sql) {
           (/^create\s+(?:or\s+replace\s+)?(?:function|procedure)\b/i.test(statement.trim()) && /\bas(?:\s+(?:e|u&))?\s*$/i.test(statement))) stringRoutineBody = true
       const escaped = /(?:^|[^a-z0-9_])e$/i.test(statement)
       i++
+      const literalStart = i
       let closed = false
       while (i < sql.length) {
         if (escaped && sql[i] === '\\') i += 2
@@ -36,6 +38,9 @@ function statements(sql) {
         else if (sql[i++] === "'") { closed = true; break }
       }
       if (!closed) throw new Error('Unterminated SQL string')
+      let value = sql.slice(literalStart, i - 1).replaceAll("''", "'")
+      if (escaped) value = value.replace(/\\([btnrfv\\'])/g, (_, c) => ({ b: '\b', t: '\t', n: '\n', r: '\r', f: '\f', v: '\v', '\\': '\\', "'": "'" }[c]))
+      literals.push(value)
       statement += ' <string> '
     } else if (sql[i] === '"') {
       const end = sql.indexOf('"', i + 1)
@@ -48,13 +53,22 @@ function statements(sql) {
       const end = sql.indexOf(tag, i + tag.length)
       if (end < 0) throw new Error('Unterminated SQL routine body')
       const body = sql.slice(i + tag.length, end)
-      if (/\bcreate\s+(?:unlogged\s+)?(?:table|sequence)\s+(?:if\s+not\s+exists\s+)?(?:"?public"?\s*\.|[a-z_])/i.test(body) ||
-          /\balter\s+table\b[\s\S]*\b(?:smallserial|serial|bigserial|identity)\b/i.test(body)) dynamicPublicDdl = true
+      // Apply the same lexer inside bodies and SQL-bearing literals. Removing
+      // comments by regex here would mistake comment markers inside data for SQL.
+      const parsedBody = statements(body, depth + 1)
+      const executable = [parsedBody, ...parsedBody.literals
+        .filter(value => /\b(?:grant|revoke|create|alter|do)\b/i.test(value))
+        .map(value => statements(value, depth + 1))]
+      const normalizedBody = executable.flatMap(parsed => parsed.sql).join('; ').replace(/\s+/g, ' ')
+      dynamicPublicDdl ||= executable.some(parsed => parsed.dynamicPublicDdl)
+      bodyRelationAcl ||= executable.some(parsed => parsed.bodyRelationAcl)
+      stringRoutineBody ||= executable.some(parsed => parsed.stringRoutineBody)
+      if (/\bcreate\s+(?:unlogged\s+)?(?:table|sequence)\s+(?:if\s+not\s+exists\s+)?(?:public\s*\.|[a-z_])/i.test(normalizedBody) ||
+          /\balter\s+table\b[\s\S]*\b(?:smallserial|serial|bigserial|identity)\b/i.test(normalizedBody)) dynamicPublicDdl = true
       // Relation/default ACLs must be reviewable top-level statements, including
       // statements passed to EXECUTE. Function EXECUTE grants keep their own policy.
-      const normalizedBody = body.replace(/\s+/g, ' ')
       if (/\b(?:grant|revoke) [\s\S]*?\bon (?!(?:function|procedure|schema|type)\b)/i.test(normalizedBody) ||
-          /\balter\s+default\s+privileges\b/i.test(body)) bodyRelationAcl = true
+          /\balter\s+default\s+privileges\b/i.test(normalizedBody)) bodyRelationAcl = true
       statement += ' <body> '
       i = end + tag.length
     } else if (sql[i] === '$' && /^\$[^$\s]+\$/.test(sql.slice(i))) {
@@ -66,7 +80,7 @@ function statements(sql) {
     } else statement += sql[i++]
   }
   if (statement.trim()) result.push(statement.toLowerCase().trim())
-  return { sql: result, dynamicPublicDdl, bodyRelationAcl, stringRoutineBody }
+  return { sql: result, literals, dynamicPublicDdl, bodyRelationAcl, stringRoutineBody }
 }
 
 const qualified = name => name.includes('.') ? name.replace(/\s+/g, '') : `public.${name.trim()}`
