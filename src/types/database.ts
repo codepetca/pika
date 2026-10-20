@@ -279,6 +279,17 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  //271 defaults both filters to SQLNULL. Retain genuine generated optionality
+  // and every other argument; metadata does not encode input nullability.
+  read_classroom_archive_recovery_for_owner_v1: FunctionContract<
+    'read_classroom_archive_recovery_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['read_classroom_archive_recovery_for_owner_v1']['Args'], {
+      p_classroom_id?: string | null
+      p_operation_id?: string | null
+    }>
+  >
+
   //270 accepts SQLNULL to return the owner table without a selected inspector.
   // Preserve every genuine generated key; PostgreSQL omits input nullability.
   get_gradebook_for_owner_v1: FunctionContract<

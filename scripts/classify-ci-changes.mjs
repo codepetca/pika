@@ -245,7 +245,7 @@ function readChangedPaths(args) {
   }
   return execFileSync(
     'git',
-    ['diff', '--name-only', '--diff-filter=ACMRD', args.base, args.head],
+    ['diff', '--no-renames', '--name-only', '--diff-filter=ACMRD', args.base, args.head],
     { encoding: 'utf8' },
   ).split('\n')
 }

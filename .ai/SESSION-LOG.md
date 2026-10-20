@@ -586,3 +586,100 @@ Owner rejected the colored favicon after native Chrome preview and approved the 
 ## 2026-10-19 — Classroom title fills available header width
 
 Owner requests the in-classroom name use the entire header until right-side controls require truncation. AppHeader classroom mode now uses minmax(0,1fr)/auto columns with the existing gap; removed the 320px title cap and empty center slot. Page-title/exam framing retained; original Pika favicon and browser title unchanged. Existing conditional fade responds to the available width, including fullscreen clock controls. UI brief: existing AppHeader/Pattern Lab application-header reference, extend grid only/reuse fade; teacher/student xdesktop/mobile xlight/dark, fit/overflow/resize/fullscreen; no new composite behavior/deps/schema. Expanded deterministic fixture/browser assertions prove a fitting desktop title and fade at actual control boundary, preserved44px control targets/no page overflow. Evidence and final checks/review/CI tracked in ignored artifacts/browser-tab-branding/title-width and PR1615; no merge/deployment.
+## 2026-10-19 — Lifecycle and attached-service permission preparation
+
+Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical main cleanly fast-forwarded. Owner authorized lifecycle/attached-service integration without routine stops, production holds unchanged. New codex/contextual-lifecycle-services prepares archived owner recovery/export271 from earlier unapplied264 source and contextual Pal member token/visit272; current268 hot archive/restore retained. Actual ownership/membership, owner precedence, existing164 locks/generations, operational fences, export/Pal gates and legacy admission behavior remain separate. No new permission framework, dependencies or activation.
+
+Source TDD reproduced missing archive boundary and four SSR Pal-selection failures;215 focused tests across13suites, full nonincremental TypeScript, focusedlint and architecture/UI/design policies pass. Source-only SQL/types prerequisite is frozen separately from uncommitted UI selection; temporary narrow RPC signatures must be removed after genuine isolated metadata generation. Pal worker Sol6.1/high delivered bounded implementation; another Sol6.1/high worker extended only the existing disposable component with a closed272 profile. Requested configuration recorded; effective/attributable token and active-time telemetry unavailable. Cumulative262 independent reviews retained, workers are not reviews. Weekly2% remains with ordinary execution allowed/task waiver; DeepSeek pause retained, storagehealthy286GB.
+
+SQL/native/SDK/stored-byte/visual acceptance and independent review/final-head CI remain pending; no source-only result closes batch3 or the goal. Production/shared-local249+, real accounts/plans/provider/billing/AI and admission/home/page/cohort/cutover holds remain unchanged. No actual new attempt, migration application, provider call or deployment.
+
+## 2026-10-19 — Genuine lifecycle metadata and exact SDK contracts
+
+Independent263/264 cleared C1 source and the closed disposable prerequisite;
+targeted265 cleared the verified signed Chrome update without relaxed admission.
+The one disposable001–272 SQL/type component passed both post-rollback contracts
+and generated442674B artifact4d8833b9. Global/canonical cleanup and internal
+preservation passed; exact owned resources are absent. Immediate outer observer
+failed only after its source/dependency comparisons, at process observation.
+Read-only diagnostics reproduce its own tsxCLI parent matching the filter; direct
+Node loader invocation of the unchanged observer passes7837sources/98965deps and
+zero current matches. Historical matching rows were not retained. Review266
+accepts SQL/generated-artifact evidence but NOT a successful complete FIRST gate;
+that failed observation remains failed, with no native attempt retry or criteria
+relaxation. Complete native acceptance remains unclaimed.
+
+Installed the exact genuine artifact byte-for-byte (same SHA256), added only
+nullable default-filter refinement, and removed both prerequisite RPC casts.
+Nonincremental application TypeScript,141 focused tests/six suites and focused
+eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source is
+unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
+successful preservation and closure gates using direct Node loading. Production,
+shared-local249+, real-account/provider/billing and all activation holds persist.
+
+## 2026-10-19 — Native lifecycle proof and contextual Pal page selection
+
+Separate reviewed disposable001–272 proof passed both rollback contracts, exact
+genuine metadata and actual16 typed RPC/66 archive exchanges. Real stored-byte
+export/readback/bundle verification, replay, cross-class denial, controlled
+postflight uncertainty, source preservation and exact initialized-OFF settings
+restoration passed.183 native actions/814 controls/11,498,419 bytes stayed inside
+original bounds. Immediate independent FIRST passed7,840 source/98,969 dependency
+files and zero process candidates; complete canonical/global equality and positive
+owned cleanup passed lifecycle gates. Review271 accepted this bounded evidence;
+historical failed FIRST remains failed, not replayed or relabeled.
+
+Member SSR selects the contextual Pal reader only for shared contextual members;
+owners never enter learner context, missing optional context keeps academic work,
+and teacher-valued members do not inherit an unavailable legacy account provider.
+27 SSR checks and40 inspected actual-renderer desktop/mobile light/dark captures
+passed. Capture sources/hashes are retained privately; temporary fixture edits
+are removed so existing public widget fixtures and renderers stay unchanged.
+No authenticated-route/provider claim. Native contention/race gates, final review,
+focused checks and final-head CI remain pending. Production/shared-local249+,
+real-account/provider/billing/AI and all rollout holds remain unchanged.
+
+## 2026-10-19 — Actual Pal contention and preservation proof
+
+One reviewed complementary disposable272 run passed all four two-session Pal
+contention schedules, both RPC busy responses, exact graph effects, fresh enrolled-
+owner/removal denial and serial generation re-add with exactly one bound join
+event/link. No HTTP/SDK/Storage rerun:25 native actions/218 controls/6,743,856 bytes,
+maximum two sessions, final zero uncertain/open sessions. Exact initialized-OFF
+restoration and canonical/global preservation plus positive owned cleanup passed
+the existing lifecycle. The immediately next-tool independent FIRST passed7,842
+source/98,969 dependency files and zero process candidates before later inspection.
+Root verified exact project containers/volumes/networks/workdir absent. Evidence
+and exclusive spent marker retained; no historical attempt was replayed. Empty
+old-event history does not certify nonempty queued-fact retention. Final composed
+evidence review/CI remain; all production/shared-local249+/real-account/provider/
+billing/AI and admission/rollout holds remain unchanged.
+
+## 2026-10-19 — Exact lifecycle migration profiles and early local selection
+
+Final CI rejected the complete272 source chain because historical lifecycle
+harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
+All eight source profiles and the offline prefix helper now append exact271/272
+filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
+unknown273 or missing/altered/reordered tails. Source-profile reproduction was
+RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
+passed; no SQL, application authorization or native bounds changed.
+
+The local import graph could not select SQL-filesystem consumers. Two real
+Vitest fixtures reproduced false-green selection in run/related modes; the
+focused runner now adds the existing closed-profile suite on migration SQL
+changes. All26 runner regressions pass. Root combined focused gate passes2,495
+tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
+271/272 bytes still match accepted native proofs, which were not rerun. Targeted
+independent review and corrected-head CI remain required. All holds persist.
+
+## 2026-10-19 — Preserve rename-source evidence in local and CI selection
+
+Review277 identified a rename-out edge in migration test discovery. Real staged
+and committed SQL-to-docs moves reproduced false-green docs-only checks. Local
+committed/working diffs now disable rename collapsing; the existing CI classifier
+does the same. A separate real-Git API/SQL/browser-to-docs counterexample failed
+before this correction. All40 focused/classifier tests and root combined2,498/94
+focused checks plus policies, TypeScript, lint and audit pass. No workflow,
+application, schema, dependency, native capability or activation change. Targeted
+review and exact-head CI are still required; production and rollout stay held.

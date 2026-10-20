@@ -12564,6 +12564,14 @@ export type Database = {
         }
         Returns: Json
       }
+      read_classroom_archive_recovery_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id?: string
+          p_operation_id?: string
+        }
+        Returns: Json
+      }
       read_gradebook_maximum_state: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -12633,6 +12641,10 @@ export type Database = {
       }
       record_pal_classroom_visit: {
         Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
+      record_pal_classroom_visit_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
       record_pal_daily_log_week_configuration_atomic: {
@@ -13032,6 +13044,10 @@ export type Database = {
       }
       resolve_pal_classroom_context: {
         Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
+      resolve_pal_classroom_context_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
       resolve_pal_membership: {

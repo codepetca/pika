@@ -10,6 +10,7 @@ import {
   resolveClassroomArchiveSourceCommit,
 } from '@/lib/server/classroom-archive-operations'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { authorizeSharedClassroomArchiveActor, exportContextualClassroomArchive } from '@/lib/server/contextual-classroom-archive-recovery'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -43,7 +44,8 @@ async function parseRequest(request: NextRequest) {
 }
 
 export const POST = withErrorHandler('ExportClassroomArchive', async (request, context) => {
-  const user = await requireRole('teacher')
+  const actor = await authorizeSharedClassroomArchiveActor()
+  const user = actor.mode === 'shared' ? actor.user : await requireRole('teacher')
   const { id } = await context.params
   const classroomId = z.string().uuid().parse(id)
   const operationId = resolveClassroomArchiveOperationId(request.headers.get('Idempotency-Key'))
@@ -74,7 +76,8 @@ export const POST = withErrorHandler('ExportClassroomArchive', async (request, c
     }, { status: 503 })
   }
 
-  const result = await exportClassroomArchive({
+  const exporter = actor.mode === 'shared' ? exportContextualClassroomArchive : exportClassroomArchive
+  const result = await exporter({
     supabase: getServiceRoleClient(),
     operationId,
     teacherId: user.id,
