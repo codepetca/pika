@@ -806,6 +806,26 @@ This proves interventions after source capture and before canonicalization,
 not the narrower old after-canonicalization timing. Review and native acceptance
 remain pending; no production, account, provider or activation hold is released.
 
+The fresh C5 isolated001–280 proof now passes. All six actual-adapter flows
+and twelve genuine SDK HTTP requests succeeded with the exact success/409/403
+vector, complete5005-child source, two new immutable Versions, retained dedup
+provenance and exact denied-write graph preservation. All17 SQL descriptors and
+58 full guards completed. Three genuine two-session contention pairs passed:
+classroom-operation advisory, Blueprint-purge advisory and classroom-row NOWAIT;
+fresh authorization and rolled-back postflight preserved the post-SDK checkpoint.
+This does not claim a separate Blueprint-row NOWAIT denial test. Accounting was
+112 actions/1851 controls/58573054 bytes/12 HTTP/max2 sessions/final0 unsettled or
+uncertain operations, within every original limit. Positive owned teardown and
+reviewed canonical read-only/global-resource equality gates passed; immediate
+next-tool FIRST independently checked7973 source and98970 dependency files and
+zero matching processes before post-run work. Full before/after preservation
+records match, the temporary workdir is absent and no project Docker resources
+remain. Genuine280 metadata adds only the two required RPCs over the entire279
+artifact. Source scheduling322 and carrier323 reviews are clean. Final focused
+checks pass3215 tests/127 files, TypeScript, lint and architecture/UI/design
+policies. Final metadata/evidence review, exact-head CI and normal main merge
+remain; no learner-history, batch3 exit, deployment or activation is claimed.
+
 Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the

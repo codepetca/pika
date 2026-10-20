@@ -674,3 +674,15 @@ real attachment zero-prior-unsettled entry and held-observer settlement. Root
 inspected the complete two-path delta; cumulative321 reviews/9 fix batches.
 New source/composition review and a separate fresh native proof remain gates;
 no acceptance, migration application, production release or activation claim.
+
+Fresh C5 isolated001–280 proof PASS:6actual adapters/12SDK HTTP/17SQL/58guards,
+5005-child completeness,2new immutable Versions/dedup/3denials and3genuine
+two-session contention pairs.112actions1851controls58573054bytes/max2sessions,
+final0open/uncertain. Actual terminal→immediate FIRST PASS7973source/98970deps/
+0processes before any post-work; full preservation records equal, owned workdir/
+Docker resources absent, reviewed canonical/global equality gates pass. Original
+nativefalse/missing fields remain unmodified; coordinator acceptance is scoped.
+Genuine280 generated types installed byte-identically242b3c7a (only2RPC additions
+over complete279); full focused3215/127 plus TypeScript/lint/policies PASS.
+322Astra SDK-truth and323Sol carriercomposition reviews clean; final metadata/
+evidence review, draft PR and exact-head CI/main merge remain. All holds unchanged.
