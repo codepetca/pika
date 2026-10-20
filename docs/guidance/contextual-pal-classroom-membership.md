@@ -5,8 +5,18 @@ generated metadata and a bounded actual16-RPC SDK proof passed, including both
 account labels, owner precedence, generation replacement, exact persisted learner
 identity/scope and visit deduplication. Exact initialized-OFF settings restoration,
 fresh immediate preservation and finite owned cleanup passed independent review.
-The prerequisite cast is removed. The documented native lock/race proof, final
-review/CI and cutover verification remain gates.
+The prerequisite cast is removed. A complementary zero-HTTP native proof passed
+four actual two-session schedules: classroom and subject advisory contention,
+classroom-row NOWAIT followed by enrolled-owner precedence, and enrollment-row
+NOWAIT followed by committed removal. Both new RPCs returned exact controlled
+busy responses without side effects; fresh transactions observed current access.
+Serial re-add proved a different persisted learner/scope and exactly one fully
+bound join event/link. It used25 native actions,218 controls and6,743,856 exchange
+bytes, at most two sessions and no unsettled session. Exact initialized-OFF
+restoration, immediate source/dependency preservation and owned cleanup passed.
+Old-event equality can compare empty fixture history; this is not nonempty
+historical-fact or provider-policy acceptance. Final evidence review/CI and
+cutover verification remain gates.
 No provider operation or production/shared-local application has occurred.
 
 The existing shared experience admission selects current membership rather than

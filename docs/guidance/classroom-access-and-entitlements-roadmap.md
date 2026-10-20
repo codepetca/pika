@@ -525,8 +525,11 @@ replay/denial/postflight uncertainty passed independent evidence review. Fresh
 immediate preservation and exact owned resource cleanup passed. Forty inspected
 actual-renderer visuals cover both labels/relationships and unavailable/legacy
 states across desktop/mobile and light/dark; these fixed-prop fixtures do not
-assert authenticated route or provider compatibility. Actual Pal272 contention
-and final stable-SHA review/CI remain dormant-merge gates. The exhaustive archive
+assert authenticated route or provider compatibility. Complementary actual
+Pal272 contention passed four two-session schedules plus fresh owner/removal and
+generation re-add checks with zero HTTP; exact restoration, immediate preservation
+and owned cleanup passed. Final composed evidence review and stable-SHA CI remain
+dormant-merge gates. The exhaustive archive
 owner/unarchive/revision/compaction/purge begin/finalize/replay matrix remains
 batch3/cutover evidence, alongside authenticated/provider compatibility and the
 queued-fact/token policy; it is not marked passed. The unchanged archive writer

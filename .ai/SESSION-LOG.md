@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-14 — Ungraded Return integrates latest Gradebook visibility
-
-Final ea751496c CI38635910213 passed every selected job and PRGate. Beforemerge, main advanced to e2db6c57e (PR1592 teacherGradebook marks only after per-student Return), producing continuity conflicts. Draft restored, all six own commits rebased on e2db; preserved both archive marker/history sides in four conflict chunks. No own product/SQL/UI/E2E blob changed; migration265 filename/digest remain aa5a34840c33669c62381a3e568e4a4639708c8027cdbdb15646152352c2f9d3. No migration resequencing or stash creation/restoration; pre-existing shared stashes untouched.
-
-Newbase Gradebook still requires every question score before publishing numeric Test totals. Added two integration cases for returned unsubmitted work with all-null and partialzero/null scores: cells, totals and summaries stay pending/null and inspector excludes numeric Test entry. 204 targeted Gradebook/visibility/teacher/gallery tests PASS. Reused prior20visual states and actual265 DB/browser receipts because own behavior/UI unchanged; final focused and detached integrationreview cover newbase before fresh exact-head CI. Cumulative7actualreviewturns/5batches before this sixth syncbatch; explicitowner review-budgetextension retained without reset. No production deployment or canonical migration authority.
-
 ## 2026-10-14 — Saved Test work production release
 
 Owner requested production deployment and explicitly approved one application of migrations264/265 to production. Preview38649440242 at merged main9aa3d5e82c96a7f8cbac3047b894d51a88cb161f verified001–263 applied and exactpending264/265; apply38653530319 reported applied-verified and complete265-version history. Read-only production catalog verification matched all six function body hashes, postgres owners, definer modes, empty search paths and intended role ACLs; no student fixtures or write canary. Approval consumed; no retry or further migration authority.
@@ -660,3 +654,19 @@ are removed so existing public widget fixtures and renderers stay unchanged.
 No authenticated-route/provider claim. Native contention/race gates, final review,
 focused checks and final-head CI remain pending. Production/shared-local249+,
 real-account/provider/billing/AI and all rollout holds remain unchanged.
+
+## 2026-10-19 — Actual Pal contention and preservation proof
+
+One reviewed complementary disposable272 run passed all four two-session Pal
+contention schedules, both RPC busy responses, exact graph effects, fresh enrolled-
+owner/removal denial and serial generation re-add with exactly one bound join
+event/link. No HTTP/SDK/Storage rerun:25 native actions/218 controls/6,743,856 bytes,
+maximum two sessions, final zero uncertain/open sessions. Exact initialized-OFF
+restoration and canonical/global preservation plus positive owned cleanup passed
+the existing lifecycle. The immediately next-tool independent FIRST passed7,842
+source/98,969 dependency files and zero process candidates before later inspection.
+Root verified exact project containers/volumes/networks/workdir absent. Evidence
+and exclusive spent marker retained; no historical attempt was replayed. Empty
+old-event history does not certify nonempty queued-fact retention. Final composed
+evidence review/CI remain; all production/shared-local249+/real-account/provider/
+billing/AI and admission/rollout holds remain unchanged.
