@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createAttendancePolicySdkProof, assertAttendancePolicyProofReceipt, type AttendancePolicyProofControls } from '../../scripts/contextual-attendance-policy-sdk-proof'
-import { attendancePolicySdkInventory, newAttendancePolicyFixture, type AttendancePolicySqlDescriptor } from '../../scripts/contextual-attendance-policy-native-fixture'
+import { attendancePolicySdkInventory, attendancePolicySqlDescriptors, newAttendancePolicyFixture, type AttendancePolicySqlDescriptor } from '../../scripts/contextual-attendance-policy-native-fixture'
 
 describe('attendance policy SDK leaf (CPU only)', () => {
   const f = newAttendancePolicyFixture('assignmentlist_012345abcdef'), calls = attendancePolicySdkInventory(f)
@@ -31,7 +31,7 @@ describe('attendance policy SDK leaf (CPU only)', () => {
       httpSession: value => { active += value ? 1 : -1; max = Math.max(max, active) },
       sql: async (frame: AttendancePolicySqlDescriptor) => {
         events.push(`sql:${frame.name}`)
-        if (frame.name === 'witness') return { studentOwner: true, selfEnrollment: true, policyRows: 1, nativeVerified: false }
+        if (frame.name === 'witness') return { studentOwner: true, selfEnrollment: true, membershipGenerationRows: 2, policyRows: 1, nativeVerified: false }
         if (frame.name === 'preservation') return { sourcePreserved: true, originalsPreserved: true, nativeVerified: false }
         return { stage: frame.name, nativeVerified: false }
       },
@@ -99,4 +99,63 @@ describe('attendance policy SDK leaf (CPU only)', () => {
     await expect(proof.sdk()).rejects.toThrow(/^attendance_policy_proof_refused$/); await proof.settle()
     expect(proof.receipt().complete).toBe(false)
   })
+  it.each([0, 1, 3])('rejects incomplete or extra correctly bound membership generation witness count %s', async count => {
+    const h = harness(), baseSql = h.controls.sql
+    const proof = createAttendancePolicySdkProof(f, target, h.original, { ...h.controls,
+      sql: async frame => frame.name === 'witness'
+        ? { studentOwner: true, selfEnrollment: true, membershipGenerationRows: count, policyRows: 1, nativeVerified: false }
+        : baseSql(frame),
+    })
+    await expect(proof.sdk()).rejects.toThrow(/^attendance_policy_proof_refused$/)
+    await proof.settle(); expect(proof.receipt().complete).toBe(false)
+  })
+  // CPU source-plan oracle only: evaluate the complete-row table projections
+  // actually admitted by the closed descriptor. PostgreSQL/trigger execution
+  // remains the outer native proof. Omitting one table makes these tests RED.
+  function projectedRows(sql: string, rows: Record<string, unknown[]>, untargeted: boolean) {
+    const projection: Record<string, unknown[]> = {}
+    for (const match of sql.matchAll(/from ((?:public|private)\.[a-z_]+) r where (not )?\(/g)) {
+      if (Boolean(match[2]) === untargeted) projection[match[1]] = rows[match[1]] ?? []
+    }
+    return projection
+  }
+  it.each(['state', 'pal_reference', 'scope_digest'] as const)(
+    'rejects complete-generation %s drift in the synthetic graph and untargeted complement', async field => {
+      for (const untargeted of [false, true]) {
+        const h = harness(), baseSql = h.controls.sql
+        const row = { generation_id: untargeted ? f.actors[4].id : f.enrollments[0].id,
+          state: 'active', pal_reference: `pika-membership-v1-${'a'.repeat(32)}`, scope_digest: 'b'.repeat(64) }
+        const baseline = { 'private.pal_membership_generations': [row] }
+        const changed = { 'private.pal_membership_generations': [{ ...row, [field]: field === 'state' ? 'removed'
+          : field === 'pal_reference' ? `pika-membership-v1-${'c'.repeat(32)}` : 'd'.repeat(64) }] }
+        const sql = attendancePolicySqlDescriptors(f).find(frame => frame.name === 'preservation')!.sql
+        const preserved = JSON.stringify(projectedRows(sql, baseline, untargeted)) === JSON.stringify(projectedRows(sql, changed, untargeted))
+        const proof = createAttendancePolicySdkProof(f, target, h.original, { ...h.controls,
+          sql: async frame => frame.name === 'preservation'
+            ? { sourcePreserved: untargeted || preserved, originalsPreserved: !untargeted || preserved, nativeVerified: false }
+            : baseSql(frame),
+        })
+        await expect(proof.sdk()).rejects.toThrow(/^attendance_policy_proof_refused$/)
+        await proof.settle(); expect(proof.receipt().complete).toBe(false)
+      }
+    })
+  it.each([
+    ['public.account_plans', 'plan_key', 'free', 'basic'],
+    ['public.account_plan_audit', 'new_plan_key', 'free', 'basic'],
+    ['public.effective_feature_entitlement_audit', 'reason_code', 'default_free_account_provisioning', 'native_drift'],
+  ])('rejects complete automatic provisioning row drift in %s', async (table, field, before, after) => {
+      for (const untargeted of [false, true]) {
+        const h = harness(), baseSql = h.controls.sql
+        const row = { subject_user_id: untargeted ? '00000000-0000-4000-8000-000000000001' : f.actors[0].id, [field]: before }
+        const sql = attendancePolicySqlDescriptors(f).find(frame => frame.name === 'preservation')!.sql
+        const preserved = JSON.stringify(projectedRows(sql, { [table]: [row] }, untargeted)) ===
+          JSON.stringify(projectedRows(sql, { [table]: [{ ...row, [field]: after }] }, untargeted))
+        const proof = createAttendancePolicySdkProof(f, target, h.original, { ...h.controls,
+          sql: async frame => frame.name === 'preservation'
+            ? { sourcePreserved: untargeted || preserved, originalsPreserved: !untargeted || preserved, nativeVerified: false } : baseSql(frame),
+        })
+        await expect(proof.sdk()).rejects.toThrow(/^attendance_policy_proof_refused$/)
+        await proof.settle(); expect(proof.receipt().complete).toBe(false)
+      }
+    })
 })

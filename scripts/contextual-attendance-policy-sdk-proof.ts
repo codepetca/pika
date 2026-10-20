@@ -69,7 +69,7 @@ export function createAttendancePolicySdkProof(f: AttendancePolicyFixture,
     account('control', 1)
     const result = await bounded(controls.sql(frame), name === 'restore-baseline' ? controls.cleanupDeadline : controls.deadline)
     assert(Buffer.byteLength(JSON.stringify(result)) <= 4096)
-    if (name === 'witness') assert.deepEqual(result, { studentOwner: true, selfEnrollment: true, policyRows: 1, nativeVerified: false })
+    if (name === 'witness') assert.deepEqual(result, { studentOwner: true, selfEnrollment: true, membershipGenerationRows: 2, policyRows: 1, nativeVerified: false })
     else if (name === 'preservation') assert.deepEqual(result, { sourcePreserved: true, originalsPreserved: true, nativeVerified: false })
     else assert.deepEqual(result, { stage: name, nativeVerified: false })
     if (name === 'setup') restoreState = 'prepared'

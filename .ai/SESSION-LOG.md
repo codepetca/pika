@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-15 — Student-table gridlines toggle
-
-Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
-selected Assignment/Test grading, Gradebook and the teacher dashboard matrix.
-Reused checked work-surface menus and DataTable dividers; Gradebook uses cell
-borders for its border-separated matrix and existing saved display preferences.
-Other screens retain per-page display state. Risk profile: none.
-Reference: Attendance table canon and Pattern Lab production Gradebook owners.
-Teacher desktop/mobile, light/dark, off/on/menu and keyboard focus verified by
-Playwright: 24 surface/viewport/theme cases. Student role n/a (teacher tables only).
-Captures/repro scripts: output/playwright/gridlines* (ignored, synthetic data).
-Composite checklist reviewed; checked semantics, keyboard/focus and persistence
-covered by component regressions. No new primitive or experimental pattern.
-Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
-verified against source, no worker corrections or conflicts; tokens/time unknown.
-Weekly usage at start: 1% used; storage healthy (~328 GB available).
-
 ## 2026-10-15 — PR1596 CI diagnosis and snapshot repair
 
 Reviewed Linux CI and local Darwin Pattern Lab image differences: only the
@@ -682,3 +665,15 @@ RPC keys, not hidden by casts. This source preparation is not native acceptance,
 PR readiness, a phase exit or rollout. All production/shared-local/real-state and
 activation holds persist. Sol6.1/high supplied bounded product, native leaf and
 existing-runner extension; coordinator owns integration/review and acceptance.
+
+## 2026-10-19 — Complete attendance fixture graph preservation
+
+Independent review found omitted trigger-created membership generations in the
+native fixture. Complete synthetic and untargeted row partitions now include
+generations and three conditional Free-plan/audit tables, with retained-identity
+collision checks. Existing witness positively requires exactly two active,
+scope-bound generations; zero/one/three are rejected. Six drift regressions failed
+before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
+sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
+genuine metadata and fresh isolated runtime/preservation acceptance are pending.
+No product permission, migration body, provider or activation change.

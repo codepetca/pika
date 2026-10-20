@@ -66,18 +66,24 @@ export function attendancePolicySdkInventory(f: AttendancePolicyFixture): readon
 
 // Closed table set: original rows are retained and compared by complete-row digest.
 // Synthetic graph equality is checked as complete rows, not selected fields.
+// 168 registers enrollment generations even with Pal OFF. The 181 user trigger,
+// replaced by 206 and using the 215 plan setter, can provision Free plan/audits.
+// Classroom/category/revision rows below also include their normal trigger writes.
 function graphSql(f: AttendancePolicyFixture, synthetic: boolean) {
   const actors = f.actors.map(a => quote(a.id)).join(','), classes = f.classes.map(c => quote(c.id)).join(','), ops = f.operations.map(quote).join(',')
   const tables = [
-    ['users', `id in (${actors})`], ['effective_feature_entitlements', `subject_user_id in (${actors})`],
-    ['classrooms', `id in (${classes})`], ['classroom_enrollments', `classroom_id in (${classes})`],
-    ['classroom_archive_revisions', `classroom_id in (${classes})`], ['gradebook_categories', `classroom_id in (${classes})`],
-    ['gradebook_settings', `classroom_id in (${classes})`], ['attendance_teacher_entitlements', `teacher_id in (${actors})`],
-    ['attendance_window_policies', `classroom_id in (${classes})`], ['attendance_roster_mappings', `classroom_id in (${classes})`],
-    ['classroom_purge_operations', `id in (${ops})`], ['classroom_purge_fences', `classroom_id in (${classes})`],
-    ['attendance_decommission_operations', `id in (${ops})`],
+    ['public.users', `id in (${actors})`], ['public.effective_feature_entitlements', `subject_user_id in (${actors})`],
+    ['public.account_plans', `subject_user_id in (${actors})`], ['public.account_plan_audit', `subject_user_id in (${actors})`],
+    ['public.effective_feature_entitlement_audit', `subject_user_id in (${actors})`],
+    ['public.classrooms', `id in (${classes})`], ['public.classroom_enrollments', `classroom_id in (${classes})`],
+    ['private.pal_membership_generations', `generation_id in (${f.enrollments.map(e => quote(e.id)).join(',')})`],
+    ['public.classroom_archive_revisions', `classroom_id in (${classes})`], ['public.gradebook_categories', `classroom_id in (${classes})`],
+    ['public.gradebook_settings', `classroom_id in (${classes})`], ['public.attendance_teacher_entitlements', `teacher_id in (${actors})`],
+    ['public.attendance_window_policies', `classroom_id in (${classes})`], ['public.attendance_roster_mappings', `classroom_id in (${classes})`],
+    ['public.classroom_purge_operations', `id in (${ops})`], ['public.classroom_purge_fences', `classroom_id in (${classes})`],
+    ['public.attendance_decommission_operations', `id in (${ops})`],
   ]
-  return `jsonb_build_object(${tables.map(([table, predicate]) => `${quote(table)},coalesce((select jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text) from public.${table} r where ${synthetic ? '' : 'not '}(${predicate})),'[]'::jsonb)`).join(',')})`
+  return `jsonb_build_object(${tables.map(([table, predicate]) => `${quote(table.split('.')[1])},coalesce((select jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text) from ${table} r where ${synthetic ? '' : 'not '}(${predicate})),'[]'::jsonb)`).join(',')})`
 }
 export function attendancePolicySqlDescriptors(f: AttendancePolicyFixture): readonly AttendancePolicySqlDescriptor[] {
   assertAttendancePolicyFixture(f)
@@ -92,6 +98,10 @@ export function attendancePolicySqlDescriptors(f: AttendancePolicyFixture): read
   do $collision$ begin if to_regclass(${q(f.baseline)}) is not null
     or exists(select 1 from public.users where id in (${f.allocatedIds.map(q).join(',')}))
     or exists(select 1 from public.classrooms where id in (${f.allocatedIds.map(q).join(',')}))
+    or exists(select 1 from public.classroom_enrollments where id in (${f.enrollments.map(e => q(e.id)).join(',')}))
+    or exists(select 1 from private.pal_membership_generations where generation_id in (${f.enrollments.map(e => q(e.id)).join(',')}))
+    or exists(select 1 from public.account_plan_audit where subject_user_id in (${f.actors.map(r => q(r.id)).join(',')}))
+    or exists(select 1 from public.effective_feature_entitlement_audit where subject_user_id in (${f.actors.map(r => q(r.id)).join(',')}))
     or exists(select 1 from public.classroom_purge_operations where id in (${f.operations.map(q).join(',')}))
     or exists(select 1 from public.attendance_decommission_operations where id in (${f.operations.map(q).join(',')})) then raise exception 'attendance_fixture_collision';end if;end;$collision$;
   create table ${f.baseline}(singleton boolean primary key check(singleton),original_sha256 text not null,graph jsonb);
@@ -126,6 +136,9 @@ export function attendancePolicySqlDescriptors(f: AttendancePolicyFixture): read
     'originalsPreserved',${original} is not distinct from (select original_sha256 from ${f.baseline}),'nativeVerified',false);rollback;`
   const witness = `begin read only;set local statement_timeout='8s';select jsonb_build_object('studentOwner',exists(select 1 from public.classrooms c join public.users u on u.id=c.teacher_id where c.id=${a} and u.id=${owner} and u.role='student'),
     'selfEnrollment',exists(select 1 from public.classroom_enrollments where classroom_id=${a} and student_id=${owner}),
+    'membershipGenerationRows',(select count(*) from private.pal_membership_generations g join public.classroom_enrollments e on e.id=g.generation_id
+      where (e.id,e.classroom_id,e.student_id) in (${f.enrollments.map(e => `(${q(e.id)}::uuid,${q(e.classroomId)}::uuid,${q(e.actorId)}::uuid)`).join(',')})
+        and g.state='active' and g.scope_digest=private.pal_membership_scope(e.classroom_id,e.student_id)),
     'policyRows',(select count(*) from public.attendance_window_policies where classroom_id in (${f.classes.map(c => q(c.id)).join(',')})),'nativeVerified',false);rollback;`
   return attendancePolicyFreeze(([
     ['setup', setup], ['entitlement-expired', expired], ['entitlement-revoked', revoked], ['roster-deactivating', deactivating],

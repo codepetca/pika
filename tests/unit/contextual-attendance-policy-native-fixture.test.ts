@@ -50,4 +50,23 @@ describe('inert attendance policy fixture', () => {
     expect(frames.find(r => r.name === 'preservation')!.sql).toContain("'originalsPreserved'")
     expect(frames.every(r => !/delete\s+from|drop\s+table/i.test(r.sql))).toBe(true)
   })
+  it('includes concrete automatic generation and Free provisioning side effects in both complete-row partitions', () => {
+    const frames = attendancePolicySqlDescriptors(f)
+    for (const table of ['private.pal_membership_generations', 'public.account_plans', 'public.account_plan_audit', 'public.effective_feature_entitlement_audit']) {
+      for (const name of ['setup', 'restore-baseline', 'preservation']) {
+        expect(frames.find(frame => frame.name === name)!.sql).toContain(`from ${table} r where (`)
+      }
+      expect(frames.find(frame => frame.name === 'preservation')!.sql).toContain(`from ${table} r where not (`)
+    }
+    const setup = frames[0].sql
+    expect(setup).toContain('exists(select 1 from private.pal_membership_generations where generation_id in (')
+    expect(setup).not.toMatch(/insert into private\.pal_membership_generations|insert into public\.account_plan|alter.*trigger|session_replication_role/i)
+  })
+  it('positively counts both active generations with exact enrollment, classroom and actor bindings', () => {
+    const witness = attendancePolicySqlDescriptors(f).find(frame => frame.name === 'witness')!.sql
+    expect(witness).toContain("'membershipGenerationRows',(select count(*) from private.pal_membership_generations g join public.classroom_enrollments e on e.id=g.generation_id")
+    expect(witness).toContain('(e.id,e.classroom_id,e.student_id) in (')
+    for (const e of f.enrollments) expect(witness).toContain(`('${e.id}'::uuid,'${e.classroomId}'::uuid,'${e.actorId}'::uuid)`)
+    expect(witness).toContain("g.state='active' and g.scope_digest=private.pal_membership_scope(e.classroom_id,e.student_id)")
+  })
 })

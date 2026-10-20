@@ -47552,3 +47552,21 @@ CI38750707277 exposed two existing browser contracts still using the former Publ
 Synced main0cfcc47cc (optional student-table gridlines). Only archive append markers conflicted; retained both archive batches/content. Test workspace/gridline source and component coverage merged automatically. Final merged-head validation and CI remain required; no merge to main or production operation.
 
 Latest sync includes main5e71c54fd and its Gradebook updates. All our archived entries already exist on main (normalized content checked), so retained the canonical main archive without duplicate appends. Test publication source unchanged by this second sync. No migration application or production operation.
+
+<!-- pika-session-log-archive-batch:0d0126e00c15bb09a5980b0d4bda3afc899a17a0ea199362b45b07403330ca28 -->
+## 2026-10-15 — Student-table gridlines toggle
+
+Added More actions → Show gridlines, default off, to Daily/Attendance, Roster,
+selected Assignment/Test grading, Gradebook and the teacher dashboard matrix.
+Reused checked work-surface menus and DataTable dividers; Gradebook uses cell
+borders for its border-separated matrix and existing saved display preferences.
+Other screens retain per-page display state. Risk profile: none.
+Reference: Attendance table canon and Pattern Lab production Gradebook owners.
+Teacher desktop/mobile, light/dark, off/on/menu and keyboard focus verified by
+Playwright: 24 surface/viewport/theme cases. Student role n/a (teacher tables only).
+Captures/repro scripts: output/playwright/gridlines* (ignored, synthetic data).
+Composite checklist reviewed; checked semantics, keyboard/focus and persistence
+covered by component regressions. No new primitive or experimental pattern.
+Coverage inventory: GPT-6.1 Sol/medium read-only worker identified dashboard;
+verified against source, no worker corrections or conflicts; tokens/time unknown.
+Weekly usage at start: 1% used; storage healthy (~328 GB available).
