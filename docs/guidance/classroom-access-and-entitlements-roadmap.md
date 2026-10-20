@@ -673,9 +673,21 @@ Blueprint lineage and all other rows remain preserved. The private4096-ID work
 bound is not a plan quota or new UI notice. Source-only rollback contracts cover
 1001 classrooms, repeated/empty orders, account labels, denials and injected
 midbatch/postcondition failures. Installed-SDK fixtures, exact277 migration seals
-and the canonical CI proof lane are prepared; actual PostgreSQL/concurrency,
-genuine metadata, independent reviews and exact-head CI remain gates. No schema
-application, admission activation or phase exit is implied.
+and the canonical CI proof lane are prepared. Initial303/304 and composition305
+reviews were clean. One fresh001–277 isolated proof passed actual rollback SQL,
+genuine metadata,12 SDK writes,18 SQL/60 guards and three two-session lock paths:
+subject blocking/success, operation conflict plus committed archive, and row
+conflict plus normal triggered synthetic ownership transfer. Fresh stale sets
+were denied; correct sets succeeded under sentinel rollback. Complete committed
+graph/complement, unchanged Blueprint/Pal/audit, disabled grant and exact version
+effects passed. Subject proof does not claim a performed concurrent creation.
+115actions/1847controls/57053160bytes/12HTTP/max2sessions/final0open or uncertain;
+original limits retained. Immediate next-tool FIRST verified7918source/98970deps
+unchanged and0matching processes before post-run actions. Positive owned teardown
+and canonical read-only/global equality passed. Genuine277 adds only the required
+actor/string-array Json RPC; removing it reconstructs entire276. Final focused
+checks, metadata/evidence review and exact-head CI remain gates. No shared-local
+or production schema application, admission activation or phase exit is implied.
 
 Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider

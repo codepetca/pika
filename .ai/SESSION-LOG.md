@@ -601,3 +601,16 @@ main ff-only, lifecycle receipts recorded. No production operation. Reorder C1
 086e60fa source reviews303Astra/high security and304Sol6.1/high compatibility
 complete CLEAN, no actionableP0–P2; cumulative304reviews/4batches. Next is isolated
 SQL/SDK plus three distinct subject/operation/row-lock paths, not activation.
+
+Composition305Astra/high clean; genuine isolated SuY6uP/projectdf2a20c1df78 passed
+actual55880JOINED0,001–277 rollback SQL/1001classes,12SDK18SQL60guards +3real lock
+pairs7SQL8guards/postflight. Subject blocking is not performed creation; actual268
+archive and normal triggered owner transfer commit, then fresh stale sets fail
+and correct sets succeed under rollback. Full graph/complement/Pal/audit/Blueprint/
+disabled grant/exact versions, canonical read-only/global equality and owned
+teardown pass.115actions1847controls57053160B12HTTPmax2/final0open/uncertain.
+Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918source/
+98970deps unchanged/0process; freeze released after join. Genuine2774645aad3,
+443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
+No original receipt rewritten; spent profile stays fail-closed. Final focused
+checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.
