@@ -48047,3 +48047,50 @@ Next: expiry/read-only revalidation/date on phone and bounded active teacher ref
 Orchestrate native GPT6.1-sol/high teacher trace delivered/verified;1launch plus
 follow-up diagnostic, no rework/conflict. Worker/coordinator tokens unknown;
 weekly remaining17%, DeepSeek dated pause honored; storage healthy295GB.
+
+<!-- pika-session-log-archive-batch:5bc74daef30787db832fb7f86cdf00f275737ee99eda36909de65b38f8d32624 -->
+## 2026-10-19 — Student attendance confirmation freshness
+
+Requested student-only fix on codex/attendance-confirmation-freshness. POST waits
+for actual accepted/already-accepted backend record and binds success to today's
+Toronto class date; adds server time/deadline and dated display. Old success
+expires at midnight; resume uses authenticated reads only and hides success
+until same student/classroom/occurrence is confirmed. Failed reads stay neutral.
+Server/read-model worker GPT6.1-sol/high delivered70 tests PASS, verified against
+source; no conflicts/rework. Coordinator added51 frontend/helper tests PASS
+plus delayed-response boundary regression. Usage17% weekly remaining; storage
+healthy; per-worker tokens unavailable. Teacher behavior unchanged.
+Playwright16 captures: student390/1440 light/dark success/verifying/failure/expired;
+4initialPOST,8GET,0resume/retryPOST; guarded teacher fixture PASS.
+Visual evidence: output/playwright/attendance-confirmation/; Pattern Lab statuses
+reference inspected. Focused gate83files1004tests, policies,TypeScript,lint PASS. Review1 at9bb59abd
+accepted one P2: GET request latency could revive pre-midnight confirmation.
+Added deferred-GET regression (red then green), advanced server clock by elapsed
+request time;40related tests PASS. Budget:2planned turns/7,1fix batch/4;
+per-review tokens/elapsed unknown. Targeted cumulative review clean at257f2e20; focused1005+allchecks PASS.
+Final fixture audit updated existing browser acknowledgements/status mocks and
+new uncertain-result copy;6Playwright flows PASS(40s) desktop-light/mobile-dark,
+normal/reduced motion, no dependency/auth setup runs. Product source unchanged.
+Reviewturn3/7planned for test delta, fixbatch2/4; CI next; PR1616draft.
+
+## 2026-10-19 — Distinguish Survey contention from lifecycle fences
+
+Expanded profile gate:219eadf8 passed800 targeted checks and clean review235, but its larger related suite found19 failures from one separate hot-archive profile's exact268 ceiling (2155PASS). Follow-up152 changes only that source admission and regressions: exact268/269, original001–267 prefix/268 seal retained,269 exactseal reused,unknown270/tampering rejected. Three targeted files299PASS including actual eighth-profile matrix and legacy268 positive; no SQL/app/runtime/control change. Full gate/proportional review/fresh CI remain; original Survey native44 proof is not rerun or claimed as modified-profile native acceptance.
+
+CI follow-up: final95d9a7c local1000/static and cumulative review234 passed; ready CI39296868148 failed existing owner-reorder migration admission before native dispatch. PR returned draft; seven other heavy jobs canceled by that transition, not independent defects. Offline real269 chain reproduces exact unreviewed-profile denial. Source-only correction151 extends seven Test runners and immediate historical learner helper with exact269 filename/digest/actualbytes seal, retained268-at269 validation and unknown270/tamper regressions. Product src/SQL/UI/config and Survey proof leaves remain unchanged. Targeted checks/proportional independent review/final gate precede fresh ready CI; prior v11/v8 native evidence remains historical execution of identical application/SQL, not replayed. All production/shared-local/provider/account/activation holds remain.
+
+Superseding verification: product44daed/runner759cf passed freshSQLv11 and complete appv8.49SQL cases/30committed directions/real57014/wireoverflow/restoration/14SDK+2probes/types PASS;198actions/4366controls/76481525bytes/16requests under original limits. Full browser52exchanges/7actor contexts/16hash-checked and actually inspected visuals passed with863app/1185API/0errors. Immediate independent source/dependency preservation and exact cleanup/canonical equality PASS for both attempts. Product1000 and carrier4733 tests/static checks PASS; defaultparallel CPUtimeout resolved using one worker, no assertion/deadline change. Review232source and233timestamp-only clean;233actualreviews/150acceptedsourcebatches, no counter reset. Evidence retained in private v11/v8 outcomes; tokens spent, no replay. This facts-only follow-up changes no runtime/SQL/test/UI/dependency bytes. Final cumulative review, stable-head CI/PRGate and normal1614 main merge remain; batch2/full-goal exit and all production/shared-local/provider/account/cohort/home/cutover holds remain unchanged.
+
+Prior frozen db1fb passed the complete bounded remaining DB proof; all16 visuals passed in a partial app workflow, not complete acceptance. FullSurveyv7 read JSON successfully and failed an exact HTTP409 assertion, with no gateway violation. Its SQL cause is unproved. Source confirms ordinary Survey reads contend with preflight/writer locks; old269 also masked persisted55000 lifecycle fences and a special40001 as genericbusy.
+
+SQL269 now preserves55000 and unknown40001; only known helper contention or engine lock/deadlock aborts map exactPT409/survey_operation_busy. Adapter permits one extra completeRPC after that exact positive abort,20ms backoff/100ms monotonic admission window, one shared token across preflight/writer. Auth-before-body, lock order, relationship/fence/snapshot/final-vector checks, identical write args and generic public errors remain. No replay of transport/timeout/ambiguous outcome or successful/malformed success. Existing rollback DO gains real persisteddecommission denial/classification and exactsubjectfence assertions, with no new nativeframe/action or payloadcase. Sol6.1/high implementation delivered178 focused tests, nonincrementalTS/eslintPASS; root inspected complete delta/hash and auditPASS. Cumulative231reviews/149acceptedcarrierbatches retained; source150, independent review, fresh changedSQL/native app proof and finalhead gates pending. Routine approvals waived by owner; all production/shared-local/account/provider/cohort/home/cutover holds unchanged. No UI/dependency change or migration application.
+
+## 2026-10-19 — Strict attendance confirmation resume reads
+
+Release review of promotion1617 found that a fresh backend open state could be replaced by the two-minute acknowledged-POST handoff on focus. Added a strict server-read option that forces network, bypasses and retires that handoff, and used it for QR resume verification. Real-client regression reproduced the false green before correction; then both fresh open and confirmed paths passed, with one POST and fresh GETs after priming the banner cache. Local focused912 tests/policies/types/lint and audit pass. Four student viewport/theme contexts rechecked in browser,16captures, four POST/eight GET with no resume/retry mutations; denied-result screenshots inspected. Initial attendance PR1616 merged as d190ac5ac after all final CI gates passed; production1617 remains draft pending correction and archive-only conflict resolution. No migrations, production data or environment changed. Release review ledger2initial turns/1accepted blocker, first remediation batch; original20:05UTC release review clock retained.
+
+## 2026-10-19 — Survey landed; Gradebook workflow integration begins
+
+Survey1614 merged8ed854ca9 after all ten CI39300185484 jobs/PRGate passed; merge tree equals revieweddbbc165a6, canonical main fast-forwarded cleanly. Fresh SQLv11/full-appv8 and all16 inspected visuals/cleanup/preservation remain accepted for unchanged app/SQL bytes. No production/shared-local application or activation. Prior236 reviews/152 source batches retained.
+
+Owner authorized the consolidated Gradebook/returned Grades group without routine stops, retaining all serious holds. New feature codex/contextual-gradebook-workflow starts at8ed; startup repaired only missing locked dependencies offline, then environment passed. Existing181 Gradebook/API/calculation tests across12files passed in14.54s. Accepted scope map and bounded Astra/high contract design use existing admission, transactional source/writer fences and pure projections; no new flags/framework, grading policy, provider execution or UI redesign. Implementation/new native proof/review/CI remain pending. Weekly15% remains/ordinary execution allowed; existing task-stop waiver and DeepSeek pause throughDec31 retained, storagehealthy293GB. No attributable token/active-time telemetry available.

@@ -1,8 +1,7 @@
 'use client'
 
-import { X } from 'lucide-react'
 import type { GradebookAssessmentColumn, GradebookStudentSummary } from '@/types'
-import { Button, IconButton, Tooltip, cn } from '@/ui'
+import { Button, Tooltip, cn } from '@/ui'
 import { AssessmentStatusIndicator, getGradebookAssessmentStatusDisplay } from '@/components/AssessmentStatusIndicator'
 import markStyles from './GradebookMark.module.css'
 import { isUnreturnedGradebookMark, UNRETURNED_GRADEBOOK_MARK_LABEL, getStudentName, getStudentDisplayId, formatPercent, getGradePercentTextClass, getAssessmentCell, formatCompactPercent, formatAssessmentRawScore, getAssessmentColumnKey, getAssessmentCellPercent, getAssessmentMeta, type ScoreDisplayMode } from '@/lib/gradebook-display'
@@ -11,7 +10,6 @@ export function GradebookStudentPanel({
   student,
   columns,
   displayMode,
-  onClose,
   onItemOpen,
   onItemScoreOpen,
   isReadOnly = false,
@@ -20,7 +18,6 @@ export function GradebookStudentPanel({
   student: GradebookStudentSummary
   columns: GradebookAssessmentColumn[]
   displayMode: ScoreDisplayMode
-  onClose?: () => void
   onItemOpen?: (column: GradebookAssessmentColumn) => void
   onItemScoreOpen?: (student: GradebookStudentSummary, column: GradebookAssessmentColumn) => void
   isReadOnly?: boolean
@@ -51,7 +48,6 @@ export function GradebookStudentPanel({
               {formatPercent(student.final_percent)}
             </div>
           </div>
-          {onClose ? <IconButton icon={X} label="Close student details" onClick={onClose} /> : null}
         </div>
       </div>
 

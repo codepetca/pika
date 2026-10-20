@@ -488,6 +488,24 @@ describe('TeacherGradebookTab', () => {
     expect(screen.queryByRole('region', { name: 'Ada Lovelace assessment details' })).not.toBeInTheDocument()
   })
 
+  it('allows the details pane to grow while retaining a usable student-name pane', async () => {
+    renderGradebook('grades')
+    await screen.findByText('Ada')
+    fireEvent.click(screen.getByRole('row', { name: /Ada Lovelace.*80% 90% 85\.0%/ }))
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ x: 0, y: 0, top: 0, left: 0, right: 1000, bottom: 600, width: 1000, height: 600, toJSON: () => ({}) })
+    try {
+      const divider = screen.getByRole('separator', { name: 'Resize gradebook details' })
+      fireEvent.keyDown(divider, { key: 'Home' })
+      expect(divider).toHaveAttribute('aria-valuenow', '76')
+      expect(divider).toHaveAttribute('aria-valuemax', '85')
+      expect(screen.getAllByRole('region', { name: 'Ada Lovelace assessment details' })).toHaveLength(2)
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Close student details' })).not.toBeInTheDocument()
+      fireEvent.doubleClick(divider)
+      expect(divider).toHaveAttribute('aria-valuenow', '32')
+    } finally { rectSpy.mockRestore() }
+  })
+
   it('distinguishes a cold failure from an empty gradebook and restores focus after retry', async () => {
     let attempts = 0
     let resolveRetry: (() => void) | null = null

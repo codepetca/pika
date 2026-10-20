@@ -1,7 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useWindowSize } from '@/hooks/use-window-size'
+import { DESKTOP_BREAKPOINT } from '@/lib/layout-config'
 import { Button } from '@/ui'
+import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
 import { GradebookScoreDialog } from '@/components/gradebook/GradebookScoreDialog'
 import { applyMaximumToCell, applyMaximumToColumn, previewMaximumChange, type GradebookMaximumState, type MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { calculateCategorizedFinalPercent } from '@/lib/gradebook'
@@ -41,7 +44,10 @@ const noop = () => {}
 
 /** Deterministic evidence using the production toolbar and table owners. */
 export function GradebookCompactPattern() {
+  const { width: viewportWidth } = useWindowSize()
   const [compactZeroWeightAssessments, setCompactZeroWeightAssessments] = useState(true)
+  const [inspectorWidth, setInspectorWidth] = useState(32)
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>('0')
   const [preferences, setPreferences] = useState({ ...DEFAULT_GRADEBOOK_PREFERENCES, showWeights: true })
   const [weightDrafts, setWeightDrafts] = useState<Record<string, string>>({})
   const [maximumEditsEnabled, setMaximumEditsEnabled] = useState(true)
@@ -62,6 +68,7 @@ export function GradebookCompactPattern() {
       items: cells.filter((cell) => cell.earned != null).map((cell) => ({ earned: cell.earned!, possible: cell.possible, weight: columns.find(column => getAssessmentColumnKey(column) === getAssessmentColumnKey(cell))?.weight ?? 10, categoryId: 'term' })) })
     return { ...student, assessment_scores: cells, final_percent: calculation.finalPercent }
   })
+  const selectedStudent = displayedStudents.find((student) => student.student_id === selectedStudentId)
   function saveMaximum(maximum: number, mode: MaximumChangeMode = 'keep_marks') {
     if (!maximumTarget) return
     setMaximums((values) => ({ ...values, [getAssessmentColumnKey(maximumTarget)]: previewMaximumChange(maximumTarget, maximum, mode) }))
@@ -74,7 +81,15 @@ export function GradebookCompactPattern() {
       compactZeroWeightAssessments={compactZeroWeightAssessments} onCompactZeroWeightAssessmentsChange={setCompactZeroWeightAssessments} />
     <Button variant="secondary" aria-pressed={!maximumEditsEnabled} onClick={() => setMaximumEditsEnabled((enabled) => !enabled)}>Pause maximum changes (fixture)</Button>
     <div className="h-96">
-      <GradebookTable compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines} students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)} displayMode={preferences.scoreDisplayMode}
+      <TeacherWorkspaceSplit className="h-full" splitVariant="gapped" inspectorWidth={inspectorWidth} onInspectorWidthChange={setInspectorWidth}
+        inspectorCollapsed={false} defaultInspectorWidth={32} minInspectorPx={300} minPrimaryPx={240}
+        minInspectorPercent={24} maxInspectorPercent={85} dividerLabel="Resize gradebook details"
+        inspectorClassName="rounded-lg bg-surface"
+        inspector={selectedStudent ? <div data-testid="gradebook-compact-student-panel" className="h-full">
+          <GradebookStudentPanel student={selectedStudent} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)}
+            compactZeroWeightAssessments={compactZeroWeightAssessments} displayMode={preferences.scoreDisplayMode} />
+        </div> : undefined}
+        primary={<GradebookTable allowNamesOnly={Boolean(selectedStudent) && viewportWidth >= DESKTOP_BREAKPOINT} compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines} students={displayedStudents} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)} displayMode={preferences.scoreDisplayMode}
         ultraCompact={preferences.ultraCompact} lastNameFirst={preferences.lastNameFirst}
         showStudentIds={preferences.showStudentIds} showWeights={preferences.showWeights}
         keepKeyColumnsVisible={preferences.keepKeyColumnsVisible}
@@ -83,8 +98,8 @@ export function GradebookCompactPattern() {
         onWeightDraftChange={(column, value) => setWeightDrafts((drafts) => ({ ...drafts, [`${column.assessment_type}:${column.assessment_id}`]: value }))}
         onWeightCommit={noop} onAssessmentOpen={noop} maximumEditsEnabled={maximumEditsEnabled} onMaxMarkOpen={setMaximumTarget} onScoreOpen={noop} onFinalScoreOpen={noop}
         selectedIds={new Set()} allSelected={false} someSelected={false} toggleSelect={noop} toggleSelectAll={noop}
-        selectedStudentId={null} onStudentSelect={noop} onStudentDeselect={noop}
-        sortColumn="first_name" sortDirection="asc" onSort={noop} />
+        selectedStudentId={selectedStudentId} onStudentSelect={(student) => setSelectedStudentId(student.student_id)} onStudentDeselect={() => setSelectedStudentId(null)}
+        sortColumn="first_name" sortDirection="asc" onSort={noop} />} />
     </div>
     <StudentGradesView showRoleLabel grades={buildStudentGradesResponse({
       categories: [{ id: 'term', percentage: 100 }],
@@ -102,10 +117,6 @@ export function GradebookCompactPattern() {
         { id: 'practice', title: 'Practice journal', earned: 0, possible: 10, percent: 0, categoryName: 'Term Work', included: false, isZeroWeight: true },
         { id: 'participation', title: 'Participation', earned: 8, possible: 10, percent: 80, categoryName: 'Term Work', included: true, isZeroWeight: false },
       ]} />
-    </div>
-    <div data-testid="gradebook-compact-student-panel" className="max-w-lg">
-      <GradebookStudentPanel student={displayedStudents[0]} columns={visibleGradebookAssessments(displayedColumns, preferences.hideUnreleasedAssessments)}
-        compactZeroWeightAssessments={compactZeroWeightAssessments} displayMode={preferences.scoreDisplayMode} />
     </div>
     <GradebookScoreDialog isOpen={Boolean(maximumTarget)} student={null} maximumChangesDisabled={!maximumEditsEnabled}
       target={maximumTarget ? { kind: 'maximum', title: maximumTarget.title, value: maximumTarget.possible,
