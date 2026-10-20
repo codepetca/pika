@@ -161,6 +161,7 @@ const databaseProofInventories = {
     [59, '512a95b3d8cacefb2bb3393b9c133d449c9f5876ece6fba8be93873515bfbb19'],
     [60, '74065e76b06b13856adf72c0b9af011d9c3a3ecfdada991c4b91a8535f64e368'],
     [61, 'aa87e79d84589a8e1b5ded37393558652f95d9fdec3c59a1dfeab12e82db5e45'],
+    [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -173,6 +174,16 @@ function databaseProofs(job) {
 function validateDatabaseInventory(jobs) {
   const primary = jobs[jobsByLane.database]
   if (!primary) throw new Error('Missing canonical database job.')
+  const grantsName = 'Verify explicit server-only Data API grants without automatic defaults'
+  const grantsCommand = 'bash scripts/check-data-api-grants-database.sh'
+  const grantsPolicy = 'pnpm run check:data-api-migrations'
+  const grantsSteps = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === grantsName || step.run?.includes(grantsCommand) || step.run?.includes(grantsPolicy)).map(step => ({ job, step })))
+  if (grantsSteps.length && (grantsSteps.length !== 2 || grantsSteps.some(({ job, step }) => job !== primary || step.if)
+    || grantsSteps.filter(({ step }) => step.run === grantsPolicy).length !== 1
+    || grantsSteps.filter(({ step }) => step.name === grantsName && step.run === grantsCommand && databaseProofs(primary).includes(step)).length !== 1)) {
+    throw new Error('Canonical explicit Data API grant proofs are missing, duplicated or changed.')
+  }
   const secondary = jobs[jobsByLane['database-lifecycle']]
   if (secondary) {
     for (const lane of ['database', 'database-lifecycle']) {

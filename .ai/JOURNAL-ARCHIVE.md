@@ -48030,3 +48030,20 @@ Prepared49 exact byte/count/shape SQL cases in the existing35s rollback dispatch
 The first expanded49-case isolated proof timed out before committed/HTTP checks; cleanup and preservation passed, and the attempt stays spent. Shared rollback SQL now separates question/response and list fixtures inside the same35-second frame and emits211 fixed privacy-safe progress codes. All49 byte/count/shape cases, real triggers, exact projections and full-state restoration remain. The list fixture retains one answered member with questioncount1; one additional response and two fixture witnesses are explicit. Carrier323 focused tests/targeted strict TypeScript pass; independent review/full gates and a fresh admitted proof remain. Application, migrations and generated types are unchanged. Draft1614 and all production/cutover holds remain.
 
 The first product gate exposed two stale source assertions still expecting the old single fixture and forbidding every INFO marker. Synced only the same fixed-code/family assertions already tested in the carrier, preserving the269 migration path. All13 payload tests/audit pass; a fresh complete product gate remains required. No runtime or SQL change in this follow-up.
+
+<!-- pika-session-log-archive-batch:d9206317638d52bbe9bf955de3ef201328a86925ce5cd21c5fd5543e6deb835d -->
+## 2026-10-19 — Attendance check-in mismatch diagnosis
+
+Read-only investigation at f88b06a5e; relevant attendance paths match production
+af519aa54. Reported Oct19 sample first fact14:10:06 Toronto; imported0.585s later.
+All24 class facts imported within1.400s; active mapping and no manual override.
+Confirmed two defects: scan success persists across days/resume without fresh
+validation and shows time without date; teacher Daily does not refresh student
+check-ins until explicit reload/scope change. Scratch diagnostics reproduce both
+(2student+1teacher tests PASS); sources/logs at
+/tmp/pika-attendance-diagnosis-20261019/. No product/production writes or release.
+Earlier phone state unknown; stale prior confirmation likely, not incident-proven.
+Next: expiry/read-only revalidation/date on phone and bounded active teacher refresh.
+Orchestrate native GPT6.1-sol/high teacher trace delivered/verified;1launch plus
+follow-up diagnostic, no rework/conflict. Worker/coordinator tokens unknown;
+weekly remaining17%, DeepSeek dated pause honored; storage healthy295GB.
