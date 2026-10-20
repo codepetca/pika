@@ -40,7 +40,8 @@ insert into public.users (id, email, role) values
  ('d1530000-0000-4000-8000-000000000003', 'decommission-removed@example.test', 'student');
 insert into public.classrooms (id, teacher_id, title, class_code, archived_at) values
  ('d1530000-0000-4000-8000-000000000010', 'd1530000-0000-4000-8000-000000000001', 'Synthetic deletion', 'D15301', now()),
- ('d1530000-0000-4000-8000-000000000011', 'd1530000-0000-4000-8000-000000000001', 'Other class', 'D15302', now());
+ ('d1530000-0000-4000-8000-000000000011', 'd1530000-0000-4000-8000-000000000001', 'Other class', 'D15302', now()),
+ ('d1530000-0000-4000-8000-000000000012', 'd1530000-0000-4000-8000-000000000001', 'Unlinked purge conflict', 'D15303', now());
 insert into public.attendance_principal_mappings (user_id, principal_ref) values
  ('d1530000-0000-4000-8000-000000000001', 'principal_15300000000000000000000000000001');
 insert into public.attendance_roster_mappings (classroom_id, roster_ref) values
@@ -212,14 +213,25 @@ do $$ declare v_status text; begin
  end loop;
 end $$;
 -- Existing independently reserved purge work keeps the same denial.
+-- Use a separate unlinked classroom: the real171 guard correctly refuses a
+-- legacy student-purge reservation once attendance is linked. Do not disable it.
+do $$ begin
+ if public.attendance_student_has_state_v1('d1530000-0000-4000-8000-000000000012',
+  'd1530000-0000-4000-8000-000000000003') then
+  raise exception 'Unlinked purge conflict fixture gained attendance';end if;
+end $$;
+update public.attendance_decommission_settings set
+ canary_classroom_id='d1530000-0000-4000-8000-000000000012';
 insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,student_binding_sha256,
  request_sha256,status,source_revision)
  values('d1530000-0000-4000-8000-000000000041','d1530000-0000-4000-8000-000000000001',
- 'd1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000003',repeat('a',64),repeat('b',64),'failed',1);
+ 'd1530000-0000-4000-8000-000000000012','d1530000-0000-4000-8000-000000000003',repeat('a',64),repeat('b',64),'failed',1);
 select pg_temp.expect_error($q$select public.begin_attendance_decommission(
- 'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
- 'd1530000-0000-4000-8000-000000000020','DELETE')$q$,'classroom_operation_conflict');
+ 'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000012',
+ 'd1530000-0000-4000-8000-000000000042','DELETE')$q$,'classroom_operation_conflict');
 delete from public.student_purge_operations where id='d1530000-0000-4000-8000-000000000041';
+update public.attendance_decommission_settings set
+ canary_classroom_id='d1530000-0000-4000-8000-000000000010';
 select public.begin_attendance_decommission(
  'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
  'd1530000-0000-4000-8000-000000000020','DELETE');

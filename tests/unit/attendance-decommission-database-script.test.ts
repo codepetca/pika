@@ -43,6 +43,17 @@ function runFixture(project: string, binding: string) {
 }
 
 describe('attendance decommission database harness portability', () => {
+  it('tests incomplete student purge separately from linked attendance guards', () => {
+    const source = readFileSync(script, 'utf8')
+    expect(source).toContain('Unlinked purge conflict fixture gained attendance')
+    expect(source).toContain("'Unlinked purge conflict', 'D15303'")
+    const reservation = source.slice(source.indexOf('-- Existing independently reserved purge work'),
+      source.indexOf("delete from public.student_purge_operations where id='d1530000-0000-4000-8000-000000000041'"))
+    expect(reservation).toContain('public.attendance_student_has_state_v1(')
+    expect(reservation).toContain("'d1530000-0000-4000-8000-000000000012'")
+    expect(reservation).not.toContain("'d1530000-0000-4000-8000-000000000010'")
+    expect(source).not.toMatch(/disable trigger|session_replication_role/)
+  })
   it('keeps final Classroom purge independently gated and preserves saved replay evidence', () => {
     const source = readFileSync(script, 'utf8')
     expect(source).toContain('Fresh attendance-complete Classroom purge did not begin without objects')
