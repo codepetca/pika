@@ -12599,6 +12599,10 @@ export type Database = {
         }
         Returns: Json
       }
+      read_classroom_authoring_guidance_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
       read_gradebook_maximum_state: {
         Args: { p_classroom_id: string }
         Returns: Json

@@ -606,3 +606,16 @@ compatibility review, isolated proof, genuine generation and stable-head CI
 remain. Cumulative306 review turns/4 fix batches preserved; workflow-stop waiver
 active, per-worker cost unknown. Production/shared-local249+/provider/accounts/
 billing/AI/admission/home/page/cutover holds unchanged; no phase-exit claim.
+
+Initial307/308 and composition309 CLEAN. PR1626 normally merged7e56151e at07:10:21Z
+after all ten39380704259 CI/PRGate checks passed on1d1d2b; treec52abc45 identical,
+canonical clean main ff-only. New isolated guidance gi4jdD/project0f0ad5ed69d2
+actual70867JOINED0 PASSED001–278 rollback SQL/catalog/ACL/lineage/size boundaries,
+genuine generation,12actualSDKadapterreads18SQL60guards7DTOhashes4null/fullgraph
+and complement restoration/canonical read-only/global equality/owned teardown.
+100actions1675controls51707374B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST17921JOINED0 verifies7933source98970depsunchanged0process; freeze released
+only after join. Genuine278444042B29a85e7b installedapply_patch+cmp; removing ONLY
+newrequired2UUID→JsonRPC reconstructs entire2774645aad3. Original false authority
+flags unchanged; profile now spent/fail-closed, no replay. Final checks/current-main
+integration/review/CI remain. Cumulative309reviews/4batches and all holds retained.

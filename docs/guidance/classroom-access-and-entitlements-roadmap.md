@@ -686,8 +686,12 @@ original limits retained. Immediate next-tool FIRST verified7918source/98970deps
 unchanged and0matching processes before post-run actions. Positive owned teardown
 and canonical read-only/global equality passed. Genuine277 adds only the required
 actor/string-array Json RPC; removing it reconstructs entire276. Final focused
-checks, metadata/evidence review and exact-head CI remain gates. No shared-local
-or production schema application, admission activation or phase exit is implied.
+checks pass2737tests/98files plus TypeScript/lint and policies. Final independent
+metadata/evidence review306 and all ten exact1d1d2b CI39380704259 gates passed.
+PR1626 merged normally as7e56151e040e4a3285f070c64222acb6ed7750f8 at2026-10-20T07:10:21Z;
+reviewed/squash treec52abc45 is identical and canonical clean main fast-forwarded.
+No shared-local or production schema application, admission activation or phase
+exit is implied.
 
 The next bounded attached-service read is GET
 `/api/teacher/classrooms/[id]/authoring-guidance`. Prepared278 binds current
@@ -705,10 +709,21 @@ Admitted owners of either account label use the contextual reader; unmatched
 and absent admission retain the unchanged legacy path. Capture, adoption and
 other Blueprint writes remain separate. Source-only SQL/API/SDK contracts and
 the canonical CI lane are prepared. Independent review, one isolated full-chain
-proof, genuine metadata and stable-head CI remain gates; no native acceptance,
-shared-local249+ or production application, activation or phase exit is claimed.
+proof, genuine metadata and stable-head CI remain gates in that preparation.
+Initial307/308 and composition309 reviews passed. One fresh isolated001–278
+proof now passes actual rollback SQL, exact invoker/ACL/lineage/size checks,
+genuine metadata generation and12 installed-SDK adapter reads. All18SQL/60guards,
+seven complete DTO commitments (four null), exact fixture/complement preservation
+and restoration before final successful read passed. Canonical read-only/global
+resource equality and positive owned teardown passed.100actions/1675controls/
+51707374bytes/12HTTP/max1session/final0open,uncertain or unsettled retain all bounds.
+Immediate NEXT-TOOL FIRST verifies7933source/98970dependency files unchanged and
+zero matching processes before post-run checks or edits. Genuine278 adds only the
+required two-UUID Json RPC; removing it reconstructs the entire277 artifact.
+Current-main integration, final checks/review and stable-head CI remain gates.
+No shared-local249+ or production application, activation or phase exit is claimed.
 
-Remaining batch3 boundaries include classroom reorder/reuse and Blueprint
+Remaining batch3 boundaries include classroom reuse and Blueprint
 operations, cold restore/purge/export recovery, retained grouped-removal/provider
 compatibility, the wider attendance/Bara principal and status contracts, and the
 historical Pal fact/token lifecycle policy. Do not merely remove global role
