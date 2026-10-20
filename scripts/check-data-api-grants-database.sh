@@ -47,8 +47,14 @@ grants_owned="$(docker run -d --pull=never --name "$grants_name" --network none 
   "$grants_image" postgres -c shared_preload_libraries=pg_cron,pg_net -c cron.launch_active_jobs=off)"
 [[ "$grants_owned" =~ ^[a-f0-9]{64}$ ]] || { echo 'Invalid owned container identity.' >&2; exit 1; }
 for ((grants_attempt=0; grants_attempt<60; grants_attempt++)); do
-  if docker exec "$grants_owned" pg_isready -U postgres -d postgres >/dev/null 2>&1; then break; fi
-  if ((grants_attempt == 59)); then echo 'Disposable database startup timed out.' >&2; exit 1; fi
+  # The entrypoint's temporary initialization server accepts only Unix sockets.
+  # Require the final TCP listener before changing roles or restoring schemas.
+  if docker exec "$grants_owned" pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then break; fi
+  if ((grants_attempt == 59)); then
+    echo 'Disposable database startup timed out.' >&2
+    docker logs --tail 20 "$grants_owned" >&2 || true
+    exit 1
+  fi
   sleep 1
 done
 # Supabase's image has postgres as a restricted admin. This elevation affects
@@ -57,6 +63,19 @@ docker exec "$grants_owned" psql -U supabase_admin -d postgres -Xq -v ON_ERROR_S
   -c 'alter role postgres superuser' >/dev/null
 
 sql() { docker exec -i "$grants_owned" psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1; }
+fixture_sql() {
+  local grants_phase="$1" grants_phase_status
+  local grants_phase_log="$grants_tmp/${grants_phase// /-}.log"
+  if sql > "$grants_phase_log" 2>&1; then
+    return 0
+  else
+    grants_phase_status=$?
+    echo "Data API grants: $grants_phase failed (exit $grants_phase_status)" >&2
+    tail -20 "$grants_phase_log" >&2
+    docker logs --tail 20 "$grants_owned" >&2 || true
+    return "$grants_phase_status"
+  fi
+}
 snapshot() { sql < "$grants_root/scripts/data-api-grants-snapshot.sql" > "$1"; }
 compare() {
   if ! diff -u "$1" "$2"; then
@@ -67,7 +86,7 @@ compare() {
 reset_fixture() {
   docker exec "$grants_owned" psql -U supabase_admin -d postgres -Xq -v ON_ERROR_STOP=1 \
     -c 'alter role postgres superuser' >/dev/null
-  sql > "$grants_tmp/reset.log" 2>&1 <<'SQL'
+  fixture_sql 'initial schema cleanup' <<'SQL'
 set client_min_messages = warning;
 drop schema if exists public cascade;
 drop schema if exists private cascade;
@@ -77,7 +96,7 @@ SQL
   if ! sql < "$grants_tmp/platform.sql" > "$grants_tmp/restore.log" 2>&1; then
     tail -20 "$grants_tmp/restore.log" >&2; exit 1
   fi
-  sql > "$grants_tmp/reset.log" 2>&1 <<'SQL'
+  fixture_sql 'application schema reset' <<'SQL'
 set client_min_messages = warning;
 drop schema public cascade;
 drop schema private cascade;
