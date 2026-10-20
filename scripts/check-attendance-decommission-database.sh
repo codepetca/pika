@@ -9,7 +9,9 @@ if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; the
   echo 'Refusing unexpected database target.' >&2
   exit 2
 fi
-docker exec -i "$DECOMMISSION_DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+for fixture_owner_role in teacher student; do
+docker exec -i "$DECOMMISSION_DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -v fixture_owner_role="$fixture_owner_role" <<'SQL'
 begin;
 do $$ begin
   if not exists (select 1 from supabase_migrations.schema_migrations where version = '153') then
@@ -43,6 +45,10 @@ insert into public.attendance_participant_mappings (classroom_id, student_id) va
 insert into public.attendance_classroom_qr_handles (classroom_id) values
  ('d1530000-0000-4000-8000-000000000010');
 
+-- Label is not classroom authority; each complete matrix rolls back independently.
+update public.users set role = :'fixture_owner_role'
+ where id = 'd1530000-0000-4000-8000-000000000001';
+
 do $$ declare v_signature text; begin
   foreach v_signature in array array[
     'public.begin_attendance_decommission(uuid,uuid,uuid,text)',
@@ -64,12 +70,28 @@ select pg_temp.expect_error($q$select public.begin_attendance_decommission(
 
 update public.attendance_decommission_settings set mode = 'canary', installation_ref = 'installation_synthetic',
  canary_teacher_id = 'd1530000-0000-4000-8000-000000000001', canary_classroom_id = 'd1530000-0000-4000-8000-000000000010';
+-- Open the synthetic DB gate only inside this rollback to distinguish ownership
+-- rejection from the independently tested canary rejection.
+update public.attendance_decommission_settings set mode = 'enabled';
+select pg_temp.expect_error($q$select public.begin_attendance_decommission(
+ 'd1530000-0000-4000-8000-000000000002','d1530000-0000-4000-8000-000000000010',
+ 'd1530000-0000-4000-8000-000000000020','DELETE')$q$, 'classroom_forbidden');
+update public.attendance_decommission_settings set mode = 'canary';
 select pg_temp.expect_error($q$select public.begin_attendance_decommission(
  'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
  'd1530000-0000-4000-8000-000000000020','wrong')$q$, 'confirmation_mismatch');
 select public.begin_attendance_decommission(
  'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
  'd1530000-0000-4000-8000-000000000020','DELETE');
+select pg_temp.expect_error($q$select public.get_attendance_decommission(
+ 'd1530000-0000-4000-8000-000000000002','d1530000-0000-4000-8000-000000000010',
+ 'd1530000-0000-4000-8000-000000000020')$q$, 'decommission_not_found');
+select pg_temp.expect_error($q$select public.get_attendance_decommission(
+ 'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000011',
+ 'd1530000-0000-4000-8000-000000000020')$q$, 'decommission_not_found');
+select pg_temp.expect_error($q$select public.get_attendance_decommission(
+ 'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
+ 'd1530000-0000-4000-8000-000000000021')$q$, 'decommission_not_found');
 -- A durable fence is not permission to keep deleting after any gate change.
 do $$ declare v_before jsonb; v_after jsonb; v_mode text; begin
   v_before := public.get_attendance_decommission('d1530000-0000-4000-8000-000000000001',
@@ -137,4 +159,5 @@ select pg_temp.expect_error($q$insert into public.attendance_roster_mappings (cl
  values ('d1530000-0000-4000-8000-000000000010')$q$, 'attendance_decommission_active');
 rollback;
 SQL
+done
 echo 'Rollback-only attendance decommission contracts passed.'

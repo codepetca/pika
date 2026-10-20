@@ -1,9 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST as begin } from '@/app/api/teacher/classrooms/[id]/attendance-decommission/route'
 import { GET as status, POST as tick } from '@/app/api/teacher/classrooms/[id]/attendance-decommission/[operationId]/route'
-const mock = vi.hoisted(() => ({ auth: vi.fn(), begin: vi.fn(), status: vi.fn(), tick: vi.fn() }))
-vi.mock('@/lib/auth', () => ({ requireRole: mock.auth }))
+const mock = vi.hoisted(() => ({ auth: vi.fn(), identity: vi.fn(), begin: vi.fn(), status: vi.fn(), tick: vi.fn() }))
+vi.mock('@/lib/auth', () => ({ requireRole: mock.auth, requireAuth: mock.identity }))
 vi.mock('@/lib/server/bara-attendance-decommission', () => ({
   beginAttendanceDecommission: mock.begin, getAttendanceDecommission: mock.status, tickAttendanceDecommission: mock.tick,
 }))
@@ -13,11 +13,14 @@ const operationId = '30000000-0000-4000-8000-000000000001'
 const context = { params: Promise.resolve({ id, operationId }) } as never
 beforeEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllEnvs()
+  vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
   mock.auth.mockResolvedValue({ id: teacherId })
   mock.begin.mockResolvedValue({ attendance_removed: false })
   mock.status.mockResolvedValue({ attendance_removed: false })
   mock.tick.mockResolvedValue({ attendance_removed: true, classroom_deleted: false })
 })
+afterEach(() => vi.unstubAllEnvs())
 describe('teacher attendance-decommission routes', () => {
   it('binds tick and status to the signed-in teacher, classroom, and operation', async () => {
     const response = await tick(new NextRequest('http://localhost/tick', { method: 'POST' }), context)
