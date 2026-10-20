@@ -619,3 +619,10 @@ only after join. Genuine278444042B29a85e7b installedapply_patch+cmp; removing ON
 newrequired2UUID→JsonRPC reconstructs entire2774645aad3. Original false authority
 flags unchanged; profile now spent/fail-closed, no replay. Final checks/current-main
 integration/review/CI remain. Cumulative309reviews/4batches and all holds retained.
+
+Current-main rebase60351bd5 preserves exercised integration tree75ddfaa7. Final
+focused checks exposed one stale recovery-profile test expecting277 in the now
+reviewed278 chain (2810other tests passed). Update only that count and its genuine
+unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
+batched remediation5, not a new native attempt or weakened profile. Final targeted
+integration review includes the delta; no routine approval needed under waiver.
