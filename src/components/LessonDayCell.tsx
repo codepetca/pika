@@ -437,7 +437,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             >
               {hasContent ? (
                 renderPlainText ? (
-                  <div className="text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap">{plainText}</div>
+                  <div className={`text-[10px] leading-tight text-text-muted whitespace-pre-wrap ${compact || plainTextOnly ? 'line-clamp-3' : ''}`}>{plainText}</div>
                 ) : (
                   <LimitedMarkdown content={markdown} className="calendar-lesson-markdown" emptyPlaceholder={null} />
                 )

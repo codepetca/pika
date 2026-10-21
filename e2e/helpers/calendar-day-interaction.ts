@@ -170,10 +170,44 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   await expect(opener).toBeFocused()
   await expect.poll(() => page.locator('[data-modal-state]').count()).toBe(0)
   await verifyMonthTextAnchor(page, testInfo, role)
+  if (role === 'student') await verifyMonthPlainTextDisclosure(page, testInfo)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
     viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
+}
+
+async function verifyMonthPlainTextDisclosure(page: Page, testInfo: TestInfo) {
+  await page.evaluate(() => localStorage.setItem('pika_show_markdown', 'false'))
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  const preview = page.locator('.calendar-lesson-preview').filter({ hasText: /^Lesson 5\s/ })
+  const text = preview.locator(':scope > div')
+  await expect(text).toHaveClass(/line-clamp-3/)
+  const metrics = () => text.evaluate(element => {
+    const style = getComputedStyle(element)
+    return { font: style.fontSize, lineHeight: style.lineHeight, height: element.getBoundingClientRect().height }
+  })
+  const collapsed = await metrics()
+  await preview.click()
+  await expect(text).not.toHaveClass(/line-clamp-3/)
+  const expanded = await metrics()
+  expect(expanded.font).toBe(collapsed.font)
+  expect(expanded.lineHeight).toBe(collapsed.lineHeight)
+  expect(expanded.height).toBeGreaterThan(collapsed.height)
+  await expect.poll(() => text.evaluate(element => {
+    const range = document.createRange()
+    range.selectNodeContents(element.lastChild!)
+    const last = Array.from(range.getClientRects()).at(-1)!
+    const bounds = element.closest('.border-r.border-b')!.getBoundingClientRect()
+    return last.bottom <= bounds.bottom + 1
+  })).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('student-month-plain-text-expanded.png'), animations: 'allow' })
+  await preview.click()
+  await expect(text).toHaveClass(/line-clamp-3/)
+  await page.getByRole('button', { name: /^(All|Term)$/ }).click()
+  await expect(page.locator('.calendar-lesson-preview').filter({ hasText: /^Lesson 5\s/ }).locator(':scope > div'))
+    .toHaveClass(/line-clamp-3/)
 }
 
 /** Text must not resize or scroll inside the expanding Month cell. */

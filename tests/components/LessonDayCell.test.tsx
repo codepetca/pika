@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { LessonDayCell } from '@/components/LessonDayCell'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { createMockTest } from '../helpers/mocks'
 import { TooltipProvider } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TiptapContent } from '@/types'
@@ -262,6 +263,32 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
+  })
+
+  it.each([false, true])('reveals expanded Month plain text while keeping All summaries clipped (plainTextOnly=%s)', (plainTextOnly) => {
+    localStorage.setItem('pika_show_markdown', 'false')
+    const text = 'First line\nSecond line\nThird line\nFourth line\nFinal lesson line'
+    const cell = (compact: boolean) => (
+      <MarkdownPreferenceProvider>
+        <LessonDayCell date={lessonPlan.date} day={new Date('2026-03-13T12:00:00')}
+          lessonPlan={{ ...lessonPlan, content_markdown: text }} isWeekend={false}
+          isToday={false} editable={false} compact={compact} plainTextOnly={plainTextOnly} />
+      </MarkdownPreferenceProvider>
+    )
+    try {
+      const { rerender } = renderWithTooltip(cell(true))
+      const preview = screen.getByText(/Final lesson line/)
+      expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
+      rerender(<TooltipProvider>{cell(false)}</TooltipProvider>)
+      expect(screen.getByText(/Final lesson line/)).toBe(preview)
+      expect(preview).toHaveClass('text-[10px]', 'leading-tight')
+      if (plainTextOnly) expect(preview).toHaveClass('line-clamp-3')
+      else expect(preview).not.toHaveClass('line-clamp-3')
+      rerender(<TooltipProvider>{cell(true)}</TooltipProvider>)
+      expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
+    } finally {
+      localStorage.removeItem('pika_show_markdown')
+    }
   })
 
   it.each([false, true])('labels assignment due dates with accessible solid fill (compact=%s)', (compact) => {

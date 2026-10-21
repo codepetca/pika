@@ -2,7 +2,7 @@
 
 Surface: Month grid opening/editing and click-away closing, with shared grid owner checks for Term and student views. Reference: approved Calendar disclosure and Pattern Lab continuous inspector. Primary signal: lesson text stays at the same position and size while the cell shell opens/closes with shared 200ms standard motion.
 
-Keep grid typography, date header, event density and text padding constant during selection. Give LimitedMarkdown and ProseMirror the same feature-scoped typography and block spacing. Keep an inert preview visible during the editor's initial null render; hide it atomically when the editor DOM is ready. Animate complete cell geometry only. No opacity, snapshot copy or text entrance animation. The actual editor still retires immediately on close; focus, caret and save owners remain unchanged. Reduced motion remains immediate.
+Keep grid typography, date header, event density and text padding constant during selection. Give LimitedMarkdown and ProseMirror the same feature-scoped typography and block spacing. Expanded Month cells reveal the complete lesson when Markdown is off; compact cells and All-view summaries retain their three-line limit. Keep an inert preview visible during the editor's initial null render; hide it atomically when the editor DOM is ready. Animate complete cell geometry only. No opacity, snapshot copy or text entrance animation. The actual editor still retires immediately on close; focus, caret and save owners remain unchanged. Reduced motion remains immediate.
 
 | Need | Existing candidate | Decision | Reason |
 | --- | --- | --- | --- |
