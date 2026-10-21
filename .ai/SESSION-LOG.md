@@ -860,6 +860,10 @@ Aligned the existing teacher/student account menu with Pattern Lab action-menu m
 
 CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
 
+## 2026-10-20 — Promote updated student details to production
+
+Owner authorized main-to-production for the enlarged student inspector. Draft1641 batches main1e1c6b667, including Calendar motion and dormant server compatibility already merged/reviewed on main. Reconciled production0a1d78c38 archive history, preserving its sole unique promotion receipt and all main entries; product/config/dependency/migration bytes remain exact main. Production migrations001–282 are already verified in main3fd1fc1a4; this promotion applies none and changes no environment or activation controls. Startup/verify-env passed; weekly67% remaining, storage271GB healthy. Release risk runtime-platform/workspace-state; independent security/compatibility review, focused checks and exact-head PR Gate precede authorized merge/deployment verification. DeepSeek pause honored; native reviewers GPT6.1Sol/high, bounded one initial wave, tokens/active time unknown.
+
 ## 2026-10-21 — Production migrations 283–284 verified; promotion prepared
 
 Owner explicitly approved one production283+284 attempt after preview39595410439
