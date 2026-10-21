@@ -24,6 +24,17 @@ resolve_attendance_meta_image`], {
 }
 
 describe('isolated attendance membership database proof', () => {
+  it('forward-corrects only owner precedence while preserving every285 strict-scan fence', () => {
+    const original = readFileSync('supabase/migrations/285_attendance_membership_adoption.sql', 'utf8')
+      .match(/create function public\.resolve_attendance_membership_scan_generation\([\s\S]*?\n\$\$;/)?.[0]
+    const forward = readFileSync('supabase/migrations/286_attendance_learner_membership.sql', 'utf8')
+      .match(/create or replace function public\.resolve_attendance_membership_scan_generation\([\s\S]*?\n\$\$;/)?.[0]
+    expect(original).toBeDefined()
+    expect(forward).toContain('and classroom.teacher_id<>p_student_id')
+    expect(forward?.replace('create or replace function', 'create function')
+      .replace('\n      and classroom.teacher_id<>p_student_id', '')).toBe(original)
+  })
+
   it.each(['', 'public.ecr.aws', 'ghcr.io'])('uses the pinned cached metadata image for registry %j without a pull', registry => {
     const result = resolveCachedMeta(registry)
     expect(result.status, result.stderr).toBe(0)

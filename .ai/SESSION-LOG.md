@@ -859,10 +859,17 @@ admission. Exact enrollment targets survive queued corrections; stale generation
 cannot confirm or overwrite replacement memberships. Earlier facts/events remain
 owner-visible, unknown generations remain unknown. Existing confirmation/cache
 fences and UI owners are reused; legacy callers and deactivation remain intact.
-Disposable001–286 proof passed existing decommission, sequential/concurrent
+Initial disposable001–286 proof passed existing decommission, sequential/concurrent
 membership/override/entitlement contracts, genuine types, shared243 preservation
 and owned cleanup. First failed fixture attempt is retained; its ambiguous SQL
 identifier was fixed, not relabeled. Frozen source-profile1,175 checks pass;
 full focused checks, visual review, independent review and exact-head CI remain
 required. Global pause was honored and explicitly revoked; other production,
 shared-local249+, provider/publication and activation holds remain unchanged.
+Independent review then caught a strict-scan owner-precedence gap:286 now
+forward-corrects the resolver without editing285, preserving all earlier fences.
+Valid prepared self-enrollments must still be denied; both QR entrypoints reject
+without check-in dispatch. The added76 focused regression checks pass; corrected
+native proof, targeted review and final-head gates remain necessary before merge.
+Owner-sync/mixed-cohort readiness is explicitly held before learner activation,
+never permission for allocation or a legacy fallback.

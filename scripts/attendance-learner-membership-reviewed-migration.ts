@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 
 export const ATTENDANCE_LEARNER_MEMBERSHIP_REVIEWED_MIGRATION = Object.freeze({
   name: '286_attendance_learner_membership.sql',
-  sha256: 'd938a5d37baf65bcf3de6847d2c37eda5bc711fd1e9b120a6e792feb9e66b019',
+  sha256: '0f48e7a99d9d8dbe8b5eb904d691c322e7c8de494f3fa848cbb5081f2f7e5ecc',
 })
 
 export function validateAttendanceLearnerMembershipReviewedMigration(migration: { name: string; sql: string; sha256: string }) {

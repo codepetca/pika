@@ -15,6 +15,42 @@ returns boolean language sql stable security definer set search_path='' as $$
 $$;
 revoke all on function private.attendance_membership_target_valid(uuid,uuid,uuid) from public,anon,authenticated,service_role;
 
+-- Current ownership takes precedence over a retained self-enrollment, even
+-- when owner preparation has allocated an otherwise valid membership pointer.
+-- Keep every285 fence and its service-only contract; no allocation or fallback.
+create or replace function public.resolve_attendance_membership_scan_generation(p_classroom_id uuid,p_student_id uuid)
+returns jsonb language plpgsql security definer set search_path='' as $$
+declare v_generation uuid; v_participant text;
+begin
+  if current_setting('transaction_isolation')<>'read committed' then
+    raise exception using errcode='55000',message='attendance_membership_isolation_required';
+  end if;
+  perform private.try_lock_classroom_membership_change(p_classroom_id,p_student_id);
+  if exists(select 1 from public.student_purge_fences where classroom_id=p_classroom_id and student_id=p_student_id)
+    or exists(select 1 from public.classroom_purge_fences where classroom_id=p_classroom_id)
+    or exists(select 1 from public.cold_classroom_purge_fences where classroom_id=p_classroom_id)
+    or exists(select 1 from public.attendance_decommission_operations where classroom_id=p_classroom_id)
+    or exists(select 1 from public.classroom_roster roster join public.classroom_enrollments enrollment
+      on enrollment.id=roster.removed_enrollment_id and enrollment.classroom_id=roster.classroom_id
+        and enrollment.student_id=roster.removed_student_id
+      where enrollment.classroom_id=p_classroom_id and enrollment.student_id=p_student_id and roster.removed_at is not null)
+    or not private.attendance_membership_pointer_valid(p_classroom_id,p_student_id) then
+    return jsonb_build_object('status','forbidden');
+  end if;
+  select enrollment.id,mapping.participant_ref into v_generation,v_participant
+    from public.classroom_enrollments enrollment
+    join public.classrooms classroom on classroom.id=enrollment.classroom_id and classroom.archived_at is null
+      and classroom.teacher_id<>p_student_id
+    join public.attendance_participant_mappings mapping on mapping.classroom_id=enrollment.classroom_id
+      and mapping.student_id=enrollment.student_id and mapping.active
+    where enrollment.classroom_id=p_classroom_id and enrollment.student_id=p_student_id;
+  if v_generation is null then return jsonb_build_object('status','forbidden'); end if;
+  return jsonb_build_object('status','active','generation_id',v_generation,'participant_ref',v_participant);
+end;
+$$;
+revoke all on function public.resolve_attendance_membership_scan_generation(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.resolve_attendance_membership_scan_generation(uuid,uuid) to service_role;
+
 create function private.attendance_membership_read_blocked(p_classroom_id uuid,p_student_id uuid)
 returns boolean language sql stable security definer set search_path='' as $$
   select coalesce(public.is_classroom_archive_maintenance_mode('restore'),false)

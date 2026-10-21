@@ -223,7 +223,7 @@ do $learner_and_override$
 declare owner_id uuid:='f2850000-0000-4000-8000-000000000001'; learner uuid:='f2850000-0000-4000-8000-000000000002';
   course uuid:='f2850000-0000-4000-8000-000000000010'; old_generation uuid:='f2850000-0000-4000-8000-000000000020';
   generation uuid:='f2850000-0000-4000-8000-000000000022'; v_request_id uuid:='f2860000-0000-4000-8000-000000000003';
-  value jsonb; row_value jsonb; result jsonb; initial_events integer; event_id uuid; cap_count integer; owner_snapshot jsonb;
+  value jsonb; row_value jsonb; result jsonb; initial_events integer; event_id uuid; cap_count integer; owner_snapshot jsonb; owner_label text;
 begin
   value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
   row_value:=value->'classrooms'->0;
@@ -319,11 +319,33 @@ begin
     exception when insufficient_privilege then if sqlerrm<>'attendance_classroom_forbidden' then raise; end if; end;
     raise exception 'fixture286 entitlement rollback';
   exception when raise_exception then if sqlerrm<>'fixture286 entitlement rollback' then raise; end if; end;
-  -- Owner precedence even if an anomalous enrollment exists.
-  insert into public.classroom_enrollments(classroom_id,student_id) values(course,owner_id);
-  value:=public.read_attendance_membership_status_v1(owner_id,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
-  if value->'classrooms'<>'[]'::jsonb then raise exception 'Owner was treated as learner'; end if;
-  delete from public.classroom_enrollments where classroom_id=course and student_id=owner_id;
+  -- Owner precedence must defeat an actually prepared valid self-membership,
+  -- not merely an unbound enrollment. Roll back each synthetic label case so
+  -- this check does not alter later contention or retained-history baselines.
+  foreach owner_label in array array['student','teacher'] loop
+    begin
+      update public.users set role=owner_label where id=owner_id;
+      insert into public.student_profiles(user_id,first_name,last_name) values(owner_id,'Synthetic','Owner');
+      insert into public.classroom_enrollments(id,classroom_id,student_id)
+        values('f2860000-0000-4000-8000-000000000020',course,owner_id);
+      perform public.prepare_attendance_membership_snapshot_v1(owner_id,course,'2026-10-21','2026-10-21','exact_canary',owner_id,course);
+      if not private.attendance_membership_pointer_valid(course,owner_id)
+        or not exists(select 1 from private.attendance_membership_generations bound
+          where bound.generation_id='f2860000-0000-4000-8000-000000000020') then
+        raise exception 'Self-owner fixture did not prepare a valid exact pointer'; end if;
+      if public.resolve_attendance_membership_scan_generation(course,owner_id) is distinct from jsonb_build_object('status','forbidden')
+        or public.resolve_attendance_membership_scan_generation(course,learner)->>'status' is distinct from 'active'
+        or public.resolve_attendance_membership_scan_generation(course,learner)->>'generation_id' is distinct from generation::text then
+        raise exception 'Strict scan lost owner precedence or ordinary learner authority'; end if;
+      value:=public.read_attendance_membership_status_v1(owner_id,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+      if value->'classrooms' is distinct from '[]'::jsonb then raise exception 'Owner was treated as learner'; end if;
+      owner_snapshot:=public.read_attendance_membership_session_for_owner_v1(owner_id,course,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+      if jsonb_array_length(owner_snapshot->'rows'->'check_ins')<>5
+        or exists(select 1 from jsonb_array_elements(owner_snapshot->'membership_targets') target where target->>'student_id'=owner_id::text) then
+        raise exception 'Self-owner exclusion changed owner history or override authority'; end if;
+      raise exception 'fixture286 owner precedence rollback';
+    exception when raise_exception then if sqlerrm<>'fixture286 owner precedence rollback' then raise; end if; end;
+  end loop;
   -- Check the exact transaction rollback boundary after event attribution.
   begin
     perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000008',

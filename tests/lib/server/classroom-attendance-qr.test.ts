@@ -1,4 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { executeStudentAttendanceCheckIn } from '@/lib/server/bara-attendance-student'
+import { sealAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
 
 vi.mock('@/lib/server/bara-attendance-scope', () => ({
   getBaraAttendanceClassroomIdAccess: vi.fn().mockResolvedValue({
@@ -187,6 +189,30 @@ describe('stable classroom attendance QR', () => {
       attemptId: '55555555-5555-4555-8555-555555555555',
     })).rejects.toMatchObject({ code: 'identity_not_linked' })
     expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it.each(['student', 'teacher'])('does not dispatch a permanent QR check-in for an admitted self-enrolled %s owner', async role => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [teacherId] }))
+    const now = new Date('2026-09-01T12:30:00.000Z')
+    const token = sealAttendanceEntryToken({ classroomId, rosterRef: 'roster_owner', occurrenceRef,
+      checkInToken: 'owner_check_in_token_1234567890', expiresAt: new Date(Date.now() + 60_000).toISOString() }, { secret })
+    const rpc = vi.fn().mockResolvedValue({ data: { status: 'forbidden' }, error: null })
+    const send = vi.fn()
+    const result = await executeClassroomQrStudentCheckIn({
+      supabase: { ...fakeSupabase(), rpc }, pikaUser: { id: teacherId, email: 'owner@example.com', role },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555', now,
+      loadPresentation: vi.fn().mockResolvedValue({ entryPath: `/attendance/check-in/${token}` }),
+      executeCheckIn: input => executeStudentAttendanceCheckIn({ ...input, now: () => now,
+        resolveActor: vi.fn().mockResolvedValue({ principalRef: 'principal_owner', displayName: 'Owner' }), send }),
+    })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('resolve_attendance_membership_scan_generation', {
+      p_classroom_id: classroomId, p_student_id: teacherId,
+    })
+    expect(send).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ state: 'needs_staff' })
+    expect(result).not.toHaveProperty('occurrenceBinding')
+    expect(result).not.toHaveProperty('checkedInAt')
   })
 
   it('round-trips an opaque handle without embedding a classroom identifier', () => {

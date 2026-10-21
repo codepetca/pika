@@ -35,7 +35,7 @@ function verifyTarget() {
 // reused verbatim except its one terminal rollback, changed in memory only.
 const fixture = readFileSync(new URL('./check-attendance-membership-adoption-database.sql', import.meta.url), 'utf8')
 assert.equal(createHash('sha256').update(fixture).digest('hex'),
-  '604a49cd5c81898cd3fcc3d12d89dadb1d6caafc65b41d71c5b8b3bea301a3ce', 'Unexpected native fixture')
+  '371605ab948e04ad6d689981dead0d49a0b5615a3276841eddc8eb08b8522a96', 'Unexpected native fixture')
 assert.equal([...fixture.matchAll(/^rollback;\s*$/gim)].length, 1)
 assert.match(fixture, /rollback;\s*$/i)
 const profile = readFileSync(new URL('./attendance-membership-adoption-reviewed-migration.ts', import.meta.url), 'utf8')

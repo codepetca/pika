@@ -97,6 +97,25 @@ describe('native Pika student attendance check-in', () => {
     expect(resolveGeneration).toHaveBeenCalled()
   })
 
+  it.each(['student', 'teacher'])('does not dispatch an occurrence scan for an admitted self-enrolled %s owner denied by the strict RPC', async role => {
+    admit()
+    const actual = await vi.importActual<typeof import('@/lib/server/attendance-generation')>('@/lib/server/attendance-generation')
+    resolveMembershipGeneration.mockImplementation(actual.resolveAttendanceMembershipScanGeneration)
+    const rpc = vi.fn().mockResolvedValue({ data: { status: 'forbidden' }, error: null })
+    const send = vi.fn()
+    const result = await executeStudentAttendanceCheckIn({ supabase: { ...supabase, rpc },
+      pikaUser: { ...pikaUser, role }, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('resolve_attendance_membership_scan_generation', {
+      p_classroom_id: classroomId, p_student_id: studentId,
+    })
+    expect(resolveGeneration).not.toHaveBeenCalled()
+    expect(send).not.toHaveBeenCalled()
+    expect(result).toMatchObject({ state: 'needs_staff' })
+    expect(result).not.toHaveProperty('occurrenceBinding')
+    expect(result).not.toHaveProperty('checkedInAt')
+  })
+
   it.each(['before-send', 'retry', 'response'])('rejects admitted membership removed %s', async gap => {
     admit()
     resolveMembershipGeneration.mockReset().mockResolvedValueOnce(membership)
