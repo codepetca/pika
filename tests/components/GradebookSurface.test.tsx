@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { GradebookCompactPattern } from '@/app/__ui/GradebookCompactPattern'
@@ -29,6 +29,36 @@ function makeTableProps(overrides: Partial<GradebookTableProps> = {}): Gradebook
 }
 
 describe('Gradebook surface owners', () => {
+  it('shows only both name columns in a narrow inspector workspace and restores grades when widened', async () => {
+    let width = 300
+    const rectSpy = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({ x: 0, y: 0, top: 0, left: 0, right: width, bottom: 600, width, height: 600, toJSON: () => ({}) }))
+    try {
+      const onStudentSelect = vi.fn()
+      const onStudentDeselect = vi.fn()
+      const onSort = vi.fn()
+      const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
+      const props = makeTableProps({ columns: [column], allowNamesOnly: true, ultraCompact: true, selectedStudentId: student.student_id, onStudentSelect, onStudentDeselect, onSort })
+      const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
+      await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Final' })).not.toBeInTheDocument())
+      expect(screen.getAllByRole('columnheader')).toHaveLength(2)
+      fireEvent.click(screen.getByRole('button', { name: /Last/ }))
+      expect(onSort).toHaveBeenCalledWith('last_name')
+      fireEvent.click(screen.getByRole('row', { name: 'Demo Student' }))
+      expect(onStudentSelect).toHaveBeenCalledWith(student)
+      fireEvent.keyDown(screen.getByRole('region', { name: 'Gradebook students' }), { key: 'Escape' })
+      expect(onStudentDeselect).toHaveBeenCalledOnce()
+      width = 700
+      fireEvent(window, new Event('resize'))
+      await waitFor(() => expect(screen.getByRole('columnheader', { name: 'Final' })).toBeInTheDocument())
+      expect(screen.getByRole('button', { name: 'Edit A1: Essay' })).toBeInTheDocument()
+      width = 300
+      fireEvent(window, new Event('resize'))
+      await waitFor(() => expect(screen.queryByRole('columnheader', { name: 'Final' })).not.toBeInTheDocument())
+      view.rerender(<TooltipProvider><GradebookTable {...props} allowNamesOnly={false} /></TooltipProvider>)
+      expect(screen.getByRole('columnheader', { name: 'Final' })).toBeInTheDocument()
+    } finally { rectSpy.mockRestore() }
+  })
+
   it.each([0, 80])('hatches an unreturned mark and exposes its tooltip on keyboard focus (%s)', async (percent) => {
     const onScoreOpen = vi.fn()
     const column = { assessment_id: 'a1', assessment_type: 'assignment' as const, code: 'A1', title: 'Essay', possible: 100, weight: 10, include_in_final: true }
@@ -242,12 +272,11 @@ describe('Gradebook surface owners', () => {
     expect(screen.queryByRole('row', { name: 'Max mark' })).not.toBeInTheDocument()
   })
 
-  it('names the student inspector and provides a working close control', () => {
-    const onClose = vi.fn()
-    render(<TooltipProvider><GradebookStudentPanel student={student} columns={[]} displayMode="percent" onClose={onClose} /></TooltipProvider>)
+  it('names the student inspector without a close control or grades modal', () => {
+    render(<GradebookStudentPanel student={student} columns={[]} displayMode="percent" />)
     expect(screen.getByRole('region', { name: 'Demo Student assessment details' })).toHaveTextContent('No assessments yet.')
-    fireEvent.click(screen.getByRole('button', { name: 'Close student details' }))
-    expect(onClose).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: 'Close student details' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /View grades/ })).not.toBeInTheDocument()
   })
 
   it('toggles percentage display with one pressed button and keeps menu semantics in the toolbar', async () => {

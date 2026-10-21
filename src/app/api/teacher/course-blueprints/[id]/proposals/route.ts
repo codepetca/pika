@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
+import { authorizeClassroomReuseActor, filterContextualReuseProposals } from '@/lib/server/contextual-classroom-reuse'
+import { contextualClassroomReuseParamsSchema } from '@/lib/validations/contextual-classroom-reuse'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getCourseBlueprintDetail } from '@/lib/server/course-blueprints'
@@ -20,8 +22,11 @@ export const GET = withErrorHandler('GetTeacherCourseBlueprintProposals', async 
   _request,
   context
 ) => {
-  const user = await requireRole('teacher')
-  const { id } = await context.params
+  const { user, contextual } = await authorizeClassroomReuseActor()
+  const legacyTeacher = contextual && user.role === 'teacher'
+  if (legacyTeacher) await requireRole('teacher')
+  const params = await context.params
+  const { id } = contextual ? contextualClassroomReuseParamsSchema.parse(params) : params
   const detailResult = await getCourseBlueprintDetail(user.id, id)
   if (!detailResult.detail) {
     throw new ApiError(detailResult.status || 500, detailResult.error || 'Failed to load Blueprint')
@@ -35,7 +40,10 @@ export const GET = withErrorHandler('GetTeacherCourseBlueprintProposals', async 
     .order('created_at', { ascending: false })
     .limit(50)
   if (error) throw new ApiError(500, 'Failed to load Blueprint proposals')
-  return NextResponse.json({ proposals: data || [] })
+  const proposals = contextual && !legacyTeacher
+    ? await filterContextualReuseProposals(getServiceRoleClient(), user.id, id, data || [])
+    : data || []
+  return NextResponse.json({ proposals })
 })
 
 export const POST = withErrorHandler('PostTeacherCourseBlueprintProposal', async (

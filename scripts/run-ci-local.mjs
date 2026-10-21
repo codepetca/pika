@@ -39,7 +39,7 @@ const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/a
 const summaryNames = new Set(['Summarize dependency setup evidence', 'Summarize browser setup evidence'])
 const selector = "needs.classify-changes.outputs.run_test_build == 'true'"
 const cleanupCondition = "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'"
-const startCommand = 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector'
+const startCommand = 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector'
 const conditions = new Set([selector, 'always()', 'success()', `failure() && ${selector}`, cleanupCondition])
 const actionOptions = {
   'actions/checkout@v7': ['fetch-depth'],
@@ -151,8 +151,19 @@ function parseStep(lines) {
 // Historical combined DB layouts retain their own commands and established
 // sentinels; today's inventories apply only to the explicit split layout.
 const databaseProofInventories = {
-  database: [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
-  'database-lifecycle': [87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18'],
+  database: [
+    [53, 'c1a9b76baedff767805250f8e2ede044ba1392cf3b40b783fde091044d287d39'],
+    [54, 'aea74c33146c7771e669396cf7cd0efcc06034c2d3ab61b9df6a14687c3f966b'],
+    [55, '29551a6970c5d118eb2e8c3b4d6f5643b0e0113b968b3fb9297eb64c636770de'],
+    [56, '3e0abee1c3953d8d6a0e15b432939ed285ccb19778f8b1af5ae10e7c072208d5'],
+    [57, '0a8b62544755aa4dd9054fcde3adfeaf7cfcb0907f14eb35620d0a8b3f0aa7fc'],
+    [58, '37efaac2973b745db90ea9d5372950f8bb3f38a26e04f5ead7e503dabb9bed6a'],
+    [59, '512a95b3d8cacefb2bb3393b9c133d449c9f5876ece6fba8be93873515bfbb19'],
+    [60, '74065e76b06b13856adf72c0b9af011d9c3a3ecfdada991c4b91a8535f64e368'],
+    [61, 'aa87e79d84589a8e1b5ded37393558652f95d9fdec3c59a1dfeab12e82db5e45'],
+    [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
+  ],
+  'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
 function databaseProofs(job) {
   const start = job.steps.findIndex(step => step.id === 'supabase-start')
@@ -163,13 +174,23 @@ function databaseProofs(job) {
 function validateDatabaseInventory(jobs) {
   const primary = jobs[jobsByLane.database]
   if (!primary) throw new Error('Missing canonical database job.')
+  const grantsName = 'Verify explicit server-only Data API grants without automatic defaults'
+  const grantsCommand = 'bash scripts/check-data-api-grants-database.sh'
+  const grantsPolicy = 'pnpm run check:data-api-migrations'
+  const grantsSteps = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === grantsName || step.run?.includes(grantsCommand) || step.run?.includes(grantsPolicy)).map(step => ({ job, step })))
+  if (grantsSteps.length && (grantsSteps.length !== 2 || grantsSteps.some(({ job, step }) => job !== primary || step.if)
+    || grantsSteps.filter(({ step }) => step.run === grantsPolicy).length !== 1
+    || grantsSteps.filter(({ step }) => step.name === grantsName && step.run === grantsCommand && databaseProofs(primary).includes(step)).length !== 1)) {
+    throw new Error('Canonical explicit Data API grant proofs are missing, duplicated or changed.')
+  }
   const secondary = jobs[jobsByLane['database-lifecycle']]
   if (secondary) {
     for (const lane of ['database', 'database-lifecycle']) {
       const job = jobs[jobsByLane[lane]], proofs = databaseProofs(job)
-      const [count, digest] = databaseProofInventories[lane]
       const namesDigest = createHash('sha256').update(JSON.stringify(proofs.map(step => step.name))).digest('hex')
-      if (job.id !== jobsByLane[lane] || job.lane !== lane || proofs.length !== count || namesDigest !== digest
+      if (job.id !== jobsByLane[lane] || job.lane !== lane
+        || !databaseProofInventories[lane].some(([count, digest]) => proofs.length === count && namesDigest === digest)
         || proofs.some(step => !step.run || step.uses || step.if)) {
         throw new Error(`Canonical ${lane} database proof inventory is incomplete, reordered or changed.`)
       }
@@ -197,6 +218,80 @@ function validateDatabaseInventory(jobs) {
         || matches[0].if || index <= previous) throw new Error('Incomplete historical combined database proof inventory.')
       previous = index
     }
+  }
+  // The pre-attendance inventories remain exact historical profiles. When the
+  // new proof is present, its one literal command belongs to the primary lane.
+  const attendanceName = 'Verify contextual owner attendance policy snapshot and privileges'
+  const attendanceScript = 'scripts/check-contextual-attendance-policy-database.sh'
+  const attendance = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === attendanceName || step.run?.includes(attendanceScript)).map(step => ({ job, step })))
+  if (attendance.length && (attendance.length !== 1 || attendance[0].job !== primary
+    || attendance[0].step.name !== attendanceName || attendance[0].step.run !== `bash ${attendanceScript}`
+    || attendance[0].step.if || !databaseProofs(primary).includes(attendance[0].step))) {
+    throw new Error('Canonical attendance database proof is missing, duplicated or changed.')
+  }
+  const writeName = 'Verify contextual owner attendance policy writes and revocation fences'
+  const writeScript = 'scripts/check-contextual-attendance-policy-write-database.sh'
+  const writes = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === writeName || step.run?.includes(writeScript)).map(step => ({ job, step })))
+  if (writes.length && (writes.length !== 1 || writes[0].job !== primary
+    || writes[0].step.name !== writeName || writes[0].step.run !== `bash ${writeScript}`
+    || writes[0].step.if || !databaseProofs(primary).includes(writes[0].step))) {
+    throw new Error('Canonical attendance write database proof is missing, duplicated or changed.')
+  }
+  const sessionName = 'Verify contextual owner attendance session snapshot and privileges'
+  const sessionScript = 'scripts/check-contextual-attendance-session-database.sh'
+  const sessions = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === sessionName || step.run?.includes(sessionScript)).map(step => ({ job, step })))
+  if (sessions.length && (sessions.length !== 1 || sessions[0].job !== primary
+    || sessions[0].step.name !== sessionName || sessions[0].step.run !== `bash ${sessionScript}`
+    || sessions[0].step.if || !databaseProofs(primary).includes(sessions[0].step))) {
+    throw new Error('Canonical attendance session database proof is missing, duplicated or changed.')
+  }
+  const reportName = 'Verify contextual owner Daily Log attendance report snapshot and privileges'
+  const reportScript = 'scripts/check-contextual-attendance-report-database.sh'
+  const reports = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === reportName || step.run?.includes(reportScript)).map(step => ({ job, step })))
+  if (reports.length && (reports.length !== 1 || reports[0].job !== primary
+    || reports[0].step.name !== reportName || reports[0].step.run !== `bash ${reportScript}`
+    || reports[0].step.if || !databaseProofs(primary).includes(reports[0].step))) {
+    throw new Error('Canonical attendance report database proof is missing, duplicated or changed.')
+  }
+  const classroomOrderName = 'Verify contextual owner classroom list reorder transactions and privileges'
+  const classroomOrderScript = 'scripts/check-contextual-classroom-list-reorder-database.sh'
+  const classroomOrders = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === classroomOrderName || step.run?.includes(classroomOrderScript)).map(step => ({ job, step })))
+  if (classroomOrders.length && (classroomOrders.length !== 1 || classroomOrders[0].job !== primary
+    || classroomOrders[0].step.name !== classroomOrderName || classroomOrders[0].step.run !== `bash ${classroomOrderScript}`
+    || classroomOrders[0].step.if || !databaseProofs(primary).includes(classroomOrders[0].step))) {
+    throw new Error('Canonical classroom reorder database proof is missing, duplicated or changed.')
+  }
+  const guidanceName = 'Verify contextual owner frozen classroom authoring guidance and privileges'
+  const guidanceScript = 'scripts/check-contextual-classroom-authoring-guidance-database.sh'
+  const guidance = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === guidanceName || step.run?.includes(guidanceScript)).map(step => ({ job, step })))
+  if (guidance.length && (guidance.length !== 1 || guidance[0].job !== primary
+    || guidance[0].step.name !== guidanceName || guidance[0].step.run !== `bash ${guidanceScript}`
+    || guidance[0].step.if || !databaseProofs(primary).includes(guidance[0].step))) {
+    throw new Error('Canonical classroom authoring guidance database proof is missing, duplicated or changed.')
+  }
+  const previewName = 'Verify contextual dual-owner classroom guidance preview and privileges'
+  const previewScript = 'scripts/check-contextual-classroom-guidance-preview-database.sh'
+  const previews = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === previewName || step.run?.includes(previewScript)).map(step => ({ job, step })))
+  if (previews.length && (previews.length !== 1 || previews[0].job !== primary
+    || previews[0].step.name !== previewName || previews[0].step.run !== `bash ${previewScript}`
+    || previews[0].step.if || !databaseProofs(primary).includes(previews[0].step))) {
+    throw new Error('Canonical classroom guidance preview database proof is missing, duplicated or changed.')
+  }
+  const adoptionName = 'Verify contextual atomic classroom guidance adoption and privileges'
+  const adoptionScript = 'scripts/check-contextual-classroom-guidance-adoption-database.sh'
+  const adoptions = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === adoptionName || step.run?.includes(adoptionScript)).map(step => ({ job, step })))
+  if (adoptions.length && (adoptions.length !== 1 || adoptions[0].job !== primary
+    || adoptions[0].step.name !== adoptionName || adoptions[0].step.run !== `bash ${adoptionScript}`
+    || adoptions[0].step.if || !databaseProofs(primary).includes(adoptions[0].step))) {
+    throw new Error('Canonical classroom guidance adoption database proof is missing, duplicated or changed.')
   }
 }
 

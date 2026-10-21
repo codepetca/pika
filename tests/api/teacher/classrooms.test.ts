@@ -14,6 +14,12 @@ import {
 } from '@/lib/server/classroom-purge-availability'
 import { NextRequest } from 'next/server'
 
+const contextualArchiveMocks = vi.hoisted(() => ({ actor: vi.fn(), list: vi.fn() }))
+vi.mock('@/lib/server/contextual-classroom-archive-recovery', () => ({
+  authorizeSharedClassroomArchiveActor: contextualArchiveMocks.actor,
+  listContextualClassroomArchiveRecovery: contextualArchiveMocks.list,
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
 }))
@@ -46,6 +52,7 @@ const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 describe('GET /api/teacher/classrooms', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    contextualArchiveMocks.actor.mockResolvedValue({ mode: 'existing' })
     ;(listActiveTeacherClassrooms as any).mockResolvedValue({
       data: [{ id: 'classroom-1', title: 'Math 101' }],
       error: null,
@@ -59,6 +66,25 @@ describe('GET /api/teacher/classrooms', () => {
     vi.mocked(listHotClassroomPurgeEnabledIds).mockResolvedValue([])
     vi.mocked(listColdClassroomPurgeEnabledIds).mockResolvedValue([])
     vi.mocked(listTeacherHotArchiveRecovery).mockResolvedValue({ ok: true, summaries: [] })
+  })
+
+  it.each(['teacher', 'student'])('uses the independently scoped archived snapshot for an admitted %s', async role => {
+    const user = { id: '11111111-1111-4111-8111-111111111111', role }
+    contextualArchiveMocks.actor.mockResolvedValue({ mode: 'shared', user })
+    const envelope = { classrooms: [], cold_archives: [], cold_archive_restore_enabled: false, hot_classroom_purge_enabled_ids: [], cold_classroom_purge_enabled_ids: [], hot_archive_recovery: [], hot_archive_recovery_status_available: true }
+    contextualArchiveMocks.list.mockResolvedValue(envelope)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/classrooms?archived=true'))
+    expect(response.status).toBe(200); expect(await response.json()).toEqual(envelope)
+    expect(requireRole).not.toHaveBeenCalled(); expect(listTeacherArchivedClassrooms).not.toHaveBeenCalled()
+    expect(contextualArchiveMocks.list).toHaveBeenCalledWith({ supabase: mockSupabaseClient, actorId: user.id })
+  })
+
+  it('keeps active GET on its exact legacy guard even when archive admission would be shared', async () => {
+    contextualArchiveMocks.actor.mockResolvedValue({ mode: 'shared', user: { id: 'owner', role: 'student' } })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/classrooms?archived=false'))
+    expect(response.status).toBe(200)
+    expect(requireRole).toHaveBeenCalledWith('teacher'); expect(contextualArchiveMocks.actor).not.toHaveBeenCalled()
+    expect(contextualArchiveMocks.list).not.toHaveBeenCalled()
   })
 
   it('should return list of active teacher classrooms', async () => {

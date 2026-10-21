@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('node:crypto', async importOriginal => ({
+  ...await importOriginal<typeof import('node:crypto')>(),
+  randomUUID: () => '50000000-0000-4000-8000-000000000001',
+}))
+
 const serviceClient = vi.hoisted(() => ({
   from: vi.fn(),
   rpc: vi.fn(),
@@ -37,6 +42,7 @@ vi.mock('@/lib/server/classroom-purge', async () => {
 import {
   advanceColdClassroomPurge,
   getColdClassroomPurgeImpact,
+  getColdClassroomPurgeStatus,
   isMissingColdClassroomPurgeSchemaError,
   runColdClassroomPurgeSafetyNet,
 } from '@/lib/server/cold-classroom-purge'
@@ -93,6 +99,18 @@ describe('cold classroom purge worker', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     shared.getStatus.mockResolvedValue(operation)
+  })
+
+  it.each([{ operation_id: OBJECT_ID }, { classroom_id: OBJECT_ID }])('rebinds the second status read to the checked cold operation/class %#', async patch => {
+    const query = { eq: vi.fn(() => query), maybeSingle: vi.fn().mockResolvedValue({ data: {
+      id: OPERATION_ID, teacher_id: TEACHER_ID, classroom_id: CLASSROOM_ID,
+      cold_archive_id: OBJECT_ID, purge_scope: 'cold_classroom',
+    }, error: null }) }
+    serviceClient.from.mockReturnValue({ select: vi.fn(() => query) })
+    shared.getStatus.mockResolvedValueOnce({ ...operation, ...patch })
+    await expect(getColdClassroomPurgeStatus(TEACHER_ID, CLASSROOM_ID, OBJECT_ID, OPERATION_ID))
+      .rejects.toMatchObject({ status: 503, code: 'cold_purge_status_unverified' })
+    expect(shared.deleteObject).not.toHaveBeenCalled()
   })
 
   it('accepts the success envelope returned by the production inventory RPC', async () => {
@@ -162,6 +180,7 @@ describe('cold classroom purge worker', () => {
       expect.objectContaining({
         p_operation_id: OPERATION_ID,
         p_teacher_id: TEACHER_ID,
+        p_lease_token: LEASE_TOKEN,
         p_lease_seconds: 60,
       }),
     )

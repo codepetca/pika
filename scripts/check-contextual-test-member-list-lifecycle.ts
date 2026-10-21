@@ -1,3 +1,4 @@
+import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
@@ -66,7 +67,7 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270].includes(migrations.length), 'Unreviewed member-list migration profile')
+  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282].includes(migrations.length), 'Unreviewed member-list migration profile')
   classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
@@ -89,18 +90,20 @@ export function validateTestMemberListReviewedMigrations(migrations: Parameters<
   if (migrations.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(migrations[266])
   if (migrations.length >= 268) validateClassroomHotLifecycleReviewedMigration(migrations[267])
   if (migrations.length >= 269) validateSurveyWorkflowReviewedMigration(migrations[268])
-  if (migrations.length === 270) validateGradebookWorkflowReviewedMigration(migrations[269])
+  if (migrations.length >= 270) validateGradebookWorkflowReviewedMigration(migrations[269])
+  validateLifecycleServicesReviewedMigrations(migrations)
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */
 export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[], migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   assert.equal(TEST_MEMBER_LIST_CANONICAL_TABLES_248.length, 183)
   assert.equal(testOwnerDigest(JSON.stringify(TEST_MEMBER_LIST_CANONICAL_TABLES_248)), '308e7dc097abf8b2bf030f4d9895006cc456622ead7c24da41caae30d180678b')
+  const historical = [...TEST_MEMBER_LIST_CANONICAL_TABLES_248, 'private.classroom_test_quota_settings'].sort()
+  assert.equal(historical.length, 184)
+  assert.equal(testOwnerDigest(JSON.stringify(historical)), '8474c929e4a87299de8d0ac580aca9f7cfbe0dec364add175d872326b3388874')
   const expected = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
-  assert.equal(expected.length, 184)
-  assert.equal(testOwnerDigest(JSON.stringify(expected)), '8474c929e4a87299de8d0ac580aca9f7cfbe0dec364add175d872326b3388874')
-  assert(catalog.length === 183 || catalog.length === 184)
-  assert.deepEqual([...catalog].sort(), catalog.length === 183 ? TEST_MEMBER_LIST_CANONICAL_TABLES_248 : expected)
+  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, expected]
+  assert(accepted.some(profile => JSON.stringify([...catalog].sort()) === JSON.stringify(profile)), 'Unreviewed member-list canonical catalog')
   return classroomTestQuotaProofCatalog(catalog, migrations)
 }
 /** Supplemental equality never removes or replaces the inherited baseline. The

@@ -21,6 +21,31 @@ import {
 
 export const COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION = 3 as const
 
+/** Only values consumed by the canonical builder. Raw normalizer inputs remain
+ * raw; a persisted-source caller need not invent timestamps or linked classes. */
+export type CourseBlueprintSnapshotSource = Pick<CourseBlueprintDetail,
+  'id' | 'content_revision' | 'title' | 'subject' | 'grade_level' | 'course_code' |
+  'term_template' | 'overview_markdown' | 'outline_markdown' | 'resources_markdown' |
+  'gradebook_use_weights' | 'gradebook_assignments_weight' | 'gradebook_tests_weight' |
+  'planned_site_slug' | 'planned_site_published'
+> & {
+  authoring_guidance: unknown
+  planned_site_config: unknown
+  assignments: Array<Pick<CourseBlueprintDetail['assignments'][number],
+    'artifact_id' | 'title' | 'instructions_markdown' | 'submission_requirements_json' |
+    'default_due_days' | 'default_due_time' | 'points_possible' | 'gradebook_weight' |
+    'include_in_final' | 'is_draft' | 'track_authenticity' | 'position'>>
+  assessments: Array<Pick<CourseBlueprintDetail['assessments'][number],
+    'artifact_id' | 'assessment_type' | 'title' | 'content' | 'points_possible' |
+    'gradebook_weight' | 'include_in_final' | 'position'> & { documents: unknown }>
+  lesson_templates: Array<Pick<CourseBlueprintDetail['lesson_templates'][number],
+    'artifact_id' | 'title' | 'content_markdown' | 'position'>>
+  materials: Array<Pick<CourseBlueprintDetail['materials'][number],
+    'artifact_id' | 'title' | 'content_markdown' | 'position'>>
+  surveys: Array<Pick<CourseBlueprintDetail['surveys'][number],
+    'artifact_id' | 'title' | 'show_results' | 'dynamic_responses' | 'questions_json' | 'position'>>
+}
+
 export type CourseBlueprintSnapshot = {
   schema_version: typeof COURSE_BLUEPRINT_SNAPSHOT_SCHEMA_VERSION
   blueprint_id: string
@@ -116,7 +141,7 @@ function byPositionAndArtifactId(
 }
 
 export function buildCourseBlueprintSnapshot(
-  detail: CourseBlueprintDetail
+  detail: CourseBlueprintSnapshotSource
 ): CourseBlueprintSnapshot {
   const seenArtifactIds = new Set<string>()
   const registerArtifactId = (value: unknown, label: string) => {

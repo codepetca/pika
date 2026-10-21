@@ -11,7 +11,6 @@
   "src/app/api/teacher/classrooms/[id]/materials/[materialId]/route.ts",
   "src/app/api/teacher/classrooms/[id]/resources/route.ts",
   "src/app/api/teacher/classrooms/[id]/roster/bulk-delete/route.ts",
-  "src/app/api/teacher/classrooms/reorder/route.ts",
   "src/app/api/teacher/tests/[id]/route.ts",
   "src/app/api/teacher/tests/[id]/student-access/route.ts",
   "src/app/api/teacher/tests/[id]/students/attempts/bulk-delete/route.ts",

@@ -91,8 +91,9 @@ export type ClassroomBlueprintSource = {
   announcements: Announcement[]
 }
 
-type LoadClassroomBlueprintSourceOptions = {
+export type LoadClassroomBlueprintSourceOptions = {
   lessonTemplateTitleMode?: 'dated' | 'generic'
+  archivedReuse?: { blueprintId?: string; allowActiveLegacy?: boolean }
 }
 
 export { projectPortableTestQuestionIds } from '@/lib/test-question-identity'
@@ -144,6 +145,15 @@ export async function loadClassroomBlueprintSource(
   if (initialClassroomResult.error || !initialClassroomResult.data) {
     console.error('Error loading classroom blueprint source:', initialClassroomResult.error)
     return { ok: false, status: 500, error: 'Failed to load classroom content' }
+  }
+
+  const initialClassroom = initialClassroomResult.data
+  if (options.archivedReuse) {
+    if (initialClassroom.teacher_id !== teacherId) return { ok: false, status: 403, error: 'Forbidden' }
+    if ((!initialClassroom.archived_at && !options.archivedReuse.allowActiveLegacy) || (options.archivedReuse.blueprintId
+      && initialClassroom.source_blueprint_id !== options.archivedReuse.blueprintId)) {
+      return { ok: false, status: 409, error: 'Archived classroom lineage changed; review and retry' }
+    }
   }
 
   const initialSourceRevision = Number(
@@ -358,17 +368,28 @@ export async function loadClassroomBlueprintSource(
     questionsBySurveyId.set(surveyId, questions)
   })
 
-  const finalRevisionResult = await supabase
-    .from('classrooms')
-    .select('blueprint_source_revision')
-    .eq('id', classroomId)
-    .single()
+  const finalRevisionResult = options.archivedReuse
+    ? await supabase.from('classrooms')
+      .select('blueprint_source_revision,teacher_id,archived_at,source_blueprint_id,source_blueprint_version_id')
+      .eq('id', classroomId).eq('teacher_id', teacherId).single()
+    : await supabase.from('classrooms').select('blueprint_source_revision').eq('id', classroomId).single()
   const finalSourceRevision = Number(finalRevisionResult.data?.blueprint_source_revision ?? 0)
   if (finalRevisionResult.error || finalSourceRevision !== initialSourceRevision) {
     return {
       ok: false,
       status: 409,
       error: 'Classroom content changed while preparing the blueprint; review and retry',
+    }
+  }
+  if (options.archivedReuse) {
+    const finalClassroom = finalRevisionResult.data
+    if (!finalClassroom || !('teacher_id' in finalClassroom) || !('archived_at' in finalClassroom)
+      || !('source_blueprint_id' in finalClassroom) || !('source_blueprint_version_id' in finalClassroom)
+      || finalClassroom.teacher_id !== teacherId || (!finalClassroom.archived_at && !options.archivedReuse.allowActiveLegacy)
+      || finalClassroom.archived_at !== initialClassroom.archived_at
+      || finalClassroom.source_blueprint_id !== initialClassroom.source_blueprint_id
+      || finalClassroom.source_blueprint_version_id !== initialClassroom.source_blueprint_version_id) {
+      return { ok: false, status: 409, error: 'Archived classroom lineage changed; review and retry' }
     }
   }
 

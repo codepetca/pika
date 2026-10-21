@@ -16,6 +16,8 @@ import {
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
+import { authorizeSharedAttendancePolicyActor, loadContextualAttendancePolicy } from '@/lib/server/contextual-attendance-policy'
+import { saveContextualAttendancePolicy } from '@/lib/server/contextual-attendance-policy-write'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -36,6 +38,14 @@ function mapPolicyError(error: unknown): never {
 }
 
 export const GET = withErrorHandler('GetTeacherAttendancePolicy', async (request) => {
+  const admission = await authorizeSharedAttendancePolicyActor()
+  if (admission.mode === 'shared') {
+    const input = teacherAttendancePolicyQuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams))
+    const policy = await loadContextualAttendancePolicy({
+      supabase: getServiceRoleClient(), actorId: admission.user.id, classroomId: input.classroom_id,
+    })
+    return NextResponse.json({ policy })
+  }
   const user = await requireRole('teacher')
   const input = teacherAttendancePolicyQuerySchema.parse(
     Object.fromEntries(new URL(request.url).searchParams),
@@ -64,6 +74,14 @@ export const GET = withErrorHandler('GetTeacherAttendancePolicy', async (request
 })
 
 export const PUT = withErrorHandler('PutTeacherAttendancePolicy', async (request) => {
+  const admission = await authorizeSharedAttendancePolicyActor()
+  if (admission.mode === 'shared') {
+    const input = teacherAttendancePolicyUpdateSchema.parse(await request.json())
+    const policy = await saveContextualAttendancePolicy({
+      supabase: getServiceRoleClient(), actorId: admission.user.id, policy: input,
+    })
+    return NextResponse.json({ policy })
+  }
   const user = await requireRole('teacher')
   const input = teacherAttendancePolicyUpdateSchema.parse(await request.json())
   const supabase = getServiceRoleClient()

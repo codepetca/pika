@@ -7,6 +7,7 @@ import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
 import { listTeacherHotArchiveRecovery } from '@/lib/server/classroom-archive-status'
+import { authorizeSharedClassroomArchiveActor, listContextualClassroomArchiveRecovery } from '@/lib/server/contextual-classroom-archive-recovery'
 import {
   listColdClassroomPurgeEnabledIds,
   listHotClassroomPurgeEnabledIds,
@@ -34,6 +35,14 @@ function generateClassCode(): string {
 
 // GET /api/teacher/classrooms - List teacher's classrooms
 export const GET = withErrorHandler('GetTeacherClassrooms', async (request: NextRequest) => {
+  if (new URL(request.url).searchParams.get('archived') === 'true') {
+    const actor = await authorizeSharedClassroomArchiveActor()
+    if (actor.mode === 'shared') {
+      return NextResponse.json(await listContextualClassroomArchiveRecovery({
+        supabase: getServiceRoleClient(), actorId: actor.user.id,
+      }))
+    }
+  }
   const user = await requireRole('teacher')
   const supabase = getServiceRoleClient()
   const { searchParams } = new URL(request.url)

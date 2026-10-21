@@ -86,6 +86,66 @@ afterEach(() => {
 })
 
 describe('LessonCalendar', () => {
+  const neighboringPlan = { ...allModeLessonPlan, id: 'neighbor-plan', date: '2026-03-17',
+    content_markdown: 'Neighboring long preview\n\nA second paragraph that should keep its compact density.' }
+
+  it.each([true, false])('keeps neighboring preview density unchanged when selecting a day (editable=%s)', editable => {
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
+      viewMode="month" currentDate={new Date('2026-03-15T12:00:00')} editable={editable}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    const neighborPreview = screen.getByText('Neighboring long preview').closest('button')!
+    const initialPreview = neighborPreview.innerHTML
+    fireEvent.click(screen.getByText('All mode lesson'))
+    expect(neighborPreview.innerHTML).toBe(initialPreview)
+  })
+
+  it('does not collapse a newly selected date when the previous same-week editor closes', () => {
+    const { container } = render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
+      viewMode="month" currentDate={new Date('2026-03-15T12:00:00')} editable
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByText('All mode lesson'))
+    const oldEditor = screen.getByRole('textbox', { name: 'Lesson plan for March 16, 2026' })
+    fireEvent.click(screen.getByText('Neighboring long preview'))
+    fireEvent.blur(oldEditor)
+    expect(screen.getByRole('textbox', { name: 'Lesson plan for March 17, 2026' })).toBeInTheDocument()
+    const grid = container.querySelector('[class*="grid"][class*="overflow-visible"]')!
+    expect(grid.getAttribute('style')).toContain('minmax(9rem, auto)')
+  })
+
+  it('keeps an editing grid week expanded when placing the caret again', () => {
+    const onContentChange = vi.fn()
+    const { container } = render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
+      viewMode="month" currentDate={new Date('2026-03-15T12:00:00')} editable
+      onContentChange={onContentChange} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByText('All mode lesson'))
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 16, 2026' })
+    const grid = container.querySelector('[class*="grid"][class*="overflow-visible"]')!
+    expect(grid.getAttribute('style')).toContain('minmax(9rem, auto)')
+    fireEvent.click(editor)
+    expect(grid.getAttribute('style')).toContain('minmax(9rem, auto)')
+    fireEvent.click(editor)
+    expect(grid.getAttribute('style')).toContain('minmax(9rem, auto)')
+    expect(screen.getByRole('textbox')).toBe(editor)
+    expect(onContentChange).not.toHaveBeenCalled()
+  })
+
+  it.each(['Escape', 'blur'])('closes the grid editor and its own expanded week on %s', command => {
+    const onContentChange = vi.fn()
+    const { container } = render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
+      viewMode="month" currentDate={new Date('2026-03-15T12:00:00')} editable
+      onContentChange={onContentChange} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByText('All mode lesson'))
+    const editor = screen.getByRole('textbox')
+    editor.focus()
+    if (command === 'Escape') fireEvent.keyDown(editor, { key: 'Escape' })
+    else fireEvent.blur(editor)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    const grid = container.querySelector('[class*="grid"][class*="overflow-visible"]')!
+    expect(grid.getAttribute('style')).not.toContain('minmax(9rem, auto)')
+    expect(onContentChange).not.toHaveBeenCalled()
+    if (command === 'Escape') expect(screen.getByRole('button', { name: 'Edit lesson for March 16, 2026' })).toHaveFocus()
+  })
+
   describe('All view row heights', () => {
     it('renders rows with auto height in all view for content-based sizing', () => {
       const { container } = render(

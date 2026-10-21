@@ -40,7 +40,7 @@ describe('CI workflow', () => {
     const primary = jobs['architecture-database-contracts'], secondary = jobs['architecture-database-contracts-lifecycle']
     const proofs = (job: typeof primary) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
       job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
-    expect(proofs(primary)).toHaveLength(53)
+    expect(proofs(primary)).toHaveLength(62)
     expect(proofs(secondary)).toHaveLength(87)
     expect(proofs(secondary).filter(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')).toHaveLength(1)
     expect(proofs(secondary).find(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')?.run).toBe('bash scripts/check-contextual-classroom-hot-lifecycle-database.sh')
@@ -50,7 +50,7 @@ describe('CI workflow', () => {
     expect(proofs(secondary).filter(step => step.name === 'Verify student Test session-status projection')).toHaveLength(1)
     expect(proofs(primary).at(-1)?.name).toBe('Verify isolated contextual Test member-list SDK reads')
     expect(proofs(secondary)[0].name).toBe('Verify isolated contextual Test owner reorder transactions')
-    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(140)
+    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(149)
     for (const job of [primary, secondary]) {
       expect(proofs(job).every(step => step.run && !step.if && !step.uses)).toBe(true)
       expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')
@@ -206,8 +206,8 @@ describe('CI workflow', () => {
     const repeated = light.filter(row => dark.includes(row))
     expect(repeated.sort()).toEqual(full.filter(row => JSON.parse(row)[0] === 'setup').sort())
     expect(patternDark.filter(row => light.includes(row) || dark.includes(row))).toEqual([])
-    expect(full).toHaveLength(586)
-    expect(light.length + dark.length + patternDark.length).toBe(588)
+    expect(full).toHaveLength(594)
+    expect(light.length + dark.length + patternDark.length).toBe(596)
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 20_000)
 
@@ -574,7 +574,7 @@ describe('CI workflow', () => {
     expect(workflow).toContain('Browser lane setup evidence')
     expect(workflow).toContain('(false means prefix restore or miss)')
     expect(workflow).toContain('Supabase remains a fresh ephemeral start and migration replay.')
-    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector/g)).toHaveLength(7)
+    expect(workflow.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector/g)).toHaveLength(7)
   })
 
   it('keeps UI policies in Test & Build and uploads coverage only for failures', () => {

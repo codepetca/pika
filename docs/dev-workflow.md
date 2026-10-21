@@ -230,6 +230,10 @@ identifiers, or environment values.
    required by the routed repository guidance.
    The focused runner executes the union of the canonical `check:workflow`
    tests, changed tests, and tests related to changed source in one Vitest run.
+   SQL migration changes also select the existing closed migration-profile suite:
+   its filesystem inventory cannot be discovered through static imports alone.
+   Local and CI path discovery keep both sides of renames so moving SQL out of the
+   inventory cannot disguise its removal as a documentation-only change.
    Success output contains summaries and timings; full logs are retained in the
    printed temporary directory, and failures print their complete check log.
    `--dry-run` prints classification and commands without executing checks.

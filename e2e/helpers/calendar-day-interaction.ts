@@ -169,8 +169,183 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
   await expect.poll(() => page.locator('[data-modal-state]').count()).toBe(0)
+  await verifyMonthTextAnchor(page, testInfo, role)
+  if (role === 'student') await verifyMonthPlainTextDisclosure(page, testInfo)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
     viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
+}
+
+async function verifyMonthPlainTextDisclosure(page: Page, testInfo: TestInfo) {
+  await page.evaluate(() => localStorage.setItem('pika_show_markdown', 'false'))
+  await page.reload({ waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  const preview = page.locator('.calendar-lesson-preview').filter({ hasText: /^Lesson 5\s/ })
+  const text = preview.locator(':scope > div')
+  await expect(text).toHaveClass(/line-clamp-3/)
+  const metrics = () => text.evaluate(element => {
+    const style = getComputedStyle(element)
+    return { font: style.fontSize, lineHeight: style.lineHeight, height: element.getBoundingClientRect().height }
+  })
+  const collapsed = await metrics()
+  await preview.click()
+  await expect(text).not.toHaveClass(/line-clamp-3/)
+  const expanded = await metrics()
+  expect(expanded.font).toBe(collapsed.font)
+  expect(expanded.lineHeight).toBe(collapsed.lineHeight)
+  expect(expanded.height).toBeGreaterThan(collapsed.height)
+  await expect.poll(() => text.evaluate(element => {
+    const range = document.createRange()
+    range.selectNodeContents(element.lastChild!)
+    const last = Array.from(range.getClientRects()).at(-1)!
+    const bounds = element.closest('.border-r.border-b')!.getBoundingClientRect()
+    return last.bottom <= bounds.bottom + 1
+  })).toBe(true)
+  await page.screenshot({ path: testInfo.outputPath('student-month-plain-text-expanded.png'), animations: 'allow' })
+  await preview.click()
+  await expect(text).toHaveClass(/line-clamp-3/)
+  await page.getByRole('button', { name: /^(All|Term)$/ }).click()
+  await expect(page.locator('.calendar-lesson-preview').filter({ hasText: /^Lesson 5\s/ }).locator(':scope > div'))
+    .toHaveClass(/line-clamp-3/)
+}
+
+/** Text must not resize or scroll inside the expanding Month cell. */
+async function verifyMonthTextAnchor(page: Page, testInfo: TestInfo, role: 'teacher' | 'student') {
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  const heading = page.getByRole('heading', { name: 'Lesson 5', exact: true })
+  await heading.scrollIntoViewIfNeeded()
+  const cell = await heading.locator('xpath=ancestor::div[contains(@class,"border-r") and contains(@class,"border-b") and @style][1]').elementHandle()
+  expect(cell).not.toBeNull()
+  const observations: unknown[] = []
+  for (const direction of ['opening', 'closing'] as const) {
+    const framesHandle = await cell!.evaluateHandle(element => {
+      const frames: { font: string; lineHeight: string; text: string; rects: { x: number; y: number; width: number; height: number }[] }[][] = []
+      const started = performance.now()
+      const sample = () => {
+        const root = element.querySelector('.ProseMirror') ?? element.querySelector('.calendar-lesson-preview')!
+        const bounds = element.getBoundingClientRect()
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        const texts: typeof frames[number] = []
+        let node: Node | null
+        while ((node = walker.nextNode()) && texts.length < 2) {
+          if (!node.textContent?.trim()) continue
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          const styles = getComputedStyle(node.parentElement!)
+          texts.push({ text: node.textContent, font: styles.fontSize, lineHeight: styles.lineHeight,
+            rects: Array.from(range.getClientRects(), rect => ({ x: rect.x - bounds.x, y: rect.y - bounds.y,
+              width: rect.width, height: rect.height })) })
+        }
+        frames.push(texts)
+        if (performance.now() - started < 400) requestAnimationFrame(sample)
+      }
+      sample()
+      return frames
+    })
+    if (direction === 'opening') {
+      await heading.click()
+      if (role === 'teacher') await expect(page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })).toBeFocused()
+    } else if (role === 'teacher') {
+      // Actual click-away path, rather than only Escape.
+      await page.getByRole('button', { name: 'Month', exact: true }).click()
+      await expect(page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })).toHaveCount(0)
+    } else await heading.click()
+    await page.waitForTimeout(450)
+    const frames = await framesHandle.jsonValue()
+    const baseline = frames[0]
+    expect(baseline).toHaveLength(2)
+    expect(frames.length).toBeGreaterThan(2)
+    for (const frame of frames) {
+      expect(frame.map(({ text, font, lineHeight }) => ({ text, font, lineHeight })))
+        .toEqual(baseline.map(({ text, font, lineHeight }) => ({ text, font, lineHeight })))
+      for (let index = 0; index < baseline.length; index++) {
+        expect(frame[index].rects.length).toBe(baseline[index].rects.length)
+        frame[index].rects.forEach((rect, fragment) => {
+          for (const key of ['x', 'y', 'width', 'height'] as const) {
+            expect(Math.abs(rect[key] - baseline[index].rects[fragment][key])).toBeLessThan(1)
+          }
+        })
+      }
+    }
+    observations.push({ direction, frames })
+    await framesHandle.dispose()
+  }
+  await testInfo.attach('month-cell-text-anchor', { body: Buffer.from(JSON.stringify(observations)), contentType: 'application/json' })
+}
+
+/** Empty non-class weekdays must not let the lesson overlay intercept event clicks. */
+export async function verifyEmptyCalendarLessonTargets(page: Page, testInfo: TestInfo) {
+  const classroomId = '30000000-0000-4000-8000-000000000011'
+  const writes: string[] = []
+  const unknown: string[] = []
+  const errors: string[] = []
+  await page.clock.setFixedTime(new Date('2026-10-05T16:00:00Z'))
+  await page.addInitScript(theme => localStorage.setItem('theme', theme), testInfo.project.metadata.theme)
+  page.on('pageerror', error => errors.push(error.message))
+  await page.route('**/api/**', async route => {
+    const request = route.request()
+    const url = new URL(request.url())
+    const path = url.pathname
+    if (request.method() !== 'GET') {
+      writes.push(`${request.method()} ${path}`)
+      return route.abort()
+    }
+    if ([...url.searchParams.keys()].some(key => !['start', 'end', 'classroom_id'].includes(key))) {
+      unknown.push(request.url())
+      return route.abort()
+    }
+    let body: unknown
+    if (path === '/api/auth/me') body = { user: { id: '30000000-0000-4000-8000-000000000012',
+      role: 'teacher', email: 'teacher@example.invalid', first_name: 'Fixture' } }
+    else if (path === `/api/classrooms/${classroomId}/class-days`) body = {
+      class_days: Array.from({ length: 31 }, (_, index) => ({ id: `day-${index}`, classroom_id: classroomId,
+        date: `2026-10-${String(index + 1).padStart(2, '0')}`, is_class_day: index !== 5, prompt_text: '' })),
+    }
+    else if (path === `/api/teacher/classrooms/${classroomId}/lesson-plans`) body = { lesson_plans: [] }
+    else if (path === `/api/teacher/classrooms/${classroomId}/announcements`) body = { announcements: [{
+      id: 'empty-day-event', classroom_id: classroomId, title: 'Blank day event', content: 'Event content',
+      is_draft: false, scheduled_for: null, published_at: '2026-10-06T12:00:00Z',
+      created_at: '2026-10-05T12:00:00Z', updated_at: '2026-10-05T12:00:00Z',
+      created_by: '30000000-0000-4000-8000-000000000012',
+    }] }
+    else if (path === `/api/teacher/classrooms/${classroomId}/materials`) body = { materials: [] }
+    else if (path === '/api/teacher/assignments') body = { assignments: [] }
+    else if (path === '/api/teacher/tests') body = { tests: [] }
+    else if (path === '/api/teacher/classrooms') body = { classrooms: [] }
+    else {
+      unknown.push(request.url())
+      return route.abort()
+    }
+    await route.fulfill({ json: body })
+  })
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=calendar', { waitUntil: 'networkidle' })
+  await page.getByRole('button', { name: 'Week', exact: true }).click()
+  const add = page.getByRole('button', { name: 'Add lesson for October 6, 2026', exact: true })
+  const event = page.getByRole('button', { name: 'Blank day event', exact: true })
+  await event.scrollIntoViewIfNeeded()
+  const bounds = await add.evaluate(element => {
+    const button = element.getBoundingClientRect()
+    const region = element.closest('.calendar-day-text')!.getBoundingClientRect()
+    return { top: button.top - region.top, bottom: button.bottom - region.bottom, height: button.height }
+  })
+  expect(bounds.top).toBeGreaterThanOrEqual(-1)
+  expect(bounds.bottom).toBeLessThanOrEqual(1)
+  expect(bounds.height).toBeGreaterThanOrEqual(44)
+  await add.click()
+  await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(add).toBeFocused()
+  await event.scrollIntoViewIfNeeded()
+  expect(await event.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    return document.elementFromPoint(box.left + 10, box.top + 5)?.closest('button') === element
+  })).toBe(true)
+  await testInfo.attach('empty-nonclass-lesson-and-event', { body: await page.screenshot(), contentType: 'image/png' })
+  await event.click({ position: { x: 10, y: 5 } })
+  await expect(page.getByRole('region', { name: 'Calendar workspace' })).toBeHidden()
+  await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toHaveCount(0)
+  expect(writes).toEqual([])
+  expect(unknown).toEqual([])
+  expect(errors).toEqual([])
 }

@@ -16,6 +16,8 @@ import {
 } from '@/lib/server/bara-attendance-view'
 import { teacherAttendanceViewQuerySchema } from '@/lib/validations/teacher-attendance'
 import { teacherAttendanceSessionCommandSchema } from '@/lib/validations/teacher-attendance'
+import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
+import { loadContextualAttendanceSession } from '@/lib/server/contextual-attendance-session'
 import {
   executeTeacherAttendanceSessionCommand,
   TeacherAttendanceCommandError,
@@ -29,6 +31,14 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetTeacherAttendanceSession', async (request) => {
+  const admission = await authorizeSharedAttendancePolicyActor()
+  if (admission.mode === 'shared') {
+    const input = teacherAttendanceViewQuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams))
+    const view = await loadContextualAttendanceSession({
+      supabase: getServiceRoleClient(), actorId: admission.user.id, classroomId: input.classroom_id, classDate: input.date,
+    })
+    return NextResponse.json(view)
+  }
   const user = await requireRole('teacher')
   const input = teacherAttendanceViewQuerySchema.parse(
     Object.fromEntries(new URL(request.url).searchParams),

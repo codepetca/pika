@@ -200,6 +200,32 @@ describe('CI change classifier', () => {
     }
   })
 
+  it('retains risky source paths when files are renamed into documentation', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pika-ci-renames-'))
+    const classifier = resolve('scripts/classify-ci-changes.mjs')
+    const sources = ['supabase/migrations/270_current.sql', 'src/app/api/example/route.ts', 'e2e/example.spec.ts']
+    const destinations = sources.map((_, index) => `docs/retired-${index}.md`)
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'pipe' })
+    try {
+      git('init', '-q')
+      git('config', 'user.email', 'test@example.test')
+      git('config', 'user.name', 'Test')
+      sources.forEach((file, index) => {
+        mkdirSync(dirname(join(root, file)), { recursive: true })
+        writeFileSync(join(root, file), `fixture-${index}\n`)
+      })
+      mkdirSync(join(root, 'docs'))
+      git('add', '.')
+      git('commit', '-qm', 'source baseline')
+      sources.forEach((file, index) => git('mv', file, destinations[index]))
+      git('commit', '-qm', 'move sources into documentation')
+      const result = JSON.parse(execFileSync(process.execPath, [classifier, '--base', 'HEAD^', '--head', 'HEAD'],
+        { cwd: root, encoding: 'utf8' }))
+      expect(result.paths).toEqual(expect.arrayContaining([...sources, ...destinations]))
+      expect(result).toMatchObject({ docsOnly: false, runTestBuild: true, runDatabase: true, runBrowser: true })
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+
   it('runs the full suite for manual requests and missing change evidence', () => {
     expect(classifyChangedPaths([], { forceFull: true })).toMatchObject({
       mode: 'full',

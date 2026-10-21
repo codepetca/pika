@@ -7,6 +7,13 @@ const mocks = vi.hoisted(() => ({
   isExportAllowed: vi.fn(() => true),
   requireRole: vi.fn(),
   resolveSourceCommit: vi.fn(() => 'abcdef1234567890'),
+  sharedActor: vi.fn<() => Promise<{ mode: 'existing' } | { mode: 'shared'; user: { id: string; role: string } }>>(),
+  sharedExport: vi.fn(),
+}))
+
+vi.mock('@/lib/server/contextual-classroom-archive-recovery', () => ({
+  authorizeSharedClassroomArchiveActor: mocks.sharedActor,
+  exportContextualClassroomArchive: mocks.sharedExport,
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -43,6 +50,7 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
     mocks.requireRole.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
     mocks.resolveSourceCommit.mockReturnValue('abcdef1234567890')
     mocks.isExportAllowed.mockReturnValue(true)
+    mocks.sharedActor.mockResolvedValue({ mode: 'existing' })
     mocks.exportClassroomArchive.mockResolvedValue({
       ok: true,
       status: 201,
@@ -66,6 +74,39 @@ describe('POST /api/teacher/classrooms/[id]/archives', () => {
         verified_at: '2026-07-13T12:00:00.000Z',
       },
     })
+  })
+
+  it.each(['student', 'teacher'])('dispatches the admitted %s actor to independently bound recovery export', async role => {
+    const user = { id: '11111111-1111-4111-8111-111111111111', role }
+    mocks.sharedActor.mockResolvedValue({ mode: 'shared', user })
+    mocks.sharedExport.mockResolvedValue({ ok: false, status: 403, operation_id: OPERATION_ID, error_code: 'classroom_forbidden', error: 'Forbidden', retryable: false })
+    const response = await POST(new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
+      method: 'POST', headers: { 'Idempotency-Key': OPERATION_ID }, body: JSON.stringify({ expected_source_revision: 7 }),
+    }), context())
+    expect(response.status).toBe(403)
+    expect(mocks.requireRole).not.toHaveBeenCalled()
+    expect(mocks.exportClassroomArchive).not.toHaveBeenCalled()
+    expect(mocks.sharedExport).toHaveBeenCalledWith(expect.objectContaining({ teacherId: user.id, classroomId: CLASSROOM_ID, operationId: OPERATION_ID, expectedSourceRevision: 7 }))
+  })
+
+  it('preserves the export operational allowlist for admitted owners', async () => {
+    mocks.sharedActor.mockResolvedValue({ mode: 'shared', user: { id: CLASSROOM_ID, role: 'student' } })
+    mocks.isExportAllowed.mockReturnValue(false)
+    const response = await POST(new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
+      method: 'POST', headers: { 'Idempotency-Key': OPERATION_ID }, body: JSON.stringify({ expected_source_revision: 7 }),
+    }), context())
+    expect(response.status).toBe(503); expect(mocks.sharedExport).not.toHaveBeenCalled()
+  })
+
+  it('serializes uncertain postflight in the existing export failure envelope', async () => {
+    mocks.sharedActor.mockResolvedValue({ mode: 'shared', user: { id: CLASSROOM_ID, role: 'student' } })
+    const outcome = { ok: false, status: 503, operation_id: OPERATION_ID, error_code: 'classroom_archive_recovery_unverified', error: 'Outcome could not be verified; refresh to reconcile it', retryable: true }
+    mocks.sharedExport.mockResolvedValue(outcome)
+    const response = await POST(new NextRequest(`http://localhost/api/teacher/classrooms/${CLASSROOM_ID}/archives`, {
+      method: 'POST', headers: { 'Idempotency-Key': OPERATION_ID }, body: JSON.stringify({ expected_source_revision: 7 }),
+    }), context())
+    expect(response.status).toBe(503); expect(await response.json()).toEqual(outcome)
+    expect(mocks.exportClassroomArchive).not.toHaveBeenCalled()
   })
 
   it('starts a teacher-managed export with a caller idempotency key', async () => {

@@ -15,7 +15,9 @@ if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; the
   exit 2
 fi
 
-docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 <<'SQL'
+for fixture_owner_role in teacher student; do
+docker exec -i "$DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
+  -v fixture_owner_role="$fixture_owner_role" <<'SQL'
 do $migration$
 begin
   if not exists (
@@ -198,6 +200,11 @@ insert into public.classroom_cold_archive_actors (
     'c2200000-0000-4000-8000-000000000002', 'student');
 delete from public.classrooms
 where id = 'c2200000-0000-4000-8000-000000000010';
+
+-- Vary current account label after archive capture without rewriting historical actor roles.
+update public.users
+set role = :'fixture_owner_role'
+where id = 'c2200000-0000-4000-8000-000000000001';
 
 do $authorization_and_gate$
 declare
@@ -415,3 +422,4 @@ $finalize$;
 
 rollback;
 SQL
+done

@@ -1,3 +1,4 @@
+import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
@@ -46,7 +47,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   // The current native harness asserts265 Return and clear-preservation behavior.
   // Historical source seals remain valid; those schemas cannot execute this proof.
   const inventory=loadAssignmentListReviewedMigrations(repository)
-  assert([265,266,267,268,269,270].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267/268/269/270 extensions')
+  assert([265,266,267,268,269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267/268/269/270/271/272/273/274/275/276/277/278/279/280/281/282 extensions')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])
@@ -59,7 +60,8 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   if (inventory.length >= 267) validateGradebookCompactZeroWeightAssessmentsReviewedMigration(inventory[266])
   if (inventory.length >= 268) validateClassroomHotLifecycleReviewedMigration(inventory[267])
   if (inventory.length >= 269) validateSurveyWorkflowReviewedMigration(inventory[268])
-  if (inventory.length === 270) validateGradebookWorkflowReviewedMigration(inventory[269])
+  if (inventory.length >= 270) validateGradebookWorkflowReviewedMigration(inventory[269])
+  validateLifecycleServicesReviewedMigrations(inventory)
   const migrations=inventory.map(({name,sha256})=>({name,sha256}));const migrationManifestSha256=hash(JSON.stringify(migrations))
   const projectId=`pika_assignment_list_${f.tag.slice(-12)}`,guard=testOwnerGuardSql(projectId)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"

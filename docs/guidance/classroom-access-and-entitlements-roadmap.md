@@ -501,6 +501,457 @@ the consolidated [Gradebook and returned Grades group](contextual-gradebook.md)
 without routine approval stops, with production and activation holds unchanged.
 This is batch-2 implementation work, not a batch or full-goal exit.
 
+2026-10-19 Gradebook landing: PR #1619 merged normally as
+`b13e5d404e40529ec0a8a195eb4f8c80ec6ac107` after all ten final-head CI checks,
+including PR Gate, passed in39335017417. Accepted SQL/types, native SDK/concurrency,
+complete browser workflow and sixteen inspected visuals remain recorded in the
+Gradebook contract and private coordinator evidence; no failed attempt was replayed
+or relabeled. Canonical main fast-forwarded cleanly. Production and shared-local
+migrations, provider/account/billing and admission/home/page/cohort/cutover holds
+remain unchanged. This is the Gradebook integration landing, not the overall exit.
+
+The owner authorized the next lifecycle/attached-service integration without
+routine approval stops. The first current-base group reuses the prepared
+[owner archived recovery/export boundary](contextual-classroom-archive-recovery.md)
+as additive271 and adds [contextual classroom Pal membership](contextual-pal-classroom-membership.md)
+as272. Existing hot archive/restore268 is retained, not reimplemented. Prepared
+source/offline checks are not native or rollout acceptance. Genuine metadata,
+current-base SQL/SDK/Pal272-lock/stored-byte proofs, UI matrix, independent review and
+final-head CI remain gates before the next main merge.
+
+Current bounded progress: complete001–272 rollback SQL/genuine metadata, actual
+typed16-RPC Pal/owner read proof and actual private stored-byte archive export,
+replay/denial/postflight uncertainty passed independent evidence review. Fresh
+immediate preservation and exact owned resource cleanup passed. Forty inspected
+actual-renderer visuals cover both labels/relationships and unavailable/legacy
+states across desktop/mobile and light/dark; these fixed-prop fixtures do not
+assert authenticated route or provider compatibility. Complementary actual
+Pal272 contention passed four two-session schedules plus fresh owner/removal and
+generation re-add checks with zero HTTP; exact restoration, immediate preservation
+and owned cleanup passed. Final composed evidence review and stable-SHA CI remain
+dormant-merge gates. The exhaustive archive
+owner/unarchive/revision/compaction/purge begin/finalize/replay matrix remains
+batch3/cutover evidence, alongside authenticated/provider compatibility and the
+queued-fact/token policy; it is not marked passed. The unchanged archive writer
+protocol is not being recertified by this narrow read/postflight integration.
+PR1620 merged normally into main as `2c9658abfa99153d98b96847679ffddf23c5fa9b`
+on2026-10-19 after all ten exact-head CI checks, including PR Gate, passed.
+Canonical main is fast-forwarded and clean. This dormant merge does not claim
+batch exit, real account/provider operation, production deployment or rollout.
+
+The next bounded attached-service read is owner attendance settings: admitted
+GET `/api/teacher/attendance/policy` uses additive273's one service-only invoker
+snapshot of current ownership, active/lifecycle fences, existing attendance scope
+and nullable policy. Both historical account labels can be owners, but this does
+not create an attendance grant. Exact-canary and teacher-entitlement modes and
+the transport kill switch remain; unmatched GET and all PUT behavior stay legacy.
+Only the decommission ledger's `classroom_id` becomes service-readable to check
+its fence, not its provider/receipt columns or writes. No new UI or provider call.
+Source/unit evidence alone is not acceptance: isolated full-chain SQL, genuine
+metadata, bounded SDK/preservation, independent review and final CI remain gates.
+The fresh isolated273 proof now passes complete replay/rollback SQL, genuine
+metadata and sixteen finite HTTP reads (thirteen actual adapter calls, three
+exact-canary RPCs). Current owner, denial and entitlement/roster/restoration cases
+pass with all original caps; complete fixture/complement preservation, canonical
+read-only equality and positive owned/global cleanup pass. Immediate independent
+source/dependency preservation and zero-process observation pass. Earlier failed
+fixture attempts remain spent; their temporary-schema alias and decommission
+prerequisite defects were corrected without changing product grants or triggers.
+Genuine metadata contains only the new RPC over the prior272 artifact. Independent
+final integration/evidence review and all ten exact-head CI gates passed; PR1622
+normally squash-merged to main03e45f263 on2026-10-19 Toronto. These receipts are not
+the wider attendance/provider contract, production activation or batch3 exit.
+Member attendance and principal/QR/writer integration remain separate. Owner
+decision2026-10-19: a removed and rejoined learner sees only current-membership
+attendance records and overrides; earlier membership history remains preserved
+and available to the classroom owner. This read does not itself implement that
+learner-history boundary or delete any historical record.
+
+The next independent owner boundary is policy PUT. A prepared additive274 wraps
+the unchanged138 timing writer under the established classroom-operation/row and
+132 entitlement-revision locks, with current-owner, active/lifecycle, scope and
+roster checks in the same transaction. Existing expected-revision and timing
+semantics remain; exact-canary writes still require a pre-existing attendance
+entitlement. The wrapper does not provision grants or touch provider delivery,
+principal/mapping/history or outbox rows. Unmatched PUT and GET remain unchanged.
+Student-valued-owner tests assume a pre-existing synthetic grant:132's admin
+grant function still requires the teacher label, a separate remaining boundary.
+Initial security/compatibility reviews and targeted composition review are clean.
+One fresh isolated001–274 proof passed rollback SQL, genuine metadata generation,
+sixteen installed-SDK requests (thirteen actual adapter, three exact-canary),
+committed create/update/revision conflicts and entitlement/roster denials. Three
+real two-session pairs proved operation/owner-row/132-entitlement contention,
+partial-lock release and fresh authorization with savepoint rollback. They do not
+prove committed ownership or lifecycle transitions. Complete fixture/complement
+restoration, canonical read-only/global-resource equality, positive owned cleanup
+and immediate independent source/dependency/zero-process preservation passed.
+Original bounds retained:139actions,2218controls,67657342bytes,16HTTP,max2sessions,
+final0open/uncertain/unsettled. Genuine274 metadata adds only the new RPC over273;
+full current-main checks pass2628tests/98files plus TypeScript/lint and policies.
+Final independent metadata/evidence review and all ten exact-head CI gates passed;
+PR1623 normally squash-merged to main4f57a94c5 on2026-10-20 Toronto with the
+reviewed tree unchanged. Canonical clean main is fast-forwarded; no deployment.
+Shared-local and production migration/application, provider and activation holds
+remain. This is not learner-history integration, wider attendance/provider or
+batch3 exit, nor authorization to activate the cutover.
+
+The next bounded owner read is GET `/api/teacher/attendance/session`. Prepared275
+and its admitted adapter bind current ownership, server-owned runtime/scope and
+the complete roster/day projection in one database snapshot. Archived, runtime
+disabled/misconfigured, unentitled and canary-mismatched owners retain their
+existing roster-only response; nonowners disclose no roster and lifecycle fences
+fail closed. The converter retains existing V1 queue validation, overrides,
+invalidations, pending/failure precedence and browser DTO; all POST commands and
+unmatched GET remain legacy. This does not implement learner membership history,
+provide a grant, change provider/principal operations or activate admission.
+One fresh isolated001–275 proof passed rollback SQL (including1004 enrollments),
+genuine metadata generation and sixteen installed-SDK reads: thirteen actual
+adapter calls and three typed canaries, with eight complete DTO commitments.
+All26SQL frames and84guards passed, including committed entitlement/roster/fence
+denials and restoration before a final successful owner read. Full fixture and
+complement preservation, canonical read-only/global-resource equality, positive
+owned teardown and immediate independent source/dependency/zero-process checks
+passed.136actions/2224controls/67593566bytes/16HTTP/max1session/final0open,
+uncertain or unsettled; original limits retained. Initial reviews291/292 and
+targeted composition/remediation reviews293/294 retain one resolved verifier
+cleanup bookkeeping finding, corrected before this first runtime attempt.
+Genuine275 metadata adds only the new RPC over274; identical-source rebase onto
+the policy-write squash retains the exact exercised product tree. Final focused
+checks pass2610tests/97files plus TypeScript/lint and repository policies.
+Final CI-only mail-service exclusion correction retained the exercised app/SQL
+bytes;2611tests/97files and independent review296 passed. All ten exact-head
+CI39371975554 attempt2 gates passed; PR1624 normally squash-merged on2026-10-20
+to c10fd9547 with reviewed/squash tree7175fbe7 identical. Canonical clean main
+fast-forwarded. Shared-local and production holds are unchanged; no learner-
+history or batch exit.
+
+The next independent owner read is the Daily Log-derived GET
+`/api/teacher/attendance`. Prepared276 binds actual current ownership, complete
+current roster, class days and matching entries in one service-only read snapshot;
+archived owners retain access. This report is independent of Bara runtime,
+principal, attendance grants and attendance decommissioning. Classroom lifecycle
+and purge fences still fail closed. Admitted users of either account label use
+the existing complete attendance DTO, Unicode-content and Toronto-date rules;
+unmatched GET remains legacy. Private8MiB snapshot/DTO,250000 projected cells and
+32000000 filter-comparison bounds reject rather than truncate; they are not plan
+quotas or new UI notices. SQL rollback and installed-SDK fixture source is
+prepared. Initial source reviews297/298 passed. Composition299's SQL settlement
+omission was corrected and accepted by300 before execution. One initial attempt
+remains failed because of a generated fixture SQL token; a separate read-only
+lexical probe confirmed the error, a regression went RED then GREEN, and301
+accepted the minimal separator correction and exact isolated recovery. Failed
+evidence remains immutable; only its synthetic Docker resources were removed,
+and temporary files retained privately. One fresh001–276 rehearsal then passed:
+rollback contracts including1004roster/1001days/entries, genuine metadata, twelve
+actual installed-SDK adapter reads, six complete DTO commitments,18SQL/60guards,
+restoration before final reads, complete fixture/complement preservation,
+canonical read-only/global-resource equality and positive owned teardown.
+100actions/1672controls/51235392bytes/12HTTP/max1session/final0open or unsettled;
+original limits retained. Immediate next-tool FIRST independently verified
+7901source/98970dependency files unchanged and zero matching processes before
+post-run actions. Genuine276 adds only the new two-argument RPC; removing it
+reconstructs entire275 bytes. Final metadata/current-main review302 was clean;
+3018 focused tests/111 files, architecture/UI/design policies, full TypeScript
+and lint passed. PR1625 merged normally as `d40b1ff90bccdcffef3bd58f5af178fa29a80082`
+on2026-10-20 after all ten exact-head39375680181 CI checks/PR Gate passed on
+`79a4f6bd6813b4e10a9eab9c2455cb8982553032`; reviewed and squash trees are identical
+and clean canonical main fast-forwarded. No learner-history or phase-exit claim. The approved
+current-membership-only learner policy remains separate; earlier attendance is
+preserved for the owner. Shared-local249+, production, provider and rollout holds
+remain unchanged.
+
+The next prepared lifecycle boundary is atomic classroom-list ordering277.
+With the existing global admission configured, admitted actual owners of either
+account label use one complete-set RPC; unmatched users still require the teacher
+label but use that same atomic writer. With admission absent, the full legacy
+path is unchanged. Subject → sorted owned-operation → classroom/revision locks,
+fresh complete-set checks and exact postconditions prevent partial order commits.
+The creation-entitlement subject lock serializes ownership/set changes only:
+reordering consumes no grant or capacity and still works with creation disabled.
+Only positions and legitimate timestamp/archive-revision effects may change;
+Blueprint lineage and all other rows remain preserved. The private4096-ID work
+bound is not a plan quota or new UI notice. Source-only rollback contracts cover
+1001 classrooms, repeated/empty orders, account labels, denials and injected
+midbatch/postcondition failures. Installed-SDK fixtures, exact277 migration seals
+and the canonical CI proof lane are prepared. Initial303/304 and composition305
+reviews were clean. One fresh001–277 isolated proof passed actual rollback SQL,
+genuine metadata,12 SDK writes,18 SQL/60 guards and three two-session lock paths:
+subject blocking/success, operation conflict plus committed archive, and row
+conflict plus normal triggered synthetic ownership transfer. Fresh stale sets
+were denied; correct sets succeeded under sentinel rollback. Complete committed
+graph/complement, unchanged Blueprint/Pal/audit, disabled grant and exact version
+effects passed. Subject proof does not claim a performed concurrent creation.
+115actions/1847controls/57053160bytes/12HTTP/max2sessions/final0open or uncertain;
+original limits retained. Immediate next-tool FIRST verified7918source/98970deps
+unchanged and0matching processes before post-run actions. Positive owned teardown
+and canonical read-only/global equality passed. Genuine277 adds only the required
+actor/string-array Json RPC; removing it reconstructs entire276. Final focused
+checks pass2737tests/98files plus TypeScript/lint and policies. Final independent
+metadata/evidence review306 and all ten exact1d1d2b CI39380704259 gates passed.
+PR1626 merged normally as7e56151e040e4a3285f070c64222acb6ed7750f8 at2026-10-20T07:10:21Z;
+reviewed/squash treec52abc45 is identical and canonical clean main fast-forwarded.
+No shared-local or production schema application, admission activation or phase
+exit is implied.
+
+The next bounded attached-service read is GET
+`/api/teacher/classrooms/[id]/authoring-guidance`. Prepared278 binds current
+classroom ownership, its frozen structural Version and explicitly adopted
+guidance Version (or structural fallback) in one service-only invoker snapshot.
+Account labels and the linked Blueprint's current owner do not authorize this
+classroom read; live Drafts and unselected latest Versions never supply its DTO.
+Archived owners retain access; missing structural pointers retain null context.
+Lifecycle/purge fences and malformed or mismatched saved Versions fail closed.
+Only SELECT on the Blueprint-purge fence's identifying column is added to the
+service role; no browser, whole-ledger or write privilege is added. Private
+8MiB aggregate selected-snapshot/wire bounds and10000 source title-item bounds
+reject rather than truncate and are not subscription quotas or UI notices.
+Admitted owners of either account label use the contextual reader; unmatched
+and absent admission retain the unchanged legacy path. Capture, adoption and
+other Blueprint writes remain separate. Source-only SQL/API/SDK contracts and
+the canonical CI lane are prepared. Independent review, one isolated full-chain
+proof, genuine metadata and stable-head CI remain gates in that preparation.
+Initial307/308 and composition309 reviews passed. One fresh isolated001–278
+proof now passes actual rollback SQL, exact invoker/ACL/lineage/size checks,
+genuine metadata generation and12 installed-SDK adapter reads. All18SQL/60guards,
+seven complete DTO commitments (four null), exact fixture/complement preservation
+and restoration before final successful read passed. Canonical read-only/global
+resource equality and positive owned teardown passed.100actions/1675controls/
+51707374bytes/12HTTP/max1session/final0open,uncertain or unsettled retain all bounds.
+Immediate NEXT-TOOL FIRST verifies7933source/98970dependency files unchanged and
+zero matching processes before post-run checks or edits. Genuine278 adds only the
+required two-UUID Json RPC; removing it reconstructs the entire277 artifact.
+Final focused checks passed2811tests/97files plus policies, full TypeScript and lint.
+Final integration review310 was clean; all ten exact23d71d CI39386625698 checks,
+including PR Gate, passed. PR1627 merged normally ase3d7727dc604164bf47655e2a0e2118a7b08f168
+at2026-10-20T08:05:10Z with identical reviewed/squash tree6aec81cb; canonical clean
+main fast-forwarded. No shared-local249+ or production application, activation or
+phase exit is claimed.
+
+The next prepared read is GET classroom `authoring-guidance/update`: a live-Draft
+preview requires BOTH the current active-classroom owner and the current linked
+Blueprint owner. Prepared279 resolves both identities, frozen structural/adopted
+Version lineage and current live guidance/revision in one service-only invoker
+snapshot. It does not save or adopt a Version; POST remains unchanged and separate.
+Either account label may be admitted; unmatched admission preserves legacy GET.
+Strict private wire decoding returns only the existing normalized preview DTO;
+`changed` compares normalized guidance, not Draft revision or raw JSON. Lifecycle,
+purge, malformed lineage and private aggregate/wire8MiB bounds fail closed without
+new data privileges, locks, truncation, plan quotas or UI notices. Source contracts,
+canonical CI and a finite12-HTTP/18-SQL/60-guard fixture are prepared, including
+dual-owner denials, archived/unlinked behavior, adopted/fallback guidance and
+full63-table fixture/complement preservation. These are CPU/source checks only;
+independent review, one isolated279 proof, genuine generated metadata and exact-head
+CI/normal main merge remain required. One fresh isolated001–279 proof now passed
+rollback SQL/catalog/ACL/lineage/UTF8 bounds, genuine generation and all12 actual
+installed-SDK adapter requests,18SQL/60guards and three complete DTO commitments.
+Full63-table fixture/complement preservation, restoration before final success,
+canonical read-only/global-resource equality and positive owned teardown passed.
+100actions/1672controls/51169222bytes/12HTTP/max1session/final0open,uncertain or
+unsettled retain original bounds. Immediate NEXT-TOOL FIRST verified7948source and
+98970dependency files unchanged/zero matching processes before any post-run action.
+Genuine279 adds only the required two-UUID Json RPC; removing it reconstructs the
+entire278 artifact. Current-main rebase preserves the exercised source tree;
+final checks passed2884tests/99files and review314 was clean. All ten exact-head
+CI39392011940 checks, including PR Gate, passed; PR1628 merged normally as
+cd3876dfaf45f949b9dfc769d16562daf17303aa at2026-10-20T08:52:50Z. Reviewed/squash
+treeb3df6d46 is identical and canonical clean main fast-forwarded. The earlier
+CI startup port collision remains a separate failed receipt, not an app proof.
+Shared-local249+,
+production, activation and all provider/account/billing holds remain unchanged;
+no phase exit is implied.
+
+The next prepared write is POST classroom `authoring-guidance/update`. Additive280
+requires BOTH current active-classroom ownership and current linked Blueprint
+ownership, regardless of account label. Its admitted path reads a complete scalar
+Draft source, uses the unchanged canonical snapshot builder, then saves and adopts
+in one database transaction under the existing lifecycle and parent locks. A raw
+source digest also catches parent-only child moves omitted from the older Draft
+revision triggers. A database-rejected operation leaves no new Version; a lost or
+invalid post-commit response is uncertain and must never cause an automatic retry
+or compensating Version deletion. Existing immutable Versions and their original
+provenance remain untouched, including a legitimate deduplicated Version. The
+legacy POST helper and GET path are unchanged. Private8MiB bounds reject rather
+than truncate complete collections; these are not editor or subscription quotas.
+Source/API/unit and rollback contracts are prepared, not runtime acceptance. The
+isolated proof will verify exact allowed committed graph changes and preserve
+all previous history and complement rows. Temporary synthetic owner/parent
+restoration must retain legitimate timestamp and archive-revision history rather
+than fabricate old byte equality. Independent source/composition review, a fresh
+isolated full-chain proof, genuine metadata, final checks and exact-head CI remain
+gates. Shared-local249+, production, provider/account/billing and activation holds
+remain unchanged; learner attendance history and batch3 exit are not implemented
+or claimed by this write.
+
+The isolated280 SQL rollback suite and genuine metadata generation now pass.
+The full SDK proof is still incomplete: a failed first read/write transition
+exposed a rehearsal timer that incorrectly included pre-request SQL and safety
+checks in its network window. A CPU reproduction confirmed that boundary; the
+prepared fix times only physical transport/body work while preserving the actual
+adapter's continuous ten-second abort, all guards and all existing limits. Slow
+bookkeeping, expired caller signals and physical timeout regressions pass. Both
+failed attempts remain recorded with positive cleanup and immediate independent
+source/dependency preservation; no successful native SDK/concurrency or merge
+claim is made. Review and a fresh separately bound proof remain gates.
+
+A later isolated attempt identified the remaining failure precisely: the actual
+SDK caller timeout expired during rehearsal-only writer preflight, before writer
+dispatch. Do not extend or suppress that application timeout. The next prepared
+verification scheduling uses genuine SDK result settlement as the boundary:
+after a complete, parsed source response, run the existing guards and source-N
+SQL before delivering that identical result back to the unchanged adapter. Its
+canonicalization and next request's normal timeout then follow. Writer postguards
+likewise follow genuine settlement. All58 guards,17 SQL descriptors,12 actual SDK
+requests and all limits remain; no request/result substitution is permitted.
+This proves interventions after source capture and before canonicalization,
+not the narrower old after-canonicalization timing. Review and native acceptance
+remain pending; no production, account, provider or activation hold is released.
+
+The fresh C5 isolated001–280 proof now passes. All six actual-adapter flows
+and twelve genuine SDK HTTP requests succeeded with the exact success/409/403
+vector, complete5005-child source, two new immutable Versions, retained dedup
+provenance and exact denied-write graph preservation. All17 SQL descriptors and
+58 full guards completed. Three genuine two-session contention pairs passed:
+classroom-operation advisory, Blueprint-purge advisory and classroom-row NOWAIT;
+fresh authorization and rolled-back postflight preserved the post-SDK checkpoint.
+This does not claim a separate Blueprint-row NOWAIT denial test. Accounting was
+112 actions/1851 controls/58573054 bytes/12 HTTP/max2 sessions/final0 unsettled or
+uncertain operations, within every original limit. Positive owned teardown and
+reviewed canonical read-only/global-resource equality gates passed; immediate
+next-tool FIRST independently checked7973 source and98970 dependency files and
+zero matching processes before post-run work. Full before/after preservation
+records match, the temporary workdir is absent and no project Docker resources
+remain. Genuine280 metadata adds only the two required RPCs over the entire279
+artifact. Source scheduling322 and carrier323 reviews are clean. Final focused
+checks pass3215 tests/127 files, TypeScript, lint and architecture/UI/design
+policies. Final metadata/evidence review, exact-head CI and normal main merge
+remain; no learner-history, batch3 exit, deployment or activation is claimed.
+
+The prepared permanent-purge workflow also carries its existing owner attendance-
+decommission begin/status/advance continuation. Shared admission selects either
+account label; current archived-hot ownership authorizes new intent, while saved
+actor/classroom/operation authorizes recovery. Existing independent gates, provider
+contract, receipt-before-local-deletion and durable fences remain. Installed-SDK
+sealed-transport/source checks are not live provider acceptance. The rollback SQL
+harness prepares both current owner labels. Retained-generation completion remains
+a concrete separate prerequisite: migration175 can block migration153's participant
+mapping deletion after remote completion. The adapter preserves that failure and
+inspectable saved state; it does not claim learner current-membership history,
+provider mixed-role compatibility or historical Pal policy is complete. No migration
+or activation is included. This continuation shares the still-draft purge PR's
+final review candidate and CI run, not a separate release slice.
+
+2026-10-20 next bounded attendance dependency: prepare generation-compatible
+whole-class decommission and pre-intent pending-student-cleanup denial. Reuse the
+existing operation, receipt, gates and bounded tick. A private transaction-bound
+DELETE capability must prove exact saved operation/classroom/phase/table and
+retain immutable membership replay evidence; it must not become a broad fence
+bypass or erase learner history. Pending automatic cleanup jobs, including
+quarantined jobs without a reserved student-purge operation, must block new
+destructive intent under the same classroom serialization. Native rollback,
+batch-boundary and two-session contention evidence remain required. Source work
+is not migration application or live-provider acceptance; all production,
+shared-local249+, provider and activation holds remain unchanged.
+
+Remaining batch3 boundaries include classroom reuse and Blueprint
+operations, cold restore/purge/export recovery, retained grouped-removal/provider
+compatibility, the wider attendance/Bara principal and status contracts, and the
+historical Pal fact/token lifecycle policy. Do not merely remove global role
+checks or discard retained history. Batches4–5 remain separately dormant.
+
+PR1629 final metadata/evidence review324 completed clean. Its first ready-head
+CI run39406928092 reached the strict database lint gate and rejected the private
+280 helper's untyped empty-object initializer. The draft correction explicitly
+casts that constant to JSONB and updates only the reviewed migration digest;
+the source regression is RED→GREEN. Public signatures, runtime flow and genuine
+metadata are unchanged. Earlier isolated C5 proof remains bound to its original
+source; targeted delta review and fresh final-head replay/lint are required
+before normal main merge. No deployment, shared-local migration or activation.
+
+The corrected-head coverage run39408286862 subsequently found an inherited
+CPU cleanup test expiring its80ms deadline during preflight, before its intended
+unclosed fetch was dispatched. The draft test-only correction awaits dispatch
+before advancing a fake clock through the same80ms/160ms deadlines and retains
+all poisoned/session/restoration assertions. Runtime proof, application and
+SQL are unchanged. All20 leaf tests pass; targeted review and fresh exact-head
+CI remain gates. Cancelled lanes are not passing evidence.
+
+Next bounded source preparation covers the complete archived Use again backend:
+prepare, owned Blueprint list/detail, merge comparison/selected review, stored
+proposal list/apply and new-classroom instantiation. Existing transactions already
+authorize actual owners without account-label checks, so no writer mirror, new
+migration or flag is introduced. Absent/unmatched admission retains the teacher
+guard; admitted owners of either label can use the archived workflow. Linked
+reuse retains both owners. Newly admitted student-labelled actors cannot use
+package/AI/repository proposals, inverse classroom applies or active-source merge
+review. Existing teachers retain those legacy capabilities behind explicit teacher
+guards, including the final active-source proposal apply.
+
+The source seam rechecks owner, archive identity, Blueprint link, Version and
+revision; Blueprint ownership/revision is rechecked after source loading. Stored
+proposal source identity is server-derived and bound to current ownership/lineage.
+Existing automatic whole-provenance promotion and selected-area manual review
+remain distinct; instantiation keeps entitlement locking, stable portable IDs,
+unpublished assessments, runtime-data exclusion and managed-copy settlement.
+These are bounded reads, not a serializable complete-graph or parent-move/truncation
+fix; manual archive authorization remains a server preflight, not a new atomic
+archive predicate. Root independently passed237 CPU checks/15 suites and audit;
+type/lint/architecture checks pass. Independent review, final-base integration,
+required CI and later consolidated workflow evidence remain. General Blueprint
+authoring and the teacher-page entry boundary remain separate; no batch3 exit,
+production/shared-local migration or activation is claimed.
+
+Superseding2026-10-20 receipt: PR1629 merged normally as
+`ccc7c43104b2710c7380be62aee097b7b047adb1`. All ten checks including PR Gate
+passed on reviewed `8becbe22463bc8ed50d5b0ecdccb7a7e9de4ec19` in39410319150;
+strict warning-level database lint and fresh280 replay passed. The merge tree
+equals the reviewed tree and clean canonical main fast-forwarded. The prior C5
+native proof retains its original source binding; later corrections do not create
+a new native proof. No deployment, shared-local migration or activation followed.
+
+PR1630 subsequently merged as `df5525a9c39b07859c9f4ee05d0dc0a3543bf7c9` after
+all ten39419280434 checks, including PR Gate, passed on reviewed
+`3dda233a82c95a1648819d50c5be8e87443f2011`. The reviewed and merge trees match;
+clean canonical main fast-forwarded. Dormant source acceptance is not general
+Blueprint authoring, a batch3 exit, production deployment or cutover activation.
+
+The next bounded cold-restore adapter is prepared under the existing
+[archive recovery contract](contextual-classroom-archive-recovery.md#prepared-contextual-cold-restore).
+It reuses the existing transaction and operational gates, requires current
+cold ownership before private effects, and binds completion/replay to the current
+owned archived-hot parent, immutable archive and completed restore ledger.
+Cold recovery never reopens a classroom or bypasses hot-unarchive entitlements.
+The existing isolated full-stack recovery drill now covers both owner labels
+and retains row/byte/cleanup checks; authored tests are not native acceptance.
+Independent review and successful final-head CI/drill remain required. Purge,
+learner attendance history, remaining services and batch3 exit are still separate;
+all production and activation holds remain unchanged.
+
+Superseding cold-recovery receipt: PR1631 merged normally as
+`f927926a5b4299920fbe90745adf4f2426381dbd` at2026-10-20T13:14:03Z. All ten
+exact-head CI39423632897 checks including PR Gate passed on reviewed
+`01fa8f2c24dcdb48c47546a6768064a58e3e9cac`; its real full-stack archive recovery
+drill passed for both current owner labels. The reviewed and squash trees are
+identical and clean canonical main fast-forwarded. No production/shared-local
+migration, provider/account change or admission/rollout activation followed.
+
+The next prepared owner group covers the eight existing hot/cold purge methods
+as complete impact/start/status/tick workflows, not a new deletion engine.
+Shared admission selects owner-based authorization for either account label;
+legacy dispatch, current owner/representation checks, typed confirmation,
+digests and independent purge gates remain. Completed actor-bound audit/replay
+survives parent deletion, while exact class/archive/operation/scope binding
+prevents substitution. A verified begin result and one claim bound to its exact
+operation and generated lease are required before native advancement/Storage.
+Unknown outcomes fail closed without automatic retry, compensation or rollback
+claims. Existing SQL, durable leases, archive-last processing and cron remain.
+The existing rollback-only SQL matrices are extended to both current owner
+labels after fixture capture without changing historical actors or assertions.
+Source/SDK tests pass; these authored matrices are not yet native acceptance.
+Independent review, actual final-head CI matrices and normal main merge remain
+required. No migration, real deletion, provider/gate/account change, UI or rollout
+activation is authorized. Learner attendance generation integration remains
+separate and earlier records remain owner-visible under the approved policy.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

@@ -12531,6 +12531,10 @@ export type Database = {
         }
         Returns: Json
       }
+      preview_classroom_authoring_guidance_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
       publish_test_from_draft_atomic: {
         Args: {
           p_expected_draft_version: number
@@ -12561,6 +12565,56 @@ export type Database = {
           p_assignment_doc_id: string
           p_expected_classroom_id: string
           p_managed_object_id: string
+        }
+        Returns: Json
+      }
+      read_attendance_policy_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_scope_mode: string
+        }
+        Returns: Json
+      }
+      read_attendance_report_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      read_attendance_session_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_class_date: string
+          p_classroom_id: string
+          p_installation_ref: string
+          p_runtime_integration: string
+          p_scope_mode: string
+        }
+        Returns: Json
+      }
+      read_classroom_archive_recovery_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id?: string
+          p_operation_id?: string
+        }
+        Returns: Json
+      }
+      read_classroom_authoring_guidance_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      read_classroom_guidance_adoption_source_v1: {
+        Args: {
+          p_actor_id: string
+          p_blueprint_id: string
+          p_classroom_id: string
+          p_expected_content_version_id: string
+          p_expected_draft_revision: number
+          p_expected_guidance_version_id: string
         }
         Returns: Json
       }
@@ -12633,6 +12687,10 @@ export type Database = {
       }
       record_pal_classroom_visit: {
         Args: { p_classroom_id: string; p_student_id: string }
+        Returns: Json
+      }
+      record_pal_classroom_visit_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
       record_pal_daily_log_week_configuration_atomic: {
@@ -12859,6 +12917,10 @@ export type Database = {
         Args: { p_assignment_ids: Json; p_classroom_id: string }
         Returns: undefined
       }
+      reorder_classrooms_for_owner_v1: {
+        Args: { p_actor_id: string; p_classroom_ids: string[] }
+        Returns: Json
+      }
       reorder_classwork_items: {
         Args: { p_classroom_id: string; p_items: Json }
         Returns: undefined
@@ -13034,6 +13096,10 @@ export type Database = {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: Json
       }
+      resolve_pal_classroom_context_for_member_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
       resolve_pal_membership: {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: Json
@@ -13164,6 +13230,20 @@ export type Database = {
       }
       return_test_to_draft_atomic: {
         Args: { p_teacher_id: string; p_test_id: string }
+        Returns: Json
+      }
+      save_and_adopt_classroom_guidance_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_blueprint_id: string
+          p_classroom_id: string
+          p_expected_content_version_id: string
+          p_expected_draft_revision: number
+          p_expected_guidance_version_id: string
+          p_snapshot_canonical: string
+          p_snapshot_sha256: string
+          p_source_sha256: string
+        }
         Returns: Json
       }
       save_assignment_ai_grade_atomic: {
@@ -13301,6 +13381,17 @@ export type Database = {
           p_actor_id: string
           p_assignments: Json
           p_classroom_id: string
+        }
+        Returns: Json
+      }
+      save_attendance_policy_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_policy: Json
+          p_scope_mode: string
         }
         Returns: Json
       }

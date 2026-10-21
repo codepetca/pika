@@ -3,7 +3,7 @@ import type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 export type { TeacherAttendancePolicy } from '@/lib/teacher-attendance-policy'
 
 const timeFromDatabaseSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?$/)
-const policyRowSchema = z.object({
+export const attendancePolicyRowSchema = z.object({
   classroom_id: z.string().uuid(),
   timezone: z.literal('America/Toronto'),
   opens_local: timeFromDatabaseSchema,
@@ -18,7 +18,7 @@ const policyRowSchema = z.object({
   updated_at: z.string().datetime({ offset: true }),
 }).strict()
 
-const savedPolicySchema = z.object({
+export const savedPolicySchema = z.object({
   classroom_id: z.string().uuid(),
   timezone: z.literal('America/Toronto'),
   session_starts_local: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
@@ -44,7 +44,7 @@ function isMigrationError(error: { code?: string } | null) {
   return error?.code === '42P01' || error?.code === '42883' || error?.code === 'PGRST202' || error?.code === 'PGRST205'
 }
 
-function toPolicy(row: z.infer<typeof policyRowSchema>): TeacherAttendancePolicy {
+export function toTeacherAttendancePolicy(row: z.infer<typeof attendancePolicyRowSchema>): TeacherAttendancePolicy {
   return {
     classroomId: row.classroom_id,
     timezone: row.timezone,
@@ -57,6 +57,23 @@ function toPolicy(row: z.infer<typeof policyRowSchema>): TeacherAttendancePolicy
     absentMinutesBeforeEnd: row.absent_minutes_before_end,
     enabled: row.enabled,
     revision: row.policy_revision,
+    updatedAt: row.updated_at,
+  }
+}
+
+export function toSavedTeacherAttendancePolicy(row: z.infer<typeof savedPolicySchema>): TeacherAttendancePolicy {
+  return {
+    classroomId: row.classroom_id,
+    timezone: row.timezone,
+    sessionStartsLocal: row.session_starts_local,
+    sessionEndsLocal: row.session_ends_local,
+    sessionEndDayOffset: row.session_end_day_offset,
+    entryOpensMinutesBefore: row.entry_opens_minutes_before,
+    presentGraceMinutes: row.present_grace_minutes,
+    entryClosesMinutesBeforeEnd: row.entry_closes_minutes_before_end,
+    absentMinutesBeforeEnd: row.absent_minutes_before_end,
+    enabled: row.enabled,
+    revision: row.revision,
     updatedAt: row.updated_at,
   }
 }
@@ -74,9 +91,9 @@ export async function loadTeacherAttendancePolicy(input: {
     throw new TeacherAttendancePolicyError(isMigrationError(error) ? 'migration_required' : 'read_failed')
   }
   if (data === null) return null
-  const parsed = policyRowSchema.safeParse(data)
+  const parsed = attendancePolicyRowSchema.safeParse(data)
   if (!parsed.success) throw new TeacherAttendancePolicyError('invalid_result')
-  return toPolicy(parsed.data)
+  return toTeacherAttendancePolicy(parsed.data)
 }
 
 export async function saveTeacherAttendancePolicy(input: {
@@ -117,18 +134,5 @@ export async function saveTeacherAttendancePolicy(input: {
   }
   const parsed = savedPolicySchema.safeParse(data)
   if (!parsed.success) throw new TeacherAttendancePolicyError('invalid_result')
-  return {
-    classroomId: parsed.data.classroom_id,
-    timezone: parsed.data.timezone,
-    sessionStartsLocal: parsed.data.session_starts_local,
-    sessionEndsLocal: parsed.data.session_ends_local,
-    sessionEndDayOffset: parsed.data.session_end_day_offset,
-    entryOpensMinutesBefore: parsed.data.entry_opens_minutes_before,
-    presentGraceMinutes: parsed.data.present_grace_minutes,
-    entryClosesMinutesBeforeEnd: parsed.data.entry_closes_minutes_before_end,
-    absentMinutesBeforeEnd: parsed.data.absent_minutes_before_end,
-    enabled: parsed.data.enabled,
-    revision: parsed.data.revision,
-    updatedAt: parsed.data.updated_at,
-  }
+  return toSavedTeacherAttendancePolicy(parsed.data)
 }

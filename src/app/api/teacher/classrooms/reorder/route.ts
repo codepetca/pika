@@ -3,6 +3,10 @@ import { withErrorHandler } from '@/lib/api-handler'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { getNextTeacherClassroomPosition } from '@/lib/server/classroom-order'
+import { isClassroomExperienceAdmissionConfigured } from '@/lib/server/classroom-experience-admission'
+import { authorizeSharedClassroomMetadataActor } from '@/lib/server/contextual-classroom-metadata'
+import { reorderContextualClassroomList } from '@/lib/server/contextual-classroom-list-reorder'
+import { contextualClassroomListReorderSchema } from '@/lib/validations/contextual-classroom-list-reorder'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -10,6 +14,13 @@ export const revalidate = 0
 // POST /api/teacher/classrooms/reorder
 // body: { classroom_ids: string[] }
 export const POST = withErrorHandler('PostTeacherClassroomsReorder', async (request: NextRequest) => {
+  if (isClassroomExperienceAdmissionConfigured()) {
+    const admission = await authorizeSharedClassroomMetadataActor()
+    const actor = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
+    const input = contextualClassroomListReorderSchema.parse(await request.json())
+    await reorderContextualClassroomList({supabase:getServiceRoleClient(),actorId:actor.id,classroomIds:input.classroom_ids})
+    return NextResponse.json({success:true})
+  }
   const user = await requireRole('teacher')
   const body = await request.json()
   const { classroom_ids } = body as {

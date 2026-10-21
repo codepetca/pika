@@ -3,10 +3,69 @@
 Owner: Audit Pika security and privacy, `codex/coordinated-classroom-deletion`
 in Pika and Bara. Risk: runtime-platform / destructive privacy workflow.
 
+## Dormant classroom-relationship admission
+
+The prepared shared-experience path admits either account label through the
+existing selector for all three begin/status/advance methods. Absent or unmatched
+admission retains the teacher guard. New intent still requires the current
+archived-hot owner, typed confirmation and existing mappings; saved actor,
+classroom and operation bind status/continuation even after parent deletion.
+All existing database, transport and provider gates remain independent. No
+identity is provisioned and no provider contract or rollout setting is changed.
+Malformed internal operation evidence is unavailable503, not caller-input400;
+uncertain outcomes retain the same-operation reconciliation and durable fence.
+
+The installed-SDK sealed-transport checks are not provider acceptance. The
+existing SQL harness now prepares separate rollback-only matrices for both
+current owner labels, retaining ACL, pause/rescope, receipt and scope checks.
+It does not establish retained-generation cleanup: migration175's immutable
+attendance-generation mapping guard can reject migration153's participant
+mapping deletion after remote completion. Preserve that failure and inspectable
+`remote_deleted` status. A separately reviewed generation-compatible deletion
+boundary and native proof are required before claiming complete decommission
+support for retained memberships. Do not disable the guard, clear a fence or
+delete old membership history to make a fixture pass. Production/shared-local,
+live provider and activation holds are unchanged.
+
+## Retained-generation compatibility boundary
+
+Prepared migration281 preserves the existing begin/receipt/tick protocol and
+its fourteen-table deletion order. A private transaction capability may authorize
+only the exact saved operation's classroom, current phase and table after fresh
+gate/installation authorization and persisted remote completion. It is not a
+caller setting, an individual-student cleanup capability, permission to change
+attendance rows, or permission to erase private membership-generation evidence.
+Direct deletes and unrelated transactions retain the existing guards. A failed
+batch must roll back its rows, counters, phase and capability together; recovery
+uses the same saved operation and permanent fence.
+
+Before new destructive intent, begin must also reject independently pending
+removed-student cleanup jobs, including quarantined jobs that have not reserved
+a student-purge operation. Shared classroom serialization and fresh transaction
+visibility must prevent a concurrent removal from slipping past this check.
+Do not cancel those jobs, clear their fences or substitute a Bara roster receipt
+for Pal cleanup evidence. Current-membership learner history and historical Pal
+retention remain separate work.
+
+Acceptance requires both owner labels, retained active/removed generations,
+bounded batches, forged-scope/direct-write denial, rollback and same-operation
+recovery, plus real two-session pending-job contention. CPU/source assertions are
+not database proof. The rollback fixture also chains a fresh, separately gated,
+object-free final Classroom purge and checks retained private history and saved
+status after the parent is gone. This is not Storage/provider erasure evidence.
+Native PostgreSQL 17 proof passed in CI 39458606979. Production migration 281
+was installed with 266–282 on 2026-10-20 under exact owner approval, including
+acknowledgement of the existing deletion path, by rollout 39476697299. Read-only
+checks verified the installed bodies, service-only ACLs, existing trigger
+attachments and the private capability table's RLS/validated constraints. The
+decommission database gate remained enabled. This installation ran no purge,
+write canary or provider call and changed no application/provider rollout gate.
+Shared-local application and fresh live-provider acceptance are not claimed.
+
 ## Sequence
 
 1. An owning teacher explicitly confirms deletion for one archived-hot classroom.
-   The new teacher-only start endpoint commits a durable Supabase fence before
+   The existing start endpoint commits a durable Supabase fence before
    contacting Bara. Reuse the same UUID after an uncertain response.
 2. Explicit POST ticks use the signed, separately namespaced
    `/api/integrations/pika/decommission/v1` contract. Bara verifies the owner

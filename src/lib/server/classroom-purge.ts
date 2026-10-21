@@ -15,6 +15,7 @@ import { missingStorageObjectEvidence } from '@/lib/server/storage-object-eviden
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   classroomPurgeImpactSchema,
+  classroomPurgeOperationStatusSchema,
   classroomPurgeStatusSchema,
   type ClassroomPurgeImpact,
   type ClassroomPurgeStatus,
@@ -171,6 +172,9 @@ async function readRoot(supabase: ServiceClient, teacherId: string, classroomId:
     .maybeSingle()
   if (error) throw new ClassroomPurgeError(error.code, 'Could not read classroom', 500, true)
   if (!data) throw new ClassroomPurgeError('classroom_not_found', 'Classroom not found', 404)
+  if (data.id.toLowerCase() !== classroomId.toLowerCase() || data.teacher_id.toLowerCase() !== teacherId.toLowerCase()) {
+    throw new ClassroomPurgeError('purge_owner_unverified', 'Could not verify classroom ownership', 503)
+  }
   if (!data.archived_at) {
     throw new ClassroomPurgeError(
       'classroom_not_hot_archived',
@@ -272,6 +276,9 @@ async function readDatabaseInventory(
       result.status,
       result.status >= 500,
     )
+  }
+  if (result.status !== 200 || result.classroom_id?.toLowerCase() !== classroomId.toLowerCase()) {
+    throw new ClassroomPurgeError('purge_inventory_unverified', 'Could not verify deletion impact', 503)
   }
   return result as Required<Pick<typeof result,
     'classroom_id' | 'classroom_title' | 'source_revision'
@@ -461,13 +468,17 @@ export async function startClassroomPurge(args: {
     operational_inventory_sha256: args.expectedOperationalInventorySha256,
     intent: 'delete_permanently',
   })
-  parseResult(await rpc(supabase, 'begin_hot_archived_classroom_purge', {
+  const begun = parseResult(await rpc(supabase, 'begin_hot_archived_classroom_purge', {
     p_operation_id: args.operationId,
     p_teacher_id: args.teacherId,
     p_classroom_id: args.classroomId,
     p_request_sha256: requestSha256,
     p_impact_summary: impact,
   }))
+  if (begun.operation_id?.toLowerCase() !== args.operationId.toLowerCase() || ![200, 202].includes(begun.status)
+    || !classroomPurgeOperationStatusSchema.safeParse(begun.operation_status).success) {
+    throw new ClassroomPurgeError('purge_begin_unverified', 'Deletion outcome could not be verified', 503)
+  }
   await tickClassroomPurge(args.teacherId, args.operationId)
   return getClassroomPurgeStatus(args.teacherId, args.operationId)
 }
@@ -508,7 +519,8 @@ export async function getClassroomPurgeStatus(
   }
   if (!response.data) throw new ClassroomPurgeError('purge_not_found', 'Permanent deletion not found', 404)
   const operation = operationRowSchema.parse(response.data)
-  if (operation.purge_scope !== expectedScope) {
+  if (operation.purge_scope !== expectedScope || operation.id.toLowerCase() !== operationId.toLowerCase()
+    || operation.teacher_id.toLowerCase() !== teacherId.toLowerCase()) {
     throw new ClassroomPurgeError('purge_not_found', 'Permanent deletion not found', 404)
   }
   const objectQuery = db.from('classroom_purge_objects').select('status') as {
@@ -519,7 +531,7 @@ export async function getClassroomPurgeStatus(
     throw new ClassroomPurgeError(objects.error.code || 'purge_read_failed', 'Could not read deletion progress', 500, true)
   }
   const counts: Record<string, number> = {}
-  for (const row of z.array(z.object({ status: z.string() })).parse(objects.data || [])) {
+  for (const row of z.array(z.object({ status: z.string() })).parse(objects.data)) {
     counts[row.status] = (counts[row.status] || 0) + 1
   }
   return classroomPurgeStatusSchema.parse({
@@ -591,6 +603,10 @@ export async function advanceClassroomPurge(
       p_lease_seconds: 60,
     },
   ))
+  if (claimed.length > 1 || claimed.some(object => object.operation_id.toLowerCase() !== operationId.toLowerCase()
+    || object.lease_token.toLowerCase() !== leaseToken.toLowerCase())) {
+    throw new ClassroomPurgeError('purge_claim_unverified', 'Deletion lease could not be verified', 503)
+  }
   const object = claimed[0]
   if (!object) {
     parseResult(await rpc(supabase, 'finalize_hot_archived_classroom_purge', {

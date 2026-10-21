@@ -867,7 +867,7 @@ export function TeacherGradebookTab({
   )
 
   const gradebookTable = (
-    <GradebookTable compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines}
+    <GradebookTable allowNamesOnly={Boolean(selectedStudent)} compactZeroWeightAssessments={compactZeroWeightAssessments} showGridlines={preferences.showGridlines}
       students={sortedStudents} columns={visibleAssessmentColumns} displayMode={scoreDisplayMode}
       ultraCompact={preferences.ultraCompact}
       lastNameFirst={preferences.lastNameFirst}
@@ -908,7 +908,6 @@ export function TeacherGradebookTab({
       student={selectedStudent}
       columns={visibleAssessmentColumns}
       displayMode={scoreDisplayMode}
-      onClose={() => setSelectedStudentId(null)}
       onItemOpen={openAssessment}
       onItemScoreOpen={openScore}
       isReadOnly={isReadOnly || !itemsAvailable}
@@ -962,9 +961,9 @@ export function TeacherGradebookTab({
           dividerLabel="Resize gradebook details"
           defaultInspectorWidth={32}
           minInspectorPx={300}
-          minPrimaryPx={420}
+          minPrimaryPx={240}
           minInspectorPercent={24}
-          maxInspectorPercent={45}
+          maxInspectorPercent={85}
         />
       </div>
       <div ref={mobileGradebookWorkspaceRef} role="region" aria-label="Gradebook workspace" tabIndex={-1}

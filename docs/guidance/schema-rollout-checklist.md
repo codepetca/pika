@@ -28,6 +28,45 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 - Any compatibility window is documented in the PR notes
 - Migration application remains human-controlled unless the authorization contract below is satisfied
 
+## Explicit Data API Access (October 30, 2026)
+
+Supabase removes automatic grants for new `public` tables and sequences on hosted
+projects on October 30, 2026. Existing objects keep their grants. The change also
+matters when reconstructing a hosted database from migrations. See the
+[platform announcement](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically).
+
+Pika uses server-authorized routes and the `service_role` Data API client. That
+role bypasses RLS, but still needs object privileges. RLS policies alone do not
+grant table access. Do not copy generic `anon`/`authenticated` grants from examples.
+
+- Preserve historical migrations 001–281. Migration 282 records the audited
+  table/sequence grants explicitly and closes automatic public table/sequence
+  grants. It preserves the narrower direct-write revocations introduced by
+  contextual RPC migrations; do not replace it with a blanket server-role grant.
+  Migration 281's private attendance-decommission capability table remains
+  inaccessible directly to `service_role`; only its reviewed RPCs can use it.
+- In each new migration that creates a public table, enable RLS, revoke all
+  privileges from `PUBLIC`, `anon`, and `authenticated`, and explicitly grant only
+  the `service_role` operations required by the server. For an RPC-only table,
+  explicitly revoke direct `service_role` access and grant only the reviewed RPC.
+- Make the same explicit grant/revoke decision for new public sequences,
+  including identity/serial sequences. Grant `USAGE`/`SELECT` only when required.
+- Use schema-qualified permanent DDL, dollar-quoted routine bodies, and top-level
+  relation ACL statements. String-form executable bodies require policy review. Dynamic public
+  DDL or changed client access needs a policy review and corresponding checks;
+  do not hide grants in routine bodies or restore automatic default grants.
+- Run `pnpm check:data-api-migrations` and
+  `bash scripts/check-data-api-grants-database.sh`. The latter owns disposable
+  test resources, replays historical SQL with automatic table/sequence grants
+  removed, and compares the resulting ACLs with the historical contract. Never
+  reset the shared local database to run this check.
+- Function/RPC execution, private ownership, Storage policies, rollout gates, and
+  exact-target migration authority remain governed by their existing contracts.
+
+Creating this source migration does not apply it to local or production data.
+The [dated audit](data-api-grants-audit-2026-10.md) records the historical baseline
+and the separate RESPMax/HQ findings.
+
 ## AI Migration Application Authorization
 
 Migration application is human-controlled by default. An AI agent may execute it only when the user

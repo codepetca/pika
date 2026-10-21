@@ -4,6 +4,7 @@ import type { ReactElement } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { LessonDayCell } from '@/components/LessonDayCell'
+import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { createMockTest } from '../helpers/mocks'
 import { TooltipProvider } from '@/ui'
 import type { Announcement, Assignment, LessonPlan, TiptapContent } from '@/types'
@@ -64,6 +65,55 @@ function renderWithTooltip(ui: ReactElement) {
 }
 
 describe('LessonDayCell', () => {
+  it('opens without scrolling the whole cell and restores the grid edit action on Escape', async () => {
+    const scrollIntoView = vi.fn()
+    const { container } = renderWithTooltip(<LessonDayCell date={lessonPlan.date}
+      day={new Date('2026-03-13T12:00:00')} lessonPlan={lessonPlan} isWeekend={false} isToday={false} editable />)
+    container.firstElementChild!.scrollIntoView = scrollIntoView
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(scrollIntoView).not.toHaveBeenCalled()
+    const editor = screen.getByRole('textbox')
+    editor.focus()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })).toHaveFocus())
+  })
+
+  // Complements useLessonCellMotion's late-editor geometry test with the real
+  // cell's fallback retirement, editor semantics and Escape focus handoff.
+  it('keeps a retired preview available for the editor handoff without duplicate edit targets', async () => {
+    const { container } = renderWithTooltip(<LessonDayCell date={lessonPlan.date}
+      day={new Date('2026-03-13T12:00:00')} lessonPlan={lessonPlan}
+      isWeekend={false} isToday={false} editable compact />)
+    const preview = screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })
+    fireEvent.click(preview)
+    const editor = await screen.findByRole('textbox')
+    expect(preview).toBeInTheDocument()
+    expect(preview).toHaveAttribute('inert')
+    expect(preview).toHaveAttribute('aria-hidden', 'true')
+    expect(preview).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Edit lesson for March 13, 2026' })).not.toBeInTheDocument()
+    editor.focus()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(preview).not.toHaveAttribute('inert')
+    expect(preview).not.toHaveAttribute('aria-hidden')
+    expect(preview).toBeEnabled()
+    expect(preview).toHaveFocus()
+    expect(container.querySelector('[data-lesson-exit]')).toBeNull()
+  })
+
+  it('retires the editor immediately when editing permission is removed', () => {
+    const props = { date: lessonPlan.date, day: new Date('2026-03-13T12:00:00'), lessonPlan,
+      isWeekend: false, isToday: false, editable: true }
+    const { rerender } = renderWithTooltip(<LessonDayCell {...props} />)
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    rerender(<TooltipProvider><LessonDayCell {...props} editable={false} /></TooltipProvider>)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    rerender(<TooltipProvider><LessonDayCell {...props} /></TooltipProvider>)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
   it.each([
     { layout: 'agenda' as const, isWeekend: false },
     { layout: 'agenda' as const, isWeekend: true },
@@ -213,6 +263,32 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
+  })
+
+  it.each([false, true])('reveals expanded Month plain text while keeping All summaries clipped (plainTextOnly=%s)', (plainTextOnly) => {
+    localStorage.setItem('pika_show_markdown', 'false')
+    const text = 'First line\nSecond line\nThird line\nFourth line\nFinal lesson line'
+    const cell = (compact: boolean) => (
+      <MarkdownPreferenceProvider>
+        <LessonDayCell date={lessonPlan.date} day={new Date('2026-03-13T12:00:00')}
+          lessonPlan={{ ...lessonPlan, content_markdown: text }} isWeekend={false}
+          isToday={false} editable={false} compact={compact} plainTextOnly={plainTextOnly} />
+      </MarkdownPreferenceProvider>
+    )
+    try {
+      const { rerender } = renderWithTooltip(cell(true))
+      const preview = screen.getByText(/Final lesson line/)
+      expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
+      rerender(<TooltipProvider>{cell(false)}</TooltipProvider>)
+      expect(screen.getByText(/Final lesson line/)).toBe(preview)
+      expect(preview).toHaveClass('text-[10px]', 'leading-tight')
+      if (plainTextOnly) expect(preview).toHaveClass('line-clamp-3')
+      else expect(preview).not.toHaveClass('line-clamp-3')
+      rerender(<TooltipProvider>{cell(true)}</TooltipProvider>)
+      expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
+    } finally {
+      localStorage.removeItem('pika_show_markdown')
+    }
   })
 
   it.each([false, true])('labels assignment due dates with accessible solid fill (compact=%s)', (compact) => {
@@ -366,6 +442,29 @@ describe('LessonDayCell agenda', () => {
       setPlan((current) => ({ ...current, content_markdown: markdown }))
     }} />
   }
+
+  it('keeps empty non-class weekday lesson and event keyboard actions independent', async () => {
+    const user = userEvent.setup()
+    const assignment = { id: 'nonclass-assignment', title: 'Independent event', is_draft: false } as Assignment
+    const onAssignmentClick = vi.fn()
+    const onContentChange = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={null} isClassDay={false}
+      assignments={[assignment]} onAssignmentClick={onAssignmentClick} onContentChange={onContentChange} />)
+    const add = screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })
+    add.focus()
+    await user.keyboard('{Enter}')
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    editor.focus() // Native autofocus is covered by the browser regression.
+    expect(editor).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })).toHaveFocus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Due: Independent event' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(assignment)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(onContentChange).not.toHaveBeenCalled()
+  })
 
   it('starts editing when teacher lesson content is clicked', () => {
     renderWithTooltip(<LessonDayCell {...agendaProps} lessonPlan={{ ...lessonPlan,

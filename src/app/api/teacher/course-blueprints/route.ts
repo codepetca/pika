@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
+import { authorizeClassroomReuseActor } from '@/lib/server/contextual-classroom-reuse'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { createCourseBlueprintSchema } from '@/lib/validations/course-blueprints'
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const GET = withErrorHandler('GetTeacherCourseBlueprints', async () => {
-  const user = await requireRole('teacher')
+  const { user } = await authorizeClassroomReuseActor()
   const supabase = getServiceRoleClient()
   const { data, error } = await listTeacherCourseBlueprints(supabase, user.id)
 

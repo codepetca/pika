@@ -426,7 +426,7 @@ describe('archived classroom reuse', () => {
     }))
   })
 
-  it('creates a copy-only Blueprint for an unlinked archived classroom', async () => {
+  it.each([false, true])('creates a copy-only Blueprint for an unlinked archived classroom (contextual=%s)', async (contextual) => {
     mockLoadClassroomBlueprintSource.mockResolvedValue({
       ok: true,
       source: legacySource({ source_blueprint_id: null }),
@@ -445,6 +445,7 @@ describe('archived classroom reuse', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '30000000-0000-4000-8000-000000000001',
       operationId: '70000000-0000-4000-8000-000000000001',
+      contextual,
     })
 
     expect(mockCreateCourseBlueprintFromClassroom).toHaveBeenCalledWith(
@@ -463,7 +464,7 @@ describe('archived classroom reuse', () => {
     }))
   })
 
-  it('atomically promotes legacy classroom-only changes before reuse', async () => {
+  it.each([false, true])('atomically promotes legacy classroom-only changes before reuse (contextual=%s)', async (contextual) => {
     mockLoadClassroomBlueprintSource.mockResolvedValue({
       ok: true,
       source: legacySource(),
@@ -499,6 +500,7 @@ describe('archived classroom reuse', () => {
       teacherId: '10000000-0000-4000-8000-000000000001',
       classroomId: '30000000-0000-4000-8000-000000000001',
       operationId: '70000000-0000-4000-8000-000000000001',
+      contextual,
     })
 
     expect(mockApplyBlueprintMergeSuggestions).toHaveBeenCalledWith(
@@ -510,6 +512,7 @@ describe('archived classroom reuse', () => {
         expectedBlueprintRevision: 4,
         expectedClassroomRevision: 2,
       },
+      ...(contextual ? [{ archivedReuse: true }] : []),
     )
     expect(mockApplyArchivedClassroomCourseBlueprintProposal).toHaveBeenCalledWith(
       expect.objectContaining({

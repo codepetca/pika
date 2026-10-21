@@ -186,16 +186,22 @@ describe('serial Tart host admission (offline)', { timeout: 15_000 }, () => {
     client=root/'client'; (client/'bin').mkdir(parents=True); (client/'_diag').mkdir()
     (client/'.runner').write_text(json.dumps({'agentName':'pika-ci-job-offline','ephemeral':True,'gitHubUrl':'https://github.com/codepetca/pika'}))
     listener=client/'bin/Runner.Listener'
-    body='import pathlib,subprocess,sys,os\np=pathlib.Path("attempts"); p.write_text(p.read_text()+"x" if p.exists() else "x")\npathlib.Path("group").write_text(str(os.getpgrp()))\nsubprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n'
+    body='import pathlib,subprocess,sys,os,time\n'
+    # Reproduce slow interpreter startup beyond the old 0.4s idle budget.
+    if ${exit}==2: body+='time.sleep(0.6)\n'
+    body+='p=pathlib.Path("attempts"); p.write_text(p.read_text()+"x" if p.exists() else "x")\npathlib.Path("group").write_text(str(os.getpgrp()))\nsubprocess.Popen([sys.executable,"-c","import time; time.sleep(60)"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)\n'
     if ${exit}!=2: body+='pathlib.Path("_diag/Worker_test.log").write_text("activity")\n'
     listener.write_text('#!'+sys.executable+'\n'+body+'sys.exit(${exit})\n'); listener.chmod(0o700)
     code=h.GUEST_RUN.replace("client=pathlib.Path('/home/runner/pika-actions-runner')", "client=pathlib.Path(payload['client'])").replace("require(os.getuid()==1002 and platform.system()=='Linux' and platform.machine()=='aarch64','identity')", "require(True,'identity')")
-    payload={'client':str(client),'name':'pika-ci-job-offline','idle':0.4 if ${exit}==2 else 2,'lifetime':3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
+    # Allow interpreter startup; idle=2 still expires during the 5s exit-2
+    # retry backoff, so the single-attempt containment assertion stays meaningful.
+    payload={'client':str(client),'name':'pika-ci-job-offline','idle':2,'lifetime':3,'environment':dict(h.GUEST_ENV,HOME=str(root))}
     result=subprocess.run([sys.executable,'-c',code],input=json.dumps(payload),capture_output=True,text=True,timeout=6)
     pgid=int((client/'group').read_text())
     if h.Backend.group_running(pgid):
         os.killpg(pgid,signal.SIGKILL); raise AssertionError('guest descendant survived controller return')
     assert result.returncode != 0, 'surviving Worker must not produce success'
+    if ${exit}==2: assert 'PIKA_HOST_GUARD:idle-timeout' in result.stdout.splitlines()
     assert (client/'attempts').read_text()=='x'
 `)
   })

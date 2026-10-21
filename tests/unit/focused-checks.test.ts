@@ -40,8 +40,8 @@ console.log(' Tests  12 passed (12)');
   git('add', 'package.json')
   git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'baseline')
   const callsPath = join(root, 'calls.jsonl')
-  function run(args: string[] = [], fail = false, realVitest = false) {
-    const result = spawnSync(process.execPath, [script, '--base', 'HEAD', ...args], {
+  function run(args: string[] = [], fail = false, realVitest = false, base = 'HEAD') {
+    const result = spawnSync(process.execPath, [script, '--base', base, ...args], {
       cwd: root,
       env: { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, FOCUSED_CALLS: callsPath, FOCUSED_FAIL: fail ? '1' : '0', FOCUSED_REAL_VITEST: realVitest ? '1' : '0' },
       encoding: 'utf8',
@@ -94,7 +94,15 @@ describe('focused local checks', () => {
     expect(result.calls).toContainEqual(['run', 'lint'])
   })
 
-  it.each(['workflow', 'related'])('limits only Vitest workers while preserving %s selection and later commands', mode => {
+  // Each real runner invocation starts Git and up to six fake check processes.
+  // Keep default/limited assertions separate so their startup costs do not share
+  // one test deadline, while asserting the complete command list in both modes.
+  it.each([
+    { mode: 'workflow', maxWorkers: undefined },
+    { mode: 'workflow', maxWorkers: '2' },
+    { mode: 'related', maxWorkers: undefined },
+    { mode: 'related', maxWorkers: '2' },
+  ])('preserves $mode selection and later commands with maxWorkers=$maxWorkers', ({ mode, maxWorkers }) => {
     const f = fixture()
     f.write('.git/info/exclude', 'bin/\ncalls.jsonl\n')
     f.write(mode === 'workflow' ? 'docs/change.md' : 'src/components/A panel.tsx')
@@ -103,17 +111,22 @@ describe('focused local checks', () => {
       f.write('scripts/policy.mjs', 'export const policy = 1')
       f.write('tests/unit/policy.test.ts', "import { policy } from '../../scripts/policy.mjs'")
     }
-    const defaultResult = f.run()
-    const limitedResult = f.run(['--max-workers', '2'])
-    expect(defaultResult.status).toBe(0)
-    expect(limitedResult.status).toBe(0)
-    const limitedCalls = limitedResult.calls.slice(defaultResult.calls.length)
-    expect(limitedCalls).toEqual([
-      [...defaultResult.calls[0], '--maxWorkers', '2'],
-      ...defaultResult.calls.slice(1),
+    const result = f.run(maxWorkers === undefined ? [] : ['--max-workers', maxWorkers])
+    expect(result.status, result.output).toBe(0)
+    expect(result.calls).toEqual([
+      ['exec', 'vitest', ...(mode === 'related' ? ['related', '--run'] : ['run']),
+        ...workflowTests,
+        ...(mode === 'related' ? ['tests/components/A panel.test.tsx', 'tests/unit/policy.test.ts',
+          'scripts/policy.mjs', 'src/components/A panel.tsx'] : []),
+        '--reporter=dot', ...(maxWorkers === undefined ? [] : ['--maxWorkers', maxWorkers])],
+      ...(mode === 'related' ? [
+        ['run', 'check:architecture'],
+        ['run', 'check:ui-policy'],
+        ['run', 'check:design-policy'],
+        ['exec', 'tsc', '--noEmit'],
+        ['run', 'lint'],
+      ] : []),
     ])
-    expect(defaultResult.calls.flat()).not.toContain('--maxWorkers')
-    if (mode === 'related') expect(limitedCalls[0]).toContain('scripts/policy.mjs')
   })
 
   it.each([
@@ -147,6 +160,50 @@ describe('focused local checks', () => {
     expect(result.calls[0]).toEqual(['exec', 'vitest', 'run', ...workflowTests,
       'tests/unit/standalone.test.ts', '--reporter=dot'])
   })
+
+  it.each([false, true])('checks an unchanged dynamic migration-profile reader when SQL changes (related=%s)', related => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')
+    symlinkSync(resolve('node_modules'), join(f.root, 'node_modules'), 'dir')
+    f.write('vitest.config.mjs', "export default { test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] } }")
+    for (const file of workflowTests) f.write(file, "it('workflow', () => expect(true).toBe(true))")
+    const profile = 'tests/unit/contextual-test-reviewed-gradebook-profile.test.ts'
+    // No static SQL import: this models the real filesystem inventory reader.
+    f.write(profile, "import { readdirSync } from 'node:fs'; it('closed current schema', () => expect(readdirSync('supabase/migrations')).toHaveLength(1))")
+    f.write('supabase/migrations/270_current.sql', '-- baseline')
+    f.git('add', '.')
+    f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'closed schema baseline')
+    f.write('supabase/migrations/271_unreviewed.sql', '-- new migration')
+    if (related) f.write('src/changed.ts', 'export const changed = true')
+    const result = f.run(['--max-workers', '2'], false, true)
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.calls).toHaveLength(1)
+    expect(result.calls[0]).toContain(profile)
+    expect(result.output).toContain('closed current schema')
+    expect(result.output).toMatch(/1 failed/)
+  }, 15_000)
+
+  it.each([false, true])('detects a migration renamed into documentation (committed=%s)', committed => {
+    const f = fixture()
+    f.write('.git/info/exclude', 'bin/\ncalls.jsonl\nnode_modules/\n')
+    symlinkSync(resolve('node_modules'), join(f.root, 'node_modules'), 'dir')
+    f.write('vitest.config.mjs', "export default { test: { globals: true, environment: 'node', include: ['tests/**/*.test.ts'] } }")
+    for (const file of workflowTests) f.write(file, "it('workflow', () => expect(true).toBe(true))")
+    const profile = 'tests/unit/contextual-test-reviewed-gradebook-profile.test.ts'
+    f.write(profile, "import { existsSync, readdirSync } from 'node:fs'; it('closed current schema', () => expect(existsSync('supabase/migrations') ? readdirSync('supabase/migrations') : []).toHaveLength(1))")
+    f.write('supabase/migrations/270_current.sql', '-- baseline')
+    f.write('docs/.keep', '')
+    f.git('add', '.')
+    f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'closed schema baseline')
+    f.git('mv', 'supabase/migrations/270_current.sql', 'docs/retired.md')
+    if (committed) f.git('-c', 'user.name=Test', '-c', 'user.email=test@example.test', 'commit', '-qm', 'move migration outside inventory')
+    const result = f.run(['--max-workers', '2'], false, true, committed ? 'HEAD~1' : 'HEAD')
+    expect(result.status, result.output).not.toBe(0)
+    expect(result.calls).toHaveLength(1)
+    expect(result.calls[0]).toContain(profile)
+    expect(result.output).toContain('closed current schema')
+    expect(result.output).toMatch(/1 failed/)
+  }, 15_000)
 
   it('runs the real selected cases once in each project, retaining standalone tests', () => {
     const f = fixture()

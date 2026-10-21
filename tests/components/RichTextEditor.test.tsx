@@ -14,6 +14,22 @@ vi.mock('@/lib/direct-storage-upload', () => ({
 }))
 
 describe('RichTextEditor', () => {
+  it('can autofocus without scrolling while preserving the default focus scroll behavior', async () => {
+    const content: TiptapContent = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Initial content' }] }] }
+    const props = { content, onChange: vi.fn(), toolbarPreset: 'brief' as const }
+    const { rerender } = render(<RichTextEditor {...props} />)
+    const element = await screen.findByRole('textbox') as HTMLElement & { editor: Editor }
+    const dispatch = vi.spyOn(element.editor.view, 'dispatch')
+    rerender(<RichTextEditor {...props} autoFocus autoFocusScrollIntoView={false} />)
+    await waitFor(() => expect(element).toHaveFocus())
+    expect(dispatch.mock.calls.some(([transaction]) => transaction.scrolledIntoView)).toBe(false)
+    dispatch.mockClear()
+    element.blur()
+    rerender(<RichTextEditor {...props} />)
+    rerender(<RichTextEditor {...props} autoFocus />)
+    await waitFor(() => expect(dispatch.mock.calls.some(([transaction]) => transaction.scrolledIntoView)).toBe(true))
+  })
+
   it('publishes a real editor transaction while a retirement render is suspended', () => {
     const pending = new Promise<void>(() => {})
     const onChange = vi.fn()

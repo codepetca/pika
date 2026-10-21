@@ -1,3 +1,4 @@
+import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 /** Inert closed268 source. CPU receipts do not establish native acceptance. */
 import assert from 'node:assert/strict'
@@ -21,12 +22,13 @@ const plans=new WeakSet<object>()
 const checks=freeze(['owner-roles','restore-admission','full-row-content-revision','fences','strict-legacy','trigger-fault-rollback'] as const)
 export function classroomHotLifecycleNativePlan(original:AssignmentListProofFixture,reviewedHead:string,repository:string) {
   assert.match(reviewedHead,/^[a-f0-9]{40}$/)
-  const inventory=loadAssignmentListReviewedMigrations(repository);validateAssignmentListMigrationChain(inventory);assert([268,269,270].includes(inventory.length))
+  const inventory=loadAssignmentListReviewedMigrations(repository);validateAssignmentListMigrationChain(inventory);assert([268,269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282].includes(inventory.length))
   const migrations=inventory.map(({name,sha256})=>({name,sha256}))
   assert.equal(hash(JSON.stringify(migrations.slice(0,267))),'9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd')
   assert.equal(inventory[267].name,SOURCE);assert.equal(inventory[267].sha256,SOURCE_HASH);assert.equal(hash(inventory[267].sql),SOURCE_HASH)
   if (inventory.length >= 269) validateSurveyWorkflowReviewedMigration(inventory[268])
-  if (inventory.length === 270) validateGradebookWorkflowReviewedMigration(inventory[269])
+  if (inventory.length >= 270) validateGradebookWorkflowReviewedMigration(inventory[269])
+  validateLifecycleServicesReviewedMigrations(inventory)
   const f=newClassroomHotLifecycleFixture(original),projectId=f.projectId
   const source=readFileSync(resolve(repository,'scripts/check-contextual-classroom-hot-lifecycle-database.sql'),'utf8');assert.equal(hash(source),CONTRACT_HASH)
   const terminal="select 'PASS hot lifecycle rollback-only owner policy, archive/restore admission, full-row/content/revision preservation and fault rollback';"

@@ -6,6 +6,38 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
+const withoutDataApiProof = (source: string) => source.replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
+const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutGuidancePreviewProof = (source: string) => withoutGuidanceAdoptionProof(source).replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutClassroomGuidanceProof = (source: string) => withoutGuidancePreviewProof(source).replace(/^      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutClassroomReorderProof = (source: string) => withoutClassroomGuidanceProof(source).replace(/^      - name: Verify contextual owner classroom list reorder transactions and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutReportProof = (source: string) => withoutClassroomReorderProof(source).replace(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutSessionProof = (source: string) => withoutReportProof(source).replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
+
+describe('explicit Data API grant proof inventory', () => {
+  it('preserves the complete historical inventory and adds one runtime proof', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const historical = selectPlan(extractWorkflow(withoutDataApiProof(workflow())), 'database')[0]
+    expect(current.steps.filter(step => !step.name.startsWith('Verify explicit '))).toEqual(historical.steps)
+    expect(current.steps.filter(step => step.run === 'bash scripts/check-data-api-grants-database.sh')).toHaveLength(1)
+  })
+  it.each(['missing', 'changed-command', 'conditional', 'duplicate'])('rejects a %s runtime grant proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify explicit server-only Data API grants without automatic defaults\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'missing' ? '' : defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : block.replace('check-data-api-grants-database.sh', 'check-data-api-grants-database.sh --skip')
+    expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
+
+describe('recognized Supabase mail exclusion', () => {
+  it('excludes mailpit in every canonical startup and refuses the ineffective old alias alone', () => {
+    const source = workflow()
+    expect(source.match(/supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector/g)).toHaveLength(7)
+    expect(() => extractWorkflow(source.replaceAll(',inbucket,mailpit,meta', ',inbucket,meta'))).toThrow('startup or cleanup changed')
+  })
+})
 
 function combinedDatabaseWorkflow(source = workflow()) {
   const secondary = source.match(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m)?.[0]
@@ -186,6 +218,38 @@ describe('local canonical CI', () => {
     expect(browser.steps.at(-1)?.run).toBe('supabase stop --no-backup')
   })
 
+  it('retains the exact pre-attendance database inventories and every historical layout', () => {
+    const source = withoutSessionProof(workflow()).replace(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m, '')
+    const attendance = source.match(/^      - name: Verify contextual owner attendance policy snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    const historical = source.replace(attendance, '')
+    const currentJobs = extractWorkflow(source), historicalJobs = extractWorkflow(historical)
+    const proofs = (job: typeof currentJobs[string]) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
+      job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
+    const primary = 'architecture-database-contracts', secondary = 'architecture-database-contracts-lifecycle'
+    expect(proofs(currentJobs[primary])).toHaveLength(54)
+    expect(proofs(historicalJobs[primary])).toHaveLength(53)
+    expect(proofs(historicalJobs[primary])).toEqual(proofs(currentJobs[primary]).filter(step => step.run !== 'bash scripts/check-contextual-attendance-policy-database.sh'))
+    expect(proofs(historicalJobs[secondary])).toEqual(proofs(currentJobs[secondary]))
+    for (const generation of [historical, combinedDatabaseWorkflow(historical), combinedSdkWorkflow(combinedDatabaseWorkflow(historical)),
+      legacyWorkflow(historical), legacyWorkflow(historical, true)]) {
+      const jobs = extractWorkflow(generation)
+      expect(selectPlan(jobs, 'all').flatMap(job => job.steps).some(step => step.run?.includes('check-contextual-attendance-policy-database.sh'))).toBe(false)
+    }
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner attendance policy snapshot and privileges', 'name: Renamed attendance proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify Bara attendance tenancy, ordering, and deletion guards\n', block + '      - name: Verify Bara attendance tenancy, ordering, and deletion guards\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-attendance-policy-database.sh', 'run: bash scripts/check-contextual-attendance-policy-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner attendance policy snapshot and privileges\n', '      - name: Verify contextual owner attendance policy snapshot and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-policy-database.sh')],
+  ])('refuses the%s attendance inventory without accepting a partial historical fallback', (_, mutate) => {
+    const source = withoutSessionProof(workflow()).replace(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m, '')
+    const block = source.match(/^      - name: Verify contextual owner attendance policy snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
   it('runs all Test & Build checks with the literal build environment', () => {
     const job = selectPlan(extractWorkflow(workflow()), 'test-build')[0]
     expect(job.steps.filter(step => step.run).map(step => step.name)).toEqual(expect.arrayContaining([
@@ -197,6 +261,160 @@ describe('local canonical CI', () => {
     expect(build?.env.NEXT_PUBLIC_SUPABASE_URL).toBe('https://placeholder.supabase.co')
     expect(shouldRun(build?.if, false)).toBe(true)
     expect(selectPlan(extractWorkflow(workflow()), 'all').map(job => job.lane)).toEqual(['test-build', 'database', 'database-lifecycle', 'test-owner-sdk', 'test-owner-sdk-lifecycle', 'browser', 'browser-dark', 'browser-pattern-dark'])
+  })
+
+  it('retains the exact read-only attendance inventory before owner-write adoption', () => {
+    const source = withoutSessionProof(workflow())
+    const block = source.match(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m)![0]
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(source.replace(block, '')), 'database')[0]
+    expect(current.steps.filter(step => step.run === 'bash scripts/check-contextual-attendance-policy-write-database.sh')).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== 'bash scripts/check-contextual-attendance-policy-write-database.sh')).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner attendance policy writes and revocation fences', 'name: Renamed attendance write proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify Pal outbox claim concurrency and lease recovery\n', block + '      - name: Verify Pal outbox claim concurrency and lease recovery\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-attendance-policy-write-database.sh', 'run: bash scripts/check-contextual-attendance-policy-write-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner attendance policy writes and revocation fences\n', '      - name: Verify contextual owner attendance policy writes and revocation fences\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-policy-write-database.sh')],
+  ])('refuses the%s owner-write inventory without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner attendance policy writes and revocation fences\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact owner-write inventory before session-read adoption', () => {
+    const source = withoutReportProof(workflow()), historical = withoutSessionProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-attendance-session-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner attendance session snapshot and privileges', 'name: Renamed attendance session proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify Pal HTTP outage and queued recovery\n', block + '      - name: Verify Pal HTTP outage and queued recovery\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-attendance-session-database.sh', 'run: bash scripts/check-contextual-attendance-session-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner attendance session snapshot and privileges\n', '      - name: Verify contextual owner attendance session snapshot and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-session-database.sh')],
+  ])('refuses the%s attendance session proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact session-read inventory before Daily Log report adoption', () => {
+    const source = withoutClassroomReorderProof(workflow()), historical = withoutReportProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-attendance-report-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner Daily Log attendance report snapshot and privileges', 'name: Renamed report proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify authentication session revocation and rate limits\n', block + '      - name: Verify authentication session revocation and rate limits\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-attendance-report-database.sh', 'run: bash scripts/check-contextual-attendance-report-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n', '      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-attendance-report-database.sh')],
+  ])('refuses the%s report proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact report inventory before classroom-list reorder adoption', () => {
+    const source = withoutClassroomGuidanceProof(workflow()), historical = withoutClassroomReorderProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-classroom-list-reorder-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner classroom list reorder transactions and privileges', 'name: Renamed classroom reorder proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify coordinated attendance decommission database contracts\n', block + '      - name: Verify coordinated attendance decommission database contracts\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-classroom-list-reorder-database.sh', 'run: bash scripts/check-contextual-classroom-list-reorder-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner classroom list reorder transactions and privileges\n', '      - name: Verify contextual owner classroom list reorder transactions and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-classroom-list-reorder-database.sh')],
+  ])('refuses the%s classroom reorder proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner classroom list reorder transactions and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact reorder inventory before frozen guidance adoption', () => {
+    const source = withoutGuidancePreviewProof(workflow()), historical = withoutClassroomGuidanceProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-classroom-authoring-guidance-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual owner frozen classroom authoring guidance and privileges', 'name: Renamed guidance proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify authentication session revocation and rate limits\n', block + '      - name: Verify authentication session revocation and rate limits\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-classroom-authoring-guidance-database.sh', 'run: bash scripts/check-contextual-classroom-authoring-guidance-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n', '      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-classroom-authoring-guidance-database.sh')],
+  ])('refuses the%s frozen guidance proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the exact frozen guidance inventory before preview adoption', () => {
+    const source = withoutGuidanceAdoptionProof(workflow()), historical = withoutGuidancePreviewProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-classroom-guidance-preview-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual dual-owner classroom guidance preview and privileges', 'name: Renamed preview proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify authentication session revocation and rate limits\n', block + '      - name: Verify authentication session revocation and rate limits\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-classroom-guidance-preview-database.sh', 'run: bash scripts/check-contextual-classroom-guidance-preview-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual dual-owner classroom guidance preview and privileges\n', '      - name: Verify contextual dual-owner classroom guidance preview and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-classroom-guidance-preview-database.sh')],
+  ])('refuses the%s preview proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
+  })
+
+  it('retains the complete preview inventory before atomic adoption', () => {
+    const source = withoutDataApiProof(workflow()), historical = withoutGuidanceAdoptionProof(source)
+    const current = selectPlan(extractWorkflow(source), 'database')[0]
+    const previous = selectPlan(extractWorkflow(historical), 'database')[0]
+    const command = 'bash scripts/check-contextual-classroom-guidance-adoption-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(previous.steps)
+  })
+
+  it.each([
+    ['duplicate', (source: string, block: string) => source.replace(block, block + block)],
+    ['renamed', (source: string) => source.replace('name: Verify contextual atomic classroom guidance adoption and privileges', 'name: Renamed adoption proof')],
+    ['reordered', (source: string, block: string) => source.replace(block, '').replace('      - name: Verify authentication session revocation and rate limits\n', block + '      - name: Verify authentication session revocation and rate limits\n')],
+    ['changed command', (source: string) => source.replace('run: bash scripts/check-contextual-classroom-guidance-adoption-database.sh', 'run: bash scripts/check-contextual-classroom-guidance-adoption-database.sh --unreviewed')],
+    ['conditional', (source: string) => source.replace('      - name: Verify contextual atomic classroom guidance adoption and privileges\n', '      - name: Verify contextual atomic classroom guidance adoption and privileges\n        if: success()\n')],
+    ['hidden in historical proof', (source: string, block: string) => source.replace(block, '').replace('run: pnpm run check:bara-attendance-db', 'run: bash scripts/check-contextual-classroom-guidance-adoption-database.sh')],
+  ])('refuses the%s atomic adoption proof without a historical-profile bypass', (_, mutate) => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    expect(() => extractWorkflow(mutate(source, block))).toThrow()
   })
 
   it('keeps database selection complete and includes each canonical SDK command once locally', () => {
@@ -455,7 +673,7 @@ describe('local canonical CI', () => {
     ['different Node version', (text: string) => text.replaceAll("node-version: '24'", "node-version: '22'")],
     ['unknown job setting', (text: string) => text.replace('  test-and-build:\n', '  test-and-build:\n    container: unsafe-image\n')],
     ['action behavior override', (text: string) => text.replaceAll("node-version: '24'", "node-version: '24'\n          run-install: true")],
-    ['multiline startup drift', (text: string) => text.replace('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector', 'run: |\n          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector\n          echo changed')],
+    ['multiline startup drift', (text: string) => text.replace('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector', 'run: |\n          supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector\n          echo changed')],
     ['cleanup guard drift', (text: string) => text.replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()')],
     ['SDK cleanup guard drift', (text: string) => {
       const start = text.indexOf('  contextual-test-owner-sdk:\n')
@@ -525,7 +743,7 @@ describe('local canonical CI', () => {
       const error = vi.spyOn(console, 'error').mockImplementation(() => {})
       const job = { lane, env: {}, steps: [
         { name: 'Verify isolated CI runner', id: 'ci-isolation', run: `node scripts/ci-runner-preflight.mjs --lane ${lane}`, env: {} },
-        { name: 'Start ephemeral Supabase and replay migrations', id: 'supabase-start', run: 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,meta,realtime,studio,vector', env: {} },
+        { name: 'Start ephemeral Supabase and replay migrations', id: 'supabase-start', run: 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector', env: {} },
         { name: 'A database contract', run: 'do-not-execute-real-contract', env: {} },
         { name: 'Stop ephemeral database', if: "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", run: 'supabase stop --no-backup', env: {} },
       ] }
