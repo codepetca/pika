@@ -60,6 +60,82 @@ describe('membership Pal outbox delivery', () => {
     expect(send).not.toHaveBeenCalled()
   })
 
+  it('stops a queued event when SQL proves its subject is the same-class owner', async () => {
+    // Labels never cross the delivery boundary: SQL derives current ownership
+    // from the immutable private event binding, not a caller-provided role.
+    const supabase = client(['owner'])
+    const send = vi.fn()
+    expect(await deliverPalOutboxBatch({ supabase: supabase as never, fetchImpl: send }))
+      .toMatchObject({ delivered: 0, nonRetryable: 1, retrying: 0 })
+    expect(send).not.toHaveBeenCalled()
+    expect(supabase.rpc).toHaveBeenLastCalledWith('fail_pal_event_outbox', {
+      p_outbox_id: row.id, p_lease_token: row.lease_token,
+      p_error_code: 'membership_owner',
+      p_error_detail: 'Classroom ownership transition stopped further learner event delivery',
+    })
+    expect(row.payload).toEqual(event)
+  })
+
+  it('records an already accepted attempt when ownership alone changes during HTTP', async () => {
+    const supabase = client(['active', 'owner'])
+    const send = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    expect(await deliverPalOutboxBatch({ supabase: supabase as never, fetchImpl: send }))
+      .toMatchObject({ delivered: 1, nonRetryable: 0, retrying: 0 })
+    expect(send).toHaveBeenCalledOnce()
+    expect(supabase.rpc).toHaveBeenLastCalledWith('complete_pal_event_outbox', {
+      p_outbox_id: row.id, p_lease_token: row.lease_token,
+    })
+    expect(JSON.parse(send.mock.calls[0][1].body)).toEqual(event)
+  })
+
+  it.each(['timeout', 408, 429, 500])('stops the next send after ownership changes following uncertain/retryable outcome %s', async outcome => {
+    const supabase = client(['active', 'owner'])
+    const send = outcome === 'timeout'
+      ? vi.fn().mockRejectedValue(new Error('No acknowledgement'))
+      : vi.fn().mockResolvedValue(new Response('{}', { status: outcome as number }))
+    expect(await deliverPalOutboxBatch({ supabase: supabase as never, fetchImpl: send }))
+      .toMatchObject({ delivered: 0, retrying: 1 })
+    expect(supabase.rpc).toHaveBeenLastCalledWith('retry_pal_event_outbox', expect.objectContaining({
+      p_outbox_id: row.id, p_lease_token: row.lease_token,
+    }))
+    expect(await deliverPalOutboxBatch({ supabase: supabase as never, fetchImpl: send }))
+      .toMatchObject({ delivered: 0, retrying: 0, nonRetryable: 1 })
+    expect(send).toHaveBeenCalledOnce()
+    expect(supabase.rpc).toHaveBeenLastCalledWith('fail_pal_event_outbox', expect.objectContaining({
+      p_error_code: 'membership_owner',
+    }))
+  })
+
+  it.each([false, true])('does not treat malformed owner evidence as authority after acknowledgement=%s', async afterAcknowledgement => {
+    const supabase = client()
+    let authorizations = 0
+    supabase.rpc.mockImplementation(async (name: string) => {
+      if (name === 'claim_pal_membership_outbox') return { data: [row], error: null } as never
+      if (name === 'authorize_pal_membership_delivery') {
+        authorizations += 1
+        return { data: afterAcknowledgement && authorizations === 1 ? { status: 'active' }
+          : { status: 'owner', learner_id: event.learner_id }, error: null } as never
+      }
+      return { data: true, error: null } as never
+    })
+    const send = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    expect(await deliverPalOutboxBatch({ supabase: supabase as never, fetchImpl: send }))
+      .toMatchObject({ retrying: 1, delivered: 0 })
+    expect(send).toHaveBeenCalledTimes(afterAcknowledgement ? 1 : 0)
+    expect(supabase.rpc.mock.calls.map(([name]) => name)).not.toContain('complete_pal_event_outbox')
+  })
+
+  it('never forces a successful receipt through a lost completion lease', async () => {
+    const supabase = client(['active', 'owner'])
+    const rpc = supabase.rpc.getMockImplementation()!
+    supabase.rpc.mockImplementation(async name => name === 'complete_pal_event_outbox'
+      ? { data: false, error: null } as never : rpc(name))
+    const send = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }))
+    await expect(deliverPalOutboxBatch({ supabase: supabase as never, fetchImpl: send }))
+      .rejects.toThrow('Pal outbox lease was lost')
+    expect(send).toHaveBeenCalledOnce()
+  })
+
   it('retains events for bounded retry when the database gate is off', async () => {
     const supabase = client(['disabled'])
     const send = vi.fn()

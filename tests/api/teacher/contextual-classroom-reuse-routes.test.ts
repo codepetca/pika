@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { AuthorizationError } from '@/lib/auth'
 import { POST as reuse } from '@/app/api/teacher/classrooms/[id]/use-again/route'
+import { POST as capture } from '@/app/api/teacher/classrooms/[id]/blueprint/route'
 import { GET as list, POST as createBlueprint } from '@/app/api/teacher/course-blueprints/route'
 import { GET as detail, PATCH as editBlueprint } from '@/app/api/teacher/course-blueprints/[id]/route'
 import { GET as suggestions } from '@/app/api/teacher/course-blueprints/[id]/merge-suggestions/route'
@@ -11,12 +12,12 @@ import { POST as apply } from '@/app/api/teacher/course-blueprints/[id]/proposal
 import { POST as instantiate } from '@/app/api/teacher/course-blueprints/[id]/instantiate/route'
 import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
 
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), reuse: vi.fn(), detail: vi.fn(), list: vi.fn(), instantiate: vi.fn(), suggestions: vi.fn(), merge: vi.fn(), apply: vi.fn(), inverse: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), reuse: vi.fn(), capture: vi.fn(), detail: vi.fn(), list: vi.fn(), instantiate: vi.fn(), suggestions: vi.fn(), merge: vi.fn(), apply: vi.fn(), inverse: vi.fn() }))
 let supabase: any
 vi.mock('@/lib/auth', async (original) => ({ ...await original<typeof import('@/lib/auth')>(), requireAuth: mocks.auth, requireRole: mocks.role }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => supabase }))
 vi.mock('@/lib/server/archived-classroom-reuse', () => ({ prepareArchivedClassroomReuse: mocks.reuse }))
-vi.mock('@/lib/server/course-blueprints', () => ({ getCourseBlueprintDetail: mocks.detail, listTeacherCourseBlueprints: mocks.list, hydrateCourseBlueprint: (row: unknown) => row, createClassroomFromBlueprint: mocks.instantiate }))
+vi.mock('@/lib/server/course-blueprints', () => ({ getCourseBlueprintDetail: mocks.detail, listTeacherCourseBlueprints: mocks.list, hydrateCourseBlueprint: (row: unknown) => row, createClassroomFromBlueprint: mocks.instantiate, createCourseBlueprintFromClassroom: mocks.capture }))
 vi.mock('@/lib/server/course-sites', () => ({ getBlueprintMergeSuggestionSet: mocks.suggestions, applyBlueprintMergeSuggestions: mocks.merge }))
 vi.mock('@/lib/server/course-blueprint-proposals', () => ({ applyPersistedCourseBlueprintProposal: mocks.apply, applyPersistedClassroomBlueprintProposal: mocks.inverse }))
 const actorId = '10000000-0000-4000-8000-000000000001'
@@ -35,10 +36,11 @@ const routes = [
   { name: 'proposals', handler: proposals, method: 'GET', path: `course-blueprints/${blueprintId}/proposals` },
   { name: 'apply', handler: apply, method: 'POST', path: `course-blueprints/${blueprintId}/proposals/${proposalId}/apply` },
   { name: 'instantiate', handler: instantiate, method: 'POST', path: `course-blueprints/${blueprintId}/instantiate`, body: { title: 'Course', semester: 'semester1', year: 2026 } },
+  { name: 'capture', handler: capture, method: 'POST', path: `classrooms/${classroomId}/blueprint`, body: { title: 'Reusable course' } },
 ]
 function invoke(route: typeof routes[number]) {
   const request = new NextRequest(`http://localhost/api/teacher/${route.path}`, { method: route.method, headers: { 'Idempotency-Key': operationId }, ...(route.body ? { body: JSON.stringify(route.body) } : {}) })
-  return route.handler(request, { params: Promise.resolve({ id: route.name === 'reuse' ? classroomId : blueprintId, proposalId }) } as any)
+  return route.handler(request, { params: Promise.resolve({ id: ['reuse', 'capture'].includes(route.name) ? classroomId : blueprintId, proposalId }) } as any)
 }
 describe('contextual reuse route dispatch', () => {
   beforeEach(() => {
@@ -47,6 +49,7 @@ describe('contextual reuse route dispatch', () => {
     mocks.auth.mockResolvedValue({ id: actorId, role: 'student' })
     mocks.role.mockRejectedValue(new AuthorizationError('Forbidden'))
     mocks.reuse.mockResolvedValue({ ok: true, status: 'ready', blueprint_id: blueprintId })
+    mocks.capture.mockResolvedValue({ ok: true, blueprint: { id: blueprintId }, operation_id: operationId, replayed: false })
     mocks.detail.mockResolvedValue({ detail: { id: blueprintId } })
     mocks.list.mockResolvedValue({ data: [{ id: blueprintId }], error: null })
     mocks.suggestions.mockResolvedValue({ ok: true, suggestionSet: {} })
@@ -73,6 +76,7 @@ describe('contextual reuse route dispatch', () => {
       expect(mocks.role).toHaveBeenCalledWith('teacher')
       expect(mocks.detail).not.toHaveBeenCalled()
       expect(mocks.reuse).not.toHaveBeenCalled()
+      expect(mocks.capture).not.toHaveBeenCalled()
     })
     it(`${route.name} fails malformed admission closed`, async () => {
       vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')
@@ -189,9 +193,42 @@ describe('contextual reuse route dispatch', () => {
     expect(mocks.instantiate).toHaveBeenCalledWith(actorId, expect.objectContaining({ blueprintId }), { operationId })
     expect(await response.json()).toMatchObject({ operation_id: operationId, replayed: true })
   })
+  it.each(['student', 'teacher'])('connects an admitted %s owner capture to owned reads and existing instantiation', async (role) => {
+    mocks.auth.mockResolvedValue({ id: actorId, role })
+    const response = await invoke(routes[8])
+    expect(response.status).toBe(201)
+    expect(await response.json()).toMatchObject({ blueprint_id: blueprintId, operation_id: operationId, replayed: false })
+    expect(mocks.capture).toHaveBeenCalledExactlyOnceWith(actorId, classroomId, { title: 'Reusable course' }, { operationId })
+    expect((await invoke(routes[1])).status).toBe(200)
+    expect((await invoke(routes[2])).status).toBe(200)
+    expect((await invoke(routes[7])).status).toBe(201)
+    expect(mocks.detail).toHaveBeenCalledWith(actorId, blueprintId)
+    expect(mocks.instantiate).toHaveBeenCalledWith(actorId, expect.objectContaining({ blueprintId }), { operationId })
+    expect(mocks.role).not.toHaveBeenCalled()
+  })
+  it.each([
+    { status: 403, error: 'Forbidden' },
+    { status: 403, error: 'Classroom is archived' },
+    { status: 409, error: 'Classroom content changed', operation_id: operationId, error_code: 'source_classroom_changed', retryable: false },
+  ])('retains the existing capture domain denial $error', async (denial) => {
+    mocks.capture.mockResolvedValue({ ok: false, ...denial })
+    const response = await invoke(routes[8])
+    expect(response.status).toBe(denial.status)
+    const { status: _status, ...body } = denial
+    expect(await response.json()).toMatchObject(body)
+  })
+  it('validates capture input and operation identity before domain effects', async () => {
+    for (const [body, key] of [[{ title: 12 }, operationId], [{ title: 'Course' }, 'invalid']] as const) {
+      const response = await capture(new NextRequest('http://localhost/capture', { method: 'POST', headers: { 'Idempotency-Key': key }, body: JSON.stringify(body) }), { params: Promise.resolve({ id: classroomId }) } as any)
+      expect(response.status).toBe(400)
+    }
+    expect(mocks.capture).not.toHaveBeenCalled()
+  })
   it('canonicalizes admitted UUID params and source inputs to database UUID spelling', async () => {
     const upper = 'ABCDEF00-0000-4000-8000-000000000001'
     const lower = upper.toLowerCase()
+    await capture(new NextRequest('http://localhost/capture', { method: 'POST', headers: { 'Idempotency-Key': operationId }, body: '{}' }), { params: Promise.resolve({ id: upper }) } as any)
+    expect(mocks.capture).toHaveBeenCalledWith(actorId, lower, {}, { operationId })
     await reuse(new NextRequest('http://localhost/use-again', { method: 'POST', headers: { 'Idempotency-Key': operationId } }), { params: Promise.resolve({ id: upper }) } as any)
     expect(mocks.reuse).toHaveBeenCalledWith(expect.objectContaining({ classroomId: lower }))
     await merge(new NextRequest('http://localhost/merge', { method: 'POST', body: JSON.stringify({ ...routes[4].body, classroomId: upper }) }), { params: Promise.resolve({ id: upper }) } as any)
@@ -199,11 +236,12 @@ describe('contextual reuse route dispatch', () => {
     await suggestions(new NextRequest(`http://localhost/suggestions?classroomId=${upper}`), { params: Promise.resolve({ id: upper }) } as any)
     expect(mocks.suggestions).toHaveBeenCalledWith(actorId, lower, lower, { archivedReuse: true })
   })
-  it.each([routes[0], routes[2], routes[3], routes[4], routes[5], routes[6], routes[7]])('validates admitted $name params before domain access', async (route) => {
+  it.each([routes[0], routes[2], routes[3], routes[4], routes[5], routes[6], routes[7], routes[8]])('validates admitted $name params before domain access', async (route) => {
     const request = new NextRequest(`http://localhost/${route.path}`, { method: route.method, ...(route.body ? { body: JSON.stringify(route.body) } : {}) })
     expect((await route.handler(request, { params: Promise.resolve({ id: 'invalid', proposalId }) } as any)).status).toBe(400)
     expect(mocks.reuse).not.toHaveBeenCalled()
     expect(mocks.detail).not.toHaveBeenCalled()
     expect(mocks.instantiate).not.toHaveBeenCalled()
+    expect(mocks.capture).not.toHaveBeenCalled()
   })
 })
