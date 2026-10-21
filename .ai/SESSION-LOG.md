@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Correct the CI mail-service exclusion
-
-PR1624 first exact-head CI39370931599 failed on hosted lifecycle-job118458471791
-during initial Supabase startup, before SQL/proofs: mail container could not bind
-54324. Pinned CLI2.103.0 explicitly warned that inbucket is not a valid exclusion
-and listed mailpit as the recognized name. Returned PR to draft before correction;
-that transition cancelled the remaining lanes. No app/SQL failure was observed.
-Minimal fix adds mailpit to the existing seven startup commands and the identical
-local safety binding; old aliases remain to avoid unrelated component changes.
-Two source assertions RED before fix; all273 workflow/local-CI/session-CI checks
-pass after correction, including rejection of the ineffective old command.
-Full focused checks expose four legacy CI command assertions, updated to the
-same recognized exclusion;2611tests/97files plus TypeScript/lint/policies pass.
-Port preflight, cleanup conditions, proof inventories, required jobs and PR Gate
-are unchanged. Targeted CI-only review precedes a new ready SHA;
-no repeat native proof is needed for unchanged app/migration/fixture bytes.
-Existing review/runtime evidence and spent attempts remain immutable; no production,
-shared-local249+, provider, account or activation action. New report child worktree
-is independent source-only work; no migrations applied.
-
 ## 2026-10-20 — Dormant owner Daily Log attendance report preparation
 
 Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
@@ -885,3 +865,9 @@ produced81a675a41 at01:25:46UTC; exact-SHA Vercel READY/production success01:28:
 with public /200,/login200,/api/auth/me401,/pattern-lab404 PASS. Receipt
 records separate historical source proofs and current production state without
 claiming provider canaries, batch3 exit or shared-local application.
+
+## 2026-10-21 — Artifact first-focus scroll recovery
+
+- Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
+- Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
+- Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.

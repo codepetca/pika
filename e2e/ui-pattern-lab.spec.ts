@@ -1450,6 +1450,50 @@ test.describe('teacher Pattern Lab', () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth)).toBe(false)
   })
 
+  test('keeps artifact help after first keyboard focus reveals the table cell', async ({ page }, testInfo) => {
+    await openPatternLab(page, testInfo, 'teacher')
+    const example = page.locator('#ui-consistency')
+    for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+      await page.emulateMedia({ reducedMotion })
+      for (const row of ['One', 'Two'] as const) {
+        const before = example.getByRole('checkbox', { name: `Select Example ${row}`, exact: true })
+        const trigger = row === 'One'
+          ? example.getByRole('button', { name: /^View work items; required submission artifact 1 is Demo/ })
+          : example.getByRole('link', { name: /^Open required submission artifact 1: Demo/ })
+        await before.scrollIntoViewIfNeeded()
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+        await before.press('Tab')
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+        await expect(trigger).toBeFocused()
+        await expect(trigger).toHaveAttribute('aria-describedby', /.+/)
+        await expect(page.getByRole('tooltip')).toContainText('example.invalid/demo')
+        if (row === 'One') await testInfo.attach(`artifact-first-focus-${reducedMotion}`, {
+          body: await page.screenshot({ animations: 'disabled' }), contentType: 'image/png',
+        })
+
+        if (row === 'One' && testInfo.project.metadata.viewport === 'mobile') {
+          const scroll = await trigger.evaluate(element => {
+            for (let owner = element.parentElement; owner; owner = owner.parentElement) {
+              if (owner.scrollWidth > owner.clientWidth && getComputedStyle(owner).overflowX === 'auto') {
+                owner.setAttribute('data-artifact-focus-scroller', '')
+                return { left: owner.scrollLeft, x: owner.getBoundingClientRect().x, y: owner.getBoundingClientRect().y }
+              }
+            }
+            throw new Error('Missing mobile table scroller')
+          })
+          expect(scroll.left).toBeGreaterThan(0)
+          await page.mouse.move(scroll.x + 12, scroll.y + 12)
+          await page.mouse.wheel(-60, 0)
+          await expect.poll(() => page.locator('[data-artifact-focus-scroller]').evaluate(owner => owner.scrollLeft)).not.toBe(scroll.left)
+        } else {
+          await page.keyboard.press('Escape')
+        }
+        await expect(trigger).not.toHaveAttribute('aria-describedby')
+        await expect(page.getByRole('tooltip')).toHaveCount(0)
+      }
+    }
+  })
+
   test('renders the component, icon, status, and page-state contracts', async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, 'teacher')
     await expect(page.getByText('teacher reference')).toBeVisible()
