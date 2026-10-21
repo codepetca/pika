@@ -93,7 +93,7 @@ it('prints only exact fixed proof receipts, never captured SQL fixture payloads'
 it('prepares native membership scrubbing and real uncovered-reference reservation rollback', () => {
   const proof = readFileSync(join(process.cwd(), 'scripts/check-retained-roster-group-cleanup-database.sql'), 'utf8')
   for (const assertion of [
-    "version='282'",
+    "version='283'",
     'private.capture_attendance_participant_association(',
     'Exact171 association capture differs',
     'Captured association changed reservation retry',

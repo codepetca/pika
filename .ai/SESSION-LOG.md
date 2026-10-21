@@ -814,3 +814,11 @@ log only after byte-exact archive verification. Review348 targeted security is
 clean; cumulative348 formal turns/20 accepted correction passes retained.
 Mac resource pressure settled; final reconciled gate and integration review
 remain pending. Shared-local, production, provider and activation holds unchanged.
+
+Review349 integration completed: two accepted P2s, stale retained-roster282
+preflight and seven actual-inventory282 assertions. Full gate independently
+reproduced exactly7fail/3362pass; no timing/environment failure. Batched preflight
+and current283/future284 fixture corrections; new preflight regression first
+failed as expected. Prior SQL/token bytes unchanged; cumulative349reviews and
+21accepted correction passes. Targeted587tests/8files PASS; preflight regression
+RED1fail/9pass before fix. Re-review/final gate and native CI remain pending.

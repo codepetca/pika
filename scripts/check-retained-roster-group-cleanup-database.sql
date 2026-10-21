@@ -1,4 +1,4 @@
--- ROOT EXECUTION ONLY after frozen review and local239/282 application.
+-- ROOT EXECUTION ONLY after frozen review and local239/283 application.
 -- All DDL/data/setting/fault writes roll back. The SINGLETON index is dropped
 -- only inside this transaction to exercise future multirow consumers. The
 -- installed168 guards stay enabled and must be byte-exact after rollback.
@@ -58,9 +58,9 @@ declare signature text:='public.discover_retained_student_cleanup_groups(uuid,uu
 begin
   if not exists(select 1 from supabase_migrations.schema_migrations where version='239')
     or to_regprocedure(signature) is null then raise exception 'Reviewed239 must be installed'; end if;
-  if not exists(select 1 from supabase_migrations.schema_migrations where version='282')
+  if not exists(select 1 from supabase_migrations.schema_migrations where version='283')
     or to_regprocedure('private.capture_attendance_participant_association(uuid,uuid,text)') is null then
-    raise exception 'Reviewed282 requires separate local application approval'; end if;
+    raise exception 'Reviewed283 requires separate local application approval'; end if;
   if not exists(select 1 from pg_index where indexrelid=
       'public.classroom_roster_one_removed_membership_per_student'::regclass and indisunique) then
     raise exception 'Singleton index must remain installed'; end if;
