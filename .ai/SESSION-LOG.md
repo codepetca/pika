@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Classroom-only browser titles
-
-User requests removing the Pika suffix and asks about truncation. BrowserTabProvider now supplies the full classroom name alone; no app-added ellipsis, hard character cap or inferred course-code shortening. Existing authorized state, color/icon behavior and home Pika title remain. UI brief: browser chrome, existing AppHeader/PatternLab identity reference; extend the existing metadata owner only; both roles, desktop/mobile, light/dark, class switch/edit/exit and long names. Current main attendance changes inherited; feature source preserved during history-only conflict resolution. Focused and browser verification plus proportional independent review and stable-head CI follow in PR1615. Risk none; no dependencies, new primitives, auth/schema/runtime policy changes.
-
 ## 2026-10-19 — Classroom header overflow fade
 
 User requested a subtle fade instead of the classroom header ellipsis. Extended AppHeader only: preserve full text/title, apply a 24px alpha mask only while overflowing, observe resize and loaded fonts, disconnect on cleanup. Reference: existing header and Pattern Lab application-header references; reuse geometry/palette/controls, extend classroom title, no new primitive or composite behavior. Teacher/student, desktop/mobile, light/dark, long/short names, rename and resize checked with screenshots; browser metadata cases retained. Added a deterministic long-name Pattern Lab reference. Risk none; no dependencies or schema changes. Focused checks, independent delta review and final-head CI tracked in PR1615; retained ignored artifacts/browser-tab-branding/header-fade. Weekly remaining2%; DeepSeek pause honored.
@@ -824,3 +820,13 @@ archive-marker conflict required draft/base-sync. Canceled39528243253, not a
 test defect. Reconciled entire non-continuity feature patch is byte-identical
 (e074579c SHA256); archive union/current40-entry rolling cap preserved. Fresh
 base integration review/local gate/exact-head CI remain required; all holds stand.
+
+## 2026-10-20 — Final October 30 readiness guidance
+
+Recorded verified production001–282 and consumed266–282 approval;282 explicit
+server relation ACL/default closure is applied. Final audit now distinguishes
+HQ's75adopted baseline versions from its actually applied health20261020123940,
+records RESPMax private/direct-SQL exemption, and requires exact hosted HQ review
+before any separately approved resume/deploy/migration. Historical backfill and
+Storage preservation limits remain. No SQL, runtime, provider or permission
+change in this documentation update.
