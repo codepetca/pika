@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Exact lifecycle migration profiles and early local selection
-
-Final CI rejected the complete272 source chain because historical lifecycle
-harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
-All eight source profiles and the offline prefix helper now append exact271/272
-filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
-unknown273 or missing/altered/reordered tails. Source-profile reproduction was
-RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
-passed; no SQL, application authorization or native bounds changed.
-
-The local import graph could not select SQL-filesystem consumers. Two real
-Vitest fixtures reproduced false-green selection in run/related modes; the
-focused runner now adds the existing closed-profile suite on migration SQL
-changes. All26 runner regressions pass. Root combined focused gate passes2,495
-tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
-271/272 bytes still match accepted native proofs, which were not rerun. Targeted
-independent review and corrected-head CI remain required. All holds persist.
-
 ## 2026-10-19 — Preserve rename-source evidence in local and CI selection
 
 Review277 identified a rename-out edge in migration test discovery. Real staged
@@ -845,3 +827,9 @@ This receipt goes through main before the final promotion review/PR Gate.
 Extended the teacher create/draft/posted Schedule popovers with the shared fast opacity exit. The existing native date/time fields retain their DOM, scalar values and closing viewport bounds; Done no longer shifts the fading picker when its schedule label changes the toolbar. Logical dismissal immediately retires commands and focus refs, while reduced motion, hidden/read-only context and owner replacement remove the retained view immediately. The shared picker API and Assignment defaults remain unchanged.
 
 Owner regressions cover inert closing presentation, stale callbacks, rapid reopen, hidden/read-only retirement and reduced-motion preference changes (95 passing). Native viewport/theme/motion and student compatibility matrix, unchanged Pattern Lab goldens, focused checks and independent stable-SHA review are required before main merge. Broad product-fluidity goal remains open; production/migrations/dependencies/privacy priority1 and old Calendar1217 holds remain.
+
+## 2026-10-21 — Tooltip motion consistency audit
+
+Audited shared Tooltip on main192f4cbff with 16 current native role/viewport/theme/motion contexts and an interactive keyboard follow-up. Confirmed immediate Tooltip closing versus the shared fast-opacity reference; pointer/touch/keyboard focus and interactive hover paths work. Mobile first artifact focus can lose its hint when the table scrolls; settled refocus and the three-link keyboard chooser work. Recorded the separate low-priority issue and the retained-role/link retirement requirement for a future fade in `docs/guidance/ui/tooltip-motion-audit-2026-10-21.md`.
+
+One existing Tooltip owner test passes. Source/media hashes, 14 accepted screenshots, raw measurements and diagnosed harness/source-audit corrections are retained privately. This delivery changes audit documentation only; Tooltip implementation and stable canon remain unchanged. Broad UI fluidity goal stays open, with production/migrations/dependencies/privacy priority1 and old Calendar1217 holds preserved.
