@@ -32,7 +32,7 @@ const target = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency'):
 describe('fixed recovery260 profile reuses the closed native engine', () => {
   it('binds complete260 inventory, real observed identities and fixed finite SQL', () => {
     const m = plan()
-    expect(m.migrations).toHaveLength(283); expect(m.nativeVerified).toBe(false)
+    expect(m.migrations).toHaveLength(284); expect(m.nativeVerified).toBe(false)
     expect(m.contracts.checks).toHaveLength(13); expect(m.concurrency.schedules).toHaveLength(10)
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     expect(m.preparation).toContain(`draft_revision=${observed[0].revision}`)
@@ -49,10 +49,10 @@ describe('fixed recovery260 profile reuses the closed native engine', () => {
     expect(() => testOwnerRecoveryNativePlan(original, [...observed], 'b'.repeat(40), process.cwd())).toThrow()
     expect(() => testOwnerRecoveryNativePlan(original, Object.freeze([observed[0], observed[0]]), 'b'.repeat(40), process.cwd())).toThrow()
   })
-  it.each(['missing260', 'bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future284', 'altered259', 'self-hashed260'])('refuses incomplete/altered predecessor chain %s', defect => {
+  it.each(['missing260', 'bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future285', 'altered259', 'self-hashed260'])('refuses incomplete/altered predecessor chain %s', defect => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m => ({ ...m }))
     if (defect === 'missing260') migrations.splice(259,1)
-    if (defect === 'future284') migrations.push({ name: '284_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
+    if (defect === 'future285') migrations.push({ name: '285_unknown.sql', sql: 'select 1;', sha256: digest('select 1;') })
     if (defect === 'bad262name') migrations[261].name = '262_unknown.sql'
     if (defect === 'bad262digest') migrations[261].sha256 = 'f'.repeat(64)
     if (defect === 'bad262bytes' || defect === 'self-hashed262bytes') migrations[261].sql += '\n'
@@ -115,9 +115,9 @@ describe('complete reviewed268 source profile (offline)', () => {
     const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
     try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
   })
-  it('rejects a contiguous unknown284 source tail', () => {
+  it('rejects a contiguous unknown285 source tail', () => {
     const migrations = platform.loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
-    migrations.push({ name: '284_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
+    migrations.push({ name: '285_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') })
     const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
     try { expect(() => plan()).toThrow() } finally { loader.mockRestore() }
   })

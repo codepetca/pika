@@ -53,9 +53,10 @@ vi.mock('@/contexts/MarkdownPreferenceContext', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, announcements, tests = [], onContentChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-material-ids={materials.map((material: { id: string }) => material.id).join(',')}
       data-test-count={tests.length}
       data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
       data-lesson-count={lessonPlans.length}
@@ -65,6 +66,7 @@ vi.mock('@/components/LessonCalendar', () => ({
       data-assignment-ids={assignments.map((assignment: any) => assignment.id).join(',')}
       data-announcement-classrooms={announcements.map((announcement: any) => announcement.classroom_id).join(',')}
     >
+      {materials.map((material: any) => <button key={material.id} onClick={() => onMaterialClick(material)}>Open {material.id}</button>)}
       <button type="button" onClick={() => onContentChange?.('2025-01-06', 'Updated lesson')}>
         Edit lesson
       </button>
@@ -122,6 +124,7 @@ describe('TeacherLessonCalendarTab', () => {
     resetTeacherLessonPlanMutationQueuesForTests()
     invalidateTeacherLessonPlansForClassroom(classroom.id)
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${classroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
     sidebarState.isOpen = false
@@ -140,6 +143,7 @@ describe('TeacherLessonCalendarTab', () => {
     resetTeacherLessonPlanMutationQueuesForTests()
     invalidateTeacherLessonPlansForClassroom(classroom.id)
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${classroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
     vi.useRealTimers()
@@ -264,7 +268,7 @@ describe('TeacherLessonCalendarTab', () => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-classrooms', classroom.id)
       expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
     })
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(assignmentReads).toBe(2)
   })
 
@@ -394,6 +398,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -506,6 +511,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -590,6 +596,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -671,6 +678,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -760,6 +768,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -822,6 +831,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -878,6 +888,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -961,6 +972,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -1069,6 +1081,7 @@ describe('TeacherLessonCalendarTab', () => {
 
     invalidateTeacherLessonPlansForClassroom(secondClassroom.id)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`teacher-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`teacher-announcements:${secondClassroom.id}`)
 
@@ -1716,6 +1729,43 @@ describe('TeacherLessonCalendarTab', () => {
     expect(testReads).toBe(1)
     act(() => window.dispatchEvent(new CustomEvent('pika:teacherTestsUpdated', { detail: { classroomId: classroom.id } })))
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'test-2'))
+  })
+
+  it('loads materials as an independent retryable source and opens the exact material', async () => {
+    let materialReads = 0
+    // ClassroomPageClient consumes this exact-material callback; the browser verification
+    // also follows it through tab=assignments&materialId to the production destination.
+    const onNavigateToMaterial = vi.fn()
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/materials')) {
+        materialReads += 1
+        if (materialReads === 1) return { ok: false, status: 500, json: async () => ({ error: 'Unavailable' }) }
+        return { ok: true, json: async () => ({ materials: [{ id: 'reading', is_draft: false, released_at: '2025-01-01T12:00:00Z' }] }) }
+      }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} onNavigateToMaterial={onNavigateToMaterial} />, { wrapper: Wrapper })
+    await screen.findByRole('button', { name: 'Retry materials' })
+    expect(screen.getByTestId('lesson-calendar')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry materials' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open reading' }))
+    expect(onNavigateToMaterial).toHaveBeenCalledWith('reading')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'reading')
+    expect(materialReads).toBe(2)
+  })
+
+  it('refreshes materials only for the current classroom update event', async () => {
+    let reads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/materials')) return { ok: true, json: async () => ({ materials: [{ id: `material-${++reads}`, is_draft: false, released_at: null }] }) }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<TeacherLessonCalendarTab classroom={classroom} showTests={false} />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-1'))
+    act(() => window.dispatchEvent(new CustomEvent('pika:classworkMaterialsUpdated', { detail: { classroomId: 'other' } })))
+    expect(reads).toBe(1)
+    act(() => window.dispatchEvent(new CustomEvent('pika:classworkMaterialsUpdated', { detail: { classroomId: classroom.id } })))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-2'))
   })
 
 })

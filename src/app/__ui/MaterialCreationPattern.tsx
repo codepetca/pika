@@ -23,8 +23,8 @@ export function MaterialCreationPattern() {
   return (
     <section id="material-creation">
     <Card tone="panel" padding="md">
-      <h3 className="font-semibold">Material creation · proposed shared bar</h3>
-      <p className="mt-2 text-sm text-text-muted">Production Visual / Markdown editor, current / proposed Preview, Apply Markdown, and Post / Save draft actions.</p>
+      <h3 className="font-semibold">Material creation</h3>
+      <p className="mt-2 text-sm text-text-muted">Assignment-style details and content panes with a single formatted editor, Preview, and Post / Schedule / Save draft actions. Materials have no due date.</p>
       <Button variant="surface" className="mt-3" onClick={() => {
         setTitle('Field guide')
         setContent(SAMPLE_CONTENT)

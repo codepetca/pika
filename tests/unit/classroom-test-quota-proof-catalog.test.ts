@@ -36,6 +36,11 @@ describe('externally sealed Test quota proof table addition', () => {
     const expected = [capability, quota, ...additions, ...before].sort()
     expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 283))).toEqual(expected)
+    // Material284 changes only routines; attendance283 keeps both table fingerprints.
+    const futureSql = 'select 1;'
+    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '285_unknown.sql',
+      sql: futureSql, sha256: createHash('sha256').update(futureSql).digest('hex') }])).toThrow()
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 280))).toEqual([quota, ...before].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 281))).toEqual([capability, quota, ...before].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 282))).toEqual([capability, quota, ...before].sort())

@@ -10982,6 +10982,17 @@ export type Database = {
         }
         Returns: Json
       }
+      create_classwork_material_for_owner_v3: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_scheduled_for?: string
+          p_title: string
+        }
+        Returns: Json
+      }
       create_course_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number

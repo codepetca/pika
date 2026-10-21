@@ -95,9 +95,10 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    FormField: ({ label, children, className }: any) => (
+    FormField: ({ label, children, className, labelAccessory }: any) => (
       <label className={className}>
         <span>{label}</span>
+        {labelAccessory}
         {children}
       </label>
     ),
@@ -419,7 +420,8 @@ vi.mock('@/hooks/use-assignment-grading-layout', () => ({
   }),
 }))
 
-vi.mock('@/lib/scheduling', () => ({
+vi.mock('@/lib/scheduling', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/scheduling')>(),
   isVisibleAtNow: (...args: any[]) => mockIsVisibleAtNow(...args),
 }))
 
@@ -1571,7 +1573,65 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment Two')
   })
 
-  it('uses the compact WYSIWYG preset for material content', async () => {
+  it('opens the calendar-selected material and clears its URL selection when closed', async () => {
+    const material = makeMaterialSummary('material-calendar', 'Calendar reading')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const updateSearchParams = vi.fn()
+    render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} updateSearchParams={updateSearchParams} />, { wrapper: TooltipProvider })
+    const dialog = await screen.findByRole('dialog', { name: 'Material' })
+    await waitFor(() => expect(within(dialog).getByPlaceholderText('Title')).toHaveValue('Calendar reading'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close material modal' }))
+    expect(screen.queryByRole('dialog', { name: 'Material' })).not.toBeInTheDocument()
+    const params = new URLSearchParams('tab=assignments&materialId=material-calendar')
+    updateSearchParams.mock.calls.at(-1)?.[0](params)
+    expect(params.has('materialId')).toBe(false)
+  })
+
+  it('follows Back and Forward for URL-owned material dialogs without closing a local new-material dialog', async () => {
+    const material = makeMaterialSummary('material-history', 'History reading')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const view = render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} isActive />, { wrapper: TooltipProvider })
+    await screen.findByRole('dialog', { name: 'Material' })
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive={false} />)
+    expect(screen.queryByRole('dialog', { name: 'Material' })).not.toBeInTheDocument()
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} isActive />)
+    await screen.findByRole('dialog', { name: 'Material' })
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive />)
+    expect(screen.queryByRole('dialog', { name: 'Material' })).not.toBeInTheDocument()
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+    view.rerender(<TeacherClassroomView classroom={{ ...classroom }} selectedMaterialId={null} isActive />)
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+    view.rerender(<TeacherClassroomView classroom={{ ...classroom, id: 'replacement-classroom' }} selectedMaterialId={null} isActive />)
+    expect(screen.queryByRole('dialog', { name: 'New Material' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a late material save from closing a replacement local material dialog', async () => {
+    const material = makeMaterialSummary('material-late-save', 'Prior reading')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const response = createDeferred<any>()
+    vi.mocked(fetch).mockReturnValueOnce(response.promise)
+    const view = render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} isActive />, { wrapper: TooltipProvider })
+    const dialog = await screen.findByRole('dialog', { name: 'Material' })
+    await waitFor(() => expect(within(dialog).getByPlaceholderText('Title')).toHaveValue('Prior reading'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive={false} />)
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive />)
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+    await act(async () => response.resolve({ ok: true, json: async () => ({ material }) }))
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+  })
+
+  it('uses the assignment formatting toolbar in the single material editor', async () => {
     render(
       <TeacherClassroomView
         classroom={classroom}
@@ -1585,7 +1645,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
 
     const materialEditor = await screen.findByRole('textbox', { name: 'Material content' })
-    expect(materialEditor.closest('label')).toHaveClass('min-h-64')
+    expect(within(screen.getByRole('region', { name: 'Material editor' })).getByRole('textbox', { name: 'Material content' })).toBe(materialEditor)
     const dialog = screen.getByRole('dialog', { name: 'New Material' })
     expect(dialog).toHaveClass('h-[90dvh]')
     expect(within(dialog).getByRole('button', { name: 'Post' })).toBeInTheDocument()
@@ -1595,7 +1655,7 @@ describe('TeacherClassroomView', () => {
     expect(
       within(screen.getByRole('dialog', { name: 'New Material' }))
         .getByRole('toolbar', { name: 'Formatting options' }),
-    ).toHaveAttribute('data-toolbar-preset', 'compact')
+    ).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
   })
 
   it('disables classwork create and options actions for archived classrooms', async () => {

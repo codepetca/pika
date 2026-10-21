@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Classroom header overflow fade
-
-User requested a subtle fade instead of the classroom header ellipsis. Extended AppHeader only: preserve full text/title, apply a 24px alpha mask only while overflowing, observe resize and loaded fonts, disconnect on cleanup. Reference: existing header and Pattern Lab application-header references; reuse geometry/palette/controls, extend classroom title, no new primitive or composite behavior. Teacher/student, desktop/mobile, light/dark, long/short names, rename and resize checked with screenshots; browser metadata cases retained. Added a deterministic long-name Pattern Lab reference. Risk none; no dependencies or schema changes. Focused checks, independent delta review and final-head CI tracked in PR1615; retained ignored artifacts/browser-tab-branding/header-fade. Weekly remaining2%; DeepSeek pause honored.
-
-## 2026-10-19 — Restore plain Pika tab icon
-
-Owner rejected the colored favicon after native Chrome preview and approved the classroom title. BrowserTabProvider now reuses the original theme-specific Pika SVG on every route; white in dark mode retained. Removed the unused classroom-icon route and its tests. Title, header fade and theme-color hint unchanged. UI brief: browser chrome; original Pika light/dark marks and Pattern Lab header reference; reuse assets, extend provider only, no new primitive/composite behavior. Both roles/desktop/mobile/light/dark browser cases verify icon through class edits/navigation and active-classroom theme changes; native Chrome screenshots inspected in both themes. Risk none; no dependency/schema changes. PR1615 draft during correction; local gates, independent delta review and exact-head CI recorded in ignored artifacts/browser-tab-branding/plain-icon.
-
-## 2026-10-19 — Classroom title fills available header width
-
-Owner requests the in-classroom name use the entire header until right-side controls require truncation. AppHeader classroom mode now uses minmax(0,1fr)/auto columns with the existing gap; removed the 320px title cap and empty center slot. Page-title/exam framing retained; original Pika favicon and browser title unchanged. Existing conditional fade responds to the available width, including fullscreen clock controls. UI brief: existing AppHeader/Pattern Lab application-header reference, extend grid only/reuse fade; teacher/student xdesktop/mobile xlight/dark, fit/overflow/resize/fullscreen; no new composite behavior/deps/schema. Expanded deterministic fixture/browser assertions prove a fitting desktop title and fade at actual control boundary, preserved44px control targets/no page overflow. Evidence and final checks/review/CI tracked in ignored artifacts/browser-tab-branding/title-width and PR1615; no merge/deployment.
-
-## 2026-10-19 — Lifecycle and attached-service permission preparation
-
-Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical main cleanly fast-forwarded. Owner authorized lifecycle/attached-service integration without routine stops, production holds unchanged. New codex/contextual-lifecycle-services prepares archived owner recovery/export271 from earlier unapplied264 source and contextual Pal member token/visit272; current268 hot archive/restore retained. Actual ownership/membership, owner precedence, existing164 locks/generations, operational fences, export/Pal gates and legacy admission behavior remain separate. No new permission framework, dependencies or activation.
-
-Source TDD reproduced missing archive boundary and four SSR Pal-selection failures;215 focused tests across13suites, full nonincremental TypeScript, focusedlint and architecture/UI/design policies pass. Source-only SQL/types prerequisite is frozen separately from uncommitted UI selection; temporary narrow RPC signatures must be removed after genuine isolated metadata generation. Pal worker Sol6.1/high delivered bounded implementation; another Sol6.1/high worker extended only the existing disposable component with a closed272 profile. Requested configuration recorded; effective/attributable token and active-time telemetry unavailable. Cumulative262 independent reviews retained, workers are not reviews. Weekly2% remains with ordinary execution allowed/task waiver; DeepSeek pause retained, storagehealthy286GB.
-
-SQL/native/SDK/stored-byte/visual acceptance and independent review/final-head CI remain pending; no source-only result closes batch3 or the goal. Production/shared-local249+, real accounts/plans/provider/billing/AI and admission/home/page/cohort/cutover holds remain unchanged. No actual new attempt, migration application, provider call or deployment.
-
 ## 2026-10-19 — Genuine lifecycle metadata and exact SDK contracts
 
 Independent263/264 cleared C1 source and the closed disposable prerequisite;
@@ -765,11 +745,73 @@ Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
 policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
 unchanged after these checks; final independent review/CI recorded in PR1638.
 
+## 2026-10-20 Material authoring and calendar
+
+Branch codex/material-authoring-parity. Material creation/edit now follows the
+assignment desktop details/content split and mobile stack, preserving Visual /
+Markdown review/apply and preview. Post / Schedule / Save draft uses Toronto time;
+no due date. Calendar publication chips open the exact material for both roles,
+with independently fenced loading/retry and scoped material refresh events.
+Migration283 extends owner publication RPCs atomically and keeps student future
+releases hidden on legacy/contextual/shared reads. Shared local and production
+migration application remain unapproved/unattempted; local243 lacks tests.test_date,
+so browser student Calendar correctly showed its independent Retry tests alert.
+Material reads/chips and exact teacher/student destinations passed real Playwright
+checks; temporary posted fixture deleted200. Editor and both-role Calendar captured
+1440x900 /390x844, light/dark under output/playwright (ignored); matrix reviewed.
+Reference: AssignmentForm.desktopSplit and Pattern Lab assignment creation. Reuse
+CreationModalShell/controls/ScheduleDateTimePicker; extend material editor and
+calendar chip owners. No new stable pattern or shared mega-form; composite keyboard
+and focus tests pass. TypeScript, UI/design policy and audit pass; focused gate,
+disposable DB proof and independent review recorded in PR before readiness.
+Orchestration: Sol6.1/high calendar worker accepted after source/tests verification
+(131 focused tests), backend worker owns isolated rollback DB proof and metadata.
+No file conflicts. Weekly remaining71% at start; storage healthy275GB. Effective
+worker config, attributable tokens/time unknown; one interrupted default-wide
+focused run due contention, replaced with bounded2-worker final run. DeepSeek
+owner pause through2026-12-31 respected. No hosted rollout or migration claim.
+
+PR1639 initial independent Sol6.1/high reviews accepted4 findings. Batch1 adds
+exact283 source seal and closed-profile extensions (historical prefixes retained,
+unknown284 rejected), retires URL-owned material dialogs on Back/selection/class
+changes and fences late save callbacks, corrects native material-read proof/docs
+for hidden future releases and separate release/cursor filters, and restricts
+privilege-free clone baselines to234–282. Native shared fixture proof intentionally
+not run; disposable proof rerun PASS/clean containers. Profiles968 tests and
+teacher authoring/TestDetail150 tests PASS, plus late-save regression. Real browser
+Back closes and Forward reopens exact material for teacher; both-role destinations
+PASS, fixture delete200. Existing preview test now awaits async navigation to avoid
+its broad-run race. Initial focused3563pass/13fail drove this batch; final focused
+and targeted rereview recorded in PR. Review ledger /tmp/pika-material-review-ledger.txt;
+worker/proof receipts private /tmp; tokens/time attribution unknown. No rollout.
+
+Final broad source-related run exposed8 more legacy current282 test-count
+assertions (4974passed/8failed); batch2 updates only those8 tests to current283
+and changes unknown-future cases to284. All701tests across those8 suites PASS.
+No product/proof runtime change; targeted rereview and final gate tracked in PR.
+
+Owner requested PR/merge. CI39524309194 exposed old material Preview icon-only
+browser assertions; batch3 updates only that contract to the approved labeled
+assignment-style Preview and verifies both panes. Existing keyboard/preview/focus,
+pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
+light/dark local Playwright contracts PASS. PR returned to draft before changes;
+prior run cancelled by draft transition. No product/runtime/SQL change.
+
 ## 2026-10-20 — Calendar cell text stability
 
 - Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
 - Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
 - Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.
+
+## 2026-10-20 — Material single-editor prototype parity and main sync
+
+Owner explicitly requested the assignment prototype's single formatted editor, removal of the Visual/Markdown switch, an extended review budget, Calendar conflict resolution and main merge for PR1639. MaterialCreationDialog now directly reuses RichTextEditor with the assignment toolbar preset and ContentField layout; existing JSON content is never converted. Removed the obsolete material Markdown draft/conversion owners and replaced their tests with direct editing/preview/manual-save checks. Preview, future Toronto scheduling, drafts, busy/read-only and delete contracts remain. UI brief: docs/guidance/ui/changes/material-assignment-parity.md; teacher authoring desktop/mobile x light/dark, both roles Calendar/navigation. No new dependencies or shared primitive.
+
+Synced main PR1640 while preserving lesson text anchors, editor handoff and main tests; material chips remain inside the measured Calendar wrapper. Historical log conflict preserves both archive receipts. Four real browser editor/preview/action/validation contracts and both-role Week/Month Calendar click/Back/Forward checks pass; all editor and Calendar matrix screenshots were inspected. Initial broad run5383pass/3fail: one stale toolbar expectation corrected; two existing test timeouts require serialized replay. Task dev server stopped after visual capture to reduce load. Focused gate, both-role Calendar visuals, targeted independent delta review and final-head CI are tracked in retained receipts; migration283 remains unapplied to shared environments. Budget extension permits this combined batch4 and targeted review; cumulative5reviewturns before extension, weekly67%remaining/storage271GBhealthy, DeepSeek pause honored. No production promotion or migration application.
+
+## 2026-10-20 — Material production smoke and registry alignment
+
+Targeted c90ccfd5 review accepted the single rich editor, current-main Calendar anchors and unchanged backend/SQL, finding obsolete Markdown-specific production smoke and Pattern Lab copy. Replaced that smoke with direct formatted editing, preview/Escape focus, byte-preserved saved draft before explicit Post, student-hidden draft and posted heading/link/list/code/bold assertions; retains four viewport/theme cases, local-only disposable fixtures and exact cleanup. Corrected Pattern Lab copy and removed the obsolete native textarea/checkbox exception after policy identified it. Editor/Calendar runtime unchanged from the prior correction. Full required focused gate passes4984tests174files, architecture, UI/design policies, TypeScript and lint. Existing lint warnings remain unchanged. Production browser matrix and one targeted final review are tracked in retained receipts. No migration/deployment or new dependency.
 
 ## 2026-10-20 — Prepare current-membership attendance attribution
 
@@ -820,6 +862,10 @@ archive-marker conflict required draft/base-sync. Canceled39528243253, not a
 test defect. Reconciled entire non-continuity feature patch is byte-identical
 (e074579c SHA256); archive union/current40-entry rolling cap preserved. Fresh
 base integration review/local gate/exact-head CI remain required; all holds stand.
+
+## 2026-10-20 — Material migration resequence after attendance foundation
+
+Main PR1636 merged dormant attendance foundation283 before PR1639 was marked ready. Synced main, retained both history receipts and resequenced material scheduling to284 without changing any SQL bytes (SHA751351ee9e6a3133bf1bef77727286b358b351de9e80b921bfb4e7d59912faab). Preserved indexed attendance283 seal/catalog and historical profiles; added exact284 material extension, rejected unknown285, and kept clone source baselines234–282. All9 native/offline consumers and proof expectations reconcile the combined chain. Native worker GPT-6.1 Sol/high delivered bounded backend changes; owning coordinator inspected SQL equality and proof receipts.12profile suites1864tests and exact isolated local243→284 replay/metadata/rollback proof pass. Shared/local production migrations remain unapplied; no UI/runtime change in this resequence. Final compatibility checks, independent delta review and stable-SHA CI passed at120f7d82. Documentation-only main973487de then required history reconciliation; runtime, migration, tests and browser sources remain byte-identical. Removed only three merge-created duplicate archive records, preserving every unique entry and receipt marker and parent multiplicities. Workflow/docs checks886tests70files pass; application sources remain unchanged. The new SHA needs its final gate before the authorized main merge.
 
 ## 2026-10-20 — Final October 30 readiness guidance
 

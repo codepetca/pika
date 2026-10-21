@@ -3,6 +3,8 @@ import {
   getCalendarAnnouncementDate,
   getCalendarAssignmentDate,
   getCalendarTestDate,
+  getCalendarMaterialDate,
+  isCalendarMaterialScheduled,
   isCalendarAnnouncementScheduled,
 } from '@/lib/calendar-items'
 
@@ -49,5 +51,23 @@ describe('test reminder date mapping', () => {
   })
   it.each([null, undefined, '', '2026-02-29', '2026-02-30', '2026-13-01', '2026-1-01', '2026-03-08T00:00:00Z'])('omits absent or invalid date %s', (test_date) => {
     expect(getCalendarTestDate({ test_date })).toBeNull()
+  })
+})
+
+
+describe('material publication date mapping', () => {
+  it('uses the Toronto release date without treating it as a due date', () => {
+    expect(getCalendarMaterialDate({ is_draft: false, released_at: '2026-05-12T03:00:00Z', created_at: '2026-05-01T12:00:00Z' })).toBe('2026-05-11')
+  })
+  it('omits drafts and malformed dates, and supports legacy published rows', () => {
+    expect(getCalendarMaterialDate({ is_draft: true, released_at: '2026-05-12T03:00:00Z', created_at: '2026-05-01T12:00:00Z' })).toBeNull()
+    expect(getCalendarMaterialDate({ is_draft: false, released_at: 'invalid', created_at: '2026-05-01T12:00:00Z' })).toBeNull()
+    expect(getCalendarMaterialDate({ is_draft: false, released_at: null, created_at: '2026-05-01T12:00:00Z' })).toBe('2026-05-01')
+  })
+  it('distinguishes future release from published material', () => {
+    const now = new Date('2026-05-10T12:00:00Z')
+    expect(isCalendarMaterialScheduled({ is_draft: false, released_at: '2026-05-12T12:00:00Z' }, now)).toBe(true)
+    expect(isCalendarMaterialScheduled({ is_draft: false, released_at: '2026-05-10T12:00:00Z' }, now)).toBe(false)
+    expect(isCalendarMaterialScheduled({ is_draft: true, released_at: '2026-05-12T12:00:00Z' }, now)).toBe(false)
   })
 })
