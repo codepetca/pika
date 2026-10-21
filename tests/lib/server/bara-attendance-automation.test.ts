@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BaraAttendanceSyncError } from '@/lib/server/bara-attendance-sync'
 import {
@@ -18,7 +18,34 @@ const targets = [
 ]
 
 describe('Bara attendance schedule automation', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => { vi.clearAllMocks(); delete process.env.PIKA_CLASSROOM_EXPERIENCE_ADMISSION })
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('selects membership-aware preparation for only admitted active owners without inventing a user session', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [targets[0].teacher_id] }))
+    const rpc = vi.fn().mockResolvedValue({ data: targets, error: null })
+    const sync = vi.fn().mockResolvedValue({ roster: { outcome: 'applied', revision: 1 }, schedule: { outcome: 'applied', revision: 1 } })
+    expect(await syncBaraAttendanceSchedules({ supabase: { rpc }, integrationState: 'ready', scopeMode: 'teacher_entitlements', sync })).toMatchObject({ status: 'ok', synced: 2 })
+    expect(sync.mock.calls[0][0]).toMatchObject({ teacherId: targets[0].teacher_id, classroomId: targets[0].classroom_id, membershipAware: true })
+    expect(sync.mock.calls[1][0]).not.toHaveProperty('membershipAware')
+    expect(sync.mock.calls[0][0]).not.toHaveProperty('verifiedActor')
+  })
+
+  it('preserves the existing deactivation path even for an admitted owner', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [targets[0].teacher_id] }))
+    const rpc = vi.fn().mockResolvedValue({ data: [{ ...targets[0], integration_mode: 'deactivating' }], error: null })
+    const sync = vi.fn().mockResolvedValue({ roster: { outcome: 'not_required', revision: 0 }, schedule: { outcome: 'applied', revision: 1 } })
+    expect(await syncBaraAttendanceSchedules({ supabase: { rpc }, integrationState: 'ready', scopeMode: 'teacher_entitlements', sync })).toMatchObject({ status: 'ok', synced: 1 })
+    expect(sync.mock.calls[0][0]).not.toHaveProperty('membershipAware')
+  })
+
+  it('does not silently use legacy active synchronization if admission is malformed', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{')
+    const rpc = vi.fn().mockResolvedValue({ data: [targets[0]], error: null })
+    const sync = vi.fn()
+    expect(await syncBaraAttendanceSchedules({ supabase: { rpc }, integrationState: 'ready', scopeMode: 'teacher_entitlements', sync })).toMatchObject({ status: 'partial', failed: 1, failures: { unavailable: 1 } })
+    expect(sync).not.toHaveBeenCalled()
+  })
 
   it('materializes a Toronto rolling horizon for each eligible classroom', async () => {
     const rpc = vi.fn(async () => ({ data: [targets[0]], error: null }))

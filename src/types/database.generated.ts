@@ -9258,6 +9258,19 @@ export type Database = {
         Args: { p_event: Json; p_transport_nonce: string }
         Returns: Json
       }
+      apply_attendance_membership_status_overrides_v1: {
+        Args: {
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_class_date: string
+          p_classroom_id: string
+          p_marks: Json
+          p_request_id: string
+          p_scope_mode: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       apply_attendance_session_snapshot_for_entitled_mapping_v1: {
         Args: { p_installation_ref: string; p_snapshot: Json }
         Returns: Json
@@ -12523,6 +12536,19 @@ export type Database = {
         Args: { p_actor_id: string; p_assignment_id: string }
         Returns: Json
       }
+      prepare_attendance_membership_snapshot_v1: {
+        Args: {
+          p_at?: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_scope_mode: string
+          p_teacher_id: string
+          p_window_end: string
+          p_window_start: string
+        }
+        Returns: Json
+      }
       prepare_attendance_snapshot_v1: {
         Args: {
           p_classroom_id: string
@@ -12576,6 +12602,31 @@ export type Database = {
           p_assignment_doc_id: string
           p_expected_classroom_id: string
           p_managed_object_id: string
+        }
+        Returns: Json
+      }
+      read_attendance_membership_session_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_class_date: string
+          p_classroom_id: string
+          p_installation_ref: string
+          p_runtime_integration: string
+          p_scope_mode: string
+        }
+        Returns: Json
+      }
+      read_attendance_membership_status_v1: {
+        Args: {
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_class_date: string
+          p_installation_ref: string
+          p_runtime_integration: string
+          p_scope_mode: string
+          p_student_id: string
         }
         Returns: Json
       }
@@ -13033,6 +13084,10 @@ export type Database = {
           p_student_id: string
           p_teacher_id: string
         }
+        Returns: Json
+      }
+      resolve_attendance_membership_scan_generation: {
+        Args: { p_classroom_id: string; p_student_id: string }
         Returns: Json
       }
       resolve_attendance_scan_generation: {
@@ -13739,6 +13794,19 @@ export type Database = {
       }
       snapshot_test_draft_save_for_owner_v1: {
         Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
+        Returns: Json
+      }
+      stage_attendance_membership_roster_snapshot_v1: {
+        Args: {
+          p_at?: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_message: Json
+          p_scope_mode: string
+          p_source_token: string
+          p_teacher_id: string
+        }
         Returns: Json
       }
       stage_attendance_roster_snapshot_v1: {

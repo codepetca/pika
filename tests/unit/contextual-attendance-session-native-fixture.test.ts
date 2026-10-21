@@ -1,7 +1,7 @@
 import {describe,expect,it} from 'vitest'
 import {validateV1Message} from '../../src/vendor/attendance-contract/v1/validate'
 import {ATTENDANCE_SESSION_CAPS as caps,ATTENDANCE_SESSION_ACCOUNTING,newAttendanceSessionFixture,assertAttendanceSessionFixture,
-  attendanceSessionSdkInventory,attendanceSessionSqlDescriptors,assertAttendanceSessionSqlDescriptor,attendanceSessionHash,attendanceSessionExpectedView} from '../../scripts/contextual-attendance-session-native-fixture'
+  attendanceSessionSdkInventory,attendanceSessionSqlDescriptors,assertAttendanceSessionSqlDescriptor,attendanceSessionHash,attendanceSessionExpectedView,attendanceSessionExpectedSnapshot} from '../../scripts/contextual-attendance-session-native-fixture'
 describe('inert owner session fixture (CPU source evidence only)',()=>{
   const f=newAttendanceSessionFixture('assignmentlist_012345abcdef'),calls=attendanceSessionSdkInventory(f),frames=attendanceSessionSqlDescriptors(f)
   it('is synthetic, deterministic, frozen and collision-free',()=>{
@@ -35,9 +35,17 @@ describe('inert owner session fixture (CPU source evidence only)',()=>{
     expect(view.session).toMatchObject({state:'open',revision:4,pendingCommand:true,commandFailed:false})
     expect(view.sync).toEqual({state:'pending',confirmedAt:f.time.updated})
     expect(view.students).toEqual([
-      {studentId:f.actors[0].id,firstName:'Owner',lastName:'Synthetic',status:'present',source:'student_qr',checkedInAt:f.time.accepted,revision:1,hasQrCheckIn:true,hasManualOverride:false,pendingCommand:true,commandFailed:false},
-      {studentId:f.actors[2].id,firstName:'Member',lastName:'Synthetic',status:'late',source:'staff',checkedInAt:null,revision:3,hasQrCheckIn:false,hasManualOverride:true,pendingCommand:false,commandFailed:false}])
+      {studentId:f.actors[0].id,firstName:'Owner',lastName:'Synthetic',status:'present',source:'student_qr',checkedInAt:f.time.accepted,revision:1,hasQrCheckIn:true,hasManualOverride:false,pendingCommand:true,commandFailed:false,membershipGenerationId:null},
+      {studentId:f.actors[2].id,firstName:'Member',lastName:'Synthetic',status:'late',source:'staff',checkedInAt:null,revision:3,hasQrCheckIn:false,hasManualOverride:true,pendingCommand:false,commandFailed:false,membershipGenerationId:f.enrollments.find(e=>e.actorId===f.actors[2].id)!.id}])
     expect(JSON.stringify(view)).not.toMatch(/example\.invalid|participant_|principal_|occurrence_|installation_ref|payload/)
+  })
+  it('adds targets only to adapter snapshots using exact known active nonowner fixture enrollments',()=>{
+    const target={student_id:f.actors[2].id,generation_id:f.enrollments.find(e=>e.actorId===f.actors[2].id)!.id}
+    for(const call of calls){const snapshot=attendanceSessionExpectedSnapshot(f,call,f.time.updated)
+      if(!call.adapter){expect(snapshot).not.toHaveProperty('membership_targets');continue}
+      expect(snapshot).toHaveProperty('membership_targets',call.status==='ok'&&call.integration==='ready'&&call.args.p_classroom_id===f.classes[0].id?[target]:[])
+      if(call.view!=='none')expect(attendanceSessionExpectedView(f,call)).toHaveProperty('membershipAware',true)
+    }
   })
   it('captures complete profiles, automatic generations/provisioning, facts, history, principals and queue in both partitions',()=>{
     const sql=frames.find(r=>r.name==='preservation')!.sql

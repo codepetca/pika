@@ -284,6 +284,36 @@ Source grounding: `.workspace-entry` in `src/app/globals.scss`,
 and the real-owner Continuous inspector Pattern Lab example. Exact timing is
 defined in `src/styles/tokens.css`.
 
+### 8. Calendar categories and Classwork icons stay consistent
+
+Owner approved 2026-10-21; see [the change brief](./changes/calendar-classwork-identity.md).
+Apply this convention to future prototypes and product work:
+
+- Calendar due dates and tests share the soft amber assessment theme.
+- Materials use the original quiet slate resource theme.
+- Surveys use a distinct light-green survey theme.
+- Announcements use a soft blue theme, distinct from amber Due/Test chips.
+  Keep the Megaphone announcement, FileText material and ListChecks survey
+  icons visible beside title-only chips in Week, Month and Term.
+  These refinements supersede the earlier shared-green and orange/peach choices
+  following owner feedback on 2026-10-21.
+- Calendar chip text shows the title alone for Announcement, Material and Survey;
+  retain `Due:` and `Test:` prefixes. Keep type information in accessible names
+  or tooltips and keep existing icons. Use a meaningful fallback for untitled announcements.
+- Month/Term calendar chips use compact 24px rows for fine pointers, with
+  single-line titles and full-name tooltips. Coarse or unknown pointers retain
+  the standard 44px minimum target. Week and day-dialog chip density is unchanged.
+  This scoped dense-calendar exception follows owner feedback on 2026-10-21.
+- Category color does not communicate completion/urgency status.
+- Use Lucide FileText for Material and ListChecks for Survey, including creation
+  menus and icons beside existing teacher/student Classwork titles. Assignment
+  keeps ClipboardList. Reuse the feature-owned `ClassworkTypeIcon` mapping.
+- Theme values are owned by `src/styles/tokens.css`; use the semantic
+  `calendar-assessment`, `calendar-resource`, `calendar-survey`, and `calendar-announcement` color
+  groups. Do not substitute status tokens or invent new palettes in prototypes.
+- Pattern Lab's `calendar-identity` reference renders the production calendar
+  owner and shared type icons. This convention adds no survey scheduling.
+
 ## Stable Guidance Limits
 
 - This file is intentionally narrow. It does not try to canonize the entire app.

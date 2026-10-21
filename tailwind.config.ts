@@ -107,6 +107,28 @@ const config: Config = {
             hover: 'var(--color-info-bg-hover)',
           },
         },
+        calendar: {
+          assessment: {
+            DEFAULT: 'var(--color-calendar-assessment)',
+            bg: 'var(--color-calendar-assessment-bg)',
+            hover: 'var(--color-calendar-assessment-hover)',
+          },
+          resource: {
+            DEFAULT: 'var(--color-calendar-resource)',
+            bg: 'var(--color-calendar-resource-bg)',
+            hover: 'var(--color-calendar-resource-hover)',
+          },
+          survey: {
+            DEFAULT: 'var(--color-calendar-survey)',
+            bg: 'var(--color-calendar-survey-bg)',
+            hover: 'var(--color-calendar-survey-hover)',
+          },
+          announcement: {
+            DEFAULT: 'var(--color-calendar-announcement)',
+            bg: 'var(--color-calendar-announcement-bg)',
+            hover: 'var(--color-calendar-announcement-hover)',
+          },
+        },
         attendance: {
           present: 'var(--color-attendance-present)',
           late: 'var(--color-attendance-late)',

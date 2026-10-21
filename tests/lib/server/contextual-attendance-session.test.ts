@@ -6,7 +6,7 @@ vi.mock('@/lib/server/bara-attendance-canary',()=>({getBaraAttendanceCanaryScope
 const actorId='10000000-0000-4000-8000-000000000001',classroomId='20000000-0000-4000-8000-000000000001',classDate='2026-10-20'
 const emptyRows=()=>({participants:[],occurrence:null,policy:null,session:null,check_ins:[],overrides:[],outbox:[]})
 const snapshot=()=>({actor_id:actorId,classroom_id:classroomId,class_date:classDate,runtime_integration:'ready',scope_mode:'exact_canary',installation_ref:'test_installation',
-  observed_at:'2026-10-20T14:00:00Z',status:'ok',integration:'ready',students:[{id:actorId,email:'a@example.invalid',first_name:'Owner',last_name:''}],rows:emptyRows()})
+  observed_at:'2026-10-20T14:00:00Z',status:'ok',integration:'ready',students:[{id:actorId,email:'a@example.invalid',first_name:'Owner',last_name:''}],rows:emptyRows(),membership_targets:[]})
 const envelope=(data:unknown)=>({data,error:null,status:200,statusText:'OK',count:null})
 const rpc=vi.fn(),abortSignal=vi.fn()
 const run=()=>loadContextualAttendanceSession({supabase:{rpc} as never,actorId,classroomId,classDate})
@@ -15,7 +15,37 @@ describe('contextual owner session read',()=>{
   afterEach(()=>vi.unstubAllEnvs())
   it('makes exactly one actor/class/date/runtime/installation bound SDK read and preserves the DTO',async()=>{
     expect(await run()).toMatchObject({classroomId,classDate,integration:'not_configured',students:[{studentId:actorId,firstName:'Owner',lastName:'',status:'unmarked'}]})
-    expect(rpc).toHaveBeenCalledExactlyOnceWith('read_attendance_session_for_owner_v1',{p_actor_id:actorId,p_classroom_id:classroomId,p_class_date:classDate,p_runtime_integration:'ready',p_scope_mode:'exact_canary',p_installation_ref:'test_installation',p_canary_actor_id:actorId,p_canary_classroom_id:classroomId})
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('read_attendance_membership_session_for_owner_v1',{p_actor_id:actorId,p_classroom_id:classroomId,p_class_date:classDate,p_runtime_integration:'ready',p_scope_mode:'exact_canary',p_installation_ref:'test_installation',p_canary_actor_id:actorId,p_canary_classroom_id:classroomId})
+  })
+  it('projects exact membership targets without backfilling missing targets',async()=>{
+    abortSignal.mockResolvedValue(envelope({...snapshot(),membership_targets:[{student_id:actorId,generation_id:classroomId}]}))
+    expect(await run()).toMatchObject({membershipAware:true,students:[{studentId:actorId,membershipGenerationId:classroomId}]})
+    abortSignal.mockResolvedValue(envelope(snapshot()))
+    expect(await run()).toMatchObject({membershipAware:true,students:[{membershipGenerationId:null}]})
+  })
+  it.each([
+    [{student_id:classroomId,generation_id:actorId}],
+    [{student_id:actorId,generation_id:classroomId},{student_id:actorId,generation_id:actorId}],
+    [{student_id:actorId,generation_id:null}],
+    [{student_id:actorId,generation_id:classroomId,participant_ref:'private'}],
+  ])('rejects foreign, duplicate or widened membership targets %#',async membership_targets=>{
+    abortSignal.mockResolvedValue(envelope({...snapshot(),membership_targets}))
+    await expect(run()).rejects.toMatchObject({statusCode:503})
+  })
+  it('requires empty targets for unavailable integration snapshots',async()=>{
+    abortSignal.mockResolvedValue(envelope({...snapshot(),integration:'disabled',membership_targets:[{student_id:actorId,generation_id:classroomId}]}))
+    await expect(run()).rejects.toMatchObject({statusCode:503})
+  })
+  it('rejects one generation reused for different roster students',async()=>{
+    const students=[...snapshot().students,{id:classroomId,email:'b@example.invalid',first_name:'Another',last_name:''}]
+    abortSignal.mockResolvedValue(envelope({...snapshot(),students,membership_targets:[{student_id:actorId,generation_id:actorId},{student_id:classroomId,generation_id:actorId}]}))
+    await expect(run()).rejects.toMatchObject({statusCode:503})
+  })
+  it('does not silently accept a pre-membership snapshot without targets',async()=>{
+    const {membership_targets,...legacy}=snapshot()
+    abortSignal.mockResolvedValue(envelope(legacy))
+    await expect(run()).rejects.toMatchObject({statusCode:503})
+    expect(rpc).toHaveBeenCalledOnce()
   })
   it.each(['disabled','not_configured'])('still authorizes in SQL for runtime%s and preserves empty attendance roster',async state=>{
     integration.mockReturnValue(state);canary.mockReturnValue({state,teacherId:null,classroomId:null})

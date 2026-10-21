@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
+import { CalendarIdentityPattern } from '@/app/__ui/CalendarIdentityPattern'
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { CalendarMockup } from '@/app/__ui/PageMockups'
 import { StudentPageMockup } from '@/app/__ui/StudentPageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -32,6 +34,46 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['2026-08-31T16:00:00Z', '2026-10-21T16:00:00Z'])('keeps the calendar identity fixture unscheduled at %s', (now) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(now))
+    try {
+      render(<ThemeProvider><TooltipProvider><CalendarIdentityPattern /></TooltipProvider></ThemeProvider>)
+      expect(screen.getByRole('button', { name: 'Material: Ecosystem reading', exact: true })).toHaveTextContent(/^Ecosystem reading$/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps type icons decorative and calendar examples keyboard operable', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><CalendarIdentityPattern />
+      <button type="button"><ClassworkTypeIcon type="material" />Material</button>
+    </TooltipProvider></ThemeProvider>)
+    expect(screen.getByRole('button', { name: 'Material', exact: true }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    const survey = screen.getByRole('button', { name: 'Survey: Field trip check-in' })
+    expect(survey).toHaveTextContent(/^Field trip check-in$/)
+    survey.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('status')).toHaveTextContent('Open survey')
+  })
+
+  it.each(['teacher', 'student'] as const)('offers the shared calendar identity example for %s', (role) => {
+    renderGallery(role)
+    const example = within(screen.getByTestId('calendar-identity-pattern'))
+    expect(example.getByRole('group', { name: 'Identity calendar layout' })).toBeVisible()
+    fireEvent.click(example.getByRole('button', { name: 'Survey: Field trip check-in' }))
+    expect(example.getByRole('status')).toHaveTextContent('Open survey')
+    fireEvent.click(example.getByRole('button', { name: 'Grid', exact: true }))
+    expect(example.getByRole('button', { name: 'Material: Ecosystem reading' })).toBeVisible()
+    expect(example.getByRole('button', { name: 'Material: Ecosystem reading' })).toHaveTextContent(/^Ecosystem reading$/)
+    expect(example.getByRole('button', { name: 'Survey: Field trip check-in' })).toHaveTextContent(/^Field trip check-in$/)
+    expect(example.getByRole('button', { name: 'Bring headphones' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(example.getByRole('button', { name: 'Material: Ecosystem reading' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(example.getByRole('button', { name: 'Material: Ecosystem reading' }))
+    expect(example.getByRole('status')).toHaveTextContent('Open material')
+  })
+
   it.each(['teacher', 'student'] as const)('preserves the full classroom header name for %s', (role) => {
     renderGallery(role)
     const references = within(screen.getByRole('region', { name: 'Application header references' }))
@@ -158,6 +200,37 @@ describe('UiGallery accessibility contracts', () => {
     fireEvent.click(example.getByRole('menuitem', { name: 'Last action' }))
     expect(example.getByRole('status')).toHaveTextContent('Last selected')
     expect(section.querySelector<HTMLElement>('[data-menu-closing]')).not.toBeInTheDocument()
+  })
+
+  it.each(['teacher', 'student'] as const)('keeps actual tooltip adopters outside stable catalog snapshots for %s', role => {
+    renderGallery(role)
+    const region = screen.getByRole('region', { name: 'Tooltip adopter consistency' })
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(region)
+    const example = within(region)
+    expect(within(example.getByRole('region', { name: 'Collapsed classroom navigation' })).getByRole('link', { name: 'Calendar' })).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(example.getByRole('button', { name: 'Formatted calendar reminder' }))
+    expect(example.getByRole('status')).toHaveTextContent('Announcement opened')
+    fireEvent.click(within(example.getByRole('region', { name: 'Collapsed classroom navigation' })).getByRole('link', { name: 'Announcements' }))
+    expect(example.getByRole('status')).toHaveTextContent('Navigation: announcements')
+  })
+
+  it.each(['teacher', 'student'] as const)('TooltipMotionPattern retires tooltip descriptions when availability changes for %s', role => {
+    renderGallery(role)
+    const region = screen.getByRole('region', { name: 'Tooltip motion recovery' })
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(region)
+    const example = within(region)
+    const trigger = example.getByRole('button', { name: 'Tooltip motion example' })
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAccessibleDescription('Stationary tooltip example')
+    fireEvent.click(example.getByRole('button', { name: 'Disable tooltip example' }))
+    expect(example.getByRole('button', { name: 'Enable tooltip example' })).toHaveAttribute('aria-pressed', 'true')
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    fireEvent.click(trigger)
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    fireEvent.click(example.getByRole('button', { name: 'Enable tooltip example' }))
+    expect(example.getByRole('button', { name: 'Tooltip motion example' })).toBe(trigger)
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAccessibleDescription('Stationary tooltip example')
   })
 
   it.each(['teacher', 'student'] as const)('previews shared menu retirement and dialog focus handoff for %s', role => {

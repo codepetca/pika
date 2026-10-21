@@ -1775,6 +1775,7 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
   let postCount = 0
   let students: TeacherAttendanceView['students'] = studentIds.map((studentId, index) => ({
     studentId,
+    membershipGenerationId: `60000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
     firstName: `Student 0${index + 1}`,
     lastName: `Alpha0${index + 1}`,
     status: index === 0 ? 'late' as const : 'absent' as const,
@@ -1786,6 +1787,16 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
     pendingCommand: false,
     commandFailed: false,
   }))
+
+  await page.route('**/api/teacher/attendance/policy?**', async route => {
+    await route.fulfill({ json: { policy: {
+      classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, timezone: 'America/Toronto',
+      sessionStartsLocal: '09:00', sessionEndsLocal: '10:00', sessionEndDayOffset: 0,
+      entryOpensMinutesBefore: 15, presentGraceMinutes: 10,
+      entryClosesMinutesBeforeEnd: 0, absentMinutesBeforeEnd: 0,
+      enabled: true, revision: 1, updatedAt: '2026-08-29T12:00:00.000Z',
+    } } })
+  })
 
   await page.route(`**/api/classrooms/${ATTENDANCE_FIXTURE_CLASSROOM_ID}/class-days`, async (route) => {
     await route.fulfill({
@@ -1833,6 +1844,7 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
         classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID,
         classDate: '2026-08-29',
         integration: 'ready',
+        membershipAware: true,
         session: {
           state: 'open',
           opensAt: '2026-08-29T12:45:00.000Z',
@@ -1852,7 +1864,12 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
   })
   await page.route('**/api/teacher/attendance/marks', async (route) => {
     const body = route.request().postDataJSON() as {
-      marks: Array<{ student_id: string; status: 'automatic' | 'present' | 'late' | 'absent' }>
+      request_id: string
+      marks: Array<{ student_id: string; expected_generation_id: string; status: 'automatic' | 'present' | 'late' | 'absent' }>
+    }
+    expect(body.request_id).toMatch(/^[a-f0-9-]{36}$/)
+    for (const mark of body.marks) {
+      expect(mark.expected_generation_id).toBe(students.find(student => student.studentId === mark.student_id)?.membershipGenerationId)
     }
     postCount += 1
     await (postCount === 1 ? markGate : restoreGate)

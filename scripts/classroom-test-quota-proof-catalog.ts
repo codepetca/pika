@@ -23,10 +23,14 @@ export function classroomTestQuotaProofCatalog(
   // A partial or self-hashed replacement cannot establish this source profile.
   const hasDecommission = migrations.length >= 281 || migrations.some(migration => migration.name.startsWith('281_'))
   const hasMembership = migrations.length >= 283 || migrations.some(migration => migration.name.startsWith('283_'))
-  if (hasDecommission || hasMembership) validateLifecycleServicesReviewedMigrations(migrations)
+  const hasMembershipAdoption = migrations.length >= 285 || migrations.some(migration => migration.name.startsWith('285_'))
+  const hasLearnerMembership = migrations.length >= 286 || migrations.some(migration => migration.name.startsWith('286_'))
+  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership) validateLifecycleServicesReviewedMigrations(migrations)
   const expected = [...new Set([...canonicalTables, quotaTable,
     ...(hasDecommission ? ['private.attendance_decommission_delete_capabilities'] : []),
-    ...(hasMembership ? ['private.attendance_participant_associations', 'private.attendance_override_event_generations'] : [])])].sort()
+    ...(hasMembership ? ['private.attendance_participant_associations', 'private.attendance_override_event_generations'] : []),
+    ...(hasMembershipAdoption ? ['private.attendance_pointer_mutations'] : []),
+    ...(hasLearnerMembership ? ['private.attendance_override_mutations'] : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
 }

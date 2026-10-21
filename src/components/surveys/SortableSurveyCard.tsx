@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
@@ -92,11 +93,11 @@ export function SortableSurveyCard({
           <span className="min-w-0">
             <span
               className={[
-                'block truncate font-medium',
+                'flex items-center gap-2 font-medium',
                 survey.status === 'draft' ? 'text-text-muted' : 'text-text-default',
               ].join(' ')}
             >
-              {survey.title}
+              <ClassworkTypeIcon type="survey" /><span className="truncate">{survey.title}</span>
             </span>
             <span className="block text-xs text-primary">
               Survey

@@ -103,9 +103,73 @@ function mockPendingMarksFetch(pendingCommand = false) {
 describe('useTeacherAttendanceController', () => {
   afterEach(() => {
     vi.useRealTimers()
+    vi.restoreAllMocks()
     appMessageMock.showMessage.mockReset()
     appMessageMock.clearMessage.mockReset()
     vi.unstubAllGlobals()
+  })
+
+  it('blocks membership-aware marks and row actions when no exact target was loaded', async () => {
+    const next = { ...attendanceView('2026-05-05'), membershipAware: true as const }
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => next })
+    vi.stubGlobal('fetch', fetchMock)
+    const { result } = renderHook(() => useTeacherAttendanceController({ classroom, selectedDate: '2026-05-05', enabled: true, isActive: true }))
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    await act(async () => { await result.current.submitMarks([studentId], 'late') })
+    expect(fetchMock.mock.calls).toHaveLength(1)
+    expect(result.current.blockedStudentIds.has(studentId)).toBe(true)
+    expect(result.current.studentsById.get(studentId)?.status).toBe('present')
+  })
+
+  it('freezes queued generation targets and never projects old receipts onto a rejoined row', async () => {
+    const oldGeneration = '40000000-0000-4000-8000-000000000001'
+    const newGeneration = '40000000-0000-4000-8000-000000000002'
+    const createId = vi.spyOn(crypto, 'randomUUID')
+      .mockReturnValueOnce('50000000-0000-4000-8000-000000000001')
+      .mockReturnValueOnce('50000000-0000-4000-8000-000000000002')
+    let generation = oldGeneration
+    const bodies: Array<{ request_id: string; marks: Array<{ expected_generation_id: string }> }> = []
+    const postResolvers: Array<(response: Response) => void> = []
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        bodies.push(JSON.parse(String(init.body)))
+        return new Promise<Response>(resolve => { postResolvers.push(resolve) })
+      }
+      const next = attendanceView('2026-05-05')
+      next.membershipAware = true
+      next.students[0].membershipGenerationId = generation
+      return Promise.resolve({ ok: true, json: async () => next })
+    }))
+    const { result } = renderHook(() => useTeacherAttendanceController({ classroom, selectedDate: '2026-05-05', enabled: true, isActive: true }))
+    await waitFor(() => expect(result.current.view).not.toBeNull())
+    let first!: Promise<void>, second!: Promise<void>
+    await act(async () => {
+      first = result.current.submitMarks([studentId], 'late')
+      second = result.current.submitMarks([studentId], 'absent')
+      await Promise.resolve()
+    })
+    expect(bodies).toHaveLength(1)
+    expect(createId).toHaveBeenCalledTimes(2)
+    expect(bodies[0].request_id).toBe('50000000-0000-4000-8000-000000000001')
+    expect(bodies[0].marks[0].expected_generation_id).toBe(oldGeneration)
+    generation = newGeneration
+    await act(async () => { await result.current.loadView(true) })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({ membershipGenerationId: newGeneration, status: 'present', hasManualOverride: false })
+    await act(async () => {
+      postResolvers[0](new Response(JSON.stringify({ outcome: 'applied' }), { status: 200 }))
+      await first
+    })
+    expect(bodies).toHaveLength(2)
+    expect(bodies[1].marks[0].expected_generation_id).toBe(oldGeneration)
+    expect(bodies[1].request_id).not.toBe(bodies[0].request_id)
+    expect(bodies[1].request_id).toBe('50000000-0000-4000-8000-000000000002')
+    expect(result.current.studentsById.get(studentId)).toMatchObject({ status: 'present', hasManualOverride: false })
+    await act(async () => {
+      postResolvers[1](new Response(JSON.stringify({ outcome: 'applied' }), { status: 200 }))
+      await second
+    })
+    expect(result.current.studentsById.get(studentId)).toMatchObject({ status: 'present', hasManualOverride: false })
+    expect(appMessageMock.showMessage).not.toHaveBeenCalled()
   })
 
   it('projects a staff mark before the request completes', async () => {

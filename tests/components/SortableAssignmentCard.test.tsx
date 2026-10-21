@@ -1,6 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
+import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
+import userEvent from '@testing-library/user-event'
 import { TooltipProvider } from '@/ui'
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -67,8 +69,22 @@ function renderCard({
 }
 
 describe('SortableAssignmentCard', () => {
+  it('keeps survey title activation available from the keyboard beside its decorative icon', async () => {
+    const user = userEvent.setup()
+    const onOpen = vi.fn()
+    render(<TooltipProvider><SortableSurveyCard survey={{ ...assignment, status: 'active',
+      stats: { responded: 1, total_students: 2, questions_count: 1 } } as any}
+      isReadOnly={false} editMode={false} onOpen={onOpen} onDelete={vi.fn()} /></TooltipProvider>)
+    const button = screen.getByRole('button', { name: 'Assignment One', exact: true })
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    button.focus()
+    await user.keyboard('{Enter}')
+    expect(onOpen).toHaveBeenCalledOnce()
+  })
+
   it('hides drag and delete affordances in normal mode', () => {
     renderCard({ editMode: false })
+    expect(screen.getByRole('button', { name: 'Assignment One' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
 
     expect(screen.queryByRole('button', { name: 'Drag to reorder' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Delete Assignment One' })).not.toBeInTheDocument()

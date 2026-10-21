@@ -38,6 +38,44 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.unstubAllGlobals(); vi.resetAllMocks() })
 
 describe('student confirmation freshness', () => {
+  it('ignores an old membership POST after the page accepts a newer binding for another token', async () => {
+    let finishOld!: (value: Response) => void
+    const newer = { ...confirmation, occurrenceBinding: 'b'.repeat(32), title: 'You are already checked in', state: 'already_checked_in' }
+    vi.stubGlobal('fetch', vi.fn().mockReturnValueOnce(new Promise<Response>(resolve => { finishOld = resolve }))
+      .mockResolvedValueOnce(new Response(JSON.stringify(newer))))
+    const page = render(<StudentAttendanceCheckIn entryToken="old-token" canCheckIn />)
+    await act(async () => { page.rerender(<StudentAttendanceCheckIn entryToken="new-token" canCheckIn />) })
+    expect(screen.getByText('You are already checked in')).toBeVisible()
+    await act(async () => finishOld(new Response(JSON.stringify(confirmation))))
+    expect(screen.getByText('You are already checked in')).toBeVisible()
+    expect(screen.queryByText('You are checked in')).not.toBeInTheDocument()
+    expect(client.preserve).toHaveBeenCalledTimes(1)
+    expect(client.preserve).toHaveBeenCalledWith(expect.objectContaining({ occurrenceBinding: newer.occurrenceBinding }))
+  })
+
+  it('ignores an older binding read after resume receives a fresh different membership binding', async () => {
+    await mount()
+    let finishOld!: (value: unknown) => void
+    client.read.mockReturnValueOnce(new Promise(resolve => { finishOld = resolve }))
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    const fresh = statusView()
+    fresh.classrooms[0].occurrenceBinding = 'b'.repeat(32)
+    client.read.mockResolvedValueOnce(fresh)
+    await act(async () => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'visible' })
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    expect(screen.getByRole('heading', { name: 'Scan today’s attendance QR' })).toBeVisible()
+    await act(async () => finishOld(statusView()))
+    expect(screen.queryByText('You are checked in')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Scan today’s attendance QR' })).toBeVisible()
+    expect(client.read).toHaveBeenCalledTimes(2)
+  })
+
   it('waits for the backend and never shows optimistic success while the POST is pending', async () => {
     let finish!: (value: Response) => void
     vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise<Response>((resolve) => { finish = resolve })))

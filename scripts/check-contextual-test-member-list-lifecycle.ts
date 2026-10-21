@@ -67,7 +67,7 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284].includes(migrations.length), 'Unreviewed member-list migration profile')
+  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286].includes(migrations.length), 'Unreviewed member-list migration profile')
   classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
@@ -104,7 +104,11 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
   const expected = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   const decommission = migrations.length >= 281
     ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 281)) : historical
-  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, expected]
+  const membership = migrations.length >= 283
+    ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 283)) : decommission
+  const adoption = migrations.length >= 285
+    ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 285)) : membership
+  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, expected]
   assert(accepted.some(profile => JSON.stringify([...catalog].sort()) === JSON.stringify(profile)), 'Unreviewed member-list canonical catalog')
   return classroomTestQuotaProofCatalog(catalog, migrations)
 }

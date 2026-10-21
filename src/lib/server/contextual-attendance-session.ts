@@ -16,12 +16,20 @@ const snapshotSchema = z.object({
   scope_mode: z.enum(['exact_canary','teacher_entitlements']), installation_ref: installationSchema.nullable(),
   observed_at: z.string().datetime({ offset: true }), status: z.enum(['ok','forbidden','blocked']), integration: integrationSchema,
   students: studentsSchema, rows: teacherAttendanceSnapshotRowsSchema,
+  membership_targets: z.array(z.object({ student_id: z.string().uuid(), generation_id: z.string().uuid() }).strict()),
 }).strict().superRefine((value,ctx) => {
   const empty = value.rows.participants.length === 0 && value.rows.occurrence === null && value.rows.policy === null && value.rows.session === null
     && value.rows.check_ins.length === 0 && value.rows.overrides.length === 0 && value.rows.outbox.length === 0
   if ((value.status !== 'ok' && (value.students.length > 0 || value.integration !== 'disabled' || !empty))
     || (value.integration !== 'ready' && !empty)
     || (value.rows.session && value.rows.session.occurrence_ref !== value.rows.occurrence?.occurrence_ref)) ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid snapshot disclosure' })
+  const studentIds = new Set(value.students.map(row => row.id))
+  if (new Set(value.membership_targets.map(row => row.student_id)).size !== value.membership_targets.length
+    || new Set(value.membership_targets.map(row => row.generation_id)).size !== value.membership_targets.length
+    || value.membership_targets.some(row => !studentIds.has(row.student_id))
+    || (value.integration !== 'ready' && value.membership_targets.length > 0)) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid membership targets' })
+  }
 })
 const envelopeSchema = z.object({ data: snapshotSchema, error: z.null(), status: z.number().int().min(200).max(299),
   statusText: z.string(), count: z.union([z.null(),z.literal(1)]) }).strict()
@@ -40,7 +48,7 @@ export async function loadContextualAttendanceSession(input: {
   const installation = configured.success ? configured.data : null
   let response: unknown
   try {
-    response = await input.supabase.rpc('read_attendance_session_for_owner_v1', {
+    response = await input.supabase.rpc('read_attendance_membership_session_for_owner_v1', {
       p_actor_id: identity.actorId, p_classroom_id: identity.classroomId, p_class_date: identity.classDate,
       p_runtime_integration: runtime, p_scope_mode: mode, p_installation_ref: installation,
       p_canary_actor_id: canary?.teacherId ?? null, p_canary_classroom_id: canary?.classroomId ?? null,
@@ -58,7 +66,10 @@ export async function loadContextualAttendanceSession(input: {
   const students = [...value.students].sort((a,b) => a.email.localeCompare(b.email) || a.id.localeCompare(b.id))
     .map(row => ({ studentId: row.id, firstName: row.first_name, lastName: row.last_name }))
   try {
-    return buildTeacherAttendanceViewFromSnapshot({ classroomId: identity.classroomId, classDate: identity.classDate,
+    const view = buildTeacherAttendanceViewFromSnapshot({ classroomId: identity.classroomId, classDate: identity.classDate,
       integration: value.integration, students, rows: value.rows, now: value.observed_at })
+    const targets = new Map(value.membership_targets.map(row => [row.student_id, row.generation_id]))
+    return { ...view, membershipAware: true as const,
+      students: view.students.map(row => ({ ...row, membershipGenerationId: targets.get(row.studentId) ?? null })) }
   } catch { throw unavailable() }
 }

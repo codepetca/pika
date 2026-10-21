@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/attendance/marks/route'
 import { TeacherAttendanceCommandError } from '@/lib/server/bara-attendance-commands'
@@ -6,6 +6,7 @@ import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const {
   requireRole,
+  requireAuth,
   assertTeacherCanMutateClassroom,
   executeTeacherAttendanceMarks,
   resolveVerifiedPikaAttendanceTeacher,
@@ -13,6 +14,7 @@ const {
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
+  requireAuth: vi.fn(),
   assertTeacherCanMutateClassroom: vi.fn(),
   executeTeacherAttendanceMarks: vi.fn(),
   resolveVerifiedPikaAttendanceTeacher: vi.fn(),
@@ -22,6 +24,7 @@ const {
 
 vi.mock('@/lib/auth', () => ({
   requireRole,
+  requireAuth,
   AuthenticationError: class AuthenticationError extends Error {
     constructor() { super('Unauthorized'); this.name = 'AuthenticationError' }
   },
@@ -59,6 +62,7 @@ function request(body: unknown) {
 describe('POST /api/teacher/attendance/marks', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
     assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' })
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
@@ -72,6 +76,71 @@ describe('POST /api/teacher/attendance/marks', () => {
       appliedCount: 1,
       unchangedCount: 0,
     })
+  })
+  afterEach(() => vi.unstubAllEnvs())
+
+  it.each(['teacher', 'student'])('binds admitted %s owner marks to their supplied exact generation', async role => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [requestId] }))
+    requireAuth.mockResolvedValue({ id: requestId, email: 'owner@example.com', role })
+    const response = await POST(request({ classroom_id: classroomId, date: '2026-09-08', request_id: requestId,
+      marks: [{ student_id: studentId, expected_generation_id: classroomId, status: 'automatic' }] }))
+    expect(response.status).toBe(200)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(assertTeacherCanMutateClassroom).toHaveBeenCalledWith(requestId, classroomId, { supabase })
+    expect(executeTeacherAttendanceMarks).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId: requestId, membershipAware: true,
+      marks: [{ studentId, expectedGenerationId: classroomId, status: 'automatic' }],
+    }))
+  })
+
+  it('requires every shared target and accepts no caller-selected admission mode', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [requestId] }))
+    requireAuth.mockResolvedValue({ id: requestId, email: 'owner@example.com', role: 'student' })
+    for (const body of [
+      { marks: [{ student_id: studentId, status: 'present' }] },
+      { marks: [{ student_id: studentId, status: 'present', expected_generation_id: null }] },
+      { membershipAware: false, marks: [{ student_id: studentId, status: 'present', expected_generation_id: classroomId }] },
+      { marks: [{ student_id: studentId, status: 'present', expected_generation_id: classroomId }, { student_id: studentId, status: 'absent', expected_generation_id: classroomId }] },
+    ]) {
+      expect((await POST(request({ classroom_id: classroomId, date: '2026-09-08', request_id: requestId, ...body }))).status).toBe(400)
+    }
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
+  })
+
+  it('rejects the generation field for an unadmitted legacy request', async () => {
+    expect((await POST(request({ classroom_id: classroomId, date: '2026-09-08', request_id: requestId,
+      marks: [{ student_id: studentId, expected_generation_id: classroomId, status: 'present' }] }))).status).toBe(400)
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
+  })
+
+  it('retains the teacher role guard for an unmatched student actor before validation', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [] }))
+    requireAuth.mockResolvedValue({ id: requestId, email: 'member@example.com', role: 'student' })
+    requireRole.mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+    expect((await POST(request({}))).status).toBe(403)
+    expect(requireRole).toHaveBeenCalledWith('teacher')
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
+  })
+
+  it('fails closed for malformed admission after authentication', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{')
+    requireAuth.mockResolvedValue({ id: requestId, email: 'owner@example.com', role: 'teacher' })
+    expect((await POST(request({}))).status).toBe(503)
+    expect(requireAuth).toHaveBeenCalledOnce()
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
+  })
+
+  it('keeps actual shared ownership and stale-target failures authoritative', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [requestId] }))
+    requireAuth.mockResolvedValue({ id: requestId, email: 'owner@example.com', role: 'student' })
+    const body = { classroom_id: classroomId, date: '2026-09-08', request_id: requestId,
+      marks: [{ student_id: studentId, expected_generation_id: classroomId, status: 'present' }] }
+    assertTeacherCanMutateClassroom.mockResolvedValueOnce({ ok: false, status: 403, error: 'Forbidden' })
+    expect((await POST(request(body))).status).toBe(403)
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
+    executeTeacherAttendanceMarks.mockRejectedValue(new TeacherAttendanceCommandError('roster_changed'))
+    expect((await POST(request(body))).status).toBe(409)
   })
 
   it('authorizes and sends only Pika student commands to the adapter', async () => {

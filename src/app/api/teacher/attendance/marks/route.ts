@@ -7,7 +7,8 @@ import {
   executeTeacherAttendanceMarks,
   TeacherAttendanceCommandError,
 } from '@/lib/server/bara-attendance-commands'
-import { teacherAttendanceMarksSchema } from '@/lib/validations/teacher-attendance'
+import { teacherAttendanceMarksSchema, teacherAttendanceMembershipMarksSchema } from '@/lib/validations/teacher-attendance'
+import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
 import {
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
@@ -35,8 +36,11 @@ function mapCommandError(error: unknown): never {
 }
 
 export const POST = withErrorHandler('PostTeacherAttendanceMarks', async (request) => {
-  const user = await requireRole('teacher')
-  const input = teacherAttendanceMarksSchema.parse(await request.json())
+  const admission = await authorizeSharedAttendancePolicyActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
+  const input = admission.mode === 'shared'
+    ? teacherAttendanceMembershipMarksSchema.parse(await request.json())
+    : teacherAttendanceMarksSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherCanMutateClassroom(user.id, input.classroom_id, { supabase })
   if (!ownership.ok) throw new ApiError(ownership.status, ownership.error)
@@ -54,8 +58,11 @@ export const POST = withErrorHandler('PostTeacherAttendanceMarks', async (reques
       classDate: input.date,
       requestId: input.request_id,
       integrationState: 'ready',
+      ...(admission.mode === 'shared' ? { membershipAware: true as const } : {}),
       marks: input.marks.map((mark) => ({
         studentId: mark.student_id,
+        ...('expected_generation_id' in mark && typeof mark.expected_generation_id === 'string'
+          ? { expectedGenerationId: mark.expected_generation_id } : {}),
         status: mark.status,
         ...(mark.reason_code ? { reasonCode: mark.reason_code } : {}),
       })),

@@ -15,6 +15,7 @@ const inventory=attendanceSessionSdkInventory(newAttendanceSessionFixture('assig
 const snapshotSchema=z.object({actor_id:z.string().uuid(),classroom_id:z.string().uuid(),class_date:z.string().date(),runtime_integration:z.literal('ready'),
   scope_mode:z.enum(['teacher_entitlements','exact_canary']),installation_ref:z.string(),observed_at:z.string().datetime({offset:true}),status:z.enum(['ok','forbidden','blocked']),
   integration:z.enum(['disabled','not_configured','ready']),students:z.array(z.object({id:z.string().uuid(),email:z.string(),first_name:z.string(),last_name:z.string()}).strict()),rows:teacherAttendanceSnapshotRowsSchema}).strict()
+const membershipSnapshotSchema=snapshotSchema.extend({membership_targets:z.array(z.object({student_id:z.string().uuid(),generation_id:z.string().uuid()}).strict())}).strict()
 const sha=z.string().regex(/^[a-f0-9]{64}$/),refused=()=>new Error('attendance_session_proof_refused')
 const receiptSchema=z.object({version:z.literal(1),scope:z.literal('attendance-session-read-v1'),requests:z.number().int().min(0).max(16),httpDispatches:z.number().int().min(0).max(16),
   adapterRequests:z.number().int().min(0).max(13),rpcRequests:z.number().int().min(0).max(3),controls:z.number().int().min(0).max(caps.controls),guardCalls:z.number().int().min(0).max(caps.controls),
@@ -61,7 +62,7 @@ export function createAttendanceSessionSdkProof(f:AttendanceSessionFixture,targe
     else if(name.startsWith('observe-'))assert.deepEqual(result,{case:calls[Number(name.slice(8))].label,preserved:true,nativeVerified:false})
     else assert.deepEqual(result,{stage:name,nativeVerified:false})
     await guard(cleanup);if(name==='restore-baseline')restoreState='restored'}
-  const validate=(raw:unknown,call:AttendanceSessionSdkCall)=>{const data=snapshotSchema.parse(raw)
+  const validate=(raw:unknown,call:AttendanceSessionSdkCall)=>{const data=(call.adapter?membershipSnapshotSchema:snapshotSchema).parse(raw)
     assert.deepEqual(normalizeAttendanceSessionInstants(data),normalizeAttendanceSessionInstants(attendanceSessionExpectedSnapshot(f,call,data.observed_at)));return data}
   const countedFetch:typeof fetch=async(resource,init={})=>{
     let response:Response|undefined,reader:ReadableStreamDefaultReader<Uint8Array>|undefined,acquired=false,bodySettled=false,actualSettled=false,abandoned=false
@@ -70,7 +71,7 @@ export function createAttendanceSessionSdkProof(f:AttendanceSessionFixture,targe
     const race=<T>(p:Promise<T>)=>Promise.race([own(p),aborted]),release=()=>{if(acquired&&actualSettled&&bodySettled){acquired=false;sessions--;controls.httpSession(false)}}
     try{check();assert(running&&cell>=0&&cell<calls.length&&!caller?.aborted&&!sessions);caller?.addEventListener('abort',abort,{once:true})
       const call=calls[cell];assert(!used.has(`http:${cell}`));used.add(`http:${cell}`);assert(typeof resource==='string'||resource instanceof URL);const url=new URL(String(resource))
-      assert.equal(url.href,`${target.origin}/rest/v1/rpc/read_attendance_session_for_owner_v1`);assert(init.method==='POST'&&init.body===JSON.stringify(call.args))
+      assert.equal(url.href,`${target.origin}/rest/v1/rpc/${call.adapter?'read_attendance_membership_session_for_owner_v1':'read_attendance_session_for_owner_v1'}`);assert(init.method==='POST'&&init.body===JSON.stringify(call.args))
       assert(Object.keys(init).every(key=>['method','headers','body','signal','redirect'].includes(key)));assert(init.redirect===undefined||init.redirect==='error')
       const headers=new Headers(init.headers);assert.equal(headers.get('authorization'),`Bearer ${target.serviceRoleKey}`);assert.equal(headers.get('apikey'),target.serviceRoleKey)
       for(const[name]of headers)assert(['authorization','apikey','x-client-info','content-type','accept-profile','content-profile','accept'].includes(name))

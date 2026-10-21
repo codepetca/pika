@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { SplitButton, Input, Card, PageDensityProvider } from '@/ui'
+import { Button, Tooltip, SplitButton, Input, Card, PageDensityProvider } from '@/ui'
 import { TeacherAssignmentStudentTable } from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
 import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 
@@ -39,5 +39,23 @@ export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) 
           dueAtMs={0} density="tight" loading={false} error="" />
       </PageDensityProvider>
     </Card> : null}
+  </section>
+}
+
+/** Availability recovery fixture; independent of the stable catalog composition. */
+export function TooltipMotionPattern() {
+  const [available, setAvailable] = useState(true)
+  return <section id="tooltip-motion" aria-label="Tooltip motion recovery">
+    <Card tone="panel" padding="md">
+      <h2 className="font-semibold">Tooltip motion</h2>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <Tooltip content="Stationary tooltip example" openOnClick disabled={!available}>
+          <Button variant="surface">Tooltip motion example</Button>
+        </Tooltip>
+        <Button variant="ghost" aria-pressed={!available} onClick={() => setAvailable(value => !value)}>
+          {available ? 'Disable tooltip example' : 'Enable tooltip example'}
+        </Button>
+      </div>
+    </Card>
   </section>
 }

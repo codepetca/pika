@@ -30,6 +30,32 @@
 }
 
 @layer utilities {
+  /* Live Radix semantics retire immediately; only a decorative copy exits. */
+  .tooltip-opacity {
+    animation: tooltip-opacity-in var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+
+  .tooltip-opacity[data-state='closed'] { animation: none; }
+
+  .tooltip-opacity[data-tooltip-exit] {
+    animation-name: tooltip-opacity-out;
+    animation-fill-mode: both;
+  }
+
+  @keyframes tooltip-opacity-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes tooltip-opacity-out {
+    from { opacity: var(--tooltip-exit-opacity, 1); }
+    to { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tooltip-opacity { animation: none; }
+  }
+
   /* Selected workspace entry only: reuse a stable frame so data edits do not replay it. */
   .workspace-entry {
     animation: workspace-entry var(--motion-duration-standard) var(--motion-easing-standard);

@@ -48192,3 +48192,103 @@ eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source i
 unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
 successful preservation and closure gates using direct Node loading. Production,
 shared-local249+, real-account/provider/billing and all activation holds persist.
+
+<!-- pika-session-log-archive-batch:2a3493cbe7468d2bce464094377a49276d29f6e9408824d9329e1cbfe26b7278 -->
+## 2026-10-19 — Native lifecycle proof and contextual Pal page selection
+
+Separate reviewed disposable001–272 proof passed both rollback contracts, exact
+genuine metadata and actual16 typed RPC/66 archive exchanges. Real stored-byte
+export/readback/bundle verification, replay, cross-class denial, controlled
+postflight uncertainty, source preservation and exact initialized-OFF settings
+restoration passed.183 native actions/814 controls/11,498,419 bytes stayed inside
+original bounds. Immediate independent FIRST passed7,840 source/98,969 dependency
+files and zero process candidates; complete canonical/global equality and positive
+owned cleanup passed lifecycle gates. Review271 accepted this bounded evidence;
+historical failed FIRST remains failed, not replayed or relabeled.
+
+Member SSR selects the contextual Pal reader only for shared contextual members;
+owners never enter learner context, missing optional context keeps academic work,
+and teacher-valued members do not inherit an unavailable legacy account provider.
+27 SSR checks and40 inspected actual-renderer desktop/mobile light/dark captures
+passed. Capture sources/hashes are retained privately; temporary fixture edits
+are removed so existing public widget fixtures and renderers stay unchanged.
+No authenticated-route/provider claim. Native contention/race gates, final review,
+focused checks and final-head CI remain pending. Production/shared-local249+,
+real-account/provider/billing/AI and all rollout holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:26cd2d419d69250ae47e1e1c7cc3254b2e531bcfe13836eaaf76b1aae323d601 -->
+## 2026-10-19 — Actual Pal contention and preservation proof
+
+One reviewed complementary disposable272 run passed all four two-session Pal
+contention schedules, both RPC busy responses, exact graph effects, fresh enrolled-
+owner/removal denial and serial generation re-add with exactly one bound join
+event/link. No HTTP/SDK/Storage rerun:25 native actions/218 controls/6,743,856 bytes,
+maximum two sessions, final zero uncertain/open sessions. Exact initialized-OFF
+restoration and canonical/global preservation plus positive owned cleanup passed
+the existing lifecycle. The immediately next-tool independent FIRST passed7,842
+source/98,969 dependency files and zero process candidates before later inspection.
+Root verified exact project containers/volumes/networks/workdir absent. Evidence
+and exclusive spent marker retained; no historical attempt was replayed. Empty
+old-event history does not certify nonempty queued-fact retention. Final composed
+evidence review/CI remain; all production/shared-local249+/real-account/provider/
+billing/AI and admission/rollout holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:3b1e475d227821225851429460e81622d10e0d63b826991b366bc6137199e3ae -->
+## 2026-10-19 — Exact lifecycle migration profiles and early local selection
+
+Final CI rejected the complete272 source chain because historical lifecycle
+harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
+All eight source profiles and the offline prefix helper now append exact271/272
+filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
+unknown273 or missing/altered/reordered tails. Source-profile reproduction was
+RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
+passed; no SQL, application authorization or native bounds changed.
+
+The local import graph could not select SQL-filesystem consumers. Two real
+Vitest fixtures reproduced false-green selection in run/related modes; the
+focused runner now adds the existing closed-profile suite on migration SQL
+changes. All26 runner regressions pass. Root combined focused gate passes2,495
+tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
+271/272 bytes still match accepted native proofs, which were not rerun. Targeted
+independent review and corrected-head CI remain required. All holds persist.
+
+<!-- pika-session-log-archive-batch:daa7400afc43a158d97045de9136e208cfcd233d50d69335cf0186b3e6bd98e1 -->
+## 2026-10-19 — Preserve rename-source evidence in local and CI selection
+
+Review277 identified a rename-out edge in migration test discovery. Real staged
+and committed SQL-to-docs moves reproduced false-green docs-only checks. Local
+committed/working diffs now disable rename collapsing; the existing CI classifier
+does the same. A separate real-Git API/SQL/browser-to-docs counterexample failed
+before this correction. All40 focused/classifier tests and root combined2,498/94
+focused checks plus policies, TypeScript, lint and audit pass. No workflow,
+application, schema, dependency, native capability or activation change. Targeted
+review and exact-head CI are still required; production and rollout stay held.
+
+<!-- pika-session-log-archive-batch:fb825769e43db68b4cc4e8157303ed03c6004d843268db6743f3685913363c42 -->
+## 2026-10-19 — Prepare contextual owner attendance-policy read
+
+Prepared admitted GET-only attendance settings with one bounded service-only273
+snapshot: current owner, lifecycle fences, unchanged attendance entitlement or
+exact canary and the existing nullable policy DTO. Legacy GET/PUT remain intact.
+Invoker gains only decommission classroom-id SELECT; provider columns/writes stay
+revoked. No provider or UI change. Feature76 checks and hardened SQL-source5,
+native-leaf15, CI/source22 and predecessor-profile1,123 checks pass (overlapping
+counts, not summed); architecture, targeted lint and shell syntax pass. Genuine
+273 metadata is pending; the only two TypeScript errors are its missing generated
+RPC keys, not hidden by casts. This source preparation is not native acceptance,
+PR readiness, a phase exit or rollout. All production/shared-local/real-state and
+activation holds persist. Sol6.1/high supplied bounded product, native leaf and
+existing-runner extension; coordinator owns integration/review and acceptance.
+
+<!-- pika-session-log-archive-batch:a8cb243b5d7bf36dd9f3a78ad3951e139e418f4bc8ca84932debc6ab9f4b25e9 -->
+## 2026-10-19 — Complete attendance fixture graph preservation
+
+Independent review found omitted trigger-created membership generations in the
+native fixture. Complete synthetic and untargeted row partitions now include
+generations and three conditional Free-plan/audit tables, with retained-identity
+collision checks. Existing witness positively requires exactly two active,
+scope-bound generations; zero/one/three are rejected. Six drift regressions failed
+before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
+sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
+genuine metadata and fresh isolated runtime/preservation acceptance are pending.
+No product permission, migration body, provider or activation change.

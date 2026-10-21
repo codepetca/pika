@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
-import { requireRole } from '@/lib/auth'
+import { requireAuth, requireRole } from '@/lib/auth'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 import {
   ClassroomAttendanceQrError,
   executeClassroomQrStudentCheckIn,
@@ -19,7 +20,9 @@ function result(state: 'invalid' | 'closed' | 'needs_staff', title: string, desc
 }
 
 export const POST = withErrorHandler('PostStudentClassroomAttendanceCheckIn', async (request) => {
-  const user = await requireRole('student')
+  const authenticated = await requireAuth()
+  const user = resolveClassroomExperienceAdmission(authenticated).status === 'admitted'
+    ? authenticated : await requireRole('student')
   const { classroomQrToken, attemptId } = studentClassroomAttendanceCheckInSchema.parse(
     await request.json(),
   )

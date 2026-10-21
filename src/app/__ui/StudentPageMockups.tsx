@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon, type ClassworkType } from '@/components/ClassworkTypeIcon'
 import { CALENDAR_REFERENCE_TEST } from './calendar-test-fixtures'
 
 import { useState } from 'react'
@@ -126,7 +127,7 @@ function StudentClassworkMockup({ onPrototypeAction }: { onPrototypeAction: (act
           onClick={() => onPrototypeAction(`Open ${item.title}`)}
         >
           <span className="flex items-start justify-between gap-4">
-            <span className="min-w-0"><span className="block truncate text-base font-semibold">{item.title}</span><span className="mt-1 block text-sm text-text-muted">{item.detail}</span><span className="mt-1 block text-xs font-medium uppercase tracking-wide text-text-muted">{item.type}</span></span>
+            <span className="min-w-0"><span className="flex items-center gap-2 text-base font-semibold"><ClassworkTypeIcon type={item.type.toLowerCase() as ClassworkType} /><span className="truncate">{item.title}</span></span><span className="mt-1 block text-sm text-text-muted">{item.detail}</span><span className="mt-1 block text-xs font-medium uppercase tracking-wide text-text-muted">{item.type}</span></span>
             <span className={`shrink-0 rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold ${item.tone}`}>{item.status}</span>
           </span>
         </Button>

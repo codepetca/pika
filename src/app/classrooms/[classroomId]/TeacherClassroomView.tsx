@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
@@ -26,14 +27,12 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   Code,
   Copy,
   EllipsisVertical,
   GripVertical,
   Lock,
   MessageSquare,
-  Paperclip,
   Pencil,
   Plus,
   Reply,
@@ -283,11 +282,11 @@ function TeacherMaterialCard({
             <span className="min-w-0">
               <span
                 className={[
-                  'block truncate font-medium',
+                  'flex items-center gap-2 font-medium',
                   material.is_draft ? 'text-text-muted' : 'text-text-default',
                 ].join(' ')}
               >
-                {material.title}
+                <ClassworkTypeIcon type="material" /><span className="truncate">{material.title}</span>
               </span>
               <span className="block text-xs text-primary">Material{!material.is_draft && material.released_at && isScheduleIsoInFuture(material.released_at) ? ` · ${formatInTimeZone(material.released_at, 'America/Toronto', 'EEE MMM d, h:mm a')}` : ''}</span>
             </span>
@@ -2632,7 +2631,7 @@ export function TeacherClassroomView({
     {
       id: 'assignment',
       label: 'Assignment',
-      icon: <ClipboardList className="h-4 w-4" aria-hidden="true" />,
+      icon: <ClassworkTypeIcon type="assignment" />,
       onSelect: () => setIsCreateModalOpen(true),
       disabled: isReadOnly,
     },
@@ -2646,7 +2645,7 @@ export function TeacherClassroomView({
     {
       id: 'material',
       label: 'Material',
-      icon: <Paperclip className="h-4 w-4" aria-hidden="true" />,
+      icon: <ClassworkTypeIcon type="material" />,
       onSelect: () => {
         setEditMaterial(null)
         setIsMaterialModalOpen(true)
@@ -2656,7 +2655,7 @@ export function TeacherClassroomView({
     {
       id: 'survey',
       label: 'Survey',
-      icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
+      icon: <ClassworkTypeIcon type="survey" />,
       onSelect: () => { void createSurveyDraft() },
       disabled: isReadOnly || creatingSurvey,
     },

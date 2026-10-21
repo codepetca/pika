@@ -8,7 +8,7 @@ import {
   type BaraAttendanceCutoffSnapshot,
 } from '@/lib/server/bara-attendance-schedule'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
-import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceClassroomIntegrationState, getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
 import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 
 const preparationSchema = z.object({
@@ -151,6 +151,8 @@ export async function syncTeacherAttendanceSources(input: {
   integrationState?: 'disabled' | 'not_configured' | 'ready'
   scheduleThrough?: string | null
   scopeMode?: 'exact_canary' | 'teacher_entitlements'
+  /** Server-owned admission decision, never accepted from the HTTP body. */
+  membershipAware?: true
 }) {
   const integrationState = input.integrationState ?? getBaraAttendanceClassroomIntegrationState({
     teacherId: input.teacherId,
@@ -160,20 +162,33 @@ export async function syncTeacherAttendanceSources(input: {
   const installationRef = process.env.BARA_ATTENDANCE_INSTALLATION_REF?.trim() ?? ''
   const tenantRef = process.env.BARA_ATTENDANCE_TENANT_REF?.trim() ?? ''
   const scopeMode = input.scopeMode ?? getBaraAttendanceScopeMode()
+  const canary = input.membershipAware && scopeMode === 'exact_canary'
+    ? getBaraAttendanceCanaryScope() : null
+  if (canary && canary.state !== 'ready') throw new BaraAttendanceSyncError(canary.state)
+  if (canary && (canary.teacherId !== input.teacherId || canary.classroomId !== input.classroomId)) {
+    throw new BaraAttendanceSyncError('disabled')
+  }
+  const membershipScope = input.membershipAware ? {
+    p_scope_mode: scopeMode,
+    p_canary_actor_id: canary?.teacherId ?? null,
+    p_canary_classroom_id: canary?.classroomId ?? null,
+  } : null
   const windowEnd = input.scheduleThrough && input.scheduleThrough < input.windowEnd
     ? input.scheduleThrough
     : input.windowEnd
   if (windowEnd < input.windowStart) throw new BaraAttendanceSyncError('disabled')
 
   const preparedResult = await rpc(input.supabase,
-    scopeMode === 'teacher_entitlements'
+    input.membershipAware ? 'prepare_attendance_membership_snapshot_v1'
+      : scopeMode === 'teacher_entitlements'
       ? 'prepare_attendance_snapshot_v2'
       : 'prepare_attendance_snapshot_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
     p_window_start: input.windowStart,
     p_window_end: windowEnd,
-    ...(scopeMode === 'teacher_entitlements'
+    ...membershipScope,
+    ...(input.membershipAware || scopeMode === 'teacher_entitlements'
       ? { p_at: new Date().toISOString() }
       : {}),
   })
@@ -336,14 +351,16 @@ export async function syncTeacherAttendanceSources(input: {
   const schedule = materializedSchedule.schedule
 
   const stagedRosterResult = await rpc(input.supabase,
-    scopeMode === 'teacher_entitlements'
+    input.membershipAware ? 'stage_attendance_membership_roster_snapshot_v1'
+      : scopeMode === 'teacher_entitlements'
       ? 'stage_attendance_roster_snapshot_v2'
       : 'stage_attendance_roster_snapshot_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
     p_source_token: prepared.data.roster_source_token,
     p_message: roster,
-    ...(scopeMode === 'teacher_entitlements'
+    ...membershipScope,
+    ...(input.membershipAware || scopeMode === 'teacher_entitlements'
       ? { p_at: new Date().toISOString() }
       : {}),
   })

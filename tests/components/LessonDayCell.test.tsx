@@ -132,14 +132,20 @@ describe('LessonDayCell', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it.each(['agenda', 'grid'] as const)('opens a scheduled material without editing the lesson in %s', layout => {
+  it.each(['agenda', 'grid'] as const)('opens a scheduled material without editing the lesson in %s', async layout => {
+    const user = userEvent.setup()
     const material = { id: 'reading', title: 'Next reading', is_draft: false, released_at: '2099-01-01T12:00:00Z' } as ClassworkMaterial
     const onMaterialClick = vi.fn()
     renderWithTooltip(<LessonDayCell date={lessonPlan.date} day={new Date(`${lessonPlan.date}T12:00:00`)}
       lessonPlan={lessonPlan} materials={[material]} layout={layout} isWeekend={false} isToday={false}
       editable onMaterialClick={onMaterialClick} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Material: Next reading [Scheduled]' }))
+    const materialChip = screen.getByRole('button', { name: 'Material: Next reading [Scheduled]' })
+    expect(materialChip).toHaveTextContent(/^Next reading \[Scheduled\]$/)
+    fireEvent.click(materialChip)
     expect(onMaterialClick).toHaveBeenCalledWith(material)
+    materialChip.focus()
+    await user.keyboard('{Enter}')
+    expect(onMaterialClick).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
@@ -302,7 +308,7 @@ describe('LessonDayCell', () => {
     }
   })
 
-  it.each([false, true])('labels assignment due dates with accessible solid fill (compact=%s)', (compact) => {
+  it.each([false, true])('labels assignment due dates with the assessment theme (compact=%s)', (compact) => {
     renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
@@ -317,9 +323,9 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Due: Essay' })).toHaveClass(
-      'bg-primary-solid',
-      'hover:bg-primary-solid-hover',
-      'text-text-inverse'
+      'bg-calendar-assessment-bg',
+      'hover:bg-calendar-assessment-hover',
+      'text-calendar-assessment'
     )
   })
 
@@ -358,19 +364,20 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Scheduled' })).toHaveClass(
-      'bg-amber-500/40',
-      'hover:bg-amber-500/60',
+      'bg-calendar-announcement-bg',
+      'hover:bg-calendar-announcement-hover',
+      'ring-calendar-announcement',
     )
   })
 
-  it('uses the announcement title as the calendar label and keeps it truncated', async () => {
+  it.each([false, true])('keeps the named announcement icon and tooltip available (weekend=%s)', async (isWeekend) => {
     renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
         day={new Date('2026-03-13T12:00:00.000Z')}
         lessonPlan={null}
         announcements={[titledAnnouncement]}
-        isWeekend={false}
+        isWeekend={isWeekend}
         isToday={false}
         editable={false}
         compact={false}
@@ -378,8 +385,11 @@ describe('LessonDayCell', () => {
     )
 
     const button = screen.getByRole('button', { name: titledAnnouncementTitle })
-    expect(button).toHaveClass('truncate')
-    expect(button).toHaveAttribute('title', titledAnnouncementTitle)
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    if (!isWeekend) {
+      expect(button).toHaveClass('truncate')
+      expect(button).toHaveAttribute('title', titledAnnouncementTitle)
+    }
 
     fireEvent.focus(button)
 

@@ -10,6 +10,20 @@ function readRepoFile(path: string): string {
 }
 
 describe('generated Supabase database contract', () => {
+  it('refines only SQL-nullable membership read inputs while retaining generated signatures', () => {
+    type Functions = Database['public']['Functions']
+    type RawFunctions = GeneratedDatabase['public']['Functions']
+    type NullableKeys = 'p_installation_ref' | 'p_canary_actor_id' | 'p_canary_classroom_id'
+    type Status = Functions['read_attendance_membership_status_v1']['Args']
+    type Owner = Functions['read_attendance_membership_session_for_owner_v1']['Args']
+    expectTypeOf<Status['p_installation_ref']>().toEqualTypeOf<string | null>()
+    expectTypeOf<Owner['p_installation_ref']>().toEqualTypeOf<string | null>()
+    expectTypeOf<Status['p_canary_actor_id']>().toEqualTypeOf<string | null | undefined>()
+    expectTypeOf<Owner['p_canary_classroom_id']>().toEqualTypeOf<string | null | undefined>()
+    expectTypeOf<Omit<Status, NullableKeys>>().toEqualTypeOf<Omit<RawFunctions['read_attendance_membership_status_v1']['Args'], NullableKeys>>()
+    expectTypeOf<Omit<Owner, NullableKeys>>().toEqualTypeOf<Omit<RawFunctions['read_attendance_membership_session_for_owner_v1']['Args'], NullableKeys>>()
+  })
+
   it('refines only the owner-workflow parent nullability used by inspect', () => {
     type RawArgs = GeneratedDatabase['public']['Functions']['test_owner_workflow_v1']['Args']
     type Args = Database['public']['Functions']['test_owner_workflow_v1']['Args']

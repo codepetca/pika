@@ -70,6 +70,7 @@ import { StudentTestAttemptPattern } from './StudentTestAttemptPattern'
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
+import { CalendarIdentityPattern } from './CalendarIdentityPattern'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentControllerPattern } from './AssignmentControllerPattern'
@@ -86,7 +87,8 @@ import { OwnedJoinedHomeMockup } from './OwnedJoinedHomeMockup'
 import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
-import { UiConsistencyPattern } from './UiConsistencyPattern'
+import { TooltipMotionPattern, UiConsistencyPattern } from './UiConsistencyPattern'
+import { TooltipAdoptionPattern } from './TooltipAdoptionPattern'
 import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { DialogEntryPattern } from './DialogEntryPattern'
@@ -674,6 +676,8 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
           </PatternSection>
         </div>
 
+        <TooltipMotionPattern />
+        <TooltipAdoptionPattern role={role} />
         <ClassroomsReadRecoveryPattern role={role} />
         <PatternSection
           id="dialog-entry-preview"
@@ -740,6 +744,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
           <div className="space-y-6 [&>section]:scroll-mt-28">
+            <CalendarIdentityPattern />
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
@@ -850,6 +855,8 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'statuses', label: 'Statuses — Labels and meanings' },
     { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
     { value: 'ui-consistency', label: 'Controls — Scoped menus and artifact targets' },
+    { value: 'tooltip-motion', label: 'Controls — Tooltip motion recovery' },
+    { value: 'tooltip-adopters', label: 'Controls — Tooltip adopter consistency' },
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
     ...(role === 'teacher' ? [

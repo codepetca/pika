@@ -35,6 +35,21 @@ export async function resolveAttendanceScanGeneration(input: {
   return parsed.data
 }
 
+/** Exact enrollment/binding/pointer proof for the adopted membership path.
+ * Missing schema is never permission to reuse a legacy participant identity.
+ * Learner read/write adoption selects this only as part of its complete boundary.
+ */
+export async function resolveAttendanceMembershipScanGeneration(input: {
+  supabase: Client; classroomId: string; studentId: string
+}): Promise<z.infer<typeof generationSchema>> {
+  const { data, error } = await input.supabase.rpc('resolve_attendance_membership_scan_generation', {
+    p_classroom_id: input.classroomId, p_student_id: input.studentId,
+  })
+  const parsed = generationSchema.safeParse(data)
+  if (error || !parsed.success) throw new AttendanceGenerationError()
+  return parsed.data
+}
+
 export function sameAttendanceScanGeneration(before: AttendanceScanGeneration, after: AttendanceScanGeneration) {
   if (before.status === 'forbidden' || after.status === 'forbidden') return false
   if (before.status === 'legacy' || after.status === 'legacy') return before.status === after.status

@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { sealAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
 
-const mocks = vi.hoisted(() => ({ generation: vi.fn(), classroomId: vi.fn() }))
+const mocks = vi.hoisted(() => ({ generation: vi.fn(), membershipGeneration: vi.fn(), classroomId: vi.fn() }))
 vi.mock('@/lib/server/attendance-generation', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/server/attendance-generation')>(),
   resolveAttendanceScanGeneration: mocks.generation,
+  resolveAttendanceMembershipScanGeneration: mocks.membershipGeneration,
 }))
 vi.mock('@/lib/server/classroom-attendance-qr', () => ({
   resolveClassroomAttendanceQrId: mocks.classroomId,
@@ -41,12 +42,54 @@ describe('attendance entry classroom display context', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', secret)
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
     mocks.generation.mockReset().mockResolvedValue({ status: 'legacy' })
+    mocks.membershipGeneration.mockReset().mockResolvedValue({ status: 'active',
+      generation_id: '40000000-0000-4000-8000-000000000001', participant_ref: `participant_${'a'.repeat(32)}` })
     mocks.classroomId.mockReset().mockResolvedValue(classroomId)
     membershipRead.mockReset().mockResolvedValue({ data: { classrooms: { title: 'Health for Life' } }, error: null })
     for (const key of Object.keys(filters)) delete filters[key]
   })
   afterEach(() => vi.unstubAllEnvs())
+
+  it.each(['student', 'teacher'])('uses and rechecks strict current membership for an admitted %s label', async role => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [studentId] }))
+    expect(await loadStudentAttendanceEntryClassroomName({ supabase, pikaUser: { ...pikaUser, role }, entryToken: entryToken() }))
+      .toBe('Health for Life')
+    expect(mocks.membershipGeneration).toHaveBeenCalledTimes(2)
+    expect(mocks.membershipGeneration).toHaveBeenCalledWith({ supabase, classroomId, studentId })
+    expect(mocks.generation).not.toHaveBeenCalled()
+    expect(filters).toEqual({ classroom_id: classroomId, student_id: studentId })
+  })
+
+  it.each(['occurrence', 'classroom'] as const)('withholds %s title when current membership changes during its read', async mode => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [studentId] }))
+    mocks.membershipGeneration.mockResolvedValueOnce({ status: 'active',
+      generation_id: '40000000-0000-4000-8000-000000000001', participant_ref: `participant_${'a'.repeat(32)}` })
+      .mockResolvedValue({ status: 'active', generation_id: '40000000-0000-4000-8000-000000000002', participant_ref: `participant_${'b'.repeat(32)}` })
+    expect(await loadStudentAttendanceEntryClassroomName({ supabase, pikaUser, mode,
+      entryToken: mode === 'classroom' ? 'a'.repeat(43) : entryToken() })).toBeUndefined()
+    expect(mocks.membershipGeneration).toHaveBeenCalledTimes(2)
+  })
+
+  it.each(['forbidden', 'unavailable'])('discloses no title when admitted membership is %s', async state => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [studentId] }))
+    if (state === 'forbidden') mocks.membershipGeneration.mockResolvedValue({ status: 'forbidden' })
+    else mocks.membershipGeneration.mockRejectedValue(new Error('missing membership resolver'))
+    expect(await loadStudentAttendanceEntryClassroomName({ supabase, pikaUser, entryToken: entryToken() })).toBeUndefined()
+    expect(membershipRead).not.toHaveBeenCalled()
+    expect(mocks.generation).not.toHaveBeenCalled()
+  })
+
+  it('withholds admitted metadata for malformed admission or a missing enrollment', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{')
+    expect(await loadStudentAttendanceEntryClassroomName({ supabase, pikaUser, entryToken: entryToken() })).toBeUndefined()
+    expect(membershipRead).not.toHaveBeenCalled()
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [studentId] }))
+    membershipRead.mockResolvedValue({ data: null, error: null })
+    expect(await loadStudentAttendanceEntryClassroomName({ supabase, pikaUser, entryToken: entryToken() })).toBeUndefined()
+    expect(mocks.membershipGeneration).toHaveBeenCalledTimes(1)
+  })
 
   it('loads only the signed-in student’s enrolled classroom for a verified occurrence token', async () => {
     expect(await loadStudentAttendanceEntryClassroomName({ supabase, pikaUser, entryToken: entryToken() }))

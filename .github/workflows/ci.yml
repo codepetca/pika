@@ -286,6 +286,9 @@ jobs:
       - name: Verify coordinated attendance decommission database contracts
         run: bash scripts/check-attendance-decommission-database.sh
 
+      - name: Verify current-membership attendance allocation and retained delivery
+        run: bash scripts/check-attendance-membership-adoption-database.sh
+
       - name: Verify contextual owner classroom list reorder transactions and privileges
         run: bash scripts/check-contextual-classroom-list-reorder-database.sh
 

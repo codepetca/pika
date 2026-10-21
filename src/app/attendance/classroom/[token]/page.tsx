@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { loadStudentAttendanceEntryClassroomName } from '@/lib/server/student-attendance-entry-context'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 import { StudentAttendanceCheckIn } from '../../check-in/[token]/StudentAttendanceCheckIn'
 
 export const dynamic = 'force-dynamic'
@@ -16,7 +17,8 @@ export default async function ClassroomAttendanceCheckInPage({ params }: PagePro
   const entryPath = `/attendance/classroom/${token}`
   const user = await getCurrentUser()
   if (!user) redirect(`/login?next=${encodeURIComponent(entryPath)}`)
-  const classroomName = user.role === 'student'
+  const canCheckIn = resolveClassroomExperienceAdmission(user).status === 'admitted' || user.role === 'student'
+  const classroomName = canCheckIn
     ? await loadStudentAttendanceEntryClassroomName({
         supabase: getServiceRoleClient(), pikaUser: user, entryToken: token, mode: 'classroom',
       })
@@ -25,7 +27,7 @@ export default async function ClassroomAttendanceCheckInPage({ params }: PagePro
   return (
     <StudentAttendanceCheckIn
       entryToken={token}
-      canCheckIn={user.role === 'student'}
+      canCheckIn={canCheckIn}
       mode="classroom"
       classroomName={classroomName}
     />
