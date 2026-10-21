@@ -902,3 +902,25 @@ preserve the accepted chip/icon treatment. The two-clock regression passes;
 desktop creation/edit browser contracts pass in both themes. Later mobile
 attempts hit page-loading timeouts under severe host load, without the former
 hydration error. Final focused checks and isolated mobile rerun remain gates.
+
+PR1648's corrected6d0286 head passed all CI lanes, including the previously
+failing browser matrix and PR Gate (run39634162305). Main advanced to the
+independently reviewed Tooltip PR1650 while CI ran. Rebased without app conflicts;
+our source/test/config patch remains identical. Reuse the calendar independent
+reviews and Tooltip1650's completed independent reviews/CI, then verify their
+composition: calendar hover/focus descriptions retire immediately, chips retain
+icons/title/activation, and the fixed-clock example still opens dialogs. Retain42
+recent entries with --keep60 (within the canonical60-entry cap) so no duplicate
+historical archive batch markers are introduced. Main's archive is unchanged and
+all historical text is preserved. Fresh composed local checks and final-head CI
+remain required before the authorized squash merge.
+
+Composed verification passed: normal focused90files/1,353tests, architecture,
+UI/design policy, TypeScript and lint;14Tooltip unit tests. Eight native contexts
+(teacher/student,1440fine/390touch,light/dark) verify fixed-clock teacher first
+click, Material/Announcement icons, focus descriptions, Escape semantic retirement
+and Material activation, with zero page errors. Current composed screenshots were
+visually inspected. Own feature patch is identical to independently reviewed6d0286;
+Tooltip source/contract is the reviewed1650 base. Reused coverage plus this
+composition check leaves no identified integration gap; final exact-head CI is
+still required. No additional independent reviewer turn or review finding fix.
