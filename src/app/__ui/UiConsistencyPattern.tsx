@@ -14,7 +14,6 @@ const artifacts: AssignmentArtifact[] = [
 /** Fixed data, actual production owners, and no API reads or writes. */
 export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) {
   const [result, setResult] = useState('No action selected')
-  const [tooltipAvailable, setTooltipAvailable] = useState(true)
   return <section id="ui-consistency" className="space-y-4">
     <Card tone="panel" padding="md">
       <h2 className="font-semibold">Menu keyboard and artifact targets</h2>
@@ -26,14 +25,6 @@ export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) 
         ]} />
         <Input aria-label="Text after menu" placeholder="Text after menu" className="w-48" />
         <span role="status">{result}</span>
-      </div>
-      <div className="mt-4 flex flex-wrap items-center gap-4">
-        <Tooltip content="Stationary tooltip example" openOnClick disabled={!tooltipAvailable}>
-          <Button variant="surface">Tooltip motion example</Button>
-        </Tooltip>
-        <Button variant="ghost" aria-pressed={!tooltipAvailable} onClick={() => setTooltipAvailable(value => !value)}>
-          {tooltipAvailable ? 'Disable tooltip example' : 'Enable tooltip example'}
-        </Button>
       </div>
     </Card>
     {role === 'teacher' ? <Card tone="panel" padding="sm">
@@ -48,5 +39,23 @@ export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) 
           dueAtMs={0} density="tight" loading={false} error="" />
       </PageDensityProvider>
     </Card> : null}
+  </section>
+}
+
+/** Availability recovery fixture; independent of the stable catalog composition. */
+export function TooltipMotionPattern() {
+  const [available, setAvailable] = useState(true)
+  return <section id="tooltip-motion" aria-label="Tooltip motion recovery">
+    <Card tone="panel" padding="md">
+      <h2 className="font-semibold">Tooltip motion</h2>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <Tooltip content="Stationary tooltip example" openOnClick disabled={!available}>
+          <Button variant="surface">Tooltip motion example</Button>
+        </Tooltip>
+        <Button variant="ghost" aria-pressed={!available} onClick={() => setAvailable(value => !value)}>
+          {available ? 'Disable tooltip example' : 'Enable tooltip example'}
+        </Button>
+      </div>
+    </Card>
   </section>
 }

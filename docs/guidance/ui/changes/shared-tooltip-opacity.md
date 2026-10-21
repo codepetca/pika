@@ -11,6 +11,7 @@ Primary signal: opacity only. Text position, font size and scale remain unchange
 | Trigger/delay/focus/hover | Tooltip / Radix | reuse | Existing working behavior |
 | Entry/exit presentation and close fencing | Shared Tooltip | extend | Existing shared owner has multiple real adopters |
 | Timing and visual reference | Fast duration, standard easing, Pattern Lab SplitButton | reuse | Existing Pika treatment |
+| Availability recovery evidence | Pattern Lab recovery compositions | extend | Render the shared owner with fixed state outside the stable catalog |
 
 Exclusions: mobile first-focus ancestor-scroll discovery finding remains separate; no global scroll-dismissal removal, chooser redesign, Tiptap Tooltip, new primitive/dependency, schema or production change. No stable canon promotion needed. Composite checklist reviewed: yes; direct semantic/keyboard tests and native browser verification required.
 
@@ -20,4 +21,4 @@ Acceptance: focused owner tests for actual pointerdown/click sequencing, keyboar
 
 The live Radix Content unmounts at logical close, releasing descriptions, child effects and document dismissal handlers. Retaining that owner for a CSS exit would keep its Escape layer active, so exit uses a decorative copy of the current safe DOM instead. The copy strips IDs, roles, link destinations and focus/event attributes, is inert and aria-hidden, and freezes the live viewport bounds and current opacity. No React child owner or listener is copied. Unsupported widget/media/custom-element subtrees close immediately. Reopen, disable, hidden document, reduced motion and unmount cancel the bounded visual lifetime.
 
-Pattern Lab's Tooltip motion example adds a deterministic availability toggle for both roles. The existing header, Formatting help and artifact table remain the primary real-owner references. No nearby component extraction is justified by this bounded change.
+Pattern Lab's Tooltip motion example adds a deterministic availability toggle for both roles in its own recovery section, after the stable catalog. The existing header, Formatting help and artifact table remain the primary real-owner references. The approved catalog composition and screenshot baselines remain unchanged. No nearby shared component extraction is justified by this bounded change.

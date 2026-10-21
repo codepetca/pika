@@ -160,9 +160,11 @@ describe('UiGallery accessibility contracts', () => {
     expect(section.querySelector<HTMLElement>('[data-menu-closing]')).not.toBeInTheDocument()
   })
 
-  it.each(['teacher', 'student'] as const)('UiConsistencyPattern retires tooltip descriptions when availability changes for %s', role => {
+  it.each(['teacher', 'student'] as const)('TooltipMotionPattern retires tooltip descriptions when availability changes for %s', role => {
     renderGallery(role)
-    const example = within(document.getElementById('ui-consistency')!)
+    const region = screen.getByRole('region', { name: 'Tooltip motion recovery' })
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(region)
+    const example = within(region)
     const trigger = example.getByRole('button', { name: 'Tooltip motion example' })
     fireEvent.click(trigger)
     expect(trigger).toHaveAccessibleDescription('Stationary tooltip example')
