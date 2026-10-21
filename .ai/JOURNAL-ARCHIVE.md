@@ -48227,3 +48227,22 @@ and exclusive spent marker retained; no historical attempt was replayed. Empty
 old-event history does not certify nonempty queued-fact retention. Final composed
 evidence review/CI remain; all production/shared-local249+/real-account/provider/
 billing/AI and admission/rollout holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:3b1e475d227821225851429460e81622d10e0d63b826991b366bc6137199e3ae -->
+## 2026-10-19 — Exact lifecycle migration profiles and early local selection
+
+Final CI rejected the complete272 source chain because historical lifecycle
+harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
+All eight source profiles and the offline prefix helper now append exact271/272
+filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
+unknown273 or missing/altered/reordered tails. Source-profile reproduction was
+RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
+passed; no SQL, application authorization or native bounds changed.
+
+The local import graph could not select SQL-filesystem consumers. Two real
+Vitest fixtures reproduced false-green selection in run/related modes; the
+focused runner now adds the existing closed-profile suite on migration SQL
+changes. All26 runner regressions pass. Root combined focused gate passes2,495
+tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
+271/272 bytes still match accepted native proofs, which were not rerun. Targeted
+independent review and corrected-head CI remain required. All holds persist.
