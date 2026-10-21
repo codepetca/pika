@@ -23,6 +23,93 @@
   line-height: inherit;
 }
 
+// Calendar selection changes available space, never lesson typography.
+.calendar-day-text.calendar-grid-text {
+  font-size: 0.625rem;
+  @apply leading-tight;
+  &:has(.ProseMirror) > .calendar-lesson-preview {
+    display: none;
+  }
+
+  .calendar-lesson-markdown,
+  .tiptap.ProseMirror {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    font-variant-ligatures: none;
+    font-feature-settings: "liga" 0;
+
+    > * {
+      margin: 0 !important;
+    }
+
+    > * + * {
+      @apply mt-1 #{!important};
+    }
+
+    p, ul, ol, li {
+      font-size: inherit;
+      line-height: inherit;
+      color: inherit;
+    }
+
+    h1, h2, h3 {
+      font-weight: 600;
+      @apply leading-tight;
+      color: inherit;
+    }
+
+    h1 { font-size: 0.75rem; }
+    h2 { font-size: 0.6875rem; }
+    h3 { font-size: 0.625rem; }
+
+    ul, ol {
+      @apply pl-5;
+      margin-bottom: 0;
+    }
+
+    li + li { @apply mt-1; }
+    li > p { margin: 0; line-height: inherit; }
+    strong { font-weight: 600; }
+
+    code {
+      font-family: var(--font-family-mono);
+      font-size: 0.9em;
+      line-height: inherit;
+      @apply px-1 py-0.5;
+      border: 0;
+      border-radius: 0.25rem;
+      background: var(--color-surface-2);
+      color: inherit;
+    }
+
+    pre {
+      overflow-x: auto;
+      @apply p-4;
+      border: 0;
+      border-radius: 0.5rem;
+      font-family: var(--font-family-mono);
+      font-size: inherit;
+      line-height: inherit;
+      background: var(--color-surface-2);
+      color: inherit;
+
+      code { padding: 0; font: inherit; @apply bg-transparent; }
+    }
+
+    blockquote {
+      @apply border-l-4 border-border-strong;
+      @apply py-0 pr-0 pl-3;
+      font-style: italic;
+      color: inherit;
+      &::before { display: none; }
+    }
+  }
+}
+
 // Placeholder text for empty editor
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);

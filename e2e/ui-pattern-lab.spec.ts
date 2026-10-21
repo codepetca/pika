@@ -1365,6 +1365,8 @@ test.describe('teacher Pattern Lab', () => {
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('region', { name: 'Material details' })).toBeVisible()
     await expect(dialog.getByRole('region', { name: 'Material editor' })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /^(Visual|Markdown|Apply Markdown|Discard Markdown)$/ })).toHaveCount(0)
+    await expect(dialog.locator('[data-toolbar-preset="markdown-safe"]')).toBeVisible()
     await expect(dialog.getByText('Ungraded classwork')).toHaveCount(0)
     await expect(preview).toHaveText('Preview')
     const control = (await preview.boundingBox())!

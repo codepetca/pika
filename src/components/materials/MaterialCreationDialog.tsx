@@ -1,10 +1,9 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Eye, X } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { Button, ContentDialog, DialogPanel, FormField, Input, SegmentedControl, SplitButton } from '@/ui'
-import { useMaterialMarkdownDraft } from '@/hooks/use-material-markdown-draft'
+import { Button, ContentDialog, DialogPanel, FormField, Input, SplitButton } from '@/ui'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { ContentField, RichTextEditor, RichTextViewer } from '@/components/editor'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
@@ -48,9 +47,7 @@ function MaterialEditor({
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const validSchedule = !!scheduleIso && isScheduleIsoInFuture(scheduleIso)
   const disabled = saving || readOnly
-  const markdown = useMaterialMarkdownDraft(content, disabled)
-  const markdownSourceRef = useRef<HTMLTextAreaElement>(null)
-  const saveDisabled = disabled || markdown.dirty
+  const saveDisabled = disabled
   const publishLabel = isScheduled ? 'Post now' : isDraft ? 'Post' : 'Save'
   const primaryLabel = action === 'draft' ? 'Save draft' : action === 'schedule' ? isScheduled ? 'Save schedule' : 'Schedule' : publishLabel
 
@@ -115,55 +112,19 @@ function MaterialEditor({
               />
             </div>
           </section>
-          <section aria-label="Material editor" className="flex min-h-96 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
-              <SegmentedControl
-                ariaLabel="Material editor mode"
-                value={markdown.mode}
-                onChange={markdown.changeMode}
-                options={[
-                  { value: 'visual', label: 'Visual', disabled: saving || markdown.dirty },
-                  { value: 'markdown', label: 'Markdown', disabled: saving },
-                ]}
+          <section aria-label="Material editor" className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
+            <ContentField label="Content" hideLabel collapseHiddenLabel className="flex min-h-0 flex-1 flex-col">
+              <RichTextEditor
+                content={content}
+                onChange={onContentChange}
+                editable={!disabled}
+                interactionActive={!previewOpen && !scheduleOpen}
+                placeholder="Add links, notes, readings, or instructions…"
+                toolbarPreset="markdown-safe"
+                aria-label="Material content"
+                className="simple-editor-wrapper--fill-height min-h-0 flex-1 overflow-hidden rounded-lg border border-border-strong"
               />
-              {markdown.dirty && <div className="flex flex-wrap items-center gap-2">
-                <Button variant="ghost" disabled={saving} onClick={() => { markdown.reset(); markdownSourceRef.current?.focus() }}>Discard Markdown</Button>
-                <Button disabled={!markdown.canApply} onClick={() => { markdown.apply(onContentChange); markdownSourceRef.current?.focus() }}>Apply Markdown</Button>
-              </div>}
-            </div>
-            {markdown.dirty && <p role="status" className="text-sm text-warning">Markdown edits not applied</p>}
-            {markdown.applied && <p role="status" className="text-sm text-success">Markdown applied to editor. Save or post to update the material.</p>}
-            {markdown.mode === 'markdown' && markdown.warnings.length > 0 && <div className="shrink-0 rounded-md border border-warning bg-warning-bg p-3 text-sm text-warning">
-              <p>{markdown.warnings.join(' ')} Applying Markdown replaces the current rich content. Review the preview first.</p>
-              {markdown.dirty && <label className="mt-2 flex min-h-control cursor-pointer items-center gap-2">
-                <input type="checkbox" className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" checked={markdown.acknowledged} disabled={disabled} onChange={(event) => markdown.setAcknowledged(event.target.checked)} />
-                Apply with simplified formatting
-              </label>}
-            </div>}
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {markdown.mode === 'markdown' ? <FormField label="Material Markdown" className="flex h-full min-h-64 flex-col">
-                <textarea
-                  ref={markdownSourceRef}
-                  value={markdown.markdown}
-                  readOnly={disabled}
-                  onChange={(event) => markdown.changeMarkdown(event.target.value)}
-                  spellCheck={false}
-                  className="min-h-64 w-full flex-1 rounded-control border border-border-strong bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                />
-              </FormField> : (
-              <ContentField label="Content" className="flex min-h-64 h-full flex-col">
-                <RichTextEditor
-                  content={content}
-                  onChange={onContentChange}
-                  editable={!disabled}
-                  placeholder="Add links, notes, readings, or instructions…"
-                  toolbarPreset="compact"
-                  aria-label="Material content"
-                  className="simple-editor-wrapper--fill-height min-h-0 flex-1 overflow-hidden rounded-lg border border-border-strong"
-                />
-              </ContentField>
-              )}
-            </div>
+            </ContentField>
           </section>
         </div>
       </CreationModalShell>
@@ -183,10 +144,7 @@ function MaterialEditor({
           <p className="text-sm font-medium text-text-muted">Material</p>
           <h2 className="mt-1 text-2xl font-semibold text-text-default">{title.trim() || 'Untitled material'}</h2>
         </div>
-        {markdown.dirty ? <div className="grid gap-4 sm:grid-cols-2">
-          <section aria-label="Current material content"><h3 className="mb-2 text-sm font-semibold">Current</h3><RichTextViewer content={content} /></section>
-          <section aria-label="Proposed material content"><h3 className="mb-2 text-sm font-semibold">Proposed</h3><RichTextViewer content={markdown.previewContent} /></section>
-        </div> : <RichTextViewer content={content} />}
+        <RichTextViewer content={content} />
       </ContentDialog>
     </>
   )

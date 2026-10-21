@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — CI signal-containment fixture repair
-
-PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.
-
-Bounded native GPT-6.1-sol/high analysis delivered a reproduced race and test-only proposal, independently verified; no runtime defect claimed. DeepSeek pause throughDec31 honored; weekly17% remaining, storage295GB healthy. Existing branding review/visual evidence reused; one targeted remediation review follows this test-only delta. No merge/deployment authorized by this continuation; target is a green, ready PR.
-
-## 2026-10-19 — Classroom-only browser titles
-
-User requests removing the Pika suffix and asks about truncation. BrowserTabProvider now supplies the full classroom name alone; no app-added ellipsis, hard character cap or inferred course-code shortening. Existing authorized state, color/icon behavior and home Pika title remain. UI brief: browser chrome, existing AppHeader/PatternLab identity reference; extend the existing metadata owner only; both roles, desktop/mobile, light/dark, class switch/edit/exit and long names. Current main attendance changes inherited; feature source preserved during history-only conflict resolution. Focused and browser verification plus proportional independent review and stable-head CI follow in PR1615. Risk none; no dependencies, new primitives, auth/schema/runtime policy changes.
-
 ## 2026-10-19 — Classroom header overflow fade
 
 User requested a subtle fade instead of the classroom header ellipsis. Extended AppHeader only: preserve full text/title, apply a 24px alpha mask only while overflowing, observe resize and loaded fonts, disconnect on cleanup. Reference: existing header and Pattern Lab application-header references; reuse geometry/palette/controls, extend classroom title, no new primitive or composite behavior. Teacher/student, desktop/mobile, light/dark, long/short names, rename and resize checked with screenshots; browser metadata cases retained. Added a deterministic long-name Pattern Lab reference. Risk none; no dependencies or schema changes. Focused checks, independent delta review and final-head CI tracked in PR1615; retained ignored artifacts/browser-tab-branding/header-fade. Weekly remaining2%; DeepSeek pause honored.
@@ -826,3 +816,15 @@ assignment-style Preview and verifies both panes. Existing keyboard/preview/focu
 pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
 light/dark local Playwright contracts PASS. PR returned to draft before changes;
 prior run cancelled by draft transition. No product/runtime/SQL change.
+
+## 2026-10-20 — Calendar cell text stability
+
+- Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
+- Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
+- Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.
+
+## 2026-10-20 — Material single-editor prototype parity and main sync
+
+Owner explicitly requested the assignment prototype's single formatted editor, removal of the Visual/Markdown switch, an extended review budget, Calendar conflict resolution and main merge for PR1639. MaterialCreationDialog now directly reuses RichTextEditor with the assignment toolbar preset and ContentField layout; existing JSON content is never converted. Removed the obsolete material Markdown draft/conversion owners and replaced their tests with direct editing/preview/manual-save checks. Preview, future Toronto scheduling, drafts, busy/read-only and delete contracts remain. UI brief: docs/guidance/ui/changes/material-assignment-parity.md; teacher authoring desktop/mobile x light/dark, both roles Calendar/navigation. No new dependencies or shared primitive.
+
+Synced main PR1640 while preserving lesson text anchors, editor handoff and main tests; material chips remain inside the measured Calendar wrapper. Historical log conflict preserves both archive receipts. Four real browser editor/preview/action/validation contracts and both-role Week/Month Calendar click/Back/Forward checks pass; all editor and Calendar matrix screenshots were inspected. Initial broad run5383pass/3fail: one stale toolbar expectation corrected; two existing test timeouts require serialized replay. Task dev server stopped after visual capture to reduce load. Focused gate, both-role Calendar visuals, targeted independent delta review and final-head CI are tracked in retained receipts; migration283 remains unapplied to shared environments. Budget extension permits this combined batch4 and targeted review; cumulative5reviewturns before extension, weekly67%remaining/storage271GBhealthy, DeepSeek pause honored. No production promotion or migration application.

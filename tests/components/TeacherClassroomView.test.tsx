@@ -1631,7 +1631,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
   })
 
-  it('uses the compact WYSIWYG preset for material content', async () => {
+  it('uses the assignment formatting toolbar in the single material editor', async () => {
     render(
       <TeacherClassroomView
         classroom={classroom}
@@ -1645,7 +1645,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
 
     const materialEditor = await screen.findByRole('textbox', { name: 'Material content' })
-    expect(materialEditor.closest('label')).toHaveClass('min-h-64')
+    expect(within(screen.getByRole('region', { name: 'Material editor' })).getByRole('textbox', { name: 'Material content' })).toBe(materialEditor)
     const dialog = screen.getByRole('dialog', { name: 'New Material' })
     expect(dialog).toHaveClass('h-[90dvh]')
     expect(within(dialog).getByRole('button', { name: 'Post' })).toBeInTheDocument()
@@ -1655,7 +1655,7 @@ describe('TeacherClassroomView', () => {
     expect(
       within(screen.getByRole('dialog', { name: 'New Material' }))
         .getByRole('toolbar', { name: 'Formatting options' }),
-    ).toHaveAttribute('data-toolbar-preset', 'compact')
+    ).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
   })
 
   it('disables classwork create and options actions for archived classrooms', async () => {

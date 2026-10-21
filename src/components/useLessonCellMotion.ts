@@ -44,8 +44,8 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
     const inner = innerRef.current
     if (!outer || !inner || !activeRef.current) return
     const height = inner.getBoundingClientRect().height
-    // The editor's initial null render is not its opening destination.
-    if (openingRef.current && height === 0) return
+    // The measured interior has a date header before the lazy editor mounts.
+    if (openingRef.current && (height === 0 || !inner.querySelector('[role="textbox"]'))) return
     const target = `${height}px`
     if (outer.style.height === target && timerRef.current !== null) return
     outer.style.height = target
@@ -59,9 +59,8 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
     const previous = previousRef.current
     previousRef.current = { owner, compact }
     const cached = visibleHeightRef.current
-    // A sibling in the same grid week can change this preview's density. Cache
-    // committed geometry before that render, rather than reading the new size
-    // and allowing the tallest auto-sized track to jump to its destination.
+    // Read-only selection has no prepare command. Cache committed geometry
+    // before its compact/expanded render so it shares the disclosure lifecycle.
     const compactChanged = previous?.owner === owner && previous.compact !== compact
     const pending = pendingRef.current ?? (compactChanged && cached?.owner === owner ? cached : null)
     pendingRef.current = null

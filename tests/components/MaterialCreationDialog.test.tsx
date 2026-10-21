@@ -7,7 +7,9 @@ import { TooltipProvider } from '@/ui'
 
 vi.mock('@/components/editor', () => ({
   ContentField: ({ children, label }: any) => <div>{label}{children}</div>,
-  RichTextEditor: ({ editable }: any) => <textarea aria-label="Material content" disabled={!editable} />,
+  RichTextEditor: ({ content, editable, onChange }: any) => <textarea aria-label="Material content" disabled={!editable}
+    value={content.content?.map((node: any) => node.content?.map((child: any) => child.text).join('')).join('\n')}
+    onChange={(event) => onChange({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: event.target.value }] }] })} />,
   RichTextViewer: ({ content }: any) => <div>{content.content?.map((node: any) => node.content?.map((child: any) => child.text).join('')).join('\n')}</div>,
 }))
 
@@ -17,10 +19,8 @@ const props = () => ({
   onTitleChange: vi.fn(), onContentChange: vi.fn(), onSave: vi.fn(), onClose: vi.fn(),
 })
 
-// MaterialCreationPattern renders this same production owner; cover its review/apply contract here.
-// TeacherClassroomView supplies the classroom/material key exercised by the owner-change test below.
-describe('Material Markdown review and apply', () => {
-  it('keeps edits local, previews before/after, then requires a separate save', async () => {
+describe('Material formatted editing', () => {
+  it('edits directly in one editor, previews current changes and saves only on explicit action', async () => {
     const user = userEvent.setup()
     const handlers = props()
     function ControlledEditor() {
@@ -28,80 +28,36 @@ describe('Material Markdown review and apply', () => {
       return <MaterialCreationDialog {...handlers} content={content} onContentChange={(next) => { handlers.onContentChange(next); setContent(next as typeof content) }} />
     }
     render(<ControlledEditor />, { wrapper: TooltipProvider })
-    const visual = screen.getByRole('button', { name: 'Visual', exact: true })
-    visual.focus()
-    await user.keyboard('{ArrowRight}')
-    expect(screen.getByRole('button', { name: 'Markdown', exact: true })).toHaveFocus()
-    expect(screen.getByRole('button', { name: 'Markdown', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(handlers.onContentChange).not.toHaveBeenCalled()
-    await user.clear(screen.getByRole('textbox', { name: 'Material Markdown' }))
-    await user.type(screen.getByRole('textbox', { name: 'Material Markdown' }), '# Updated reading')
-    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeDisabled()
-    expect(visual).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'Preview', exact: true }))
-    expect(within(screen.getByRole('region', { name: 'Current material content' })).getByText('Unsaved reading content')).toBeVisible()
-    expect(within(screen.getByRole('region', { name: 'Proposed material content' })).getByText('Updated reading')).toBeVisible()
-    expect(handlers.onContentChange).not.toHaveBeenCalled()
-    await user.keyboard('{Escape}')
-    expect(screen.getByRole('button', { name: 'Preview', exact: true })).toHaveFocus()
-    await user.click(screen.getByRole('button', { name: 'Apply Markdown' }))
-    expect(screen.getByRole('textbox', { name: 'Material Markdown' })).toHaveFocus()
-    expect(handlers.onContentChange).toHaveBeenCalledOnce()
-    expect(handlers.onContentChange.mock.calls[0][0].content[0].type).toBe('heading')
+    expect(screen.queryByRole('button', { name: /^(Visual|Markdown|Apply Markdown|Discard Markdown)$/ })).not.toBeInTheDocument()
+    const editor = screen.getByRole('textbox', { name: 'Material content' })
+    await user.clear(editor)
+    await user.type(editor, 'Updated reading')
+    expect(handlers.onContentChange).toHaveBeenCalled()
     expect(handlers.onSave).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Preview', exact: true }))
+    expect(within(screen.getByRole('dialog', { name: 'Material preview' })).getByText('Updated reading')).toBeVisible()
+    await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
     expect(handlers.onSave).toHaveBeenCalledWith(false)
   })
 
-  it('requires acknowledgment for lossy conversion and discards without replacing rich content', async () => {
+  it('opens and previews existing rich content without converting or replacing it', async () => {
     const user = userEvent.setup()
     const handlers = props()
-    const image = { type: 'doc' as const, content: [{ type: 'image', attrs: { src: 'https://example.com/diagram.png', alt: 'Diagram' } }] }
-    render(<MaterialCreationDialog {...handlers} content={image} />, { wrapper: TooltipProvider })
-    await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
-    expect(screen.getByText(/Images were simplified/)).toBeVisible()
-    await user.type(screen.getByRole('textbox', { name: 'Material Markdown' }), '\nExtra notes')
-    expect(screen.getByRole('button', { name: 'Apply Markdown' })).toBeDisabled()
-    await user.click(screen.getByRole('checkbox', { name: 'Apply with simplified formatting' }))
-    expect(screen.getByRole('button', { name: 'Apply Markdown' })).toBeEnabled()
-    await user.type(screen.getByRole('textbox', { name: 'Material Markdown' }), ' changed')
-    expect(screen.getByRole('button', { name: 'Apply Markdown' })).toBeDisabled()
-    await user.click(screen.getByRole('button', { name: 'Discard Markdown' }))
-    expect(screen.getByRole('textbox', { name: 'Material Markdown' })).toHaveFocus()
-    expect(screen.queryByRole('button', { name: 'Apply Markdown' })).not.toBeInTheDocument()
+    const content = { type: 'doc' as const, content: [{ type: 'image', attrs: { src: 'https://example.com/diagram.png', alt: 'Diagram' } }, ...handlers.content.content] }
+    const view = render(<MaterialCreationDialog {...handlers} content={content} />, { wrapper: TooltipProvider })
+    await user.click(screen.getByRole('button', { name: 'Preview', exact: true }))
+    expect(within(screen.getByRole('dialog', { name: 'Material preview' })).getByText('Unsaved reading content')).toBeVisible()
     expect(handlers.onContentChange).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
-  })
-
-  it('supports explicit clearing, guards read-only/saving states and resets drafts on reopen or owner change', async () => {
-    const user = userEvent.setup()
-    const handlers = props()
-    const view = render(<MaterialCreationDialog {...handlers} materialKey="one" />, { wrapper: TooltipProvider })
-    await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
-    await user.clear(screen.getByRole('textbox', { name: 'Material Markdown' }))
-    view.rerender(<MaterialCreationDialog {...handlers} materialKey="one" readOnly />)
-    expect(screen.getByRole('textbox', { name: 'Material Markdown' })).toHaveAttribute('readonly')
-    expect(screen.getByRole('button', { name: 'Apply Markdown' })).toBeDisabled()
-    view.rerender(<MaterialCreationDialog {...handlers} materialKey="one" saving />)
-    expect(screen.getByRole('button', { name: 'Apply Markdown' })).toBeDisabled()
-    view.rerender(<MaterialCreationDialog {...handlers} materialKey="one" />)
-    await user.click(screen.getByRole('button', { name: 'Apply Markdown' }))
-    expect(handlers.onContentChange).toHaveBeenCalledWith({ type: 'doc', content: [] })
-    await user.type(screen.getByRole('textbox', { name: 'Material Markdown' }), 'Unapplied')
-    view.rerender(<MaterialCreationDialog {...handlers} materialKey="two" />)
-    expect(screen.queryByText('Markdown edits not applied')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Visual', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
-    await user.type(screen.getByRole('textbox', { name: 'Material Markdown' }), 'Unapplied again')
-    view.rerender(<MaterialCreationDialog {...handlers} materialKey="two" isOpen={false} />)
-    view.rerender(<MaterialCreationDialog {...handlers} materialKey="two" />)
-    expect(screen.getByRole('button', { name: 'Visual', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(handlers.onContentChange).toHaveBeenCalledOnce()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    view.rerender(<MaterialCreationDialog {...handlers} content={content} readOnly />)
+    expect(screen.getByRole('textbox', { name: 'Material content' })).toBeDisabled()
   })
 })
 
 describe('Material creation', () => {
-  it('previews the current content without saving, and returns focus to the named icon', async () => {
+  it('previews the current content without saving, and returns focus to Preview', async () => {
     const user = userEvent.setup()
     const handlers = props()
     render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })

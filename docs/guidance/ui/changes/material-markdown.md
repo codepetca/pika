@@ -1,5 +1,9 @@
 # Material Markdown editing
 
+Historical proposal, superseded by the assignment-style single formatted editor.
+See [Material assignment parity](material-assignment-parity.md). The Visual/Markdown
+switch, conversion and Apply/Discard flow have been removed at the owner’s request.
+
 Surface: teacher Classwork Material dialog. Reference: the production-owned
 Material creation example in `/pattern-lab#material-creation`, with the existing
 Tests/Surveys explicit Apply Markdown behavior. This extends that owner, not the
