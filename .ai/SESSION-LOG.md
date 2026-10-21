@@ -814,3 +814,8 @@ PASS, fixture delete200. Existing preview test now awaits async navigation to av
 its broad-run race. Initial focused3563pass/13fail drove this batch; final focused
 and targeted rereview recorded in PR. Review ledger /tmp/pika-material-review-ledger.txt;
 worker/proof receipts private /tmp; tokens/time attribution unknown. No rollout.
+
+Final broad source-related run exposed8 more legacy current282 test-count
+assertions (4974passed/8failed); batch2 updates only those8 tests to current283
+and changes unknown-future cases to284. All701tests across those8 suites PASS.
+No product/proof runtime change; targeted rereview and final gate tracked in PR.
