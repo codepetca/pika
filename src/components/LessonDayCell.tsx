@@ -146,13 +146,6 @@ export const LessonDayCell = memo(function LessonDayCell({
       .replace(/\n{3,}/g, '\n\n')
       .trim()
   }, [renderPlainText, hasContent, markdown])
-  const previewClassName = compact || plainTextOnly
-    ? 'space-y-1 text-[10px] leading-tight [&_p]:text-[10px] [&_p]:leading-tight [&_ul]:text-[10px] [&_ol]:text-[10px] [&_blockquote]:text-[10px] [&_h1]:text-xs [&_h2]:text-[11px] [&_h3]:text-[10px]'
-    : 'space-y-2 text-sm leading-snug [&_p]:text-sm [&_ul]:text-sm [&_ol]:text-sm [&_blockquote]:text-sm [&_h1]:text-base [&_h2]:text-sm [&_h3]:text-sm'
-  const plainTextClassName = compact || plainTextOnly
-    ? 'text-[10px] leading-tight text-text-muted line-clamp-3 whitespace-pre-wrap'
-    : 'text-sm leading-snug text-text-muted whitespace-pre-wrap'
-
   const testLinks = tests.map(test => (
     <Tooltip key={test.id} content={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}>
       <Button variant="ghost" size="sm" aria-label={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}
@@ -217,6 +210,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   onEscape={() => finishEditing(true)}
                   toolbarPreset="brief"
                   autoFocus
+                  autoFocusScrollIntoView={false}
                   placeholder=""
                   aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
                   className="[&_.ProseMirror]:min-h-control [&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-relaxed"
@@ -280,8 +274,8 @@ export const LessonDayCell = memo(function LessonDayCell({
           ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         `}
       >
-        <div className={`px-0.5 ${compact ? 'py-0' : 'py-0.5'} text-center`}>
-          <span className={`font-medium text-text-muted ${compact ? 'text-xs' : 'text-sm'}`}>
+        <div className="px-0.5 py-0 text-center">
+          <span className="font-medium text-text-muted text-xs">
             {format(day, 'd')}
           </span>
         </div>
@@ -298,7 +292,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                     onAssignmentClick?.(assignments[0])
                   }
                 }}
-                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer ${compact ? 'h-4' : 'h-6'} ${
+                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer h-4 ${
                   assignments.some(a => a.is_draft) ? 'opacity-50' : ''
                 }`}
               />
@@ -321,7 +315,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   e.stopPropagation()
                   onAnnouncementClick?.()
                 }}
-                className={`w-full min-w-[12px] rounded cursor-pointer ${compact ? 'h-4' : 'h-6'} ${
+                className={`w-full min-w-[12px] rounded cursor-pointer h-4 ${
                   announcements.some(isScheduled)
                     ? 'bg-amber-500/40 hover:bg-amber-500/60'
                     : 'bg-amber-500 hover:bg-amber-600'
@@ -354,86 +348,102 @@ export const LessonDayCell = memo(function LessonDayCell({
         ${!editable && !hasContent && !isNonClassDay ? 'bg-surface-2/50' : ''}
       `}
     >
-      {/* Date header */}
-      <div className={`px-1 ${compact ? 'py-0' : 'py-0.5'} text-right`}>
-        <span
-          className={`
-            font-medium
-            ${compact ? 'text-xs' : 'text-sm'}
-            ${isToday ? 'text-primary' : 'text-text-muted'}
-          `}
-        >
-          {format(day, 'd')}
-        </span>
-      </div>
+      <div ref={outerRef} className="relative shrink-0 transition-[height] duration-standard ease-standard motion-reduce:transition-none">
+        <div ref={innerRef}>
+          {/* Date header */}
+          <div className="px-1 py-0 text-right">
+            <span
+              className={`
+                font-medium
+                text-xs
+                ${isToday ? 'text-primary' : 'text-text-muted'}
+              `}
+            >
+              {format(day, 'd')}
+            </span>
+          </div>
 
-      {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
-      {/* Assignment due dates - shown first */}
-      {assignments.length > 0 && (
-        <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
-          {assignments.map((assignment) => (
-            <Tooltip key={assignment.id} content={assignment.is_draft ? `[Draft] ${assignment.title}` : assignment.title}>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onAssignmentClick?.(assignment)
-                }}
-                className={`w-full min-w-0 rounded bg-primary-solid text-text-inverse font-medium hover:bg-primary-solid-hover text-center truncate ${
-                  compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
-                } ${assignment.is_draft ? 'opacity-50' : ''}`}
-              >
-                Due: {assignment.title}
-              </button>
-            </Tooltip>
-          ))}
-        </div>
-      )}
+          {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
+          {/* Assignment due dates - shown first */}
+          {assignments.length > 0 && (
+            <div className="min-w-0 px-0.5 space-y-0.5">
+              {assignments.map((assignment) => (
+                <Tooltip key={assignment.id} content={assignment.is_draft ? `[Draft] ${assignment.title}` : assignment.title}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAssignmentClick?.(assignment)
+                    }}
+                    className={`w-full min-w-0 rounded bg-primary-solid text-text-inverse font-medium hover:bg-primary-solid-hover text-center truncate text-[10px] px-0.5 py-px ${assignment.is_draft ? 'opacity-50' : ''}`}
+                  >
+                    Due: {assignment.title}
+                  </button>
+                </Tooltip>
+              ))}
+            </div>
+          )}
 
-      {/* Announcements - shown after assignments */}
-      {announcements.length > 0 && (
-        <div className={`min-w-0 ${compact ? 'px-0.5 space-y-0.5' : 'px-1 pb-1 space-y-1'}`}>
-          {announcements.map((announcement) => {
-            const scheduled = isScheduled(announcement)
-            const calendarLabel = getAnnouncementCalendarLabel(announcement, scheduled)
+          {/* Announcements - shown after assignments */}
+          {announcements.length > 0 && (
+            <div className="min-w-0 px-0.5 space-y-0.5">
+              {announcements.map((announcement) => {
+                const scheduled = isScheduled(announcement)
+                const calendarLabel = getAnnouncementCalendarLabel(announcement, scheduled)
 
-            return (
-              <Tooltip
-                key={announcement.id}
-                content={<AnnouncementTooltipContent announcements={[announcement]} />}
-                className="md:max-w-none"
-                align="start"
-                interactive
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onAnnouncementClick?.()
-                  }}
-                  title={calendarLabel}
-                  aria-label={calendarLabel}
-                  className={`w-full min-w-0 rounded font-medium text-center truncate ${
-                    compact ? 'text-[10px] px-0.5 py-px' : 'text-xs px-2 py-1'
-                  } ${
-                    scheduled
-                      ? 'bg-amber-500/40 text-amber-800 hover:bg-amber-500/60'
-                      : 'bg-amber-500 text-white hover:bg-amber-600'
-                  }`}
-                >
-                  {calendarLabel}
-                </button>
-              </Tooltip>
-            )
-          })}
-        </div>
-      )}
+                return (
+                  <Tooltip
+                    key={announcement.id}
+                    content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                    className="md:max-w-none"
+                    align="start"
+                    interactive
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onAnnouncementClick?.()
+                      }}
+                      title={calendarLabel}
+                      aria-label={calendarLabel}
+                      className={`w-full min-w-0 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${
+                        scheduled
+                          ? 'bg-amber-500/40 text-amber-800 hover:bg-amber-500/60'
+                          : 'bg-amber-500 text-white hover:bg-amber-600'
+                      }`}
+                    >
+                      {calendarLabel}
+                    </button>
+                  </Tooltip>
+                )
+              })}
+            </div>
+          )}
 
-      {/* Content area */}
-      <div className={`calendar-day-text min-h-0 ${compact ? 'px-0.5' : 'px-2 py-0.5'} [&_.ProseMirror]:!p-0 [&_.ProseMirror_p]:!my-0 overflow-hidden`}>
-        <div ref={outerRef} className="transition-[height] duration-standard ease-standard motion-reduce:transition-none">
-          <div ref={innerRef}>
-            {isEditing ? (
+          {/* Preview stays painted until the lazy editor can replace it in place. */}
+          <div className="calendar-day-text calendar-grid-text min-h-0 overflow-hidden px-0.5 text-[10px] leading-tight text-text-default">
+            <button
+              ref={element => {
+                editActionRef.current = element
+                element?.toggleAttribute('inert', isEditing)
+              }}
+              type="button"
+              disabled={isEditing}
+              aria-hidden={isEditing || undefined}
+              aria-label={editable ? `${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}` : undefined}
+              onClick={handleStartEditing}
+              className={`calendar-lesson-preview block w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
+            >
+              {hasContent ? (
+                renderPlainText ? (
+                  <div className={`text-[10px] leading-tight text-text-muted whitespace-pre-wrap ${compact || plainTextOnly ? 'line-clamp-3' : ''}`}>{plainText}</div>
+                ) : (
+                  <LimitedMarkdown content={markdown} className="calendar-lesson-markdown" emptyPlaceholder={null} />
+                )
+              ) : null}
+            </button>
+            {isEditing && (
               <MarkdownContentEditor
                 markdown={localMarkdown}
                 onMarkdownChange={handleMarkdownChange}
@@ -441,34 +451,11 @@ export const LessonDayCell = memo(function LessonDayCell({
                 onEscape={() => finishEditing(true)}
                 toolbarPreset="brief"
                 autoFocus
+                autoFocusScrollIntoView={false}
                 placeholder=""
                 aria-label={`Lesson plan for ${format(day, 'MMMM d, yyyy')}`}
-                className={`[&_.simple-editor-content]:overflow-hidden [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0 ${
-                  compact ? '[&_.ProseMirror]:text-[10px] [&_.ProseMirror]:leading-tight' : '[&_.ProseMirror]:text-sm [&_.ProseMirror]:leading-snug'
-                }`}
+                className="[&_.simple-editor-content]:overflow-hidden [&_.ProseMirror]:!min-h-0 [&_.ProseMirror]:!p-0"
               />
-            ) : (
-              <button
-                ref={editActionRef}
-                type="button"
-                aria-label={editable ? `${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}` : undefined}
-                onClick={handleStartEditing}
-                className={`w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
-              >
-                {hasContent ? (
-                  renderPlainText ? (
-                    <div className={plainTextClassName}>
-                      {plainText}
-                    </div>
-                  ) : (
-                    <LimitedMarkdown
-                      content={markdown}
-                      className={`${previewClassName} text-text-muted`.trim()}
-                      emptyPlaceholder={null}
-                    />
-                  )
-                ) : null}
-              </button>
             )}
           </div>
         </div>

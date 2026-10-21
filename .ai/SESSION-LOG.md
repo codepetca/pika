@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Classroom browser tab branding
-
-Added classroom titles, palette-colored Pika favicons and browser theme-color hints; home uses the existing white/black mark for the app theme. Reused authorized classroom state and the original logo/palette; extended the root head owner to avoid streamed metadata replacing classroom titles. No dependencies or schema changes. Risk: none.
-UI brief: browser chrome; AppHeader/classroom identity and Pattern Lab header references; teacher/student × 1440×900 and 390×844 × light/dark. States: initial load, navigation, classroom switch/edit, theme toggle, exit. No composite interaction changes or experimental canon. Fixtures isolate browser metadata from the full classroom bundle; full local classroom capture timed out under memory pressure and the local DB stack later became unavailable. Eight fixture/browser cases and 58 focused regressions passed; 16/32/64px favicon assets visually inspected. Evidence: ignored artifacts/browser-tab-branding and the browser suite. Required focused gate, draft PR and independent review follow in the PR/lifecycle record.
-Coordinator owns codex/classroom-tab-branding; direct implementation. Startup usage: 20% weekly remaining; storage healthy (~272 GB free). Full checks serialized after memory/swap contention; aborted unrestricted/contending attempts retained in /tmp/pika-tab-*.log. No per-task token or active-time attribution available.
-
 ## 2026-10-19 — CI signal-containment fixture repair
 
 PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.
@@ -780,3 +774,9 @@ tokens not fully attributable; bounded delegation outcomes verified.
 Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
 policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
 unchanged after these checks; final independent review/CI recorded in PR1638.
+
+## 2026-10-20 — Calendar cell text stability
+
+- Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
+- Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
+- Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.

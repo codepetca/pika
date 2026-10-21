@@ -11,12 +11,12 @@ let reduced = false
 let frames: Map<number, FrameRequestCallback>
 let nextFrame = 0
 
-function Harness({ owner = 'day-1', compact = false }: { owner?: string; compact?: boolean }) {
+function Harness({ owner = 'day-1', compact = false, editorReady = true }: { owner?: string; compact?: boolean; editorReady?: boolean }) {
   const [open, setOpen] = useState(false)
   const { outerRef, innerRef, prepare } = useLessonCellMotion(open, owner, compact)
   return <><button onClick={() => { prepare(); setOpen(value => !value) }}>Toggle</button>
     <div data-testid="outer" ref={outerRef} style={{ '--motion-duration-standard': '200ms' } as CSSProperties}>
-      <div data-testid="inner" ref={innerRef}>{open ? 'Editor' : 'Preview'}</div>
+      <div data-testid="inner" ref={innerRef}>{open && editorReady ? <div role="textbox">Editor</div> : 'Preview'}</div>
     </div></>
 }
 
@@ -117,6 +117,19 @@ describe('calendar disclosure geometry', () => {
     naturalHeight = 300
     act(() => resize())
     expect(outer.style.height).toBe('')
+  })
+
+  it('does not treat the date header or preview fallback as the late editor destination', () => {
+    const { outer, rerender, flushFrame } = setup()
+    rerender(<Harness editorReady={false} />)
+    naturalHeight = 24
+    fireEvent.click(screen.getByText('Toggle'))
+    flushFrame()
+    expect(outer.style.height).toBe('80px')
+    naturalHeight = 200
+    rerender(<Harness />)
+    act(() => resize())
+    expect(outer.style.height).toBe('200px')
   })
 
   it('holds the visible opening height until the asynchronously mounted editor has geometry', () => {
