@@ -6,7 +6,12 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
 source_version="$(docker exec supabase_db_pika psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]]
-((10#$source_version >= 234 && 10#$source_version <= 283))
+# The privilege-free snapshot must predate 283 so its RPC ACLs are replayed.
+# An already-283 snapshot would restore v3 with default PUBLIC execution access.
+if ! ((10#$source_version >= 234 && 10#$source_version <= 282)); then
+  echo 'Material scheduling proof requires a source migration baseline from 234 through 282; source 283+ is unsupported because snapshot ACLs are omitted.' >&2
+  exit 1
+fi
 scratch=$(mktemp -d /tmp/pika-material-replay.XXXXXX)
 name=pika-material-schedule-$$
 image=$(docker inspect supabase_db_pika --format '{{.Image}}')

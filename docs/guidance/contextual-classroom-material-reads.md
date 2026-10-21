@@ -12,7 +12,7 @@ review and all five exact-head CI gates. Its dormant consumer remains unactivate
 | Handler | Contextual permission | Preserved resource rules |
 |---|---|---|
 | `GET /api/teacher/classrooms/[id]/materials` | Owner, regardless of global role | Archived owners may read; drafts and published materials remain owner-visible |
-| `GET /api/student/classrooms/[id]/materials` | Active member, regardless of global role | Drafts stay hidden through the existing `is_draft = false` query |
+| `GET /api/student/classrooms/[id]/materials` | Active member, regardless of global role | Drafts and future releases stay hidden through publication and release-time predicates |
 
 The server authenticates before resolving route parameters, then resolves ownership
 or active membership from trusted classroom/enrollment records. A teacher-valued
@@ -55,8 +55,12 @@ missing-position query after an error.
 Each payload query is rooted in `classrooms`. Owner requests bind the current
 `teacher_id` to the authenticated actor; archived owners may read. Member requests
 bind a current enrollment in the same statement, exclude the current owner even
-if historically self-enrolled, require an unarchived classroom and filter only
-`is_draft = false`. A null or future `released_at` does not hide a non-draft material.
+if historically self-enrolled, require an unarchived classroom and filter
+`is_draft = false` plus `released_at IS NULL OR released_at <= cutoff`. A future
+`released_at` hides a scheduled material from members; a null release retains the
+historical non-draft compatibility behavior. One cutoff is captured for the complete
+read, and every shared payload page independently rejects returned future releases.
+Owners retain scheduled materials in their projection.
 The material embedding is a left join so authorized empty or all-draft classrooms
 remain distinguishable from absent relationship evidence. Preflight reads establish
 404/403 distinctions only, not authorization for later payload statements.
@@ -101,3 +105,19 @@ The current material UI is reused unchanged. No navigation, visual pattern, sign
 creation, joining, entitlement, migration or production setting changes in this slice.
 The classroom page gate must remain disabled while material writes and the other
 reachable classroom domains are still role-bound.
+
+## Verification helpers
+
+`scripts/check-contextual-material-read.ts` verifies the actual SDK wire projection,
+1,007 owner rows versus 1,005 member rows, future-release exclusion, and microsecond
+keyset pagination. Member requests append separate publication and cursor OR
+parameters; instrumentation inspects all values so it cannot confuse the first
+publication predicate with the pagination cursor. This native proof commits and
+cleans exact synthetic fixtures in the shared local stack; do not run it while
+shared database writes are held.
+
+`scripts/check-material-release-scheduling-database.sh` writes only to its owned,
+disposable schema clone. Supported source migration baselines are 234–282. The
+schema-only dump omits ACLs, so migration 283 must be replayed to establish and
+verify the scheduling RPC grants. A source already at 283 or later is rejected
+before a clone is created; its ACLs cannot be reconstructed by this helper.

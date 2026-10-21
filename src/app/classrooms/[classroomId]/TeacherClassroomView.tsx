@@ -350,6 +350,12 @@ function TeacherMaterialDialog({
   const { showMessage } = useAppMessage()
   const isReadOnly = !!classroom.archived_at
   const isDraft = material?.is_draft ?? true
+  const activeSaveOwnerRef = useRef(isOpen)
+
+  useEffect(() => {
+    activeSaveOwnerRef.current = isOpen
+    return () => { activeSaveOwnerRef.current = false }
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -380,13 +386,19 @@ function TeacherMaterialDialog({
       )
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save material')
+      if (!activeSaveOwnerRef.current) {
+        invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+        invalidateCachedJSON(`student-materials:${classroom.id}`)
+        window.dispatchEvent(new CustomEvent(CLASSWORK_MATERIALS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
+        return
+      }
       onSaved(data.material as ClassworkMaterial)
       showMessage({ text: nextDraft ? 'Material saved as draft.' : scheduledFor ? 'Material scheduled.' : 'Material saved.', tone: 'success' })
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save material')
+      if (activeSaveOwnerRef.current) setError(err instanceof Error ? err.message : 'Failed to save material')
     } finally {
-      setSaving(false)
+      if (activeSaveOwnerRef.current) setSaving(false)
     }
   }
 
@@ -587,6 +599,7 @@ export function TeacherClassroomView({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
+  const materialUrlOwnerRef = useRef<string | null>(null)
   const [creatingSurvey, setCreatingSurvey] = useState(false)
   const surveyCreationPendingRef = useRef(false)
   const surveyCloseRef = useRef<(() => Promise<void>) | null>(null)
@@ -770,6 +783,7 @@ export function TeacherClassroomView({
     setSelection({ mode: 'summary' })
     setEditAssignment(null)
     setEditMaterial(null)
+    setIsMaterialModalOpen(false)
     setPendingMaterialDelete(null)
     setPendingSurveyDelete(null)
     setSurveyModalId(null)
@@ -795,9 +809,16 @@ export function TeacherClassroomView({
   }, [classroom.id, loadAssignments])
 
   useEffect(() => {
-    if (!isActive || !selectedMaterialId || loadedClassroomId !== classroom.id) return
+    const owner = isActive && selectedMaterialId ? `${classroom.id}:${selectedMaterialId}` : null
+    if (materialUrlOwnerRef.current && materialUrlOwnerRef.current !== owner) {
+      setIsMaterialModalOpen(false)
+      setEditMaterial(null)
+      materialUrlOwnerRef.current = null
+    }
+    if (!owner || loadedClassroomId !== classroom.id) return
     const selected = materials.find((item) => item.id === selectedMaterialId)
     if (selected) {
+      materialUrlOwnerRef.current = owner
       setEditMaterial(selected)
       setIsMaterialModalOpen(true)
     }
@@ -3075,6 +3096,7 @@ export function TeacherClassroomView({
       />
 
       <TeacherMaterialDialog
+        key={`${classroom.id}:${editMaterial?.id ?? 'new'}`}
         classroom={classroom}
         material={editMaterial}
         isOpen={isMaterialModalOpen}

@@ -2693,7 +2693,7 @@ _None_
       expect(openArgs?.[2]).toContain('popup=yes')
       expect(openArgs?.[2]).toContain('width=')
       expect(openArgs?.[2]).toContain('height=')
-      expect(replaceSpy).toHaveBeenCalledWith('/classrooms/classroom-1/tests/test-preview-action-id/preview')
+      await waitFor(() => expect(replaceSpy).toHaveBeenCalledWith('/classrooms/classroom-1/tests/test-preview-action-id/preview'))
 
       const patchCall = fetchMock.mock.calls.find(
         (call: any[]) =>

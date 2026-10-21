@@ -84,6 +84,7 @@ async function main() {
     let pages = 0
     let firstId: string | null = null
     const cursors: Array<string | null> = []
+    let publicationFilter: string | undefined
     const client = createClient<Database>(status.API_URL, status.SERVICE_ROLE_KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
       global: { fetch: async (input, init) => {
@@ -110,7 +111,22 @@ async function main() {
             assert.equal(url.searchParams.get('archived_at'), 'is.null')
             assert.equal(url.searchParams.get('materials.is_draft'), 'eq.false')
           }
-          cursors.push(url.searchParams.get('materials.or'))
+          // PostgREST appends both OR parameters; the first is publication, not a cursor.
+          const filters = url.searchParams.getAll('materials.or')
+          const publication = filters.filter(value => value.startsWith('(released_at.is.null,released_at.lte.'))
+          const cursor = filters.filter(value => !publication.includes(value))
+          if (permission === 'member') {
+            assert.equal(publication.length, 1, 'Every member page retains its release cutoff')
+            assert.match(publication[0], /^\(released_at\.is\.null,released_at\.lte\.\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\)$/)
+            publicationFilter ??= publication[0]
+            assert.equal(publication[0], publicationFilter, 'One release cutoff spans all member pages')
+          } else {
+            assert.equal(publication.length, 0, 'Owners retain future material visibility')
+          }
+          assert.equal(cursor.length, pages === 1 ? 0 : 1, 'Only later payload pages carry a keyset cursor')
+          assert.equal(filters.length, (permission === 'member' ? 1 : 0) + cursor.length,
+            'Publication and cursor remain separate appended OR predicates')
+          cursors.push(cursor[0] ?? null)
           if (pages === options.beforePage) options.mutation?.()
           if (options.pageSize !== undefined) url.searchParams.set('materials.limit', String(options.pageSize))
           if (pages === options.schemaErrorAt) {
@@ -198,7 +214,7 @@ async function main() {
     assert.equal(owner.materials[0].source_blueprint_version_id, null)
     assert.equal(owner.materials[0].source_artifact_id !== null, true)
     assert.equal(owner.materials[1].id, draft)
-    assert.equal(owner.materials[2].id, future)
+    assert.equal(owner.materials[2].id, future, 'Owners retain scheduled material visibility')
     assert.deepEqual(owner.materials.slice(3, 6).map(row => row.id), [nullRelease, late, early],
       'Owner order uses created_at, preserving microsecond distinctions')
     const ownerBulk = owner.materials.filter(row => row.position === 10)
@@ -206,13 +222,13 @@ async function main() {
     assert.deepEqual(ownerBulk.map(row => row.id), [...ownerBulk.map(row => row.id)].sort(), 'Owner tied rows use ID keyset')
     const memberTrace = instrument(memberTeacher, classA, 'member')
     const member = await read(memberTeacher, classA, 'member', memberTrace.client)
-    assert.equal(member.materials.length, 1006)
+    assert.equal(member.materials.length, 1005)
     assert.equal(memberTrace.pages(), 3)
     assert(!member.materials.some(row => row.id === draft))
-    assert(member.materials.some(row => row.id === future), 'Future released_at alone is not a visibility gate')
+    assert(!member.materials.some(row => row.id === future), 'Future releases stay hidden from members')
     assert.deepEqual(member.materials.filter(row => row.position === -2).map(row => row.id), [early, late, nullRelease],
       'Member order retains microseconds and puts null release last')
-    assert.equal((await read(memberStudent, classA, 'member')).materials.length, 1006)
+    assert.equal((await read(memberStudent, classA, 'member')).materials.length, 1005)
     const bOwner = await read(ownerTeacher, classB, 'owner')
     assert.deepEqual(bOwner.materials.map(row => row.id), [bIds[1], bIds[0], bIds[2], bIds[3]],
       'Owner tied positions follow created_at microseconds before ID')
@@ -237,7 +253,7 @@ async function main() {
     assert.equal(historical.materials.length, 4)
     assert(historical.materials.every(row => row.created_by === ownerTeacher), 'Transferred authorship remains historical')
     resetB()
-    process.stdout.write('PASS live material SDK 1007/1006 complete keysets, two global roles, full projection, rich content, ordering, owner/member visibility and current relationships\n')
+    process.stdout.write('PASS live material SDK 1007/1005 complete keysets, two global roles, full projection, rich content, ordering, owner/member visibility and current relationships\n')
 
     sql(`update public.classwork_materials set content='null'::jsonb where id='${bIds[0]}' and classroom_id='${classB}';`)
     for (const [actor, permission] of [[ownerTeacher, 'owner'], [memberTeacher, 'member']] as const) {

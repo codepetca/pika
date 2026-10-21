@@ -800,3 +800,17 @@ No file conflicts. Weekly remaining71% at start; storage healthy275GB. Effective
 worker config, attributable tokens/time unknown; one interrupted default-wide
 focused run due contention, replaced with bounded2-worker final run. DeepSeek
 owner pause through2026-12-31 respected. No hosted rollout or migration claim.
+
+PR1639 initial independent Sol6.1/high reviews accepted4 findings. Batch1 adds
+exact283 source seal and closed-profile extensions (historical prefixes retained,
+unknown284 rejected), retires URL-owned material dialogs on Back/selection/class
+changes and fences late save callbacks, corrects native material-read proof/docs
+for hidden future releases and separate release/cursor filters, and restricts
+privilege-free clone baselines to234–282. Native shared fixture proof intentionally
+not run; disposable proof rerun PASS/clean containers. Profiles968 tests and
+teacher authoring/TestDetail150 tests PASS, plus late-save regression. Real browser
+Back closes and Forward reopens exact material for teacher; both-role destinations
+PASS, fixture delete200. Existing preview test now awaits async navigation to avoid
+its broad-run race. Initial focused3563pass/13fail drove this batch; final focused
+and targeted rereview recorded in PR. Review ledger /tmp/pika-material-review-ledger.txt;
+worker/proof receipts private /tmp; tokens/time attribution unknown. No rollout.

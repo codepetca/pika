@@ -1,6 +1,7 @@
 /** Exact source-only271–281 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
+import { validateMaterialReleaseSchedulingReviewedMigration } from './material-release-scheduling-reviewed-migration'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
@@ -22,7 +23,7 @@ export const LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS = Object.freeze([
 
 export function validateLifecycleServicesReviewedMigrations(migrations: readonly { name: string; sql: string; sha256: string }[]) {
   validateAssignmentListMigrationChain(migrations)
-  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
+  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
   for (const [index, seal] of LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS.entries()) {
     if (migrations.length < 271 + index) continue
     const migration = migrations[270 + index]
@@ -31,4 +32,5 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), seal.sha256)
   }
   if (migrations.length >= 282) validateDataApiGrantsReviewedMigration(migrations[281])
+  if (migrations.length >= 283) validateMaterialReleaseSchedulingReviewedMigration(migrations[282])
 }

@@ -1589,6 +1589,48 @@ describe('TeacherClassroomView', () => {
     expect(params.has('materialId')).toBe(false)
   })
 
+  it('follows Back and Forward for URL-owned material dialogs without closing a local new-material dialog', async () => {
+    const material = makeMaterialSummary('material-history', 'History reading')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const view = render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} isActive />, { wrapper: TooltipProvider })
+    await screen.findByRole('dialog', { name: 'Material' })
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive={false} />)
+    expect(screen.queryByRole('dialog', { name: 'Material' })).not.toBeInTheDocument()
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} isActive />)
+    await screen.findByRole('dialog', { name: 'Material' })
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive />)
+    expect(screen.queryByRole('dialog', { name: 'Material' })).not.toBeInTheDocument()
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+    view.rerender(<TeacherClassroomView classroom={{ ...classroom }} selectedMaterialId={null} isActive />)
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+    view.rerender(<TeacherClassroomView classroom={{ ...classroom, id: 'replacement-classroom' }} selectedMaterialId={null} isActive />)
+    expect(screen.queryByRole('dialog', { name: 'New Material' })).not.toBeInTheDocument()
+  })
+
+  it('keeps a late material save from closing a replacement local material dialog', async () => {
+    const material = makeMaterialSummary('material-late-save', 'Prior reading')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const response = createDeferred<any>()
+    vi.mocked(fetch).mockReturnValueOnce(response.promise)
+    const view = render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} isActive />, { wrapper: TooltipProvider })
+    const dialog = await screen.findByRole('dialog', { name: 'Material' })
+    await waitFor(() => expect(within(dialog).getByPlaceholderText('Title')).toHaveValue('Prior reading'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(fetch).toHaveBeenCalled())
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive={false} />)
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedMaterialId={null} isActive />)
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+    await act(async () => response.resolve({ ok: true, json: async () => ({ material }) }))
+    expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+  })
+
   it('uses the compact WYSIWYG preset for material content', async () => {
     render(
       <TeacherClassroomView
