@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Prepare contextual owner attendance-policy read
-
-Prepared admitted GET-only attendance settings with one bounded service-only273
-snapshot: current owner, lifecycle fences, unchanged attendance entitlement or
-exact canary and the existing nullable policy DTO. Legacy GET/PUT remain intact.
-Invoker gains only decommission classroom-id SELECT; provider columns/writes stay
-revoked. No provider or UI change. Feature76 checks and hardened SQL-source5,
-native-leaf15, CI/source22 and predecessor-profile1,123 checks pass (overlapping
-counts, not summed); architecture, targeted lint and shell syntax pass. Genuine
-273 metadata is pending; the only two TypeScript errors are its missing generated
-RPC keys, not hidden by casts. This source preparation is not native acceptance,
-PR readiness, a phase exit or rollout. All production/shared-local/real-state and
-activation holds persist. Sol6.1/high supplied bounded product, native leaf and
-existing-runner extension; coordinator owns integration/review and acceptance.
-
 ## 2026-10-19 — Complete attendance fixture graph preservation
 
 Independent review found omitted trigger-created membership generations in the
@@ -861,3 +846,9 @@ registry and launches its immutable cached image ID with pull-never. Shell-drive
 registry/missing-cache/identity tests reproduce the failure; a fresh full isolated
 run passed through real metadata equality and positive cleanup. No SQL/runtime
 change or production/provider action; corrected-head review/CI still required.
+
+## 2026-10-21 — Shared Tooltip stationary opacity
+
+Shared Tooltip now uses semantic fast opacity entry and a bounded decorative exit with fixed text geometry. Logical close unmounts live Radix content, descriptions, child owners and document handlers immediately. Only whitelisted static text/formatting/link/SVG DOM is copied, with IDs, roles, targets and focus/event attributes removed and inert/hidden pointer fencing. Unsupported widgets/media/custom content closes immediately; reopen, disabled/hidden/unmount and reduced motion retire the copy. No public API or dependency change. Pattern Lab includes an availability toggle for both roles; the separate mobile ancestor-scroll hint discovery issue remains open.
+
+Owner14 and gallery52 tests pass. Initial canonical focused3,690/274 plus architecture/UI/design policy, TypeScript, lint and audit pass; the final corrected gate is recorded with the PR. Independent review identified a first-hover regression after enabling: a fresh available pointer entry now clears the stale-open fence, while disabled clicks cannot release pending hover work. Three regressions and eight native availability cases cover the correction. Native16 role/viewport/theme/motion contexts verify fades, stationary bounds/font/text, immediate semantic retirement and existing focus/hover/touch paths. Four extra native lifecycle cases verify rapid reopen, live reduced motion, retired link fencing and second-Escape ownership; current screenshots inspected. Rework retained privately: replaced live Radix exit after its Escape-layer leak, fixed screenshot/capture readiness and owner matching, and held exit opacity through timer removal. Independent stable-SHA review and exact-head CI/PR Gate remain required before merge. The first CI attempt caught the added availability row changing catalog screenshot height (+60 desktop/+120 mobile). The recovery fixture moved after the stable catalog, with a placement regression and four unchanged local catalog goldens passing; the shared Tooltip owner is unchanged by this correction. Broad fluidity goal and existing production/schema/dependency/privacypriority1/Calendar1217 holds remain.

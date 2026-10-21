@@ -160,6 +160,25 @@ describe('UiGallery accessibility contracts', () => {
     expect(section.querySelector<HTMLElement>('[data-menu-closing]')).not.toBeInTheDocument()
   })
 
+  it.each(['teacher', 'student'] as const)('TooltipMotionPattern retires tooltip descriptions when availability changes for %s', role => {
+    renderGallery(role)
+    const region = screen.getByRole('region', { name: 'Tooltip motion recovery' })
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(region)
+    const example = within(region)
+    const trigger = example.getByRole('button', { name: 'Tooltip motion example' })
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAccessibleDescription('Stationary tooltip example')
+    fireEvent.click(example.getByRole('button', { name: 'Disable tooltip example' }))
+    expect(example.getByRole('button', { name: 'Enable tooltip example' })).toHaveAttribute('aria-pressed', 'true')
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    fireEvent.click(trigger)
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    fireEvent.click(example.getByRole('button', { name: 'Enable tooltip example' }))
+    expect(example.getByRole('button', { name: 'Tooltip motion example' })).toBe(trigger)
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAccessibleDescription('Stationary tooltip example')
+  })
+
   it.each(['teacher', 'student'] as const)('previews shared menu retirement and dialog focus handoff for %s', role => {
     renderGallery(role)
     const example = within(screen.getByTestId('page-action-icons-example'))
