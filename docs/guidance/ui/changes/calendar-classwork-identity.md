@@ -6,6 +6,12 @@ color (that light green), announcement can be the current orange”. The owner
 also selected the prototype's FileText and ListChecks icons and requested them
 beside created items in the Classwork list and in future prototypes and work.
 
+Owner refinement 2026-10-21: the saturated announcement orange was too loud,
+and Material/Survey should be distinct. Restore Material to the first
+prototype’s quiet slate theme, retain Survey light green, and soften
+Announcement to peach-orange. This supersedes the initial shared green and
+strong orange treatments; the icon convention remains approved.
+
 ## Acceptance target
 
 - Surface: Calendar week, month, term, weekend and presented-day chips;
@@ -28,7 +34,8 @@ beside created items in the Classwork list and in future prototypes and work.
 | Executable reference | Pattern Lab feature patterns | extend | Deterministic production owner and shared icon examples |
 
 Exact theme values live only in `src/styles/tokens.css`. Use the
-`calendar-assessment`, `calendar-resource` and `calendar-announcement` Tailwind
+`calendar-assessment` (due/tests), `calendar-resource` (slate Material),
+`calendar-survey` (light-green Survey) and `calendar-announcement` (soft peach) Tailwind
 color groups, including their `bg` and `hover` variants. These encode content
 identity, independently of success, warning, or completion status.
 

@@ -55,6 +55,8 @@ describe('UiGallery accessibility contracts', () => {
     fireEvent.click(example.getByRole('button', { name: 'Grid', exact: true }))
     expect(example.getByRole('button', { name: 'Material: Ecosystem reading' })).toBeVisible()
     expect(example.getByRole('button', { name: 'Material: Ecosystem reading' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(example.getByRole('button', { name: 'Material: Ecosystem reading' }))
+    expect(example.getByRole('status')).toHaveTextContent('Open material')
   })
 
   it.each(['teacher', 'student'] as const)('preserves the full classroom header name for %s', (role) => {

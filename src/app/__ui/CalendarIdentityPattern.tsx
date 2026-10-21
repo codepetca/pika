@@ -35,7 +35,7 @@ export function CalendarIdentityPattern() {
   const [selected, setSelected] = useState('Example only—nothing is saved.')
   return <section id="calendar-identity" data-testid="calendar-identity-pattern" className="space-y-4">
     <h3 className="font-semibold">Calendar themes and Classwork identity</h3>
-    <p className="text-sm text-text-muted">Due dates and tests share amber. Material and survey share quiet green. Announcements retain orange. Icons identify content type, independently of status.</p>
+    <p className="text-sm text-text-muted">Due dates and tests share amber. Materials use quiet slate; surveys use light green. Announcements use soft peach-orange. Icons identify content type, independently of status.</p>
     <SegmentedControl ariaLabel="Identity calendar layout" value={layout} onChange={setLayout}
       options={[{ value: 'agenda', label: 'Week' }, { value: 'grid', label: 'Grid' }]} />
     <Card tone="panel" padding="none" className={layout === 'grid' ? 'max-w-sm' : undefined}>
@@ -46,7 +46,7 @@ export function CalendarIdentityPattern() {
         onMaterialClick={() => setSelected('Open material')} onAnnouncementClick={() => setSelected('Open announcement')} />
     </Card>
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ghost" size="sm" className="bg-calendar-resource-bg text-calendar-resource hover:bg-calendar-resource-hover"
+      <Button variant="ghost" size="sm" className="bg-calendar-survey-bg text-calendar-survey hover:bg-calendar-survey-hover"
         onClick={() => setSelected('Open survey')}><ClassworkTypeIcon type="survey" />Survey: Field trip check-in</Button>
       <span className="text-xs text-text-muted">Survey identity preview; calendar scheduling is unchanged.</span>
     </div>

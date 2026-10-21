@@ -118,6 +118,11 @@ const config: Config = {
             bg: 'var(--color-calendar-resource-bg)',
             hover: 'var(--color-calendar-resource-hover)',
           },
+          survey: {
+            DEFAULT: 'var(--color-calendar-survey)',
+            bg: 'var(--color-calendar-survey-bg)',
+            hover: 'var(--color-calendar-survey-hover)',
+          },
           announcement: {
             DEFAULT: 'var(--color-calendar-announcement)',
             bg: 'var(--color-calendar-announcement-bg)',

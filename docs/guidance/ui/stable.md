@@ -290,14 +290,17 @@ Owner approved 2026-10-21; see [the change brief](./changes/calendar-classwork-i
 Apply this convention to future prototypes and product work:
 
 - Calendar due dates and tests share the soft amber assessment theme.
-- Materials and surveys share the quiet light-green resource theme.
-- Announcements retain their stronger orange theme.
+- Materials use the original quiet slate resource theme.
+- Surveys use a distinct light-green survey theme.
+- Announcements use a soft peach-orange theme with a subtle fill.
+  These refinements supersede the initial shared-green/saturated-orange choice
+  following owner feedback on 2026-10-21.
 - Category color does not replace a type label or communicate completion/urgency status.
 - Use Lucide FileText for Material and ListChecks for Survey, including creation
   menus and icons beside existing teacher/student Classwork titles. Assignment
   keeps ClipboardList. Reuse the feature-owned `ClassworkTypeIcon` mapping.
 - Theme values are owned by `src/styles/tokens.css`; use the semantic
-  `calendar-assessment`, `calendar-resource`, and `calendar-announcement` color
+  `calendar-assessment`, `calendar-resource`, `calendar-survey`, and `calendar-announcement` color
   groups. Do not substitute status tokens or invent new palettes in prototypes.
 - Pattern Lab's `calendar-identity` reference renders the production calendar
   owner and shared type icons. This convention adds no survey scheduling.
