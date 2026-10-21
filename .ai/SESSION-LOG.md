@@ -859,3 +859,21 @@ change in this documentation update.
 Aligned the existing teacher/student account menu with Pattern Lab action-menu motion: semantic fast opacity at a fixed position, retaining immediate inert/hidden close and shared keyboard/focus ownership. Native baseline covered 16 contexts and reproduced the prior 4px slide/200ms timing; the new motion regression fails against that baseline. Existing owner/hook tests pass (9). Expanded browser coverage checks natural motion, rapid reopen, theme, Feedback focus and dismissal without submitting Feedback or Logout. Final visual/focused checks, independent review and exact-head CI follow before main merge.
 
 CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
+
+## 2026-10-21 — Production migrations 283–284 verified; promotion prepared
+
+Owner explicitly approved one production283+284 attempt after preview39595410439
+showed both pending. Apply39595797114 returned applied-verified at07:58Toronto,
+complete001–284 history; sourceef6b4b5bbe4122bf6381d027cb9247b0ef0814a9,
+CI39539800203 verified the complete Supabase tree. Both SQL files were reviewed;
+approval is consumed and does not authorize a retry or another migration.
+Read-only production checks matched all10 function bodies, postgres ownership,
+empty search paths, definer status and restricted ACLs; five guards enabled.
+Both new private attendance tables are empty, RLS-protected and inaccessible
+directly to browser/service roles. No production fixtures or feature activation.
+Prior282 control audit remains historical; unrelated holds and local249+ unchanged.
+Receipts: ~/.codex/receipts/production-migrations/2026-10-21T115811Z/.
+Draft productionPR1644 batches main attendance foundation, material scheduling,
+account-menu motion and readiness guidance. Cumulative Sol6.1/high integration
+review found no blocker; one interrupted attempt resumed without a replacement.
+This receipt goes through main before the final promotion review/PR Gate.
