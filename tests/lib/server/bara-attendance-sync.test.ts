@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { deliverBaraAttendanceMessage } = vi.hoisted(() => ({
   deliverBaraAttendanceMessage: vi.fn(),
@@ -74,6 +74,7 @@ function client(rpc: ReturnType<typeof vi.fn>, rows: unknown[] = []) {
 }
 
 describe('Pika attendance source snapshot sync', () => {
+  afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
     vi.clearAllMocks()
     process.env.BARA_ATTENDANCE_INSTALLATION_REF = 'pika_local'
@@ -291,9 +292,10 @@ describe('Pika attendance source snapshot sync', () => {
     expect(deliverBaraAttendanceMessage).not.toHaveBeenCalled()
   })
 
-  it('stages only a higher-revision empty schedule while a revoked classroom deactivates', async () => {
+  it.each([false, true])('stages only an empty deactivation schedule (membership adoption: %s)', async (membershipAware) => {
+    const prepareRpc = membershipAware ? 'prepare_attendance_membership_snapshot_v1' : 'prepare_attendance_snapshot_v2'
     const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
-      if (name === 'prepare_attendance_snapshot_v2') {
+      if (name === prepareRpc) {
         return {
           data: {
             integration_mode: 'deactivating',
@@ -351,12 +353,13 @@ describe('Pika attendance source snapshot sync', () => {
       windowEnd: '2026-11-03',
       integrationState: 'ready',
       scopeMode: 'teacher_entitlements',
+      ...(membershipAware ? { membershipAware: true as const } : {}),
     })).resolves.toEqual({
       roster: { outcome: 'not_required', revision: 0 },
       schedule: { outcome: 'applied', revision: 5 },
     })
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
-      'prepare_attendance_snapshot_v2',
+      prepareRpc,
       'stage_attendance_schedule_snapshot_v2',
     ])
     expect(deliverBaraAttendanceMessage).toHaveBeenCalledWith(expect.objectContaining({
@@ -408,5 +411,75 @@ describe('Pika attendance source snapshot sync', () => {
       scheduleThrough: '2026-11-02',
       integrationState: 'ready', scopeMode: 'teacher_entitlements',
     })).resolves.toMatchObject({ schedule: { revision: 4 } })
+  })
+
+  it.each(['teacher_entitlements', 'exact_canary'] as const)(
+    'binds admitted membership preparation and staging to the exact %s scope', async (scopeMode) => {
+      vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'true')
+      vi.stubEnv('BARA_ATTENDANCE_API_BASE_URL', 'https://attendance.example.com')
+      vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'a'.repeat(40))
+      vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID', teacherId)
+      vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID', classroomId)
+      const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+        if (name === 'prepare_attendance_membership_snapshot_v1') return { data: prepared, error: null }
+        if (name === 'stage_attendance_membership_roster_snapshot_v1'
+          || name === 'stage_attendance_timing_schedule_v1') {
+          const roster = name === 'stage_attendance_membership_roster_snapshot_v1'
+          expect(JSON.stringify(args.p_message)).not.toContain('generation_id')
+          expect(JSON.stringify(args.p_message)).not.toContain('student_id')
+          return { data: {
+            outbox_id: roster ? outboxOne : outboxTwo,
+            idempotency_key: 'source-revision', revision: roster ? 2 : 4, status: 'pending',
+          }, error: null }
+        }
+        throw new Error(`Unexpected RPC ${name}`)
+      })
+      deliverBaraAttendanceMessage.mockResolvedValue({ outcome: 'applied', revision: 2 })
+      await syncTeacherAttendanceSources({
+        supabase: client(rpc), teacherId, classroomId, windowStart: '2026-11-02', windowEnd: '2026-11-03',
+        integrationState: 'ready', scopeMode, membershipAware: true,
+      })
+      const scope = { p_scope_mode: scopeMode, p_at: expect.any(String),
+        p_canary_actor_id: scopeMode === 'exact_canary' ? teacherId : null,
+        p_canary_classroom_id: scopeMode === 'exact_canary' ? classroomId : null }
+      expect(rpc).toHaveBeenCalledWith('prepare_attendance_membership_snapshot_v1', {
+        p_teacher_id: teacherId, p_classroom_id: classroomId,
+        p_window_start: '2026-11-02', p_window_end: '2026-11-03', ...scope,
+      })
+      expect(rpc).toHaveBeenCalledWith('stage_attendance_membership_roster_snapshot_v1', {
+        p_teacher_id: teacherId, p_classroom_id: classroomId,
+        p_source_token: prepared.roster_source_token, p_message: expect.any(Object), ...scope,
+      })
+      expect(rpc.mock.calls.map(([name]) => name)).toEqual([
+        'prepare_attendance_membership_snapshot_v1', 'stage_attendance_membership_roster_snapshot_v1',
+        'stage_attendance_timing_schedule_v1',
+      ])
+    },
+  )
+
+  it('never falls back to legacy preparation if the admitted RPC is missing', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'missing membership RPC' } })
+    await expect(syncTeacherAttendanceSources({
+      supabase: client(rpc), teacherId, classroomId, windowStart: '2026-11-02', windowEnd: '2026-11-03',
+      integrationState: 'ready', scopeMode: 'teacher_entitlements', membershipAware: true,
+    })).rejects.toMatchObject({ code: 'migration_required' })
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc).toHaveBeenCalledWith('prepare_attendance_membership_snapshot_v1', expect.any(Object))
+    expect(deliverBaraAttendanceMessage).not.toHaveBeenCalled()
+  })
+
+  it('denies a mismatched canary even if a caller supplied a ready transport state', async () => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'true')
+    vi.stubEnv('BARA_ATTENDANCE_API_BASE_URL', 'https://attendance.example.com')
+    vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'a'.repeat(40))
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID', teacherId)
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID', outboxOne)
+    const rpc = vi.fn()
+    await expect(syncTeacherAttendanceSources({
+      supabase: client(rpc), teacherId, classroomId, windowStart: '2026-11-02', windowEnd: '2026-11-03',
+      integrationState: 'ready', scopeMode: 'exact_canary', membershipAware: true,
+    })).rejects.toMatchObject({ code: 'disabled' })
+    expect(rpc).not.toHaveBeenCalled()
+    expect(deliverBaraAttendanceMessage).not.toHaveBeenCalled()
   })
 })

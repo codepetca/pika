@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Preserve rename-source evidence in local and CI selection
-
-Review277 identified a rename-out edge in migration test discovery. Real staged
-and committed SQL-to-docs moves reproduced false-green docs-only checks. Local
-committed/working diffs now disable rename collapsing; the existing CI classifier
-does the same. A separate real-Git API/SQL/browser-to-docs counterexample failed
-before this correction. All40 focused/classifier tests and root combined2,498/94
-focused checks plus policies, TypeScript, lint and audit pass. No workflow,
-application, schema, dependency, native capability or activation change. Targeted
-review and exact-head CI are still required; production and rollout stay held.
-
 ## 2026-10-19 — Prepare contextual owner attendance-policy read
 
 Prepared admitted GET-only attendance settings with one bounded service-only273
@@ -833,3 +822,42 @@ Owner regressions cover inert closing presentation, stale callbacks, rapid reope
 Audited shared Tooltip on main192f4cbff with 16 current native role/viewport/theme/motion contexts and an interactive keyboard follow-up. Confirmed immediate Tooltip closing versus the shared fast-opacity reference; pointer/touch/keyboard focus and interactive hover paths work. Mobile first artifact focus can lose its hint when the table scrolls; settled refocus and the three-link keyboard chooser work. Recorded the separate low-priority issue and the retained-role/link retirement requirement for a future fade in `docs/guidance/ui/tooltip-motion-audit-2026-10-21.md`.
 
 One existing Tooltip owner test passes. Source/media hashes, 14 accepted screenshots, raw measurements and diagnosed harness/source-audit corrections are retained privately. This delivery changes audit documentation only; Tooltip implementation and stable canon remain unchanged. Broad UI fluidity goal stays open, with production/migrations/dependencies/privacy priority1 and old Calendar1217 holds preserved.
+
+## 2026-10-21 — Connected attendance membership preparation
+
+Prepared dormant285: admitted current owners of either account label retain exact
+WorkOS linkage and canary/entitlement checks; legacy dispatch is unchanged.
+Atomic exact-enrollment allocation, roster source/staging, retained-reference
+ingestion, closed delivery and a strict scan resolver form one connected group.
+Unknown historical generations remain unknown; owner history and existing
+cleanup/decommission fences remain. Learner reads/overrides/confirmation/cache
+adoption are still separate. Astra/high delivered SQL/native fixtures; Sol/high
+integrated exact source profiles. Final source profile1117checks, runtime289checks,
+full TypeScript and audit pass. First schema-only fixture failed missing historical
+settings; full001–285 offline replay corrected the fixture model and passed actual
+rollback behavior, genuine metadata and unchanged shared schema. Owned containers
+were removed and evidence retained privately. A complementary full replay then
+passed actual two-session prepare/prepare and prepare/removal/staging races,
+fresh committed-state checks, retained facts and positive connection/container
+closure. The exact CI proof inventory adds this isolated check without dropping
+historical lanes. Independent review, final focused gate and stable-head CI
+remain pending. No production/shared-local
+migration, live provider, configuration, account or rollout action occurred.
+
+CI exposed an obsolete decommission fixture expectation:285 correctly rejects
+closed-reference reuse before the historical283 capture guard. Returned1647 to
+draft; the fixture now requires the exact installed guard/SQLSTATE and proves
+no mapping or tombstone mutation. Its guarded offline-clone mode lets the new
+runner execute the entire old decommission matrix for both owner labels after
+genuine001–285 replay. One fresh isolated run passed that matrix, membership
+rollback/concurrency, metadata equality, unchanged shared243 and owned cleanup.
+SQL285 and runtime code are unchanged; targeted review and corrected-head CI
+remain required. Production and live-provider holds are unchanged.
+
+The next CI run passed both native behavior matrices and actual concurrency,
+then exposed a cached image alias mismatch: CI uses GHCR, local uses ECR.
+The runner now preflights the same pinned metadata version in either reviewed
+registry and launches its immutable cached image ID with pull-never. Shell-driven
+registry/missing-cache/identity tests reproduce the failure; a fresh full isolated
+run passed through real metadata equality and positive cleanup. No SQL/runtime
+change or production/provider action; corrected-head review/CI still required.

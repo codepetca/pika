@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutDataApiProof = (source: string) => source.replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
+const withoutMembershipAdoptionProof = (source: string) => source.replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutDataApiProof = (source: string) => withoutMembershipAdoptionProof(source).replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
 const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutGuidancePreviewProof = (source: string) => withoutGuidanceAdoptionProof(source).replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutClassroomGuidanceProof = (source: string) => withoutGuidancePreviewProof(source).replace(/^      - name: Verify contextual owner frozen classroom authoring guidance and privileges\n[\s\S]*?(?=^      - name:)/m, '')
@@ -16,7 +17,7 @@ const withoutSessionProof = (source: string) => withoutReportProof(source).repla
 
 describe('explicit Data API grant proof inventory', () => {
   it('preserves the complete historical inventory and adds one runtime proof', () => {
-    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const current = selectPlan(extractWorkflow(withoutMembershipAdoptionProof(workflow())), 'database')[0]
     const historical = selectPlan(extractWorkflow(withoutDataApiProof(workflow())), 'database')[0]
     expect(current.steps.filter(step => !step.name.startsWith('Verify explicit '))).toEqual(historical.steps)
     expect(current.steps.filter(step => step.run === 'bash scripts/check-data-api-grants-database.sh')).toHaveLength(1)
@@ -27,6 +28,25 @@ describe('explicit Data API grant proof inventory', () => {
     const replacement = defect === 'missing' ? '' : defect === 'duplicate' ? block + block
       : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
       : block.replace('check-data-api-grants-database.sh', 'check-data-api-grants-database.sh --skip')
+    expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
+
+describe('attendance membership proof inventory', () => {
+  it('adds only the complete isolated proof while retaining the exact historical inventory', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const historical = selectPlan(extractWorkflow(withoutMembershipAdoptionProof(workflow())), 'database')[0]
+    const command = 'bash scripts/check-attendance-membership-adoption-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(historical.steps)
+  })
+  it.each(['changed-command', 'conditional', 'duplicate', 'renamed'])('rejects %s isolated membership proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : defect === 'renamed' ? block.replace('allocation and retained delivery', 'renamed proof')
+      : block.replace('adoption-database.sh', 'adoption-database.sh --skip')
     expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
   })
 })

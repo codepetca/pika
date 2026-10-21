@@ -978,6 +978,33 @@ authored rollback fixtures are not native database acceptance; independent
 review, final-head CI and normal main merge remain required. All production,
 shared-local249+, live-provider, configuration and activation holds remain.
 
+The opaque foundation subsequently merged as PR1636 (`668dd6c8786`) with
+migration283, independent review and exact-head CI39529980510. It remains
+dormant; its merge did not adopt the learner policy or apply shared-local SQL.
+
+The next connected source group prepares migration285 and an admitted owner
+sync path. Current ownership and verified WorkOS subject/email/local UUID linkage
+authorize either account label; absent or unmatched admission retains teacher-only
+dispatch. The existing exact-canary or attendance-entitlement scope is rechecked,
+not replaced by admission. Under the membership lock, preparation allocates one
+fresh opaque participant reference for the exact current enrollment, with stable
+same-generation retries and independent168/171 evidence. An unknown historical
+association is never upgraded from dates or current enrollment. A private
+transaction-scoped capability permits only the exact pointer transition.
+
+Roster source tokens and staging bind current enrollment and participant evidence
+without adding local identities to provider payloads. Closed-reference delivery,
+event replay and reconciliation retain their fences after pointer replacement;
+bounded historical reference resolution preserves owner history. A separate
+strict scan resolver requires exact current enrollment/binding/pointer evidence
+and never falls back on missing schema. Learner status, scan, override attribution,
+confirmation and cache adoption are still the following complete boundary—not
+implicitly enabled by this group. Override-generation writes remain closed.
+Source/unit tests, a disposable offline migration replay and rollback behavior,
+genuine metadata, independent review and exact-head CI remain acceptance gates.
+No new provider calls, production/shared-local migration, configuration or rollout
+activation is authorized by this preparation.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

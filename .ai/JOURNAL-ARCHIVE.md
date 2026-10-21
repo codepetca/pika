@@ -48246,3 +48246,15 @@ changes. All26 runner regressions pass. Root combined focused gate passes2,495
 tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
 271/272 bytes still match accepted native proofs, which were not rerun. Targeted
 independent review and corrected-head CI remain required. All holds persist.
+
+<!-- pika-session-log-archive-batch:daa7400afc43a158d97045de9136e208cfcd233d50d69335cf0186b3e6bd98e1 -->
+## 2026-10-19 — Preserve rename-source evidence in local and CI selection
+
+Review277 identified a rename-out edge in migration test discovery. Real staged
+and committed SQL-to-docs moves reproduced false-green docs-only checks. Local
+committed/working diffs now disable rename collapsing; the existing CI classifier
+does the same. A separate real-Git API/SQL/browser-to-docs counterexample failed
+before this correction. All40 focused/classifier tests and root combined2,498/94
+focused checks plus policies, TypeScript, lint and audit pass. No workflow,
+application, schema, dependency, native capability or activation change. Targeted
+review and exact-head CI are still required; production and rollout stay held.

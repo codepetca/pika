@@ -17,7 +17,7 @@ beforeEach(() => {
   writeFileSync(join(fixtureDirectory, 'docker'), `#!/bin/bash
 set -eu
 case "$1" in
-  inspect) printf '%s\\n' "$FIXTURE_PROJECT_LABEL" ;;
+  inspect) printf '%s\\n' "\${FIXTURE_CLONE_INSPECTION:-$FIXTURE_PROJECT_LABEL}" ;;
   port) printf '%s\\n' "$FIXTURE_DB_BINDING" ;;
   exec) printf '%s\\n' "fixture-database-exec:$*" ;;
   *) exit 99 ;;
@@ -29,8 +29,8 @@ afterEach(() => {
   rmSync(fixtureDirectory, { recursive: true, force: true })
 })
 
-function runFixture(project: string, binding: string) {
-  return spawnSync('/bin/bash', [script], {
+function runFixture(project: string, binding: string, args: string[] = [], cloneInspection = '') {
+  return spawnSync('/bin/bash', [script, ...args], {
     encoding: 'utf8',
     env: {
       ...process.env,
@@ -38,11 +38,60 @@ function runFixture(project: string, binding: string) {
       BASH_ENV: '',
       FIXTURE_PROJECT_LABEL: project,
       FIXTURE_DB_BINDING: binding,
+      FIXTURE_CLONE_INSPECTION: cloneInspection,
     },
   })
 }
 
 describe('attendance decommission database harness portability', () => {
+  it('expects the exact installed tombstone guard and verifies failed reuse leaves no state', () => {
+    const source = readFileSync(script, 'utf8')
+    expect(source).toContain("to_regprocedure('private.attendance_pointer_mutation_allowed(jsonb,jsonb)')")
+    expect(source).not.toContain("to_regprocedure('private.attendance_participant_generation_closed(text)')")
+    expect(source).toContain("when sqlstate '55000' then")
+    expect(source).toContain("if sqlerrm is distinct from v_reuse_error then raise;end if;")
+    expect(source).toContain("then 'attendance_membership_generation_closed' else 'attendance_participant_association_conflict' end")
+    expect(source).toContain('Closed reference reuse persisted a mapping or changed its tombstone')
+    expect(source).toContain('v_tombstone is distinct from (select to_jsonb(association)')
+  })
+
+  it('allows only an explicitly owned immutable offline clone', () => {
+    const id = 'a'.repeat(64)
+    const result = runFixture('', '', ['--container-id', id, '--owner', '123:proof'],
+      `${id}|123:proof|false|none|0||true`)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.match(/fixture-database-exec/g)).toHaveLength(2)
+    expect(result.stdout).toContain(`exec -i ${id}`)
+    const source = readFileSync(script, 'utf8')
+    for (const guard of ['pika.attendance-membership.owner', '.HostConfig.NetworkMode',
+      '.HostConfig.PortBindings', '.NetworkSettings.Ports', '.State.Running']) expect(source).toContain(guard)
+  })
+
+  it.each([
+    'wrong|123:proof|false|none|0||true',
+    `${'a'.repeat(64)}|456:other|false|none|0||true`,
+    `${'a'.repeat(64)}|123:proof|true|none|0||true`,
+    `${'a'.repeat(64)}|123:proof|false|bridge|0||true`,
+    `${'a'.repeat(64)}|123:proof|false|none|1||true`,
+    `${'a'.repeat(64)}|123:proof|false|none|0|bound|true`,
+    `${'a'.repeat(64)}|123:proof|false|none|0||false`,
+  ])('rejects a mismatched clone inspection before SQL: %s', inspection => {
+    const result = runFixture('', '', ['--container-id', 'a'.repeat(64), '--owner', '123:proof'], inspection)
+    expect(result.status).toBe(2)
+    expect(result.stdout).not.toContain('fixture-database-exec')
+  })
+
+  it.each([
+    ['--container-id', 'supabase_db_pika', '--owner', '123:proof'],
+    ['--container-id', 'a'.repeat(64), '--owner', ''],
+    ['--container-id', 'a'.repeat(64)],
+    ['--unexpected'],
+  ].map(args => [args]))('rejects malformed clone arguments %j', args => {
+    const result = runFixture('pika', '0.0.0.0:54322', args)
+    expect(result.status).toBe(2)
+    expect(result.stdout).not.toContain('fixture-database-exec')
+  })
+
   it('scrubs every captured legacy reference atomically at the existing participant phase', () => {
     const source = readFileSync(script, 'utf8')
     for (const assertion of [

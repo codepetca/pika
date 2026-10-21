@@ -3,16 +3,20 @@ import { NextRequest } from 'next/server'
 
 const {
   requireRole,
+  authorizeSharedAttendancePolicyActor,
   assertTeacherCanMutateClassroom,
   syncTeacherAttendanceSources,
   resolveVerifiedPikaAttendanceTeacher,
+  resolveVerifiedPikaAttendanceOwner,
   assertBaraAttendanceCanaryClassroom,
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
+  authorizeSharedAttendancePolicyActor: vi.fn(),
   assertTeacherCanMutateClassroom: vi.fn(),
   syncTeacherAttendanceSources: vi.fn(),
   resolveVerifiedPikaAttendanceTeacher: vi.fn(),
+  resolveVerifiedPikaAttendanceOwner: vi.fn(),
   assertBaraAttendanceCanaryClassroom: vi.fn(),
   supabase: { rpc: vi.fn() },
 }))
@@ -26,8 +30,9 @@ vi.mock('@/lib/server/bara-attendance-sync', async (importOriginal) => {
 })
 vi.mock('@/lib/server/bara-attendance-teacher', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-teacher')>()
-  return { ...actual, resolveVerifiedPikaAttendanceTeacher }
+  return { ...actual, resolveVerifiedPikaAttendanceTeacher, resolveVerifiedPikaAttendanceOwner }
 })
+vi.mock('@/lib/server/contextual-attendance-policy', () => ({ authorizeSharedAttendancePolicyActor }))
 vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
   return { ...actual, assertBaraAttendanceCanaryClassroom }
@@ -36,6 +41,7 @@ vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
 import { POST } from '@/app/api/teacher/attendance/sync/route'
 import { BaraAttendanceSyncError } from '@/lib/server/bara-attendance-sync'
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
+import { TeacherAttendanceIdentityError } from '@/lib/server/bara-attendance-teacher'
 
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const actor = { workosSubject: 'user_teacher', displayName: 'Teacher One' }
@@ -50,9 +56,11 @@ function request(body: unknown) {
 describe('POST /api/teacher/attendance/sync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'existing' })
     assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' })
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
+    resolveVerifiedPikaAttendanceOwner.mockResolvedValue(actor)
     assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true })
     syncTeacherAttendanceSources.mockResolvedValue({
       roster: { outcome: 'applied', revision: 2 },
@@ -95,6 +103,49 @@ describe('POST /api/teacher/attendance/sync', () => {
 
     expect(response.status).toBe(404)
     expect(resolveVerifiedPikaAttendanceTeacher).not.toHaveBeenCalled()
+    expect(syncTeacherAttendanceSources).not.toHaveBeenCalled()
+  })
+
+  it('uses current ownership and the membership-aware sync for an admitted owner with a student label', async () => {
+    const user = { id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student' }
+    authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user })
+    const response = await POST(request({ classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31' }))
+    expect(response.status).toBe(200)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(assertTeacherCanMutateClassroom).toHaveBeenCalledWith(user.id, classroomId, { supabase })
+    expect(resolveVerifiedPikaAttendanceOwner).toHaveBeenCalledWith({ supabase, pikaUser: user })
+    expect(resolveVerifiedPikaAttendanceTeacher).not.toHaveBeenCalled()
+    expect(syncTeacherAttendanceSources).toHaveBeenCalledWith(expect.objectContaining({
+      teacherId: user.id, membershipAware: true, verifiedActor: actor,
+    }))
+  })
+
+  it.each([403, 404])('does not treat admission as ownership (%s)', async (status) => {
+    authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user: {
+      id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student',
+    } })
+    assertTeacherCanMutateClassroom.mockResolvedValue({ ok: false, status, error: 'Forbidden' })
+    const response = await POST(request({ classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31' }))
+    expect(response.status).toBe(status)
+    expect(resolveVerifiedPikaAttendanceOwner).not.toHaveBeenCalled()
+    expect(syncTeacherAttendanceSources).not.toHaveBeenCalled()
+  })
+
+  it('does not accept a client-selected membership mode', async () => {
+    const response = await POST(request({
+      classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31', membershipAware: true,
+    }))
+    expect(response.status).toBe(400)
+    expect(syncTeacherAttendanceSources).not.toHaveBeenCalled()
+  })
+
+  it('does not sync an admitted owner whose WorkOS identity no longer matches', async () => {
+    authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user: {
+      id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student',
+    } })
+    resolveVerifiedPikaAttendanceOwner.mockRejectedValue(new TeacherAttendanceIdentityError('identity_not_linked'))
+    const response = await POST(request({ classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31' }))
+    expect(response.status).toBe(409)
     expect(syncTeacherAttendanceSources).not.toHaveBeenCalled()
   })
 
