@@ -72,10 +72,12 @@ for (const role of ['teacher', 'student'] as const) {
       await expect(menu).toHaveCSS('opacity', '1')
       const timing = await panel.evaluate(element => {
         const styles = getComputedStyle(element)
-        return { duration: styles.transitionDuration, fast: styles.getPropertyValue('--motion-duration-fast').trim() }
+        return { duration: styles.transitionDuration, fast: styles.getPropertyValue('--motion-duration-fast').trim(),
+          easing: styles.transitionTimingFunction, standardEasing: styles.getPropertyValue('--motion-easing-standard').trim() }
       })
       const milliseconds = (value: string) => parseFloat(value) * (value.endsWith('ms') ? 1 : 1000)
       expect(milliseconds(timing.duration)).toBe(milliseconds(timing.fast))
+      expect(timing.easing).toBe(timing.standardEasing)
       await page.screenshot({ path: info.outputPath('account-menu-open.png') })
       const closing = await observeMotion(panel, page, async () => {
         await page.keyboard.press('Escape')
