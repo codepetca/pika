@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { Tooltip, TooltipProvider } from '@/ui'
+import { AnnouncementContent } from '@/components/AnnouncementContent'
 
 const presentation = () => document.querySelector<HTMLElement>('[data-tooltip-presentation], [data-tooltip-exit]')
 const help = (props: Partial<React.ComponentProps<typeof Tooltip>> = {}) => (
@@ -126,6 +127,27 @@ describe('Tooltip presentation and immediate retirement', () => {
     const secondEscape = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })
     fireEvent(button, secondEscape)
     expect(secondEscape.defaultPrevented).toBe(false)
+  })
+
+  it('fades a formatted announcement while retiring its headings and links immediately', () => {
+    render(help({ interactive: true, content: <AnnouncementContent content={'# Class reminder\n\n## Before class\n\n### Your notes\n\n> Bring your notes.\n\nRead the [class guide](https://example.invalid/guide).'} /> }))
+    const button = screen.getByRole('button', { name: 'Help' })
+    tap(button)
+    expect(screen.getAllByRole('heading', { name: 'Class reminder' }).length).toBeGreaterThan(0)
+    fireEvent.keyDown(button, { key: 'Escape' })
+    expect(button).not.toHaveAttribute('aria-describedby')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading')).not.toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+    const closing = document.querySelector<HTMLElement>('[data-tooltip-exit]')!
+    expect(closing).not.toBeNull()
+    expect(closing).toHaveAttribute('aria-hidden', 'true')
+    expect(closing.inert).toBe(true)
+    expect(closing).toHaveTextContent('Class reminder')
+    expect(closing).toHaveTextContent('Before class')
+    expect(closing).toHaveTextContent('Your notes')
+    expect(closing).toHaveTextContent('Bring your notes.')
+    expect(closing.querySelector('a')).not.toHaveAttribute('href')
   })
 
   it('retires unsafe arbitrary content without retaining widgets', () => {

@@ -48274,3 +48274,16 @@ RPC keys, not hidden by casts. This source preparation is not native acceptance,
 PR readiness, a phase exit or rollout. All production/shared-local/real-state and
 activation holds persist. Sol6.1/high supplied bounded product, native leaf and
 existing-runner extension; coordinator owns integration/review and acceptance.
+
+<!-- pika-session-log-archive-batch:a8cb243b5d7bf36dd9f3a78ad3951e139e418f4bc8ca84932debc6ab9f4b25e9 -->
+## 2026-10-19 — Complete attendance fixture graph preservation
+
+Independent review found omitted trigger-created membership generations in the
+native fixture. Complete synthetic and untargeted row partitions now include
+generations and three conditional Free-plan/audit tables, with retained-identity
+collision checks. Existing witness positively requires exactly two active,
+scope-bound generations; zero/one/three are rejected. Six drift regressions failed
+before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
+sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
+genuine metadata and fresh isolated runtime/preservation acceptance are pending.
+No product permission, migration body, provider or activation change.

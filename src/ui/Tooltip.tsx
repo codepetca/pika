@@ -118,7 +118,7 @@ export function Tooltip({
       const duration = durationMatch ? Number(durationMatch[1]) * (durationMatch[2] === 's' ? 1000 : 1) : 0
       // Only static DOM can outlive Radix's interactive owner. Reject a whole
       // subtree containing widgets, media, custom elements or executable nodes.
-      const safeTags = new Set(['div', 'span', 'p', 'a', 'strong', 'b', 'em', 'i', 'small', 'br', 'code', 'pre', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'svg', 'g', 'path', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'rect', 'title'])
+      const safeTags = new Set(['div', 'span', 'p', 'h1', 'h2', 'h3', 'blockquote', 'a', 'strong', 'b', 'em', 'i', 'small', 'br', 'code', 'pre', 'ul', 'ol', 'li', 'dl', 'dt', 'dd', 'svg', 'g', 'path', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'rect', 'title'])
       if (duration > 0 && Number.isFinite(duration) && [...source.querySelectorAll('*')].every((node) => safeTags.has(node.localName))) {
         const node = source.cloneNode(true) as HTMLDivElement
         for (const element of [node, ...node.querySelectorAll('*')]) {

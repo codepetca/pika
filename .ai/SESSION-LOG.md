@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Complete attendance fixture graph preservation
-
-Independent review found omitted trigger-created membership generations in the
-native fixture. Complete synthetic and untargeted row partitions now include
-generations and three conditional Free-plan/audit tables, with retained-identity
-collision checks. Existing witness positively requires exactly two active,
-scope-bound generations; zero/one/three are rejected. Six drift regressions failed
-before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
-sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
-genuine metadata and fresh isolated runtime/preservation acceptance are pending.
-No product permission, migration body, provider or activation change.
-
 ## 2026-10-19 — Keep attendance hot-fence fixture eligible for purge admission
 
 The first isolated273 proof failed in SQLcontract before generation or HTTP.
@@ -873,3 +861,9 @@ without check-in dispatch. The added76 focused regression checks pass; corrected
 native proof, targeted review and final-head gates remain necessary before merge.
 Owner-sync/mixed-cohort readiness is explicitly held before learner activation,
 never permission for allocation or a legacy fallback.
+
+## 2026-10-21 — Formatted Tooltip transition consistency
+
+- Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
+- Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
+- Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
