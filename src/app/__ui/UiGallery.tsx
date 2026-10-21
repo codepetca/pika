@@ -70,6 +70,7 @@ import { StudentTestAttemptPattern } from './StudentTestAttemptPattern'
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import type { StudentTestSummary } from '@/lib/student-test-presentation'
 import { StatusPatterns } from './StatusPatterns'
+import { CalendarIdentityPattern } from './CalendarIdentityPattern'
 import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentControllerPattern } from './AssignmentControllerPattern'
@@ -743,6 +744,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
           description="Feature compositions remain here when their behaviour is not a stable cross-product primitive. Promotion requires multiple adopters and a durable shared contract."
         >
           <div className="space-y-6 [&>section]:scroll-mt-28">
+            <CalendarIdentityPattern />
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}

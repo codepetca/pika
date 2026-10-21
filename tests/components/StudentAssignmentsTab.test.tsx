@@ -361,6 +361,9 @@ describe('StudentAssignmentsTab', () => {
     const assignment = await screen.findByTestId('assignment-card')
     const material = screen.getByTestId('material-card')
     const survey = screen.getByTestId('survey-card')
+    for (const card of [assignment, material, survey]) {
+      expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    }
     shouldFail = true
     invalidateCachedJSONMatching('student-')
     view.rerender(<StudentAssignmentsTab classroom={classroom} isActive={false} />)

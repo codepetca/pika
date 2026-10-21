@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { DailyMockup } from '@/app/__ui/DailyMockup'
 import { PageMockups } from '@/app/__ui/PageMockups'
-import { STUDENT_PAGE_ITEMS } from '@/app/__ui/StudentPageMockups'
+import { STUDENT_PAGE_ITEMS, StudentPageMockup } from '@/app/__ui/StudentPageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { TooltipProvider } from '@/ui'
 
@@ -21,6 +21,18 @@ function renderStudentMockups() {
 }
 
 describe('PageMockups', () => {
+  it('keeps Classwork names and keyboard activation accessible beside decorative type icons', async () => {
+    const user = userEvent.setup()
+    const onAction = vi.fn()
+    render(<TooltipProvider><StudentPageMockup page="classwork" onPrototypeAction={onAction} /></TooltipProvider>)
+    const survey = screen.getByRole('button', { name: /Field trip check-in.*Survey/ })
+    expect(survey.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(screen.getByRole('button', { name: /Ecosystem reading.*Material/ }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    survey.focus()
+    await user.keyboard('{Enter}')
+    expect(onAction).toHaveBeenCalledWith('Open Field trip check-in')
+  })
+
   it('places the default-off student visibility control in teacher Gradebook', async () => {
     const user = userEvent.setup()
     renderMockups()

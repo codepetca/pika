@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, ContentDialog, EmptyState, PageState, RefreshingIndicator } from '@/ui'
 import { PageActionBar, PageContent, PageLayout, PageStack } from '@/components/PageLayout'
@@ -386,8 +387,8 @@ export function StudentAssignmentsTab({
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                              <h3 className="truncate text-base font-semibold text-text-default">
-                                {material.title}
+                              <h3 className="flex items-center gap-2 text-base font-semibold text-text-default">
+                                <ClassworkTypeIcon type="material" /><span className="truncate">{material.title}</span>
                               </h3>
                               <p className="mt-1 text-sm text-primary">
                                 Material
@@ -413,8 +414,8 @@ export function StudentAssignmentsTab({
                         >
                           <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
-                              <h3 className="truncate text-base font-semibold text-text-default">
-                                {survey.title}
+                              <h3 className="flex items-center gap-2 text-base font-semibold text-text-default">
+                                <ClassworkTypeIcon type="survey" /><span className="truncate">{survey.title}</span>
                               </h3>
                               <p className="mt-1 text-sm text-primary">
                                 Survey
@@ -445,8 +446,8 @@ export function StudentAssignmentsTab({
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <h3 className="truncate text-base font-semibold text-text-default">
-                              {assignment.title}
+                            <h3 className="flex items-center gap-2 text-base font-semibold text-text-default">
+                              <ClassworkTypeIcon type="assignment" /><span className="truncate">{assignment.title}</span>
                             </h3>
                             <p className="mt-1 text-sm text-text-muted">
                               {formatDueDate(assignment.due_at)}

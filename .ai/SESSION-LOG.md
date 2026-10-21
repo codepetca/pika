@@ -766,6 +766,82 @@ Aligned the existing teacher/student account menu with Pattern Lab action-menu m
 
 CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
 
+## 2026-10-21 — Calendar category themes and Classwork icons
+
+Owner approved shared amber for due dates/tests, quiet light green for materials/surveys, and existing orange for announcements. Added semantic light/dark calendar tokens and reused them across agenda/grid/weekend/day chips. ClassworkTypeIcon keeps ClipboardList/FileText/ListChecks consistent in teacher creation menus, teacher/student lists and prototypes. Saved the convention in stable UI guidance and a scoped brief; Pattern Lab calendar-identity renders the real cell and shared icons. No new survey scheduling, statuses, dependencies or migrations.
+
+Coordinator owns codex/calendar-classwork-themes. Browser reference captures cover both roles, 1440/390px, light/dark, agenda/grid and chip activation; real teacher list/menu captures show all three item identities. Evidence is in this chat's visualization directory. Focused checks, contrast contracts and audit required before publication; independent review ledger and final SHA belong in the PR. Initial full check passed 1,339 tests; subsequent added audit coverage exposed a mocked Assignment card assertion, removed after confirming the real card in the browser. No product remediation was needed. Usage at start: 56% weekly remaining; implementation handled directly; independent review is one bounded fast-tier wave. Per-task tokens/cost unknown.
+
+Owner refinement in the same chat: soften announcements to a subtle peach-orange fill and restore Material to the first prototype's quiet slate theme; Survey stays light green. Updated the prototype, semantic tokens, Pattern Lab and saved canon. Icons and item behavior are unchanged. Fresh theme/role/viewport reference captures and contrast checks cover the revised palette; targeted independent review follows the new fixed SHA.
+
+Owner label refinement: Announcement, Material and Survey calendar chips now display titles without type prefixes; Due/Test keep theirs. Type icons, colors, scheduled markers and accessible type names remain. Updated the inline prototype, real material chips/day dialog, survey reference and saved standard. Verification uses the same role/theme/viewport matrix and focused tests.
+
+Owner density refinement: Month/Term Test and Material chips inherited full control height. The grid now uses consistent 24px rows for fine pointers, retaining standard minimum targets on coarse/unknown pointers. Week and day presentation stay unchanged. Shared cell sizing also drives the survey reference; browser geometry/focus/activation and Week comparison verify the scoped density convention.
+
+Owner identity refinement: announcement peach was still too similar to Test amber. Announcement chips now use soft blue and retain Megaphone icons in agenda, grid and weekend markers; Material/FileText and Survey/ListChecks remain visible. The inline prototype no longer hides these icons in grid view. Updated the saved standard; compact heights and title-only labels are preserved.
+
+Owner authorized merging PR1648 once checks pass. Rebased onto main's documentation-only tooltip audit; resolved only an archive-batch marker collision while preserving both session entries. Application/test/config trees are byte-identical to the previously reviewed3646f90ed source. Final focused checks, independent integration verification and exact-head PR Gate precede squash merge to main. Production promotion remains separate.
+
+## 2026-10-21 — Fix calendar reference hydration before PR1648 merge
+
+Owner extended the review budget for one batched correction and one targeted
+review after CI exposed four assignment Pattern Lab dialog failures. CI traces
+showed a hydration mismatch: Material's September release stamp appeared
+scheduled under the browser's August31 fixed clock but published on the server.
+The calendar identity fixture now has no release schedule, preserving identical
+server/client labels. The new two-clock unit regression failed before the fix;
+the original creation-dialog browser failure also reproduced locally. Rebased
+onto main's attendance membership PR1647; only an archive batch marker conflicted,
+and main's marker and both session entries were preserved. No calendar production
+behavior, attendance rollout, migration application or provider hold changed.
+Validation and the approved additional targeted review follow on the final SHA.
+
+Fresh Playwright captures cover teacher/student at1440/390px in light/dark and
+preserve the accepted chip/icon treatment. The two-clock regression passes;
+desktop creation/edit browser contracts pass in both themes. Later mobile
+attempts hit page-loading timeouts under severe host load, without the former
+hydration error. Final focused checks and isolated mobile rerun remain gates.
+
+PR1648's corrected6d0286 head passed all CI lanes, including the previously
+failing browser matrix and PR Gate (run39634162305). Main advanced to the
+independently reviewed Tooltip PR1650 while CI ran. Rebased without app conflicts;
+our source/test/config patch remains identical. Reuse the calendar independent
+reviews and Tooltip1650's completed independent reviews/CI, then verify their
+composition: calendar hover/focus descriptions retire immediately, chips retain
+icons/title/activation, and the fixed-clock example still opens dialogs. Retain42
+recent entries with --keep60 (within the canonical60-entry cap) so no duplicate
+historical archive batch markers are introduced. Main's archive is unchanged and
+all historical text is preserved. Fresh composed local checks and final-head CI
+remain required before the authorized squash merge.
+
+Composed verification passed: normal focused90files/1,353tests, architecture,
+UI/design policy, TypeScript and lint;14Tooltip unit tests. Eight native contexts
+(teacher/student,1440fine/390touch,light/dark) verify fixed-clock teacher first
+click, Material/Announcement icons, focus descriptions, Escape semantic retirement
+and Material activation, with zero page errors. Current composed screenshots were
+visually inspected. Own feature patch is identical to independently reviewed6d0286;
+Tooltip source/contract is the reviewed1650 base. Reused coverage plus this
+composition check leaves no identified integration gap; final exact-head CI is
+still required. No additional independent reviewer turn or review finding fix.
+
+Main's reviewed attendance PR1651 merged during the second final CI run. GitHub
+reports the shared log conflict despite the local union driver; application files
+merge without overlap. Reused main1651's security/compatibility reviews and CI,
+and verified the calendar/Tooltip source patch remains identical. Place this
+task's same-day entries before the existing October21 group so future log appends
+have separate edit locations; no history is removed and the archive is unchanged.
+The composed visual evidence remains valid because those source blobs are
+unchanged. Fresh focused validation and final-head CI remain required.
+
+Main's reviewed Tooltip PR1652 merged during CI. The prior candidate's
+Database Contracts timeout passed on one fresh failed-job retry with unchanged
+source and assertions; every lane and PR Gate passed. Strict up-to-date rules
+require another sync. Reused unchanged feature reviews after examining1652's
+four static Markdown tags, owner regression and native evidence. Removed duplicate
+calendar log entries produced by the union driver during commit replay, retaining
+one complete copy and all main history. Fresh local checks and exact-head CI
+remain the final gates. No new independent review turn is claimed.
+
 ## 2026-10-21 — Production migrations 283–284 verified; promotion prepared
 
 Owner explicitly approved one production283+284 attempt after preview39595410439
