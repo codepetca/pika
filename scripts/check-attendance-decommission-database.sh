@@ -3,11 +3,24 @@ set -euo pipefail
 
 # Rollback-only synthetic fixture. No hosted target mode and no migration apply.
 DECOMMISSION_DB_CONTAINER="supabase_db_pika"
+if [[ $# -gt 0 ]]; then
+  if [[ $# != 4 || "$1" != --container-id || "${3:-}" != --owner || ! "${2:-}" =~ ^[a-f0-9]{64}$ || ! "${4:-}" =~ ^[1-9][0-9]*:[A-Za-z0-9]+$ ]]; then
+    echo 'Refusing malformed offline clone target.' >&2; exit 2
+  fi
+  DECOMMISSION_DB_CONTAINER="$2"
+  # Explicit offline mode: immutable identity, exact owner, no canonical label,
+  # no network or published ports. Default canonical-local checks stay unchanged.
+  CLONE_INSPECTION="$(docker inspect "$DECOMMISSION_DB_CONTAINER" --format '{{.Id}}|{{index .Config.Labels "pika.attendance-membership.owner"}}|{{eq (index .Config.Labels "com.supabase.cli.project") "pika"}}|{{.HostConfig.NetworkMode}}|{{len .HostConfig.PortBindings}}|{{range .NetworkSettings.Ports}}{{if .}}bound{{end}}{{end}}|{{.State.Running}}')"
+  if [[ "$CLONE_INSPECTION" != "$2|$4|false|none|0||true" ]]; then
+    echo 'Refusing unexpected offline clone target.' >&2; exit 2
+  fi
+else
 PROJECT_LABEL="$(docker inspect "$DECOMMISSION_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')"
 DB_BINDING="$(docker port "$DECOMMISSION_DB_CONTAINER" 5432/tcp)"
 if [[ "$PROJECT_LABEL" != "pika" ]] || ! grep -q ':54322$' <<<"$DB_BINDING"; then
   echo 'Refusing unexpected database target.' >&2
   exit 2
+fi
 fi
 for fixture_owner_role in teacher student; do
 docker exec -i "$DECOMMISSION_DB_CONTAINER" psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 \
@@ -354,6 +367,7 @@ begin raise exception using errcode='P1531',message='injected_decommission_failu
 $$;
 
 do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_previous bigint;
+ v_tombstone jsonb; v_reuse_error text;
  v_forgery text; v_row jsonb; v_associations jsonb; v_participant_failure boolean:=false; begin
   v_receipt := jsonb_build_object('schema_version',1,'ok',true,'installation_ref','installation_synthetic',
    'roster_ref','roster_15300000000000000000000000000010',
@@ -511,6 +525,13 @@ do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_pre
   if private.resolve_attendance_participant_subject('d1530000-0000-4000-8000-000000000010',
     'participant_28200000000000000000000000000031') is not null then
     raise exception 'Erased association resolved a subject';end if;
+  select to_jsonb(association) into strict v_tombstone
+    from private.attendance_participant_associations association
+    where participant_ref='participant_28200000000000000000000000000031';
+  -- The closed-reference helper predates285; use its new pointer helper as the
+  -- installed285 marker, preserving the exact historical283 expectation.
+  v_reuse_error:=case when to_regprocedure('private.attendance_pointer_mutation_allowed(jsonb,jsonb)') is not null
+    then 'attendance_membership_generation_closed' else 'attendance_participant_association_conflict' end;
   begin
     insert into public.attendance_participant_mappings(classroom_id,student_id,participant_ref)
       values('d1530000-0000-4000-8000-000000000011','d1530000-0000-4000-8000-000000000003',
@@ -518,9 +539,15 @@ do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_pre
     perform private.capture_attendance_participant_association('d1530000-0000-4000-8000-000000000011',
       'd1530000-0000-4000-8000-000000000003','participant_28200000000000000000000000000031');
     raise exception 'Closed association reference was reusable';
-  exception when others then
-    if sqlerrm<>'attendance_participant_association_conflict' then raise;end if;
+  exception when sqlstate '55000' then
+    if sqlerrm is distinct from v_reuse_error then raise;end if;
   end;
+  if exists(select 1 from public.attendance_participant_mappings
+      where participant_ref='participant_28200000000000000000000000000031')
+    or v_tombstone is distinct from (select to_jsonb(association)
+      from private.attendance_participant_associations association
+      where participant_ref='participant_28200000000000000000000000000031') then
+    raise exception 'Closed reference reuse persisted a mapping or changed its tombstone';end if;
   if exists(select 1 from jsonb_each(pg_temp.attendance_snapshot('d1530000-0000-4000-8000-000000000010'))
     where value<>'[]'::jsonb) then raise exception 'A public attendance table survived'; end if;
   if pg_temp.attendance_snapshot('d1530000-0000-4000-8000-000000000011') is distinct from

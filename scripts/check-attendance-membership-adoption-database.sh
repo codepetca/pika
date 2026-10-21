@@ -79,6 +79,21 @@ for path in "$root"/supabase/migrations/*.sql; do
   fi
 done
 echo 'PASS replay001–285.'
+# Record only versions whose actual replay just succeeded, so existing native
+# harness preflights see the same real migration history as a CLI-created stack.
+{
+  printf 'create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key, statements text[], name text);'
+  for path in "$root"/supabase/migrations/*.sql; do
+    file="${path##*/}"; number="${file%%_*}"
+    [[ "$number" =~ ^[0-9]{3}$ ]] || exit 1
+    printf "insert into supabase_migrations.schema_migrations(version) values('%s');" "$number"
+  done
+} | sql > "$scratch/history.log" 2>&1
+if ! bash "$root/scripts/check-attendance-decommission-database.sh" --container-id "$clone_id" --owner "$$:$token" > "$scratch/decommission.log" 2>&1; then
+  tail -25 "$scratch/decommission.log" >&2
+  exit 1
+fi
+echo 'PASS existing full decommission contracts for both owner labels.'
 if ! sql < "$root/scripts/check-attendance-membership-adoption-database.sql" > "$scratch/behavior.log" 2>&1; then
   tail -20 "$scratch/behavior.log" >&2
   exit 1

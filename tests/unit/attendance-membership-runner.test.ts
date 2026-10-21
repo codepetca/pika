@@ -21,6 +21,8 @@ describe('isolated attendance membership database proof', () => {
     const source = runner()
     expect(source).toContain('check-attendance-membership-adoption-database.sql')
     expect(source).toContain('check-attendance-membership-adoption-contention.mjs')
+    expect(source).toContain('check-attendance-decommission-database.sh')
+    expect(source).toContain('supabase_migrations.schema_migrations')
     expect(source).toContain('--container-id "$clone_id" --owner "$$:$token"')
     expect(source).toContain('PG_META_GENERATE_TYPES=typescript')
     expect(source).toContain('resolve_attendance_membership_scan_generation:')

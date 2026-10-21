@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Actual Pal contention and preservation proof
-
-One reviewed complementary disposable272 run passed all four two-session Pal
-contention schedules, both RPC busy responses, exact graph effects, fresh enrolled-
-owner/removal denial and serial generation re-add with exactly one bound join
-event/link. No HTTP/SDK/Storage rerun:25 native actions/218 controls/6,743,856 bytes,
-maximum two sessions, final zero uncertain/open sessions. Exact initialized-OFF
-restoration and canonical/global preservation plus positive owned cleanup passed
-the existing lifecycle. The immediately next-tool independent FIRST passed7,842
-source/98,969 dependency files and zero process candidates before later inspection.
-Root verified exact project containers/volumes/networks/workdir absent. Evidence
-and exclusive spent marker retained; no historical attempt was replayed. Empty
-old-event history does not certify nonempty queued-fact retention. Final composed
-evidence review/CI remain; all production/shared-local249+/real-account/provider/
-billing/AI and admission/rollout holds remain unchanged.
-
 ## 2026-10-19 — Exact lifecycle migration profiles and early local selection
 
 Final CI rejected the complete272 source chain because historical lifecycle
@@ -887,3 +871,13 @@ closure. The exact CI proof inventory adds this isolated check without dropping
 historical lanes. Independent review, final focused gate and stable-head CI
 remain pending. No production/shared-local
 migration, live provider, configuration, account or rollout action occurred.
+
+CI exposed an obsolete decommission fixture expectation:285 correctly rejects
+closed-reference reuse before the historical283 capture guard. Returned1647 to
+draft; the fixture now requires the exact installed guard/SQLSTATE and proves
+no mapping or tombstone mutation. Its guarded offline-clone mode lets the new
+runner execute the entire old decommission matrix for both owner labels after
+genuine001–285 replay. One fresh isolated run passed that matrix, membership
+rollback/concurrency, metadata equality, unchanged shared243 and owned cleanup.
+SQL285 and runtime code are unchanged; targeted review and corrected-head CI
+remain required. Production and live-provider holds are unchanged.
