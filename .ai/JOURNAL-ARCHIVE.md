@@ -48187,3 +48187,43 @@ eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source i
 unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
 successful preservation and closure gates using direct Node loading. Production,
 shared-local249+, real-account/provider/billing and all activation holds persist.
+
+<!-- pika-session-log-archive-batch:2a3493cbe7468d2bce464094377a49276d29f6e9408824d9329e1cbfe26b7278 -->
+## 2026-10-19 — Native lifecycle proof and contextual Pal page selection
+
+Separate reviewed disposable001–272 proof passed both rollback contracts, exact
+genuine metadata and actual16 typed RPC/66 archive exchanges. Real stored-byte
+export/readback/bundle verification, replay, cross-class denial, controlled
+postflight uncertainty, source preservation and exact initialized-OFF settings
+restoration passed.183 native actions/814 controls/11,498,419 bytes stayed inside
+original bounds. Immediate independent FIRST passed7,840 source/98,969 dependency
+files and zero process candidates; complete canonical/global equality and positive
+owned cleanup passed lifecycle gates. Review271 accepted this bounded evidence;
+historical failed FIRST remains failed, not replayed or relabeled.
+
+Member SSR selects the contextual Pal reader only for shared contextual members;
+owners never enter learner context, missing optional context keeps academic work,
+and teacher-valued members do not inherit an unavailable legacy account provider.
+27 SSR checks and40 inspected actual-renderer desktop/mobile light/dark captures
+passed. Capture sources/hashes are retained privately; temporary fixture edits
+are removed so existing public widget fixtures and renderers stay unchanged.
+No authenticated-route/provider claim. Native contention/race gates, final review,
+focused checks and final-head CI remain pending. Production/shared-local249+,
+real-account/provider/billing/AI and all rollout holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:26cd2d419d69250ae47e1e1c7cc3254b2e531bcfe13836eaaf76b1aae323d601 -->
+## 2026-10-19 — Actual Pal contention and preservation proof
+
+One reviewed complementary disposable272 run passed all four two-session Pal
+contention schedules, both RPC busy responses, exact graph effects, fresh enrolled-
+owner/removal denial and serial generation re-add with exactly one bound join
+event/link. No HTTP/SDK/Storage rerun:25 native actions/218 controls/6,743,856 bytes,
+maximum two sessions, final zero uncertain/open sessions. Exact initialized-OFF
+restoration and canonical/global preservation plus positive owned cleanup passed
+the existing lifecycle. The immediately next-tool independent FIRST passed7,842
+source/98,969 dependency files and zero process candidates before later inspection.
+Root verified exact project containers/volumes/networks/workdir absent. Evidence
+and exclusive spent marker retained; no historical attempt was replayed. Empty
+old-event history does not certify nonempty queued-fact retention. Final composed
+evidence review/CI remain; all production/shared-local249+/real-account/provider/
+billing/AI and admission/rollout holds remain unchanged.

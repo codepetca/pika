@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState, useRef, type ComponentProps, type MutableRefObject } from 'react'
 import { Trash2, Plus, Clock, Calendar, FileText, MoreVertical } from 'lucide-react'
 import { Button, IconButton, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
@@ -83,6 +83,113 @@ function parseDateTime(isoString: string): { date: string; time: string } {
   return parseScheduleIsoToParts(isoString)
 }
 
+type SchedulePickerBounds = Pick<DOMRect, 'x' | 'y' | 'width' | 'height'>
+
+type SchedulePickerValues = Pick<ComponentProps<typeof ScheduleDateTimePicker>, 'date' | 'time' | 'minDate' | 'isFutureValid'>
+
+type AnnouncementSchedulePopoverProps = ComponentProps<typeof ScheduleDateTimePicker> & {
+  open: boolean
+  active: boolean
+  className: string
+  pickerRef: MutableRefObject<HTMLDivElement | null>
+  exitBounds: MutableRefObject<SchedulePickerBounds | null>
+  onDismiss: (returnFocus: boolean) => void
+}
+
+const ignoreScheduleInput = () => {}
+
+// This known pure picker keeps its native segmented fields during the fade.
+// Only scalar presentation survives logical dismissal; commands and focus refs retire immediately.
+function AnnouncementSchedulePopover({ open, active, className, pickerRef, exitBounds, onDismiss, ...picker }: AnnouncementSchedulePopoverProps) {
+  const rootRef = useRef<HTMLDivElement | null>(null)
+  const lastValues = useRef<SchedulePickerValues>({ date: picker.date, time: picker.time, minDate: picker.minDate, isFutureValid: picker.isFutureValid })
+  const [retained, setRetained] = useState(false)
+  const live = active && open
+  const closing = active && !open && retained
+
+  useLayoutEffect(() => {
+    if (!live) return
+    lastValues.current = { date: picker.date, time: picker.time, minDate: picker.minDate, isFutureValid: picker.isFutureValid }
+    setRetained(true)
+  }, [live, picker.date, picker.time, picker.minDate, picker.isFutureValid])
+
+  useLayoutEffect(() => {
+    pickerRef.current = live ? rootRef.current : null
+    return () => { pickerRef.current = null }
+  }, [live, pickerRef])
+
+  useLayoutEffect(() => {
+    if (!active) {
+      setRetained(false)
+      return
+    }
+    if (!closing) return
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)')
+    const token = rootRef.current ? window.getComputedStyle(rootRef.current).getPropertyValue('--motion-duration-fast').trim() : ''
+    const parsed = token.match(/^(\d+(?:\.\d+)?|\.\d+)(ms|s)$/)
+    const duration = parsed ? Number(parsed[1]) * (parsed[2] === 's' ? 1000 : 1) : 0
+    let timer: number | undefined
+    let current = true
+    const finish = () => {
+      if (!current) return
+      current = false
+      window.clearTimeout(timer)
+      media.removeEventListener('change', onMotionChange)
+      setRetained(false)
+    }
+    const onMotionChange = () => { if (media.matches) finish() }
+    if (media.matches || !Number.isFinite(duration) || duration <= 0) {
+      finish()
+      return
+    }
+    timer = window.setTimeout(finish, duration)
+    media.addEventListener('change', onMotionChange)
+    return () => {
+      current = false
+      window.clearTimeout(timer)
+      media.removeEventListener('change', onMotionChange)
+    }
+  }, [active, closing])
+
+  if (!live && !closing) return null
+  const values = live ? picker : lastValues.current
+  return (
+    <div
+      ref={(element) => {
+        rootRef.current = element
+        if (element) element.inert = !live
+      }}
+      className={cn(className, 'transition-opacity duration-fast ease-standard motion-reduce:transition-none', closing && 'pointer-events-none opacity-0')}
+      style={closing && exitBounds.current ? {
+        position: 'fixed', left: exitBounds.current.x, top: exitBounds.current.y,
+        width: exitBounds.current.width, height: exitBounds.current.height,
+        right: 'auto', bottom: 'auto', margin: 0,
+      } : undefined}
+      aria-hidden={closing ? true : undefined}
+      data-schedule-picker-closing={closing ? '' : undefined}
+      onKeyDown={live ? (event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          event.stopPropagation()
+          onDismiss(true)
+        }
+      } : undefined}
+      onBlur={live ? (event) => {
+        if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) onDismiss(false)
+      } : undefined}
+    >
+      <ScheduleDateTimePicker
+        {...values}
+        dateInputRef={live ? picker.dateInputRef : undefined}
+        onDateChange={live ? picker.onDateChange : ignoreScheduleInput}
+        onTimeChange={live ? picker.onTimeChange : ignoreScheduleInput}
+        onCancel={live ? picker.onCancel : ignoreScheduleInput}
+        onConfirm={live ? picker.onConfirm : ignoreScheduleInput}
+      />
+    </div>
+  )
+}
+
 export function TeacherAnnouncementsSection({ classroom, className, isActive = true }: Props) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
@@ -118,8 +225,10 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
   const editDropdownRef = useRef<HTMLDivElement>(null)
   const createDateInputRef = useRef<HTMLInputElement>(null)
   const editDateInputRef = useRef<HTMLInputElement>(null)
-  const createPickerRef = useRef<HTMLDivElement>(null)
-  const editPickerRef = useRef<HTMLDivElement>(null)
+  const createPickerRef = useRef<HTMLDivElement | null>(null)
+  const editPickerRef = useRef<HTMLDivElement | null>(null)
+  const createPickerExitBounds = useRef<SchedulePickerBounds | null>(null)
+  const editPickerExitBounds = useRef<SchedulePickerBounds | null>(null)
   const createScheduleFocusRef = useRef<ScheduleFocusSession | null>(null)
   const editScheduleFocusRef = useRef<ScheduleFocusSession | null>(null)
   const committedFocusContextRef = useRef<string | null>(null)
@@ -145,6 +254,10 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
 
   const closeSchedulePicker = useCallback((owner: 'create' | 'edit', session: ScheduleFocusSession | null, returnFocus = false) => {
     if (!ownsScheduleFocus(session, owner)) return
+    // Capture before Done can change the toolbar layout. Expiry never reads or moves focus.
+    const picker = (owner === 'create' ? createPickerRef : editPickerRef).current
+    const bounds = owner === 'create' ? createPickerExitBounds : editPickerExitBounds
+    bounds.current = picker?.getBoundingClientRect() ?? null
     if (returnFocus) {
       pendingScheduleReturnRef.current = { session: session!, owner, dismissedFrom: document.activeElement }
     }
@@ -849,41 +962,29 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                 />
               )}
 
-              {showScheduleDropdown && (
-                <div
-                  ref={createPickerRef}
-                  className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
-                  onKeyDown={(event) => {
-                    if (event.key === 'Escape') {
-                      event.preventDefault()
-                      event.stopPropagation()
-                      closeSchedulePicker('create', createPickerSession, true)
-                    }
-                  }}
-                  onBlur={(event) => {
-                    if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
-                      closeSchedulePicker('create', createPickerSession)
-                    }
-                  }}
-                >
-                  <ScheduleDateTimePicker
-                    dateInputRef={createDateInputRef}
-                    date={pendingScheduleDate}
-                    time={pendingScheduleTime}
-                    minDate={getTodayDate()}
-                    isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
-                    onDateChange={(value) => ownsScheduleFocus(createPickerSession, 'create') && setPendingScheduleDate(value)}
-                    onTimeChange={(value) => ownsScheduleFocus(createPickerSession, 'create') && setPendingScheduleTime(value)}
-                    onCancel={() => closeSchedulePicker('create', createPickerSession, true)}
-                    onConfirm={() => {
-                      if (ownsScheduleFocus(createPickerSession, 'create') && pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
-                        setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
-                        closeSchedulePicker('create', createPickerSession, true)
-                      }
-                    }}
-                  />
-                </div>
-              )}
+              <AnnouncementSchedulePopover
+                key={focusContext}
+                open={showScheduleDropdown && createPickerSession?.context === focusContext}
+                active={isActive && !isReadOnly}
+                pickerRef={createPickerRef}
+                exitBounds={createPickerExitBounds}
+                className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
+                onDismiss={(returnFocus) => closeSchedulePicker('create', createPickerSession, returnFocus)}
+                dateInputRef={createDateInputRef}
+                date={pendingScheduleDate}
+                time={pendingScheduleTime}
+                minDate={getTodayDate()}
+                isFutureValid={!pendingScheduleDate ? false : isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)}
+                onDateChange={(value) => ownsScheduleFocus(createPickerSession, 'create') && setPendingScheduleDate(value)}
+                onTimeChange={(value) => ownsScheduleFocus(createPickerSession, 'create') && setPendingScheduleTime(value)}
+                onCancel={() => closeSchedulePicker('create', createPickerSession, true)}
+                onConfirm={() => {
+                  if (ownsScheduleFocus(createPickerSession, 'create') && pendingScheduleDate && isScheduleInFuture(pendingScheduleDate, pendingScheduleTime)) {
+                    setScheduleDateTime(combineDateTime(pendingScheduleDate, pendingScheduleTime))
+                    closeSchedulePicker('create', createPickerSession, true)
+                  }
+                }}
+              />
             </div>
           </div>
         </div>
@@ -1033,41 +1134,29 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                         )}
 
                         {/* Schedule dropdown */}
-                        {showEditScheduleDropdown && (
-                          <div
-                            ref={editPickerRef}
-                            className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
-                            onKeyDown={(event) => {
-                              if (event.key === 'Escape') {
-                                event.preventDefault()
-                                event.stopPropagation()
-                                closeSchedulePicker('edit', editPickerSession, true)
-                              }
-                            }}
-                            onBlur={(event) => {
-                              if (event.relatedTarget && !event.currentTarget.contains(event.relatedTarget as Node)) {
-                                closeSchedulePicker('edit', editPickerSession)
-                              }
-                            }}
-                          >
-                            <ScheduleDateTimePicker
-                              dateInputRef={editDateInputRef}
-                              date={pendingEditScheduleDate}
-                              time={pendingEditScheduleTime}
-                              minDate={getTodayDate()}
-                              isFutureValid={!pendingEditScheduleDate ? false : isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
-                              onDateChange={(value) => ownsScheduleFocus(editPickerSession, 'edit') && setPendingEditScheduleDate(value)}
-                              onTimeChange={(value) => ownsScheduleFocus(editPickerSession, 'edit') && setPendingEditScheduleTime(value)}
-                              onCancel={() => closeSchedulePicker('edit', editPickerSession, true)}
-                              onConfirm={() => {
-                                if (ownsScheduleFocus(editPickerSession, 'edit') && pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
-                                  setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
-                                  closeSchedulePicker('edit', editPickerSession, true)
-                                }
-                              }}
-                            />
-                          </div>
-                        )}
+                        <AnnouncementSchedulePopover
+                          key={focusContext}
+                          open={showEditScheduleDropdown && editPickerSession?.context === focusContext}
+                          active={isActive && !isReadOnly}
+                          pickerRef={editPickerRef}
+                          exitBounds={editPickerExitBounds}
+                          className="absolute bottom-full right-0 z-10 mb-1 min-w-[220px]"
+                          onDismiss={(returnFocus) => closeSchedulePicker('edit', editPickerSession, returnFocus)}
+                          dateInputRef={editDateInputRef}
+                          date={pendingEditScheduleDate}
+                          time={pendingEditScheduleTime}
+                          minDate={getTodayDate()}
+                          isFutureValid={!pendingEditScheduleDate ? false : isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)}
+                          onDateChange={(value) => ownsScheduleFocus(editPickerSession, 'edit') && setPendingEditScheduleDate(value)}
+                          onTimeChange={(value) => ownsScheduleFocus(editPickerSession, 'edit') && setPendingEditScheduleTime(value)}
+                          onCancel={() => closeSchedulePicker('edit', editPickerSession, true)}
+                          onConfirm={() => {
+                            if (ownsScheduleFocus(editPickerSession, 'edit') && pendingEditScheduleDate && isScheduleInFuture(pendingEditScheduleDate, pendingEditScheduleTime)) {
+                              setEditScheduleDateTime(combineDateTime(pendingEditScheduleDate, pendingEditScheduleTime))
+                              closeSchedulePicker('edit', editPickerSession, true)
+                            }
+                          }}
+                        />
                       </div>
                     </div>
                   </div>
