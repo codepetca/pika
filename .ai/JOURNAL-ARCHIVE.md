@@ -48287,3 +48287,31 @@ before correction; all26 leaf checks and lint pass. Real triggers, seven frames,
 sixteen HTTP calls and original bounds remain unchanged. Source-only remediation:
 genuine metadata and fresh isolated runtime/preservation acceptance are pending.
 No product permission, migration body, provider or activation change.
+
+<!-- pika-session-log-archive-batch:d7771f6b3a6455abb0a6fc58ace69d811e5a2d0d29df43b17a08e6cf59b36b37 -->
+## 2026-10-19 — Keep attendance hot-fence fixture eligible for purge admission
+
+The first isolated273 proof failed in SQLcontract before generation or HTTP.
+Immediate independent source/dependency preservation and zero-process observation
+pass; exact isolated containers/volumes/network and temporary directory are absent.
+The failed attempt and evidence remain spent. Source diagnosis found the suite
+inserted a hot purge operation after adding attendance state, which the real127
+decommission trigger correctly rejects. Use a separate owner-owned attendance-free
+class for this fence assertion, without bypassing the trigger. A source regression
+checks that predecessor prerequisite;12 focused tests, lint and audit pass.
+Missing failure diagnostics prevent proving this was the first observed error.
+Independent review and a new bounded proof remain required. Production and shared
+local migration, provider, account and rollout holds are unchanged.
+
+## 2026-10-19 — Resolve the actual temporary schema for rollback helper usage
+
+The fresh corrected-fixture proof failed before HTTP with fixed command/3F000
+diagnostics. PostgreSQL17's GRANT resolves literal namespace names, unlike object
+lookup's pg_temp alias. The rollback suite now contains the original alias failure
+in an expected-error subtransaction, resolves only pg_my_temp_schema's actual
+catalog identity, and safely quotes that name for the session-only USAGE grant.
+Function client revocations, service-only execution and all production grants are
+unchanged. Source regression failed before correction;9 affected checks and lint
+pass. This is not yet real PostgreSQL regression acceptance. Original failed
+attempts remain spent; immediate FIRST and exact resource absence pass for both.
+Independent review and a new bounded isolated proof remain required; all holds stay.
