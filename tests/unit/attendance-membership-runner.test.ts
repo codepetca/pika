@@ -24,6 +24,29 @@ resolve_attendance_meta_image`], {
 }
 
 describe('isolated attendance membership database proof', () => {
+  it.each([
+    ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
+    ['287', false], ['0286', false], ['286+0', false],
+  ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
+    const source = runner()
+    const start = source.indexOf('[[ "$source_version" =~')
+    const end = source.indexOf('pnpm --dir "$root" exec tsx')
+    expect(start).toBeGreaterThan(-1)
+    expect(end).toBeGreaterThan(start)
+    const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${source.slice(start, end)}`], {
+      encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version },
+    })
+    expect(result.status === 0).toBe(accepted)
+  })
+
+  it('makes every top-level conditional safety gate explicit for macOS Bash3.2', () => {
+    // Bash3.2 does not apply errexit to a standalone failed [[...]]/((...)).
+    // Require explicit exits rather than accepting a successful later command.
+    const gates = runner().split('\n').filter(line => line.startsWith('[[') || line.startsWith('(('))
+    expect(gates).toHaveLength(10)
+    for (const gate of gates) expect(gate).toMatch(/\|\| exit [12]$/)
+  })
+
   it('forward-corrects only owner precedence while preserving every285 strict-scan fence', () => {
     const original = readFileSync('supabase/migrations/285_attendance_membership_adoption.sql', 'utf8')
       .match(/create function public\.resolve_attendance_membership_scan_generation\([\s\S]*?\n\$\$;/)?.[0]
