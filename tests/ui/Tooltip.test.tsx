@@ -192,6 +192,46 @@ describe('Tooltip presentation and immediate retirement', () => {
     view.unmount()
   })
 
+  it.each(['disabled', 'hidden'] as const)('accepts the first fresh hover after an initially %s owner becomes available', (reason) => {
+    vi.useFakeTimers()
+    const setVisibility = (value: 'hidden' | 'visible') => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, value })
+      fireEvent(document, new Event('visibilitychange'))
+    }
+    try {
+      if (reason === 'hidden') setVisibility('hidden')
+      const view = render(help({ openOnClick: false, disabled: reason === 'disabled' }))
+      if (reason === 'disabled') view.rerender(help({ openOnClick: false }))
+      else setVisibility('visible')
+      const button = screen.getByRole('button', { name: 'Help' })
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      fireEvent.pointerMove(button, { pointerType: 'mouse' })
+      act(() => vi.advanceTimersByTime(99))
+      expect(button).not.toHaveAttribute('aria-describedby')
+      act(() => vi.advanceTimersByTime(1))
+      expect(button).toHaveAccessibleDescription('Format advice')
+    } finally {
+      setVisibility('visible')
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a pending hover retired when disabled help is clicked before re-enabling', () => {
+    vi.useFakeTimers()
+    try {
+      const view = render(help())
+      const button = screen.getByRole('button', { name: 'Help' })
+      fireEvent.pointerEnter(button, { pointerType: 'mouse' })
+      fireEvent.pointerMove(button, { pointerType: 'mouse' })
+      view.rerender(help({ disabled: true }))
+      tap(button)
+      view.rerender(help())
+      act(() => vi.advanceTimersByTime(150))
+      expect(button).not.toHaveAttribute('aria-describedby')
+      expect(presentation()).toBeNull()
+    } finally { vi.useRealTimers() }
+  })
+
   it('retires on document hiding and unmount without stale lifecycle work', () => {
     const view = render(help())
     const button = screen.getByRole('button', { name: 'Help' })

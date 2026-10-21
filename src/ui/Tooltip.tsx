@@ -152,6 +152,7 @@ export function Tooltip({
       <TooltipPrimitive.Trigger
         asChild
         onPointerDown={openOnClick ? () => { pointerOpenRef.current = open } : undefined}
+        onPointerEnter={() => { if (available) rejectDelayedOpen.current = false }}
         onPointerLeave={() => { rejectDelayedOpen.current = false }}
         onFocus={() => { if (available) rejectDelayedOpen.current = false }}
         onPointerCancel={openOnClick ? () => { pointerOpenRef.current = null } : undefined}
@@ -159,7 +160,7 @@ export function Tooltip({
           event.preventDefault()
           const wasOpen = pointerOpenRef.current ?? open
           pointerOpenRef.current = null
-          rejectDelayedOpen.current = false
+          if (available) rejectDelayedOpen.current = false
           changeOpen(!wasOpen)
         } : undefined}
       >{children}</TooltipPrimitive.Trigger>

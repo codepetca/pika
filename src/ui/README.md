@@ -345,7 +345,7 @@ tags closes immediately rather than retaining that subtree.
 Reopening cancels the decorative exit. Disabled owners, hidden documents, unmount,
 reduced-motion closing, and a live change to reduced motion during closing remove
 it immediately. Disabled or hidden owners reject an old pending hover disclosure
-until a fresh leave/reenter, focus or explicit help click. Interactive help keeps
+until a fresh available pointer entry, focus or explicit help click. Interactive help keeps
 its existing pointer interactions; keyboard actions belong to the trigger's
 owning control or chooser.
 
