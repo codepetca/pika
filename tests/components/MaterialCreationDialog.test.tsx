@@ -19,6 +19,8 @@ const props = () => ({
   onTitleChange: vi.fn(), onContentChange: vi.fn(), onSave: vi.fn(), onClose: vi.fn(),
 })
 
+// MaterialCreationPattern renders this production owner; shared editor, preview and action
+// contracts below also cover the deterministic Pattern Lab composition.
 describe('Material formatted editing', () => {
   it('edits directly in one editor, previews current changes and saves only on explicit action', async () => {
     const user = userEvent.setup()
