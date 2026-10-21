@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Keep attendance hot-fence fixture eligible for purge admission
-
-The first isolated273 proof failed in SQLcontract before generation or HTTP.
-Immediate independent source/dependency preservation and zero-process observation
-pass; exact isolated containers/volumes/network and temporary directory are absent.
-The failed attempt and evidence remain spent. Source diagnosis found the suite
-inserted a hot purge operation after adding attendance state, which the real127
-decommission trigger correctly rejects. Use a separate owner-owned attendance-free
-class for this fence assertion, without bypassing the trigger. A source regression
-checks that predecessor prerequisite;12 focused tests, lint and audit pass.
-Missing failure diagnostics prevent proving this was the first observed error.
-Independent review and a new bounded proof remain required. Production and shared
-local migration, provider, account and rollout holds are unchanged.
-
-## 2026-10-19 — Resolve the actual temporary schema for rollback helper usage
-
-The fresh corrected-fixture proof failed before HTTP with fixed command/3F000
-diagnostics. PostgreSQL17's GRANT resolves literal namespace names, unlike object
-lookup's pg_temp alias. The rollback suite now contains the original alias failure
-in an expected-error subtransaction, resolves only pg_my_temp_schema's actual
-catalog identity, and safely quotes that name for the session-only USAGE grant.
-Function client revocations, service-only execution and all production grants are
-unchanged. Source regression failed before correction;9 affected checks and lint
-pass. This is not yet real PostgreSQL regression acceptance. Original failed
-attempts remain spent; immediate FIRST and exact resource absence pass for both.
-Independent review and a new bounded isolated proof remain required; all holds stay.
-
 ## 2026-10-19 — Complete isolated attendance owner-policy proof
 
 Fresh Bg888j actual proof passes complete001–273 replay, rollback SQL including
@@ -840,6 +813,7 @@ change or production/provider action; corrected-head review/CI still required.
 Shared Tooltip now uses semantic fast opacity entry and a bounded decorative exit with fixed text geometry. Logical close unmounts live Radix content, descriptions, child owners and document handlers immediately. Only whitelisted static text/formatting/link/SVG DOM is copied, with IDs, roles, targets and focus/event attributes removed and inert/hidden pointer fencing. Unsupported widgets/media/custom content closes immediately; reopen, disabled/hidden/unmount and reduced motion retire the copy. No public API or dependency change. Pattern Lab includes an availability toggle for both roles; the separate mobile ancestor-scroll hint discovery issue remains open.
 
 Owner14 and gallery52 tests pass. Initial canonical focused3,690/274 plus architecture/UI/design policy, TypeScript, lint and audit pass; the final corrected gate is recorded with the PR. Independent review identified a first-hover regression after enabling: a fresh available pointer entry now clears the stale-open fence, while disabled clicks cannot release pending hover work. Three regressions and eight native availability cases cover the correction. Native16 role/viewport/theme/motion contexts verify fades, stationary bounds/font/text, immediate semantic retirement and existing focus/hover/touch paths. Four extra native lifecycle cases verify rapid reopen, live reduced motion, retired link fencing and second-Escape ownership; current screenshots inspected. Rework retained privately: replaced live Radix exit after its Escape-layer leak, fixed screenshot/capture readiness and owner matching, and held exit opacity through timer removal. Independent stable-SHA review and exact-head CI/PR Gate remain required before merge. The first CI attempt caught the added availability row changing catalog screenshot height (+60 desktop/+120 mobile). The recovery fixture moved after the stable catalog, with a placement regression and four unchanged local catalog goldens passing; the shared Tooltip owner is unchanged by this correction. Broad fluidity goal and existing production/schema/dependency/privacypriority1/Calendar1217 holds remain.
+
 ## 2026-10-21 — Integrate current-membership learner attendance
 
 Prepared286 learner status/check-in and owner overrides behind existing shared
@@ -867,3 +841,21 @@ never permission for allocation or a legacy fallback.
 - Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
 - Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
 - Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
+
+## 2026-10-21 — Prepare contextual active classroom capture
+
+Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
+checks green; shared local remains243. The next backend group reuses shared
+admission for active owned classroom capture, owned Blueprint reads and existing
+entitled instantiation. Source access is rechecked after loading before private
+copies; atomic commit/source/version/replay and provisional-copy settlement stay
+in place. TDD reproduced the role/pre-copy gaps;116 API/domain checks now pass.
+The existing rollback suite adds current v3 capture and v2 instantiation for both
+account labels, with owner/revision/archive/purge/replay and independent capacity
+denials; authored SQL is not native acceptance. Final focused checks, independent
+review and isolated CI remain required. No general Blueprint authoring, page/UI,
+schema application or activation is included. Owner settled Pal's following
+policy: stop pending delivery upon same-class ownership, preserve earned progress,
+stop new learner activity/token requests, retain existing issued-token expiry.
+That policy is recorded, not implemented here. Production/live-provider/shared-
+local249+/publication/configuration/account/cohort/cutover holds remain unchanged.

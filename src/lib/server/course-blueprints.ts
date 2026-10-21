@@ -1246,6 +1246,12 @@ export async function createCourseBlueprintFromClassroom(
   if (!sourceResult.ok) return sourceResult
 
   const source = sourceResult.source
+  if (!options.copyOnly) {
+    // Loading content is asynchronous. Recheck before creating private copies;
+    // the existing atomic capture still owns commit-time owner/revision fences.
+    const currentAccess = await assertTeacherCanMutateClassroom(teacherId, classroomId)
+    if (!currentAccess.ok) return currentAccess
+  }
   const blueprintTitle = input.title?.trim() || source.classroom.title
   const supabase = getSupabase()
   const operationId = resolveBlueprintOperationId(options.operationId)

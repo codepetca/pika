@@ -46,8 +46,16 @@ must not label that evidence real-provider compatibility.
 The unchanged outbox/Pal provider contract may still deliver an earlier captured
 fact after its subject later becomes classroom owner. This slice prevents owner
 learner entry, new mint and new visit capture; it does not redefine historical
-queued-fact or already-issued provider-token policy. Resolve that lifecycle policy
-before claiming the attached-service batch or cutover complete.
+queued-fact or already-issued provider-token policy.
+
+Owner decision2026-10-21: stop pending learner-event delivery when the learner
+becomes the same classroom's owner. Preserve already-earned progression and
+stop new learner activity/token requests; already-issued tokens follow their
+existing expiry. No immediate provider revocation, erasure, retraction or new
+retention interval is authorized by this decision. The connected delivery
+implementation and nonempty-history verification are still required before
+claiming the attached-service batch or cutover complete. Production and live
+provider holds remain unchanged.
 
 The wider Bara integration, principal/profile mapping, retained grouped removal,
 attendance status snapshot and entitlement grant administration are separate

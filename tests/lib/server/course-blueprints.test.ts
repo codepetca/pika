@@ -80,6 +80,41 @@ describe('course-blueprints server helpers', () => {
     managedStorageCopyMocks.queue.mockResolvedValue(undefined)
   })
 
+  it.each([
+    { status: 403, error: 'Forbidden' },
+    { status: 403, error: 'Classroom is archived' },
+    { status: 404, error: 'Classroom not found' },
+  ])('rechecks active source access before private capture copies: $error', async (denial) => {
+    const operationId = '10000000-0000-4000-8000-000000000099'
+    mockAssertTeacherCanMutateClassroom
+      .mockResolvedValueOnce({ ok: true, classroom: { id: 'c-1' } })
+      .mockResolvedValueOnce({ ok: false, ...denial })
+    mockLoadClassroomBlueprintSource.mockResolvedValue({ ok: true, source: {
+      classroom: { id: 'c-1', title: 'Source', blueprint_source_revision: 7 },
+      resources_markdown: '', assignments: [], tests: [], lesson_templates: [], materials: [], surveys: [],
+    } })
+    mockSupabase = { rpc: vi.fn().mockResolvedValue({ data: {
+      ok: false, status: 409, operation_id: operationId, operation_type: 'capture',
+      error_code: 'source_classroom_changed', error: 'Changed', retryable: false,
+    }, error: null }) }
+    expect(await createCourseBlueprintFromClassroom('owner', 'c-1', {}, { operationId }))
+      .toEqual({ ok: false, ...denial })
+    expect(mockLoadClassroomBlueprintSource).toHaveBeenCalledOnce()
+    expect(managedStorageCopyMocks.copy).not.toHaveBeenCalled()
+    expect(mockSupabase.rpc).not.toHaveBeenCalled()
+    expect(managedStorageCopyMocks.queue).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { status: 403, error: 'Forbidden' },
+    { status: 403, error: 'Classroom is archived' },
+  ])('denies initial source access before loading content: $error', async (denial) => {
+    mockAssertTeacherCanMutateClassroom.mockResolvedValue({ ok: false, ...denial })
+    expect(await createCourseBlueprintFromClassroom('owner', 'c-1', {})).toEqual({ ok: false, ...denial })
+    expect(mockLoadClassroomBlueprintSource).not.toHaveBeenCalled()
+    expect(managedStorageCopyMocks.copy).not.toHaveBeenCalled()
+  })
+
   it('hydrates missing planned-site fields with defaults', () => {
     expect(hydrateCourseBlueprint({ id: 'b-1', title: 'Blueprint' } as any)).toEqual(
       expect.objectContaining({
