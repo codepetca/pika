@@ -1,0 +1,22 @@
+# Announcement Schedule picker closing
+
+Surface: teacher Announcement create, draft-edit and posted-edit Schedule popovers. Approved motion reference: Pattern Lab Page actions and the adjacent Announcement SplitButton's semantic fast opacity exit. The known, inert rendering retained by UserMenu/ModalLayer is the presentation reference. Preserve the date/time fields' browser rendering and geometry during the fade, including their locale-specific segmented text.
+
+| Need | Existing candidate | Decision | Reason |
+|---|---|---|---|
+| Date/time rendering and validation | ScheduleDateTimePicker | reuse | A known pure view with useId and no effects; preserve native field rendering and its unchanged API/Assignment defaults. |
+| Feature-owned closing lifetime | TeacherAnnouncementsSection create/edit owners | extend | Retire focus refs and replace every picker callback with a no-op immediately; retain only frozen scalar props and the closing viewport bounds in an inert, aria-hidden view until expiry. No arbitrary children or cloned DOM. |
+| Motion and owner retirement | Shared fast opacity/standard easing, SplitButton and existing committed focus sessions | reuse | No spatial movement, new token, new primitive or delayed focus work. |
+| Verification | Actual classroom fixture and Announcement owner tests | extend | Exercise natural browser motion, retained native field identity, immediate inertness, stale callbacks, rapid reopen and context retirement. |
+
+Teacher matrix: desktop1440x900/mobile390x844, light/dark, normal/reduced motion; create/draft/posted open, Cancel/Escape/Done/outside/Tab close, rapid reopen and hidden tab. Student matrix: desktop/mobile, light/dark navigation/read compatibility; no student picker exists. Four unchanged Pattern Lab contract goldens. Capture the reference on the same viewport. Final evidence records source revision, capture date, surface and context.
+
+Primary signal: a fixed-position opacity exit. Opening, focus return, outside/Tab destinations, draft values, request generations, pending saves and Toronto scheduling rules remain with the existing owners. Owner/context replacement, hidden/read-only commits, unmount and reduced motion retire any fading view immediately. Animation expiry performs no focus or command work.
+
+The audit proposed static div/span copies; native segmented date/time fidelity is uncertain with that approach. Use the existing pure picker rendering with frozen primitive props instead: its live callback props become no-ops and refs detach at logical close, while its wrapper becomes inert, aria-hidden and pointer-inactive. No second copy or duplicate IDs is created. Tests must prove both callback retirement and stable native DOM geometry/text.
+
+Stable guidance followed; experimental pattern introduced: no; shared API/token promotion: none. Composite checklist reviewed: yes; keyboard/semantic coverage and visual acceptance verified in the matrix below. Exclusions: shared picker redesign, Assignment changes, API/schema/dependency changes, production/migrations, privacy priority1 and old Calendar PR1217. Broad product-fluidity goal remains open.
+
+Verification: 95 Announcement owner cases pass, including 15 added closing regressions. Twelve native browser cases pass across teacher desktop1440x900/mobile390x844, light/dark and normal/reduced motion, plus student reading on both viewport/theme pairs; each teacher case covers all three editor owners. Four unchanged Pattern Lab contract goldens pass. Native observations prove an intermediate opacity, immediate inert/aria-hidden state, unchanged native field identity/font/geometry, rapid reopen, Cancel/Escape/Done/outside/Shift-Tab focus and retained drafts. No teacher API writes, console/page errors or overflow were observed. Synthetic API interception prevents backend writes; student automatic acknowledgements are intercepted.
+
+Owner tests cover hidden/read-only retirement, committed/abandoned context changes, preference changes and held-save compatibility; these are not claimed as separate native identity scenarios. Root inspected the four teacher viewport/theme open states, two closed states and all four student reading views against the existing reference. Screenshot provenance, source hashes and logs are retained in the task artifact folder; reference screenshots were captured on each normal-motion viewport/theme. No screen-reader, real backend or product-wide conformance claim. Focused checks and independent exact-SHA review remain required before main merge.
