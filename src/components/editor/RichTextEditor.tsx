@@ -201,6 +201,8 @@ export interface RichTextEditorProps {
   /** Retain content and toolbar footprint while retiring editing controls. */
   interactionActive?: boolean
   autoFocus?: boolean
+  /** Keep initial focus from scrolling a size-animating embedded editor. */
+  autoFocusScrollIntoView?: boolean
   /**
    * Governs the amount of formatting UI shown for this authoring task.
    * Prefer this over `showToolbar` for new call sites.
@@ -343,6 +345,7 @@ export function RichTextEditor({
   editable = true,
   interactionActive = true,
   autoFocus = false,
+  autoFocusScrollIntoView = true,
   toolbarPreset = 'document',
   showToolbar = true,
   className = '',
@@ -683,9 +686,9 @@ export function RichTextEditor({
 
   useEffect(() => {
     if (editor && canEdit && interactionActive && autoFocus) {
-      editor.commands.focus('end')
+      editor.commands.focus('end', { scrollIntoView: autoFocusScrollIntoView })
     }
-  }, [autoFocus, canEdit, editor, interactionActive])
+  }, [autoFocus, autoFocusScrollIntoView, canEdit, editor, interactionActive])
 
   useEffect(() => {
     if (!editor) return

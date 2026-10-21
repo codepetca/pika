@@ -77,6 +77,30 @@ describe('LessonDayCell', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })).toHaveFocus())
   })
 
+  // Complements useLessonCellMotion's late-editor geometry test with the real
+  // cell's fallback retirement, editor semantics and Escape focus handoff.
+  it('keeps a retired preview available for the editor handoff without duplicate edit targets', async () => {
+    const { container } = renderWithTooltip(<LessonDayCell date={lessonPlan.date}
+      day={new Date('2026-03-13T12:00:00')} lessonPlan={lessonPlan}
+      isWeekend={false} isToday={false} editable compact />)
+    const preview = screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })
+    fireEvent.click(preview)
+    const editor = await screen.findByRole('textbox')
+    expect(preview).toBeInTheDocument()
+    expect(preview).toHaveAttribute('inert')
+    expect(preview).toHaveAttribute('aria-hidden', 'true')
+    expect(preview).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Edit lesson for March 13, 2026' })).not.toBeInTheDocument()
+    editor.focus()
+    fireEvent.keyDown(editor, { key: 'Escape' })
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    expect(preview).not.toHaveAttribute('inert')
+    expect(preview).not.toHaveAttribute('aria-hidden')
+    expect(preview).toBeEnabled()
+    expect(preview).toHaveFocus()
+    expect(container.querySelector('[data-lesson-exit]')).toBeNull()
+  })
+
   it('retires the editor immediately when editing permission is removed', () => {
     const props = { date: lessonPlan.date, day: new Date('2026-03-13T12:00:00'), lessonPlan,
       isWeekend: false, isToday: false, editable: true }

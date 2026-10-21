@@ -589,8 +589,8 @@
         },
         {
           "kind": "raw-color-class",
-          "count": 23,
-          "fingerprint": "c2842bc5ae63b919",
+          "count": 16,
+          "fingerprint": "1fd64833ba310859",
           "reason": "legacy-visual-value"
         }
       ]

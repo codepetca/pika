@@ -169,10 +169,75 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
   await expect.poll(() => page.locator('[data-modal-state]').count()).toBe(0)
+  await verifyMonthTextAnchor(page, testInfo, role)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
     viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
+}
+
+/** Text must not resize or scroll inside the expanding Month cell. */
+async function verifyMonthTextAnchor(page: Page, testInfo: TestInfo, role: 'teacher' | 'student') {
+  await page.getByRole('button', { name: 'Month', exact: true }).click()
+  const heading = page.getByRole('heading', { name: 'Lesson 5', exact: true })
+  await heading.scrollIntoViewIfNeeded()
+  const cell = await heading.locator('xpath=ancestor::div[contains(@class,"border-r") and contains(@class,"border-b") and @style][1]').elementHandle()
+  expect(cell).not.toBeNull()
+  const observations: unknown[] = []
+  for (const direction of ['opening', 'closing'] as const) {
+    const framesHandle = await cell!.evaluateHandle(element => {
+      const frames: { font: string; lineHeight: string; text: string; rects: { x: number; y: number; width: number; height: number }[] }[][] = []
+      const started = performance.now()
+      const sample = () => {
+        const root = element.querySelector('.ProseMirror') ?? element.querySelector('.calendar-lesson-preview')!
+        const bounds = element.getBoundingClientRect()
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
+        const texts: typeof frames[number] = []
+        let node: Node | null
+        while ((node = walker.nextNode()) && texts.length < 2) {
+          if (!node.textContent?.trim()) continue
+          const range = document.createRange()
+          range.selectNodeContents(node)
+          const styles = getComputedStyle(node.parentElement!)
+          texts.push({ text: node.textContent, font: styles.fontSize, lineHeight: styles.lineHeight,
+            rects: Array.from(range.getClientRects(), rect => ({ x: rect.x - bounds.x, y: rect.y - bounds.y,
+              width: rect.width, height: rect.height })) })
+        }
+        frames.push(texts)
+        if (performance.now() - started < 400) requestAnimationFrame(sample)
+      }
+      sample()
+      return frames
+    })
+    if (direction === 'opening') {
+      await heading.click()
+      if (role === 'teacher') await expect(page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })).toBeFocused()
+    } else if (role === 'teacher') {
+      // Actual click-away path, rather than only Escape.
+      await page.getByRole('button', { name: 'Month', exact: true }).click()
+      await expect(page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })).toHaveCount(0)
+    } else await heading.click()
+    await page.waitForTimeout(450)
+    const frames = await framesHandle.jsonValue()
+    const baseline = frames[0]
+    expect(baseline).toHaveLength(2)
+    expect(frames.length).toBeGreaterThan(2)
+    for (const frame of frames) {
+      expect(frame.map(({ text, font, lineHeight }) => ({ text, font, lineHeight })))
+        .toEqual(baseline.map(({ text, font, lineHeight }) => ({ text, font, lineHeight })))
+      for (let index = 0; index < baseline.length; index++) {
+        expect(frame[index].rects.length).toBe(baseline[index].rects.length)
+        frame[index].rects.forEach((rect, fragment) => {
+          for (const key of ['x', 'y', 'width', 'height'] as const) {
+            expect(Math.abs(rect[key] - baseline[index].rects[fragment][key])).toBeLessThan(1)
+          }
+        })
+      }
+    }
+    observations.push({ direction, frames })
+    await framesHandle.dispose()
+  }
+  await testInfo.attach('month-cell-text-anchor', { body: Buffer.from(JSON.stringify(observations)), contentType: 'application/json' })
 }
 
 /** Empty non-class weekdays must not let the lesson overlay intercept event clicks. */
