@@ -146,8 +146,47 @@ function fakeSupabase({
 describe('stable classroom attendance QR', () => {
   afterEach(() => vi.unstubAllEnvs())
   beforeEach(() => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', secret)
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'installation_test')
+  })
+
+  it.each(['student', 'teacher'])('preserves the admitted %s actor while applying classroom QR boundaries', async role => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [studentId] }))
+    const pikaUser = { id: studentId, email: 'student@example.com', role }
+    const executeCheckIn = vi.fn().mockResolvedValue({ state: 'checked_in' })
+    const loadPresentation = vi.fn().mockResolvedValue({ entryPath: `/attendance/check-in/${'e'.repeat(100)}` })
+    const input = { supabase: fakeSupabase(), pikaUser, classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555', now: new Date('2026-09-01T12:30:00.000Z'), loadPresentation, executeCheckIn }
+    await expect(executeClassroomQrStudentCheckIn(input)).resolves.toMatchObject({ state: 'checked_in' })
+    expect(executeCheckIn).toHaveBeenCalledWith(expect.objectContaining({ pikaUser }))
+
+    for (const [scenario, code] of [
+      [{ enrolled: false }, 'not_enrolled'],
+      [{ enrolled: false, rosterEmails: [] }, 'not_on_roster'],
+      [{ enrolled: false, rosterEmails: ['student@example.com', 'STUDENT@example.com'] }, 'roster_ambiguous'],
+      [{ currentHandle: '66666666-6666-4666-8666-666666666666' }, 'invalid_or_revoked'],
+      [{ open: false }, 'not_open'],
+      [{ enabled: false }, 'not_open'],
+      [{ isClassDay: false }, 'not_open'],
+    ] as const) {
+      executeCheckIn.mockClear()
+      loadPresentation.mockClear()
+      await expect(executeClassroomQrStudentCheckIn({ ...input, supabase: fakeSupabase(scenario as Scenario) }))
+        .rejects.toMatchObject({ code })
+      expect(executeCheckIn).not.toHaveBeenCalled()
+      expect(loadPresentation).not.toHaveBeenCalled()
+    }
+  })
+
+  it('rejects an unadmitted teacher before classroom QR lookup', async () => {
+    const supabase = { from: vi.fn() }
+    await expect(executeClassroomQrStudentCheckIn({ supabase,
+      pikaUser: { id: studentId, email: 'student@example.com', role: 'teacher' },
+      classroomQrToken: createClassroomAttendanceQrToken(handleId, secret),
+      attemptId: '55555555-5555-4555-8555-555555555555',
+    })).rejects.toMatchObject({ code: 'identity_not_linked' })
+    expect(supabase.from).not.toHaveBeenCalled()
   })
 
   it('round-trips an opaque handle without embedding a classroom identifier', () => {

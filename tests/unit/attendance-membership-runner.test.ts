@@ -70,7 +70,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,285")
+    expect(source).toContain("assert.equal(migrations.length,286")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
@@ -84,6 +84,9 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('resolve_attendance_membership_scan_generation:')
     expect(source).toContain('prepare_attendance_membership_snapshot_v1:')
     expect(source).toContain('stage_attendance_membership_roster_snapshot_v1:')
+    expect(source).toContain('read_attendance_membership_status_v1:')
+    expect(source).toContain('read_attendance_membership_session_for_owner_v1:')
+    expect(source).toContain('apply_attendance_membership_status_overrides_v1:')
     expect(source).toContain('cmp -s')
     expect(source).toContain('Baseline must remain unchanged')
     expect(source).toContain('drop schema public cascade; drop schema private cascade; create schema public;')

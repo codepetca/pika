@@ -21,6 +21,7 @@ describe('isolated attendance membership contention proof', () => {
     expect(script).toContain(createHash('sha256').update(fixture).digest('hex'))
     expect(script).toContain('attendance-membership-adoption-reviewed-migration.ts')
     expect(script).toContain('285_attendance_membership_adoption.sql')
+    expect(script).toContain('286_attendance_learner_membership.sql')
     expect(script).toContain("fixture.replace(/rollback;\\s*$/i, 'commit;')")
     expect(script).not.toMatch(/writeFile|appendFile|execSync|shell:\s*true/)
   })
@@ -42,7 +43,9 @@ describe('isolated attendance membership contention proof', () => {
 
   it('uses actual prepare/stage/removal RPCs and verifies committed state across connections', () => {
     for (const rpc of ['prepare_attendance_membership_snapshot_v1', 'stage_attendance_membership_roster_snapshot_v1',
-      'resolve_attendance_membership_scan_generation', 'remove_classroom_students_for_owner_v1']) expect(script).toContain(rpc)
+      'resolve_attendance_membership_scan_generation', 'remove_classroom_students_for_owner_v1',
+      'read_attendance_membership_status_v1', 'apply_attendance_membership_status_overrides_v1',
+      'set_attendance_teacher_entitlement_v1']) expect(script).toContain(rpc)
     expect(script).toContain('assert.deepEqual(retried, baseline)')
     expect(script).toContain("await holder.run('commit;')")
     expect(script).toContain("await holder.run('rollback;')")

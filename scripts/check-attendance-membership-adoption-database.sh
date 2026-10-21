@@ -29,7 +29,7 @@ source_version="$(docker exec "$source_container" psql -U postgres -d postgres -
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
 # No application ACLs or singleton data survive the full application replay.
 ((10#$source_version >= 234 && 10#$source_version <= 285)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,285,'Attendance proof target must be exactly285'); validateLifecycleServicesReviewedMigrations(migrations);"
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,286,'Attendance proof target must be exactly286'); validateLifecycleServicesReviewedMigrations(migrations);"
 meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"
@@ -92,7 +92,7 @@ for path in "$root"/supabase/migrations/*.sql; do
     exit 1
   fi
 done
-echo 'PASS replay001–285.'
+echo 'PASS replay001–286.'
 # Record only versions whose actual replay just succeeded, so existing native
 # harness preflights see the same real migration history as a CLI-created stack.
 {
@@ -121,7 +121,7 @@ meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.attendan
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
 [[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]]
 (( $(wc -c < "$scratch/generated.ts") <= 8388608 ))
-for rpc in prepare_attendance_membership_snapshot_v1: stage_attendance_membership_roster_snapshot_v1: resolve_attendance_membership_scan_generation:; do
+for rpc in prepare_attendance_membership_snapshot_v1: stage_attendance_membership_roster_snapshot_v1: resolve_attendance_membership_scan_generation: read_attendance_membership_status_v1: read_attendance_membership_session_for_owner_v1: apply_attendance_membership_status_overrides_v1:; do
   grep -Fq "$rpc" "$scratch/generated.ts"
 done
 awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { print ""; blank_lines -= 1 }; print }' "$scratch/generated.ts" > "$scratch/normalized.ts"
@@ -138,4 +138,4 @@ if [[ "$mode" == --generate-types ]]; then
 else
   cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts"
 fi
-echo 'PASS isolated attendance285 replay, rollback behavior, real metadata and unchanged shared schema.'
+echo 'PASS isolated attendance286 replay, rollback behavior, real metadata and unchanged shared schema.'

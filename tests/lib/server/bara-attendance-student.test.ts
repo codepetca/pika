@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
 import {
   deriveStudentAttendanceOccurrenceBinding,
+  deriveStudentAttendanceMembershipOccurrenceBinding,
   sealAttendanceEntryToken,
 } from '@/lib/server/bara-attendance-entry-token'
 import {
@@ -12,11 +13,12 @@ import {
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
 
 const { withAuth } = vi.hoisted(() => ({ withAuth: vi.fn() }))
-const { resolveGeneration } = vi.hoisted(() => ({ resolveGeneration: vi.fn() }))
+const { resolveGeneration, resolveMembershipGeneration } = vi.hoisted(() => ({ resolveGeneration: vi.fn(), resolveMembershipGeneration: vi.fn() }))
 vi.mock('@workos-inc/authkit-nextjs', () => ({ withAuth }))
 vi.mock('@/lib/server/attendance-generation', async importOriginal => ({
   ...await importOriginal<typeof import('@/lib/server/attendance-generation')>(),
   resolveAttendanceScanGeneration: resolveGeneration,
+  resolveAttendanceMembershipScanGeneration: resolveMembershipGeneration,
 }))
 
 const entrySecret = 'entry-token-secret-that-is-long-enough-for-tests'
@@ -57,10 +59,166 @@ describe('native Pika student attendance check-in', () => {
     occurrenceRead.mockResolvedValue({ data: { class_date: '2026-09-02', present_through_at: '2026-09-02T13:05:00.000Z' }, error: null })
     classroomRead.mockResolvedValue({ data: { title: classroomName }, error: null })
     resolveGeneration.mockReset().mockResolvedValue({ status: 'legacy' })
+    resolveMembershipGeneration.mockReset()
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
     vi.stubEnv('BARA_ATTENDANCE_ENTRY_TOKEN_SECRET', entrySecret)
     vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'pika_test')
   })
   afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers() })
+
+  const membership = { status: 'active', generation_id: attemptId, participant_ref: `participant_${'a'.repeat(32)}` }
+  function admit() {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [studentId] }))
+    vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
+    resolveMembershipGeneration.mockResolvedValue(membership)
+  }
+  function accepted(participantRef = membership.participant_ref) {
+    return { outcome: 'applied', resultCode: 'check_in_accepted', occurrenceRef: 'occurrence_one', sessionRevision: 1,
+      checkIn: { checkInRef: 'check_in_one', participantRef, checkInRevision: 1, acceptedAt: '2026-09-02T13:01:00.000Z' } }
+  }
+
+  it.each(['student', 'teacher'])('binds admitted %s scans to exact membership with cleanup paused', async role => {
+    admit()
+    const send = vi.fn().mockResolvedValue(accepted())
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser: { ...pikaUser, role },
+      entryToken: entryToken(), attemptId, integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ participant_ref: membership.participant_ref }))
+    expect(resolveGeneration).not.toHaveBeenCalled()
+    expect(resolveMembershipGeneration).toHaveBeenCalledTimes(3)
+    expect(result).toMatchObject({ state: 'checked_in', occurrenceBinding: deriveStudentAttendanceMembershipOccurrenceBinding({
+      studentId, classroomId, occurrenceRef: 'occurrence_one', generationId: membership.generation_id, participantRef: membership.participant_ref,
+    }) })
+  })
+
+  it('keeps unadmitted scans on the legacy resolver', async () => {
+    await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send: vi.fn().mockResolvedValue(accepted()) })
+    expect(resolveMembershipGeneration).not.toHaveBeenCalled()
+    expect(resolveGeneration).toHaveBeenCalled()
+  })
+
+  it.each(['before-send', 'retry', 'response'])('rejects admitted membership removed %s', async gap => {
+    admit()
+    resolveMembershipGeneration.mockReset().mockResolvedValueOnce(membership)
+    if (gap !== 'before-send') resolveMembershipGeneration.mockResolvedValueOnce(membership)
+    resolveMembershipGeneration.mockResolvedValue({ status: 'forbidden' })
+    const send = gap === 'retry'
+      ? vi.fn().mockRejectedValue(new BaraAttendanceClientError('timeout', 'network_error', true))
+      : vi.fn().mockResolvedValue(accepted())
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
+    expect(result).toMatchObject({ state: 'needs_staff' })
+    expect(result).not.toHaveProperty('occurrenceBinding')
+    expect(send).toHaveBeenCalledTimes(gap === 'before-send' ? 0 : 1)
+  })
+
+  it('fails closed on missing strict membership schema without legacy fallback', async () => {
+    admit()
+    const { resolveAttendanceMembershipScanGeneration } = await vi.importActual<typeof import('@/lib/server/attendance-generation')>('@/lib/server/attendance-generation')
+    resolveMembershipGeneration.mockImplementation(resolveAttendanceMembershipScanGeneration)
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202', message: 'resolve_attendance_membership_scan_generation' } })
+    const send = vi.fn()
+    await expect(executeStudentAttendanceCheckIn({ supabase: { ...supabase, rpc }, pikaUser,
+      entryToken: entryToken(), attemptId, integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send }))
+      .rejects.toEqual(new StudentAttendanceCheckInError('upstream_unavailable'))
+    expect(rpc).toHaveBeenCalledWith('resolve_attendance_membership_scan_generation', { p_classroom_id: classroomId, p_student_id: studentId })
+    expect(send).not.toHaveBeenCalled()
+    expect(resolveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('rejects a provider echo from another participant even with cleanup paused', async () => {
+    admit()
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send: vi.fn().mockResolvedValue(accepted('participant_wrong')) }))
+      .rejects.toEqual(new StudentAttendanceCheckInError('upstream_unavailable'))
+  })
+
+  it('changes command identity for a replacement admitted generation with the same attempt', async () => {
+    admit()
+    const send = vi.fn().mockImplementation(async payload => accepted(payload.participant_ref))
+    const input = { supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready' as const, resolveActor: vi.fn().mockResolvedValue(actor), send }
+    await executeStudentAttendanceCheckIn(input)
+    resolveMembershipGeneration.mockResolvedValue({ ...membership, generation_id: '22222222-2222-4222-8222-222222222222' })
+    await executeStudentAttendanceCheckIn(input)
+    expect(send.mock.calls[0][0].idempotency_key).not.toBe(send.mock.calls[1][0].idempotency_key)
+  })
+
+  it('does not accept a legacy active mapping as proof of current admitted membership', async () => {
+    admit()
+    resolveGeneration.mockResolvedValue(membership)
+    resolveMembershipGeneration.mockResolvedValue({ status: 'forbidden' })
+    const send = vi.fn()
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })).resolves.toMatchObject({ state: 'needs_staff' })
+    expect(send).not.toHaveBeenCalled()
+    expect(resolveGeneration).not.toHaveBeenCalled()
+  })
+
+  it('retries an admitted timeout with the identical membership command', async () => {
+    admit()
+    const send = vi.fn().mockRejectedValueOnce(new BaraAttendanceClientError('timeout', 'network_error', true))
+      .mockResolvedValueOnce(accepted())
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })).resolves.toMatchObject({ state: 'checked_in' })
+    expect(send).toHaveBeenCalledTimes(2)
+    expect(send.mock.calls[0][0]).toEqual(send.mock.calls[1][0])
+    expect(resolveMembershipGeneration).toHaveBeenCalledTimes(4)
+  })
+
+  it.each(['before-send', 'response'])('rejects an active replacement generation %s', async gap => {
+    admit()
+    resolveMembershipGeneration.mockReset().mockResolvedValueOnce(membership)
+    if (gap === 'response') resolveMembershipGeneration.mockResolvedValueOnce(membership)
+    resolveMembershipGeneration.mockResolvedValue({ ...membership, generation_id: classroomId })
+    const send = vi.fn().mockResolvedValue(accepted())
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })).resolves.toMatchObject({ state: 'needs_staff' })
+    expect(send).toHaveBeenCalledTimes(gap === 'before-send' ? 0 : 1)
+  })
+
+  it.each(['student', 'teacher'])('requires exact verified identity for an admitted %s label', async role => {
+    admit()
+    const current = { ...pikaUser, role }
+    const workos = { id: 'user_student_one', email: current.email, emailVerified: true }
+    const userRow = { role, email: current.email, workos_user_id: workos.id }
+    const rows: Record<string, unknown> = {
+      users: userRow,
+      student_profiles: { first_name: 'Student', last_name: 'One' },
+      attendance_principal_mappings: { principal_ref: actor.principalRef },
+    }
+    const database = { from: vi.fn((table: string) => {
+      const query: any = { select: vi.fn(() => query), eq: vi.fn(() => query),
+        maybeSingle: vi.fn(async () => ({ data: rows[table], error: null })) }
+      return query
+    }) }
+    withAuth.mockResolvedValue({ user: workos })
+    await expect(resolveVerifiedPikaAttendanceStudent({ supabase: database, pikaUser: current })).resolves.toEqual(actor)
+
+    for (const altered of [
+      { ...userRow, role: role === 'teacher' ? 'student' : 'teacher' },
+      { ...userRow, email: 'other@example.com' },
+      { ...userRow, workos_user_id: 'user_other' },
+    ]) {
+      rows.users = altered
+      await expect(resolveVerifiedPikaAttendanceStudent({ supabase: database, pikaUser: current }))
+        .rejects.toEqual(new StudentAttendanceCheckInError('identity_not_linked'))
+    }
+    rows.users = userRow
+    for (const altered of [{ ...workos, emailVerified: false }, { ...workos, email: 'other@example.com' }, { ...workos, id: 'user_other' }]) {
+      withAuth.mockResolvedValue({ user: altered })
+      await expect(resolveVerifiedPikaAttendanceStudent({ supabase: database, pikaUser: current }))
+        .rejects.toEqual(new StudentAttendanceCheckInError('identity_not_linked'))
+    }
+  })
+
+  it('does not verify a teacher label as a learner when admission is absent', async () => {
+    withAuth.mockResolvedValue({ user: { id: 'user_student_one', email: pikaUser.email, emailVerified: true } })
+    const database = { from: vi.fn() }
+    await expect(resolveVerifiedPikaAttendanceStudent({ supabase: database, pikaUser: { ...pikaUser, role: 'teacher' } }))
+      .rejects.toEqual(new StudentAttendanceCheckInError('identity_not_linked'))
+    expect(database.from).not.toHaveBeenCalled()
+  })
 
   it('uses the exact current participant on enabled scans and checks the same generation after the response', async () => {
     vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'true')
@@ -223,7 +381,7 @@ describe('native Pika student attendance check-in', () => {
 
     await expect(resolveVerifiedPikaAttendanceStudent({
       supabase,
-      pikaUser: { id: 'student-one', email: 'student@example.com', role: 'student' },
+      pikaUser,
     })).resolves.toEqual(actor)
   })
 

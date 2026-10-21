@@ -279,6 +279,27 @@ type TableOverrides = {
 }
 
 type FunctionOverrides = {
+  //286 accepts SQLNULL for disabled-runtime installation and canary filters.
+  // Generated PostgreSQL metadata preserves keys/defaults, not input nullability.
+  read_attendance_membership_status_v1: FunctionContract<
+    'read_attendance_membership_status_v1',
+    Json,
+    Replace<GeneratedFunctions['read_attendance_membership_status_v1']['Args'], {
+      p_installation_ref: string | null
+      p_canary_actor_id?: string | null
+      p_canary_classroom_id?: string | null
+    }>
+  >
+  read_attendance_membership_session_for_owner_v1: FunctionContract<
+    'read_attendance_membership_session_for_owner_v1',
+    Json,
+    Replace<GeneratedFunctions['read_attendance_membership_session_for_owner_v1']['Args'], {
+      p_installation_ref: string | null
+      p_canary_actor_id?: string | null
+      p_canary_classroom_id?: string | null
+    }>
+  >
+
   //275 runtime installation may be SQLNULL; canary filters keep genuine defaults.
   read_attendance_session_for_owner_v1: FunctionContract<
     'read_attendance_session_for_owner_v1',

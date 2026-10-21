@@ -38,7 +38,7 @@ const rosterRowsSchema = z.array(z.object({
   integration_state: z.enum(['active', 'deactivating', 'inactive']),
 }).strict()).max(MAX_STUDENT_CLASSROOMS)
 
-const occurrenceRowsSchema = z.array(z.object({
+export const occurrenceRowsSchema = z.array(z.object({
   classroom_id: z.string().uuid(),
   class_date: z.string().date(),
   occurrence_ref: z.string().min(1).max(128),
@@ -49,14 +49,14 @@ const occurrenceRowsSchema = z.array(z.object({
   desired_state: z.enum(['scheduled', 'cancelled']),
 }).strict()).max(MAX_STUDENT_OCCURRENCES)
 
-const sessionRowsSchema = z.array(z.object({
+export const sessionRowsSchema = z.array(z.object({
   occurrence_ref: z.string().min(1).max(128),
   status: z.enum(['scheduled', 'open', 'closed', 'cancelled']),
   opens_at: z.string().datetime({ offset: true }).nullable(),
   closes_at: z.string().datetime({ offset: true }).nullable(),
 }).strict()).max(MAX_STUDENT_OCCURRENCES)
 
-const checkInRowsSchema = z.array(z.object({
+export const checkInRowsSchema = z.array(z.object({
   classroom_id: z.string().uuid(),
   occurrence_ref: z.string().min(1).max(128),
   check_in_ref: z.string().min(1).max(128),
@@ -65,7 +65,7 @@ const checkInRowsSchema = z.array(z.object({
   invalidated_at: z.string().datetime({ offset: true }).nullable(),
 }).strict()).max(MAX_STUDENT_CHECK_INS)
 
-const overrideRowsSchema = z.array(z.object({
+export const overrideRowsSchema = z.array(z.object({
   classroom_id: z.string().uuid(),
   occurrence_ref: z.string().min(1).max(128),
   status: z.enum(['present', 'late', 'absent']).nullable(),

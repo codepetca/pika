@@ -1,4 +1,4 @@
--- Run only in the coordinator's isolated285 clone. All fixture writes roll back.
+-- Run only in the coordinator's isolated286 clone. All fixture writes roll back.
 \set ON_ERROR_STOP on
 begin;
 set local lock_timeout='3s';
@@ -13,12 +13,16 @@ begin
   foreach signature in array array[
     'public.prepare_attendance_membership_snapshot_v1(uuid,uuid,date,date,text,uuid,uuid,timestamptz)',
     'public.stage_attendance_membership_roster_snapshot_v1(uuid,uuid,text,jsonb,text,uuid,uuid,timestamptz)',
-    'public.resolve_attendance_membership_scan_generation(uuid,uuid)'] loop
+    'public.resolve_attendance_membership_scan_generation(uuid,uuid)',
+    'public.read_attendance_membership_status_v1(uuid,date,text,text,text,uuid,uuid)',
+    'public.read_attendance_membership_session_for_owner_v1(uuid,uuid,date,text,text,text,uuid,uuid)',
+    'public.apply_attendance_membership_status_overrides_v1(uuid,uuid,date,uuid,jsonb,text,uuid,uuid)'] loop
     if has_function_privilege('anon',signature,'execute') or has_function_privilege('authenticated',signature,'execute')
       or not has_function_privilege('service_role',signature,'execute') then raise exception 'Membership RPC ACL: %',signature; end if;
   end loop;
   foreach role_name in array array['anon','authenticated','service_role'] loop
     if has_table_privilege(role_name,'private.attendance_pointer_mutations','select,insert,update,delete,truncate,references,trigger')
+      or has_table_privilege(role_name,'private.attendance_override_mutations','select,insert,update,delete,truncate,references,trigger')
       or has_function_privilege(role_name,'private.allocate_attendance_membership_participant(uuid,uuid,uuid)','execute')
       or has_function_privilege(role_name,'private.attendance_pointer_mutation_allowed(jsonb,jsonb)','execute') then
       raise exception 'Pointer capability exposed to %',role_name;
@@ -84,6 +88,9 @@ begin
     raise exception 'Legacy preparation fabricated a generation';
   end if;
   old_message:=pg_temp.membership_message(prepared);
+  -- Existing unknown-generation override events stay unknown after adoption.
+  perform public.apply_attendance_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000001',
+    jsonb_build_array(jsonb_build_object('student_id',learner,'status','present','reason_code','staff_correction')));
   staged:=public.stage_attendance_roster_snapshot_v1(owner_id,course,prepared->>'roster_source_token',old_message);
   -- A283 association captured before an independent171 binding remains NULL.
   select participant_ref into peer_ref from public.attendance_participant_mappings where classroom_id=course and student_id=peer;
@@ -122,6 +129,13 @@ begin
   perform public.apply_attendance_event_v1(pg_temp.membership_event(roster,occurrence,legacy_ref,'fixture285_legacy'),'fixture285_nonce_legacy');
   old_event:=pg_temp.membership_event(roster,occurrence,first_ref,'fixture285_first');
   perform public.apply_attendance_event_v1(old_event,'fixture285_nonce_first');
+  again:=public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000002',
+    jsonb_build_array(jsonb_build_object('student_id',learner,'expected_generation_id',generation_one,'status','present','reason_code','staff_correction')),
+    'exact_canary',owner_id,course);
+  if (again->>'applied_count')::integer<>1 or exists(select 1 from private.attendance_override_event_generations proof
+    join public.attendance_status_override_events ev on ev.id=proof.event_id
+    where ev.request_id='f2860000-0000-4000-8000-000000000001') then
+    raise exception 'Same status across unknown generation was suppressed or history backfilled'; end if;
   if (select count(*) from public.attendance_check_in_facts where classroom_id=course and student_id=learner)<>2 then
     raise exception 'Historical fact lost or relabeled'; end if;
   select to_jsonb(mapping) into before_pointer from public.attendance_participant_mappings mapping where classroom_id=course and student_id=learner;
@@ -200,5 +214,127 @@ begin
     raise exception 'Reconciliation/cardinality/cleanup isolation failed'; end if;
 end;
 $allocation_and_delivery$;
+
+create function pg_temp.membership_mark(p_generation uuid,p_status text,p_student uuid default 'f2850000-0000-4000-8000-000000000002')
+returns jsonb language sql as $$ select jsonb_build_array(jsonb_build_object('student_id',p_student,
+  'expected_generation_id',p_generation,'status',p_status,'reason_code','staff_correction')); $$;
+
+do $learner_and_override$
+declare owner_id uuid:='f2850000-0000-4000-8000-000000000001'; learner uuid:='f2850000-0000-4000-8000-000000000002';
+  course uuid:='f2850000-0000-4000-8000-000000000010'; old_generation uuid:='f2850000-0000-4000-8000-000000000020';
+  generation uuid:='f2850000-0000-4000-8000-000000000022'; v_request_id uuid:='f2860000-0000-4000-8000-000000000003';
+  value jsonb; row_value jsonb; result jsonb; initial_events integer; event_id uuid; cap_count integer; owner_snapshot jsonb;
+begin
+  value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+  row_value:=value->'classrooms'->0;
+  if jsonb_array_length(value->'classrooms')<>1 or row_value->>'generation_id' is distinct from generation::text
+    or row_value->'check_in'->>'check_in_ref' not in ('fixture285_second','fixture285_reconcile')
+    or row_value->'override' is distinct from 'null'::jsonb then raise exception 'Learner saw old/unknown evidence'; end if;
+  owner_snapshot:=public.read_attendance_membership_session_for_owner_v1(owner_id,course,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+  if jsonb_array_length(owner_snapshot->'rows'->'check_ins')<>5
+    or not (owner_snapshot->'membership_targets' @> jsonb_build_array(jsonb_build_object('student_id',learner,'generation_id',generation))) then
+    raise exception 'Owner history/loaded target not preserved'; end if;
+  initial_events:=(select count(*) from public.attendance_status_override_events where classroom_id=course);
+  -- A stale duplicate is checked against current membership before receipt replay.
+  begin
+    perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000002',
+      pg_temp.membership_mark(old_generation,'present'),'exact_canary',owner_id,course);
+    raise exception 'Stale duplicate rebound to replacement generation';
+  exception when check_violation then if sqlerrm<>'attendance_roster_changed' then raise; end if; end;
+  -- Legacy direct/global writer remains conservative after an earlier removal.
+  begin
+    perform public.apply_attendance_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000099',
+      jsonb_build_array(jsonb_build_object('student_id',learner,'status','late')));
+    raise exception 'Legacy writer bypassed closed generation';
+  exception when sqlstate '55000' then if sqlerrm<>'attendance_membership_generation_closed' then raise; end if; end;
+  result:=public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21',v_request_id,
+    pg_temp.membership_mark(generation,'present'),'exact_canary',owner_id,course);
+  if (result->>'applied_count')::integer<>1 then raise exception 'New generation same-status event lost'; end if;
+  result:=public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21',v_request_id,
+    pg_temp.membership_mark(generation,'present'),'exact_canary',owner_id,course);
+  if result->>'outcome'<>'duplicate' then raise exception 'Same operation did not deduplicate'; end if;
+  begin
+    perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21',v_request_id,
+      pg_temp.membership_mark(generation,'absent'),'exact_canary',owner_id,course);
+    raise exception 'Conflicting operation reused';
+  exception when unique_violation then if sqlerrm<>'attendance_override_request_conflict' then raise; end if; end;
+  result:=public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000004',
+    pg_temp.membership_mark(generation,'present'),'exact_canary',owner_id,course);
+  if (result->>'unchanged_count')::integer<>1 then raise exception 'Same generation no-op added revision'; end if;
+  result:=public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000005',
+    pg_temp.membership_mark(generation,'automatic'),'teacher_entitlements');
+  value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','ready','teacher_entitlements','fixture285');
+  if value->'classrooms'->0->'override'->'active' is distinct from 'false'::jsonb
+    or value->'classrooms'->0->'override'->'status' is distinct from 'null'::jsonb then raise exception 'Undo not projected from attributed event'; end if;
+  result:=public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000006',
+    pg_temp.membership_mark(generation,'automatic'),'exact_canary',owner_id,course);
+  if (result->>'unchanged_count')::integer<>1 or (select count(*) from public.attendance_status_override_events where classroom_id=course)<>initial_events+2 then
+    raise exception 'Undo no-op/history preservation failed'; end if;
+  -- Batch validation happens before any row, even when a later target is stale.
+  begin
+    perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000007',
+      pg_temp.membership_mark(generation,'late')||pg_temp.membership_mark(old_generation,'late','f2850000-0000-4000-8000-000000000003'),
+      'exact_canary',owner_id,course);
+    raise exception 'Partially stale batch accepted';
+  exception when check_violation then if sqlerrm<>'attendance_roster_changed' then raise; end if; end;
+  if exists(select 1 from public.attendance_override_requests where request_id='f2860000-0000-4000-8000-000000000007') then
+    raise exception 'Rejected batch left request'; end if;
+  select id into event_id from public.attendance_status_override_events where request_id='f2860000-0000-4000-8000-000000000001';
+  begin
+    insert into private.attendance_override_event_generations values(event_id,generation);
+    raise exception 'Historical attribution accepted';
+  exception when sqlstate '55000' then if sqlerrm<>'attendance_override_generation_writer_required' then raise; end if; end;
+  begin
+    update private.attendance_override_event_generations set generation_id=old_generation where generation_id=generation;
+    raise exception 'Attribution retarget accepted';
+  exception when sqlstate '55000' then if sqlerrm<>'attendance_override_generation_writer_required' then raise; end if; end;
+  if exists(select 1 from private.attendance_override_mutations) then raise exception 'Writer capability leaked'; end if;
+  value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','disabled','exact_canary',null,owner_id,course);
+  if value->'classrooms'->0->'generation_id'<>'null'::jsonb or value->'classrooms'->0->'occurrence'<>'null'::jsonb
+    or value->'classrooms'->0->'override'<>'null'::jsonb then raise exception 'Runtime disabled disclosed evidence'; end if;
+  value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','ready','exact_canary','fixture285',learner,course);
+  if value->'classrooms'->0->>'integration'<>'disabled' then raise exception 'Wrong canary disclosed evidence'; end if;
+  begin
+    update public.attendance_roster_mappings set integration_state='deactivating' where classroom_id=course;
+    value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+    owner_snapshot:=public.read_attendance_membership_session_for_owner_v1(owner_id,course,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+    if value->'classrooms'->0->>'integration'<>'disabled'
+      or value->'classrooms'->0->'override'<>'null'::jsonb or owner_snapshot->'membership_targets'<>'[]'::jsonb then
+      raise exception 'Exact canary bypassed roster deactivation'; end if;
+    begin
+      perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000009',
+        pg_temp.membership_mark(generation,'late'),'exact_canary',owner_id,course);
+      raise exception 'Deactivating roster accepted marks';
+    exception when sqlstate '55000' then if sqlerrm<>'attendance_membership_operation_blocked' then raise; end if; end;
+    raise exception 'fixture286 deactivation rollback';
+  exception when raise_exception then if sqlerrm<>'fixture286 deactivation rollback' then raise; end if; end;
+  begin
+    update public.attendance_teacher_entitlements set status='revoked' where teacher_id=owner_id;
+    value:=public.read_attendance_membership_status_v1(learner,'2026-10-21','ready','teacher_entitlements','fixture285');
+    if value->'classrooms'->0->>'integration'<>'disabled' then raise exception 'Revoked entitlement disclosed evidence'; end if;
+    begin
+      perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000010',
+        pg_temp.membership_mark(generation,'late'),'teacher_entitlements');
+      raise exception 'Revoked entitlement accepted marks';
+    exception when insufficient_privilege then if sqlerrm<>'attendance_classroom_forbidden' then raise; end if; end;
+    raise exception 'fixture286 entitlement rollback';
+  exception when raise_exception then if sqlerrm<>'fixture286 entitlement rollback' then raise; end if; end;
+  -- Owner precedence even if an anomalous enrollment exists.
+  insert into public.classroom_enrollments(classroom_id,student_id) values(course,owner_id);
+  value:=public.read_attendance_membership_status_v1(owner_id,'2026-10-21','ready','exact_canary','fixture285',owner_id,course);
+  if value->'classrooms'<>'[]'::jsonb then raise exception 'Owner was treated as learner'; end if;
+  delete from public.classroom_enrollments where classroom_id=course and student_id=owner_id;
+  -- Check the exact transaction rollback boundary after event attribution.
+  begin
+    perform public.apply_attendance_membership_status_overrides_v1(owner_id,course,'2026-10-21','f2860000-0000-4000-8000-000000000008',
+      pg_temp.membership_mark(generation,'late'),'exact_canary',owner_id,course);
+    raise exception 'fixture286 rollback';
+  exception when raise_exception then if sqlerrm<>'fixture286 rollback' then raise; end if; end;
+  if exists(select 1 from private.attendance_override_mutations)
+    or exists(select 1 from public.attendance_override_requests where request_id='f2860000-0000-4000-8000-000000000008')
+    or (select count(*) from public.attendance_status_override_events where classroom_id=course)<>initial_events+2 then
+    raise exception 'Failed transaction retained override/attribution/capability'; end if;
+end;
+$learner_and_override$;
 
 rollback;

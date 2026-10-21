@@ -35,14 +35,16 @@ describe('externally sealed Test quota proof table addition', () => {
     const additions = ['private.attendance_participant_associations', 'private.attendance_override_event_generations']
     const adoption = 'private.attendance_pointer_mutations'
     const historical = [capability, quota, ...additions, ...before].sort()
-    const expected = [...historical, adoption].sort()
+    const learner = 'private.attendance_override_mutations'
+    const expected = [...historical, adoption, learner].sort()
     expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 283))).toEqual(historical)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 284))).toEqual(historical)
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 285))).toEqual([...historical, adoption].sort())
     expect(historical).not.toContain(adoption)
     const futureSql = 'select 1;'
-    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '286_unknown.sql',
+    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '287_unknown.sql',
       sql: futureSql, sha256: createHash('sha256').update(futureSql).digest('hex') }])).toThrow()
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 280))).toEqual([quota, ...before].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 281))).toEqual([capability, quota, ...before].sort())
@@ -77,11 +79,11 @@ describe('externally sealed Test quota proof table addition', () => {
       expect(() => classroomTestQuotaProofCatalog(catalog, migrations)).toThrow()
     }
   })
-  describe.each(profiles)('$name complete285 preservation', profile => {
+  describe.each(profiles)('$name complete286 preservation', profile => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const canonical = [...new Set([...profile.scopes, 'storage.objects', 'storage.buckets'])].sort()
     const expected = classroomTestQuotaProofCatalog(canonical, current)
-    const adoption = 'private.attendance_pointer_mutations'
+    const adoption = 'private.attendance_override_mutations'
     const graph = (): Rows => ({ ...Object.fromEntries(profile.scopes.map(table => [table, []])),
       __nontarget_fingerprints: expected.map(table => ({ table, fingerprint: 'unchanged' })) })
     it('requires the complete new capability-table fingerprint', () => {

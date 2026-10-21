@@ -10,6 +10,7 @@ import {
 } from '@/lib/server/bara-attendance-client'
 import {
   AttendanceEntryTokenError,
+  deriveStudentAttendanceMembershipOccurrenceBinding,
   deriveStudentAttendanceOccurrenceBinding,
   openAttendanceEntryToken,
 } from '@/lib/server/bara-attendance-entry-token'
@@ -19,11 +20,12 @@ import {
   getBaraAttendanceClassroomIdIntegrationState,
 } from '@/lib/server/bara-attendance-canary'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
-import { resolveAttendanceScanGeneration, sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
+import { resolveAttendanceMembershipScanGeneration, resolveAttendanceScanGeneration, sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 const actorUserSchema = z.object({
   email: z.string().email(),
-  role: z.literal('student'),
+  role: z.enum(['student', 'teacher']),
   workos_user_id: z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/),
 }).strict()
 const actorProfileSchema = z.object({
@@ -74,7 +76,10 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
 }): Promise<VerifiedPikaAttendanceStudent> {
   const { withAuth } = await import('@workos-inc/authkit-nextjs')
   const { user: workOSUser } = await withAuth()
-  if (!workOSUser || !workOSUser.emailVerified || input.pikaUser.role !== 'student') {
+  const admitted = resolveClassroomExperienceAdmission(input.pikaUser).status === 'admitted'
+  if (!workOSUser || !workOSUser.emailVerified
+    || !z.string().uuid().safeParse(input.pikaUser.id).success
+    || (!admitted && input.pikaUser.role !== 'student')) {
     throw new StudentAttendanceCheckInError('identity_not_linked')
   }
 
@@ -105,6 +110,7 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
     throw new StudentAttendanceCheckInError('identity_not_linked')
   }
   if (
+    user.data.role !== input.pikaUser.role ||
     user.data.workos_user_id !== workOSUser.id ||
     user.data.email.trim().toLowerCase() !== workOSUser.email.trim().toLowerCase() ||
     user.data.email.trim().toLowerCase() !== input.pikaUser.email.trim().toLowerCase()
@@ -237,7 +243,10 @@ export async function executeStudentAttendanceCheckIn(input: {
   if (!z.string().uuid().safeParse(input.attemptId).success) {
     throw new StudentAttendanceCheckInError('invalid_entry')
   }
-  const resolveGeneration = input.resolveGeneration ?? resolveAttendanceScanGeneration
+  const admitted = resolveClassroomExperienceAdmission(input.pikaUser).status === 'admitted'
+  const resolveGeneration = admitted
+    ? resolveAttendanceMembershipScanGeneration
+    : input.resolveGeneration ?? resolveAttendanceScanGeneration
   const readGeneration = async () => {
     try {
       return await resolveGeneration({ supabase: input.supabase, classroomId: entry.classroomId, studentId: input.pikaUser.id })
@@ -278,9 +287,9 @@ export async function executeStudentAttendanceCheckIn(input: {
     occurrenceMetadata = { classDate: parsed.data.class_date, presentThroughAt: parsed.data.present_through_at }
   }
   if (occurrenceMetadata.classDate !== formatDateInToronto(now())) return checkInClosed()
-  // Emit the new optional wire field only under the explicit rollout gate.
-  // Current-state checks still run when that gate is paused.
-  const participantRef = generation.status === 'active' && process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true'
+  // Shared admission always uses the exact membership identity, independently
+  // of the legacy cleanup rollout's optional wire-field gate.
+  const participantRef = generation.status === 'active' && (admitted || process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true')
     ? generation.participant_ref : undefined
   const digest = createHash('sha256')
     .update(
@@ -305,6 +314,7 @@ export async function executeStudentAttendanceCheckIn(input: {
 
   const send = input.send ?? postBaraStudentCheckIn
   let result: BaraStudentCheckInResult
+  if (admitted && !sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
   try {
     result = await send(payload)
   } catch (error) {
@@ -322,9 +332,9 @@ export async function executeStudentAttendanceCheckIn(input: {
       throw new StudentAttendanceCheckInError('upstream_unavailable')
     }
   }
+  if (!sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
   if (participantRef && result.checkIn && result.checkIn.participantRef !== participantRef)
     throw new StudentAttendanceCheckInError('upstream_unavailable')
-  if (!sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
   const responseNow = now()
   const successful = result.resultCode === 'check_in_accepted' || result.resultCode === 'already_checked_in'
   if (successful && (
@@ -345,10 +355,18 @@ export async function executeStudentAttendanceCheckIn(input: {
         classDate: occurrenceMetadata.classDate,
         serverNow: responseNow.toISOString(),
         validUntil: toTorontoStartOfDayIso(addDaysToDateString(occurrenceMetadata.classDate, 1)),
-        occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({
-          studentId: input.pikaUser.id,
-          occurrenceRef: entry.occurrenceRef,
-        }),
+        occurrenceBinding: admitted && generation.status === 'active'
+          ? deriveStudentAttendanceMembershipOccurrenceBinding({
+              studentId: input.pikaUser.id,
+              classroomId: entry.classroomId,
+              generationId: generation.generation_id,
+              participantRef: generation.participant_ref,
+              occurrenceRef: entry.occurrenceRef,
+            })
+          : deriveStudentAttendanceOccurrenceBinding({
+              studentId: input.pikaUser.id,
+              occurrenceRef: entry.occurrenceRef,
+            }),
       }
     : mapped
 }
