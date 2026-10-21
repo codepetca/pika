@@ -882,3 +882,23 @@ Owner density refinement: Month/Term Test and Material chips inherited full cont
 Owner identity refinement: announcement peach was still too similar to Test amber. Announcement chips now use soft blue and retain Megaphone icons in agenda, grid and weekend markers; Material/FileText and Survey/ListChecks remain visible. The inline prototype no longer hides these icons in grid view. Updated the saved standard; compact heights and title-only labels are preserved.
 
 Owner authorized merging PR1648 once checks pass. Rebased onto main's documentation-only tooltip audit; resolved only an archive-batch marker collision while preserving both session entries. Application/test/config trees are byte-identical to the previously reviewed3646f90ed source. Final focused checks, independent integration verification and exact-head PR Gate precede squash merge to main. Production promotion remains separate.
+
+## 2026-10-21 — Fix calendar reference hydration before PR1648 merge
+
+Owner extended the review budget for one batched correction and one targeted
+review after CI exposed four assignment Pattern Lab dialog failures. CI traces
+showed a hydration mismatch: Material's September release stamp appeared
+scheduled under the browser's August31 fixed clock but published on the server.
+The calendar identity fixture now has no release schedule, preserving identical
+server/client labels. The new two-clock unit regression failed before the fix;
+the original creation-dialog browser failure also reproduced locally. Rebased
+onto main's attendance membership PR1647; only an archive batch marker conflicted,
+and main's marker and both session entries were preserved. No calendar production
+behavior, attendance rollout, migration application or provider hold changed.
+Validation and the approved additional targeted review follow on the final SHA.
+
+Fresh Playwright captures cover teacher/student at1440/390px in light/dark and
+preserve the accepted chip/icon treatment. The two-clock regression passes;
+desktop creation/edit browser contracts pass in both themes. Later mobile
+attempts hit page-loading timeouts under severe host load, without the former
+hydration error. Final focused checks and isolated mobile rerun remain gates.

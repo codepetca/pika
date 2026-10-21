@@ -16,7 +16,8 @@ const assignment: Assignment = {
 }
 const material: ClassworkMaterial = {
   id: 'identity-material', classroom_id: 'calendar-reference', title: 'Ecosystem reading',
-  content: { type: 'doc', content: [] }, position: 0, is_draft: false, released_at: stamp,
+  // Keep this unscheduled on both the server clock and clock-controlled clients.
+  content: { type: 'doc', content: [] }, position: 0, is_draft: false, released_at: null,
   created_by: 'reference-teacher', created_at: stamp, updated_at: stamp,
 }
 const announcement: Announcement = {

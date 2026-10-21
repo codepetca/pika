@@ -67,3 +67,11 @@ teacher reordering, status counts and student navigation differ. No broader
 card extraction is needed for this convention.
 
 Verification and review receipts are recorded in the session log and PR.
+
+The Calendar identity Material fixture is deliberately unscheduled (`released_at:
+null`). Its title and accessible name must match between server wall time and
+clock-controlled clients; otherwise hydration can discard the first click on
+unrelated Pattern Lab dialogs. Regression coverage checks both sides of the
+former release date, and the existing teacher creation/edit dialog browser
+contracts cover the first interaction. Teacher/student calendar references retain
+the accepted viewport/theme matrix; assignment dialog checks are teacher-only.

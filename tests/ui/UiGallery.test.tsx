@@ -34,6 +34,17 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each(['2026-08-31T16:00:00Z', '2026-10-21T16:00:00Z'])('keeps the calendar identity fixture unscheduled at %s', (now) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(now))
+    try {
+      render(<ThemeProvider><TooltipProvider><CalendarIdentityPattern /></TooltipProvider></ThemeProvider>)
+      expect(screen.getByRole('button', { name: 'Material: Ecosystem reading', exact: true })).toHaveTextContent(/^Ecosystem reading$/)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('keeps type icons decorative and calendar examples keyboard operable', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><CalendarIdentityPattern />
