@@ -48163,3 +48163,27 @@ Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical
 Source TDD reproduced missing archive boundary and four SSR Pal-selection failures;215 focused tests across13suites, full nonincremental TypeScript, focusedlint and architecture/UI/design policies pass. Source-only SQL/types prerequisite is frozen separately from uncommitted UI selection; temporary narrow RPC signatures must be removed after genuine isolated metadata generation. Pal worker Sol6.1/high delivered bounded implementation; another Sol6.1/high worker extended only the existing disposable component with a closed272 profile. Requested configuration recorded; effective/attributable token and active-time telemetry unavailable. Cumulative262 independent reviews retained, workers are not reviews. Weekly2% remains with ordinary execution allowed/task waiver; DeepSeek pause retained, storagehealthy286GB.
 
 SQL/native/SDK/stored-byte/visual acceptance and independent review/final-head CI remain pending; no source-only result closes batch3 or the goal. Production/shared-local249+, real accounts/plans/provider/billing/AI and admission/home/page/cohort/cutover holds remain unchanged. No actual new attempt, migration application, provider call or deployment.
+
+<!-- pika-session-log-archive-batch:27029dd2c3a03700ce90a462192b178631051cc77f9c0d81625b43c3f32f602a -->
+## 2026-10-19 — Genuine lifecycle metadata and exact SDK contracts
+
+Independent263/264 cleared C1 source and the closed disposable prerequisite;
+targeted265 cleared the verified signed Chrome update without relaxed admission.
+The one disposable001–272 SQL/type component passed both post-rollback contracts
+and generated442674B artifact4d8833b9. Global/canonical cleanup and internal
+preservation passed; exact owned resources are absent. Immediate outer observer
+failed only after its source/dependency comparisons, at process observation.
+Read-only diagnostics reproduce its own tsxCLI parent matching the filter; direct
+Node loader invocation of the unchanged observer passes7837sources/98965deps and
+zero current matches. Historical matching rows were not retained. Review266
+accepts SQL/generated-artifact evidence but NOT a successful complete FIRST gate;
+that failed observation remains failed, with no native attempt retry or criteria
+relaxation. Complete native acceptance remains unclaimed.
+
+Installed the exact genuine artifact byte-for-byte (same SHA256), added only
+nullable default-filter refinement, and removed both prerequisite RPC casts.
+Nonincremental application TypeScript,141 focused tests/six suites and focused
+eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source is
+unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
+successful preservation and closure gates using direct Node loading. Production,
+shared-local249+, real-account/provider/billing and all activation holds persist.

@@ -60,15 +60,20 @@ describe('UserMenu', () => {
     const trigger = screen.getByRole('button', { name: 'User menu' })
     fireEvent.click(trigger)
     const themeToggle = screen.getByRole('menuitem', { name: /dark mode|light mode|toggle theme/i })
+    const panel = screen.getByRole('menu')
     expect(themeToggle).toHaveFocus()
 
     fireEvent.keyDown(themeToggle, { key: 'Escape' })
 
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(panel).toHaveAttribute('inert')
+    expect(panel).toHaveAttribute('aria-hidden', 'true')
+    expect(Array.from(panel.querySelectorAll<HTMLElement>('[role="menuitem"]')).every(item => item.tabIndex === -1)).toBe(true)
     expect(trigger).toHaveFocus()
 
     fireEvent.click(trigger)
-    expect(screen.getByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menu')).toBe(panel)
+    expect(panel).not.toHaveAttribute('inert')
 
     fireEvent.mouseDown(document.body)
 
