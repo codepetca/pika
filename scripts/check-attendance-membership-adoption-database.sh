@@ -2,6 +2,19 @@
 set -euo pipefail
 umask 077
 
+resolve_attendance_meta_image() {
+  local registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}" image
+  case "$registry" in
+    public.ecr.aws|ghcr.io) ;;
+    *) echo 'Refusing unreviewed metadata image registry.' >&2; return 2 ;;
+  esac
+  # Supabase CI caches the GHCR alias; local CLI defaults to ECR. Use the same
+  # pinned version already present, resolve it once, and never pull a fallback.
+  image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')" || return $?
+  [[ "$image" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo 'Refusing malformed metadata image identity.' >&2; return 2; }
+  printf '%s\n' "$image"
+}
+
 # The shared stack is a schema-only source. Replay and rollback fixtures run in
 # a private, offline, owned clone; no hosted or shared migration application.
 root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -17,6 +30,7 @@ source_version="$(docker exec "$source_container" psql -U postgres -d postgres -
 # No application ACLs or singleton data survive the full application replay.
 ((10#$source_version >= 234 && 10#$source_version <= 285)) || exit 1
 pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,285,'Attendance proof target must be exactly285'); validateLifecycleServicesReviewedMigrations(migrations);"
+meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"
 token="${scratch##*.}"
@@ -103,7 +117,7 @@ if ! node "$root/scripts/check-attendance-membership-adoption-contention.mjs" --
   exit 1
 fi
 echo 'PASS actual two-session membership RPC conflicts and fresh committed state.'
-meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.attendance-membership.owner=$$:$token" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-attendance-check -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true public.ecr.aws/supabase/postgres-meta:v0.96.6)"
+meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.attendance-membership.owner=$$:$token" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-attendance-check -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true "$meta_image")"
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
 [[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]]
 (( $(wc -c < "$scratch/generated.ts") <= 8388608 ))

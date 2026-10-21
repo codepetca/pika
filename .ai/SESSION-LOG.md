@@ -881,3 +881,11 @@ genuine001–285 replay. One fresh isolated run passed that matrix, membership
 rollback/concurrency, metadata equality, unchanged shared243 and owned cleanup.
 SQL285 and runtime code are unchanged; targeted review and corrected-head CI
 remain required. Production and live-provider holds are unchanged.
+
+The next CI run passed both native behavior matrices and actual concurrency,
+then exposed a cached image alias mismatch: CI uses GHCR, local uses ECR.
+The runner now preflights the same pinned metadata version in either reviewed
+registry and launches its immutable cached image ID with pull-never. Shell-driven
+registry/missing-cache/identity tests reproduce the failure; a fresh full isolated
+run passed through real metadata equality and positive cleanup. No SQL/runtime
+change or production/provider action; corrected-head review/CI still required.
