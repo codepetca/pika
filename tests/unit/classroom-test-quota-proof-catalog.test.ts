@@ -33,13 +33,16 @@ describe('externally sealed Test quota proof table addition', () => {
     const capability = 'private.attendance_decommission_delete_capabilities'
     const before = ['public.tests']
     const additions = ['private.attendance_participant_associations', 'private.attendance_override_event_generations']
-    const expected = [capability, quota, ...additions, ...before].sort()
+    const adoption = 'private.attendance_pointer_mutations'
+    const historical = [capability, quota, ...additions, ...before].sort()
+    const expected = [...historical, adoption].sort()
     expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
-    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 283))).toEqual(expected)
-    // Material284 changes only routines; attendance283 keeps both table fingerprints.
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 283))).toEqual(historical)
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 284))).toEqual(historical)
+    expect(historical).not.toContain(adoption)
     const futureSql = 'select 1;'
-    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '285_unknown.sql',
+    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '286_unknown.sql',
       sql: futureSql, sha256: createHash('sha256').update(futureSql).digest('hex') }])).toThrow()
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 280))).toEqual([quota, ...before].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 281))).toEqual([capability, quota, ...before].sort())
@@ -57,6 +60,11 @@ describe('externally sealed Test quota proof table addition', () => {
     changed[280].sql += '\n'
     changed[280].sha256 = createHash('sha256').update(changed[280].sql).digest('hex')
     expect(() => classroomTestQuotaProofCatalog(before, changed)).toThrow()
+    const changedAdoption = current.map(row => ({ ...row }))
+    changedAdoption[284].sql += '\n'
+    changedAdoption[284].sha256 = createHash('sha256').update(changedAdoption[284].sql).digest('hex')
+    expect(() => classroomTestQuotaProofCatalog(before, changedAdoption)).toThrow()
+    expect(() => classroomTestQuotaProofCatalog(before, [current[252], current[284]])).toThrow()
   })
   it('requires exact reviewed migration bytes, not metadata alone', () => {
     for (const unreviewed of [[], [...migrations, ...migrations], [{ ...migrations[0], name: '254_unknown.sql' }],
@@ -68,6 +76,27 @@ describe('externally sealed Test quota proof table addition', () => {
     for (const catalog of [[], ['public.tests', 'public.tests'], ['vault.secrets'], Array.from({ length: 1024 }, (_, i) => `public.t_${i}`)]) {
       expect(() => classroomTestQuotaProofCatalog(catalog, migrations)).toThrow()
     }
+  })
+  describe.each(profiles)('$name complete285 preservation', profile => {
+    const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const canonical = [...new Set([...profile.scopes, 'storage.objects', 'storage.buckets'])].sort()
+    const expected = classroomTestQuotaProofCatalog(canonical, current)
+    const adoption = 'private.attendance_pointer_mutations'
+    const graph = (): Rows => ({ ...Object.fromEntries(profile.scopes.map(table => [table, []])),
+      __nontarget_fingerprints: expected.map(table => ({ table, fingerprint: 'unchanged' })) })
+    it('requires the complete new capability-table fingerprint', () => {
+      expect(expected).toContain(adoption)
+      expect(profile.validate(graph(), expected)).toEqual(graph())
+      const missing = graph()
+      missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== adoption)
+      expect(() => profile.validate(missing, expected)).toThrow()
+    })
+    it('rejects capability-table drift during privilege restoration', async () => {
+      await expect(profile.restore(graph(), async () => graph())).resolves.toBeDefined()
+      const changed = graph()
+      changed.__nontarget_fingerprints.find(row => row.table === adoption)!.fingerprint = 'changed'
+      await expect(profile.restore(graph(), async () => changed)).rejects.toThrow()
+    })
   })
   describe.each(profiles)('$name', profile => {
     const canonical = [...new Set([...profile.scopes, 'storage.objects', 'storage.buckets'])].sort()

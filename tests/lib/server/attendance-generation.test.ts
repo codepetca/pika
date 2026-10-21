@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { authorizeAttendanceGenerationDelivery, resolveAttendanceScanGeneration,
-  sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
+  resolveAttendanceMembershipScanGeneration, sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
 
 const classroomId = 'a0000000-0000-4000-8000-000000000001'
 const studentId = 'a0000000-0000-4000-8000-000000000002'
@@ -12,6 +12,30 @@ function client(data: unknown, error: { code: string; message: string } | null =
 }
 afterEach(() => vi.unstubAllEnvs())
 describe('durable attendance generation authorization', () => {
+  it('requires independently bound current membership on the adopted scan path', async () => {
+    const supabase = client(active)
+    expect(await resolveAttendanceMembershipScanGeneration({ supabase, classroomId, studentId })).toEqual(active)
+    expect(supabase.rpc).toHaveBeenCalledExactlyOnceWith('resolve_attendance_membership_scan_generation', {
+      p_classroom_id: classroomId, p_student_id: studentId,
+    })
+    supabase.rpc.mockResolvedValue({ data: { status: 'forbidden' }, error: null })
+    expect(await resolveAttendanceMembershipScanGeneration({ supabase, classroomId, studentId })).toEqual({ status: 'forbidden' })
+  })
+  it.each(['true', 'false'])('never falls back from adopted scan when cleanup is %s', async (enabled) => {
+    vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', enabled)
+    const supabase = client(null)
+    for (const response of [
+      { data: null, error: { code: 'PGRST202', message: 'Missing resolve_attendance_membership_scan_generation' } },
+      { data: null, error: { code: '42501', message: 'permission denied' } },
+      { data: { status: 'legacy' }, error: null },
+      { data: { ...active, extra: true }, error: null },
+      { data: { ...active, generation_id: null }, error: null },
+    ]) {
+      supabase.rpc.mockResolvedValue(response)
+      await expect(resolveAttendanceMembershipScanGeneration({ supabase, classroomId, studentId })).rejects.toThrow(/authorization/)
+    }
+    expect(supabase.rpc.mock.calls.every(([name]) => name === 'resolve_attendance_membership_scan_generation')).toBe(true)
+  })
   it('reads exact active generation without consulting the rollout gate', async () => {
     vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
     const supabase = client(active)

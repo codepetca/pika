@@ -11,18 +11,21 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { teacherAttendanceSyncSchema } from '@/lib/validations/teacher-attendance'
 import {
   resolveVerifiedPikaAttendanceTeacher,
+  resolveVerifiedPikaAttendanceOwner,
   TeacherAttendanceIdentityError,
 } from '@/lib/server/bara-attendance-teacher'
 import {
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
+import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request) => {
-  const user = await requireRole('teacher')
+  const admission = await authorizeSharedAttendancePolicyActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
   const input = teacherAttendanceSyncSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherCanMutateClassroom(
@@ -38,7 +41,8 @@ export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request
       teacherId: user.id,
       classroomId: input.classroom_id,
     })
-    const actor = await resolveVerifiedPikaAttendanceTeacher({ supabase, pikaUser: user })
+    const actor = await (admission.mode === 'shared'
+      ? resolveVerifiedPikaAttendanceOwner : resolveVerifiedPikaAttendanceTeacher)({ supabase, pikaUser: user })
     return NextResponse.json(await syncTeacherAttendanceSources({
       supabase,
       teacherId: user.id,
@@ -48,6 +52,7 @@ export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request
       verifiedActor: actor,
       integrationState: 'ready',
       scheduleThrough: access.scheduleThrough,
+      ...(admission.mode === 'shared' ? { membershipAware: true as const } : {}),
     }))
   } catch (error) {
     if (error instanceof BaraAttendanceCanaryError) {

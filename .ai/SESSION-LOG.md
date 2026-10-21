@@ -11,6 +11,40 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-19 — Actual Pal contention and preservation proof
+
+One reviewed complementary disposable272 run passed all four two-session Pal
+contention schedules, both RPC busy responses, exact graph effects, fresh enrolled-
+owner/removal denial and serial generation re-add with exactly one bound join
+event/link. No HTTP/SDK/Storage rerun:25 native actions/218 controls/6,743,856 bytes,
+maximum two sessions, final zero uncertain/open sessions. Exact initialized-OFF
+restoration and canonical/global preservation plus positive owned cleanup passed
+the existing lifecycle. The immediately next-tool independent FIRST passed7,842
+source/98,969 dependency files and zero process candidates before later inspection.
+Root verified exact project containers/volumes/networks/workdir absent. Evidence
+and exclusive spent marker retained; no historical attempt was replayed. Empty
+old-event history does not certify nonempty queued-fact retention. Final composed
+evidence review/CI remain; all production/shared-local249+/real-account/provider/
+billing/AI and admission/rollout holds remain unchanged.
+
+## 2026-10-19 — Exact lifecycle migration profiles and early local selection
+
+Final CI rejected the complete272 source chain because historical lifecycle
+harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
+All eight source profiles and the offline prefix helper now append exact271/272
+filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
+unknown273 or missing/altered/reordered tails. Source-profile reproduction was
+RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
+passed; no SQL, application authorization or native bounds changed.
+
+The local import graph could not select SQL-filesystem consumers. Two real
+Vitest fixtures reproduced false-green selection in run/related modes; the
+focused runner now adds the existing closed-profile suite on migration SQL
+changes. All26 runner regressions pass. Root combined focused gate passes2,495
+tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
+271/272 bytes still match accepted native proofs, which were not rerun. Targeted
+independent review and corrected-head CI remain required. All holds persist.
+
 ## 2026-10-19 — Preserve rename-source evidence in local and CI selection
 
 Review277 identified a rename-out edge in migration test discovery. Real staged
@@ -833,3 +867,23 @@ Owner regressions cover inert closing presentation, stale callbacks, rapid reope
 Audited shared Tooltip on main192f4cbff with 16 current native role/viewport/theme/motion contexts and an interactive keyboard follow-up. Confirmed immediate Tooltip closing versus the shared fast-opacity reference; pointer/touch/keyboard focus and interactive hover paths work. Mobile first artifact focus can lose its hint when the table scrolls; settled refocus and the three-link keyboard chooser work. Recorded the separate low-priority issue and the retained-role/link retirement requirement for a future fade in `docs/guidance/ui/tooltip-motion-audit-2026-10-21.md`.
 
 One existing Tooltip owner test passes. Source/media hashes, 14 accepted screenshots, raw measurements and diagnosed harness/source-audit corrections are retained privately. This delivery changes audit documentation only; Tooltip implementation and stable canon remain unchanged. Broad UI fluidity goal stays open, with production/migrations/dependencies/privacy priority1 and old Calendar1217 holds preserved.
+## 2026-10-21 — Connected attendance membership preparation
+
+Prepared dormant285: admitted current owners of either account label retain exact
+WorkOS linkage and canary/entitlement checks; legacy dispatch is unchanged.
+Atomic exact-enrollment allocation, roster source/staging, retained-reference
+ingestion, closed delivery and a strict scan resolver form one connected group.
+Unknown historical generations remain unknown; owner history and existing
+cleanup/decommission fences remain. Learner reads/overrides/confirmation/cache
+adoption are still separate. Astra/high delivered SQL/native fixtures; Sol/high
+integrated exact source profiles. Final source profile1117checks, runtime289checks,
+full TypeScript and audit pass. First schema-only fixture failed missing historical
+settings; full001–285 offline replay corrected the fixture model and passed actual
+rollback behavior, genuine metadata and unchanged shared schema. Owned containers
+were removed and evidence retained privately. A complementary full replay then
+passed actual two-session prepare/prepare and prepare/removal/staging races,
+fresh committed-state checks, retained facts and positive connection/container
+closure. The exact CI proof inventory adds this isolated check without dropping
+historical lanes. Independent review, final focused gate and stable-head CI
+remain pending. No production/shared-local
+migration, live provider, configuration, account or rollout action occurred.

@@ -21,7 +21,8 @@ describe('contextual owner classroom list reorder CI contract', () => {
       expect(selected).toHaveLength(1)
       expect(selected[0].job.id).toBe('architecture-database-contracts')
       const at = selected[0].job.steps.indexOf(selected[0].step)
-      expect(selected[0].job.steps[at - 1].run).toBe('bash scripts/check-attendance-decommission-database.sh')
+      expect(selected[0].job.steps[at - 2].run).toBe('bash scripts/check-attendance-decommission-database.sh')
+      expect(selected[0].job.steps[at - 1].run).toBe('bash scripts/check-attendance-membership-adoption-database.sh')
       expect(selected[0].job.steps[at + 1].run).toBe('supabase db lint --local --level warning --fail-on warning')
     }
   })

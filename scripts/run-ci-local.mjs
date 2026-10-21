@@ -162,6 +162,7 @@ const databaseProofInventories = {
     [60, '74065e76b06b13856adf72c0b9af011d9c3a3ecfdada991c4b91a8535f64e368'],
     [61, 'aa87e79d84589a8e1b5ded37393558652f95d9fdec3c59a1dfeab12e82db5e45'],
     [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
+    [63, 'af0b5bfaf89b750d29ef409d9b1c4a053bdbf231dd514ab8627bf53d1b25f54c'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -183,6 +184,15 @@ function validateDatabaseInventory(jobs) {
     || grantsSteps.filter(({ step }) => step.run === grantsPolicy).length !== 1
     || grantsSteps.filter(({ step }) => step.name === grantsName && step.run === grantsCommand && databaseProofs(primary).includes(step)).length !== 1)) {
     throw new Error('Canonical explicit Data API grant proofs are missing, duplicated or changed.')
+  }
+  const membershipName = 'Verify current-membership attendance allocation and retained delivery'
+  const membershipCommand = 'bash scripts/check-attendance-membership-adoption-database.sh'
+  const membershipSteps = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === membershipName || step.run?.includes(membershipCommand)).map(step => ({ job, step })))
+  if (membershipSteps.length && (membershipSteps.length !== 1 || membershipSteps.some(({ job, step }) =>
+    job !== primary || step.if || step.name !== membershipName || step.run !== membershipCommand
+    || !databaseProofs(primary).includes(step)))) {
+    throw new Error('Canonical attendance membership proof is duplicated or changed.')
   }
   const secondary = jobs[jobsByLane['database-lifecycle']]
   if (secondary) {
