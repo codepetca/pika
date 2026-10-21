@@ -160,6 +160,18 @@ describe('UiGallery accessibility contracts', () => {
     expect(section.querySelector<HTMLElement>('[data-menu-closing]')).not.toBeInTheDocument()
   })
 
+  it.each(['teacher', 'student'] as const)('keeps actual tooltip adopters outside stable catalog snapshots for %s', role => {
+    renderGallery(role)
+    const region = screen.getByRole('region', { name: 'Tooltip adopter consistency' })
+    expect(screen.getByTestId('pattern-lab-contracts')).not.toContainElement(region)
+    const example = within(region)
+    expect(within(example.getByRole('region', { name: 'Collapsed classroom navigation' })).getByRole('link', { name: 'Calendar' })).toHaveAttribute('aria-current', 'page')
+    fireEvent.click(example.getByRole('button', { name: 'Formatted calendar reminder' }))
+    expect(example.getByRole('status')).toHaveTextContent('Announcement opened')
+    fireEvent.click(within(example.getByRole('region', { name: 'Collapsed classroom navigation' })).getByRole('link', { name: 'Announcements' }))
+    expect(example.getByRole('status')).toHaveTextContent('Navigation: announcements')
+  })
+
   it.each(['teacher', 'student'] as const)('TooltipMotionPattern retires tooltip descriptions when availability changes for %s', role => {
     renderGallery(role)
     const region = screen.getByRole('region', { name: 'Tooltip motion recovery' })

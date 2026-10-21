@@ -87,6 +87,7 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { TooltipMotionPattern, UiConsistencyPattern } from './UiConsistencyPattern'
+import { TooltipAdoptionPattern } from './TooltipAdoptionPattern'
 import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { DialogEntryPattern } from './DialogEntryPattern'
@@ -675,6 +676,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
         </div>
 
         <TooltipMotionPattern />
+        <TooltipAdoptionPattern role={role} />
         <ClassroomsReadRecoveryPattern role={role} />
         <PatternSection
           id="dialog-entry-preview"
@@ -852,6 +854,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
     { value: 'ui-consistency', label: 'Controls — Scoped menus and artifact targets' },
     { value: 'tooltip-motion', label: 'Controls — Tooltip motion recovery' },
+    { value: 'tooltip-adopters', label: 'Controls — Tooltip adopter consistency' },
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
     ...(role === 'teacher' ? [

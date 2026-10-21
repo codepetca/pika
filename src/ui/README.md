@@ -335,7 +335,8 @@ and dismissal. Its presentation fades with the semantic fast duration and standa
 easing; position, text size, and scale remain fixed. Closing immediately unmounts
 the live Radix content and description, including its document dismissal handlers.
 
-Only static text, common formatting elements, links and SVG shapes can leave a
+Only static text, common formatting elements (including LimitedMarkdown's
+headings and blockquotes), links and SVG shapes can leave a
 short decorative DOM copy. This copy has no React owners/listeners, IDs, roles,
 link destinations or focus attributes; it is inert, `aria-hidden` and unavailable
 to pointer events. Its viewport bounds and current opacity come from the live
