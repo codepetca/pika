@@ -534,6 +534,13 @@ owner/unarchive/revision/compaction/purge begin/finalize/replay matrix remains
 batch3/cutover evidence, alongside authenticated/provider compatibility and the
 queued-fact/token policy; it is not marked passed. The unchanged archive writer
 protocol is not being recertified by this narrow read/postflight integration.
+The owner has since chosen to stop queued learner delivery on same-class ownership.
+The connected source287 correction is recorded in the
+[Pal membership contract](contextual-pal-classroom-membership.md#queued-delivery-on-ownership-change--source287):
+durable per-event stop, preserved in-flight leases/known acknowledgements and
+earned history, current-owner membership denial, no provider revocation or
+activation. Native verification, independent review and final-head CI remain
+gates; this does not close batch3 or lift any operational hold.
 PR1620 merged normally into main as `2c9658abfa99153d98b96847679ffddf23c5fa9b`
 on2026-10-19 after all ten exact-head CI checks, including PR Gate, passed.
 Canonical main is fast-forwarded and clean. This dormant merge does not claim
