@@ -48109,6 +48109,7 @@ Reviewed native remaining proof42079c96 passed in fresh disposable6716351ab23b: 
 
 Focused actual-component StrictMode test reproduced duplicate pending reads and newer409/stale200 error persistence. Component-owned unfinished promise now deduplicates only that active classroom owner; completed values are not cached, and real inactivity, classroom changes, remounts and explicit Retry preserve fresh reads. Existing fetchJSON/no-store, request-id/stale-class guards and all presentation/SQL/permissions remain unchanged.33 focused tests including both historical-role Classwork integration, lint/audit/UI/design policies and nonincremental TypeScript pass. UI brief records production-owner reuse and unchanged presentation; independent review/new fixed app checkpoint/fresh visual+database proof and final-head CI remain pending. No production, shared-local migration, real-account, provider or activation change.
 
+<!-- pika-session-log-archive-batch:978613baabd6740aafa6bdec49363bba9c758681e199f229815b680c1bda27c5 -->
 <!-- pika-session-log-archive-batch:0b6ffc0983654ebbecd2e66443c37c199c1ff164860139d97ed11a4392bf894d -->
 ## 2026-10-19 — Classroom browser tab branding
 
@@ -48116,6 +48117,8 @@ Added classroom titles, palette-colored Pika favicons and browser theme-color hi
 UI brief: browser chrome; AppHeader/classroom identity and Pattern Lab header references; teacher/student × 1440×900 and 390×844 × light/dark. States: initial load, navigation, classroom switch/edit, theme toggle, exit. No composite interaction changes or experimental canon. Fixtures isolate browser metadata from the full classroom bundle; full local classroom capture timed out under memory pressure and the local DB stack later became unavailable. Eight fixture/browser cases and 58 focused regressions passed; 16/32/64px favicon assets visually inspected. Evidence: ignored artifacts/browser-tab-branding and the browser suite. Required focused gate, draft PR and independent review follow in the PR/lifecycle record.
 Coordinator owns codex/classroom-tab-branding; direct implementation. Startup usage: 20% weekly remaining; storage healthy (~272 GB free). Full checks serialized after memory/swap contention; aborted unrestricted/contending attempts retained in /tmp/pika-tab-*.log. No per-task token or active-time attribution available.
 
+<!-- pika-session-log-archive-batch:bf858f8aa43e026fa06f53f5a73e2425c6b30915997c52297d497716a6826eb6 -->
+<!-- pika-session-log-archive-batch:8c070cfecafc825b68469da894de1a4481cf855535d0f98baac3a5b69c262345 -->
 ## 2026-10-19 — Production promotion of classroom branding
 
 Owner explicitly requests production app deployment after PR1615 main merge10793ded1. Draft promotion1621 includes reviewed branding/header and dormant Gradebook integration; attendance correction is already source-equivalent in production99a4103. Production Vercel env-name inventory51 confirms shared experience admission absent, so active paths retain legacy services and SQL270 is not required. No migration apply, cohort/flag, provider/billing or real-data write authorized or performed. Security/correctness review clean at10793; compatibility review covers release integration. Prior full10-lane CI39350459331 validates identical application tree. Resolved archive-only prior-production ancestry conflict in ephemeral promotion checkout, preserving main and production notes; application tree unchanged. Stable-head PRGate, production merge and Vercel verification follow in external production1621 release receipt.
@@ -48126,3 +48129,66 @@ Owner explicitly requests production app deployment after PR1615 main merge10793
 PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.
 
 Bounded native GPT-6.1-sol/high analysis delivered a reproduced race and test-only proposal, independently verified; no runtime defect claimed. DeepSeek pause throughDec31 honored; weekly17% remaining, storage295GB healthy. Existing branding review/visual evidence reused; one targeted remediation review follows this test-only delta. No merge/deployment authorized by this continuation; target is a green, ready PR.
+
+<!-- pika-session-log-archive-batch:2c0b682f2718833316e72c6df8db92593954316e0ea8a5d9a4508033b02a7bb8 -->
+## 2026-10-19 — Classroom-only browser titles
+
+User requests removing the Pika suffix and asks about truncation. BrowserTabProvider now supplies the full classroom name alone; no app-added ellipsis, hard character cap or inferred course-code shortening. Existing authorized state, color/icon behavior and home Pika title remain. UI brief: browser chrome, existing AppHeader/PatternLab identity reference; extend the existing metadata owner only; both roles, desktop/mobile, light/dark, class switch/edit/exit and long names. Current main attendance changes inherited; feature source preserved during history-only conflict resolution. Focused and browser verification plus proportional independent review and stable-head CI follow in PR1615. Risk none; no dependencies, new primitives, auth/schema/runtime policy changes.
+
+<!-- pika-session-log-archive-batch:29a2328c09bdecf6d12fecd68bf4e4e595efbc4a3d4190516bd7cbc37432b004 -->
+## 2026-10-19 — Classroom header overflow fade
+
+User requested a subtle fade instead of the classroom header ellipsis. Extended AppHeader only: preserve full text/title, apply a 24px alpha mask only while overflowing, observe resize and loaded fonts, disconnect on cleanup. Reference: existing header and Pattern Lab application-header references; reuse geometry/palette/controls, extend classroom title, no new primitive or composite behavior. Teacher/student, desktop/mobile, light/dark, long/short names, rename and resize checked with screenshots; browser metadata cases retained. Added a deterministic long-name Pattern Lab reference. Risk none; no dependencies or schema changes. Focused checks, independent delta review and final-head CI tracked in PR1615; retained ignored artifacts/browser-tab-branding/header-fade. Weekly remaining2%; DeepSeek pause honored.
+
+<!-- pika-session-log-archive-batch:1a727a13dc780e9845d273455aefc425828b83a7d70b531499ea78b36f0912a8 -->
+## 2026-10-19 — Classroom-only browser titles
+
+User requests removing the Pika suffix and asks about truncation. BrowserTabProvider now supplies the full classroom name alone; no app-added ellipsis, hard character cap or inferred course-code shortening. Existing authorized state, color/icon behavior and home Pika title remain. UI brief: browser chrome, existing AppHeader/PatternLab identity reference; extend the existing metadata owner only; both roles, desktop/mobile, light/dark, class switch/edit/exit and long names. Current main attendance changes inherited; feature source preserved during history-only conflict resolution. Focused and browser verification plus proportional independent review and stable-head CI follow in PR1615. Risk none; no dependencies, new primitives, auth/schema/runtime policy changes.
+
+## 2026-10-19 — Classroom header overflow fade
+
+User requested a subtle fade instead of the classroom header ellipsis. Extended AppHeader only: preserve full text/title, apply a 24px alpha mask only while overflowing, observe resize and loaded fonts, disconnect on cleanup. Reference: existing header and Pattern Lab application-header references; reuse geometry/palette/controls, extend classroom title, no new primitive or composite behavior. Teacher/student, desktop/mobile, light/dark, long/short names, rename and resize checked with screenshots; browser metadata cases retained. Added a deterministic long-name Pattern Lab reference. Risk none; no dependencies or schema changes. Focused checks, independent delta review and final-head CI tracked in PR1615; retained ignored artifacts/browser-tab-branding/header-fade. Weekly remaining2%; DeepSeek pause honored.
+
+## 2026-10-19 — Restore plain Pika tab icon
+
+Owner rejected the colored favicon after native Chrome preview and approved the classroom title. BrowserTabProvider now reuses the original theme-specific Pika SVG on every route; white in dark mode retained. Removed the unused classroom-icon route and its tests. Title, header fade and theme-color hint unchanged. UI brief: browser chrome; original Pika light/dark marks and Pattern Lab header reference; reuse assets, extend provider only, no new primitive/composite behavior. Both roles/desktop/mobile/light/dark browser cases verify icon through class edits/navigation and active-classroom theme changes; native Chrome screenshots inspected in both themes. Risk none; no dependency/schema changes. PR1615 draft during correction; local gates, independent delta review and exact-head CI recorded in ignored artifacts/browser-tab-branding/plain-icon.
+
+## 2026-10-19 — Classroom title fills available header width
+
+Owner requests the in-classroom name use the entire header until right-side controls require truncation. AppHeader classroom mode now uses minmax(0,1fr)/auto columns with the existing gap; removed the 320px title cap and empty center slot. Page-title/exam framing retained; original Pika favicon and browser title unchanged. Existing conditional fade responds to the available width, including fullscreen clock controls. UI brief: existing AppHeader/Pattern Lab application-header reference, extend grid only/reuse fade; teacher/student xdesktop/mobile xlight/dark, fit/overflow/resize/fullscreen; no new composite behavior/deps/schema. Expanded deterministic fixture/browser assertions prove a fitting desktop title and fade at actual control boundary, preserved44px control targets/no page overflow. Evidence and final checks/review/CI tracked in ignored artifacts/browser-tab-branding/title-width and PR1615; no merge/deployment.
+
+<!-- pika-session-log-archive-batch:054268f00664a11e8608b2da1df5c9b42422463e4566fd3cbe85a8729968b4e4 -->
+
+
+
+## 2026-10-19 — Lifecycle and attached-service permission preparation
+
+Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical main cleanly fast-forwarded. Owner authorized lifecycle/attached-service integration without routine stops, production holds unchanged. New codex/contextual-lifecycle-services prepares archived owner recovery/export271 from earlier unapplied264 source and contextual Pal member token/visit272; current268 hot archive/restore retained. Actual ownership/membership, owner precedence, existing164 locks/generations, operational fences, export/Pal gates and legacy admission behavior remain separate. No new permission framework, dependencies or activation.
+
+Source TDD reproduced missing archive boundary and four SSR Pal-selection failures;215 focused tests across13suites, full nonincremental TypeScript, focusedlint and architecture/UI/design policies pass. Source-only SQL/types prerequisite is frozen separately from uncommitted UI selection; temporary narrow RPC signatures must be removed after genuine isolated metadata generation. Pal worker Sol6.1/high delivered bounded implementation; another Sol6.1/high worker extended only the existing disposable component with a closed272 profile. Requested configuration recorded; effective/attributable token and active-time telemetry unavailable. Cumulative262 independent reviews retained, workers are not reviews. Weekly2% remains with ordinary execution allowed/task waiver; DeepSeek pause retained, storagehealthy286GB.
+
+SQL/native/SDK/stored-byte/visual acceptance and independent review/final-head CI remain pending; no source-only result closes batch3 or the goal. Production/shared-local249+, real accounts/plans/provider/billing/AI and admission/home/page/cohort/cutover holds remain unchanged. No actual new attempt, migration application, provider call or deployment.
+
+<!-- pika-session-log-archive-batch:27029dd2c3a03700ce90a462192b178631051cc77f9c0d81625b43c3f32f602a -->
+## 2026-10-19 — Genuine lifecycle metadata and exact SDK contracts
+
+Independent263/264 cleared C1 source and the closed disposable prerequisite;
+targeted265 cleared the verified signed Chrome update without relaxed admission.
+The one disposable001–272 SQL/type component passed both post-rollback contracts
+and generated442674B artifact4d8833b9. Global/canonical cleanup and internal
+preservation passed; exact owned resources are absent. Immediate outer observer
+failed only after its source/dependency comparisons, at process observation.
+Read-only diagnostics reproduce its own tsxCLI parent matching the filter; direct
+Node loader invocation of the unchanged observer passes7837sources/98965deps and
+zero current matches. Historical matching rows were not retained. Review266
+accepts SQL/generated-artifact evidence but NOT a successful complete FIRST gate;
+that failed observation remains failed, with no native attempt retry or criteria
+relaxation. Complete native acceptance remains unclaimed.
+
+Installed the exact genuine artifact byte-for-byte (same SHA256), added only
+nullable default-filter refinement, and removed both prerequisite RPC casts.
+Nonincremental application TypeScript,141 focused tests/six suites and focused
+eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source is
+unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
+successful preservation and closure gates using direct Node loading. Production,
+shared-local249+, real-account/provider/billing and all activation holds persist.

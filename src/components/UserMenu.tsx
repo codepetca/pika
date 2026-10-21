@@ -139,10 +139,10 @@ export function UserMenu({ user }: UserMenuProps) {
       {/* Dropdown menu with animation */}
       <div
         id={menuId}
-        className={`absolute right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-surface py-1 shadow-lg transition-[opacity,transform] duration-standard ease-standard motion-reduce:transition-none motion-reduce:transform-none ${
+        className={`absolute right-0 z-50 mt-2 w-64 rounded-lg border border-border bg-surface py-1 shadow-lg transition-opacity duration-fast ease-standard motion-reduce:transition-none ${
           isOpen
-            ? 'translate-y-0 opacity-100'
-            : 'pointer-events-none -translate-y-1 opacity-0'
+            ? 'opacity-100'
+            : 'pointer-events-none opacity-0'
         }`}
         role="menu"
         aria-labelledby={triggerId}

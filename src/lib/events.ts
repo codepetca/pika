@@ -17,6 +17,9 @@ export const TEACHER_ASSIGNMENTS_SELECTION_EVENT = 'pika:teacherAssignmentsSelec
 /** Dispatched when assignments are created, updated, or deleted */
 export const TEACHER_ASSIGNMENTS_UPDATED_EVENT = 'pika:teacherAssignmentsUpdated'
 
+/** Dispatched when classroom materials are created, updated, or deleted; detail: { classroomId }. */
+export const CLASSWORK_MATERIALS_UPDATED_EVENT = 'pika:classworkMaterialsUpdated'
+
 /** Dispatched when tests are created, updated, or deleted */
 export const TEACHER_TESTS_UPDATED_EVENT = 'pika:teacherTestsUpdated'
 

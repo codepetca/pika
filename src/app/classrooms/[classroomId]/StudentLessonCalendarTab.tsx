@@ -9,9 +9,10 @@ import { PageContent, PageLayout } from '@/components/PageLayout'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
+import { CLASSWORK_MATERIALS_UPDATED_EVENT } from '@/lib/events'
 import { getCalendarTestDate } from '@/lib/calendar-items'
 import { nowInToronto } from '@/lib/timezone'
-import type { Classroom, LessonPlan, Assignment, Announcement, TestAssessment } from '@/types'
+import type { Classroom, LessonPlan, Assignment, Announcement, ClassworkMaterial, TestAssessment } from '@/types'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
 
 interface Props {
@@ -21,14 +22,16 @@ interface Props {
   showClasswork?: boolean
   showAnnouncements?: boolean
   onNavigateToAssignments?: (assignmentId: string) => void
+  onNavigateToMaterial?: (materialId: string) => void
   onNavigateToAnnouncements?: () => void
 }
 
 type StudentLessonPlansResponse = { lesson_plans?: LessonPlan[]; max_date?: string | null }
+type StudentMaterialsResponse = { materials?: ClassworkMaterial[] }
 type StudentAssignmentsResponse = { assignments?: Assignment[] }
 type StudentAnnouncementsResponse = { announcements?: Announcement[] }
 
-type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements' | 'tests'
+type CalendarSource = 'lessonPlans' | 'materials' | 'assignments' | 'announcements' | 'tests'
 type CalendarRetrySource = CalendarSource | 'classDays'
 type SourceStatus = {
   classroomId: string | null
@@ -39,6 +42,7 @@ type SourceStatus = {
 
 const initialSourceStatus = (): Record<CalendarSource, SourceStatus> => ({
   lessonPlans: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  materials: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   assignments: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   tests: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   announcements: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
@@ -51,16 +55,19 @@ export function StudentLessonCalendarTab({
   showClasswork = true,
   showAnnouncements = true,
   onNavigateToAssignments = () => {},
+  onNavigateToMaterial = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
   const [tests, setTests] = useState<TestAssessment[]>([])
+  const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [sourceStatus, setSourceStatus] = useState(initialSourceStatus)
   const loadRequestIdsRef = useRef<Record<CalendarSource, number>>({
     lessonPlans: 0,
     tests: 0,
+    materials: 0,
     assignments: 0,
     announcements: 0,
   })
@@ -96,6 +103,8 @@ export function StudentLessonCalendarTab({
     loadRequestIdsRef.current.lessonPlans += 1
     loadRequestIdsRef.current.tests += 1
     setTests([])
+    loadRequestIdsRef.current.materials += 1
+    setMaterials([])
     loadRequestIdsRef.current.assignments += 1
     loadRequestIdsRef.current.announcements += 1
     setLessonPlans([])
@@ -191,6 +200,55 @@ export function StudentLessonCalendarTab({
     }
   }, [classroom.id, showTests])
 
+  const loadMaterials = useCallback(async (force = false) => {
+    const source: CalendarSource = 'materials'
+    const requestedClassroomId = classroom.id
+    const requestId = loadRequestIdsRef.current[source] + 1
+    loadRequestIdsRef.current[source] = requestId
+    if (!showClasswork) {
+      setMaterials([])
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
+    const cacheKey = `student-materials:${requestedClassroomId}`
+    if (force) invalidateCachedJSON(cacheKey)
+    setSourceStatus((current) => ({
+      ...current,
+      [source]: {
+        classroomId: requestedClassroomId,
+        error: current[source].classroomId === requestedClassroomId && current[source].error,
+        hasLoadedSnapshot: current[source].classroomId === requestedClassroomId && current[source].hasLoadedSnapshot,
+        isLoading: true,
+      },
+    }))
+    try {
+      const data = await fetchCachedJSON<StudentMaterialsResponse>(
+        cacheKey,
+        `/api/student/classrooms/${requestedClassroomId}/materials`,
+        { ttlMs: 20_000, errorMessage: 'Failed to load materials' },
+      )
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      const now = Date.now()
+      setMaterials((data.materials || []).filter(material => (
+        !material.is_draft && (!material.released_at || new Date(material.released_at).getTime() <= now)
+      )))
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+    } catch (err) {
+      if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
+      console.error('Error loading calendar materials:', err)
+      setSourceStatus((current) => ({
+        ...current,
+        [source]: { ...current[source], classroomId: requestedClassroomId, error: true, isLoading: false },
+      }))
+    }
+  }, [classroom.id, showClasswork])
+
   const loadAssignments = useCallback(async (force = false) => {
     const source: CalendarSource = 'assignments'
     const requestedClassroomId = classroom.id
@@ -284,18 +342,29 @@ export function StudentLessonCalendarTab({
   }, [classroom.id, showAnnouncements])
 
   useEffect(() => {
-    void Promise.all([loadLessonPlans(), loadAssignments(), loadAnnouncements(), loadTests()])
-  }, [loadAnnouncements, loadAssignments, loadLessonPlans, loadTests])
+    void Promise.all([loadLessonPlans(), loadMaterials(), loadAssignments(), loadAnnouncements(), loadTests()])
+  }, [loadAnnouncements, loadMaterials, loadAssignments, loadLessonPlans, loadTests])
+
+  useEffect(() => {
+    const handleMaterialsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
+      if (!detail?.classroomId || detail.classroomId === classroom.id) void loadMaterials(true)
+    }
+    window.addEventListener(CLASSWORK_MATERIALS_UPDATED_EVENT, handleMaterialsUpdated)
+    return () => window.removeEventListener(CLASSWORK_MATERIALS_UPDATED_EVENT, handleMaterialsUpdated)
+  }, [classroom.id, loadMaterials])
 
   const lessonPlansStatus = sourceStatus.lessonPlans
   const testsStatus = sourceStatus.tests
+  const materialsStatus = sourceStatus.materials
   const assignmentsStatus = sourceStatus.assignments
   const announcementsStatus = sourceStatus.announcements
   const currentLessonPlans = lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.hasLoadedSnapshot ? lessonPlans : []
   const currentTests = showTests && testsStatus.classroomId === classroom.id && testsStatus.hasLoadedSnapshot ? tests : []
+  const currentMaterials = materialsStatus.classroomId === classroom.id && materialsStatus.hasLoadedSnapshot ? materials : []
   const currentAssignments = assignmentsStatus.classroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
   const currentAnnouncements = announcementsStatus.classroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
-  const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus, ...(showTests ? [testsStatus] : [])]
+  const localStatuses = [lessonPlansStatus, materialsStatus, assignmentsStatus, announcementsStatus, ...(showTests ? [testsStatus] : [])]
   const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot
   ))
@@ -313,6 +382,10 @@ export function StudentLessonCalendarTab({
     retryingSourcesRef.current.add('tests')
     void loadTests(true)
   }, [loadTests])
+  const retryMaterials = useCallback(() => {
+    retryingSourcesRef.current.add('materials')
+    void loadMaterials(true)
+  }, [loadMaterials])
   const retryAssignments = useCallback(() => {
     retryingSourcesRef.current.add('assignments')
     void loadAssignments(true)
@@ -330,6 +403,7 @@ export function StudentLessonCalendarTab({
     const statuses: Record<CalendarRetrySource, { error: boolean; isLoading: boolean }> = {
       lessonPlans: lessonPlansStatus,
       tests: testsStatus,
+      materials: materialsStatus,
       assignments: assignmentsStatus,
       announcements: announcementsStatus,
       classDays: { error: Boolean(classDaysError), isLoading: classDaysLoading },
@@ -340,11 +414,14 @@ export function StudentLessonCalendarTab({
       retryingSourcesRef.current.delete(source)
       if (!status.error) calendarWorkspaceRef.current?.focus()
     }
-  }, [testsStatus, announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
+  }, [materialsStatus, testsStatus, announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
 
   const failures: CalendarSourceFailure[] = []
   if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
     failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: retryLessonPlans })
+  }
+  if (materialsStatus.classroomId === classroom.id && materialsStatus.error) {
+    failures.push({ id: 'materials', label: 'materials', isRetrying: materialsStatus.isLoading, onRetry: retryMaterials })
   }
   if (assignmentsStatus.classroomId === classroom.id && assignmentsStatus.error) {
     failures.push({ id: 'assignments', label: 'assignments', isRetrying: assignmentsStatus.isLoading, onRetry: retryAssignments })
@@ -362,10 +439,11 @@ export function StudentLessonCalendarTab({
   const retryAll = useCallback(() => {
     retryLessonPlans()
     retryTests()
+    retryMaterials()
     retryAssignments()
     retryAnnouncements()
     retryClassDays()
-  }, [retryTests, retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
+  }, [retryMaterials, retryTests, retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
 
   // Handle assignment click - navigate to assignments tab with the assignment selected
   const handleAssignmentClick = useCallback(
@@ -469,6 +547,7 @@ export function StudentLessonCalendarTab({
               lessonPlans={currentLessonPlans}
               tests={currentTests}
               onTestClick={test => onNavigateToTests(test.id)}
+              materials={currentMaterials}
               assignments={currentAssignments}
               announcements={currentAnnouncements}
               classDays={classDays}
@@ -479,6 +558,7 @@ export function StudentLessonCalendarTab({
               onDateChange={handleDateChange}
               onViewModeChange={handleViewModeChange}
               onAssignmentClick={handleAssignmentClick}
+              onMaterialClick={material => onNavigateToMaterial(material.id)}
               onAnnouncementClick={handleAnnouncementClick}
             />
           </div>

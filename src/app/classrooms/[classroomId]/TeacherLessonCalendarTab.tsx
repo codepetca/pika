@@ -10,9 +10,9 @@ import { useRightSidebar } from '@/components/layout'
 import { applyPendingLessonPlanChanges, lessonPlansToMarkdown, markdownToLessonPlans } from '@/lib/lesson-plan-markdown'
 import { useClassDaysContext } from '@/hooks/useClassDays'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
-import type { Classroom, LessonPlan, Assignment, Announcement, TestAssessment } from '@/types'
+import type { Classroom, LessonPlan, Assignment, Announcement, ClassworkMaterial, TestAssessment } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import { TEACHER_TESTS_UPDATED_EVENT, TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
+import { CLASSWORK_MATERIALS_UPDATED_EVENT, TEACHER_TESTS_UPDATED_EVENT, TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { nowInToronto } from '@/lib/timezone'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
@@ -88,7 +88,7 @@ function pendingLessonChangesForClassroom(
   )
 }
 
-type CalendarSource = 'lessonPlans' | 'assignments' | 'announcements' | 'tests'
+type CalendarSource = 'lessonPlans' | 'materials' | 'assignments' | 'announcements' | 'tests'
 type CalendarRetrySource = CalendarSource | 'classDays'
 type SourceStatus = {
   classroomId: string | null
@@ -99,6 +99,7 @@ type SourceStatus = {
 
 const initialSourceStatus = (): Record<CalendarSource, SourceStatus> => ({
   lessonPlans: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
+  materials: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   assignments: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   tests: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
   announcements: { classroomId: null, error: false, hasLoadedSnapshot: false, isLoading: true },
@@ -120,6 +121,7 @@ interface Props {
   showAnnouncements?: boolean
   onSidebarStateChange?: (state: CalendarSidebarState | null) => void
   onNavigateToAssignments?: (assignmentId?: string | null) => void
+  onNavigateToMaterial?: (materialId: string) => void
   onNavigateToAnnouncements?: () => void
 }
 
@@ -131,6 +133,7 @@ export function TeacherLessonCalendarTab({
   showAnnouncements = true,
   onSidebarStateChange,
   onNavigateToAssignments = () => {},
+  onNavigateToMaterial = () => {},
   onNavigateToAnnouncements = () => {},
 }: Props) {
   const [lessonPlans, setLessonPlans] = useState<LessonPlan[]>([])
@@ -138,17 +141,21 @@ export function TeacherLessonCalendarTab({
   // Track last-seen markdown per date to suppress duplicate autosave emissions.
   const lastSeenContentRef = useRef<Map<string, string>>(new Map())
   const [tests, setTests] = useState<TestAssessment[]>([])
+  const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [materialsClassroomId, setMaterialsClassroomId] = useState(classroom.id)
   const [assignmentsClassroomId, setAssignmentsClassroomId] = useState(classroom.id)
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [announcementsClassroomId, setAnnouncementsClassroomId] = useState(classroom.id)
   const [sourceStatus, setSourceStatus] = useState(initialSourceStatus)
   const lessonPlansStatus = sourceStatus.lessonPlans
   const testsStatus = sourceStatus.tests
+  const materialsStatus = sourceStatus.materials
   const assignmentsStatus = sourceStatus.assignments
   const announcementsStatus = sourceStatus.announcements
   const visibleLessonPlans = lessonPlansClassroomId === classroom.id && lessonPlansStatus.hasLoadedSnapshot ? lessonPlans : []
   const visibleTests = showTests && testsStatus.classroomId === classroom.id && testsStatus.hasLoadedSnapshot ? tests : []
+  const visibleMaterials = materialsClassroomId === classroom.id && materialsStatus.hasLoadedSnapshot ? materials : []
   const visibleAssignments = assignmentsClassroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
   const visibleAnnouncements = announcementsClassroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
   const lessonPlansRef = useRef(visibleLessonPlans)
@@ -181,6 +188,7 @@ export function TeacherLessonCalendarTab({
   const [failedSaveClassroomIds, setFailedSaveClassroomIds] = useState<Set<string>>(() => new Set())
   const [refreshKey, setRefreshKey] = useState(0)
   const [testsRefreshKey, setTestsRefreshKey] = useState(0)
+  const [materialsRefreshKey, setMaterialsRefreshKey] = useState(0)
   const [assignmentsRefreshKey, setAssignmentsRefreshKey] = useState(0)
   const [announcementsRefreshKey, setAnnouncementsRefreshKey] = useState(0)
   const currentClassroomIdRef = useRef(classroom.id)
@@ -188,6 +196,7 @@ export function TeacherLessonCalendarTab({
   const sourceRequestIdsRef = useRef<Record<CalendarSource, number>>({
     lessonPlans: 0,
     tests: 0,
+    materials: 0,
     assignments: 0,
     announcements: 0,
   })
@@ -203,6 +212,8 @@ export function TeacherLessonCalendarTab({
     sourceRequestIdsRef.current.lessonPlans += 1
     sourceRequestIdsRef.current.tests += 1
     setTests([])
+    sourceRequestIdsRef.current.materials += 1
+    setMaterials([])
     sourceRequestIdsRef.current.assignments += 1
     sourceRequestIdsRef.current.announcements += 1
     lessonEditGenerationRef.current = 0
@@ -352,6 +363,77 @@ export function TeacherLessonCalendarTab({
       cancelled = true
     }
   }, [classroom.id, fetchRange.start, fetchRange.end, refreshKey])
+
+  // Fetch materials for the classroom
+  useEffect(() => {
+    let cancelled = false
+    const requestedClassroomId = classroom.id
+
+    if (!showClasswork) {
+      setMaterialsClassroomId(requestedClassroomId)
+      setMaterials([])
+      setSourceStatus((current) => ({
+        ...current,
+        materials: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+      }))
+      return
+    }
+
+    async function loadMaterials() {
+      const requestId = sourceRequestIdsRef.current.materials + 1
+      sourceRequestIdsRef.current.materials = requestId
+      const isCurrentLoad = () => (
+        !cancelled &&
+        sourceRequestIdsRef.current.materials === requestId &&
+        currentClassroomIdRef.current === requestedClassroomId
+      )
+      setSourceStatus((current) => ({
+        ...current,
+        materials: {
+          classroomId: requestedClassroomId,
+          error: current.materials.classroomId === requestedClassroomId && current.materials.error,
+          hasLoadedSnapshot: current.materials.classroomId === requestedClassroomId && current.materials.hasLoadedSnapshot,
+          isLoading: true,
+        },
+      }))
+      try {
+        const data = await fetchCachedJSON<{ materials?: ClassworkMaterial[] }>(
+          `teacher-materials:${requestedClassroomId}`,
+          `/api/teacher/classrooms/${requestedClassroomId}/materials`,
+          { errorMessage: 'Failed to load materials', ttlMs: 20_000 },
+        )
+        if (!isCurrentLoad()) return
+        setMaterialsClassroomId(requestedClassroomId)
+        setMaterials(data.materials || [])
+        setSourceStatus((current) => ({
+          ...current,
+          materials: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
+        }))
+      } catch (err) {
+        if (!isCurrentLoad()) return
+        console.error('Error loading materials:', err)
+        setSourceStatus((current) => ({
+          ...current,
+          materials: { ...current.materials, classroomId: requestedClassroomId, error: true, isLoading: false },
+        }))
+      }
+    }
+    loadMaterials()
+
+    // Re-fetch when materials are created, updated, or released
+    const handleMaterialsUpdated = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (!detail?.classroomId || detail.classroomId === classroom.id) {
+        invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+        loadMaterials()
+      }
+    }
+    window.addEventListener(CLASSWORK_MATERIALS_UPDATED_EVENT, handleMaterialsUpdated)
+    return () => {
+      cancelled = true
+      window.removeEventListener(CLASSWORK_MATERIALS_UPDATED_EVENT, handleMaterialsUpdated)
+    }
+  }, [materialsRefreshKey, classroom.id, showClasswork])
 
   // Fetch assignments for the classroom
   useEffect(() => {
@@ -1040,6 +1122,12 @@ export function TeacherLessonCalendarTab({
     setRefreshKey((key) => key + 1)
   }, [classroom.id])
 
+  const retryMaterials = useCallback(() => {
+    retryingSourcesRef.current.add('materials')
+    invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+    setMaterialsRefreshKey((key) => key + 1)
+  }, [classroom.id])
+
   const retryAssignments = useCallback(() => {
     retryingSourcesRef.current.add('assignments')
     invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
@@ -1077,7 +1165,7 @@ export function TeacherLessonCalendarTab({
     void flushPendingSaves()
   }, [classroom.id, flushPendingSaves])
 
-  const localStatuses = [lessonPlansStatus, assignmentsStatus, announcementsStatus, ...(showTests ? [testsStatus] : [])]
+  const localStatuses = [lessonPlansStatus, materialsStatus, assignmentsStatus, announcementsStatus, ...(showTests ? [testsStatus] : [])]
   const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot
   ))
@@ -1092,6 +1180,7 @@ export function TeacherLessonCalendarTab({
     const statuses: Record<CalendarRetrySource, { error: boolean; isLoading: boolean }> = {
       lessonPlans: lessonPlansStatus,
       tests: testsStatus,
+      materials: materialsStatus,
       assignments: assignmentsStatus,
       announcements: announcementsStatus,
       classDays: { error: Boolean(classDaysError), isLoading: classDaysLoading },
@@ -1102,7 +1191,7 @@ export function TeacherLessonCalendarTab({
       retryingSourcesRef.current.delete(source)
       if (!status.error) calendarWorkspaceRef.current?.focus()
     }
-  }, [testsStatus, announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
+  }, [materialsStatus, testsStatus, announcementsStatus, assignmentsStatus, classDaysError, classDaysLoading, lessonPlansStatus])
 
   const failures: CalendarSourceFailure[] = []
   const saveFailures: CalendarSourceFailure[] = failedSaveClassroomIds.has(classroom.id)
@@ -1110,6 +1199,9 @@ export function TeacherLessonCalendarTab({
     : []
   if (lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.error) {
     failures.push({ id: 'lesson-plans', label: 'lesson plans', isRetrying: lessonPlansStatus.isLoading, onRetry: retryLessonPlans })
+  }
+  if (materialsStatus.classroomId === classroom.id && materialsStatus.error) {
+    failures.push({ id: 'materials', label: 'materials', isRetrying: materialsStatus.isLoading, onRetry: retryMaterials })
   }
   if (assignmentsStatus.classroomId === classroom.id && assignmentsStatus.error) {
     failures.push({ id: 'assignments', label: 'assignments', isRetrying: assignmentsStatus.isLoading, onRetry: retryAssignments })
@@ -1127,10 +1219,11 @@ export function TeacherLessonCalendarTab({
   const retryAll = useCallback(() => {
     retryLessonPlans()
     retryTests()
+    retryMaterials()
     retryAssignments()
     retryAnnouncements()
     retryClassDays()
-  }, [retryTests, retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
+  }, [retryMaterials, retryTests, retryAnnouncements, retryAssignments, retryClassDays, retryLessonPlans])
 
   if (!hasAnySnapshot && failures.length > 0) {
     return (
@@ -1200,6 +1293,7 @@ export function TeacherLessonCalendarTab({
               lessonPlans={visibleLessonPlans}
               tests={visibleTests}
               onTestClick={test => onNavigateToTests(test.id)}
+              materials={visibleMaterials}
               assignments={visibleAssignments}
               announcements={visibleAnnouncements}
               classDays={classDays}
@@ -1211,6 +1305,7 @@ export function TeacherLessonCalendarTab({
               onViewModeChange={handleViewModeChange}
               onContentChange={handleContentChange}
               onAssignmentClick={handleAssignmentClick}
+              onMaterialClick={material => onNavigateToMaterial(material.id)}
               onAnnouncementClick={handleAnnouncementClick}
             />
           </div>

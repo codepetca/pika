@@ -720,22 +720,6 @@
           "reason": "composite-widget"
         }
       ]
-    },
-    {
-      "file": "src/components/materials/MaterialCreationDialog.tsx",
-      "reviewBy": "phase-3-assignments",
-      "controls": [
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        },
-        {
-          "kind": "input:checkbox",
-          "count": 1,
-          "reason": "native-input-capability"
-        }
-      ]
     }
   ]
 }

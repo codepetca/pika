@@ -1,5 +1,7 @@
 # Material creation bar
 
+Historical layout, superseded by [Material assignment parity](material-assignment-parity.md).
+
 User approved the Material-first proposal on 2026-08-31. Preview uses only an eye icon, with the accessible name and hover/focus tooltip “Preview”.
 
 Reference: AssignmentForm's CreationModalTopRow and the Pattern Lab tall CreationModalShell example. Extend the approved composition to Material; keep Assignment and Survey unchanged in this pass.

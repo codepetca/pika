@@ -32,6 +32,19 @@ describe('shared material owner RPC contracts', () => {
       p_actor_id: actorId, p_classroom_id: classroomId, p_title: 'Reference', p_content: content, p_is_draft: false,
     })
   })
+  it('creates a schedule atomically and binds the persisted release timestamp', async () => {
+    const scheduled_for = '2099-01-01T12:00:00.000Z'
+    rpc.mockResolvedValue(success({ ...row(), released_at: scheduled_for }))
+    const body = contextualMaterialCreateSchema.parse({ title: 'Reference', content, is_draft: false, scheduled_for })
+    expect((await createContextualMaterial({ actorId, classroomId, body })).material.released_at).toBe(scheduled_for)
+    expect(rpc).toHaveBeenCalledWith('create_classwork_material_for_owner_v3', expect.objectContaining({ p_scheduled_for: scheduled_for }))
+  })
+  it('rejects a substituted schedule timestamp and accepts explicit post-now', async () => {
+    await expect(update({ scheduled_for: '2099-01-01T00:00:00.000Z' })).rejects.toMatchObject({ statusCode: 503 })
+    expect((await update({ scheduled_for: null })).material.is_draft).toBe(false)
+    rpc.mockResolvedValue(success({ ...row(), released_at: '2099-01-01T00:00:00.000Z' }))
+    await expect(update({ scheduled_for: null })).rejects.toMatchObject({ statusCode: 503 })
+  })
   it('accepts the canonical allocator result when all existing mixed positions are negative', async () => {
     const allocated = { ...row(), position: -4 }
     rpc.mockResolvedValue(success(allocated))
@@ -154,6 +167,15 @@ describe('shared material owner RPC contracts', () => {
 })
 
 describe('shared material mutation request schemas', () => {
+  it.each(['invalid', '2020-01-01T00:00:00Z', '2099-01-01T00:00:00'])('rejects invalid schedule %s', scheduled_for => {
+    expect(materialUpdateBodySchema.safeParse({ scheduled_for }).success).toBe(false)
+  })
+  it('rejects simultaneous draft and schedule and normalizes valid offsets', () => {
+    expect(materialUpdateBodySchema.safeParse({ is_draft: true, scheduled_for: '2099-01-01T00:00:00Z' }).success).toBe(false)
+    expect(materialUpdateBodySchema.parse({ scheduled_for: '2099-01-01T09:00:00-05:00' }).scheduled_for).toBe('2099-01-01T14:00:00.000Z')
+    expect(materialUpdateBodySchema.parse({ is_draft: true, scheduled_for: null })).toEqual({ is_draft: true, scheduled_for: null })
+  })
+
   it.each([{}, { title: '' }, { title: '\u00a0\u3000' }, { title: null }, { is_draft: 'false' }, { is_draft: null },
     { content: { type: 'doc', content: [{}] } }, { content: { type: 'doc', content: [{ type: 'text', text: 3 }] } },
     { created_by: actorId }, { title: 'ok', position: 1 }, { title: 'ok', released_at: timestamp },

@@ -4,7 +4,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { LessonCalendar } from '@/components/LessonCalendar'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { TooltipProvider } from '@/ui'
-import type { Announcement, Assignment, Classroom, LessonPlan, TestAssessment, TiptapContent } from '@/types'
+import type { Announcement, Assignment, ClassworkMaterial, Classroom, LessonPlan, TestAssessment, TiptapContent } from '@/types'
 import type { ReactNode } from 'react'
 
 // Mock the keyboard shortcut hook
@@ -533,5 +533,31 @@ describe('test calendar reminders', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Test: Reminder test [Draft]' }))
     expect(onTestClick).toHaveBeenCalledWith(datedTest)
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+})
+
+
+describe('material calendar chips', () => {
+  const material = { id: 'material-1', classroom_id: 'cls-123', title: 'Course reading', is_draft: false,
+    released_at: '2026-03-21T14:00:00Z', created_at: '2026-03-01T12:00:00Z' } as ClassworkMaterial
+  it.each(['week', 'month', 'all'] as const)('opens the exact weekend material in %s view and excludes drafts', viewMode => {
+    const onMaterialClick = vi.fn()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]} materials={[material, { ...material, id: 'draft', title: 'Hidden draft', is_draft: true }]}
+      viewMode={viewMode} currentDate={new Date('2026-03-16T12:00:00')} editable
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} onMaterialClick={onMaterialClick} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Material: Course reading' }))
+    expect(onMaterialClick).toHaveBeenCalledWith(material)
+    expect(screen.queryByText(/Hidden draft/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+  it('offers material navigation from the focused day dialog', () => {
+    const onMaterialClick = vi.fn()
+    render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]} materials={[material]}
+      viewMode="week" currentDate={new Date('2026-03-16T12:00:00')} editable={false}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} onMaterialClick={onMaterialClick} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'Open Saturday, March 21, 2026' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Material: Course reading' }))
+    expect(onMaterialClick).toHaveBeenCalledWith(material)
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

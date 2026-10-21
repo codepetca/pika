@@ -8,12 +8,12 @@ import { LessonDayCell } from './LessonDayCell'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { normalizeAnnouncementTitle } from '@/lib/announcements'
-import { getCalendarAnnouncementDate, getCalendarAssignmentDate, getCalendarTestDate } from '@/lib/calendar-items'
+import { getCalendarAnnouncementDate, getCalendarAssignmentDate, getCalendarMaterialDate, getCalendarTestDate } from '@/lib/calendar-items'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { useTorontoToday } from '@/hooks/use-toronto-today'
 import { Button, DialogPanel, SegmentedControl, Tooltip } from '@/ui'
-import type { Announcement, Assignment, ClassDay, Classroom, LessonPlan, TestAssessment } from '@/types'
+import type { Announcement, Assignment, ClassDay, Classroom, ClassworkMaterial, LessonPlan, TestAssessment } from '@/types'
 
 const TIMEZONE = 'America/Toronto'
 
@@ -24,6 +24,7 @@ interface LessonCalendarProps {
   lessonPlans: LessonPlan[]
   assignments?: Assignment[]
   tests?: TestAssessment[]
+  materials?: ClassworkMaterial[]
   announcements?: Announcement[]
   classDays?: ClassDay[]
   viewMode: CalendarViewMode
@@ -36,6 +37,7 @@ interface LessonCalendarProps {
   onContentChange?: (date: string, contentMarkdown: string) => void
   onAssignmentClick?: (assignment: Assignment) => void
   onTestClick?: (test: TestAssessment) => void
+  onMaterialClick?: (material: ClassworkMaterial) => void
   onAnnouncementClick?: () => void
   onMarkdownToggle?: () => void
   isSidebarOpen?: boolean
@@ -80,6 +82,7 @@ export function LessonCalendar({
   lessonPlans,
   assignments = [],
   tests = [],
+  materials = [],
   announcements = [],
   classDays = [],
   viewMode,
@@ -92,6 +95,7 @@ export function LessonCalendar({
   onContentChange,
   onAssignmentClick,
   onTestClick,
+  onMaterialClick,
   onAnnouncementClick,
   onMarkdownToggle,
   isSidebarOpen = false,
@@ -153,6 +157,15 @@ export function LessonCalendar({
     }
     return map
   }, [tests])
+
+  const materialsByDate = useMemo(() => {
+    const map = new Map<string, ClassworkMaterial[]>()
+    for (const material of materials) {
+      const date = getCalendarMaterialDate(material)
+      if (date) map.set(date, [...(map.get(date) || []), material])
+    }
+    return map
+  }, [materials])
 
   // Build a map of date -> announcements for quick lookup
   // Announcements stay on the date they are published, including after a
@@ -325,12 +338,13 @@ export function LessonCalendar({
       lessonMarkdown,
       tests: testsByDate.get(dateString) || [],
       assignments: assignmentsByDate.get(dateString) || [],
+      materials: materialsByDate.get(dateString) || [],
       announcements: announcementsByDate.get(dateString) || [],
       isWeekend: isWeekendDay,
       isToday: isSameDay(presentedDay, today),
       isClassDay: classDays.length > 0 ? classDayDates.has(dateString) : undefined,
     }
-  }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, announcementsByDate, today, classDays.length, classDayDates])
+  }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, materialsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
   // Format header label
   const headerLabel = useMemo(() => {
@@ -441,6 +455,7 @@ export function LessonCalendar({
                   lessonPlan={plansByDate.get(dateString) || null}
                   tests={testsByDate.get(dateString) || []}
                   assignments={assignmentsByDate.get(dateString) || []}
+                  materials={materialsByDate.get(dateString) || []}
                   announcements={announcementsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
                   isToday={isSameDay(day, today)}
@@ -450,6 +465,7 @@ export function LessonCalendar({
                   onContentChange={onContentChange}
                   onTestClick={onTestClick}
                   onAssignmentClick={onAssignmentClick}
+                  onMaterialClick={onMaterialClick}
                   onAnnouncementClick={onAnnouncementClick}
                 />
               </div>
@@ -562,6 +578,7 @@ export function LessonCalendar({
                   lessonPlan={lessonPlan}
                   tests={testsByDate.get(dateString) || []}
                   assignments={assignmentsByDate.get(dateString) || []}
+                  materials={materialsByDate.get(dateString) || []}
                   announcements={announcementsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay}
                   isToday={isToday}
@@ -574,6 +591,7 @@ export function LessonCalendar({
                   onContentChange={onContentChange}
                   onTestClick={onTestClick}
                   onAssignmentClick={onAssignmentClick}
+                  onMaterialClick={onMaterialClick}
                   onAnnouncementClick={onAnnouncementClick}
                 />
               </div>
@@ -667,6 +685,22 @@ export function LessonCalendar({
                         onTestClick?.(test)
                       }} className="max-w-full whitespace-normal bg-info-bg text-primary">
                         Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {presentedDayDetails.materials.length > 0 && (
+                <div className="mt-10">
+                  <h3 className="text-sm font-semibold text-text-muted">Materials</h3>
+                  <div className="mt-3 flex flex-wrap gap-3">
+                    {presentedDayDetails.materials.map(material => (
+                      <Button key={material.id} variant="ghost" onClick={() => {
+                        setPresentedDay(null)
+                        onMaterialClick?.(material)
+                      }} className="max-w-full whitespace-normal bg-info-bg text-primary">
+                        Material: {material.title}
                       </Button>
                     ))}
                   </div>

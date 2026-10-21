@@ -2035,6 +2035,15 @@ function ClassroomPageContent({
                             params.delete('surveyId')
                           })
                         }
+                        onNavigateToMaterial={(materialId) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'assignments')
+                            params.set('materialId', materialId)
+                            params.delete('assignmentId')
+                            params.delete('assignmentStudentId')
+                            params.delete('surveyId')
+                          })
+                        }
                         onNavigateToAnnouncements={() =>
                           navigateInClassroom((params) => {
                             params.set('tab', 'announcements')
@@ -2165,6 +2174,15 @@ function ClassroomPageContent({
                             }
                             params.delete('assignmentStudentId')
                             params.delete('materialId')
+                            params.delete('surveyId')
+                          })
+                        }
+                        onNavigateToMaterial={(materialId) =>
+                          navigateInClassroom((params) => {
+                            params.set('tab', 'assignments')
+                            params.set('materialId', materialId)
+                            params.delete('assignmentId')
+                            params.delete('assignmentStudentId')
                             params.delete('surveyId')
                           })
                         }

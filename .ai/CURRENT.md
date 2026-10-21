@@ -1,4 +1,4 @@
-# Checkpoint — 2026-10-14 (America/Toronto)
+# Checkpoint — 2026-10-21 (America/Toronto)
 
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
@@ -7,8 +7,8 @@ Prod `b95776cb7` LIVE Oct14 19:28Toronto; #1594 CI38650272929 PASS.
 Saved-work AI/reporting, ungraded Return and Gradebook visibility LIVE.
 Week agenda/Test date LIVE; reopening unchanged.
 Login200/me401/gallery404; savings unknown.
-Prod DB001–282 run39476697299 verified Oct20;266–282 approval consumed.
-47 bodies/ACLs,775 grants,281 RLS/constraints PASS; decommission DB ON.
+Prod DB001–284 applied/verified Oct21;283–284 approval used;Oct30 READY.
+282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
 Poll reads5→1; fresh auth; admission absent.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 

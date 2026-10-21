@@ -29,6 +29,7 @@ const material = {
   classroom_id: classroomId,
   title: 'Reference',
   is_draft: false,
+  released_at: null,
   position: 1,
 }
 const user = (role: 'student' | 'teacher') => ({ id: actorId, role } as AuthenticatedUser)
@@ -39,6 +40,7 @@ function materialBuilder(rows: unknown, error: unknown = null) {
   const builder = {
     select: vi.fn(() => builder),
     eq: vi.fn(() => builder),
+    or: vi.fn(() => builder),
     order: vi.fn()
       .mockImplementationOnce(() => builder)
       .mockResolvedValueOnce({ data: rows, error }),

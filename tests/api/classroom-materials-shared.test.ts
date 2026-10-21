@@ -131,7 +131,7 @@ describe('shared material GET admission', () => {
     vi.mocked(requireAuth).mockResolvedValue(user(legacyRole))
     vi.mocked(requireRole).mockResolvedValue(user(legacyRole))
     const from = vi.fn()
-    const first = { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: { code: 'PGRST204', message: 'classwork_materials position' } }).then(resolve) }
+    const first = { or: vi.fn().mockReturnThis(), select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), order: vi.fn().mockReturnThis(), then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: { code: 'PGRST204', message: 'classwork_materials position' } }).then(resolve) }
     const fallback = { ...first, then: (resolve: (value: unknown) => unknown) => Promise.resolve({ data: null, error: { code: 'PGRST205', message: 'classwork_materials' } }).then(resolve) }
     from.mockReturnValueOnce(first).mockReturnValueOnce(fallback)
     vi.mocked(getServiceRoleClient).mockReturnValue({ from } as unknown as ReturnType<typeof getServiceRoleClient>)

@@ -92,6 +92,7 @@ export async function readContextualMaterials(input: {
     if (enrollment.data.data.classroom_id !== classroomId || enrollment.data.data.student_id !== actorId) throw unavailable()
   }
 
+  const cutoff = new Date().toISOString()
   const materials: Material[] = []
   const seen = new Set<string>()
   let previous: Material | undefined
@@ -105,6 +106,7 @@ export async function readContextualMaterials(input: {
       } else {
         query = query.neq('teacher_id', actorId).is('archived_at', null)
           .eq('membership.student_id', actorId).eq('materials.is_draft', false)
+          .or(`released_at.is.null,released_at.lte.${cutoff}`, { referencedTable: 'materials' })
       }
       if (previous) query = query.or(cursorFilter(previous, input.permission), { referencedTable: 'materials' })
       query = query.order('position', { ascending: true, referencedTable: 'materials' })
@@ -127,7 +129,8 @@ export async function readContextualMaterials(input: {
     for (const material of row.materials) {
       if (material.classroom_id !== classroomId || seen.has(material.id)
         || (previous && !follows(previous, material, input.permission))
-        || (input.permission === 'member' && material.is_draft)) throw unavailable()
+        || (input.permission === 'member' && (material.is_draft || (material.released_at !== null
+          && compareAnnouncementReadTimestamps(material.released_at, cutoff) > 0)))) throw unavailable()
       seen.add(material.id)
       materials.push(material)
       previous = material

@@ -28,19 +28,20 @@ vi.mock('@/lib/cookies', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, announcements, tests = [], currentDate, onDateChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], currentDate, onDateChange }: any) => (
     <div
       data-testid="lesson-calendar"
       data-current-date={currentDate.toISOString().slice(0, 10)}
       data-lesson-count={lessonPlans.length}
       data-assignment-count={assignments.length}
+      data-material-ids={materials.map((material: { id: string }) => material.id).join(',')}
       data-test-count={tests.length}
       data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
       data-announcement-count={announcements.length}
       data-lesson-ids={lessonPlans.map((lesson: { id: string }) => lesson.id).join(',')}
       data-assignment-ids={assignments.map((assignment: { id: string }) => assignment.id).join(',')}
       data-announcement-ids={announcements.map((announcement: { id: string }) => announcement.id).join(',')}
-    ><button onClick={() => onDateChange(new Date(2025, 2, 2, 12))}>Navigate future reminder</button></div>
+    >{materials.map((material: any) => <button key={material.id} onClick={() => onMaterialClick(material)}>Open {material.id}</button>)}<button onClick={() => onDateChange(new Date(2025, 2, 2, 12))}>Navigate future reminder</button></div>
   ),
   CalendarViewMode: {},
 }))
@@ -64,10 +65,12 @@ describe('StudentLessonCalendarTab', () => {
   beforeEach(() => {
     invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
     invalidateCachedJSON(`student-tests:${classroom.id}`)
+    invalidateCachedJSON(`student-materials:${classroom.id}`)
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-announcements:${classroom.id}`)
     invalidateCachedJSON(`student-lesson-plans:${secondClassroom.id}:2025-01-01:2025-06-30`)
     invalidateCachedJSON(`student-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`student-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`student-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     classDaysState.classDays = []
@@ -82,10 +85,12 @@ describe('StudentLessonCalendarTab', () => {
   afterEach(() => {
     invalidateCachedJSON(`student-lesson-plans:${classroom.id}:2025-01-01:2025-06-30`)
     invalidateCachedJSON(`student-tests:${classroom.id}`)
+    invalidateCachedJSON(`student-materials:${classroom.id}`)
     invalidateCachedJSON(`student-assignments:${classroom.id}`)
     invalidateCachedJSON(`student-announcements:${classroom.id}`)
     invalidateCachedJSON(`student-lesson-plans:${secondClassroom.id}:2025-01-01:2025-06-30`)
     invalidateCachedJSON(`student-tests:${secondClassroom.id}`)
+    invalidateCachedJSON(`student-materials:${secondClassroom.id}`)
     invalidateCachedJSON(`student-assignments:${secondClassroom.id}`)
     invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     vi.unstubAllGlobals()
@@ -113,7 +118,7 @@ describe('StudentLessonCalendarTab', () => {
     expect(fetchMock).toHaveBeenCalledTimes(readCount)
   })
 
-  it('fires all 3 API calls in parallel via Promise.all (#306)', async () => {
+  it('fires all 4 API calls in parallel via Promise.all (#306)', async () => {
     // Track the order calls were initiated
     const callOrder: string[] = []
     let resolveAll: (() => void)[] = []
@@ -137,14 +142,15 @@ describe('StudentLessonCalendarTab', () => {
 
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
-    // All 3 fetches should be initiated before any resolve
+    // All 4 fetches should be initiated before any resolve
     await waitFor(() => {
-      expect(callOrder).toHaveLength(3)
+      expect(callOrder).toHaveLength(4)
     })
 
     expect(callOrder.some((u) => u.includes('lesson-plans'))).toBe(true)
     expect(callOrder.some((u) => u.includes('assignments'))).toBe(true)
     expect(callOrder.some((u) => u.includes('announcements'))).toBe(true)
+    expect(callOrder.some((u) => u.includes('materials'))).toBe(true)
 
     // Resolve all fetches and flush resulting state updates.
     await act(async () => {
@@ -153,7 +159,7 @@ describe('StudentLessonCalendarTab', () => {
     })
   })
 
-  it('fires exactly 3 fetch calls total (not 3 separate useEffects)', async () => {
+  it('fetches each enabled source once', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
       json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }),
@@ -162,12 +168,12 @@ describe('StudentLessonCalendarTab', () => {
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
     })
 
     // Wait a tick — no additional calls should fire
     await new Promise((r) => setTimeout(r, 50))
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('does not fetch or display classroom features hidden from students', async () => {
@@ -208,7 +214,7 @@ describe('StudentLessonCalendarTab', () => {
     const first = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
     })
     await waitFor(() => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1')
@@ -224,7 +230,7 @@ describe('StudentLessonCalendarTab', () => {
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-assignment-count', '1')
       expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-count', '1')
     })
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
 
     const urls = fetchMock.mock.calls.map(([url]) => String(url))
     expect(urls.filter((url) => url.includes('lesson-plans'))).toHaveLength(1)
@@ -260,7 +266,7 @@ describe('StudentLessonCalendarTab', () => {
     })
     expect(screen.getByRole('alert')).toHaveTextContent('Some calendar information could not be loaded')
     expect(screen.getByRole('button', { name: 'Retry assignments' })).toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('retries only the failed calendar source and adds its recovered data', async () => {
@@ -308,7 +314,7 @@ describe('StudentLessonCalendarTab', () => {
       expect(document.activeElement).toBe(screen.getByRole('region', { name: 'Calendar workspace' }))
     })
     expect(screen.queryByRole('button', { name: 'Retry assignments' })).not.toBeInTheDocument()
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(assignmentReads).toBe(2)
   })
 
@@ -425,6 +431,7 @@ describe('StudentLessonCalendarTab', () => {
       if (url.includes('assignments')) {
         return { assignments: [{ id: `${classroomId}-assignment` }] }
       }
+      if (url.includes('materials')) return { materials: [{ id: `${classroomId}-material`, is_draft: false, released_at: null }] }
       if (url.includes('announcements')) {
         return { announcements: [{ id: `${classroomId}-announcement` }] }
       }
@@ -448,13 +455,13 @@ describe('StudentLessonCalendarTab', () => {
     const view = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
     })
 
     view.rerender(<StudentLessonCalendarTab showTests={false} classroom={secondClassroom} />)
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(6)
+      expect(fetchMock).toHaveBeenCalledTimes(8)
     })
 
     await resolveClassroom(classroom.id)
@@ -466,6 +473,7 @@ describe('StudentLessonCalendarTab', () => {
     await waitFor(() => {
       const calendar = screen.getByTestId('lesson-calendar')
       expect(calendar).toHaveAttribute('data-lesson-ids', 'classroom-2-lesson')
+      expect(calendar).toHaveAttribute('data-material-ids', 'classroom-2-material')
       expect(calendar).toHaveAttribute('data-assignment-ids', 'classroom-2-assignment')
       expect(calendar).toHaveAttribute('data-announcement-ids', 'classroom-2-announcement')
     })
@@ -515,6 +523,43 @@ describe('StudentLessonCalendarTab', () => {
     expect(calendar).toHaveAttribute('data-lesson-ids', 'permitted-lesson')
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/lesson-plans'))).toHaveLength(1)
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/tests?'))).toHaveLength(showTests ? 1 : 0)
+  })
+
+  it('loads materials as an independent retryable source and opens the exact material', async () => {
+    let materialReads = 0
+    // ClassroomPageClient consumes this exact-material callback; the browser verification
+    // also follows it through tab=assignments&materialId to the production destination.
+    const onNavigateToMaterial = vi.fn()
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/materials')) {
+        materialReads += 1
+        if (materialReads === 1) return { ok: false, status: 500, json: async () => ({ error: 'Unavailable' }) }
+        return { ok: true, json: async () => ({ materials: [{ id: 'reading', is_draft: false, released_at: '2025-01-01T12:00:00Z' }, { id: 'future', is_draft: false, released_at: '2099-01-01T12:00:00Z' }, { id: 'draft', is_draft: true, released_at: null }] }) }
+      }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<StudentLessonCalendarTab showTests={false} classroom={classroom} onNavigateToMaterial={onNavigateToMaterial} />, { wrapper: Wrapper })
+    await screen.findByRole('button', { name: 'Retry materials' })
+    expect(screen.getByTestId('lesson-calendar')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry materials' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open reading' }))
+    expect(onNavigateToMaterial).toHaveBeenCalledWith('reading')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'reading')
+    expect(materialReads).toBe(2)
+  })
+
+  it('refreshes materials only for the current classroom update event', async () => {
+    let reads = 0
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('/materials')) return { ok: true, json: async () => ({ materials: [{ id: `material-${++reads}`, is_draft: false, released_at: null }] }) }
+      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+    })
+    render(<StudentLessonCalendarTab classroom={classroom} showTests={false} />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-1'))
+    act(() => window.dispatchEvent(new CustomEvent('pika:classworkMaterialsUpdated', { detail: { classroomId: 'other' } })))
+    expect(reads).toBe(1)
+    act(() => window.dispatchEvent(new CustomEvent('pika:classworkMaterialsUpdated', { detail: { classroomId: classroom.id } })))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-2'))
   })
 
 })

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
+import { materialScheduledForSchema, validateMaterialPublication } from '@/lib/validations/material-scheduling'
 import { materialReadRowSchema } from '@/lib/validations/material-reads'
 
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
@@ -10,7 +11,8 @@ export const materialUpdateBodySchema = z.object({
   title: z.string().trim().min(1).optional(),
   content: assignmentSubmissionContentSchema.optional(),
   is_draft: z.boolean().optional(),
-}).strict().refine(value => Object.values(value).some(field => field !== undefined), 'No changes provided')
+  scheduled_for: materialScheduledForSchema.optional(),
+}).strict().superRefine(validateMaterialPublication).refine(value => Object.values(value).some(field => field !== undefined), 'No changes provided')
 export type MaterialUpdateInput = z.infer<typeof materialUpdateBodySchema>
 
 // These decoders cover shared admission; the retained legacy branch still has validation debt.

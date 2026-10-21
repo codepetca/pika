@@ -16,12 +16,13 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
   })
 
   it('returns only published materials for enrolled students in classwork order', async () => {
-    const materials = [{ id: 'mat-1', title: 'Reference', is_draft: false, position: 1 }]
+    const materials = [{ id: 'mat-1', title: 'Reference', is_draft: false, released_at: null, position: 1 }]
     const order = vi
       .fn()
       .mockImplementationOnce(() => ({ order }))
       .mockResolvedValue({ data: materials, error: null })
-    const eqDraft = vi.fn(() => ({ order }))
+    const or = vi.fn(() => ({ order }))
+    const eqDraft = vi.fn(() => ({ or }))
     const eqClassroom = vi.fn(() => ({ eq: eqDraft }))
     const select = vi.fn(() => ({ eq: eqClassroom }))
     ;(mockSupabaseClient.from as any) = vi.fn(() => ({ select }))
@@ -38,6 +39,22 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
     await expect(response.json()).resolves.toEqual({ materials })
   })
 
+  it('hides future materials even if the database returns one despite the release cutoff', async () => {
+    const visible = { id: 'visible', is_draft: false, released_at: '2020-01-01T00:00:00Z' }
+    const future = { id: 'future', is_draft: false, released_at: '2099-01-01T00:00:00Z' }
+    const order = vi.fn().mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({ data: [visible, future], error: null })
+    const or = vi.fn(() => ({ order }))
+    const eqDraft = vi.fn(() => ({ or }))
+    const eqClassroom = vi.fn(() => ({ eq: eqDraft }))
+    mockSupabaseClient.from = vi.fn(() => ({ select: vi.fn(() => ({ eq: eqClassroom })) }))
+    const response = await GET(new NextRequest('http://localhost/api/student/classrooms/c-1/materials'), {
+      params: Promise.resolve({ id: 'c-1' }),
+    })
+    expect(await response.json()).toEqual({ materials: [visible] })
+    expect(or).toHaveBeenCalledWith(expect.stringMatching(/^released_at.is.null,released_at.lte./))
+  })
+
   it('returns an empty list before the materials migration is applied', async () => {
     const order = vi
       .fn()
@@ -46,7 +63,8 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
         data: null,
         error: { code: 'PGRST205', message: "Could not find the table 'public.classwork_materials'" },
       })
-    const eqDraft = vi.fn(() => ({ order }))
+    const or = vi.fn(() => ({ order }))
+    const eqDraft = vi.fn(() => ({ or }))
     const eqClassroom = vi.fn(() => ({ eq: eqDraft }))
     const select = vi.fn(() => ({ eq: eqClassroom }))
     ;(mockSupabaseClient.from as any) = vi.fn(() => ({ select }))

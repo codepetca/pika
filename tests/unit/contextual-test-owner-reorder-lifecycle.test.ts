@@ -27,7 +27,8 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
   guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
-  __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities'].sort()
+  __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations'].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
@@ -35,10 +36,10 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
   it.each([254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268])('admits exact complete reviewed migration profile %i', count => {
     expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, count))).not.toThrow()
   })
-  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future283', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
+  it.each(['bad262name', 'bad262digest', 'bad262bytes', 'self-hashed262bytes', 'bad261name', 'bad261digest', 'bad261bytes', 'self-hashed261bytes', 'future285', 'bad260name', 'bad260digest', 'bad260bytes', 'self-hashed260bytes', 'bad259name', 'bad259digest', 'bad259bytes', 'self-hashed259bytes', 'missing258', 'replaced258', 'bad258name', 'bad258digest', 'bad258bytes', 'self-hashed258bytes', 'bad257name', 'bad257digest', 'bad257bytes', 'self-hashed257bytes', 'bad256name', 'bad256digest', 'bad256bytes', 'self-hashed256bytes', 'bad255bytes', 'gap', 'counter-digest'])('refuses unreviewed profile %s', defect => {
     const migrations = current.map(m => ({ ...m }))
     const addition = migrations[255]
-    if (defect === 'future283') migrations.push({ name: '283_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    if (defect === 'future285') migrations.push({ name: '285_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
     if (defect === 'bad262name') migrations[261].name = '262_unknown.sql'
     if (defect === 'bad262digest') migrations[261].sha256 = 'f'.repeat(64)
     if (defect === 'bad262bytes' || defect === 'self-hashed262bytes') migrations[261].sql += '\n'
@@ -78,8 +79,8 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current282 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(282)
+  it('binds the complete current284 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(284)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))
@@ -686,9 +687,9 @@ describe('complete reviewed268 source profile (offline)', () => {
     if (defect === 'self-hashed-bytes') tail.sha256 = testOwnerDigest(tail.sql)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('rejects a contiguous unknown283 source tail', () => {
+  it('rejects a contiguous unknown285 source tail', () => {
     const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
-    migrations.push({ name: '283_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
+    migrations.push({ name: '285_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
 })
