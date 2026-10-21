@@ -30,6 +30,9 @@ Use this checklist for migrations, Supabase query-shape changes, compatibility s
 
 ## Explicit Data API Access (October 30, 2026)
 
+Verified October 20 applied status, the Pika/HQ/RESPMax assessment, and the paused
+HQ hosted-review hold are in the [final readiness audit](./data-api-grants-audit-2026-10.md#final-readiness--2026-10-20-americatoronto).
+
 Supabase removes automatic grants for new `public` tables and sequences on hosted
 projects on October 30, 2026. Existing objects keep their grants. The change also
 matters when reconstructing a hosted database from migrations. See the
