@@ -1356,15 +1356,17 @@ test.describe('teacher Pattern Lab', () => {
     await expect(previewButton).toBeFocused()
   })
 
-  test('previews material with a pinned creation bar and explicit draft action', async ({ page }, testInfo) => {
+  test('previews material in assignment-style panes with an explicit draft action', async ({ page }, testInfo) => {
     await openPatternLab(page, testInfo, 'teacher')
     const open = page.getByRole('button', { name: 'Open material example' })
     await open.click()
     const dialog = page.getByRole('dialog', { name: 'New Material', exact: true })
     const preview = dialog.getByRole('button', { name: 'Preview', exact: true })
-    await expect(dialog.getByRole('heading', { name: 'New Material' })).toBeVisible()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('region', { name: 'Material details' })).toBeVisible()
+    await expect(dialog.getByRole('region', { name: 'Material editor' })).toBeVisible()
     await expect(dialog.getByText('Ungraded classwork')).toHaveCount(0)
-    await expect(preview).toHaveText('')
+    await expect(preview).toHaveText('Preview')
     const control = (await preview.boundingBox())!
     expect(control.width).toBeGreaterThanOrEqual(44)
     expect(control.height).toBeGreaterThanOrEqual(44)
@@ -1376,7 +1378,6 @@ test.describe('teacher Pattern Lab', () => {
       body: await dialog.screenshot({ path: testInfo.outputPath('material-editor.png'), animations: 'disabled' }), contentType: 'image/png',
     })
     await preview.focus()
-    await expect(page.getByRole('tooltip')).toHaveText('Preview')
     await page.keyboard.press('Enter')
     const reading = page.getByRole('dialog', { name: 'Material preview' })
     await expect(reading.getByText('Read the field guide before our next class.')).toBeVisible()

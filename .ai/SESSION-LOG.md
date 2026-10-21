@@ -819,3 +819,10 @@ Final broad source-related run exposed8 more legacy current282 test-count
 assertions (4974passed/8failed); batch2 updates only those8 tests to current283
 and changes unknown-future cases to284. All701tests across those8 suites PASS.
 No product/proof runtime change; targeted rereview and final gate tracked in PR.
+
+Owner requested PR/merge. CI39524309194 exposed old material Preview icon-only
+browser assertions; batch3 updates only that contract to the approved labeled
+assignment-style Preview and verifies both panes. Existing keyboard/preview/focus,
+pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
+light/dark local Playwright contracts PASS. PR returned to draft before changes;
+prior run cancelled by draft transition. No product/runtime/SQL change.
