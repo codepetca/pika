@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { SplitButton, Input, Card, PageDensityProvider } from '@/ui'
+import { Button, Tooltip, SplitButton, Input, Card, PageDensityProvider } from '@/ui'
 import { TeacherAssignmentStudentTable } from '@/components/assignment-workspace/TeacherAssignmentStudentTable'
 import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
 
@@ -14,6 +14,7 @@ const artifacts: AssignmentArtifact[] = [
 /** Fixed data, actual production owners, and no API reads or writes. */
 export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) {
   const [result, setResult] = useState('No action selected')
+  const [tooltipAvailable, setTooltipAvailable] = useState(true)
   return <section id="ui-consistency" className="space-y-4">
     <Card tone="panel" padding="md">
       <h2 className="font-semibold">Menu keyboard and artifact targets</h2>
@@ -25,6 +26,14 @@ export function UiConsistencyPattern({ role }: { role: 'teacher' | 'student' }) 
         ]} />
         <Input aria-label="Text after menu" placeholder="Text after menu" className="w-48" />
         <span role="status">{result}</span>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
+        <Tooltip content="Stationary tooltip example" openOnClick disabled={!tooltipAvailable}>
+          <Button variant="surface">Tooltip motion example</Button>
+        </Tooltip>
+        <Button variant="ghost" aria-pressed={!tooltipAvailable} onClick={() => setTooltipAvailable(value => !value)}>
+          {tooltipAvailable ? 'Disable tooltip example' : 'Enable tooltip example'}
+        </Button>
       </div>
     </Card>
     {role === 'teacher' ? <Card tone="panel" padding="sm">

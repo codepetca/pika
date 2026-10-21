@@ -323,8 +323,31 @@ interface TooltipProps {
   side?: 'top' | 'right' | 'bottom' | 'left'
   align?: 'start' | 'center' | 'end'
   delayDuration?: number
+  interactive?: boolean
+  openOnClick?: boolean
+  disabled?: boolean
+  className?: string
 }
 ```
+
+Tooltip reuses Radix disclosure delays, focus/description ownership, hover grace,
+and dismissal. Its presentation fades with the semantic fast duration and standard
+easing; position, text size, and scale remain fixed. Closing immediately unmounts
+the live Radix content and description, including its document dismissal handlers.
+
+Only static text, common formatting elements, links and SVG shapes can leave a
+short decorative DOM copy. This copy has no React owners/listeners, IDs, roles,
+link destinations or focus attributes; it is inert, `aria-hidden` and unavailable
+to pointer events. Its viewport bounds and current opacity come from the live
+presentation. Content containing widgets, media, custom elements or unsupported
+tags closes immediately rather than retaining that subtree.
+
+Reopening cancels the decorative exit. Disabled owners, hidden documents, unmount,
+reduced-motion closing, and a live change to reduced motion during closing remove
+it immediately. Disabled or hidden owners reject an old pending hover disclosure
+until a fresh leave/reenter, focus or explicit help click. Interactive help keeps
+its existing pointer interactions; keyboard actions belong to the trigger's
+owning control or chooser.
 
 ### AppMessage
 

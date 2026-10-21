@@ -48258,3 +48258,19 @@ before this correction. All40 focused/classifier tests and root combined2,498/94
 focused checks plus policies, TypeScript, lint and audit pass. No workflow,
 application, schema, dependency, native capability or activation change. Targeted
 review and exact-head CI are still required; production and rollout stay held.
+
+<!-- pika-session-log-archive-batch:fb825769e43db68b4cc4e8157303ed03c6004d843268db6743f3685913363c42 -->
+## 2026-10-19 — Prepare contextual owner attendance-policy read
+
+Prepared admitted GET-only attendance settings with one bounded service-only273
+snapshot: current owner, lifecycle fences, unchanged attendance entitlement or
+exact canary and the existing nullable policy DTO. Legacy GET/PUT remain intact.
+Invoker gains only decommission classroom-id SELECT; provider columns/writes stay
+revoked. No provider or UI change. Feature76 checks and hardened SQL-source5,
+native-leaf15, CI/source22 and predecessor-profile1,123 checks pass (overlapping
+counts, not summed); architecture, targeted lint and shell syntax pass. Genuine
+273 metadata is pending; the only two TypeScript errors are its missing generated
+RPC keys, not hidden by casts. This source preparation is not native acceptance,
+PR readiness, a phase exit or rollout. All production/shared-local/real-state and
+activation holds persist. Sol6.1/high supplied bounded product, native leaf and
+existing-runner extension; coordinator owns integration/review and acceptance.
