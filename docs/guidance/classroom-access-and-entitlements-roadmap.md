@@ -1045,6 +1045,33 @@ Mixed-cohort readiness is still a rollout gate; this source group does not prove
 it. Current ownership also takes precedence over retained self-enrollment for
 both status and scan authorization, even when that enrollment has a valid pointer.
 
+2026-10-21 attendance source acceptance: PR1651 merged as `9a9cb02ca` after
+independent review and all ten exact-head CI39636331831 checks passed. The
+reviewed and merge trees match, canonical main is synced, and shared local
+remains243. This is not production deployment, learner activation or a phase exit.
+
+The next bounded backend group admits active owned classroom capture through
+the existing shared selector. It reuses the atomic v3 capture and saved Version,
+owned Blueprint reads and entitlement-checked v2 classroom instantiation. A fresh
+active-owner check before private managed copies complements the existing atomic
+commit owner/source-revision fences; it is not a serializable source-graph claim.
+Absent/unmatched admission retains the teacher guard. Blank Blueprint creation,
+general editing/import/export, AI/repository tools and the teacher-page shell
+remain outside this group. Existing SQL fixtures cover both account labels and
+independent creation capacity; authored cases are not native acceptance until
+the isolated suite actually passes. No migration, new permission framework or
+new rollout flag is introduced. Backend acceptance does not make the existing
+teacher-only redirect/page journey available to neutral accounts.
+
+The owner also settled the remaining Pal owner-transition policy: stop queued
+learner-event delivery after the learner becomes that same classroom's owner,
+preserve earned progression, and stop new learner activity/token requests.
+Already-issued tokens keep their existing expiry; immediate remote revocation,
+erasure or retraction is not implied. Source287 now prepares that connected
+Pal queue integration; no live delivery or activation is claimed.
+All production, shared-local249+, live-provider/publication/configuration and
+account/billing/cohort/page/home/cutover activation holds remain unchanged.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
