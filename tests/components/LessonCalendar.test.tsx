@@ -557,6 +557,7 @@ describe('material calendar chips', () => {
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} onMaterialClick={onMaterialClick} />, { wrapper: Wrapper })
     fireEvent.click(screen.getByRole('button', { name: 'Open Saturday, March 21, 2026' }))
     expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Material: Course reading' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Material: Course reading' })).toHaveTextContent(/^Course reading$/)
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Material: Course reading' }))
     expect(onMaterialClick).toHaveBeenCalledWith(material)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

@@ -46,8 +46,8 @@ export function CalendarIdentityPattern() {
         onMaterialClick={() => setSelected('Open material')} onAnnouncementClick={() => setSelected('Open announcement')} />
     </Card>
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ghost" size="sm" className="bg-calendar-survey-bg text-calendar-survey hover:bg-calendar-survey-hover"
-        onClick={() => setSelected('Open survey')}><ClassworkTypeIcon type="survey" />Survey: Field trip check-in</Button>
+      <Button variant="ghost" size="sm" aria-label="Survey: Field trip check-in" className="bg-calendar-survey-bg text-calendar-survey hover:bg-calendar-survey-hover"
+        onClick={() => setSelected('Open survey')}><ClassworkTypeIcon type="survey" />Field trip check-in</Button>
       <span className="text-xs text-text-muted">Survey identity preview; calendar scheduling is unchanged.</span>
     </div>
     <div className="space-y-2" aria-label="Classwork type identities">

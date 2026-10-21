@@ -295,7 +295,10 @@ Apply this convention to future prototypes and product work:
 - Announcements use a soft peach-orange theme with a subtle fill.
   These refinements supersede the initial shared-green/saturated-orange choice
   following owner feedback on 2026-10-21.
-- Category color does not replace a type label or communicate completion/urgency status.
+- Calendar chip text shows the title alone for Announcement, Material and Survey;
+  retain `Due:` and `Test:` prefixes. Keep type information in accessible names
+  or tooltips and keep existing icons. Use a meaningful fallback for untitled announcements.
+- Category color does not communicate completion/urgency status.
 - Use Lucide FileText for Material and ListChecks for Survey, including creation
   menus and icons beside existing teacher/student Classwork titles. Assignment
   keeps ClipboardList. Reuse the feature-owned `ClassworkTypeIcon` mapping.

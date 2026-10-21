@@ -162,7 +162,8 @@ export const LessonDayCell = memo(function LessonDayCell({
   ))
 
   const materialLinks = materials.map(material => {
-    const label = `Material: ${material.title}${isCalendarMaterialScheduled(material) ? ' [Scheduled]' : ''}`
+    const title = `${material.title}${isCalendarMaterialScheduled(material) ? ' [Scheduled]' : ''}`
+    const label = `Material: ${title}`
     return (
       <Tooltip key={material.id} content={label}>
         <Button variant="ghost" size="sm" aria-label={label}
@@ -170,7 +171,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           className={layout === 'agenda'
             ? 'h-auto min-w-0 max-w-full whitespace-normal bg-calendar-resource-bg px-3 py-2 text-left text-calendar-resource hover:bg-calendar-resource-hover'
             : 'w-full min-w-0 overflow-hidden bg-calendar-resource-bg px-0.5 text-calendar-resource hover:bg-calendar-resource-hover'}>
-          <ClassworkTypeIcon type="material" /><span className={layout === 'agenda' ? 'min-w-0 break-words' : 'truncate'}>{label}</span>
+          <ClassworkTypeIcon type="material" /><span className={layout === 'agenda' ? 'min-w-0 break-words' : 'truncate'}>{title}</span>
         </Button>
       </Tooltip>
     )

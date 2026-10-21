@@ -138,7 +138,9 @@ describe('LessonDayCell', () => {
     renderWithTooltip(<LessonDayCell date={lessonPlan.date} day={new Date(`${lessonPlan.date}T12:00:00`)}
       lessonPlan={lessonPlan} materials={[material]} layout={layout} isWeekend={false} isToday={false}
       editable onMaterialClick={onMaterialClick} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Material: Next reading [Scheduled]' }))
+    const materialChip = screen.getByRole('button', { name: 'Material: Next reading [Scheduled]' })
+    expect(materialChip).toHaveTextContent(/^Next reading \[Scheduled\]$/)
+    fireEvent.click(materialChip)
     expect(onMaterialClick).toHaveBeenCalledWith(material)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })

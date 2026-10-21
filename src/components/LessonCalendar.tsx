@@ -697,11 +697,11 @@ export function LessonCalendar({
                   <h3 className="text-sm font-semibold text-text-muted">Materials</h3>
                   <div className="mt-3 flex flex-wrap gap-3">
                     {presentedDayDetails.materials.map(material => (
-                      <Button key={material.id} variant="ghost" onClick={() => {
+                      <Button key={material.id} variant="ghost" aria-label={`Material: ${material.title}`} onClick={() => {
                         setPresentedDay(null)
                         onMaterialClick?.(material)
                       }} className="max-w-full whitespace-normal bg-calendar-resource-bg text-calendar-resource hover:bg-calendar-resource-hover">
-                        <ClassworkTypeIcon type="material" />Material: {material.title}
+                        <ClassworkTypeIcon type="material" />{material.title}
                       </Button>
                     ))}
                   </div>

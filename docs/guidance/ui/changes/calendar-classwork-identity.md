@@ -12,6 +12,11 @@ prototype’s quiet slate theme, retain Survey light green, and soften
 Announcement to peach-orange. This supersedes the initial shared green and
 strong orange treatments; the icon convention remains approved.
 
+Owner label refinement 2026-10-21: remove visible Announcement, Material and
+Survey prefixes from calendar chips; retain Due and Test prefixes. Keep icons,
+colors, scheduled markers and descriptive accessible names/tooltips. Untitled
+announcements retain a useful fallback label.
+
 ## Acceptance target
 
 - Surface: Calendar week, month, term, weekend and presented-day chips;
