@@ -14,6 +14,10 @@ import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { Button, Tooltip } from '@/ui'
 import type { Announcement, Assignment, ClassworkMaterial, LessonPlan, TestAssessment } from '@/types'
 
+// Month/Term use dense rows on fine pointers; touch and unknown pointers keep
+// the standard target. Week agenda and the day dialog do not use this style.
+export const CALENDAR_GRID_CHIP_CLASS_NAME = 'min-h-control [@media(pointer:fine)]:h-6 [@media(pointer:fine)]:min-h-6 [@media(pointer:fine)]:py-0 [@media(pointer:fine)]:text-xs [@media(pointer:fine)]:leading-4'
+
 // Helper to check if announcement is scheduled (not yet published)
 function isScheduled(announcement: Announcement): boolean {
   return isCalendarAnnouncementScheduled(announcement)
@@ -155,7 +159,7 @@ export const LessonDayCell = memo(function LessonDayCell({
     <Tooltip key={test.id} content={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}>
       <Button variant="ghost" size="sm" aria-label={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}
         onClick={event => { event.stopPropagation(); onTestClick?.(test) }}
-        className="w-full overflow-hidden bg-calendar-assessment-bg px-0.5 text-calendar-assessment hover:bg-calendar-assessment-hover">
+        className={`w-full overflow-hidden bg-calendar-assessment-bg px-0.5 text-calendar-assessment hover:bg-calendar-assessment-hover ${CALENDAR_GRID_CHIP_CLASS_NAME}`}>
         <span className="truncate">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
       </Button>
     </Tooltip>
@@ -170,7 +174,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           onClick={event => { event.stopPropagation(); onMaterialClick?.(material) }}
           className={layout === 'agenda'
             ? 'h-auto min-w-0 max-w-full whitespace-normal bg-calendar-resource-bg px-3 py-2 text-left text-calendar-resource hover:bg-calendar-resource-hover'
-            : 'w-full min-w-0 overflow-hidden bg-calendar-resource-bg px-0.5 text-calendar-resource hover:bg-calendar-resource-hover'}>
+            : `w-full min-w-0 overflow-hidden bg-calendar-resource-bg px-0.5 text-calendar-resource hover:bg-calendar-resource-hover ${CALENDAR_GRID_CHIP_CLASS_NAME}`}>
           <ClassworkTypeIcon type="material" /><span className={layout === 'agenda' ? 'min-w-0 break-words' : 'truncate'}>{title}</span>
         </Button>
       </Tooltip>
@@ -399,7 +403,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                       e.stopPropagation()
                       onAssignmentClick?.(assignment)
                     }}
-                    className={`w-full min-w-0 rounded bg-calendar-assessment-bg text-calendar-assessment font-medium hover:bg-calendar-assessment-hover text-center truncate text-[10px] px-0.5 py-px ${assignment.is_draft ? 'opacity-50' : ''}`}
+                    className={`w-full min-w-0 rounded bg-calendar-assessment-bg text-calendar-assessment font-medium hover:bg-calendar-assessment-hover text-center truncate text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${assignment.is_draft ? 'opacity-50' : ''}`}
                   >
                     Due: {assignment.title}
                   </button>
@@ -431,7 +435,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                       }}
                       title={calendarLabel}
                       aria-label={calendarLabel}
-                      className={`w-full min-w-0 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${
+                      className={`w-full min-w-0 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${
                         scheduled
                           ? 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
                           : 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover'

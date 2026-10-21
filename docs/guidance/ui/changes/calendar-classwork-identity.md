@@ -17,6 +17,14 @@ Survey prefixes from calendar chips; retain Due and Test prefixes. Keep icons,
 colors, scheduled markers and descriptive accessible names/tooltips. Untitled
 announcements retain a useful fallback label.
 
+Owner density refinement 2026-10-21: make Month/Term chips shorter while
+leaving Week unchanged. Reuse the existing cell and Button owners; extend only
+grid presentation with 24px single-line rows for fine pointers. Coarse and
+unknown pointers keep 44px minimum targets without overlapping rows. The
+same sizing applies to the deterministic survey reference. Verify both
+roles/themes, 1440/390px, fine/coarse pointers, focus and activation; compare
+Week before/after. The shared cell serves both Month and Term.
+
 ## Acceptance target
 
 - Surface: Calendar week, month, term, weekend and presented-day chips;

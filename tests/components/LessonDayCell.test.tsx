@@ -132,7 +132,8 @@ describe('LessonDayCell', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it.each(['agenda', 'grid'] as const)('opens a scheduled material without editing the lesson in %s', layout => {
+  it.each(['agenda', 'grid'] as const)('opens a scheduled material without editing the lesson in %s', async layout => {
+    const user = userEvent.setup()
     const material = { id: 'reading', title: 'Next reading', is_draft: false, released_at: '2099-01-01T12:00:00Z' } as ClassworkMaterial
     const onMaterialClick = vi.fn()
     renderWithTooltip(<LessonDayCell date={lessonPlan.date} day={new Date(`${lessonPlan.date}T12:00:00`)}
@@ -142,6 +143,9 @@ describe('LessonDayCell', () => {
     expect(materialChip).toHaveTextContent(/^Next reading \[Scheduled\]$/)
     fireEvent.click(materialChip)
     expect(onMaterialClick).toHaveBeenCalledWith(material)
+    materialChip.focus()
+    await user.keyboard('{Enter}')
+    expect(onMaterialClick).toHaveBeenCalledTimes(2)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 

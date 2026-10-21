@@ -298,6 +298,10 @@ Apply this convention to future prototypes and product work:
 - Calendar chip text shows the title alone for Announcement, Material and Survey;
   retain `Due:` and `Test:` prefixes. Keep type information in accessible names
   or tooltips and keep existing icons. Use a meaningful fallback for untitled announcements.
+- Month/Term calendar chips use compact 24px rows for fine pointers, with
+  single-line titles and full-name tooltips. Coarse or unknown pointers retain
+  the standard 44px minimum target. Week and day-dialog chip density is unchanged.
+  This scoped dense-calendar exception follows owner feedback on 2026-10-21.
 - Category color does not communicate completion/urgency status.
 - Use Lucide FileText for Material and ListChecks for Survey, including creation
   menus and icons beside existing teacher/student Classwork titles. Assignment

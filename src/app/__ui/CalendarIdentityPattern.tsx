@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { LessonDayCell } from '@/components/LessonDayCell'
+import { CALENDAR_GRID_CHIP_CLASS_NAME, LessonDayCell } from '@/components/LessonDayCell'
 import { ClassworkTypeIcon, type ClassworkType } from '@/components/ClassworkTypeIcon'
 import { Button, Card, SegmentedControl } from '@/ui'
 import type { Announcement, Assignment, ClassworkMaterial } from '@/types'
@@ -46,7 +46,7 @@ export function CalendarIdentityPattern() {
         onMaterialClick={() => setSelected('Open material')} onAnnouncementClick={() => setSelected('Open announcement')} />
     </Card>
     <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ghost" size="sm" aria-label="Survey: Field trip check-in" className="bg-calendar-survey-bg text-calendar-survey hover:bg-calendar-survey-hover"
+      <Button variant="ghost" size="sm" aria-label="Survey: Field trip check-in" className={`bg-calendar-survey-bg text-calendar-survey hover:bg-calendar-survey-hover ${layout === 'grid' ? CALENDAR_GRID_CHIP_CLASS_NAME : ''}`}
         onClick={() => setSelected('Open survey')}><ClassworkTypeIcon type="survey" />Field trip check-in</Button>
       <span className="text-xs text-text-muted">Survey identity preview; calendar scheduling is unchanged.</span>
     </div>
