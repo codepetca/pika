@@ -370,14 +370,14 @@ describe('LessonDayCell', () => {
     )
   })
 
-  it('uses the announcement title as the calendar label and keeps it truncated', async () => {
+  it.each([false, true])('keeps the named announcement icon and tooltip available (weekend=%s)', async (isWeekend) => {
     renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
         day={new Date('2026-03-13T12:00:00.000Z')}
         lessonPlan={null}
         announcements={[titledAnnouncement]}
-        isWeekend={false}
+        isWeekend={isWeekend}
         isToday={false}
         editable={false}
         compact={false}
@@ -385,8 +385,11 @@ describe('LessonDayCell', () => {
     )
 
     const button = screen.getByRole('button', { name: titledAnnouncementTitle })
-    expect(button).toHaveClass('truncate')
-    expect(button).toHaveAttribute('title', titledAnnouncementTitle)
+    expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    if (!isWeekend) {
+      expect(button).toHaveClass('truncate')
+      expect(button).toHaveAttribute('title', titledAnnouncementTitle)
+    }
 
     fireEvent.focus(button)
 

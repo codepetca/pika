@@ -25,6 +25,11 @@ same sizing applies to the deterministic survey reference. Verify both
 roles/themes, 1440/390px, fine/coarse pointers, focus and activation; compare
 Week before/after. The shared cell serves both Month and Term.
 
+Owner identity refinement 2026-10-21: Announcement peach remained too close
+to Test amber. Use soft blue for announcements and retain visible Megaphone,
+FileText and ListChecks icons on the title-only chips in every view, including
+compact grids. This supersedes the orange/peach announcement palette.
+
 ## Acceptance target
 
 - Surface: Calendar week, month, term, weekend and presented-day chips;
@@ -48,7 +53,7 @@ Week before/after. The shared cell serves both Month and Term.
 
 Exact theme values live only in `src/styles/tokens.css`. Use the
 `calendar-assessment` (due/tests), `calendar-resource` (slate Material),
-`calendar-survey` (light-green Survey) and `calendar-announcement` (soft peach) Tailwind
+`calendar-survey` (light-green Survey) and `calendar-announcement` (soft blue) Tailwind
 color groups, including their `bg` and `hover` variants. These encode content
 identity, independently of success, warning, or completion status.
 

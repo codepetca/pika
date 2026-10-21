@@ -91,9 +91,9 @@
   --color-calendar-survey: #4a6a62;
   --color-calendar-survey-bg: #f0f5f4;
   --color-calendar-survey-hover: #e1eeea;
-  --color-calendar-announcement: #91451f;
-  --color-calendar-announcement-bg: #fff0e8;
-  --color-calendar-announcement-hover: #ffe1cf;
+  --color-calendar-announcement: #315da3;
+  --color-calendar-announcement-bg: #e8f0ff;
+  --color-calendar-announcement-hover: #d8e6ff;
 
   /* Attendance statuses mirror the connected TeachAssist source. */
   --color-attendance-present: #2dbf00;
@@ -223,9 +223,9 @@
   --color-calendar-survey: #adc9c2;
   --color-calendar-survey-bg: #222e2c;
   --color-calendar-survey-hover: #2c3c38;
-  --color-calendar-announcement: #e7b49a;
-  --color-calendar-announcement-bg: #3c2b24;
-  --color-calendar-announcement-hover: #4c352b;
+  --color-calendar-announcement: #aecbff;
+  --color-calendar-announcement-bg: #23344d;
+  --color-calendar-announcement-hover: #2d4160;
   --color-attendance-present: #2dbf00;
   --color-attendance-late: #f1c700;
   --color-attendance-absent: #b10606;

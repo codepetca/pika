@@ -292,8 +292,10 @@ Apply this convention to future prototypes and product work:
 - Calendar due dates and tests share the soft amber assessment theme.
 - Materials use the original quiet slate resource theme.
 - Surveys use a distinct light-green survey theme.
-- Announcements use a soft peach-orange theme with a subtle fill.
-  These refinements supersede the initial shared-green/saturated-orange choice
+- Announcements use a soft blue theme, distinct from amber Due/Test chips.
+  Keep the Megaphone announcement, FileText material and ListChecks survey
+  icons visible beside title-only chips in Week, Month and Term.
+  These refinements supersede the earlier shared-green and orange/peach choices
   following owner feedback on 2026-10-21.
 - Calendar chip text shows the title alone for Announcement, Material and Survey;
   retain `Due:` and `Test:` prefixes. Keep type information in accessible names

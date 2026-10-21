@@ -57,6 +57,7 @@ describe('UiGallery accessibility contracts', () => {
     expect(example.getByRole('button', { name: 'Material: Ecosystem reading' })).toBeVisible()
     expect(example.getByRole('button', { name: 'Material: Ecosystem reading' })).toHaveTextContent(/^Ecosystem reading$/)
     expect(example.getByRole('button', { name: 'Survey: Field trip check-in' })).toHaveTextContent(/^Field trip check-in$/)
+    expect(example.getByRole('button', { name: 'Bring headphones' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(example.getByRole('button', { name: 'Material: Ecosystem reading' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(example.getByRole('button', { name: 'Material: Ecosystem reading' }))
     expect(example.getByRole('status')).toHaveTextContent('Open material')

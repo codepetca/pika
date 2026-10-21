@@ -35,7 +35,7 @@ export function CalendarIdentityPattern() {
   const [selected, setSelected] = useState('Example only—nothing is saved.')
   return <section id="calendar-identity" data-testid="calendar-identity-pattern" className="space-y-4">
     <h3 className="font-semibold">Calendar themes and Classwork identity</h3>
-    <p className="text-sm text-text-muted">Due dates and tests share amber. Materials use quiet slate; surveys use light green. Announcements use soft peach-orange. Icons identify content type, independently of status.</p>
+    <p className="text-sm text-text-muted">Due dates and tests share amber. Materials use quiet slate; surveys use light green. Announcements use soft blue. Icons identify content type, independently of status.</p>
     <SegmentedControl ariaLabel="Identity calendar layout" value={layout} onChange={setLayout}
       options={[{ value: 'agenda', label: 'Week' }, { value: 'grid', label: 'Grid' }]} />
     <Card tone="panel" padding="none" className={layout === 'grid' ? 'max-w-sm' : undefined}>

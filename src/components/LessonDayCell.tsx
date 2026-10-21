@@ -3,6 +3,7 @@
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
+import { Megaphone } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { useLessonCellMotion } from './useLessonCellMotion'
 import { MarkdownContentEditor } from '@/components/editor'
@@ -276,6 +277,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                     className="md:max-w-none" align="start" interactive>
                     <Button variant="ghost" size="sm" onClick={onAnnouncementClick} aria-label={calendarLabel}
                       className="h-auto min-w-0 max-w-full whitespace-normal bg-calendar-announcement-bg px-3 py-2 text-left text-calendar-announcement hover:bg-calendar-announcement-hover">
+                      <Megaphone className="h-4 w-4 shrink-0" aria-hidden="true" />
                       <span className="min-w-0 break-words">{calendarLabel}</span>
                     </Button>
                   </Tooltip>
@@ -338,16 +340,19 @@ export const LessonDayCell = memo(function LessonDayCell({
             >
               <button
                 type="button"
+                aria-label={announcements.map(announcement => getAnnouncementCalendarLabel(announcement, isScheduled(announcement))).join(', ')}
                 onClick={(e) => {
                   e.stopPropagation()
                   onAnnouncementClick?.()
                 }}
-                className={`w-full min-w-[12px] rounded cursor-pointer h-4 ${
+                className={`inline-flex w-full min-w-[12px] items-center justify-center overflow-hidden rounded cursor-pointer h-4 text-calendar-announcement ${
                   announcements.some(isScheduled)
                     ? 'bg-calendar-announcement-bg hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
                     : 'bg-calendar-announcement-bg hover:bg-calendar-announcement-hover'
                 }`}
-              />
+              >
+                <Megaphone className="h-3 w-3 shrink-0" aria-hidden="true" />
+              </button>
             </Tooltip>
           </div>
         )}
@@ -435,13 +440,14 @@ export const LessonDayCell = memo(function LessonDayCell({
                       }}
                       title={calendarLabel}
                       aria-label={calendarLabel}
-                      className={`w-full min-w-0 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${
+                      className={`inline-flex w-full min-w-0 items-center justify-center gap-1 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${
                         scheduled
                           ? 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
                           : 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover'
                       }`}
                     >
-                      {calendarLabel}
+                      <Megaphone className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span className="min-w-0 truncate">{calendarLabel}</span>
                     </button>
                   </Tooltip>
                 )
