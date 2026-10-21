@@ -12,6 +12,13 @@ const entryPayloadSchema = z.object({
 
 const ENTRY_TOKEN_PATTERN = /^[A-Za-z0-9_-]{80,768}$/
 const ATTENDANCE_REF_PATTERN = /^[A-Za-z0-9._~-]{1,128}$/
+const membershipOccurrenceBindingSchema = z.object({
+  studentId: z.string().uuid(),
+  classroomId: z.string().uuid(),
+  generationId: z.string().uuid(),
+  participantRef: z.string().regex(/^participant_[a-f0-9]{32}$/),
+  occurrenceRef: z.string().regex(ATTENDANCE_REF_PATTERN),
+})
 const IV_BYTES = 12
 const TAG_BYTES = 16
 
@@ -53,6 +60,34 @@ export function deriveStudentAttendanceOccurrenceBinding(input: {
     .update(input.studentId, 'utf8')
     .update('\0', 'utf8')
     .update(input.occurrenceRef, 'utf8')
+    .digest('base64url')
+    .slice(0, 32)
+}
+
+// This binds the supplied scope only; callers must authorize the actual current membership.
+export function deriveStudentAttendanceMembershipOccurrenceBinding(input: {
+  studentId: string
+  classroomId: string
+  generationId: string
+  participantRef: string
+  occurrenceRef: string
+  secret?: string
+}): string {
+  const parsed = membershipOccurrenceBindingSchema.safeParse(input)
+  if (!parsed.success) throw new AttendanceEntryTokenError('invalid')
+
+  const scope = parsed.data
+  return createHmac('sha256', secretKey(input.secret))
+    .update('pika-student-attendance-membership-occurrence-v1\0', 'utf8')
+    .update(scope.studentId, 'utf8')
+    .update('\0', 'utf8')
+    .update(scope.classroomId, 'utf8')
+    .update('\0', 'utf8')
+    .update(scope.generationId, 'utf8')
+    .update('\0', 'utf8')
+    .update(scope.participantRef, 'utf8')
+    .update('\0', 'utf8')
+    .update(scope.occurrenceRef, 'utf8')
     .digest('base64url')
     .slice(0, 32)
 }

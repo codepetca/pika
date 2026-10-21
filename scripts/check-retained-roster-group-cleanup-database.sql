@@ -1,4 +1,4 @@
--- ROOT EXECUTION ONLY after frozen review and local239 application.
+-- ROOT EXECUTION ONLY after frozen review and local239/283 application.
 -- All DDL/data/setting/fault writes roll back. The SINGLETON index is dropped
 -- only inside this transaction to exercise future multirow consumers. The
 -- installed168 guards stay enabled and must be byte-exact after rollback.
@@ -58,6 +58,9 @@ declare signature text:='public.discover_retained_student_cleanup_groups(uuid,uu
 begin
   if not exists(select 1 from supabase_migrations.schema_migrations where version='239')
     or to_regprocedure(signature) is null then raise exception 'Reviewed239 must be installed'; end if;
+  if not exists(select 1 from supabase_migrations.schema_migrations where version='283')
+    or to_regprocedure('private.capture_attendance_participant_association(uuid,uuid,text)') is null then
+    raise exception 'Reviewed283 requires separate local application approval'; end if;
   if not exists(select 1 from pg_index where indexrelid=
       'public.classroom_roster_one_removed_membership_per_student'::regclass and indisunique) then
     raise exception 'Singleton index must remain installed'; end if;
@@ -112,6 +115,23 @@ insert into public.classroom_roster(id,classroom_id,email,first_name)
 insert into public.attendance_roster_mappings(classroom_id) select classroom from group_cleanup_fixture;
 insert into public.attendance_principal_mappings(user_id) select owner from group_cleanup_fixture;
 insert into public.attendance_participant_mappings(classroom_id,student_id) select classroom,student from group_cleanup_fixture;
+-- The ordinary171 INSERT trigger established the exact current proof above.
+-- Capture only this fixture reference; no installation-wide backfill or writer.
+select private.capture_attendance_participant_association(mapping.classroom_id,mapping.student_id,mapping.participant_ref)
+  from public.attendance_participant_mappings mapping join group_cleanup_fixture f
+    on mapping.classroom_id=f.classroom and mapping.student_id=f.student;
+do $association_capture$
+declare f record;
+begin
+  select * into f from group_cleanup_fixture;
+  if not exists(select 1 from private.attendance_participant_associations association
+    join public.attendance_participant_mappings mapping using(participant_ref)
+    where mapping.classroom_id=f.classroom and mapping.student_id=f.student
+      and association.generation_id=f.generation and not association.closed
+      and association.scope_digest=private.pal_membership_scope(f.classroom,f.student)) then
+    raise exception 'Exact171 association capture differs';end if;
+end;
+$association_capture$;
 select public.remove_classroom_students_preserving_data(owner,classroom,array[first_roster]) from group_cleanup_fixture;
 -- Explicit rollback-scoped test DDL. Persistent singleton opening is OUT OF SCOPE.
 drop index public.classroom_roster_one_removed_membership_per_student;
@@ -222,8 +242,74 @@ begin
   if before_state is distinct from pg_temp.group_cleanup_fingerprint() then raise exception 'Snapshot rejection did not restore rows'; end if;
 end;
 $pagination$;
+-- An extra legacy reference must reject the real239 reservation, including its
+-- attempted operation/binding/fence writes. No receipt is submitted in this
+-- scenario. Its entire setup is discarded after checking exact persisted state.
+do $uncovered_association_reservation$
+declare f record; course uuid; generation uuid:=gen_random_uuid(); operation uuid:=gen_random_uuid();
+  roster uuid:=gen_random_uuid(); legacy_ref text:='participant_'||replace(gen_random_uuid()::text,'-','');
+  current_ref text:='participant_'||replace(gen_random_uuid()::text,'-','');
+  before_fixture jsonb; before_reservation jsonb;
+begin
+  select * into f from group_cleanup_fixture;
+  select classroom into course from group_cleanup_pages;
+  before_fixture:=pg_temp.group_cleanup_fingerprint();
+  begin
+    -- No enrollment exists yet: this is a genuine unbound legacy mapping.
+    insert into public.attendance_participant_mappings(classroom_id,student_id,participant_ref)
+      values(course,f.peer,legacy_ref);
+    perform private.capture_attendance_participant_association(course,f.peer,legacy_ref);
+    update public.attendance_participant_mappings set participant_ref=current_ref
+      where classroom_id=course and student_id=f.peer;
+    insert into public.classroom_enrollments(id,classroom_id,student_id)
+      values(generation,course,f.peer);
+    -- Explicit synthetic171 proof, as in the retained-generation fixtures:
+    -- do not infer this attribution from dates or enable automatic cleanup.
+    insert into private.attendance_membership_generations(generation_id,participant_ref,scope_digest)
+      values(generation,current_ref,private.pal_membership_scope(course,f.peer));
+    perform private.capture_attendance_participant_association(course,f.peer,current_ref);
+    insert into public.attendance_roster_mappings(classroom_id) values(course);
+    insert into public.classroom_roster(id,classroom_id,email)
+      values(roster,course,'peer-'||f.tag||'@example.invalid');
+    perform public.remove_classroom_students_preserving_data(f.owner,course,array[roster]);
+    if not exists(select 1 from private.attendance_participant_associations where
+      participant_ref=legacy_ref and generation_id is null and not closed
+      and scope_digest=private.pal_membership_scope(course,f.peer)) then
+      raise exception 'Uncovered legacy association setup differs';end if;
+    before_reservation:=pg_temp.group_cleanup_fingerprint();
+    begin
+      set local role service_role;
+      perform public.advance_removed_student_academic_cleanup(operation,f.owner,course,f.peer,generation,'live_reserve');
+      reset role;
+      raise exception using errcode='ZX999',message='Uncovered reference reservation unexpectedly succeeded';
+    exception when sqlstate '55000' then
+      if sqlerrm<>'attendance_cleanup_reference_uncovered' then raise;end if;
+    end;
+    if exists(select 1 from public.student_purge_operations where id=operation)
+      or exists(select 1 from private.student_provider_cleanup_bindings where operation_id=operation)
+      or exists(select 1 from public.student_purge_fences where operation_id=operation
+        or (classroom_id=course and student_id=f.peer)) then
+      raise exception 'Uncovered reservation left operation, binding, or fence';end if;
+    begin
+      set local role service_role;
+      perform public.authorize_student_provider_cleanup(operation,f.owner,course,f.peer,generation);
+      reset role;
+      raise exception using errcode='ZX999',message='Unreserved provider advancement was authorized';
+    exception when sqlstate '42501' then
+      if sqlerrm<>'student_provider_cleanup_forbidden' then raise;end if;
+    end;
+    if before_reservation is distinct from pg_temp.group_cleanup_fingerprint() then
+      raise exception 'Rejected reservation changed delivery or receipt state';end if;
+    raise exception using errcode='ZX282',message='rollback_uncovered_association_fixture';
+  exception when sqlstate 'ZX282' then
+    if sqlerrm<>'rollback_uncovered_association_fixture' then raise;end if;
+  end;
+  if before_fixture is distinct from pg_temp.group_cleanup_fingerprint() then
+    raise exception 'Uncovered fixture rollback changed global rows';end if;
+end;
+$uncovered_association_reservation$;
 do $groups$
-declare f record; result jsonb; before_state jsonb; cursor uuid;
+declare f record; result jsonb; before_state jsonb; cursor uuid; reservation jsonb;
 begin
   select * into f from group_cleanup_fixture;
   result:=pg_temp.group_cleanup_discover(f.owner,f.classroom);
@@ -270,7 +356,9 @@ begin
     perform private.retained_roster_cleanup_group(f.student,f.classroom,f.student,f.generation);
     raise exception using errcode='ZX999',message='Former owner accepted';
   exception when sqlstate '42501' then null; end;
-  perform pg_temp.group_cleanup_advance('live_reserve');
+  reservation:=pg_temp.group_cleanup_advance('live_reserve');
+  if reservation is distinct from pg_temp.group_cleanup_advance('live_reserve') then
+    raise exception 'Captured association changed reservation retry';end if;
   -- Both copies of retained marks must be inventoried.
   perform pg_temp.group_cleanup_advance('inventory');
   if (select count(*) from public.student_purge_resources where operation_id=f.operation
@@ -401,6 +489,12 @@ begin
   perform set_config('pika.student_purge_finalize','off',true);
   result:=pg_temp.group_cleanup_advance('live_complete');
   if result->>'status'<>'completed' or result<>pg_temp.group_cleanup_advance('live_complete') then raise exception 'Completion replay changed'; end if;
+  if not exists(select 1 from private.attendance_participant_associations
+      where participant_ref=saved->>'participant_ref' and closed
+        and scope_digest is null and generation_id is null)
+    or exists(select 1 from private.attendance_participant_associations
+      where scope_digest=private.pal_membership_scope(f.classroom,f.student)) then
+    raise exception 'Exact receipt completion did not scrub captured association';end if;
   if exists(select 1 from public.classroom_roster where id in (f.first_roster,f.second_roster))
     or exists(select 1 from public.classroom_roster_student_bindings where classroom_id=f.classroom and student_id=f.student)
     or exists(select 1 from public.student_purge_fences where operation_id=f.operation)

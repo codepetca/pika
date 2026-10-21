@@ -22,6 +22,9 @@ do $$ begin
   if not exists (select 1 from supabase_migrations.schema_migrations where version = '281') then
     raise exception 'Migration 281 requires separate local application approval';
   end if;
+  if not exists (select 1 from supabase_migrations.schema_migrations where version = '283') then
+    raise exception 'Migration 283 requires separate local application approval';
+  end if;
 end $$;
 create function pg_temp.expect_error(p_sql text, p_message text) returns void language plpgsql as $$
 begin
@@ -51,6 +54,19 @@ insert into public.attendance_participant_mappings (classroom_id, student_id) va
  ('d1530000-0000-4000-8000-000000000010', 'd1530000-0000-4000-8000-000000000002'),
  ('d1530000-0000-4000-8000-000000000010', 'd1530000-0000-4000-8000-000000000003'),
  ('d1530000-0000-4000-8000-000000000011', 'd1530000-0000-4000-8000-000000000002');
+-- Construct legacy history through ordinary unbound mapping changes before any
+-- 171 proof exists. This exercises no allocator and bypasses no write guard.
+select private.capture_attendance_participant_association(classroom_id,student_id,participant_ref)
+ from public.attendance_participant_mappings
+ where classroom_id in ('d1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000011');
+update public.attendance_participant_mappings set participant_ref='participant_28200000000000000000000000000031'
+ where classroom_id='d1530000-0000-4000-8000-000000000010'
+ and student_id='d1530000-0000-4000-8000-000000000002';
+select private.capture_attendance_participant_association(classroom_id,student_id,participant_ref)
+ from public.attendance_participant_mappings where participant_ref='participant_28200000000000000000000000000031';
+update public.attendance_participant_mappings set participant_ref='participant_28200000000000000000000000000032'
+ where classroom_id='d1530000-0000-4000-8000-000000000010'
+ and student_id='d1530000-0000-4000-8000-000000000002';
 insert into public.attendance_classroom_qr_handles (classroom_id) values
  ('d1530000-0000-4000-8000-000000000010');
 insert into public.attendance_occurrence_mappings(classroom_id,class_date)
@@ -131,6 +147,22 @@ insert into private.attendance_membership_generations(generation_id,scope_digest
  from private.pal_membership_generations generation
  join public.attendance_participant_mappings mapping on generation.scope_digest=private.pal_membership_scope(mapping.classroom_id,mapping.student_id)
  where generation_id in ('d1530000-0000-4000-8000-000000000030','d1530000-0000-4000-8000-000000000031','d1530000-0000-4000-8000-000000000032');
+-- Only the final current reference copies exact 171 proof. Earlier legacy
+-- associations remain unknown instead of inheriting that generation.
+select private.capture_attendance_participant_association(classroom_id,student_id,participant_ref)
+ from public.attendance_participant_mappings where participant_ref='participant_28200000000000000000000000000032';
+create temp table associations_before as select * from private.attendance_participant_associations;
+do $$ begin
+ if (select count(*) from associations_before where scope_digest=private.pal_membership_scope(
+  'd1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000002'))<>3
+  or (select count(*) from associations_before where generation_id='d1530000-0000-4000-8000-000000000030')<>1
+  or exists(select 1 from associations_before where closed
+    or (generation_id is not null and participant_ref<>'participant_28200000000000000000000000000032')) then
+  raise exception 'Historical association fixture did not retain all references';end if;
+end $$;
+select pg_temp.expect_error($q$select private.assert_attendance_cleanup_reference_coverage(
+ 'd1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000002',
+ 'participant_28200000000000000000000000000032')$q$,'attendance_cleanup_reference_uncovered');
 create temp table replay_before as
  select 'pal' as kind,to_jsonb(generation) as evidence from private.pal_membership_generations generation
  union all select 'attendance',to_jsonb(generation) from private.attendance_membership_generations generation;
@@ -322,7 +354,7 @@ begin raise exception using errcode='P1531',message='injected_decommission_failu
 $$;
 
 do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_previous bigint;
- v_forgery text; v_row jsonb; begin
+ v_forgery text; v_row jsonb; v_associations jsonb; v_participant_failure boolean:=false; begin
   v_receipt := jsonb_build_object('schema_version',1,'ok',true,'installation_ref','installation_synthetic',
    'roster_ref','roster_15300000000000000000000000000010',
    'operation_ref','decommission_d1530000000040008000000000000020',
@@ -362,6 +394,25 @@ do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_pre
    raise exception 'Exact saved capability rejected'; end if;
   delete from private.attendance_decommission_delete_capabilities where transaction_id=txid_current();
   delete from public.attendance_status_override_events where id='d1530000-0000-4000-8000-000000000099';
+  -- A saved receipt does not make a forged participant phase authoritative.
+  -- The operation is still at phase 1; phase/table/class/operation must agree.
+  select jsonb_agg(to_jsonb(association) order by participant_ref) into v_associations
+   from private.attendance_participant_associations association;
+  foreach v_forgery in array array['phase','classroom','table'] loop
+   insert into private.attendance_decommission_delete_capabilities values(txid_current(),
+    'd1530000-0000-4000-8000-000000000020',
+    case when v_forgery='classroom' then 'd1530000-0000-4000-8000-000000000011'::uuid
+      else 'd1530000-0000-4000-8000-000000000010'::uuid end,
+    case when v_forgery='phase' then 1 else 12 end,
+    case when v_forgery='table' then 'attendance_status_override_events' else 'attendance_participant_mappings' end);
+   perform pg_temp.expect_error($q$delete from public.attendance_participant_mappings
+    where classroom_id='d1530000-0000-4000-8000-000000000010'
+    and student_id='d1530000-0000-4000-8000-000000000002'$q$,'attendance_decommission_delete_forbidden');
+   if v_associations is distinct from (select jsonb_agg(to_jsonb(association) order by participant_ref)
+    from private.attendance_participant_associations association) then
+    raise exception 'Forged participant capability changed association evidence';end if;
+   delete from private.attendance_decommission_delete_capabilities where transaction_id=txid_current();
+  end loop;
   foreach v_forgery in array array['transaction','classroom','table','phase','operation'] loop
    if v_forgery='operation' then
     begin
@@ -404,6 +455,30 @@ do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_pre
   execute 'drop trigger decommission_failure on public.attendance_status_override_events';
   v_previous:=0;
   for i in 1..50 loop
+    if not v_participant_failure and (select phase from public.attendance_decommission_operations
+      where id='d1530000-0000-4000-8000-000000000020')=12 then
+      execute 'create trigger decommission_participant_failure after delete on public.attendance_participant_mappings
+       for each statement execute function pg_temp.fail_decommission_delete()';
+      select to_jsonb(operation) into v_before from public.attendance_decommission_operations operation
+       where id='d1530000-0000-4000-8000-000000000020';
+      select jsonb_agg(to_jsonb(association) order by participant_ref) into v_associations
+       from private.attendance_participant_associations association;
+      select count(*) into v_count from public.attendance_participant_mappings
+       where classroom_id='d1530000-0000-4000-8000-000000000010';
+      perform pg_temp.expect_error($q$select public.tick_attendance_decommission(
+       'd1530000-0000-4000-8000-000000000001','d1530000-0000-4000-8000-000000000010',
+       'd1530000-0000-4000-8000-000000000020')$q$,'injected_decommission_failure');
+      if v_associations is distinct from (select jsonb_agg(to_jsonb(association) order by participant_ref)
+         from private.attendance_participant_associations association)
+        or v_before is distinct from (select to_jsonb(operation) from public.attendance_decommission_operations operation
+         where id='d1530000-0000-4000-8000-000000000020')
+        or v_count<>(select count(*) from public.attendance_participant_mappings
+         where classroom_id='d1530000-0000-4000-8000-000000000010')
+        or exists(select 1 from private.attendance_decommission_delete_capabilities) then
+        raise exception 'Participant phase failure changed association evidence';end if;
+      execute 'drop trigger decommission_participant_failure on public.attendance_participant_mappings';
+      v_participant_failure:=true;
+    end if;
     v_op := public.tick_attendance_decommission('d1530000-0000-4000-8000-000000000001',
      'd1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000020');
     if (v_op->>'deleted_count')::bigint-v_previous not between 0 and 500 then
@@ -416,6 +491,36 @@ do $$ declare v_receipt jsonb; v_op jsonb; v_before jsonb; v_count bigint; v_pre
   if v_op->>'state' <> 'local_deleted' or public.attendance_classroom_has_state_v1('d1530000-0000-4000-8000-000000000010') then
     raise exception 'Attendance absence was not established';
   end if;
+  if not v_participant_failure or exists(select 1 from associations_before saved
+    left join private.attendance_participant_associations current_row using(participant_ref)
+    where saved.scope_digest in (
+      private.pal_membership_scope('d1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000002'),
+      private.pal_membership_scope('d1530000-0000-4000-8000-000000000010','d1530000-0000-4000-8000-000000000003'))
+      and (current_row.participant_ref is null or current_row.scope_digest is not null
+        or current_row.generation_id is not null or not current_row.closed)) then
+    raise exception 'Authorized participant deletion did not scrub every scope association';end if;
+  if exists(select 1 from associations_before saved
+    left join private.attendance_participant_associations current_row using(participant_ref)
+    where saved.scope_digest=private.pal_membership_scope('d1530000-0000-4000-8000-000000000011',
+      'd1530000-0000-4000-8000-000000000002') and to_jsonb(saved) is distinct from to_jsonb(current_row)) then
+    raise exception 'Other classroom association evidence changed';end if;
+  perform pg_temp.expect_error($q$update private.attendance_participant_associations
+    set closed=false,scope_digest=repeat('a',64)
+    where participant_ref='participant_28200000000000000000000000000031'$q$,
+    'attendance_participant_association_immutable');
+  if private.resolve_attendance_participant_subject('d1530000-0000-4000-8000-000000000010',
+    'participant_28200000000000000000000000000031') is not null then
+    raise exception 'Erased association resolved a subject';end if;
+  begin
+    insert into public.attendance_participant_mappings(classroom_id,student_id,participant_ref)
+      values('d1530000-0000-4000-8000-000000000011','d1530000-0000-4000-8000-000000000003',
+      'participant_28200000000000000000000000000031');
+    perform private.capture_attendance_participant_association('d1530000-0000-4000-8000-000000000011',
+      'd1530000-0000-4000-8000-000000000003','participant_28200000000000000000000000000031');
+    raise exception 'Closed association reference was reusable';
+  exception when others then
+    if sqlerrm<>'attendance_participant_association_conflict' then raise;end if;
+  end;
   if exists(select 1 from jsonb_each(pg_temp.attendance_snapshot('d1530000-0000-4000-8000-000000000010'))
     where value<>'[]'::jsonb) then raise exception 'A public attendance table survived'; end if;
   if pg_temp.attendance_snapshot('d1530000-0000-4000-8000-000000000011') is distinct from

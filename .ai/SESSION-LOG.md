@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — CI signal-containment fixture repair
-
-PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.
-
-Bounded native GPT-6.1-sol/high analysis delivered a reproduced race and test-only proposal, independently verified; no runtime defect claimed. DeepSeek pause throughDec31 honored; weekly17% remaining, storage295GB healthy. Existing branding review/visual evidence reused; one targeted remediation review follows this test-only delta. No merge/deployment authorized by this continuation; target is a green, ready PR.
-
 ## 2026-10-19 — Classroom-only browser titles
 
 User requests removing the Pika suffix and asks about truncation. BrowserTabProvider now supplies the full classroom name alone; no app-added ellipsis, hard character cap or inferred course-code shortening. Existing authorized state, color/icon behavior and home Pika title remain. UI brief: browser chrome, existing AppHeader/PatternLab identity reference; extend the existing metadata owner only; both roles, desktop/mobile, light/dark, class switch/edit/exit and long names. Current main attendance changes inherited; feature source preserved during history-only conflict resolution. Focused and browser verification plus proportional independent review and stable-head CI follow in PR1615. Risk none; no dependencies, new primitives, auth/schema/runtime policy changes.
@@ -780,3 +774,53 @@ unchanged after these checks; final independent review/CI recorded in PR1638.
 - Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
 - Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
 - Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.
+
+## 2026-10-20 — Prepare current-membership attendance attribution
+
+Prepared dormant282 private opaque associations and exact event-generation
+attribution; no installation capture, inferred legacy backfill or active writer.
+Same175 cleanup API gains an uncovered-reference guard; existing exact authorized
+public mapping deletion scrubs all matching new scopes/generations, retaining
+closed tombstones. Immutable168/171 and provider receipts stay unchanged.
+Prepared unused membership-bound confirmation HMAC; shared QR/legacy functions
+unchanged. Native rollback fixtures cover ACL/capture/conflicts and phase12
+forgery/rollback/scrub/tombstone behavior; not yet executed. Extended exact source
+profiles with282 seal and whole private-table fingerprints; historical seals
+retained. Initial full gate3259tests/117files plus policies/TS/lint PASS; PR1636
+draft. Independent346Astra/high and347Sol/high found one P2: standalone legacy
+mapping scope updates could orphan captured associations. Added old-scope-wide,
+read-committed/locked UPDATE guard and direct classroom/student retarget native
+fixtures, including uncaptured current pointer/history. Same-scope rotation stays
+allowed;171 guard retains precedence. Root RED1failed/7pass→GREEN8; fixture
+RED1failed/12pass→GREEN13. Corrected-source gate/targeted review/native CI pending.
+Orchestrated Astra/high SQL plus two Sol6.1/high helper/fixture assignments,
+delivered and source-inspected without overlapping writers. Cumulative347formal
+reviews;19prior accepted correction passes, one new batch prepared. Weekly81%
+remaining at start,78% at review; global usage not attributable cost. Storage
+healthy280GB; per-worker tokens unknown.
+Current-membership runtime adoption and batch3 exit remain separate. No DB,
+provider, production/shared-local migration, configuration or activation change.
+
+Reconciliation: main3fd1fc1a4 owns Data API282; attendance is now283 with
+identical reviewed SQL bytes (a464c828). Exact source profiles preserve Data
+API282's separate seal, every historical prefix and both whole-table fingerprints
+only at283. Archived entries restored by rebase were removed from the rolling
+log only after byte-exact archive verification. Review348 targeted security is
+clean; cumulative348 formal turns/20 accepted correction passes retained.
+Mac resource pressure settled; final reconciled gate and integration review
+remain pending. Shared-local, production, provider and activation holds unchanged.
+
+Review349 integration completed: two accepted P2s, stale retained-roster282
+preflight and seven actual-inventory282 assertions. Full gate independently
+reproduced exactly7fail/3362pass; no timing/environment failure. Batched preflight
+and current283/future284 fixture corrections; new preflight regression first
+failed as expected. Prior SQL/token bytes unchanged; cumulative349reviews and
+21accepted correction passes. Targeted587tests/8files PASS; preflight regression
+RED1fail/9pass before fix. Re-review/final gate and native CI remain pending.
+
+Corrected23a25c19 passed full3369/119 gate and clean350 targeted review. During
+CI, Calendar1640 advanced main to1e1c6b667; strict up-to-date rules plus one
+archive-marker conflict required draft/base-sync. Canceled39528243253, not a
+test defect. Reconciled entire non-continuity feature patch is byte-identical
+(e074579c SHA256); archive union/current40-entry rolling cap preserved. Fresh
+base integration review/local gate/exact-head CI remain required; all holds stand.
