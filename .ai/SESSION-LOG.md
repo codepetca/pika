@@ -11,17 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Preserve rename-source evidence in local and CI selection
-
-Review277 identified a rename-out edge in migration test discovery. Real staged
-and committed SQL-to-docs moves reproduced false-green docs-only checks. Local
-committed/working diffs now disable rename collapsing; the existing CI classifier
-does the same. A separate real-Git API/SQL/browser-to-docs counterexample failed
-before this correction. All40 focused/classifier tests and root combined2,498/94
-focused checks plus policies, TypeScript, lint and audit pass. No workflow,
-application, schema, dependency, native capability or activation change. Targeted
-review and exact-head CI are still required; production and rollout stay held.
-
 ## 2026-10-19 — Prepare contextual owner attendance-policy read
 
 Prepared admitted GET-only attendance settings with one bounded service-only273
@@ -833,6 +822,7 @@ Owner regressions cover inert closing presentation, stale callbacks, rapid reope
 Audited shared Tooltip on main192f4cbff with 16 current native role/viewport/theme/motion contexts and an interactive keyboard follow-up. Confirmed immediate Tooltip closing versus the shared fast-opacity reference; pointer/touch/keyboard focus and interactive hover paths work. Mobile first artifact focus can lose its hint when the table scrolls; settled refocus and the three-link keyboard chooser work. Recorded the separate low-priority issue and the retained-role/link retirement requirement for a future fade in `docs/guidance/ui/tooltip-motion-audit-2026-10-21.md`.
 
 One existing Tooltip owner test passes. Source/media hashes, 14 accepted screenshots, raw measurements and diagnosed harness/source-audit corrections are retained privately. This delivery changes audit documentation only; Tooltip implementation and stable canon remain unchanged. Broad UI fluidity goal stays open, with production/migrations/dependencies/privacy priority1 and old Calendar1217 holds preserved.
+
 ## 2026-10-21 — Connected attendance membership preparation
 
 Prepared dormant285: admitted current owners of either account label retain exact
