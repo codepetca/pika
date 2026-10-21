@@ -108,7 +108,7 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
   ).id)
   const classroomId = materialAccess.classroomId
   const rawBody = await request.json()
-  const body = materialAccess.mode === 'contextual'
+  const body = materialAccess.mode === 'contextual' || (rawBody && typeof rawBody === 'object' && 'scheduled_for' in rawBody)
     ? contextualMaterialCreateSchema.parse(rawBody)
     : rawBody
   const { title, content, is_draft: isDraft = true } = body as {
@@ -127,6 +127,11 @@ export const POST = withErrorHandler('PostTeacherClassworkMaterial', async (requ
   }
 
   const supabase = getServiceRoleClient()
+  if ('scheduled_for' in body) {
+    return NextResponse.json(await createContextualMaterial({
+      actorId: materialAccess.user.id, classroomId, body: contextualMaterialCreateSchema.parse(body),
+    }), { status: 201 })
+  }
   if (materialAccess.mode === 'contextual') {
     const material = await createClassworkMaterialForOwner({
       supabase,

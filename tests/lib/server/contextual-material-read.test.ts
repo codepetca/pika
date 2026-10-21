@@ -80,8 +80,8 @@ describe('current-relationship shared material reads', () => {
     }
   })
 
-  it('binds every member page to one active non-owner membership and only the draft predicate', async () => {
-    const row = { ...material(), released_at: '2099-01-01T00:00:00Z', blueprint_archived_at: timestamp }
+  it('binds every member page to active membership and publication cutoff', async () => {
+    const row = { ...material(), blueprint_archived_at: timestamp }
     const { result, queries } = read([envelope(root([row])), envelope(root([]))])
     await expect(result).resolves.toEqual({ materials: [row] })
     for (const query of queries) {
@@ -92,7 +92,8 @@ describe('current-relationship shared material reads', () => {
       expect(query).toContainEqual(['order', ['released_at', { ascending: true, nullsFirst: false, referencedTable: 'materials' }]])
       expect(query).toContainEqual(['limit', [1000, { referencedTable: 'materials' }]])
       expect(String(query[0][1][0])).toContain('membership:classroom_enrollments!classroom_enrollments_classroom_id_fkey!inner(classroom_id,student_id)')
-      expect(query.filter(([name]) => name === 'or').length).toBeLessThanOrEqual(1)
+      expect(query.filter(([name]) => name === 'or').length).toBeGreaterThanOrEqual(1)
+      expect(query.some(([name, args]) => name === 'or' && String(args[0]).startsWith('released_at.is.null,released_at.lte.'))).toBe(true)
       expect(query.some(([, args]) => String(args[0]).includes('blueprint_archived_at.'))).toBe(false)
     }
   })
@@ -113,7 +114,7 @@ describe('current-relationship shared material reads', () => {
     await expect(result).resolves.toEqual({ materials: rows })
     expect(queries[1]).toContainEqual(['or', [`position.gt.-1,and(position.eq.-1,released_at.gt.${timestamp}),and(position.eq.-1,released_at.is.null),and(position.eq.-1,released_at.eq.${timestamp},id.gt.${id(1)})`, { referencedTable: 'materials' }]])
     expect(queries[4]).toContainEqual(['or', [`position.gt.-1,and(position.eq.-1,released_at.is.null,id.gt.${id(4)})`, { referencedTable: 'materials' }]])
-    expect(queries[6].filter(([name]) => name === 'or')).toHaveLength(1)
+    expect(queries[6].filter(([name]) => name === 'or')).toHaveLength(2)
   })
 
   it.each(['owner', 'member'] as const)('continues through 1000 rows, a short nonempty page and an authorized terminal %s page', async permission => {
@@ -140,9 +141,14 @@ describe('current-relationship shared material reads', () => {
     expect(ownerAsMember.from).not.toHaveBeenCalledWith('classroom_enrollments')
   })
 
-  it('accepts signed int32 positions and null/future release times without title authoring constraints', async () => {
+  it('owners retain signed positions and null/future release times without title authoring constraints', async () => {
     const rows = [material(1, -2147483648, null), { ...material(2, 2147483647, '2099-01-01T00:00:00Z'), title: ' '.repeat(5000) }]
-    await expect(read([envelope(root(rows)), envelope(root([]))]).result).resolves.toEqual({ materials: rows })
+    await expect(read([envelope(root(rows, 'owner')), envelope(root([], 'owner'))], 'owner').result).resolves.toEqual({ materials: rows })
+  })
+
+  it('fails closed when a member query returns a future material despite its cutoff', async () => {
+    const row = { ...material(), released_at: '2099-01-01T00:00:00Z' }
+    await expect(read([envelope(root([row]))]).result).rejects.toMatchObject({ statusCode: 503 })
   })
 
   it.each([

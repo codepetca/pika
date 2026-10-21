@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { LessonDayCell } from '@/components/LessonDayCell'
 import { createMockTest } from '../helpers/mocks'
 import { TooltipProvider } from '@/ui'
-import type { Announcement, Assignment, LessonPlan, TiptapContent } from '@/types'
+import type { Announcement, Assignment, ClassworkMaterial, LessonPlan, TiptapContent } from '@/types'
 
 const content: TiptapContent = {
   type: 'doc',
@@ -104,6 +104,17 @@ describe('LessonDayCell', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Test: Ecosystems test' }))
     expect(onTestClick).toHaveBeenCalledWith(test)
     expect(onContentChange).not.toHaveBeenCalled()
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
+  it.each(['agenda', 'grid'] as const)('opens a scheduled material without editing the lesson in %s', layout => {
+    const material = { id: 'reading', title: 'Next reading', is_draft: false, released_at: '2099-01-01T12:00:00Z' } as ClassworkMaterial
+    const onMaterialClick = vi.fn()
+    renderWithTooltip(<LessonDayCell date={lessonPlan.date} day={new Date(`${lessonPlan.date}T12:00:00`)}
+      lessonPlan={lessonPlan} materials={[material]} layout={layout} isWeekend={false} isToday={false}
+      editable onMaterialClick={onMaterialClick} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Material: Next reading [Scheduled]' }))
+    expect(onMaterialClick).toHaveBeenCalledWith(material)
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 

@@ -120,6 +120,9 @@ import { applyDirection, compareByNameFields, toggleSort as toggleSortState } fr
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
+import { CLASSWORK_MATERIALS_UPDATED_EVENT } from '@/lib/events'
+import { isScheduleIsoInFuture } from '@/lib/scheduling'
+import { formatInTimeZone } from 'date-fns-tz'
 import { invalidateGradebookForClassroom } from '@/lib/gradebook-cache'
 import { readCookie, writeCookie } from '@/lib/cookies'
 import { safeSessionGetJson, safeSessionSetJson } from '@/lib/client-storage'
@@ -286,7 +289,7 @@ function TeacherMaterialCard({
               >
                 {material.title}
               </span>
-              <span className="block text-xs text-primary">Material</span>
+              <span className="block text-xs text-primary">Material{!material.is_draft && material.released_at && isScheduleIsoInFuture(material.released_at) ? ` · ${formatInTimeZone(material.released_at, 'America/Toronto', 'EEE MMM d, h:mm a')}` : ''}</span>
             </span>
           </span>
 
@@ -297,7 +300,7 @@ function TeacherMaterialCard({
               </span>
             ) : (
               <span className="inline-flex items-center rounded-badge bg-info-bg px-2.5 py-1 text-xs font-semibold text-primary">
-                Posted
+                {material.released_at && isScheduleIsoInFuture(material.released_at) ? 'Scheduled' : 'Posted'}
               </span>
             )}
           </span>
@@ -355,7 +358,7 @@ function TeacherMaterialDialog({
     setError(null)
   }, [isOpen, material])
 
-  async function saveMaterial(nextDraft: boolean) {
+  async function saveMaterial(nextDraft: boolean, scheduledFor?: string | null) {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
       setError('Title is required')
@@ -372,13 +375,13 @@ function TeacherMaterialDialog({
         {
           method: material ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft }),
+          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft, ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}) }),
         },
       )
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save material')
       onSaved(data.material as ClassworkMaterial)
-      showMessage({ text: nextDraft ? 'Material saved as draft.' : 'Material posted.', tone: 'success' })
+      showMessage({ text: nextDraft ? 'Material saved as draft.' : scheduledFor ? 'Material scheduled.' : 'Material saved.', tone: 'success' })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save material')
@@ -393,6 +396,7 @@ function TeacherMaterialDialog({
       isOpen={isOpen}
       isExisting={!!material}
       isDraft={isDraft}
+      releasedAt={material?.released_at}
       readOnly={isReadOnly}
       saving={saving}
       error={error}
@@ -400,7 +404,7 @@ function TeacherMaterialDialog({
       content={content}
       onTitleChange={setTitle}
       onContentChange={setContent}
-      onSave={(asDraft) => { void saveMaterial(asDraft) }}
+      onSave={(asDraft, scheduledFor) => { void saveMaterial(asDraft, scheduledFor) }}
       onClose={onClose}
       onDelete={material && !isReadOnly ? () => onRequestDelete(material) : undefined}
     />
@@ -563,6 +567,7 @@ export function TeacherClassroomView({
   showMarkdownEditorOption = false,
   isActive = true,
   selectedAssignmentId: selectedAssignmentIdProp,
+  selectedMaterialId,
   selectedSurveyId: selectedSurveyIdProp,
   selectedAssignmentStudentId,
   updateSearchParams,
@@ -789,6 +794,19 @@ export function TeacherClassroomView({
     void loadAssignments()
   }, [classroom.id, loadAssignments])
 
+  useEffect(() => {
+    if (!isActive || !selectedMaterialId || loadedClassroomId !== classroom.id) return
+    const selected = materials.find((item) => item.id === selectedMaterialId)
+    if (selected) {
+      setEditMaterial(selected)
+      setIsMaterialModalOpen(true)
+    }
+  }, [classroom.id, isActive, loadedClassroomId, materials, selectedMaterialId])
+
+  const clearMaterialSelection = useCallback(() => {
+    updateSearchParams?.((params) => { params.delete('materialId') }, { replace: true })
+  }, [updateSearchParams])
+
   const positionedCreationKeysRef = useRef(new Set<string>())
   const positionCreatedClasswork = useCallback(async (type: 'assignment' | 'material' | 'survey', id: string) => {
     const key = `${classroom.id}:${type}:${id}`
@@ -820,10 +838,12 @@ export function TeacherClassroomView({
     })
     setEditMaterial(null)
     setIsMaterialModalOpen(false)
+    clearMaterialSelection()
+    window.dispatchEvent(new CustomEvent(CLASSWORK_MATERIALS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
     if (!editMaterial) {
       void positionCreatedClasswork('material', material.id)
     }
-  }, [classroom.id, editMaterial, positionCreatedClasswork])
+  }, [classroom.id, editMaterial, positionCreatedClasswork, clearMaterialSelection])
 
   const handleSurveySaved = useCallback((
     survey: Survey,
@@ -928,6 +948,8 @@ export function TeacherClassroomView({
       invalidateCachedJSON(`teacher-materials:${classroom.id}`)
       invalidateCachedJSON(`student-materials:${classroom.id}`)
       setMaterials((current) => current.filter((material) => material.id !== pendingMaterialDelete.id))
+      clearMaterialSelection()
+      window.dispatchEvent(new CustomEvent(CLASSWORK_MATERIALS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
       setPendingMaterialDelete(null)
       setEditMaterial(null)
       setIsMaterialModalOpen(false)
@@ -937,7 +959,7 @@ export function TeacherClassroomView({
     } finally {
       setIsDeletingMaterial(false)
     }
-  }, [classroom.id, pendingMaterialDelete, showMessage])
+  }, [classroom.id, pendingMaterialDelete, showMessage, clearMaterialSelection])
 
   const deleteSurvey = useCallback(async () => {
     if (!pendingSurveyDelete) return
@@ -3059,6 +3081,7 @@ export function TeacherClassroomView({
         onClose={() => {
           setIsMaterialModalOpen(false)
           setEditMaterial(null)
+          clearMaterialSelection()
         }}
         onSaved={handleMaterialSaved}
         onRequestDelete={setPendingMaterialDelete}

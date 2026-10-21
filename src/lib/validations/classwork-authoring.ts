@@ -1,12 +1,14 @@
 import { z } from 'zod'
 
+import { materialScheduledForSchema, validateMaterialPublication } from '@/lib/validations/material-scheduling'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
 
 export const contextualMaterialCreateSchema = z.object({
   title: z.string().trim().min(1).max(500),
   content: assignmentSubmissionContentSchema,
   is_draft: z.boolean().optional().default(true),
-}).strict()
+  scheduled_for: materialScheduledForSchema.optional(),
+}).strict().superRefine(validateMaterialPublication)
 
 export const contextualSurveyCreateSchema = z.object({
   classroom_id: z.string().uuid(),

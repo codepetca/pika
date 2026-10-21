@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Classroom browser tab branding
-
-Added classroom titles, palette-colored Pika favicons and browser theme-color hints; home uses the existing white/black mark for the app theme. Reused authorized classroom state and the original logo/palette; extended the root head owner to avoid streamed metadata replacing classroom titles. No dependencies or schema changes. Risk: none.
-UI brief: browser chrome; AppHeader/classroom identity and Pattern Lab header references; teacher/student × 1440×900 and 390×844 × light/dark. States: initial load, navigation, classroom switch/edit, theme toggle, exit. No composite interaction changes or experimental canon. Fixtures isolate browser metadata from the full classroom bundle; full local classroom capture timed out under memory pressure and the local DB stack later became unavailable. Eight fixture/browser cases and 58 focused regressions passed; 16/32/64px favicon assets visually inspected. Evidence: ignored artifacts/browser-tab-branding and the browser suite. Required focused gate, draft PR and independent review follow in the PR/lifecycle record.
-Coordinator owns codex/classroom-tab-branding; direct implementation. Startup usage: 20% weekly remaining; storage healthy (~272 GB free). Full checks serialized after memory/swap contention; aborted unrestricted/contending attempts retained in /tmp/pika-tab-*.log. No per-task token or active-time attribution available.
-
 ## 2026-10-19 — CI signal-containment fixture repair
 
 PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.
@@ -780,3 +774,29 @@ tokens not fully attributable; bounded delegation outcomes verified.
 Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
 policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
 unchanged after these checks; final independent review/CI recorded in PR1638.
+
+## 2026-10-20 Material authoring and calendar
+
+Branch codex/material-authoring-parity. Material creation/edit now follows the
+assignment desktop details/content split and mobile stack, preserving Visual /
+Markdown review/apply and preview. Post / Schedule / Save draft uses Toronto time;
+no due date. Calendar publication chips open the exact material for both roles,
+with independently fenced loading/retry and scoped material refresh events.
+Migration283 extends owner publication RPCs atomically and keeps student future
+releases hidden on legacy/contextual/shared reads. Shared local and production
+migration application remain unapproved/unattempted; local243 lacks tests.test_date,
+so browser student Calendar correctly showed its independent Retry tests alert.
+Material reads/chips and exact teacher/student destinations passed real Playwright
+checks; temporary posted fixture deleted200. Editor and both-role Calendar captured
+1440x900 /390x844, light/dark under output/playwright (ignored); matrix reviewed.
+Reference: AssignmentForm.desktopSplit and Pattern Lab assignment creation. Reuse
+CreationModalShell/controls/ScheduleDateTimePicker; extend material editor and
+calendar chip owners. No new stable pattern or shared mega-form; composite keyboard
+and focus tests pass. TypeScript, UI/design policy and audit pass; focused gate,
+disposable DB proof and independent review recorded in PR before readiness.
+Orchestration: Sol6.1/high calendar worker accepted after source/tests verification
+(131 focused tests), backend worker owns isolated rollback DB proof and metadata.
+No file conflicts. Weekly remaining71% at start; storage healthy275GB. Effective
+worker config, attributable tokens/time unknown; one interrupted default-wide
+focused run due contention, replaced with bounded2-worker final run. DeepSeek
+owner pause through2026-12-31 respected. No hosted rollout or migration claim.

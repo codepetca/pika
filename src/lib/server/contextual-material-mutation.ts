@@ -10,6 +10,7 @@ import {
   materialMutationActorSchema, materialCreateParamsSchema, materialMutationParamsSchema,
   materialMutationEnvelopeSchema, materialDeleteEnvelopeSchema, type MaterialUpdateInput,
 } from '@/lib/validations/material-mutations'
+import { compareAnnouncementReadTimestamps } from '@/lib/validations/announcement-reads'
 import type { AuthenticatedUser } from '@/types'
 import type { Json } from '@/types/database.generated'
 
@@ -53,7 +54,11 @@ function materialResult(response: unknown, actor: string, classroomId: string, b
     || (body.content !== undefined && !sameJson(material.content, body.content))
     || (body.is_draft !== undefined && material.is_draft !== body.is_draft)
     || (body.is_draft === true && material.released_at !== null)
-    || (body.is_draft === false && material.released_at === null)) throw unavailable()
+    || (body.is_draft === false && material.released_at === null)
+    || (body.is_draft !== true && body.scheduled_for !== undefined && (material.is_draft
+      || material.released_at === null || (body.scheduled_for !== null
+        ? compareAnnouncementReadTimestamps(material.released_at, body.scheduled_for) !== 0
+        : Date.parse(material.released_at) > Date.now())))) throw unavailable()
   return { material }
 }
 
@@ -63,10 +68,12 @@ export async function createContextualMaterial(input: {
 }) {
   const actor = actorId(input.actorId)
   const { id: classroomId } = materialCreateParamsSchema.parse({ id: input.classroomId })
-  const response = await invoke(() => getServiceRoleClient().rpc('create_classwork_material_for_owner_v2', {
-    p_actor_id: actor, p_classroom_id: classroomId,
-    p_title: input.body.title, p_content: input.body.content as unknown as Json, p_is_draft: input.body.is_draft,
-  }))
+  const client = getServiceRoleClient()
+  const args = { p_actor_id: actor, p_classroom_id: classroomId,
+    p_title: input.body.title, p_content: input.body.content as unknown as Json, p_is_draft: input.body.is_draft }
+  const response = await invoke(() => input.body.scheduled_for !== undefined
+    ? client.rpc('create_classwork_material_for_owner_v3', { ...args, p_scheduled_for: input.body.scheduled_for ?? undefined })
+    : client.rpc('create_classwork_material_for_owner_v2', args))
   const result = materialResult(response, actor, classroomId, input.body)
   if (result.material.created_by !== actor
     || result.material.source_artifact_id !== null || result.material.source_blueprint_version_id !== null

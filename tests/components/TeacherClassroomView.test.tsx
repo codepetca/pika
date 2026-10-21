@@ -95,9 +95,10 @@ vi.mock('@/ui', async (importOriginal) => {
         </div>
       ) : null
     ),
-    FormField: ({ label, children, className }: any) => (
+    FormField: ({ label, children, className, labelAccessory }: any) => (
       <label className={className}>
         <span>{label}</span>
+        {labelAccessory}
         {children}
       </label>
     ),
@@ -419,7 +420,8 @@ vi.mock('@/hooks/use-assignment-grading-layout', () => ({
   }),
 }))
 
-vi.mock('@/lib/scheduling', () => ({
+vi.mock('@/lib/scheduling', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/scheduling')>(),
   isVisibleAtNow: (...args: any[]) => mockIsVisibleAtNow(...args),
 }))
 
@@ -1569,6 +1571,22 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit Assignment Two' })).not.toHaveAttribute('aria-disabled'))
     fireEvent.click(screen.getByRole('button', { name: 'Edit Assignment Two' }))
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment Two')
+  })
+
+  it('opens the calendar-selected material and clears its URL selection when closed', async () => {
+    const material = makeMaterialSummary('material-calendar', 'Calendar reading')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const updateSearchParams = vi.fn()
+    render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} updateSearchParams={updateSearchParams} />, { wrapper: TooltipProvider })
+    const dialog = await screen.findByRole('dialog', { name: 'Material' })
+    await waitFor(() => expect(within(dialog).getByPlaceholderText('Title')).toHaveValue('Calendar reading'))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close material modal' }))
+    expect(screen.queryByRole('dialog', { name: 'Material' })).not.toBeInTheDocument()
+    const params = new URLSearchParams('tab=assignments&materialId=material-calendar')
+    updateSearchParams.mock.calls.at(-1)?.[0](params)
+    expect(params.has('materialId')).toBe(false)
   })
 
   it('uses the compact WYSIWYG preset for material content', async () => {

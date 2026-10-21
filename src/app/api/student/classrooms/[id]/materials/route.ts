@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { compareAnnouncementReadTimestamps } from '@/lib/validations/announcement-reads'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -46,11 +47,13 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
   }
 
   const supabase = getServiceRoleClient()
+  const cutoff = new Date().toISOString()
   const ordered = await supabase
     .from('classwork_materials')
     .select('*')
     .eq('classroom_id', classroomId)
     .eq('is_draft', false)
+    .or(`released_at.is.null,released_at.lte.${cutoff}`)
     .order('position', { ascending: true })
     .order('released_at', { ascending: true })
 
@@ -63,6 +66,7 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
       .select('*')
       .eq('classroom_id', classroomId)
       .eq('is_draft', false)
+      .or(`released_at.is.null,released_at.lte.${cutoff}`)
       .order('released_at', { ascending: false })
     materials = fallback.data
     error = fallback.error
@@ -80,5 +84,7 @@ export const GET = withErrorHandler('GetStudentClassworkMaterials', async (_requ
     assertContextualPublishedMaterialRows(classroomId, materials)
   }
 
-  return NextResponse.json({ materials: materials || [] })
+  return NextResponse.json({ materials: (materials || []).filter(material =>
+    !material.is_draft && (material.released_at === null ||
+      (typeof material.released_at === 'string' && compareAnnouncementReadTimestamps(material.released_at, cutoff) <= 0))) })
 })
