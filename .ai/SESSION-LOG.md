@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Genuine lifecycle metadata and exact SDK contracts
-
-Independent263/264 cleared C1 source and the closed disposable prerequisite;
-targeted265 cleared the verified signed Chrome update without relaxed admission.
-The one disposable001–272 SQL/type component passed both post-rollback contracts
-and generated442674B artifact4d8833b9. Global/canonical cleanup and internal
-preservation passed; exact owned resources are absent. Immediate outer observer
-failed only after its source/dependency comparisons, at process observation.
-Read-only diagnostics reproduce its own tsxCLI parent matching the filter; direct
-Node loader invocation of the unchanged observer passes7837sources/98965deps and
-zero current matches. Historical matching rows were not retained. Review266
-accepts SQL/generated-artifact evidence but NOT a successful complete FIRST gate;
-that failed observation remains failed, with no native attempt retry or criteria
-relaxation. Complete native acceptance remains unclaimed.
-
-Installed the exact genuine artifact byte-for-byte (same SHA256), added only
-nullable default-filter refinement, and removed both prerequisite RPC casts.
-Nonincremental application TypeScript,141 focused tests/six suites and focused
-eslint pass. UI selection stays uncommitted pending visuals; frozen SQL source is
-unchanged. Next separately reviewed SDK/Storage/native proof must provide fresh
-successful preservation and closure gates using direct Node loading. Production,
-shared-local249+, real-account/provider/billing and all activation holds persist.
-
 ## 2026-10-19 — Native lifecycle proof and contextual Pal page selection
 
 Separate reviewed disposable001–272 proof passed both rollback contracts, exact
@@ -876,3 +853,9 @@ records RESPMax private/direct-SQL exemption, and requires exact hosted HQ revie
 before any separately approved resume/deploy/migration. Historical backfill and
 Storage preservation limits remain. No SQL, runtime, provider or permission
 change in this documentation update.
+
+## 2026-10-20 — Account menu transition consistency
+
+Aligned the existing teacher/student account menu with Pattern Lab action-menu motion: semantic fast opacity at a fixed position, retaining immediate inert/hidden close and shared keyboard/focus ownership. Native baseline covered 16 contexts and reproduced the prior 4px slide/200ms timing; the new motion regression fails against that baseline. Existing owner/hook tests pass (9). Expanded browser coverage checks natural motion, rapid reopen, theme, Feedback focus and dismissal without submitting Feedback or Logout. Final visual/focused checks, independent review and exact-head CI follow before main merge.
+
+CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
