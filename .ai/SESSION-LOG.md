@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Owner attendance write isolated proof passed
-
-Product26089ed3/carrier096d2c05 passed one fresh disposable001–274 SQL/SDK/lock/type
-proof; no retries. Sixteen HTTP requests (thirteen actual adapter, three canary),
-three real two-session pairs, full fixture/complement restoration, canonical and
-global resource equality, positive owned teardown pass. Immediate NEXT TOOL FIRST
-then confirmed7872source/98970dependency files unchanged and zero matching
-processes before any tests/copies/edits. Additional exact project labels/names and
-workdir absence checks pass.139actions/2218controls/67657342bytes/max2sessions,
-final0open/uncertain/unsettled; original limits unchanged. Generated274 metadata
-443243bytes SHAba402a75 installed exact artifact-derived patch, only one new RPC.
-Full focused checks pass2628tests/98files, architecture/UI/design/TypeScript/lint.
-Core reviews287/288 and composition289 clean; final metadata/evidence review,
-draft PR and exact-head CI remain dormant-main merge gates. No production/shared
-local249+/account/provider/billingAI/home/cohort/cutover changes or batch3 exit.
-
 ## 2026-10-19 — Owner attendance read merged; write source reviews clean
 
 PR1622 exact72d93 passed all ten CI39361093628 gates, then normally squash-merged
@@ -857,3 +841,26 @@ policy: stop pending delivery upon same-class ownership, preserve earned progres
 stop new learner activity/token requests, retain existing issued-token expiry.
 That policy is recorded, not implemented here. Production/live-provider/shared-
 local249+/publication/configuration/account/cohort/cutover holds remain unchanged.
+
+## 2026-10-21 — Prepare contextual removed-membership cleanup
+
+Forward288 removes only legacy account-label prerequisites from the existing live
+removed-membership reservation and active-enrollment email fallback resource fence.
+Actual ownership, removed generation/scope, current enrollment exclusion, receipt,
+academic cleanup, replay and rejoin rules remain unchanged. GET progress adopts
+strict shared admission without provider advancement; teacher-directed POST stays
+retired. Both-label singleton removal/job/completion/rejoin and a genuine unbound
+teacher-member roster fence are added to the existing rollback suite, preserving
+other teaching data, accounts and delivered Pal history. TDD reproduced8 API gaps;
+39 API/source checks now pass. First isolated001–288 replay and strict-v1 regression
+passed; the new fixture stopped because wall-clock activation was later than the
+transaction's now(). Only fixture setup was corrected to the existing transaction-
+time convention. A fixture column ambiguity and omitted replay-history metadata
+were also corrected without changing migration SQL. Failed attempts stay retained.
+Fresh isolated001–288 replay and all five existing cleanup suites now pass,
+including both-label lifecycle/rejoin and actual unbound teacher-member fencing.
+All six input hashes match; shared243 schema and source identity are unchanged,
+and exact owned clone cleanup is independently verified. Focused checks against
+the prepared parent pass3562 tests/104files plus all static gates; independent
+review and exact-head CI remain pending. No grouped writer/index change, shared-local migration,
+production/provider action, publication or activation is included.

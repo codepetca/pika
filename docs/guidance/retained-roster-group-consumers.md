@@ -1,5 +1,46 @@
 # Retained-roster group consumers — compatibility slice
 
+## Forward contextual integration — 2026-10-21 (prepared, not activated)
+
+Migration288 prepares the existing live cleanup consumer for removed learners
+with either account label. Exact current ownership, removed enrollment/generation,
+retained scope, cutoff, leases and Pal/Bara receipt checks still authorize it;
+an account label does not. A learner who owns another classroom retains that
+classroom and its work. Same-class owners remain invalid cleanup subjects.
+The legacy171 strict-v1 reservation keeps its original role prerequisite.
+
+The existing resource fence also resolves a genuinely unbound roster row through
+its exact active enrollment and matching account email for either label. OLD/NEW
+identity checks, retained bindings and transaction-bound trusted deletion remain
+unchanged. Neither a caller-set finalize GUC nor admission grants cleanup authority.
+
+Only the existing read-only progress GET gains the shared strict experience
+admission selector: admitted authenticated actors use actual-owner discovery and
+exact saved-operation reads; absent/unmatched admission keeps the teacher guard,
+and malformed present configuration fails closed. Authentication and named input
+validation precede reads; responses remain no-store, including while cleanup is
+disabled. Teacher-directed POST remains retired, with no reserve/advance action.
+
+Rollback SQL adds both owner/member label combinations through actual singleton
+removal, automatic job claim, live reservation, exact synthetic provider receipts,
+academic completion and fresh rejoin. It witnesses nonempty unrelated teaching,
+peer and classroom work, delivered Pal history and account preservation, plus a
+real unbound teacher-member roster UPDATE/DELETE fence. These are local synthetic
+contracts, not live-provider, physical-erasure or concurrency acceptance.
+
+The isolated001–288 replay and all five existing strict-provider, live cleanup,
+academic cleanup, automatic job and retained-roster group rollback suites pass.
+The both-label lifecycle and real email-fallback fence execute successfully;
+shared243 schema is unchanged and the exact owned offline clone is removed.
+Three earlier fixture/runner failures remain retained, not relabeled. This does
+not prove a new concurrent finalization schedule or live-provider behavior.
+
+The164 singleton index and236 grouped-removal rejection stay installed. Full
+focused checks, independent review and exact-head CI remain acceptance gates.
+No shared-local249+ application, production change, provider call, publication,
+configuration, account change, cohort activation or batch3 exit is included.
+The original239 slice history below is retained; CURRENT owns deployed status.
+
 Status:239 applied locally; SQL and SDK normal/forced baseline checks, genuine
 types and two-session locking pass. PR1452 draft; final review/CI/merge remain;
 not rolled out. Risk: runtime-platform

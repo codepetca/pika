@@ -44,7 +44,7 @@ describe('externally sealed Test quota proof table addition', () => {
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 285))).toEqual([...historical, adoption].sort())
     expect(historical).not.toContain(adoption)
     const futureSql = 'select 1;'
-    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '288_unknown.sql',
+    expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '289_unknown.sql',
       sql: futureSql, sha256: createHash('sha256').update(futureSql).digest('hex') }])).toThrow()
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 280))).toEqual([quota, ...before].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 281))).toEqual([capability, quota, ...before].sort())
@@ -79,7 +79,7 @@ describe('externally sealed Test quota proof table addition', () => {
       expect(() => classroomTestQuotaProofCatalog(catalog, migrations)).toThrow()
     }
   })
-  describe.each(profiles)('$name complete287 preservation', profile => {
+  describe.each(profiles)('$name complete288 preservation', profile => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const canonical = [...new Set([...profile.scopes, 'storage.objects', 'storage.buckets'])].sort()
     const expected = classroomTestQuotaProofCatalog(canonical, current)

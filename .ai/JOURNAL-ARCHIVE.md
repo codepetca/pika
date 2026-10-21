@@ -48338,3 +48338,20 @@ Owner selected current-membership-only learner attendance with older records and
 overrides preserved for the classroom owner; member integration remains future.
 PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
 Production/shared-local249+/provider/account/billing/AI/activation holds remain.
+
+<!-- pika-session-log-archive-batch:af66e7b3c72a0cae6b9453a3db7ccc173a7fa872a1ce057c359092c0e0da0f86 -->
+## 2026-10-19 — Owner attendance write isolated proof passed
+
+Product26089ed3/carrier096d2c05 passed one fresh disposable001–274 SQL/SDK/lock/type
+proof; no retries. Sixteen HTTP requests (thirteen actual adapter, three canary),
+three real two-session pairs, full fixture/complement restoration, canonical and
+global resource equality, positive owned teardown pass. Immediate NEXT TOOL FIRST
+then confirmed7872source/98970dependency files unchanged and zero matching
+processes before any tests/copies/edits. Additional exact project labels/names and
+workdir absence checks pass.139actions/2218controls/67657342bytes/max2sessions,
+final0open/uncertain/unsettled; original limits unchanged. Generated274 metadata
+443243bytes SHAba402a75 installed exact artifact-derived patch, only one new RPC.
+Full focused checks pass2628tests/98files, architecture/UI/design/TypeScript/lint.
+Core reviews287/288 and composition289 clean; final metadata/evidence review,
+draft PR and exact-head CI remain dormant-main merge gates. No production/shared
+local249+/account/provider/billingAI/home/cohort/cutover changes or batch3 exit.

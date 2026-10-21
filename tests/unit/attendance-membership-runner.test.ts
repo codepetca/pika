@@ -26,7 +26,7 @@ resolve_attendance_meta_image`], {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     const source = runner()
     const start = source.indexOf('[[ "$source_version" =~')
@@ -104,7 +104,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,287")
+    expect(source).toContain("assert.equal(migrations.length,288")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {

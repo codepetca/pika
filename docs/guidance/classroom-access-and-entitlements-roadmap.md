@@ -1072,6 +1072,20 @@ Pal queue integration; no live delivery or activation is claimed.
 All production, shared-local249+, live-provider/publication/configuration and
 account/billing/cohort/page/home/cutover activation holds remain unchanged.
 
+The following bounded backend group prepares singleton removed-membership cleanup
+for either account label via forward288 and the existing automatic worker. The
+actual removed enrollment/generation/scope, current owner, provider receipts,
+academic absence and fresh-rejoin gates remain authoritative. Owner progress GET
+uses the same strict experience admission without enabling teacher-directed POST
+or advancing providers. The active-enrollment email fallback resource fence also
+covers teacher-labelled learners; legacy171 strict-v1 and grouped-removal164/236
+restrictions are unchanged. See the [forward cleanup contract](retained-roster-group-consumers.md#forward-contextual-integration--2026-10-21-prepared-not-activated).
+Isolated001–288 replay and all five existing cleanup rollback suites pass,
+including both-label removal/completion/rejoin and actual unbound-roster fencing;
+exact owned cleanup and unchanged shared243 schema are verified. Full focused
+checks, independent review and CI remain gates. This is not concurrent
+finalization/provider compatibility, grouped removal, activation or a batch3 exit.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.
