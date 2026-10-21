@@ -22,7 +22,7 @@ export function classroomTestQuotaProofCatalog(
   // table. Include its whole fingerprint; never hide it from preservation checks.
   // A partial or self-hashed replacement cannot establish this source profile.
   const hasDecommission = migrations.length >= 281 || migrations.some(migration => migration.name.startsWith('281_'))
-  const hasMembership = migrations.length >= 282 || migrations.some(migration => migration.name.startsWith('282_'))
+  const hasMembership = migrations.length >= 283 || migrations.some(migration => migration.name.startsWith('283_'))
   if (hasDecommission || hasMembership) validateLifecycleServicesReviewedMigrations(migrations)
   const expected = [...new Set([...canonicalTables, quotaTable,
     ...(hasDecommission ? ['private.attendance_decommission_delete_capabilities'] : []),

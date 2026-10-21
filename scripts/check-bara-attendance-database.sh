@@ -106,14 +106,14 @@ begin
     raise exception 'Migration 150 attendance duration guard is not applied to the local database';
   end if;
   if not exists (
-    select 1 from supabase_migrations.schema_migrations where version = '282'
+    select 1 from supabase_migrations.schema_migrations where version = '283'
   ) or to_regclass('private.attendance_participant_associations') is null
     or to_regclass('private.attendance_override_event_generations') is null
     or to_regprocedure('private.capture_attendance_participant_association(uuid,uuid,text)') is null
     or to_regprocedure('private.resolve_attendance_participant_subject(uuid,text)') is null
     or to_regprocedure('private.assert_attendance_cleanup_reference_coverage(uuid,uuid,text)') is null
   then
-    raise exception 'Migration 282 requires separate local application approval';
+    raise exception 'Migration 283 requires separate local application approval';
   end if;
 end;
 $migration$;

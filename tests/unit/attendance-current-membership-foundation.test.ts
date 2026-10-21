@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const sql = readFileSync(join(process.cwd(),
-  'supabase/migrations/282_attendance_current_membership_foundation.sql'), 'utf8')
+  'supabase/migrations/283_attendance_current_membership_foundation.sql'), 'utf8')
 const body = (name: string) => {
   const start = sql.indexOf(`function ${name}(`)
   return start < 0 ? '' : sql.slice(start, sql.indexOf('\n$$;', start))

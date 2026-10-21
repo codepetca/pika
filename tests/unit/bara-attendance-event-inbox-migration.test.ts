@@ -33,7 +33,7 @@ describe('Bara attendance event inbox migration', () => {
 
   it('keeps dormant membership association verification in the existing rollback harness', () => {
     for (const assertion of [
-      "version = '282'",
+      "version = '283'",
       'Dormant attendance foundation was populated before explicit capture',
       'Private attendance foundation ACL leaked',
       'Legacy capture invented a membership generation',

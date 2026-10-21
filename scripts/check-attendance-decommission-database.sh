@@ -22,8 +22,8 @@ do $$ begin
   if not exists (select 1 from supabase_migrations.schema_migrations where version = '281') then
     raise exception 'Migration 281 requires separate local application approval';
   end if;
-  if not exists (select 1 from supabase_migrations.schema_migrations where version = '282') then
-    raise exception 'Migration 282 requires separate local application approval';
+  if not exists (select 1 from supabase_migrations.schema_migrations where version = '283') then
+    raise exception 'Migration 283 requires separate local application approval';
   end if;
 end $$;
 create function pg_temp.expect_error(p_sql text, p_message text) returns void language plpgsql as $$

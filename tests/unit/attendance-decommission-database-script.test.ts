@@ -46,7 +46,7 @@ describe('attendance decommission database harness portability', () => {
   it('scrubs every captured legacy reference atomically at the existing participant phase', () => {
     const source = readFileSync(script, 'utf8')
     for (const assertion of [
-      "version = '282'",
+      "version = '283'",
       'private.capture_attendance_participant_association(',
       'Historical association fixture did not retain all references',
       'Participant phase failure changed association evidence',
