@@ -1,16 +1,16 @@
--- Disposable or rollback-only proof; never applies a migration to a shared database.
+-- Material scheduling target284 disposable or rollback-only proof; never applies a migration to a shared database.
 begin;
 set local statement_timeout = '30s';
 -- Schema-only clones contain no activation/settings seed rows.
 insert into private.classroom_creation_entitlement_settings(singleton) values(true) on conflict do nothing;
 insert into public.users(id,email,role) values
- ('c2830000-0000-4000-8000-000000000001','material-schedule-owner@example.invalid','teacher'),
- ('c2830000-0000-4000-8000-000000000002','material-schedule-other@example.invalid','teacher');
+ ('c2840000-0000-4000-8000-000000000001','material-schedule-owner@example.invalid','teacher'),
+ ('c2840000-0000-4000-8000-000000000002','material-schedule-other@example.invalid','teacher');
 select public.set_effective_feature_entitlement_v1(gen_random_uuid(),
- 'c2830000-0000-4000-8000-000000000001', 'classrooms.create',
+ 'c2840000-0000-4000-8000-000000000001', 'classrooms.create',
  'manual', true, clock_timestamp(), null, 10, 'test:material-scheduling', 'material_scheduling_rollback', 0);
 insert into public.classrooms(id,teacher_id,title,class_code) values
- ('c2830000-0000-4000-8000-000000000010','c2830000-0000-4000-8000-000000000001','Material scheduling','C283TEST');
+ ('c2840000-0000-4000-8000-000000000010','c2840000-0000-4000-8000-000000000001','Material scheduling','C283TEST');
 create function pg_temp.reject_material_schedule() returns trigger language plpgsql as $hook$
 begin
  if new.title = 'Rollback create' and new.released_at > clock_timestamp() then
@@ -24,8 +24,8 @@ for each row execute function pg_temp.reject_material_schedule();
 set local role service_role;
 do $proof$
 declare
- actor uuid := 'c2830000-0000-4000-8000-000000000001';
- classroom uuid := 'c2830000-0000-4000-8000-000000000010';
+ actor uuid := 'c2840000-0000-4000-8000-000000000001';
+ classroom uuid := 'c2840000-0000-4000-8000-000000000010';
  schedule timestamptz := clock_timestamp() + interval '2 days';
  result jsonb;
  material uuid;
@@ -53,7 +53,7 @@ begin
    or result->'material'->'position' is distinct from original->'position'
    or result->'material'->'created_by' is distinct from original->'created_by' then raise exception 'Immutable identity drift'; end if;
  begin
-   perform public.update_classwork_material_for_owner_v1('c2830000-0000-4000-8000-000000000002',classroom,material,jsonb_build_object('scheduled_for',schedule));
+   perform public.update_classwork_material_for_owner_v1('c2840000-0000-4000-8000-000000000002',classroom,material,jsonb_build_object('scheduled_for',schedule));
    raise exception 'Nonowner schedule accepted';
  exception when insufficient_privilege then null;
  end;

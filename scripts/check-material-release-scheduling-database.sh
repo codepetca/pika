@@ -6,10 +6,11 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 [[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
 source_version="$(docker exec supabase_db_pika psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]]
-# The privilege-free snapshot must predate 283 so its RPC ACLs are replayed.
-# An already-283 snapshot would restore v3 with default PUBLIC execution access.
+# Keep the reviewed clone baseline frozen at 234–282. The privilege-free
+# snapshot must create material284 by replay so its exact RPC ACLs are restored.
+# Supporting newer source baselines requires a separately reviewed ACL profile.
 if ! ((10#$source_version >= 234 && 10#$source_version <= 282)); then
-  echo 'Material scheduling proof requires a source migration baseline from 234 through 282; source 283+ is unsupported because snapshot ACLs are omitted.' >&2
+  echo 'Material scheduling proof requires a source migration baseline from 234 through 282; source 283+ needs a separately reviewed snapshot ACL profile.' >&2
   exit 1
 fi
 scratch=$(mktemp -d /tmp/pika-material-replay.XXXXXX)
@@ -25,6 +26,8 @@ cleanup() {
   exit "$status"
 }
 trap cleanup EXIT
+# Resolve both attendance283 and material284 against their exact source seals.
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,284,'Material scheduling proof target must be exactly284'); validateLifecycleServicesReviewedMigrations(migrations); console.log('Material scheduling proof target284 source seals passed.');"
 docker exec supabase_db_pika pg_dump -U postgres -d postgres --schema-only --no-owner --no-privileges --schema=public --schema=private --schema=auth --schema=storage > "$scratch/schema.sql"
 docker run -d --pull=never --name "$name" --label pika.material-scheduling.owner=$$ --network none -e POSTGRES_PASSWORD=disposable-material-check --entrypoint docker-entrypoint.sh "$image" postgres -c listen_addresses='*' -c shared_preload_libraries=pg_cron,pg_net -c cron.launch_active_jobs=off > "$scratch/container"
 for i in {1..60}; do if docker exec "$name" pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then break; fi; sleep 1; done
@@ -49,4 +52,4 @@ if ! sql < "$root/scripts/check-material-release-scheduling-database.sql" > "$sc
   tail -20 "$scratch/behavior.log" >&2
   exit 1
 fi
-echo "Material scheduling replay, metadata generation and rollback behavior passed."
+echo "Material scheduling target284 replay, metadata generation and rollback behavior passed."

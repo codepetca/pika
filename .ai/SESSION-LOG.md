@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Restore plain Pika tab icon
-
-Owner rejected the colored favicon after native Chrome preview and approved the classroom title. BrowserTabProvider now reuses the original theme-specific Pika SVG on every route; white in dark mode retained. Removed the unused classroom-icon route and its tests. Title, header fade and theme-color hint unchanged. UI brief: browser chrome; original Pika light/dark marks and Pattern Lab header reference; reuse assets, extend provider only, no new primitive/composite behavior. Both roles/desktop/mobile/light/dark browser cases verify icon through class edits/navigation and active-classroom theme changes; native Chrome screenshots inspected in both themes. Risk none; no dependency/schema changes. PR1615 draft during correction; local gates, independent delta review and exact-head CI recorded in ignored artifacts/browser-tab-branding/plain-icon.
-
-## 2026-10-19 — Classroom title fills available header width
-
-Owner requests the in-classroom name use the entire header until right-side controls require truncation. AppHeader classroom mode now uses minmax(0,1fr)/auto columns with the existing gap; removed the 320px title cap and empty center slot. Page-title/exam framing retained; original Pika favicon and browser title unchanged. Existing conditional fade responds to the available width, including fullscreen clock controls. UI brief: existing AppHeader/Pattern Lab application-header reference, extend grid only/reuse fade; teacher/student xdesktop/mobile xlight/dark, fit/overflow/resize/fullscreen; no new composite behavior/deps/schema. Expanded deterministic fixture/browser assertions prove a fitting desktop title and fade at actual control boundary, preserved44px control targets/no page overflow. Evidence and final checks/review/CI tracked in ignored artifacts/browser-tab-branding/title-width and PR1615; no merge/deployment.
-
 ## 2026-10-19 — Lifecycle and attached-service permission preparation
 
 Gradebook1619 merged b13e5d404 after all ten39335017417 checks/PRGate; canonical main cleanly fast-forwarded. Owner authorized lifecycle/attached-service integration without routine stops, production holds unchanged. New codex/contextual-lifecycle-services prepares archived owner recovery/export271 from earlier unapplied264 source and contextual Pal member token/visit272; current268 hot archive/restore retained. Actual ownership/membership, owner precedence, existing164 locks/generations, operational fences, export/Pal gates and legacy admission behavior remain separate. No new permission framework, dependencies or activation.
@@ -828,3 +820,57 @@ Synced main PR1640 while preserving lesson text anchors, editor handoff and main
 ## 2026-10-20 — Material production smoke and registry alignment
 
 Targeted c90ccfd5 review accepted the single rich editor, current-main Calendar anchors and unchanged backend/SQL, finding obsolete Markdown-specific production smoke and Pattern Lab copy. Replaced that smoke with direct formatted editing, preview/Escape focus, byte-preserved saved draft before explicit Post, student-hidden draft and posted heading/link/list/code/bold assertions; retains four viewport/theme cases, local-only disposable fixtures and exact cleanup. Corrected Pattern Lab copy and removed the obsolete native textarea/checkbox exception after policy identified it. Editor/Calendar runtime unchanged from the prior correction. Full required focused gate passes4984tests174files, architecture, UI/design policies, TypeScript and lint. Existing lint warnings remain unchanged. Production browser matrix and one targeted final review are tracked in retained receipts. No migration/deployment or new dependency.
+
+## 2026-10-20 — Prepare current-membership attendance attribution
+
+Prepared dormant282 private opaque associations and exact event-generation
+attribution; no installation capture, inferred legacy backfill or active writer.
+Same175 cleanup API gains an uncovered-reference guard; existing exact authorized
+public mapping deletion scrubs all matching new scopes/generations, retaining
+closed tombstones. Immutable168/171 and provider receipts stay unchanged.
+Prepared unused membership-bound confirmation HMAC; shared QR/legacy functions
+unchanged. Native rollback fixtures cover ACL/capture/conflicts and phase12
+forgery/rollback/scrub/tombstone behavior; not yet executed. Extended exact source
+profiles with282 seal and whole private-table fingerprints; historical seals
+retained. Initial full gate3259tests/117files plus policies/TS/lint PASS; PR1636
+draft. Independent346Astra/high and347Sol/high found one P2: standalone legacy
+mapping scope updates could orphan captured associations. Added old-scope-wide,
+read-committed/locked UPDATE guard and direct classroom/student retarget native
+fixtures, including uncaptured current pointer/history. Same-scope rotation stays
+allowed;171 guard retains precedence. Root RED1failed/7pass→GREEN8; fixture
+RED1failed/12pass→GREEN13. Corrected-source gate/targeted review/native CI pending.
+Orchestrated Astra/high SQL plus two Sol6.1/high helper/fixture assignments,
+delivered and source-inspected without overlapping writers. Cumulative347formal
+reviews;19prior accepted correction passes, one new batch prepared. Weekly81%
+remaining at start,78% at review; global usage not attributable cost. Storage
+healthy280GB; per-worker tokens unknown.
+Current-membership runtime adoption and batch3 exit remain separate. No DB,
+provider, production/shared-local migration, configuration or activation change.
+
+Reconciliation: main3fd1fc1a4 owns Data API282; attendance is now283 with
+identical reviewed SQL bytes (a464c828). Exact source profiles preserve Data
+API282's separate seal, every historical prefix and both whole-table fingerprints
+only at283. Archived entries restored by rebase were removed from the rolling
+log only after byte-exact archive verification. Review348 targeted security is
+clean; cumulative348 formal turns/20 accepted correction passes retained.
+Mac resource pressure settled; final reconciled gate and integration review
+remain pending. Shared-local, production, provider and activation holds unchanged.
+
+Review349 integration completed: two accepted P2s, stale retained-roster282
+preflight and seven actual-inventory282 assertions. Full gate independently
+reproduced exactly7fail/3362pass; no timing/environment failure. Batched preflight
+and current283/future284 fixture corrections; new preflight regression first
+failed as expected. Prior SQL/token bytes unchanged; cumulative349reviews and
+21accepted correction passes. Targeted587tests/8files PASS; preflight regression
+RED1fail/9pass before fix. Re-review/final gate and native CI remain pending.
+
+Corrected23a25c19 passed full3369/119 gate and clean350 targeted review. During
+CI, Calendar1640 advanced main to1e1c6b667; strict up-to-date rules plus one
+archive-marker conflict required draft/base-sync. Canceled39528243253, not a
+test defect. Reconciled entire non-continuity feature patch is byte-identical
+(e074579c SHA256); archive union/current40-entry rolling cap preserved. Fresh
+base integration review/local gate/exact-head CI remain required; all holds stand.
+
+## 2026-10-20 — Material migration resequence after attendance foundation
+
+Main PR1636 merged dormant attendance foundation283 before PR1639 was marked ready. Synced main, retained both history receipts and resequenced material scheduling to284 without changing any SQL bytes (SHA751351ee9e6a3133bf1bef77727286b358b351de9e80b921bfb4e7d59912faab). Preserved indexed attendance283 seal/catalog and historical profiles; added exact284 material extension, rejected unknown285, and kept clone source baselines234–282. All9 native/offline consumers and proof expectations reconcile the combined chain. Native worker GPT-6.1 Sol/high delivered bounded backend changes; owning coordinator inspected SQL equality and proof receipts.12profile suites1864tests and exact isolated local243→284 replay/metadata/rollback proof pass. Shared/local production migrations remain unapplied; no UI/runtime change in this resequence. Final compatibility checks, independent delta review and stable-SHA CI are required before the authorized main merge.

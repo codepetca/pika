@@ -90,3 +90,26 @@ it('prints only exact fixed proof receipts, never captured SQL fixture payloads'
   expect(wrapper).toContain("grep -Fxq 'PASS retained roster group cleanup SQL and exact rollback teardown'")
   expect(wrapper).not.toMatch(/echo[^\n]*\$GROUP_CLEANUP_OUTPUT|printf[^\n]*\$GROUP_CLEANUP_OUTPUT/)
 })
+it('prepares native membership scrubbing and real uncovered-reference reservation rollback', () => {
+  const proof = readFileSync(join(process.cwd(), 'scripts/check-retained-roster-group-cleanup-database.sql'), 'utf8')
+  for (const assertion of [
+    "version='283'",
+    'private.capture_attendance_participant_association(',
+    'Exact171 association capture differs',
+    'Captured association changed reservation retry',
+    'Exact receipt completion did not scrub captured association',
+    'Uncovered reference reservation unexpectedly succeeded',
+    'attendance_cleanup_reference_uncovered',
+    'Uncovered reservation left operation, binding, or fence',
+    'Rejected reservation changed delivery or receipt state',
+    'Uncovered fixture rollback changed global rows',
+  ]) expect(proof).toContain(assertion)
+  const uncovered = proof.slice(proof.indexOf('do $uncovered_association_reservation$'),
+    proof.indexOf('\n$uncovered_association_reservation$;'))
+  expect(uncovered).toContain('set local role service_role')
+  expect(uncovered).toContain("public.advance_removed_student_academic_cleanup(operation,f.owner,course,f.peer,generation,'live_reserve')")
+  expect(uncovered).toContain('public.authorize_student_provider_cleanup(')
+  expect(uncovered).not.toContain('record_student_provider_cleanup_receipt(')
+  expect(uncovered).not.toContain('private.assert_attendance_cleanup_reference_coverage(')
+  expect(proof).not.toMatch(/disable trigger|session_replication_role|delete from private\.attendance_participant_associations/i)
+})

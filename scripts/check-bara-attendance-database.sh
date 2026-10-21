@@ -105,10 +105,210 @@ begin
   ) then
     raise exception 'Migration 150 attendance duration guard is not applied to the local database';
   end if;
+  if not exists (
+    select 1 from supabase_migrations.schema_migrations where version = '283'
+  ) or to_regclass('private.attendance_participant_associations') is null
+    or to_regclass('private.attendance_override_event_generations') is null
+    or to_regprocedure('private.capture_attendance_participant_association(uuid,uuid,text)') is null
+    or to_regprocedure('private.resolve_attendance_participant_subject(uuid,text)') is null
+    or to_regprocedure('private.assert_attendance_cleanup_reference_coverage(uuid,uuid,text)') is null
+  then
+    raise exception 'Migration 283 requires separate local application approval';
+  end if;
 end;
 $migration$;
 
 begin;
+
+-- Dormant foundation only: no provider request, allocator, runtime adoption or
+-- attribution backfill. All new evidence below belongs to this rollback.
+do $attendance_foundation_acl$
+declare v_table text; v_role text; v_privilege text; v_signature text;
+begin
+  if exists(select 1 from private.attendance_participant_associations)
+    or exists(select 1 from private.attendance_override_event_generations) then
+    raise exception 'Dormant attendance foundation was populated before explicit capture';
+  end if;
+  foreach v_table in array array['attendance_participant_associations','attendance_override_event_generations'] loop
+    if not (select relrowsecurity from pg_class where oid=('private.'||v_table)::regclass)
+      or exists(select 1 from pg_class relation,
+        lateral aclexplode(coalesce(relation.relacl,acldefault('r',relation.relowner))) privilege
+        where relation.oid=('private.'||v_table)::regclass and privilege.grantee=0) then
+      raise exception 'Private attendance foundation ACL leaked';
+    end if;
+    foreach v_role in array array['anon','authenticated','service_role'] loop
+      foreach v_privilege in array array['select','insert','update','delete','truncate','references','trigger'] loop
+        if has_table_privilege(v_role,'private.'||v_table,v_privilege) then
+          raise exception 'Private attendance foundation ACL leaked';
+        end if;
+      end loop;
+    end loop;
+  end loop;
+  foreach v_signature in array array[
+    'private.guard_attendance_override_event_generation()',
+    'private.guard_attendance_participant_association()',
+    'private.guard_attendance_participant_mapping_scope()',
+    'private.scrub_deleted_attendance_participant_associations()',
+    'private.capture_attendance_participant_association(uuid,uuid,text)',
+    'private.resolve_attendance_participant_subject(uuid,text)',
+    'private.assert_attendance_cleanup_reference_coverage(uuid,uuid,text)'] loop
+    if exists(select 1 from pg_proc routine,
+      lateral aclexplode(coalesce(routine.proacl,acldefault('f',routine.proowner))) privilege
+      where routine.oid=v_signature::regprocedure and privilege.grantee=0) then
+      raise exception 'Private attendance foundation ACL leaked';
+    end if;
+    foreach v_role in array array['anon','authenticated','service_role'] loop
+      if has_function_privilege(v_role,v_signature,'execute') then
+        raise exception 'Private attendance foundation ACL leaked';
+      end if;
+    end loop;
+  end loop;
+  if not exists(select 1 from pg_constraint where
+    conrelid='private.attendance_override_event_generations'::regclass
+    and confrelid='public.attendance_status_override_events'::regclass and contype='f' and confdeltype='c')
+    or not exists(select 1 from pg_constraint where
+    conrelid='private.attendance_participant_associations'::regclass
+    and confrelid='private.pal_membership_generations'::regclass and contype='f' and confdeltype='r') then
+    raise exception 'Dormant attendance foundation foreign-key lifecycle changed';
+  end if;
+  begin
+    insert into private.attendance_override_event_generations(event_id,generation_id)
+      values(gen_random_uuid(),gen_random_uuid());
+    raise exception 'Unproven override event attribution was accepted';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'attendance_override_generation_writer_required' then raise;end if;
+  end;
+end;
+$attendance_foundation_acl$;
+
+insert into public.users(id,email,role) values
+ ('a2820000-0000-4000-8000-000000000001','foundation-owner@example.test','teacher'),
+ ('a2820000-0000-4000-8000-000000000002','foundation-legacy@example.test','student'),
+ ('a2820000-0000-4000-8000-000000000003','foundation-bound@example.test','student'),
+ ('a2820000-0000-4000-8000-000000000004','foundation-retarget@example.test','student');
+insert into public.classrooms(id,teacher_id,title,class_code) values
+ ('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000001','Foundation scope','A28210'),
+ ('a2820000-0000-4000-8000-000000000011','a2820000-0000-4000-8000-000000000001','Other foundation scope','A28211');
+insert into public.classroom_enrollments(id,classroom_id,student_id) values
+ ('a2820000-0000-4000-8000-000000000020','a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000002'),
+ ('a2820000-0000-4000-8000-000000000021','a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000003');
+insert into public.attendance_participant_mappings(classroom_id,student_id,participant_ref) values
+ ('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020'),
+ ('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000003','participant_28200000000000000000000000000021');
+-- Explicit synthetic 171 evidence uses the established native fixture pattern;
+-- enrollment alone cannot supply this proof and cleanup remains disabled.
+insert into private.attendance_membership_generations(generation_id,participant_ref,scope_digest)
+ values('a2820000-0000-4000-8000-000000000021','participant_28200000000000000000000000000021',
+ private.pal_membership_scope('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000003'));
+do $attendance_foundation_capture$
+declare v_before jsonb; v_mapping_before jsonb; v_sql text; v_ref text;
+begin
+  perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000010',
+    'a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020');
+  if not exists(select 1 from private.attendance_participant_associations where
+    participant_ref='participant_28200000000000000000000000000020' and generation_id is null
+    and scope_digest=private.pal_membership_scope('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000002')
+    and not closed) then raise exception 'Legacy capture invented a membership generation'; end if;
+  select to_jsonb(association) into v_before from private.attendance_participant_associations association
+    where participant_ref='participant_28200000000000000000000000000020';
+  perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000010',
+    'a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020');
+  if v_before is distinct from (select to_jsonb(association) from private.attendance_participant_associations association
+    where participant_ref='participant_28200000000000000000000000000020') then
+    raise exception 'Duplicate association capture changed evidence'; end if;
+  -- Standalone public scope updates must fail before any follow-up capture.
+  -- Repeat with an uncaptured current pointer so a historical association for
+  -- the old scope is sufficient to protect its public erasure lifecycle.
+  foreach v_ref in array array['participant_28200000000000000000000000000020',
+    'participant_28200000000000000000000000000022'] loop
+    if v_ref='participant_28200000000000000000000000000022' then
+      update public.attendance_participant_mappings set participant_ref=v_ref
+        where classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002';
+      if not exists(select 1 from public.attendance_participant_mappings where participant_ref=v_ref)
+        or exists(select 1 from private.attendance_participant_associations where participant_ref=v_ref) then
+        raise exception 'Same-scope legacy reference rotation was blocked';end if;
+    end if;
+    select to_jsonb(mapping) into strict v_mapping_before from public.attendance_participant_mappings mapping
+      where mapping.classroom_id='a2820000-0000-4000-8000-000000000010'
+      and mapping.student_id='a2820000-0000-4000-8000-000000000002';
+    foreach v_sql in array array[
+      $q$update public.attendance_participant_mappings set classroom_id='a2820000-0000-4000-8000-000000000011'
+        where classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002'$q$,
+      $q$update public.attendance_participant_mappings set student_id='a2820000-0000-4000-8000-000000000004'
+        where classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002'$q$] loop
+      begin
+        execute v_sql;
+        raise exception 'Standalone captured scope update was accepted';
+      exception when sqlstate '55000' then
+        if sqlerrm<>'attendance_participant_association_immutable' then raise;end if;
+      end;
+      if v_mapping_before is distinct from (select to_jsonb(mapping) from public.attendance_participant_mappings mapping
+          where mapping.classroom_id='a2820000-0000-4000-8000-000000000010'
+          and mapping.student_id='a2820000-0000-4000-8000-000000000002')
+        or v_before is distinct from (select to_jsonb(association) from private.attendance_participant_associations association
+          where participant_ref='participant_28200000000000000000000000000020') then
+        raise exception 'Rejected scope update changed mapping or association';end if;
+    end loop;
+    if v_ref='participant_28200000000000000000000000000022' and (
+      not exists(select 1 from public.attendance_participant_mappings where participant_ref=v_ref
+        and classroom_id='a2820000-0000-4000-8000-000000000010'
+        and student_id='a2820000-0000-4000-8000-000000000002')
+      or exists(select 1 from private.attendance_participant_associations where participant_ref=v_ref)) then
+      raise exception 'Historical association did not protect uncaptured current pointer';end if;
+  end loop;
+  -- Restore the original pointer before adding exact171 proof.
+  update public.attendance_participant_mappings set participant_ref='participant_28200000000000000000000000000020'
+    where classroom_id='a2820000-0000-4000-8000-000000000010'
+    and student_id='a2820000-0000-4000-8000-000000000002';
+  insert into private.attendance_membership_generations(generation_id,participant_ref,scope_digest)
+    values('a2820000-0000-4000-8000-000000000020','participant_28200000000000000000000000000020',
+      private.pal_membership_scope('a2820000-0000-4000-8000-000000000010','a2820000-0000-4000-8000-000000000002'));
+  perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000010',
+    'a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020');
+  if v_before is distinct from (select to_jsonb(association) from private.attendance_participant_associations association
+    where participant_ref='participant_28200000000000000000000000000020') then
+    raise exception 'Legacy repeat capture retroactively attributed a generation';end if;
+  perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000010',
+    'a2820000-0000-4000-8000-000000000003','participant_28200000000000000000000000000021');
+  if not exists(select 1 from private.attendance_participant_associations where
+    participant_ref='participant_28200000000000000000000000000021'
+    and generation_id='a2820000-0000-4000-8000-000000000021' and not closed) then
+    raise exception 'Exact 171 capture lost its proven generation'; end if;
+  if private.resolve_attendance_participant_subject('a2820000-0000-4000-8000-000000000010',
+      'participant_28200000000000000000000000000020') is distinct from 'a2820000-0000-4000-8000-000000000002'::uuid then
+    raise exception 'Exact surviving public candidate did not resolve'; end if;
+  if private.resolve_attendance_participant_subject('a2820000-0000-4000-8000-000000000011',
+      'participant_28200000000000000000000000000020') is not null
+    or private.resolve_attendance_participant_subject('a2820000-0000-4000-8000-000000000010',
+      'participant_28200000000000000000000000000099') is not null then
+    raise exception 'Wrong-class or missing participant resolved a subject'; end if;
+  foreach v_sql in array array[
+    $q$update private.attendance_participant_associations set scope_digest=repeat('a',64)
+      where participant_ref='participant_28200000000000000000000000000020'$q$,
+    $q$delete from private.attendance_participant_associations
+      where participant_ref='participant_28200000000000000000000000000020'$q$,
+    'truncate private.attendance_participant_associations'] loop
+    begin execute v_sql; raise exception 'Association evidence was mutable';
+    exception when sqlstate '55000' then
+      if sqlerrm<>'attendance_participant_association_immutable' then raise; end if;
+    end;
+  end loop;
+  begin
+    perform private.capture_attendance_participant_association('a2820000-0000-4000-8000-000000000011',
+      'a2820000-0000-4000-8000-000000000002','participant_28200000000000000000000000000020');
+    raise exception 'Mismatched public mapping was captured';
+  exception when others then
+    if sqlerrm<>'attendance_participant_association_invalid' then raise; end if;
+  end;
+  delete from public.classroom_enrollments where id='a2820000-0000-4000-8000-000000000021';
+  if private.resolve_attendance_participant_subject('a2820000-0000-4000-8000-000000000010',
+    'participant_28200000000000000000000000000021') is not null then
+    raise exception 'Closed generation resolved a subject'; end if;
+end;
+$attendance_foundation_capture$;
 
 do $manual_attendance_restore_adapter$
 declare

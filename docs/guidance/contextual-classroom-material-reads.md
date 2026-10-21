@@ -118,6 +118,8 @@ shared database writes are held.
 
 `scripts/check-material-release-scheduling-database.sh` writes only to its owned,
 disposable schema clone. Supported source migration baselines are 234–282. The
-schema-only dump omits ACLs, so migration 283 must be replayed to establish and
-verify the scheduling RPC grants. A source already at 283 or later is rejected
-before a clone is created; its ACLs cannot be reconstructed by this helper.
+schema-only dump omits ACLs, so material migration 284 must be replayed to establish and
+verify the scheduling RPC grants. The proof validates exact attendance283 and
+material284 source seals and rejects unknown285. Source baselines 283 or later
+remain unsupported until a separate ACL snapshot profile is reviewed. This helper
+does not expand its source-baseline authority after a migration renumbering.

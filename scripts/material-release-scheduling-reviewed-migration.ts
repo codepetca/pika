@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 
 export const MATERIAL_RELEASE_SCHEDULING_REVIEWED_MIGRATION = Object.freeze({
-  name: '283_material_release_scheduling.sql',
+  name: '284_material_release_scheduling.sql',
   sha256: '751351ee9e6a3133bf1bef77727286b358b351de9e80b921bfb4e7d59912faab',
 })
 
