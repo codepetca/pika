@@ -284,6 +284,24 @@ Source grounding: `.workspace-entry` in `src/app/globals.scss`,
 and the real-owner Continuous inspector Pattern Lab example. Exact timing is
 defined in `src/styles/tokens.css`.
 
+### 8. Calendar categories and Classwork icons stay consistent
+
+Owner approved 2026-10-21; see [the change brief](./changes/calendar-classwork-identity.md).
+Apply this convention to future prototypes and product work:
+
+- Calendar due dates and tests share the soft amber assessment theme.
+- Materials and surveys share the quiet light-green resource theme.
+- Announcements retain their stronger orange theme.
+- Category color does not replace a type label or communicate completion/urgency status.
+- Use Lucide FileText for Material and ListChecks for Survey, including creation
+  menus and icons beside existing teacher/student Classwork titles. Assignment
+  keeps ClipboardList. Reuse the feature-owned `ClassworkTypeIcon` mapping.
+- Theme values are owned by `src/styles/tokens.css`; use the semantic
+  `calendar-assessment`, `calendar-resource`, and `calendar-announcement` color
+  groups. Do not substitute status tokens or invent new palettes in prototypes.
+- Pattern Lab's `calendar-identity` reference renders the production calendar
+  owner and shared type icons. This convention adds no survey scheduling.
+
 ## Stable Guidance Limits
 
 - This file is intentionally narrow. It does not try to canonize the entire app.

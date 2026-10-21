@@ -302,7 +302,7 @@ describe('LessonDayCell', () => {
     }
   })
 
-  it.each([false, true])('labels assignment due dates with accessible solid fill (compact=%s)', (compact) => {
+  it.each([false, true])('labels assignment due dates with the assessment theme (compact=%s)', (compact) => {
     renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
@@ -317,9 +317,9 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Due: Essay' })).toHaveClass(
-      'bg-primary-solid',
-      'hover:bg-primary-solid-hover',
-      'text-text-inverse'
+      'bg-calendar-assessment-bg',
+      'hover:bg-calendar-assessment-hover',
+      'text-calendar-assessment'
     )
   })
 
@@ -358,8 +358,9 @@ describe('LessonDayCell', () => {
     )
 
     expect(screen.getByRole('button', { name: 'Scheduled' })).toHaveClass(
-      'bg-amber-500/40',
-      'hover:bg-amber-500/60',
+      'bg-calendar-announcement-bg',
+      'hover:bg-calendar-announcement-hover',
+      'ring-calendar-announcement',
     )
   })
 

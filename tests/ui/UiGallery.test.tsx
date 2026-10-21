@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
+import { CalendarIdentityPattern } from '@/app/__ui/CalendarIdentityPattern'
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { CalendarMockup } from '@/app/__ui/PageMockups'
 import { StudentPageMockup } from '@/app/__ui/StudentPageMockups'
 import { ThemeProvider } from '@/contexts/ThemeContext'
@@ -32,6 +34,29 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('keeps type icons decorative and calendar examples keyboard operable', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><CalendarIdentityPattern />
+      <button type="button"><ClassworkTypeIcon type="material" />Material</button>
+    </TooltipProvider></ThemeProvider>)
+    expect(screen.getByRole('button', { name: 'Material', exact: true }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    const survey = screen.getByRole('button', { name: 'Survey: Field trip check-in' })
+    survey.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('status')).toHaveTextContent('Open survey')
+  })
+
+  it.each(['teacher', 'student'] as const)('offers the shared calendar identity example for %s', (role) => {
+    renderGallery(role)
+    const example = within(screen.getByTestId('calendar-identity-pattern'))
+    expect(example.getByRole('group', { name: 'Identity calendar layout' })).toBeVisible()
+    fireEvent.click(example.getByRole('button', { name: 'Survey: Field trip check-in' }))
+    expect(example.getByRole('status')).toHaveTextContent('Open survey')
+    fireEvent.click(example.getByRole('button', { name: 'Grid', exact: true }))
+    expect(example.getByRole('button', { name: 'Material: Ecosystem reading' })).toBeVisible()
+    expect(example.getByRole('button', { name: 'Material: Ecosystem reading' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+  })
+
   it.each(['teacher', 'student'] as const)('preserves the full classroom header name for %s', (role) => {
     renderGallery(role)
     const references = within(screen.getByRole('region', { name: 'Application header references' }))

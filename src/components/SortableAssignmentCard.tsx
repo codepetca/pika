@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
@@ -120,10 +121,10 @@ export function SortableAssignmentCard({
         >
           <span className="min-w-0">
             <span className={[
-              'block truncate font-medium',
+              'flex items-center gap-2 font-medium',
               isDraft || isScheduled ? 'text-text-muted' : 'text-text-default'
             ].join(' ')}>
-              {assignment.title}
+              <ClassworkTypeIcon type="assignment" /><span className="truncate">{assignment.title}</span>
             </span>
             <span className="block text-xs text-text-muted">
               Due: {formatDueDate(assignment.due_at)}

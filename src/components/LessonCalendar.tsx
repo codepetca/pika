@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend, addDays, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
@@ -666,7 +667,7 @@ export function LessonCalendar({
                     {presentedDayDetails.assignments.map((assignment) => (
                       <div
                         key={assignment.id}
-                        className="rounded-full bg-info-bg px-5 py-2 text-lg font-medium text-text-default"
+                        className="rounded-full bg-calendar-assessment-bg px-5 py-2 text-lg font-medium text-calendar-assessment"
                       >
                         {assignment.title}
                       </div>
@@ -683,7 +684,7 @@ export function LessonCalendar({
                       <Button key={test.id} variant="ghost" onClick={() => {
                         setPresentedDay(null)
                         onTestClick?.(test)
-                      }} className="max-w-full whitespace-normal bg-info-bg text-primary">
+                      }} className="max-w-full whitespace-normal bg-calendar-assessment-bg text-calendar-assessment hover:bg-calendar-assessment-hover">
                         Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}
                       </Button>
                     ))}
@@ -699,8 +700,8 @@ export function LessonCalendar({
                       <Button key={material.id} variant="ghost" onClick={() => {
                         setPresentedDay(null)
                         onMaterialClick?.(material)
-                      }} className="max-w-full whitespace-normal bg-info-bg text-primary">
-                        Material: {material.title}
+                      }} className="max-w-full whitespace-normal bg-calendar-resource-bg text-calendar-resource hover:bg-calendar-resource-hover">
+                        <ClassworkTypeIcon type="material" />Material: {material.title}
                       </Button>
                     ))}
                   </div>

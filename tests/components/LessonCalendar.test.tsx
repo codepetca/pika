@@ -556,6 +556,7 @@ describe('material calendar chips', () => {
       viewMode="week" currentDate={new Date('2026-03-16T12:00:00')} editable={false}
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} onMaterialClick={onMaterialClick} />, { wrapper: Wrapper })
     fireEvent.click(screen.getByRole('button', { name: 'Open Saturday, March 21, 2026' }))
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Material: Course reading' }).querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Material: Course reading' }))
     expect(onMaterialClick).toHaveBeenCalledWith(material)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()

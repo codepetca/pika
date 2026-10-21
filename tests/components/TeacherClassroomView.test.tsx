@@ -1800,6 +1800,7 @@ describe('TeacherClassroomView', () => {
 
     const materialButton = await screen.findByRole('button', { name: 'Open Opening Reading' })
     const assignmentButton = screen.getByRole('button', { name: 'Assignment One' })
+    expect(materialButton.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(
       materialButton.compareDocumentPosition(assignmentButton) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()

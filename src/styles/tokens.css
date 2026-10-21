@@ -80,6 +80,18 @@
   --color-info-bg: #dbeafe;
   --color-info-bg-hover: #bfdbfe;
 
+
+  /* Calendar item identity (owner approved 2026-10-21), separate from status. */
+  --color-calendar-assessment: #865000;
+  --color-calendar-assessment-bg: #fff0d1;
+  --color-calendar-assessment-hover: #ffe4ad;
+  --color-calendar-resource: #4a6a62;
+  --color-calendar-resource-bg: #f0f5f4;
+  --color-calendar-resource-hover: #e1eeea;
+  --color-calendar-announcement: #451a03;
+  --color-calendar-announcement-bg: #f59e0b;
+  --color-calendar-announcement-hover: #fbbf24;
+
   /* Attendance statuses mirror the connected TeachAssist source. */
   --color-attendance-present: #2dbf00;
   --color-attendance-late: #f1c700;
@@ -197,6 +209,17 @@
   --color-info: #60a5fa;
   --color-info-bg: rgba(30, 58, 138, 0.3);
   --color-info-bg-hover: rgba(30, 58, 138, 0.4);
+
+  /* Preserve category identity and readable contrast in dark mode. */
+  --color-calendar-assessment: #f4cf89;
+  --color-calendar-assessment-bg: #40321d;
+  --color-calendar-assessment-hover: #514027;
+  --color-calendar-resource: #adc9c2;
+  --color-calendar-resource-bg: #222e2c;
+  --color-calendar-resource-hover: #2c3c38;
+  --color-calendar-announcement: #fffbeb;
+  --color-calendar-announcement-bg: #b45309;
+  --color-calendar-announcement-hover: #92400e;
   --color-attendance-present: #2dbf00;
   --color-attendance-late: #f1c700;
   --color-attendance-absent: #b10606;

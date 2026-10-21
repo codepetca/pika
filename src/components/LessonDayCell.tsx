@@ -1,5 +1,6 @@
 'use client'
 
+import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
@@ -154,7 +155,7 @@ export const LessonDayCell = memo(function LessonDayCell({
     <Tooltip key={test.id} content={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}>
       <Button variant="ghost" size="sm" aria-label={`Test: ${test.title}${test.status === 'draft' ? ' [Draft]' : ''}`}
         onClick={event => { event.stopPropagation(); onTestClick?.(test) }}
-        className="w-full overflow-hidden bg-info-bg px-0.5 text-primary">
+        className="w-full overflow-hidden bg-calendar-assessment-bg px-0.5 text-calendar-assessment hover:bg-calendar-assessment-hover">
         <span className="truncate">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
       </Button>
     </Tooltip>
@@ -167,9 +168,9 @@ export const LessonDayCell = memo(function LessonDayCell({
         <Button variant="ghost" size="sm" aria-label={label}
           onClick={event => { event.stopPropagation(); onMaterialClick?.(material) }}
           className={layout === 'agenda'
-            ? 'h-auto min-w-0 max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary'
-            : 'w-full min-w-0 overflow-hidden bg-info-bg px-0.5 text-primary'}>
-          <span className={layout === 'agenda' ? 'min-w-0 break-words' : 'truncate'}>{label}</span>
+            ? 'h-auto min-w-0 max-w-full whitespace-normal bg-calendar-resource-bg px-3 py-2 text-left text-calendar-resource hover:bg-calendar-resource-hover'
+            : 'w-full min-w-0 overflow-hidden bg-calendar-resource-bg px-0.5 text-calendar-resource hover:bg-calendar-resource-hover'}>
+          <ClassworkTypeIcon type="material" /><span className={layout === 'agenda' ? 'min-w-0 break-words' : 'truncate'}>{label}</span>
         </Button>
       </Tooltip>
     )
@@ -252,13 +253,13 @@ export const LessonDayCell = memo(function LessonDayCell({
             <div className="flex min-w-0 flex-wrap gap-2">
               {tests.map(test => (
                 <Button key={test.id} variant="ghost" size="sm" onClick={() => onTestClick?.(test)}
-                  className="max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary">
+                  className="max-w-full whitespace-normal bg-calendar-assessment-bg px-3 py-2 text-left text-calendar-assessment hover:bg-calendar-assessment-hover">
                   <span className="min-w-0 break-words">Test: {test.title}{test.status === 'draft' ? ' [Draft]' : ''}</span>
                 </Button>
               ))}
               {assignments.map(assignment => (
                 <Button key={assignment.id} variant="ghost" size="sm" onClick={() => onAssignmentClick?.(assignment)}
-                  className="h-auto min-w-0 max-w-full whitespace-normal bg-info-bg px-3 py-2 text-left text-primary">
+                  className="h-auto min-w-0 max-w-full whitespace-normal bg-calendar-assessment-bg px-3 py-2 text-left text-calendar-assessment hover:bg-calendar-assessment-hover">
                   <span className="min-w-0 break-words">Due: {assignment.title}{assignment.is_draft ? ' [Draft]' : ''}</span>
                 </Button>
               ))}
@@ -269,7 +270,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                   <Tooltip key={announcement.id} content={<AnnouncementTooltipContent announcements={[announcement]} />}
                     className="md:max-w-none" align="start" interactive>
                     <Button variant="ghost" size="sm" onClick={onAnnouncementClick} aria-label={calendarLabel}
-                      className="h-auto min-w-0 max-w-full whitespace-normal bg-warning-bg px-3 py-2 text-left text-warning">
+                      className="h-auto min-w-0 max-w-full whitespace-normal bg-calendar-announcement-bg px-3 py-2 text-left text-calendar-announcement hover:bg-calendar-announcement-hover">
                       <span className="min-w-0 break-words">{calendarLabel}</span>
                     </Button>
                   </Tooltip>
@@ -313,7 +314,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                     onAssignmentClick?.(assignments[0])
                   }
                 }}
-                className={`w-full min-w-[12px] rounded bg-primary hover:bg-primary-hover cursor-pointer h-4 ${
+                className={`w-full min-w-[12px] rounded bg-calendar-assessment-bg hover:bg-calendar-assessment-hover cursor-pointer h-4 ${
                   assignments.some(a => a.is_draft) ? 'opacity-50' : ''
                 }`}
               />
@@ -338,8 +339,8 @@ export const LessonDayCell = memo(function LessonDayCell({
                 }}
                 className={`w-full min-w-[12px] rounded cursor-pointer h-4 ${
                   announcements.some(isScheduled)
-                    ? 'bg-amber-500/40 hover:bg-amber-500/60'
-                    : 'bg-amber-500 hover:bg-amber-600'
+                    ? 'bg-calendar-announcement-bg hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
+                    : 'bg-calendar-announcement-bg hover:bg-calendar-announcement-hover'
                 }`}
               />
             </Tooltip>
@@ -397,7 +398,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                       e.stopPropagation()
                       onAssignmentClick?.(assignment)
                     }}
-                    className={`w-full min-w-0 rounded bg-primary-solid text-text-inverse font-medium hover:bg-primary-solid-hover text-center truncate text-[10px] px-0.5 py-px ${assignment.is_draft ? 'opacity-50' : ''}`}
+                    className={`w-full min-w-0 rounded bg-calendar-assessment-bg text-calendar-assessment font-medium hover:bg-calendar-assessment-hover text-center truncate text-[10px] px-0.5 py-px ${assignment.is_draft ? 'opacity-50' : ''}`}
                   >
                     Due: {assignment.title}
                   </button>
@@ -431,8 +432,8 @@ export const LessonDayCell = memo(function LessonDayCell({
                       aria-label={calendarLabel}
                       className={`w-full min-w-0 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${
                         scheduled
-                          ? 'bg-amber-500/40 text-amber-800 hover:bg-amber-500/60'
-                          : 'bg-amber-500 text-white hover:bg-amber-600'
+                          ? 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
+                          : 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover'
                       }`}
                     >
                       {calendarLabel}

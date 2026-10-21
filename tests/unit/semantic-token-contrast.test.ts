@@ -41,6 +41,10 @@ const foregroundContracts = [
   { foreground: 'color-danger', backgrounds: ['color-danger-bg', 'color-danger-bg-hover'] },
   { foreground: 'color-warning', backgrounds: ['color-warning-bg'] },
   { foreground: 'color-info', backgrounds: ['color-info-bg', 'color-info-bg-hover'] },
+  { foreground: 'color-calendar-assessment', backgrounds: ['color-calendar-assessment-bg', 'color-calendar-assessment-hover'] },
+  { foreground: 'color-calendar-resource', backgrounds: ['color-calendar-resource-bg', 'color-calendar-resource-hover'] },
+  { foreground: 'color-calendar-announcement', backgrounds: ['color-calendar-announcement-bg', 'color-calendar-announcement-hover'] },
+
 ] as const
 
 const solidFillContracts = [
