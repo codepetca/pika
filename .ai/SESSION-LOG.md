@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Complete isolated attendance owner-policy proof
-
-Fresh Bg888j actual proof passes complete001–273 replay, rollback SQL including
-the temporary-schema regression, genuine273 metadata and16 RPC reads:13 actual
-adapter plus3 exact-canary.64actions/1325controls/41887666bytes/max1final0sessions
-stay within original caps. Complete fixture/complement restoration, canonical
-read-only equality and positive owned/global cleanup pass. Immediate FIRST before
-any post-run changes preserves7853source/98970dependency files with zero matching
-processes; separate exact Docker/workdir absence passes. Earlier failures/spent
-records remain unchanged. Generated273 bytes installed exactly (SHA32368aa8ad6c),
-only the new RPC over prior272; full TypeScript now passes without casts.
-Full focused checks exposed two CI wiring omissions: closed local DB inventory
-and canonical workflow-test list. Exact54-proof current and53-proof historical
-profiles, once-only command/order and87-proof lifecycle lane are retained;
-369 affected/related tests pass. Final current-main focused checks and independent
-metadata/evidence/integration review remain before PR readiness. Native source
-reviews279–285 retained; no repeated runtime needed for metadata/docs/base sync.
-Owner selected current-membership-only learner attendance with older records and
-overrides preserved for the classroom owner; member integration remains future.
-PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
-Production/shared-local249+/provider/account/billing/AI/activation holds remain.
-
 ## 2026-10-19 — Owner attendance write isolated proof passed
 
 Product26089ed3/carrier096d2c05 passed one fresh disposable001–274 SQL/SDK/lock/type
@@ -937,3 +915,21 @@ suites pass both labels, exact metadata, nonempty history, wire validation and r
 ownership contention/fresh reads. Independent review and exact-head CI remain
 gates. No production/shared-local migration, provider call,
 publication, account change or rollout is authorized by this source preparation.
+
+## 2026-10-21 — Prepare contextual active classroom capture
+
+Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
+checks green; shared local remains243. The next backend group reuses shared
+admission for active owned classroom capture, owned Blueprint reads and existing
+entitled instantiation. Source access is rechecked after loading before private
+copies; atomic commit/source/version/replay and provisional-copy settlement stay
+in place. TDD reproduced the role/pre-copy gaps;116 API/domain checks now pass.
+The existing rollback suite adds current v3 capture and v2 instantiation for both
+account labels, with owner/revision/archive/purge/replay and independent capacity
+denials; authored SQL is not native acceptance. Final focused checks, independent
+review and isolated CI remain required. No general Blueprint authoring, page/UI,
+schema application or activation is included. Owner settled Pal's following
+policy: stop pending delivery upon same-class ownership, preserve earned progress,
+stop new learner activity/token requests, retain existing issued-token expiry.
+That policy is recorded, not implemented here. Production/live-provider/shared-
+local249+/publication/configuration/account/cohort/cutover holds remain unchanged.

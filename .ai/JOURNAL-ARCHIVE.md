@@ -48315,3 +48315,26 @@ unchanged. Source regression failed before correction;9 affected checks and lint
 pass. This is not yet real PostgreSQL regression acceptance. Original failed
 attempts remain spent; immediate FIRST and exact resource absence pass for both.
 Independent review and a new bounded isolated proof remain required; all holds stay.
+
+<!-- pika-session-log-archive-batch:4171208a29c3f0950e03aae02ce5315c3121607d9e444d51dd1440553ebbf47c -->
+## 2026-10-19 — Complete isolated attendance owner-policy proof
+
+Fresh Bg888j actual proof passes complete001–273 replay, rollback SQL including
+the temporary-schema regression, genuine273 metadata and16 RPC reads:13 actual
+adapter plus3 exact-canary.64actions/1325controls/41887666bytes/max1final0sessions
+stay within original caps. Complete fixture/complement restoration, canonical
+read-only equality and positive owned/global cleanup pass. Immediate FIRST before
+any post-run changes preserves7853source/98970dependency files with zero matching
+processes; separate exact Docker/workdir absence passes. Earlier failures/spent
+records remain unchanged. Generated273 bytes installed exactly (SHA32368aa8ad6c),
+only the new RPC over prior272; full TypeScript now passes without casts.
+Full focused checks exposed two CI wiring omissions: closed local DB inventory
+and canonical workflow-test list. Exact54-proof current and53-proof historical
+profiles, once-only command/order and87-proof lifecycle lane are retained;
+369 affected/related tests pass. Final current-main focused checks and independent
+metadata/evidence/integration review remain before PR readiness. Native source
+reviews279–285 retained; no repeated runtime needed for metadata/docs/base sync.
+Owner selected current-membership-only learner attendance with older records and
+overrides preserved for the classroom owner; member integration remains future.
+PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
+Production/shared-local249+/provider/account/billing/AI/activation holds remain.

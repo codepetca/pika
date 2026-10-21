@@ -61,7 +61,7 @@ mocked SDK fixtures are not native acceptance. The UI reuse/matrix is recorded i
 
 ## Queued delivery on ownership change — source287
 
-Owner-approved policy: stop queued learner delivery when its subject becomes
+Owner decision2026-10-21: stop queued learner delivery when its subject becomes
 that same classroom's owner. Preserve earned progress and already-issued token
 expiry; do not retract provider facts, revoke tokens or erase history.
 
