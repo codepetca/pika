@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Exact lifecycle migration profiles and early local selection
-
-Final CI rejected the complete272 source chain because historical lifecycle
-harnesses stopped at270. Returned PR1620 to draft before correction; no merge.
-All eight source profiles and the offline prefix helper now append exact271/272
-filename/stored-digest/raw-byte seals, retaining earlier validators and rejecting
-unknown273 or missing/altered/reordered tails. Source-profile reproduction was
-RED10/132 then GREEN1,074 cases across nine suites. Normal project TypeScript
-passed; no SQL, application authorization or native bounds changed.
-
-The local import graph could not select SQL-filesystem consumers. Two real
-Vitest fixtures reproduced false-green selection in run/related modes; the
-focused runner now adds the existing closed-profile suite on migration SQL
-changes. All26 runner regressions pass. Root combined focused gate passes2,495
-tests/94 files plus architecture/UI/design policy, TypeScript and lint. Exact
-271/272 bytes still match accepted native proofs, which were not rerun. Targeted
-independent review and corrected-head CI remain required. All holds persist.
-
 ## 2026-10-19 — Preserve rename-source evidence in local and CI selection
 
 Review277 identified a rename-out edge in migration test discovery. Real staged
