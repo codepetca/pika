@@ -1031,8 +1031,9 @@ and experience/cutover activation holds remain unchanged.
 
 Before any learner cohort activation, verify that every joined classroom has
 an authorized actual-owner membership sync and valid current participant bindings.
-An admitted learner with an unadmitted or not-yet-synced owner must remain
-unavailable, not fall back to legacy evidence or allocate provider identities.
+When that preparation is missing, including a classroom whose owner is outside
+the cohort, the learner remains unavailable rather than falling back to legacy
+evidence or allocating provider identities.
 Mixed-cohort readiness is still a rollout gate; this source group does not prove
 it. Current ownership also takes precedence over retained self-enrollment for
 both status and scan authorization, even when that enrollment has a valid pointer.
