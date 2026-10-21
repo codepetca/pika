@@ -852,3 +852,24 @@ change or production/provider action; corrected-head review/CI still required.
 Shared Tooltip now uses semantic fast opacity entry and a bounded decorative exit with fixed text geometry. Logical close unmounts live Radix content, descriptions, child owners and document handlers immediately. Only whitelisted static text/formatting/link/SVG DOM is copied, with IDs, roles, targets and focus/event attributes removed and inert/hidden pointer fencing. Unsupported widgets/media/custom content closes immediately; reopen, disabled/hidden/unmount and reduced motion retire the copy. No public API or dependency change. Pattern Lab includes an availability toggle for both roles; the separate mobile ancestor-scroll hint discovery issue remains open.
 
 Owner14 and gallery52 tests pass. Initial canonical focused3,690/274 plus architecture/UI/design policy, TypeScript, lint and audit pass; the final corrected gate is recorded with the PR. Independent review identified a first-hover regression after enabling: a fresh available pointer entry now clears the stale-open fence, while disabled clicks cannot release pending hover work. Three regressions and eight native availability cases cover the correction. Native16 role/viewport/theme/motion contexts verify fades, stationary bounds/font/text, immediate semantic retirement and existing focus/hover/touch paths. Four extra native lifecycle cases verify rapid reopen, live reduced motion, retired link fencing and second-Escape ownership; current screenshots inspected. Rework retained privately: replaced live Radix exit after its Escape-layer leak, fixed screenshot/capture readiness and owner matching, and held exit opacity through timer removal. Independent stable-SHA review and exact-head CI/PR Gate remain required before merge. The first CI attempt caught the added availability row changing catalog screenshot height (+60 desktop/+120 mobile). The recovery fixture moved after the stable catalog, with a placement regression and four unchanged local catalog goldens passing; the shared Tooltip owner is unchanged by this correction. Broad fluidity goal and existing production/schema/dependency/privacypriority1/Calendar1217 holds remain.
+## 2026-10-21 — Integrate current-membership learner attendance
+
+Prepared286 learner status/check-in and owner overrides behind existing shared
+admission. Exact enrollment targets survive queued corrections; stale generations
+cannot confirm or overwrite replacement memberships. Earlier facts/events remain
+owner-visible, unknown generations remain unknown. Existing confirmation/cache
+fences and UI owners are reused; legacy callers and deactivation remain intact.
+Initial disposable001–286 proof passed existing decommission, sequential/concurrent
+membership/override/entitlement contracts, genuine types, shared243 preservation
+and owned cleanup. First failed fixture attempt is retained; its ambiguous SQL
+identifier was fixed, not relabeled. Frozen source-profile1,175 checks pass;
+full focused checks, visual review, independent review and exact-head CI remain
+required. Global pause was honored and explicitly revoked; other production,
+shared-local249+, provider/publication and activation holds remain unchanged.
+Independent review then caught a strict-scan owner-precedence gap:286 now
+forward-corrects the resolver without editing285, preserving all earlier fences.
+Valid prepared self-enrollments must still be denied; both QR entrypoints reject
+without check-in dispatch. The added76 focused regression checks pass; corrected
+native proof, targeted review and final-head gates remain necessary before merge.
+Owner-sync/mixed-cohort readiness is explicitly held before learner activation,
+never permission for allocation or a legacy fallback.

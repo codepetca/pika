@@ -1005,6 +1005,39 @@ genuine metadata, independent review and exact-head CI remain acceptance gates.
 No new provider calls, production/shared-local migration, configuration or rollout
 activation is authorized by this preparation.
 
+The following connected learner group prepares migration286: one bounded
+current-membership status snapshot, strict membership scan selection and opaque
+generation-bound confirmations for admitted learners of either account label.
+Old check-ins and unattributed override history remain owner-visible but cannot
+confirm a replacement membership. No timestamp inference or historical backfill
+is used. Unadmitted callers retain their existing role guards and projections.
+
+Owner session reads expose exact loaded enrollment targets. Admitted marks must
+carry those targets through queue waits and retries; the atomic writer rejects
+replacement/closed generations before idempotency lookup. Set/undo events receive
+immutable generation attribution under an exact transaction capability. Same
+status across unknown/different generations creates fresh attribution rather
+than adopting the old mutable row. Earlier public history and existing authorized
+erasure/decommission boundaries remain intact. Scheduled active synchronization
+selects the membership protocol only for admitted actual owners; existing
+deactivation remains separate. Installation identity is never a user session.
+
+The source group retains the existing UI composition, identity linkage, cached
+confirmation comparison and resume/clock fences. Existing browser and native
+fixtures cover the connected boundary; local source/native checks alone do not
+establish PR acceptance, live provider compatibility, activation or a phase exit.
+All production, shared-local249+, live-provider/Bara-publication, account/billing
+and experience/cutover activation holds remain unchanged.
+
+Before any learner cohort activation, verify that every joined classroom has
+an authorized actual-owner membership sync and valid current participant bindings.
+When that preparation is missing, including a classroom whose owner is outside
+the cohort, the learner remains unavailable rather than falling back to legacy
+evidence or allocating provider identities.
+Mixed-cohort readiness is still a rollout gate; this source group does not prove
+it. Current ownership also takes precedence over retained self-enrollment for
+both status and scan authorization, even when that enrollment has a valid pointer.
+
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected
 learner open/close) is delivered through PR1555, merge `7306426662f8802e3ab1d21fd2948c9d85034dd9`.

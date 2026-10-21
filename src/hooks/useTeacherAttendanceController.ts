@@ -16,6 +16,16 @@ import { useAppMessage } from '@/ui'
 export type TeacherAttendanceMark = Exclude<TeacherAttendanceStatus, 'unmarked'>
 export type TeacherAttendanceSessionCommand = 'open' | 'close'
 type TeacherAttendanceStudent = TeacherAttendanceView['students'][number]
+type AttendanceMarkIntent = {
+  status: 'automatic' | TeacherAttendanceMark
+  membershipTargets: Readonly<Record<string, string>> | null
+}
+
+function matchesMembershipTarget(view: TeacherAttendanceView, student: TeacherAttendanceStudent, intent: AttendanceMarkIntent) {
+  return intent.membershipTargets === null
+    ? !view.membershipAware
+    : view.membershipAware === true && student.membershipGenerationId === intent.membershipTargets[student.studentId]
+}
 
 const STATUS_LABELS: Record<TeacherAttendanceStatus, string> = {
   unmarked: 'Unmarked',
@@ -86,24 +96,27 @@ function automaticAttendanceRecord(
 function projectAttendanceMarks(
   view: TeacherAttendanceView,
   studentIds: string[],
-  status: 'automatic' | TeacherAttendanceMark,
+  intent: AttendanceMarkIntent,
 ): TeacherAttendanceView {
   const idSet = new Set(studentIds)
   return {
     ...view,
     students: view.students.map((student) => {
-      if (!idSet.has(student.studentId)) return student
-      return status === 'automatic'
+      if (!idSet.has(student.studentId) || !matchesMembershipTarget(view, student, intent)) return student
+      return intent.status === 'automatic'
         ? { ...student, ...automaticAttendanceRecord(view, student) }
-        : { ...student, status, source: 'staff', hasManualOverride: true }
+        : { ...student, status: intent.status, source: 'staff', hasManualOverride: true }
     }),
   }
 }
 
-function matchesAttendanceMark(view: TeacherAttendanceView, studentId: string, status: 'automatic' | TeacherAttendanceMark) {
+function matchesAttendanceMark(view: TeacherAttendanceView, studentId: string, intent: AttendanceMarkIntent) {
   const student = view.students.find(candidate => candidate.studentId === studentId)
-  return Boolean(student && !student.pendingCommand && (status === 'automatic'
-    ? !student.hasManualOverride : student.hasManualOverride && student.status === status))
+  // An old membership receipt is obsolete even when the replacement row has a
+  // different status. It must never remain an optimistic overlay on that row.
+  if (!student || !matchesMembershipTarget(view, student, intent)) return true
+  return Boolean(!student.pendingCommand && (intent.status === 'automatic'
+    ? !student.hasManualOverride : student.hasManualOverride && student.status === intent.status))
 }
 
 type AttendanceConfirmationOutcome = 'confirmed' | 'failed' | 'pending'
@@ -202,6 +215,7 @@ export function useTeacherAttendanceController({
   const { queue: markQueue, view, pendingStudentIds: markPendingStudentIds } = useAttendanceMarkQueue(
     currentScopeKey, projectAttendanceMarks, matchesAttendanceMark,
   )
+  const latestReadViewRef = useRef<TeacherAttendanceView | null>(null)
   const readSequenceRef = useRef(0)
   const readView = useCallback(async () => {
     const sequence = ++readSequenceRef.current
@@ -209,7 +223,10 @@ export function useTeacherAttendanceController({
     const next = await fetchJSON<TeacherAttendanceView>(attendanceUrl(classroom.id, selectedDate), {
       errorMessage: 'Attendance is temporarily unavailable',
     })
-    if (mountedRef.current && sequence === readSequenceRef.current) markQueue.accept(next, readVersion)
+    if (mountedRef.current && sequence === readSequenceRef.current) {
+      latestReadViewRef.current = next
+      markQueue.accept(next, readVersion)
+    }
     return next
   }, [classroom.id, selectedDate, markQueue])
 
@@ -297,10 +314,11 @@ export function useTeacherAttendanceController({
     () => students
       .filter((student) => (
         !student.pendingCommand
+        && (!view?.membershipAware || Boolean(student.membershipGenerationId))
         && (!visibleStudentIdSet || visibleStudentIdSet.has(student.studentId))
       ))
       .map((student) => student.studentId),
-    [students, visibleStudentIdSet],
+    [students, visibleStudentIdSet, view?.membershipAware],
   )
   const selectableStudentIdSet = useMemo(
     () => new Set(selectableStudentIds),
@@ -603,18 +621,26 @@ export function useTeacherAttendanceController({
       || Boolean(visibleStudentIdSet && ids.some(id => !visibleStudentIdSet.has(id)))
       || ids.some(id => localPendingStudentIdsRef.current.has(id))
       || ids.some(id => studentsById.get(id)?.pendingCommand)
+      || (view.membershipAware && ids.some(id => !studentsById.get(id)?.membershipGenerationId))
       || view.classroomId !== classroom.id || view.classDate !== selectedDate
     ) return
     const commandViewKey = currentViewKeyRef.current
     const commandGeneration = viewGenerationRef.current
+    const requestId = createRequestId()
+    const intent: AttendanceMarkIntent = Object.freeze({ status,
+      membershipTargets: view.membershipAware ? Object.freeze(Object.fromEntries(ids.map(id =>
+        [id, studentsById.get(id)!.membershipGenerationId!],
+      ))) : null,
+    })
     try {
-      await markQueue.run(ids, status, async (studentIds) => {
+      await markQueue.run(ids, intent, async (studentIds) => {
         await fetchJSON('/api/teacher/attendance/marks', {
           init: {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ classroom_id: classroom.id, date: selectedDate,
-              request_id: createRequestId(), marks: studentIds.map(studentId => ({
+              request_id: requestId, marks: studentIds.map(studentId => ({
                 student_id: studentId, status, reason_code: 'staff_correction',
+                ...(intent.membershipTargets ? { expected_generation_id: intent.membershipTargets[studentId] } : {}),
               })) }),
           },
           errorMessage: 'Attendance is temporarily unavailable',
@@ -622,8 +648,13 @@ export function useTeacherAttendanceController({
         return studentIds
       })
       if (mountedRef.current && currentViewKeyRef.current === commandViewKey && markQueue.isActive) {
-        if (viewGenerationRef.current === commandGeneration && options?.clearSelectionAfter) clearSelection()
-        if (viewGenerationRef.current === commandGeneration && !ids.some(id => markQueue.pendingStudentIds.has(id))) showMessage({ text: options?.successText ?? (status === 'automatic'
+        const latest = latestReadViewRef.current
+        const sameTargets = latest && ids.every(id => {
+          const student = latest.students.find(row => row.studentId === id)
+          return student && matchesMembershipTarget(latest, student, intent)
+        })
+        if (sameTargets && viewGenerationRef.current === commandGeneration && options?.clearSelectionAfter) clearSelection()
+        if (sameTargets && viewGenerationRef.current === commandGeneration && !ids.some(id => markQueue.pendingStudentIds.has(id))) showMessage({ text: options?.successText ?? (status === 'automatic'
           ? `Automatic status restored for ${ids.length} ${ids.length === 1 ? 'student' : 'students'}`
           : `${ids.length} ${ids.length === 1 ? 'student' : 'students'} marked ${STATUS_LABELS[status].toLowerCase()}`), tone: 'info' })
         // The POST is the commit receipt. Reconcile in the background without
@@ -848,7 +879,8 @@ export function useTeacherAttendanceController({
     submitSessionCommand,
     submitMarks,
     resetCheckIns,
-    blockedStudentIds: new Set([...localPendingStudentIds, ...students.filter(student => student.pendingCommand).map(student => student.studentId)]),
+    blockedStudentIds: new Set([...localPendingStudentIds, ...students.filter(student => student.pendingCommand
+      || (view?.membershipAware && !student.membershipGenerationId)).map(student => student.studentId)]),
     qrOpen,
     setQrOpen,
     qrLoading,

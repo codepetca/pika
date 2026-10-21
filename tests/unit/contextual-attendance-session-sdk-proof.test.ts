@@ -10,7 +10,7 @@ describe('owner session SDK leaf (CPU only; no native evidence)',()=>{
   function harness(options:{alter?:(data:Record<string,unknown>,n:number)=>unknown;response?:()=>Response;sql?:(frame:AttendanceSessionSqlDescriptor,value:unknown)=>unknown}={}){
     const events:string[]=[];let n=0,active=0,maximum=0
     const original:typeof fetch=vi.fn(async(url,init)=>{const index=n++,call=calls[index]
-      expect(url).toBe(`${target.origin}/rest/v1/rpc/read_attendance_session_for_owner_v1`);expect(init?.redirect).toBe('error');expect(JSON.parse(String(init?.body))).toEqual(call.args)
+      expect(url).toBe(`${target.origin}/rest/v1/rpc/${call.adapter?'read_attendance_membership_session_for_owner_v1':'read_attendance_session_for_owner_v1'}`);expect(init?.redirect).toBe('error');expect(JSON.parse(String(init?.body))).toEqual(call.args)
       events.push(`http:${call.label}`);const data=attendanceSessionExpectedSnapshot(f,call,new Date().toISOString())
       return options.response?.()??new Response(JSON.stringify(options.alter?options.alter(data,index):data),{headers:{'content-type':'application/json'}})})
     const controls:AttendanceSessionProofControls={deadline:Date.now()+30000,cleanupDeadline:Date.now()+50000,guard:async()=>{events.push('guard')},account:vi.fn(),
@@ -46,6 +46,20 @@ describe('owner session SDK leaf (CPU only; no native evidence)',()=>{
     for(const alter of [(data:Record<string,unknown>)=>({...data,private:'secret'}),
       (data:Record<string,unknown>)=>({...data,rows:{...(data.rows as object),session:null}}),
       (data:Record<string,unknown>)=>({...data,students:[]})]){const h=harness({alter});await expect(h.proof.sdk()).rejects.toThrow();await h.proof.settle();expect(h.original).toHaveBeenCalledTimes(1)}
+  })
+  it('requires the exact independently proven generation targets for each adapter cell',async()=>{
+    const target={student_id:f.actors[2].id,generation_id:f.enrollments.find(e=>e.actorId===f.actors[2].id)!.id}
+    for(const replacement of [undefined,[],[target,target],[{...target,generation_id:f.enrollments[0].id}],
+      [{...target,student_id:f.actors[0].id}],[{...target,private:'forged'}]]){
+      const h=harness({alter:data=>({...data,membership_targets:replacement})})
+      await expect(h.proof.sdk()).rejects.toThrow(/^attendance_session_proof_refused$/);await h.proof.settle()
+      expect(h.original).toHaveBeenCalledTimes(1);expect(h.active()).toBe(0)
+    }
+  })
+  it('keeps the three direct legacy cells closed to the new snapshot field',async()=>{
+    const h=harness({alter:(data,n)=>n===7?{...data,membership_targets:[]}:data})
+    await expect(h.proof.sdk()).rejects.toThrow(/^attendance_session_proof_refused$/);await h.proof.settle()
+    expect(h.original).toHaveBeenCalledTimes(8);expect(h.active()).toBe(0)
   })
   it.each([302,403,503])('rejects unexpected transport HTTP%s even though semantic denials are HTTP200',async status=>{
     const h=harness({response:()=>new Response('private-error',{status,headers:{'content-type':'application/json'}})})

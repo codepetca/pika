@@ -140,6 +140,61 @@ describe('teacher Bara attendance commands', () => {
     expect(JSON.stringify(result)).not.toContain('participant_')
   })
 
+  it.each(['present', 'automatic'] as const)('writes membership %s overrides with the exact loaded generation and server scope', async status => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_SCOPE_MODE', 'teacher_entitlements')
+    const rpc = vi.fn().mockResolvedValue({ data: { outcome: 'duplicate', occurrence_ref: 'occurrence_private', applied_count: 0, unchanged_count: 1 }, error: null })
+    const input = { supabase: { rpc }, teacherId, classroomId, classDate: '2026-09-08', requestId,
+      integrationState: 'ready' as const, membershipAware: true as const,
+      marks: [{ studentId: studentOne, expectedGenerationId: requestId, status, reasonCode: 'staff_correction' }] }
+    await expect(executeTeacherAttendanceMarks(input)).resolves.toEqual({ outcome: 'duplicate', appliedCount: 0, unchangedCount: 1 })
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('apply_attendance_membership_status_overrides_v1', {
+      p_teacher_id: teacherId, p_classroom_id: classroomId, p_class_date: '2026-09-08', p_request_id: requestId,
+      p_scope_mode: 'teacher_entitlements', p_canary_actor_id: null, p_canary_classroom_id: null,
+      p_marks: [{ student_id: studentOne, expected_generation_id: requestId, status, reason_code: 'staff_correction' }],
+    })
+  })
+
+  it('does not issue an unfenced shared override when a loaded target is absent', async () => {
+    const rpc = vi.fn()
+    await expect(executeTeacherAttendanceMarks({ supabase: { rpc }, teacherId, classroomId, classDate: '2026-09-08', requestId,
+      integrationState: 'ready', membershipAware: true, marks: [{ studentId: studentOne, status: 'late' }] }))
+      .rejects.toMatchObject({ code: 'roster_changed' })
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('binds shared marks to the exact configured canary scope', async () => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_SCOPE_MODE', 'exact_canary')
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_ENABLED', 'true')
+    vi.stubEnv('BARA_ATTENDANCE_API_BASE_URL', 'https://attendance.example')
+    vi.stubEnv('BARA_ATTENDANCE_INSTALLATION_REF', 'installation_local')
+    vi.stubEnv('BARA_ATTENDANCE_INTEGRATION_SECRET', 'a-test-integration-secret-longer-than-32-characters')
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_TEACHER_ID', teacherId)
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_CANARY_CLASSROOM_ID', classroomId)
+    const rpc = vi.fn().mockResolvedValue({ data: { outcome: 'applied', occurrence_ref: 'occurrence_private', applied_count: 1, unchanged_count: 0 }, error: null })
+    await executeTeacherAttendanceMarks({ supabase: { rpc }, teacherId, classroomId, classDate: '2026-09-08', requestId,
+      integrationState: 'ready', membershipAware: true, marks: [{ studentId: studentOne, expectedGenerationId: requestId, status: 'present' }] })
+    expect(rpc).toHaveBeenCalledWith('apply_attendance_membership_status_overrides_v1', expect.objectContaining({
+      p_scope_mode: 'exact_canary', p_canary_actor_id: teacherId, p_canary_classroom_id: classroomId,
+    }))
+  })
+
+  it.each([
+    [{ code: 'PGRST202' }, 'migration_required'],
+    [{ code: '42883' }, 'migration_required'],
+    [{ code: 'PT409' }, 'conflict'],
+    [{ code: '23505' }, 'conflict'],
+    [{ code: 'P0001', message: 'attendance_roster_changed' }, 'roster_changed'],
+    [{ code: '42501' }, 'upstream_unavailable'],
+  ])('fails closed without falling back for membership RPC failure %j', async (error, code) => {
+    vi.stubEnv('PIKA_BARA_ATTENDANCE_SCOPE_MODE', 'teacher_entitlements')
+    const rpc = vi.fn().mockResolvedValue({ data: null, error })
+    await expect(executeTeacherAttendanceMarks({ supabase: { rpc }, teacherId, classroomId, classDate: '2026-09-08', requestId,
+      integrationState: 'ready', membershipAware: true, marks: [{ studentId: studentOne, expectedGenerationId: requestId, status: 'late' }] }))
+      .rejects.toMatchObject({ code })
+    expect(rpc).toHaveBeenCalledTimes(1)
+    expect(rpc.mock.calls[0][0]).toBe('apply_attendance_membership_status_overrides_v1')
+  })
+
   it('invalidates the latest active QR fact per selected student through Bara', async () => {
     const facts = [
       {

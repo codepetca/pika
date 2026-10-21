@@ -1,7 +1,7 @@
 import { act, cleanup, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { StudentAttendanceCheckIn } from '@/app/attendance/check-in/[token]/StudentAttendanceCheckIn'
-import { clearAuthoritativeStudentAttendanceConfirmation, fetchStudentAttendanceStatus, invalidateStudentAttendanceStatus } from '@/lib/student-attendance-client'
+import { clearAuthoritativeStudentAttendanceConfirmation, fetchStudentAttendanceStatus, invalidateStudentAttendanceStatus, preserveAuthoritativeStudentAttendanceConfirmation } from '@/lib/student-attendance-client'
 
 const confirmation = {
   state: 'checked_in', title: 'You are checked in', description: 'Recorded.',
@@ -26,6 +26,62 @@ afterEach(() => {
 })
 
 describe('confirmation page server revalidation with the real attendance client', () => {
+  it.each(['open', 'confirmed'] as const)('retires the old membership confirmation when the same-day fresh binding is %s', async state => {
+    const newBinding = 'b'.repeat(32)
+    let reads = 0
+    const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+      if (init?.method === 'POST') return new Response(JSON.stringify(confirmation))
+      reads += 1
+      return new Response(JSON.stringify({
+        studentId: confirmation.studentId, serverNow: confirmation.serverNow, nextRefreshAt: null,
+        classrooms: [{ classroomId: confirmation.classroomId, state: reads === 1 ? 'open' : state,
+          classDate: confirmation.classDate, occurrenceBinding: reads === 1 ? confirmation.occurrenceBinding : newBinding,
+          opensAt: '2026-10-19T17:30:00.000Z', closesAt: '2026-10-19T18:30:00.000Z',
+          ...(reads > 1 && state === 'confirmed' ? { attendanceStatus: 'late', confirmedAt: confirmation.recordedAt, validUntil: confirmation.validUntil } : {}),
+        }],
+      }), { headers: { 'x-pika-student-id': confirmation.studentId } })
+    })
+    vi.stubGlobal('fetch', fetcher)
+    await act(async () => { render(<StudentAttendanceCheckIn entryToken="token" canCheckIn />) })
+    expect((await fetchStudentAttendanceStatus(confirmation.studentId)).classrooms[0]).toMatchObject({
+      state: 'confirmed', occurrenceBinding: confirmation.occurrenceBinding,
+    })
+    await act(async () => { window.dispatchEvent(new Event('focus')) })
+    expect(screen.queryByText('You are checked in')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Scan today’s attendance QR' })).toBeVisible()
+    // Even a delayed handoff for the old membership cannot override the
+    // newer cached server binding for the same account, classroom and date.
+    preserveAuthoritativeStudentAttendanceConfirmation({ ...confirmation, confirmedAt: confirmation.recordedAt,
+      attendanceStatus: 'present' })
+    expect((await fetchStudentAttendanceStatus(confirmation.studentId)).classrooms[0]).toMatchObject({ state, occurrenceBinding: newBinding })
+    expect(fetcher.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1)
+    expect(reads).toBe(2)
+  })
+
+  it('does not replace a newer same-day cached binding when an invalidated old response arrives last', async () => {
+    const newBinding = 'b'.repeat(32)
+    const statusResponse = (binding: string, state: 'open' | 'confirmed') => new Response(JSON.stringify({
+      studentId: confirmation.studentId, serverNow: confirmation.serverNow, nextRefreshAt: null,
+      classrooms: [{ classroomId: confirmation.classroomId, state, classDate: confirmation.classDate,
+        occurrenceBinding: binding, opensAt: '2026-10-19T17:30:00.000Z', closesAt: '2026-10-19T18:30:00.000Z',
+        ...(state === 'confirmed' ? { attendanceStatus: 'present', confirmedAt: confirmation.recordedAt, validUntil: confirmation.validUntil } : {}),
+      }],
+    }), { headers: { 'x-pika-student-id': confirmation.studentId } })
+    let finishOld!: (value: Response) => void
+    const fetcher = vi.fn().mockReturnValueOnce(new Promise<Response>(resolve => { finishOld = resolve }))
+      .mockResolvedValueOnce(statusResponse(newBinding, 'open'))
+    vi.stubGlobal('fetch', fetcher)
+    const oldRead = fetchStudentAttendanceStatus(confirmation.studentId)
+    const fresh = await fetchStudentAttendanceStatus(confirmation.studentId, { forceNetwork: true })
+    expect(fresh.classrooms[0]).toMatchObject({ state: 'open', occurrenceBinding: newBinding })
+    finishOld(statusResponse(confirmation.occurrenceBinding, 'confirmed'))
+    await oldRead
+    expect((await fetchStudentAttendanceStatus(confirmation.studentId)).classrooms[0]).toMatchObject({
+      state: 'open', occurrenceBinding: newBinding,
+    })
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
   it.each(['open', 'confirmed'] as const)('uses the fresh %s result on focus instead of the previous POST', async (state) => {
     const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
       if (init?.method === 'POST') return new Response(JSON.stringify(confirmation))

@@ -21,15 +21,15 @@ root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:-check}"
 [[ "$#" -le 1 && ( "$mode" == check || "$mode" == --generate-types ) ]] || exit 2
 source_container=supabase_db_pika
-[[ "$(docker inspect "$source_container" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == pika ]]
-[[ "$(docker port "$source_container" 5432/tcp)" == *:54322 ]]
+[[ "$(docker inspect "$source_container" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == pika ]] || exit 1
+[[ "$(docker port "$source_container" 5432/tcp)" == *:54322 ]] || exit 1
 source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
-[[ "$source_version" =~ ^[0-9]{3}$ ]]
+[[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 285)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,285,'Attendance proof target must be exactly285'); validateLifecycleServicesReviewedMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 286)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,286,'Attendance proof target must be exactly286'); validateLifecycleServicesReviewedMigrations(migrations);"
 meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"
@@ -74,7 +74,7 @@ for i in {1..60}; do
   if docker exec "$clone_id" pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then ready=true; break; fi
   sleep 1
 done
-[[ "$ready" == true ]]
+[[ "$ready" == true ]] || exit 1
 docker exec "$clone_id" psql -U supabase_admin -d postgres -Xq -v ON_ERROR_STOP=1 -c 'alter role postgres superuser' > "$scratch/bootstrap.log" 2>&1
 sql() { docker exec -i "$clone_id" psql -U postgres -d postgres -Xq -v ON_ERROR_STOP=1; }
 printf 'drop schema if exists public cascade; drop schema if exists private cascade; drop schema if exists auth cascade; drop schema if exists storage cascade;' | sql > "$scratch/reset.log" 2>&1
@@ -92,7 +92,7 @@ for path in "$root"/supabase/migrations/*.sql; do
     exit 1
   fi
 done
-echo 'PASS replay001–285.'
+echo 'PASS replay001–286.'
 # Record only versions whose actual replay just succeeded, so existing native
 # harness preflights see the same real migration history as a CLI-created stack.
 {
@@ -119,14 +119,14 @@ fi
 echo 'PASS actual two-session membership RPC conflicts and fresh committed state.'
 meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.attendance-membership.owner=$$:$token" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-attendance-check -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true "$meta_image")"
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
-[[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]]
-(( $(wc -c < "$scratch/generated.ts") <= 8388608 ))
-for rpc in prepare_attendance_membership_snapshot_v1: stage_attendance_membership_roster_snapshot_v1: resolve_attendance_membership_scan_generation:; do
+[[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]] || exit 1
+(( $(wc -c < "$scratch/generated.ts") <= 8388608 )) || exit 1
+for rpc in prepare_attendance_membership_snapshot_v1: stage_attendance_membership_roster_snapshot_v1: resolve_attendance_membership_scan_generation: read_attendance_membership_status_v1: read_attendance_membership_session_for_owner_v1: apply_attendance_membership_status_overrides_v1:; do
   grep -Fq "$rpc" "$scratch/generated.ts"
 done
 awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { print ""; blank_lines -= 1 }; print }' "$scratch/generated.ts" > "$scratch/normalized.ts"
-[[ "$(docker inspect "$source_container" --format '{{.Id}}')" == "$source_id" ]]
-[[ "$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')" == "$source_version" ]]
+[[ "$(docker inspect "$source_container" --format '{{.Id}}')" == "$source_id" ]] || exit 1
+[[ "$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')" == "$source_version" ]] || exit 1
 docker exec "$source_container" pg_dump -U postgres -d postgres --schema-only --no-owner --no-privileges --schema=public --schema=private --schema=auth --schema=storage > "$scratch/schema-after.sql"
 # Recent pg_dump adds a fresh psql restriction token each time; it is transport
 # framing, not schema. Compare all schema bytes except those two framing lines.
@@ -138,4 +138,4 @@ if [[ "$mode" == --generate-types ]]; then
 else
   cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts"
 fi
-echo 'PASS isolated attendance285 replay, rollback behavior, real metadata and unchanged shared schema.'
+echo 'PASS isolated attendance286 replay, rollback behavior, real metadata and unchanged shared schema.'

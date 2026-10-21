@@ -63,6 +63,13 @@ export function attendanceSessionSdkInventory(f:AttendanceSessionFixture):readon
 const studentsFor=(f:AttendanceSessionFixture,classroom:string)=>f.enrollments.filter(e=>e.classroomId===classroom).map(e=>{
   const a=f.actors.find(a=>a.id===e.actorId)!,p=f.profiles.find(p=>p.user_id===e.actorId)!;return{id:a.id,email:a.email,first_name:p.first_name,last_name:p.last_name,enrollment:e.id}
 }).sort((a,b)=>a.enrollment.localeCompare(b.enrollment)).map(({enrollment:_e,...s})=>s)
+// The existing native witness proves these exact synthetic enrollment IDs have
+// active168 generations and matching scopes. No provider reference or date is
+// used to attribute membership, and self-owner enrollment is not a learner.
+const membershipTargetsFor=(f:AttendanceSessionFixture,call:AttendanceSessionSdkCall)=>
+  call.status==='ok'&&call.integration==='ready'?f.enrollments
+    .filter(e=>e.classroomId===call.args.p_classroom_id&&e.actorId!==f.classes.find(c=>c.id===e.classroomId)!.owner)
+    .map(e=>({student_id:e.actorId,generation_id:e.id})).sort((a,b)=>a.student_id.localeCompare(b.student_id)):[]
 export function attendanceSessionExpectedSnapshot(f:AttendanceSessionFixture,call:AttendanceSessionSdkCall,observedAt:string){
   const empty={participants:[],occurrence:null,policy:null,session:null,check_ins:[],overrides:[],outbox:[]}
   const full=call.view==='full',ready=call.integration==='ready',policyOnly=call.view==='empty-ready'||call.view==='empty-not-configured'
@@ -74,20 +81,22 @@ export function attendanceSessionExpectedSnapshot(f:AttendanceSessionFixture,cal
     {...empty,participants:policyOnly&&call.args.p_classroom_id===f.classes[0].id?f.participants:[],policy:policyOnly?{enabled:call.view!=='empty-not-configured'}:null}
   return{actor_id:call.args.p_actor_id,classroom_id:call.args.p_classroom_id,class_date:call.args.p_class_date,runtime_integration:call.args.p_runtime_integration,
     scope_mode:call.args.p_scope_mode,installation_ref:call.args.p_installation_ref,observed_at:observedAt,status:call.status,integration:call.integration,
-    students:call.status==='ok'?studentsFor(f,call.args.p_classroom_id):[],rows}
+    students:call.status==='ok'?studentsFor(f,call.args.p_classroom_id):[],rows,
+    ...(call.adapter?{membership_targets:membershipTargetsFor(f,call)}:{})}
 }
 /** Independent complete browser DTO oracle; never calls the production builder. */
 export function attendanceSessionExpectedView(f:AttendanceSessionFixture,call:AttendanceSessionSdkCall):TeacherAttendanceView|null{
   if(call.view==='none')return null;const full=call.view==='full'
   const integration=call.view==='empty-not-configured'?'not_configured':call.integration
-  return{classroomId:call.args.p_classroom_id,classDate:call.args.p_class_date,integration,
+  return{classroomId:call.args.p_classroom_id,classDate:call.args.p_class_date,integration,...(call.adapter?{membershipAware:true as const}:{}),
     session:{state:full?'open':'not_scheduled',opensAt:full?f.time.opens:null,closesAt:full?f.time.closes:null,sessionStartsAt:full?f.time.starts:null,
       sessionEndsAt:full?f.time.ends:null,presentThroughAt:full?f.time.present:null,absentAt:full?f.time.ends:null,revision:full?4:null,pendingCommand:full,commandFailed:false},
     sync:{state:full?'pending':integration==='ready'?'current':'unavailable',confirmedAt:full?f.time.updated:null},
     students:studentsFor(f,call.args.p_classroom_id).sort((a,b)=>a.email.localeCompare(b.email)||a.id.localeCompare(b.id)).map(s=>{
       const owner=s.id===f.actors[0].id
       return{studentId:s.id,firstName:s.first_name,lastName:s.last_name,status:full?(owner?'present':'late'):'unmarked',source:full?(owner?'student_qr':'staff'):null,
-        checkedInAt:full&&owner?f.time.accepted:null,revision:full?(owner?1:3):null,hasQrCheckIn:full&&owner,hasManualOverride:full&&!owner,pendingCommand:full&&owner,commandFailed:false}
+        checkedInAt:full&&owner?f.time.accepted:null,revision:full?(owner?1:3):null,hasQrCheckIn:full&&owner,hasManualOverride:full&&!owner,pendingCommand:full&&owner,commandFailed:false,
+        ...(call.adapter?{membershipGenerationId:membershipTargetsFor(f,call).find(target=>target.student_id===s.id)?.generation_id??null}:{})}
     })}
 }
 export function attendanceSessionGraphSql(f:AttendanceSessionFixture,synthetic:boolean){

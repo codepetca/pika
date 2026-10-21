@@ -15,18 +15,18 @@ export const teacherAttendanceSessionCommandSchema = attendanceCommandBaseSchema
   command: z.enum(['open', 'close']),
 }).strict()
 
-export const teacherAttendanceMarksSchema = attendanceCommandBaseSchema.extend({
-  marks: z.array(z.object({
-    student_id: z.string().uuid(),
-    status: z.enum(['automatic', 'present', 'late', 'absent']),
-    reason_code: z.enum([
-      'staff_correction',
-      'late_arrival',
-      'excused_absence',
-      'administrative_override',
-    ]).optional(),
-  }).strict()).min(1).max(200),
-}).strict().superRefine((value, context) => {
+const attendanceMarkSchema = z.object({
+  student_id: z.string().uuid(),
+  status: z.enum(['automatic', 'present', 'late', 'absent']),
+  reason_code: z.enum([
+    'staff_correction',
+    'late_arrival',
+    'excused_absence',
+    'administrative_override',
+  ]).optional(),
+}).strict()
+
+function uniqueStudentMarks(value: { marks: Array<{ student_id: string }> }, context: z.RefinementCtx) {
   const seen = new Set<string>()
   value.marks.forEach((mark, index) => {
     if (seen.has(mark.student_id)) {
@@ -38,7 +38,15 @@ export const teacherAttendanceMarksSchema = attendanceCommandBaseSchema.extend({
     }
     seen.add(mark.student_id)
   })
-})
+}
+
+export const teacherAttendanceMarksSchema = attendanceCommandBaseSchema.extend({
+  marks: z.array(attendanceMarkSchema).min(1).max(200),
+}).strict().superRefine(uniqueStudentMarks)
+
+export const teacherAttendanceMembershipMarksSchema = attendanceCommandBaseSchema.extend({
+  marks: z.array(attendanceMarkSchema.extend({ expected_generation_id: z.string().uuid() }).strict()).min(1).max(200),
+}).strict().superRefine(uniqueStudentMarks)
 
 export const teacherAttendanceCheckInInvalidationSchema = attendanceCommandBaseSchema.extend({
   student_ids: z.array(z.string().uuid()).min(1).max(200),

@@ -46,6 +46,7 @@ export type TeacherAttendanceSessionState =
  * this shape; server adapters translate them into this projection.
  */
 export interface TeacherAttendanceView {
+  membershipAware?: true
   classroomId: string
   classDate: string
   integration: 'disabled' | 'not_configured' | 'ready'
@@ -67,6 +68,7 @@ export interface TeacherAttendanceView {
   }
   students: Array<{
     studentId: string
+    membershipGenerationId?: string | null
     firstName: string
     lastName: string
     status: TeacherAttendanceStatus

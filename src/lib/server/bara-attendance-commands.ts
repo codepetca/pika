@@ -13,7 +13,8 @@ import type {
   V1SessionCommand,
 } from '@/vendor/attendance-contract/v1/types'
 import type { VerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
-import { getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceCanaryScope, getBaraAttendanceClassroomIntegrationState } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
 
 const opaqueRefSchema = z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/)
 const contextRowSchemas = {
@@ -256,8 +257,10 @@ export async function executeTeacherAttendanceMarks(input: {
   classDate: string
   requestId: string
   actor?: VerifiedPikaAttendanceTeacher
+  membershipAware?: true
   marks: Array<{
     studentId: string
+    expectedGenerationId?: string
     status: 'automatic' | 'present' | 'late' | 'absent'
     reasonCode?: string
   }>
@@ -270,18 +273,32 @@ export async function executeTeacherAttendanceMarks(input: {
   if (integrationState !== 'ready') {
     throw new TeacherAttendanceCommandError(integrationState)
   }
-  const { data, error } = await input.supabase.rpc('apply_attendance_status_overrides_v1', {
+  if (input.membershipAware && input.marks.some(mark => !z.string().uuid().safeParse(mark.expectedGenerationId).success)) {
+    throw new TeacherAttendanceCommandError('roster_changed')
+  }
+  const scopeMode = input.membershipAware ? getBaraAttendanceScopeMode() : null
+  const canary = scopeMode === 'exact_canary' ? getBaraAttendanceCanaryScope() : null
+  const { data, error } = await input.supabase.rpc(input.membershipAware
+    ? 'apply_attendance_membership_status_overrides_v1' : 'apply_attendance_status_overrides_v1', {
     p_teacher_id: input.teacherId,
     p_classroom_id: input.classroomId,
     p_class_date: input.classDate,
     p_request_id: input.requestId,
     p_marks: input.marks.map((mark) => ({
       student_id: mark.studentId,
+      ...(input.membershipAware ? { expected_generation_id: mark.expectedGenerationId } : {}),
       status: mark.status,
       ...(mark.reasonCode ? { reason_code: mark.reasonCode } : {}),
     })),
+    ...(input.membershipAware ? {
+      p_scope_mode: scopeMode,
+      p_canary_actor_id: canary?.teacherId ?? null,
+      p_canary_classroom_id: canary?.classroomId ?? null,
+    } : {}),
   })
   if (error) {
+    if (input.membershipAware && ['PGRST202', '42883'].includes(error.code ?? '')) throw new TeacherAttendanceCommandError('migration_required')
+    if (input.membershipAware && ['PT409', '40001'].includes(error.code ?? '')) throw new TeacherAttendanceCommandError('conflict')
     if (isMigrationError(error)) throw new TeacherAttendanceCommandError('migration_required')
     if (error.code === '23505') throw new TeacherAttendanceCommandError('conflict')
     if (error.message?.includes('attendance_roster_changed')) {

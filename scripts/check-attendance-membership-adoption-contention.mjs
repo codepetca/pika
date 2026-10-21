@@ -35,7 +35,7 @@ function verifyTarget() {
 // reused verbatim except its one terminal rollback, changed in memory only.
 const fixture = readFileSync(new URL('./check-attendance-membership-adoption-database.sql', import.meta.url), 'utf8')
 assert.equal(createHash('sha256').update(fixture).digest('hex'),
-  '3b13503bcc8f6d708d29ba20de1614bae08499f3d7a634c95258a6da587a4ceb', 'Unexpected native fixture')
+  '371605ab948e04ad6d689981dead0d49a0b5615a3276841eddc8eb08b8522a96', 'Unexpected native fixture')
 assert.equal([...fixture.matchAll(/^rollback;\s*$/gim)].length, 1)
 assert.match(fixture, /rollback;\s*$/i)
 const profile = readFileSync(new URL('./attendance-membership-adoption-reviewed-migration.ts', import.meta.url), 'utf8')
@@ -43,6 +43,10 @@ const sealedHash = profile.match(/sha256: '([a-f0-9]{64})'/)?.[1]
 assert.ok(sealedHash, 'Missing reviewed285 seal')
 const migration = readFileSync(new URL('../supabase/migrations/285_attendance_membership_adoption.sql', import.meta.url), 'utf8')
 assert.equal(createHash('sha256').update(migration).digest('hex'), sealedHash)
+const learnerProfile = readFileSync(new URL('./attendance-learner-membership-reviewed-migration.ts', import.meta.url), 'utf8')
+const learnerSeal = learnerProfile.match(/sha256: '([a-f0-9]{64})'/)?.[1]
+assert.ok(learnerSeal, 'Missing reviewed286 seal')
+assert.equal(createHash('sha256').update(readFileSync(new URL('../supabase/migrations/286_attendance_learner_membership.sql', import.meta.url))).digest('hex'), learnerSeal)
 verifyTarget()
 
 const MAX_STREAM_BYTES = 262_144
@@ -138,6 +142,10 @@ const learner = "'f2850000-0000-4000-8000-000000000002'::uuid"
 const classroom = "'f2850000-0000-4000-8000-000000000010'::uuid"
 const rosterId = "'f2850000-0000-4000-8000-000000000030'::uuid"
 const prepare = `public.prepare_attendance_membership_snapshot_v1(${owner},${classroom},'2026-10-21','2026-10-21','exact_canary',${owner},${classroom})`
+const learnerStatus = `public.read_attendance_membership_status_v1(${learner},'2026-10-21','ready','exact_canary','fixture285',${owner},${classroom})`
+const ownerSession = `public.read_attendance_membership_session_for_owner_v1(${owner},${classroom},'2026-10-21','ready','exact_canary','fixture285',${owner},${classroom})`
+const marks = `public.apply_attendance_membership_status_overrides_v1(${owner},${classroom},'2026-10-21','f2860000-0000-4000-8000-000000000080',
+  '[{"student_id":"f2850000-0000-4000-8000-000000000002","expected_generation_id":"f2850000-0000-4000-8000-000000000022","status":"late"}]'::jsonb,'exact_canary',${owner},${classroom})`
 const remove = `public.remove_classroom_students_for_owner_v1(${owner},${classroom},array[${rosterId}])`
 const literal = value => `'${value.replaceAll("'", "''")}'`
 const queryJson = async (session, sql) => JSON.parse(await session.run(`select ${sql};`))
@@ -215,12 +223,40 @@ try {
   await holder.run('rollback;')
   assert.deepEqual(await state(contender), baseline)
 
+  // Membership reads and exact override writes hold the same real lock. A
+  // competing removal cannot race either result; no private helper is invoked.
+  await holder.run('begin;')
+  const observed = await queryJson(holder, learnerStatus)
+  assert.equal(observed.classrooms[0].generation_id, baseline.scan.generation_id)
+  await expectSqlError(contender, remove, 'PT409', 'Roster operation busy')
+  await holder.run('rollback;')
+  //132's existing setter owns the entitlement lock. Its legacy account-label
+  // prerequisite is changed only inside this rolled-back synthetic transaction.
+  await holder.run(`begin; update public.users set role='teacher' where id=${owner};`)
+  const revoked = await queryJson(holder, `public.set_attendance_teacher_entitlement_v1(
+    'f2860000-0000-4000-8000-000000000081',${owner},'revoked','2026-10-01T00:00:00Z',null,
+    'synthetic-test','fixture286','concurrent_revocation',1)`)
+  assert.equal(revoked.status, 'revoked')
+  await expectSqlError(contender, marks, '40001', 'classroom_operation_busy')
+  await holder.run('rollback;')
+  await holder.run('begin;')
+  const marked = await queryJson(holder, marks)
+  assert.equal(marked.applied_count, 1)
+  await expectSqlError(contender, marks, '40001', 'classroom_operation_busy')
+  await expectSqlError(contender, remove, 'PT409', 'Roster operation busy')
+  await holder.run('commit;')
+  assert.equal((await queryJson(contender, marks)).outcome, 'duplicate')
+  assert.equal((await queryJson(contender, learnerStatus)).classrooms[0].override.status, 'late')
+
   // 3: actual preserving removal holds the lock; both new APIs must conflict.
   await holder.run('begin;')
   const removed = await queryJson(holder, remove)
   assert.equal(removed.removed_count, 1)
   await expectSqlError(contender, prepare, '40001', 'classroom_operation_busy')
   await expectSqlError(contender, stage, '40001', 'classroom_operation_busy')
+  await expectSqlError(contender, learnerStatus, '40001', 'classroom_operation_busy')
+  await expectSqlError(contender, ownerSession, '40001', 'classroom_operation_busy')
+  await expectSqlError(contender, marks, '40001', 'classroom_operation_busy')
   await holder.run('commit;')
   const closed = await state(contender)
   assert.deepEqual(closed.scan, { status: 'forbidden' })
@@ -230,6 +266,10 @@ try {
   assert.equal(closed.capabilities, 0)
   assert.notEqual(closed.source, baseline.source)
   await expectSqlError(contender, stage, '40001', 'attendance_roster_source_changed')
+  assert.deepEqual((await queryJson(contender, learnerStatus)).classrooms, [])
+  await expectSqlError(contender, marks, '23514', 'attendance_roster_changed')
+  assert.equal((await queryJson(contender, ownerSession)).membership_targets.some(target => target.student_id === 'f2850000-0000-4000-8000-000000000002'), false)
+  assert.equal(await queryJson(contender, '(select count(*) from private.attendance_override_mutations)'), 0)
   const retained = await queryJson(contender, `jsonb_build_object(
     'closed',private.attendance_participant_generation_closed(${literal(baseline.ref)}),
     'superseded',exists(select 1 from public.attendance_integration_outbox where id=${literal(staged.outbox_id)}::uuid and status='superseded'),
