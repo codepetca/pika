@@ -48119,6 +48119,11 @@ Coordinator owns codex/classroom-tab-branding; direct implementation. Startup us
 
 <!-- pika-session-log-archive-batch:bf858f8aa43e026fa06f53f5a73e2425c6b30915997c52297d497716a6826eb6 -->
 <!-- pika-session-log-archive-batch:8c070cfecafc825b68469da894de1a4481cf855535d0f98baac3a5b69c262345 -->
+## 2026-10-19 — Production promotion of classroom branding
+
+Owner explicitly requests production app deployment after PR1615 main merge10793ded1. Draft promotion1621 includes reviewed branding/header and dormant Gradebook integration; attendance correction is already source-equivalent in production99a4103. Production Vercel env-name inventory51 confirms shared experience admission absent, so active paths retain legacy services and SQL270 is not required. No migration apply, cohort/flag, provider/billing or real-data write authorized or performed. Security/correctness review clean at10793; compatibility review covers release integration. Prior full10-lane CI39350459331 validates identical application tree. Resolved archive-only prior-production ancestry conflict in ephemeral promotion checkout, preserving main and production notes; application tree unchanged. Stable-head PRGate, production merge and Vercel verification follow in external production1621 release receipt.
+
+<!-- pika-session-log-archive-batch:a455e5b55b969e43e3c54155fc2024eff5d4b140b0c3334536af6cc05da3aefc -->
 ## 2026-10-19 — CI signal-containment fixture repair
 
 PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.

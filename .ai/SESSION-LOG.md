@@ -766,6 +766,10 @@ Aligned the existing teacher/student account menu with Pattern Lab action-menu m
 
 CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
 
+## 2026-10-20 — Promote updated student details to production
+
+Owner authorized main-to-production for the enlarged student inspector. Draft1641 batches main1e1c6b667, including Calendar motion and dormant server compatibility already merged/reviewed on main. Reconciled production0a1d78c38 archive history, preserving its sole unique promotion receipt and all main entries; product/config/dependency/migration bytes remain exact main. Production migrations001–282 are already verified in main3fd1fc1a4; this promotion applies none and changes no environment or activation controls. Startup/verify-env passed; weekly67% remaining, storage271GB healthy. Release risk runtime-platform/workspace-state; independent security/compatibility review, focused checks and exact-head PR Gate precede authorized merge/deployment verification. DeepSeek pause honored; native reviewers GPT6.1Sol/high, bounded one initial wave, tokens/active time unknown.
+
 ## 2026-10-21 — Calendar category themes and Classwork icons
 
 Owner approved shared amber for due dates/tests, quiet light green for materials/surveys, and existing orange for announcements. Added semantic light/dark calendar tokens and reused them across agenda/grid/weekend/day chips. ClassworkTypeIcon keeps ClipboardList/FileText/ListChecks consistent in teacher creation menus, teacher/student lists and prototypes. Saved the convention in stable UI guidance and a scoped brief; Pattern Lab calendar-identity renders the real cell and shared icons. No new survey scheduling, statuses, dependencies or migrations.
@@ -916,6 +920,7 @@ change or production/provider action; corrected-head review/CI still required.
 Shared Tooltip now uses semantic fast opacity entry and a bounded decorative exit with fixed text geometry. Logical close unmounts live Radix content, descriptions, child owners and document handlers immediately. Only whitelisted static text/formatting/link/SVG DOM is copied, with IDs, roles, targets and focus/event attributes removed and inert/hidden pointer fencing. Unsupported widgets/media/custom content closes immediately; reopen, disabled/hidden/unmount and reduced motion retire the copy. No public API or dependency change. Pattern Lab includes an availability toggle for both roles; the separate mobile ancestor-scroll hint discovery issue remains open.
 
 Owner14 and gallery52 tests pass. Initial canonical focused3,690/274 plus architecture/UI/design policy, TypeScript, lint and audit pass; the final corrected gate is recorded with the PR. Independent review identified a first-hover regression after enabling: a fresh available pointer entry now clears the stale-open fence, while disabled clicks cannot release pending hover work. Three regressions and eight native availability cases cover the correction. Native16 role/viewport/theme/motion contexts verify fades, stationary bounds/font/text, immediate semantic retirement and existing focus/hover/touch paths. Four extra native lifecycle cases verify rapid reopen, live reduced motion, retired link fencing and second-Escape ownership; current screenshots inspected. Rework retained privately: replaced live Radix exit after its Escape-layer leak, fixed screenshot/capture readiness and owner matching, and held exit opacity through timer removal. Independent stable-SHA review and exact-head CI/PR Gate remain required before merge. The first CI attempt caught the added availability row changing catalog screenshot height (+60 desktop/+120 mobile). The recovery fixture moved after the stable catalog, with a placement regression and four unchanged local catalog goldens passing; the shared Tooltip owner is unchanged by this correction. Broad fluidity goal and existing production/schema/dependency/privacypriority1/Calendar1217 holds remain.
+
 ## 2026-10-21 — Integrate current-membership learner attendance
 
 Prepared286 learner status/check-in and owner overrides behind existing shared
@@ -943,3 +948,19 @@ never permission for allocation or a legacy fallback.
 - Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
 - Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
 - Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
+
+## 2026-10-21 — Prepare calendar and attendance production batch
+
+Owner explicitly authorized main-to-production after green checks. Draft1657
+batches seven reviewed main PRs through82ffc5cdd: Calendar themes/Classwork icons,
+shared Tooltip fade/formatted content, announcement scheduling dismissal, and
+admitted attendance membership/learner paths. Reconcile production25aba4152's
+unique history receipts in this ephemeral promotion checkout; application,
+configuration, dependency and SQL bytes remain exact reviewed main. Production
+history001–284 is the last verified schema;285/286 are source-only and remain
+unapplied. Current admission and compatibility verification, cumulative independent
+security/compatibility review and exact-head CI/PR Gate precede the authorized
+merge. No environment, cohort, provider, account or migration mutation is part
+of this app release. Startup/verify-env passes; weekly35% remaining and storage
+healthy. Risk runtime-platform/workspace-state; bounded two-reviewer initial wave
+using GPT6.1Sol/high, per-review tokens and active time unknown.
