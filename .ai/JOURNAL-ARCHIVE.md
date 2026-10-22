@@ -48736,3 +48736,23 @@ test-only correction: await a real fake-transport dispatch barrier, then advance
 fake timers through the unchanged80ms/160ms deadlines. All20 leaf tests pass;
 runtime proof/application/SQL/limits are unchanged. Targeted review and fresh CI
 remain; no native proof, migration, deployment or activation is implied.
+
+<!-- pika-session-log-archive-batch:f69e13c75b010fe08e48095457ef406ff08514bcdbe3e13cf0031b771690091d -->
+## 2026-10-20 — Contextual archived reuse workflow preparation
+
+Prepared eight existing HTTP methods for admitted actual owners of either account
+label: archived reuse, Blueprint list/detail, selected merge review, stored
+proposal list/apply and instantiation. Reused existing role-independent atomic
+writers, creation entitlements and managed-copy settlement; no SQL, new flag,
+dependency or UI change. Added current source owner/archive/link/Version/revision
+rechecks and stored classroom-origin/Blueprint-target proposal binding. Legacy
+teachers retain active-source review through final apply and all own proposal
+types behind explicit teacher guards; nonteacher admission grants none of those
+adjacent legacy capabilities. Root found compatibility gaps before formal review;
+RED10+4 cases became GREEN, and root independently passed237 checks/15 suites plus
+audit. Author TypeScript/lint/architecture pass. Existing partial manual review
+and automatic provenance semantics remain; no stronger source snapshot or atomic
+archive guarantee is claimed. Sol6.1/high source mapping and bounded implementation
+delivered; attributable usage/time unknown. Final checks, independent review,
+parent-main integration and CI remain. All production/shared-local249+,
+provider/account/plan/billing/AI and activation holds remain unchanged.

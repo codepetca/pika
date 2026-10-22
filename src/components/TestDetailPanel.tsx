@@ -1896,7 +1896,7 @@ export function TestDetailPanel({
 
   const testsMarkdownPanel = (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="modal-controls-row flex flex-wrap items-center justify-between gap-2">
         <span data-testid="markdown-helper-status" className="text-xs font-medium text-text-muted">
           {markdownHelperStatus}
         </span>
@@ -2284,6 +2284,7 @@ export function TestDetailPanel({
       <div data-testid="test-editor-details-pane" className="flex flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
         <FormField
           label="Title"
+          className="modal-title-field"
           required
           labelAccessory={(
             <div className="flex items-center gap-1">
@@ -2424,7 +2425,7 @@ export function TestDetailPanel({
           <div className="min-h-0 flex-1">{testsMarkdownPanel}</div>
         ) : (
           <>
-            <div data-testid="test-question-actionbar" className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <div data-testid="test-question-actionbar" className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">
                 {selectedQuestion?.question_type === 'multiple_choice' ? 'Multiple choice' : selectedQuestion ? 'Open response' : ''}
               </p>

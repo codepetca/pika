@@ -74,8 +74,8 @@ function MaterialEditor({
         tall
       >
         <div className="grid h-full min-h-0 w-full overflow-y-auto lg:grid-cols-3 lg:overflow-hidden">
-          <section aria-label="Material details" className="flex flex-col gap-4 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
-            <FormField label="Title" required>
+          <section aria-label="Material details" className="flex flex-col gap-4 bg-surface p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+            <FormField label="Title" required className="modal-title-field">
               <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
             </FormField>
             <Button variant="secondary" size="sm" fullWidth disabled={saving} onClick={() => setPreviewOpen(true)}>
@@ -108,7 +108,7 @@ function MaterialEditor({
             </div>
           </section>
           <section aria-label="Material editor" className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
-            <ContentField label="Content" hideLabel collapseHiddenLabel className="flex min-h-0 flex-1 flex-col">
+            <ContentField label="Content" hideLabel collapseHiddenLabel className="modal-toolbar-row flex min-h-0 flex-1 flex-col">
               <RichTextEditor
                 content={content}
                 onChange={onContentChange}

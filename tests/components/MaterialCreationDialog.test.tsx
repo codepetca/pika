@@ -44,6 +44,8 @@ describe('Material formatted editing', () => {
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
     expect(handlers.onSave).toHaveBeenCalledWith(false)
+    await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+    expect(handlers.onClose).toHaveBeenCalledOnce()
   })
 
   it('opens and previews existing rich content without converting or replacing it', async () => {

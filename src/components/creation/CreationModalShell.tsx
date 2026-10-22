@@ -81,6 +81,18 @@ export function CreationModalShell({
   onClose,
   children,
 }: CreationModalShellProps) {
+  const hasHeader = showTitle || Boolean(headerCenter)
+  // Compact editors share their existing first row with the panel-owned X.
+  // Stacked layouts reserve the title corner; split layouts reserve control rows.
+  const compactCloseSpace = !hasHeader && showCloseButton
+    ? cn(
+      '[&_.modal-title-field]:sticky [&_.modal-title-field]:top-3 sm:[&_.modal-title-field]:top-4 [&_.modal-title-field]:z-sticky-table [&_.modal-title-field]:bg-inherit [&_.modal-title-field]:pr-14 lg:[&_.modal-title-field]:static lg:[&_.modal-title-field]:pr-0',
+      '[&_.modal-controls-row]:sticky [&_.modal-controls-row]:top-3 sm:[&_.modal-controls-row]:top-4 [&_.modal-controls-row]:z-sticky-table [&_.modal-controls-row]:min-h-control [&_.modal-controls-row]:bg-surface [&_.modal-controls-row]:pr-14',
+      '[&_.modal-question-controls-row]:sticky [&_.modal-question-controls-row]:top-3 sm:[&_.modal-question-controls-row]:top-4 [&_.modal-question-controls-row]:z-sticky-table [&_.modal-question-controls-row]:bg-surface lg:[&_.modal-question-controls-row>div:last-child]:pr-14',
+      'lg:[&_.modal-toolbar-row_[role=toolbar]]:pr-14',
+    )
+    : undefined
+
   function handleRequestClose() {
     if (closeDisabled) return
     onClose()
@@ -94,17 +106,18 @@ export function CreationModalShell({
       closeDisabled={closeDisabled}
       showCloseButton={false}
       maxWidth={maxWidth}
-      className={cn(CREATION_PANEL_CLASS, tall && 'h-[90dvh]', panelClassName)}
+      className={cn(CREATION_PANEL_CLASS, compactCloseSpace, tall && 'h-[90dvh]', panelClassName)}
       viewportPaddingClassName="p-2 sm:p-4"
       ariaLabelledBy={titleId}
     >
-      {(showTitle || showCloseButton) ? (
-        <div className={cn('grid min-h-14 shrink-0 items-center gap-2 px-3 sm:px-4', headerCenter ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_auto]')}>
+      {showCloseButton && <DialogCloseButton label={closeLabel} onClose={handleRequestClose} disabled={closeDisabled}
+        className={!hasHeader ? 'sm:right-4 sm:top-4' : undefined} />}
+      {hasHeader ? (
+        <div className={cn('grid min-h-14 shrink-0 items-center gap-2 px-3 pt-3 sm:px-4', headerCenter ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_auto]')}>
           <h2 id={titleId} className={showTitle ? 'min-w-0 truncate pr-14 text-base font-semibold text-text-default' : 'sr-only'} title={title}>
             {title}
           </h2>
           {headerCenter && <div className="flex flex-1 items-center justify-center">{headerCenter}</div>}
-          {showCloseButton && <DialogCloseButton label={closeLabel} onClose={handleRequestClose} disabled={closeDisabled} />}
         </div>
       ) : <h2 id={titleId} className="sr-only">{title}</h2>}
 

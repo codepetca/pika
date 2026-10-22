@@ -238,8 +238,10 @@ for new or deliberately modified work.
 - `ModalLayer` is the canonical current owner for document-level dialogs and
   mobile drawers. Several older fixed overlays remain governed migration debt.
 - Dismissible modal windows use `DialogCloseButton` at the top right with the
-  shared 44px ghost X and `right-3 top-3` inset. Keep it outside scrolling
-  content and reserve its corner in titles and editor shells. The same close
+  shared 44px ghost X and `right-3 top-3` inset (creation editors match their
+  responsive form padding). Keep it outside scrolling content and share the
+  existing title/control row; do not add a close-only header band. Reserve
+  horizontal space beside mode switches and title controls. The same close
   callback and busy guard govern X, Escape and backdrop; X cancels rather than
   confirms. Side drawers, inline panes and item removal keep their own controls.
 - Portable layer-responsibility and light/dark scrim tokens back the shared

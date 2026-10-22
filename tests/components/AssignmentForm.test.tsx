@@ -1,9 +1,22 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { TooltipProvider } from '@/ui'
 
 describe('AssignmentForm', () => {
+  it('keeps mode selection and panel dismissal separate in a compact modal', () => {
+    const onClose = vi.fn(), onChange = vi.fn()
+    render(<CreationModalShell isOpen title="Edit Assignment" titleId="compact-assignment" closeLabel="Close assignment" onClose={onClose}>
+      <AssignmentForm desktopSplit title="Essay" instructionsMarkdown="Keep **this**." dueAt=""
+        onTitleChange={vi.fn()} onInstructionsMarkdownChange={onChange} onDueAtChange={vi.fn()} />
+    </CreationModalShell>)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Instructions Markdown' })).toHaveValue('Keep **this**.')
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Close assignment' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
   it('retires the real editor controls while keeping field values and its toolbar strip', async () => {
     const props = { title: 'Essay', instructionsMarkdown: 'Explain **why**.', dueAt: '',
       onTitleChange: vi.fn(), onInstructionsMarkdownChange: vi.fn(), onDueAtChange: vi.fn(), onBlur: vi.fn() }

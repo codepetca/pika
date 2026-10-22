@@ -499,6 +499,7 @@ describe('TestDetailPanel', () => {
   })
 
   it('keeps question actions and Markdown inside the split editor', async () => {
+    const onRequestClose = vi.fn()
     holdAutosaveDebounce()
     mockFetchForTest(summaryDetailQuestions)
     render(
@@ -506,6 +507,7 @@ describe('TestDetailPanel', () => {
         test={makeTestWithStats({ status: 'draft' })}
         classroomId="classroom-1"
         onTestUpdate={vi.fn()}
+        onRequestClose={onRequestClose}
         testQuestionLayout="split"
       />,
       { wrapper: Wrapper },
@@ -522,6 +524,8 @@ describe('TestDetailPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     expect(screen.getByTestId('test-markdown-editor')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: 'Close test editor' }))
+    expect(onRequestClose).toHaveBeenCalledOnce()
   })
 
   it('ignores stale draft responses after selected assessment changes', async () => {

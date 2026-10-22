@@ -223,7 +223,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
   }
 
   return (
-    <main className="min-h-screen bg-page text-text-default">
+    <main data-pattern-lab-ready={mounted || undefined} className="min-h-screen bg-page text-text-default">
       <section aria-label="Application header references">
         <AppHeader initialNow={HEADER_REFERENCE_INITIAL_NOW} user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
         <AppHeader

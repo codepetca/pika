@@ -99,9 +99,10 @@ export function AssignmentForm({
       >
         <div
           data-testid="assignment-editor-details-pane"
-          className="flex flex-col gap-4 border-b border-border p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0"
+          className="flex flex-col gap-4 bg-surface border-b border-border p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0"
         >
           <FormField
+            className="modal-title-field"
             label="Title"
             required
             hideLabel={!titleAccessory}

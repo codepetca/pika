@@ -148,9 +148,9 @@ export function SurveyEditSplitPattern() {
         <Button className="mt-3" variant="surface" onClick={reset}>Open survey edit prototype</Button>
       </Card>
       <CreationModalShell isOpen={open && !preview} onClose={() => setOpen(false)} title="Edit Survey" titleId="pattern-survey-edit-title" closeLabel="Close survey edit prototype" maxWidth="!max-w-6xl" panelClassName="!p-0" tall contentClassName="!overflow-hidden !p-0">
-        <div className="grid min-h-0 w-full grid-cols-1 overflow-y-auto lg:h-full lg:grid-cols-3 lg:overflow-hidden">
+        <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
           <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
-            <FormField label="Title" required error={titleError} labelAccessory={(
+            <FormField label="Title" required className="modal-title-field" error={titleError} labelAccessory={(
               <div className="flex items-center gap-1">
                 <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
                 <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" disabled={code} variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" items={[
@@ -177,14 +177,14 @@ export function SurveyEditSplitPattern() {
           <div data-testid="survey-editor-content-pane" className="flex min-h-96 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
             {code ? (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
-                <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">Survey Markdown</p><Button size="sm" onClick={applyMarkdown}>Apply Markdown</Button></div>
+                <div className="modal-controls-row flex items-center justify-between gap-2"><p className="text-sm font-medium">Survey Markdown</p><Button size="sm" onClick={applyMarkdown}>Apply Markdown</Button></div>
                 <p className="text-xs text-text-muted">Edit the title, settings, and questions here, then apply to return to questions.</p>
                 {markdownError ? <p role="alert" className="whitespace-pre-wrap text-sm text-danger">{markdownError}</p> : null}
                 <textarea aria-label="Survey markdown editor" value={markdown} spellCheck={false} onChange={(event) => setMarkdown(event.target.value)} className="min-h-96 flex-1 resize-none rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             ) : (
               <>
-                <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                <div className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
                   <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">{isMc ? 'Multiple choice' : 'Open response'}</p>
                   <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                     <Tooltip content="Previous question"><Button variant="ghost" size="sm" aria-label="Previous question" disabled={selected === 0} onClick={() => select(selected - 1)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>

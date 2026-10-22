@@ -25,7 +25,7 @@ export function MarkdownAuthoringEditor({
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', fillHeight && 'min-h-0 flex-1')}>
-      <div className="flex justify-end">
+      <div className="modal-controls-row flex justify-end">
         <SegmentedControl
           ariaLabel={`${label} editing mode`}
           value={mode}

@@ -973,7 +973,7 @@ export function TeacherSurveyWorkspace({
   return (
     <div data-testid="survey-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
       <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
-        <FormField label="Title" required error={titleError} labelAccessory={(
+        <FormField label="Title" required className="modal-title-field" error={titleError} labelAccessory={(
           <div className="flex items-center gap-1">
             <SaveStatus status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} className={!titleSaving && !busy && !titleDirty && !newQuestionDirty && questionStatus === 'saved' ? 'text-text-muted' : undefined} />
             <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[
@@ -1000,7 +1000,7 @@ export function TeacherSurveyWorkspace({
       <div data-testid="survey-editor-content-pane" className="flex min-h-96 min-w-0 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto">
         {surveyEditMode === 'markdown' ? (
           <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="modal-controls-row flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-semibold text-text-default">Survey Markdown</h3>
                 <p className="text-sm text-text-muted">{questions.length} question{questions.length === 1 ? '' : 's'}</p>
@@ -1065,7 +1065,7 @@ export function TeacherSurveyWorkspace({
 
         ) : (
           <>
-            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+            <div className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
               <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">{currentType === 'multiple_choice' ? 'Multiple choice' : currentType === 'short_text' ? 'Open response' : 'Link response'}</p>
               <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                 <Tooltip content="Previous question"><Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={busy || selectedIndex <= 0} onClick={() => selectQuestion(questions[selectedIndex - 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>

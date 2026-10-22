@@ -38,7 +38,12 @@ describe('CreationModalShell', () => {
 
     expect(screen.getByRole('dialog', { name: 'Create assignment' })).toBeInTheDocument()
     expect(screen.getByRole('dialog')).not.toHaveClass('h-[90dvh]')
-    expect(screen.getByText('Assignment fields')).toBeInTheDocument()
+    const fields = screen.getByText('Assignment fields')
+    const title = screen.getByRole('heading', { name: 'Create assignment' })
+    expect(fields).toBeInTheDocument()
+    expect(title).toHaveClass('sr-only')
+    expect(title.parentElement).toBe(screen.getByRole('dialog'))
+    expect(title.nextElementSibling).toContainElement(fields)
 
     fireEvent.click(screen.getByRole('button', { name: 'Close assignment editor' }))
     expect(onClose).toHaveBeenCalledOnce()

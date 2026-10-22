@@ -516,6 +516,7 @@ export function TestEditSplitPattern() {
           >
             <FormField
               label="Title"
+              className="modal-title-field"
               required
               error={titleError}
               labelAccessory={(
@@ -724,7 +725,7 @@ export function TestEditSplitPattern() {
             className="flex min-h-96 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden"
           >
             {authoringView === 'code' ? (
-              <p className="shrink-0 text-sm font-medium text-text-default">Test Markdown</p>
+              <p className="modal-controls-row flex min-h-control shrink-0 items-center text-sm font-medium text-text-default">Test Markdown</p>
             ) : null}
 
             {authoringView === 'code' ? (
@@ -778,7 +779,7 @@ export function TestEditSplitPattern() {
               </div>
             ) : (
               <>
-                <div data-testid="test-question-actionbar" className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                <div data-testid="test-question-actionbar" className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
                   <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">
                     {isMultipleChoice ? 'Multiple choice' : 'Open response'}
                   </p>

@@ -118,15 +118,17 @@ describe('TeacherSurveyWorkspace', () => {
     vi.restoreAllMocks()
   })
 
-  it('lets the modal shell own dismissal while loading without rendering a duplicate X', () => {
+  it('lets the modal shell own dismissal while loading without rendering a duplicate X', async () => {
     fetchMock.mockReturnValue(new Promise(() => {}))
-    const onCloseReady = vi.fn(), onCloseDisabledChange = vi.fn()
-    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()}
+    const onBack = vi.fn(), onCloseReady = vi.fn(), onCloseDisabledChange = vi.fn()
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack}
       showCloseButton={false} onCloseReady={onCloseReady} onCloseDisabledChange={onCloseDisabledChange}
       onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
     expect(screen.queryByRole('button', { name: 'Close survey editor' })).not.toBeInTheDocument()
     expect(onCloseReady).toHaveBeenCalledWith(expect.any(Function))
     expect(onCloseDisabledChange).toHaveBeenCalledWith(false)
+    await act(async () => { await onCloseReady.mock.calls.at(-1)?.[0]() })
+    expect(onBack).toHaveBeenCalledOnce()
   })
 
   it.each(['loading', 'failed'] as const)('allows the shell and visible close control to dismiss a %s survey', async (state) => {

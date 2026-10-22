@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Editor } from '@tiptap/core'
 import { MarkdownAuthoringEditor } from '@/components/editor/MarkdownAuthoringEditor'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { MarkdownAuthoringPattern } from '@/app/__ui/MarkdownAuthoringPattern'
 
 const original = '# Instructions\n\nExplain **why**.\n\n- First\n- Second\n'
@@ -19,7 +20,7 @@ function Harness({ onChange = vi.fn(), disabled = false, interactionActive = tru
 describe('MarkdownAuthoringEditor', () => {
   it('lets Tab leave toolbar controls for the editor and Shift+Tab return to mode selection', async () => {
     const user = userEvent.setup()
-    render(<Harness />)
+    render(<CreationModalShell isOpen title="Edit instructions" titleId="compact-instructions" closeLabel="Close instructions" onClose={vi.fn()}><Harness /></CreationModalShell>)
     const editor = await screen.findByRole('textbox', { name: 'Instructions' })
     const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
     const write = screen.getByRole('button', { name: 'Write' })
@@ -33,6 +34,8 @@ describe('MarkdownAuthoringEditor', () => {
     toolbar.focus()
     await user.tab({ shift: true })
     expect(write).toHaveFocus()
+    await user.tab({ shift: true })
+    expect(screen.getByRole('button', { name: 'Close instructions' })).toHaveFocus()
   })
 
   it('keeps the Pattern Lab student reference readable without teacher editing controls', () => {

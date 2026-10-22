@@ -61,6 +61,7 @@ describe('UiGallery accessibility contracts', () => {
 
   it.each(['teacher', 'student'] as const)('offers the shared calendar identity example for %s', (role) => {
     renderGallery(role)
+    expect(screen.getByRole('main')).toHaveAttribute('data-pattern-lab-ready', 'true')
     expect(screen.getByRole('option', { name: 'Dialogs — Close controls' })).toBeInTheDocument()
     expect(screen.getByTestId('modal-close-pattern')).toBeInTheDocument()
     const example = within(screen.getByTestId('calendar-identity-pattern'))

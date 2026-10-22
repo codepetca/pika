@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Contextual archived reuse workflow preparation
-
-Prepared eight existing HTTP methods for admitted actual owners of either account
-label: archived reuse, Blueprint list/detail, selected merge review, stored
-proposal list/apply and instantiation. Reused existing role-independent atomic
-writers, creation entitlements and managed-copy settlement; no SQL, new flag,
-dependency or UI change. Added current source owner/archive/link/Version/revision
-rechecks and stored classroom-origin/Blueprint-target proposal binding. Legacy
-teachers retain active-source review through final apply and all own proposal
-types behind explicit teacher guards; nonteacher admission grants none of those
-adjacent legacy capabilities. Root found compatibility gaps before formal review;
-RED10+4 cases became GREEN, and root independently passed237 checks/15 suites plus
-audit. Author TypeScript/lint/architecture pass. Existing partial manual review
-and automatic provenance semantics remain; no stronger source snapshot or atomic
-archive guarantee is claimed. Sol6.1/high source mapping and bounded implementation
-delivered; attributable usage/time unknown. Final checks, independent review,
-parent-main integration and CI remain. All production/shared-local249+,
-provider/account/plan/billing/AI and activation holds remain unchanged.
-
 ## 2026-10-20 — Dormant contextual cold recovery
 
 PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
@@ -629,6 +610,16 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
+
+## 2026-10-22 — Compact modal close refinement (PR #1662)
+
+Owner requested the X inline with Write/Markdown instead of a close-only band.
+CreationModalShell now omits empty heading rows and reserves horizontal corner
+space in existing desktop controls/mobile title fields. Applied to assignment,
+material, test and survey editors; shared dismissal callbacks/guards unchanged.
+Stable guidance and Pattern Lab examples reflect the compact contract.
+Desktop assignment browser check confirms mode/X alignment and regained56px.
+Role/theme/viewport matrix, local checks and bounded delta review tracked in PR.
 
 ## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
 

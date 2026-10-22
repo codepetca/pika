@@ -213,7 +213,8 @@ Source grounding:
 Owner approved 2026-10-22. Dismissible AlertDialog, ConfirmDialog,
 ContentDialog, DialogPanel and creation/edit modals use DialogCloseButton:
 44px ghost X, accessible owner-specific label, native Close tooltip, and
-right-3/top-3 inset. Keep it anchored to the panel outside scrolling content;
+right-3/top-3 inset (creation editors follow responsive form padding). Share
+the existing title/control row; never add a close-only band. Keep it anchored to the panel outside scrolling content;
 long headings and authoring controls reserve the corner. Existing save-flush,
 cancel and busy guards apply equally to X, Escape and backdrop. A confirmation
 X cancels; pending non-dismissible operations remain protected. Drawers and
