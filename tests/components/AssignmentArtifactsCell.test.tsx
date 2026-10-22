@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactElement } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AssignmentArtifactsCell } from '@/components/AssignmentArtifactsCell'
 import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
-import { TooltipProvider } from '@/ui'
+import { Tooltip, TooltipProvider } from '@/ui'
 
 function renderWithTooltipProvider(ui: ReactElement) {
   return render(<TooltipProvider>{ui}</TooltipProvider>)
@@ -227,5 +227,152 @@ describe('AssignmentArtifactsCell', () => {
 
     renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact={false} />)
     expect(screen.getByRole('link', { name: /open artifact 1: repo/i })).toHaveAttribute('href', 'https://github.com/codepetca/pika')
+  })
+})
+
+describe('artifact keyboard focus acquisition', () => {
+  let frames: Map<number, FrameRequestCallback>
+  let nextFrame: number
+  const artifacts: AssignmentArtifact[] = [
+    { type: 'link', url: 'https://example.com/a' },
+    { type: 'repo', url: 'https://example.com/b' },
+  ]
+
+  beforeEach(() => {
+    frames = new Map()
+    nextFrame = 0
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(callback => {
+      frames.set(++nextFrame, callback)
+      return nextFrame
+    })
+    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(id => { frames.delete(id) })
+  })
+  afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
+
+  const flushFrame = () => act(() => {
+    const pending = [...frames.values()]
+    frames.clear()
+    pending.forEach(callback => callback(performance.now()))
+  })
+
+  it.each([1, 2])('reveals a focused %i-artifact control after its native scroll settles', count => {
+    renderWithTooltipProvider(<div data-testid="scroller"><AssignmentArtifactsCell artifacts={artifacts.slice(0, count)} isCompact /></div>)
+    const trigger = screen.getByRole(count === 1 ? 'link' : 'button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    expect(trigger).toHaveFocus()
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    fireEvent.scroll(screen.getByTestId('scroller'))
+    flushFrame()
+    expect(screen.getByRole('tooltip')).toHaveTextContent('example.com/a')
+    expect(trigger).toHaveAttribute('aria-describedby')
+    // Later deliberate scrolling still uses Radix's immediate dismissal.
+    fireEvent.scroll(screen.getByTestId('scroller'))
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it.each(['Escape', 'Tab', 'Enter', ' ', 'ArrowDown'])('does not open late after pending %s', key => {
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    fireEvent.keyDown(trigger, { key })
+    flushFrame()
+    expect(trigger).not.toHaveAttribute('aria-describedby')
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('keeps chooser activation immediate and cancels pending help', () => {
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    fireEvent.click(trigger)
+    expect(screen.getByRole('dialog', { name: 'Open artifact' })).toBeInTheDocument()
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it.each(['wheel', 'touchmove', 'pointerdown'])('cancels pending help on explicit %s intent', type => {
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    fireEvent(document, new Event(type, { bubbles: true }))
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('does not turn pointer focus into a late keyboard disclosure', () => {
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    fireEvent.pointerDown(trigger)
+    act(() => trigger.focus())
+    fireEvent.pointerUp(document)
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('cancels on blur and allows a fresh keyboard focus to acquire normally', () => {
+    renderWithTooltipProvider(<><AssignmentArtifactsCell artifacts={artifacts} isCompact /><button>After artifacts</button></>)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    act(() => screen.getByRole('button', { name: 'After artifacts' }).focus())
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    act(() => trigger.focus())
+    flushFrame()
+    expect(screen.getByRole('tooltip')).toHaveTextContent('example.com/a')
+  })
+
+  it('cancels pending focus when the document is hidden or the owner unmounts', () => {
+    const view = renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    fireEvent(document, new Event('visibilitychange'))
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    view.unmount()
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('does not acquire a native control disabled before the frame', () => {
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    trigger.setAttribute('disabled', '')
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
+  it('retires an unmounted acquisition before a fresh owner opens', () => {
+    const view = renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    act(() => screen.getByRole('button', { name: /artifact 1/i }).focus())
+    view.unmount()
+    flushFrame()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    renderWithTooltipProvider(<AssignmentArtifactsCell artifacts={artifacts} isCompact />)
+    act(() => screen.getByRole('button', { name: /artifact 1/i }).focus())
+    flushFrame()
+    expect(screen.getByRole('tooltip')).toHaveTextContent('example.com/a')
+  })
+
+  it('keeps provider hover behavior when hover opens before the focus frame', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    renderWithTooltipProvider(<>
+      <Tooltip content="Previous help"><button>Previous</button></Tooltip>
+      <AssignmentArtifactsCell artifacts={artifacts} isCompact />
+      <Tooltip content="Next help"><button>Next</button></Tooltip>
+    </>)
+    act(() => screen.getByRole('button', { name: 'Previous' }).focus())
+    const trigger = screen.getByRole('button', { name: /artifact 1/i })
+    act(() => trigger.focus())
+    fireEvent.pointerMove(trigger, { pointerType: 'mouse' })
+    expect(screen.getByRole('tooltip')).toHaveTextContent('example.com/a')
+    flushFrame()
+    act(() => { vi.advanceTimersByTime(350) })
+    fireEvent.pointerMove(screen.getByRole('button', { name: 'Next' }), { pointerType: 'mouse' })
+    // An open hint keeps provider skip-delay active; a stale focus callback must
+    // not close/reopen it and accidentally restart the provider's reset timer.
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Next help')
   })
 })

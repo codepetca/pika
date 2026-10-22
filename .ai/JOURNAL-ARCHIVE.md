@@ -48360,3 +48360,455 @@ Full focused checks pass2628tests/98files, architecture/UI/design/TypeScript/lin
 Core reviews287/288 and composition289 clean; final metadata/evidence review,
 draft PR and exact-head CI remain dormant-main merge gates. No production/shared
 local249+/account/provider/billingAI/home/cohort/cutover changes or batch3 exit.
+
+<!-- pika-session-log-archive-batch:c74019f22ffec11fdfada5d75662ae6d00574f4ef0ea11d430da5baeea2e4d5c -->
+## 2026-10-19 — Owner attendance read merged; write source reviews clean
+
+PR1622 exact72d93 passed all ten CI39361093628 gates, then normally squash-merged
+03e45f263 with reviewed tree79181 unchanged. Canonical clean main fast-forwarded;
+CI/merge receipts recorded. No production release or migration application.
+Owner-write C1ae388842 initial independent reviews287 Astra/security and288
+Sol/compatibility complete clean;360 combined CPU checks, staged audit/lint pass.
+Only two expected generated274 metadata errors remain. Added inert three-pair
+contention descriptors and nine CPU regressions;45 adjacent proof checks pass.
+Real RPC conflict/fresh authorization/savepoint rollback and full graph receipts
+are prepared, not executed. Existing carrier closed write assembly126 CPU checks
+passes, original127-action source plan before contention; native composition,
+genuine metadata, isolated SQL/SDK/locks and final CI remain gates. Current learner
+membership-only policy recorded; earlier owner history preserved, not implemented
+by this owner PUT. All production/shared-local249+/provider/account/activation
+holds unchanged; cumulative independent review counter288 and waiver retained.
+
+## 2026-10-19 — Prepare contextual attendance owner policy writes
+
+Dependent worktree starts from reviewed read72d93; startup/environment verified,
+existing dependencies reused. Source-only274 wraps unchanged138 timing writes
+under operation-before-row and132 entitlement serialization, with locked owner,
+active/fence/scope/roster checks. Existing grants remain mandatory even for exact
+canary; no provider/principal/outbox/history operation is introduced. Admitted
+PUT uses either historical account label; GET and unmatched PUT remain legacy.
+Eight focused suites/110 tests and lint pass; only two expected genuine274 metadata
+references remain pending, not cast away. Core implementation writer stopped.
+Root CI once-only/order guards preserve53/54 historical and55 current primary
+proof inventories plus87 lifecycle. CI regressions pass271/5 and150/2 (overlap),
+including duplicate/rename/reorder/conditional/hidden-command refusals. Exact274
+raw/stored/name source seal extends all predecessor profiles;12 expected failures
+became1172 passing checks/9 suites, with275 unknown tails still rejected.
+Separate Sol/high worker prepares inert finite16-request write proof leaves;
+no native execution or source review acceptance is claimed yet. Student owner
+success assumes a pre-existing grant, not the still-teacher-only132 admin flow.
+PR1622 remains in exact-head CI39361093628; no production/shared-local249+/provider/
+real account/billing/AI/admission/home/page/cohort/cutover change is authorized.
+
+## 2026-10-20 — Verify contextual owner attendance day-view reads
+
+Dependent worktree starts from reviewed owner-write218d7b2a; startup/environment
+verified and existing dependencies reused. Prepared275 is service-only, invoker,
+stable: current owner and all roster/day rows share one snapshot and DB clock.
+Archived/runtime-unavailable/unentitled/canary-mismatch owner responses remain
+roster-only; nonowner403 and lifecycle fence503. Pure converter retains existing
+DTO/V1 queue/override/invalidation semantics; legacy GET and every POST unchanged.
+Core Sol6.1/high delivery70tests/9suites and lint pass; two expected missing genuine
+275 metadata references remain, not cast away. Separate Sol6.1/high finite SDK
+leaf covers thirteen actual adapter plus three typed canary requests; source only.
+Root once-only CI/order checks302/5 pass, preserving historical inventories.
+Full-source seal extends exact275 and refuses changed bytes/unknown276; offline
+profile tests expose then correct the missing offline-helper tail, not a relaxed
+validator. No native execution or phase exit claimed. User current-membership-only
+learner rule remains recorded; earlier records preserved for owner, not implemented
+by this owner read. Parent PR1623 exact-head CI39366937586 still running. Production,
+shared-local249+, provider/real-account/billing/AI and activation holds unchanged.
+Weekly remaining93%; storage healthy287GB; per-worker time/tokens unknown.
+Superseding checkpoint: initial security291/compat292 CLEAN. Composition293 found
+pending postguard cleanup bookkeeping; five composed RED cases became GREEN and
+targeted294 accepted the terminal-only reconciliation with closure/caps intact.
+One fresh94934b01/626f6a74 proof passed001–275 replay/rollback, genuine metadata,
+16SDK requests/26SQL/84guards, committed scope/fence denial/restoration and exact
+fixture/complement/canonical/global cleanup.136actions/2224controls/67593566bytes,
+max1session/final0open/uncertain/unsettled. Immediate NEXT TOOL FIRST passed before
+postchecks/copies/edits:7887source/98970dependency files unchanged, zero processes.
+Genuine275443624bytes SHAe29502a2 installed exact after FIRST. PR1623 all ten
+CI39366937586 gates passed; normal squash4f57a94c5 retains reviewed5847tree and
+canonical main fast-forwarded. Clean session rebase949→2ef95168 keeps identical
+84d6tree. Final focused checks pass2610tests/97files plus TypeScript/lint and
+policies, resolving only the two generated275 gaps. Metadata/evidence review
+and session PR/CI remain;
+no production/shared-local249+/provider/activation or learner-history change.
+
+<!-- pika-session-log-archive-batch:e21e7c965046bbd9f5f90bdf09e90164b969a0f69cbd66601d0a90f0a4417879 -->
+## 2026-10-20 — Correct the CI mail-service exclusion
+
+PR1624 first exact-head CI39370931599 failed on hosted lifecycle-job118458471791
+during initial Supabase startup, before SQL/proofs: mail container could not bind
+54324. Pinned CLI2.103.0 explicitly warned that inbucket is not a valid exclusion
+and listed mailpit as the recognized name. Returned PR to draft before correction;
+that transition cancelled the remaining lanes. No app/SQL failure was observed.
+Minimal fix adds mailpit to the existing seven startup commands and the identical
+local safety binding; old aliases remain to avoid unrelated component changes.
+Two source assertions RED before fix; all273 workflow/local-CI/session-CI checks
+pass after correction, including rejection of the ineffective old command.
+Full focused checks expose four legacy CI command assertions, updated to the
+same recognized exclusion;2611tests/97files plus TypeScript/lint/policies pass.
+Port preflight, cleanup conditions, proof inventories, required jobs and PR Gate
+are unchanged. Targeted CI-only review precedes a new ready SHA;
+no repeat native proof is needed for unchanged app/migration/fixture bytes.
+Existing review/runtime evidence and spent attempts remain immutable; no production,
+shared-local249+, provider, account or activation action. New report child worktree
+is independent source-only work; no migrations applied.
+
+<!-- pika-session-log-archive-batch:41418fa36302a7e2a57f68d6f0a14ab90c64289cd93ed3572d7059a55a69a6b0 -->
+## 2026-10-20 — Dormant owner Daily Log attendance report preparation
+
+Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
+0bb2a2bc; owner Daily Log report GET only, no provider or learner-history change.
+276 adds a complete service-only current-owner snapshot. Existing pure attendance
+logic is unchanged (structural input types only); archived owners, full roster,
+Unicode/Toronto semantics and browser DTO preserved. Generic private response/work
+bounds fail closed without truncation or subscription notices. Source rollback
+contracts include real1004 enrollments,1001 days/entries and complete graph
+preservation; inert installed-SDK leaf specifies12 adapter reads/18SQL/60guards,
+six independent complete DTO commitments and restoration before final reads.
+Core112/7 and leaf33/2 CPU tests pass; one expected missing genuine276 RPC type
+remains until isolated generation. CI command/inventory RED then310/5GREEN;
+exact reviewed migration profile extension remains in progress. Sol6.1/high
+workers own core/seals and leaf/carrier, root integrates CI/evidence; effective
+configuration/tokens unknown. Weekly92% remaining; storage287GB healthy.
+Native verification, genuine metadata, independent security/compatibility review,
+final checks and exact-head CI remain gates. No canonical/shared-local249+,
+production, provider, real account, billing/AI or activation operations. Latest
+owner decision retains current-membership-only learner attendance with earlier
+records preserved for owner; this report does not claim learner provenance.
+
+<!-- pika-session-log-archive-batch:7017a8d7b00870ae50ef639028f62bdb51e0ed86e55f7110a91573f53a8a4eff -->
+## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
+
+Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
+c10fd9547 at05:30Z, identical7175fbe7 tree, clean canonical main fast-forwarded.
+Report297/298 source reviews clean. Composition299 settlement predicate omission
+fixed and300 clean with actual-controls RED/GREEN joins/uncertainty regressions.
+First native report6wj8mp remains failed: generated observe SQL glued numeric
+literal to OR. Tiny separate read-only PG fragment confirmed42601; regression
+RED then75/4GREEN. Minimal fixture separator/pin update and exact recovery301
+clean; removed only5containers2volumes1network, retained temp/evidence privately.
+No application permission change or softened poison/cleanup checks.
+Fresh report uTZw3f actual4140JOINED0 passed001–276 rollback SQL, genuine metadata,
+12realSDK adapters/6fullDTO/18SQL/60guards, restoration before final reads, complete
+fixture/complement and canonical/global equality plus owned teardown.100actions,
+1672controls,51235392B,12HTTP,max1session,final0sessions/uncertainSQL/unsettled.
+Immediate NEXTTOOLFIRST60593JOINED0 before any check/edit/CI query confirms7901
+source/98970deps unchanged/0process. Genuine276 fac561c3,443760B installed byte-
+exact after FIRST; deleting only newRPC reconstructs entire275e295 baseline.
+All receipts retain nativeVerified:false; private coordinator outcome records
+actual acceptance separately. Cumulative301reviews/4fix batches preserved under
+task waiver; tokens/effective config unknown. Final metadata/current-main review,
+focused checks and CI remain gates. No prod/shared-local249+, provider, real
+account/plan, billing/AI, admission or activation action; learner provenance separate.
+
+## 2026-10-20 — Prepare atomic contextual classroom-list ordering
+
+Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
+79a4. Two Sol6.1/high workers delivered disjoint core/seal and fixture/SDK files;
+root inspected and integrated CI/API-boundary inventory. Migration277 serializes
+the complete active-owned set without requiring creation capacity; one RPC retains
+position/timestamp/archive-revision semantics and unchanged Blueprint/other rows.
+Configured unmatched teachers adopt the same writer; admission absent stays
+legacy. No user-facing layout, DTO, plan quota or notice change. Risk high,
+profile none: consequential ownership/atomic-write boundary. Independent security
+and compatibility reviews, genuine metadata and isolated native acceptance remain
+required. Source-only63tests/7files,1369profile tests/10files and317CI tests/5files
+PASS; audit22TS PASS. Full TypeScript has only the intentionally pending genuine
+277 RPC metadata error; no cast/manual metadata workaround. Cumulative302 prior
+review turns/4 batches retained under standing waiver. Earlier rejoin decision
+remains current-membership-only for learners, retained history owner-only; this
+slice does not implement learner provenance. Production/shared-local249+,
+provider/accounts/billing/AI and all activation holds unchanged.
+
+Report1625 merged normally at06:02:37Z asd40b1ff90, reviewed79a4 and squash trees
+identical66e22695. All ten exact39375680181 checks/PRGate passed; clean canonical
+main ff-only, lifecycle receipts recorded. No production operation. Reorder C1
+086e60fa source reviews303Astra/high security and304Sol6.1/high compatibility
+complete CLEAN, no actionableP0–P2; cumulative304reviews/4batches. Next is isolated
+SQL/SDK plus three distinct subject/operation/row-lock paths, not activation.
+
+Composition305Astra/high clean; genuine isolated SuY6uP/projectdf2a20c1df78 passed
+actual55880JOINED0,001–277 rollback SQL/1001classes,12SDK18SQL60guards +3real lock
+pairs7SQL8guards/postflight. Subject blocking is not performed creation; actual268
+archive and normal triggered owner transfer commit, then fresh stale sets fail
+and correct sets succeed under rollback. Full graph/complement/Pal/audit/Blueprint/
+disabled grant/exact versions, canonical read-only/global equality and owned
+teardown pass.115actions1847controls57053160B12HTTPmax2/final0open/uncertain.
+Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918source/
+98970deps unchanged/0process; freeze released after join. Genuine2774645aad3,
+443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
+No original receipt rewritten; spent profile stays fail-closed. Final focused
+checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.
+
+## 2026-10-20 — Frozen classroom authoring-guidance read preparation
+
+Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
+reviewed reorder1d1d2b while PR1626 finishes CI. Prepared278 and admitted GET bind
+actual classroom ownership and selected frozen structural/adopted saved Versions
+in one read-only snapshot. Preserve archived/null-pointer behavior and legacy
+unmatched routing; no live Draft/latest or extra Blueprint-owner requirement.
+Only service-role SELECT(course_blueprint_id) on the purge fence is added.
+Private8MiB/10000-item work bounds reject rather than truncate. No UI change.
+Core Sol6.1/high delivered SQL and exact278 closed-profile seals; leaf Sol6.1/high
+delivered finite12-HTTP/18-SQL/60-guard SDK fixture with full Blueprint/history
+preservation. Root independently inspected output;1075 integration tests/9files
+pass, plus1388 closed-profile tests/10suites. Only pending genuine278 RPC metadata
+fails TypeScript; no manual metadata/cast. Audit, independent security and
+compatibility review, isolated proof, genuine generation and stable-head CI
+remain. Cumulative306 review turns/4 fix batches preserved; workflow-stop waiver
+active, per-worker cost unknown. Production/shared-local249+/provider/accounts/
+billing/AI/admission/home/page/cutover holds unchanged; no phase-exit claim.
+
+Initial307/308 and composition309 CLEAN. PR1626 normally merged7e56151e at07:10:21Z
+after all ten39380704259 CI/PRGate checks passed on1d1d2b; treec52abc45 identical,
+canonical clean main ff-only. New isolated guidance gi4jdD/project0f0ad5ed69d2
+actual70867JOINED0 PASSED001–278 rollback SQL/catalog/ACL/lineage/size boundaries,
+genuine generation,12actualSDKadapterreads18SQL60guards7DTOhashes4null/fullgraph
+and complement restoration/canonical read-only/global equality/owned teardown.
+100actions1675controls51707374B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST17921JOINED0 verifies7933source98970depsunchanged0process; freeze released
+only after join. Genuine278444042B29a85e7b installedapply_patch+cmp; removing ONLY
+newrequired2UUID→JsonRPC reconstructs entire2774645aad3. Original false authority
+flags unchanged; profile now spent/fail-closed, no replay. Final checks/current-main
+integration/review/CI remain. Cumulative309reviews/4batches and all holds retained.
+
+Current-main rebase60351bd5 preserves exercised integration tree75ddfaa7. Final
+focused checks exposed one stale recovery-profile test expecting277 in the now
+reviewed278 chain (2810other tests passed). Update only that count and its genuine
+unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
+batched remediation5, not a new native attempt or weakened profile. Final targeted
+integration review includes the delta; no routine approval needed under waiver.
+
+<!-- pika-session-log-archive-batch:cebfda71e1b7dfc40735c8dec1869347a540b25aeb81e965fff1bfe797d7c80b -->
+## 2026-10-20 — Dual-owner classroom guidance preview preparation
+
+Coordinator owns codex/contextual-classroom-guidance-preview, child of reviewed
+guidance-read23d71d while PR1627 finishes CI. GET authoring-guidance/update now has
+a dormant admitted branch requiring current active-classroom AND Blueprint
+ownership, independent of account label. Prepared279 is service-only invoker,
+single read snapshot/no locks/new data grants. Preserve normalized preview DTO,
+adopted/fallback Version lineage, exact errors, private8MiB bounds and legacy GET;
+POST adoption unchanged. No UI change or production/shared-local migration.
+Core/leaf Sol6.1/high delivered SQL,20-path exact279 seals and four finite SDK
+fixture/test paths. Root inspected full sources and graph predicate equivalence;
+67 API/adapter/SQL-source tests pass,28 leaf tests pass,1478 profile tests pass,
+309 CI/policy tests pass. Only pending genuine279 RPC metadata fails TypeScript.
+Independent security/compatibility review, frozen isolated proof, genuine metadata,
+current-main reconciliation/final checks and exact-head CI remain. Cumulative310
+actual review turns/5 remediation batches retained; task-stop waiver remains active.
+Production/shared-local249+/provider/accounts/billing/AI and activation holds unchanged.
+
+Initial311/312 and composition313 reviews CLEAN. Fresh isolatednaHFuy/project
+23c6d2c507aa actual59973JOINED0 passes001–279 rollback SQL/catalog/ACL/lineage/UTF8
+bounds/genuine metadata/12actualSDK18SQL60guards3DTO/full63-tablegraph/complement/
+restoration/canonical read-only/global equality and positive owned teardown.
+100actions1672controls51169222B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST55092JOINED0 verifies7948source98970depsunchanged0process; freeze released
+only after join. Genuine279444192Ba0e2ff00 installedafterFIRST; removing only new
+RPC reconstructs entire27829a85e7b. Original false authority flags untouched; spent
+profile remains fail-closed, never rebound/replayed. PR1627 then merged normally
+e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
+tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
+preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
+313actual review turns/5fix batches and all holds retained.
+
+<!-- pika-session-log-archive-batch:54264872c328c8ae6aa762beeebff312c82cf485c54b38f0c9a133cb8d32ba37 -->
+## 2026-10-20 — Atomic dual-owner guidance adoption preparation
+
+Prepared280 adds an admitted POST branch requiring current active-classroom AND
+linked Blueprint ownership, using the existing canonical snapshot builder and
+one atomic112-save/222-adopt composition. Complete five-collection source/digest
+prevents truncation and catches parent-only moves not reflected by older Draft
+revision triggers. Existing immutable Versions/provenance remain; a rejected
+transaction leaves no stray Version, but a lost post-commit response is uncertain
+and never retried or compensated by deletion. Legacy POST/GET stay unchanged.
+Root API/adapter/legacy tests93/5 pass, SQL source tests9 pass, CI/policy314/6 pass;
+complete source-codec/builder tests66/3 pass. Genuine280 metadata and native proof
+remain pending; only the two new RPC metadata references fail TypeScript. No
+runtime acceptance or phase exit is claimed. Sol6.1/high bounded workers own
+closed-profile extension and four finite SDK fixture/test paths. The proof will
+assert exact allowed committed changes and preserve existing history/complement,
+retaining only proven legitimate temporary-transition timestamps/revisions.
+Cumulative314 actual independent review turns/5 remediation batches retained;
+routine workflow-stop waiver active. Production/shared-local249+, provider,
+account/billing/AI and activation holds unchanged. Learner current-membership-only
+attendance is an approved separate boundary, not implemented by this write.
+
+Parent preview PR1628 merged normally ascd3876dfa at08:52:50Z after all ten
+exacte2d2fff3 CI39392011940 checks/PRGate passed. Reviewed/squash treeb3df6d46 is
+identical; clean canonical main fast-forwarded. Original CI host-port collision
+and its failed receipt remain retained; no source/gate bypass or rollout.
+All280writers stopped. Root integration checks955/11 pass; leaf25/2 and concurrency
+10 plus carrier114/4 CPU checks pass. Genuine metadata/native acceptance remain
+pending. New private wrappers and carrier source remain deliberately unbound.
+
+Subsequent isolated280 SQL rollback and genuine metadata generation passed;
+SDK/concurrency acceptance remains pending. Earlier SQL42601 was corrected at
+three IF/CASE sites with source regression and independent review. A separate
+attempt stopped after source200 and before any writer dispatch. One offline8.1s
+delay reproduced its exact counters: the rehearsal's network timer included
+pre-request SQL/guards. The prepared two-file fix retains the actual ten-second
+caller abort, all58guards and all caps, with26 SDK/30 combined tests passing.
+Both failed attempts retain positive exact cleanup and immediate independent
+source/dependency preservation. Fixed private failure labels contain no payload,
+IDs or raw errors. Cumulative320 review turns/8 correction batches; further
+review and one separately bound proof remain, not runtime acceptance. All holds
+and the separate current-membership-only learner boundary remain unchanged.
+
+The next isolated attempt identified unchanged SDK caller expiry in rehearsal
+preflight (write/preflight/caller); SQL/types passed again and writer dispatch
+remained zero. Rather than extend a live timeout, the prepared closed observer
+now schedules all58 guards/17SQL after genuine SDK settlement, before adapter
+continuation. Interventions are explicitly before canonicalization, after source
+capture. Actual builders, lazy native then, argument/result identity and native
+abortSignal remain; live8s/10s failures still refuse.36/2 CPU tests pass, including
+real attachment zero-prior-unsettled entry and held-observer settlement. Root
+inspected the complete two-path delta; cumulative321 reviews/9 fix batches.
+New source/composition review and a separate fresh native proof remain gates;
+no acceptance, migration application, production release or activation claim.
+
+Fresh C5 isolated001–280 proof PASS:6actual adapters/12SDK HTTP/17SQL/58guards,
+5005-child completeness,2new immutable Versions/dedup/3denials and3genuine
+two-session contention pairs.112actions1851controls58573054bytes/max2sessions,
+final0open/uncertain. Actual terminal→immediate FIRST PASS7973source/98970deps/
+0processes before any post-work; full preservation records equal, owned workdir/
+Docker resources absent, reviewed canonical/global equality gates pass. Original
+nativefalse/missing fields remain unmodified; coordinator acceptance is scoped.
+Genuine280 generated types installed byte-identically242b3c7a (only2RPC additions
+over complete279); full focused3215/127 plus TypeScript/lint/policies PASS.
+322Astra SDK-truth and323Sol carriercomposition reviews clean; final metadata/
+evidence review, draft PR and exact-head CI/main merge remain. All holds unchanged.
+
+Final review324 completed clean and PR1629 entered normal exact-head CI onb0f75836.
+Database contracts reached strict lint, which rejected the untyped empty-object
+initializer in the private280 helper (42804); the PR returned to draft before
+correction. A source regression failed then passed with explicit `'{}'::jsonb.
+Only the initializer and its reviewed migration digest change; public signatures,
+SQL flow and generated types remain identical. Earlier native C5 evidence stays
+bound to its original source, not relabeled. Targeted correction review and a
+fresh final-head CI replay/lint remain required. Production/shared-local249+ and
+all activation holds remain unchanged. Reuse workflow mapping completed read-only;
+linked reuse retains both owners and new-classroom creation limits.
+
+The next CI coverage lane passed19810 tests but exposed one inherited guidance
+cleanup test's80ms real-wall-clock race. Its preflight could exhaust the deadline
+before fetch dispatch, correctly restore zero open sessions, and contradict the
+test's intended unclosed-request assertion. Returned PR to draft before a
+test-only correction: await a real fake-transport dispatch barrier, then advance
+fake timers through the unchanged80ms/160ms deadlines. All20 leaf tests pass;
+runtime proof/application/SQL/limits are unchanged. Targeted review and fresh CI
+remain; no native proof, migration, deployment or activation is implied.
+
+<!-- pika-session-log-archive-batch:88c7cf74b93f3c78798c17601ba0b361eff70bbc0d3e01073f5026eab6f475d9 -->
+## 2026-10-20 — Contextual archived reuse workflow preparation
+
+Prepared eight existing HTTP methods for admitted actual owners of either account
+label: archived reuse, Blueprint list/detail, selected merge review, stored
+proposal list/apply and instantiation. Reused existing role-independent atomic
+writers, creation entitlements and managed-copy settlement; no SQL, new flag,
+dependency or UI change. Added current source owner/archive/link/Version/revision
+rechecks and stored classroom-origin/Blueprint-target proposal binding. Legacy
+teachers retain active-source review through final apply and all own proposal
+types behind explicit teacher guards; nonteacher admission grants none of those
+adjacent legacy capabilities. Root found compatibility gaps before formal review;
+RED10+4 cases became GREEN, and root independently passed237 checks/15 suites plus
+audit. Author TypeScript/lint/architecture pass. Existing partial manual review
+and automatic provenance semantics remain; no stronger source snapshot or atomic
+archive guarantee is claimed. Sol6.1/high source mapping and bounded implementation
+delivered; attributable usage/time unknown. Final checks, independent review,
+parent-main integration and CI remain. All production/shared-local249+,
+provider/account/plan/billing/AI and activation holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:3303cebf96a01be2a3d990c781f60070a05c9c3466f9c1e46b7fedb42f47e0a8 -->
+## 2026-10-20 — Dormant contextual cold recovery
+
+PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
+including strict warning lint, replay and PRGate passed. Canonical main synced;
+no production or shared-local migration/activation. Reuse PR1630 is separately
+reviewed and in CI. Prepared the existing cold-restore route's shared-admission
+dispatch with current-owner preflight, strict operation/archive/ledger binding,
+final archived-hot revision confirmation and completed same-key replay. Existing
+coordinator, immutable bytes, actor reconciliation, canary/budget gates and
+cleanup remain; uncertain outcomes503 without automatic retry/deletion.
+Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
+The existing guarded isolated recovery drill covers both owner labels with actual
+row/byte/teardown assertions; authored SDK/source checks are not native evidence.
+Independent review, final-head CI and that real drill remain gates. Current-
+membership-only learner attendance remains separate; owners retain old records.
+All production, account/provider/billing and cutover holds remain unchanged.
+
+## 2026-10-20 — Dormant contextual purge workflows
+
+Prepared the eight existing hot/cold impact/start/status/tick methods behind the
+existing admission selector. Actual ownership and durable actor/class/archive/
+operation/scope bindings authorize shared callers of either label; legacy
+guards, confirmations/digests, independent gates and SQL state machines remain.
+Completed audit/replay survives parent removal. Malformed/lost results fail
+closed without automatic retries, compensation or rollback claims. Root found
+and fixed exact generated-lease binding before any Storage request: two wrong-
+lease regressions failed before the fix; root independently passed156 tests/6
+suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
+pass. The existing rollback matrices are extended to both current owner labels
+after fixture capture, retaining historical actors and all prior assertions;
+not yet native evidence. Source-only rebase onto1630's actual main merge had no
+conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
+Final focused checks, independent review, real CI matrices and main merge remain.
+No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
+activation change. Production/shared-local249+ and cutover holds remain.
+
+Full security334 review was clean; compatibility335 found the generic409 mapping
+hid the existing fixed attendance-decommission prerequisite signal. Two real-
+PostgREST-envelope regressions failed, then passed after preserving only the
+recognized typed public constant; arbitrary errors remain sanitized. All158
+targeted tests/6 suites pass. Source correction, targeted re-review and final CI
+remain distinct from any provider change or native acceptance.
+
+## 2026-10-20 — Consolidated owner attendance-decommission preparation
+
+Folded all three existing begin/status/advance methods into the still-draft purge
+workflow, using shared admission with legacy teacher behavior retained. Reused
+unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
+verifier maps malformed stored evidence to503, preserves safe service errors and
+validates public result identity/state. Sol6.1/high delivered53 affected tests/3
+suites, TypeScript and scoped lint PASS; root reviewed all source and added a
+rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
+operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
+focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
+commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
+64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
+No native SQL or provider call was made. Retained-generation175 can block153's
+participant mapping deletion after remote completion; preserve the guard/fence
+and inspectable state. Documented as a separate activation prerequisite, not
+claimed complete by mock transport/basic synthetic fixtures. Combined checks,
+proportional independent review, latest-main integration and CI remain. No SQL
+migration, dependency, UI, gate, provider identity, real deletion or activation
+change. All production/shared-local249+ and provider/account/billing/AI holds
+remain. Source writer stopped; attributable active time/tokens unknown.
+
+Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
+all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
+passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
+Consolidated purge source rebased onto that actual main; only roadmap/history
+overlaps required union, retaining main receipts and one copy of the identical
+already-archived entry. No migration resequencing, stash use or hold change.
+
+## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
+
+Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
+table-scoped DELETE capability only after verified remote completion. Existing
+ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
+private membership replay history is retained. Pending automatic cleanup jobs
+block new intent, including quarantine without an individual operation. Fresh
+read-committed admission avoids stale snapshots. Existing rollback harness adds
+both owner labels, historical generations, scoped/forged denial, failure rollback,
+fresh object-free final purge and saved-status/private-history preservation;
+existing contention harness adds both actual-RPC winner orders. No DB/provider
+execution or shared/production migration application during preparation. Exact281
+source-only profiles and complete capability-table fingerprints extend prior
+seals without rebinding old proofs. Initial focused run caught stale280 counts
+and mocked fingerprints; fixtures corrected without weakening restoration checks.
+Independent review, actual native verification and exact-head CI remain required.
+Production/shared-local249+/live-provider/configuration and activation holds stay.

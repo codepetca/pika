@@ -15,6 +15,51 @@ const withoutClassroomReorderProof = (source: string) => withoutClassroomGuidanc
 const withoutReportProof = (source: string) => withoutClassroomReorderProof(source).replace(/^      - name: Verify contextual owner Daily Log attendance report snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutSessionProof = (source: string) => withoutReportProof(source).replace(/^      - name: Verify contextual owner attendance session snapshot and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 
+describe('Supabase image registry parity', () => {
+  it('inherits the explicit registry before setup and throughout every local lane', async () => {
+    const source = workflow()
+    expect(source).toContain('env:\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws\n')
+    const jobs = Object.values(extractWorkflow(source))
+    expect(jobs.filter(job => job.steps.some(step => step.uses === 'supabase/setup-cli@v1'))).toHaveLength(7)
+    const directory = mkdtempSync(join(tmpdir(), 'pika-ci-registry-test-'))
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      for (const job of jobs) {
+        expect(job.env.SUPABASE_INTERNAL_IMAGE_REGISTRY).toBe('public.ecr.aws')
+        const seen: string[] = []
+        expect(await runLane(job, directory, directory, { SUPABASE_INTERNAL_IMAGE_REGISTRY: 'caller.invalid' }, {
+          execute: async (_script: string, _cwd: string, env: Record<string, string>, _child: unknown, path: string) => {
+            seen.push(env.SUPABASE_INTERNAL_IMAGE_REGISTRY)
+            writeFileSync(path, 'fake executor receipt\n')
+            return 0
+          },
+        })).toBe(false)
+        expect(seen.length).toBeGreaterThan(1)
+        expect(new Set(seen)).toEqual(new Set(['public.ecr.aws']))
+      }
+    } finally {
+      log.mockRestore()
+      rmSync(directory, { recursive: true, force: true })
+    }
+  })
+
+  it.each([
+    '  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io',
+    '  SUPABASE_INTERNAL_IMAGE_REGISTRY: ${{ vars.REGISTRY }}',
+    '  NODE_OPTIONS: --require=unreviewed',
+    '  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws',
+  ])('rejects unsupported workflow environment %s', entry => {
+    expect(() => extractWorkflow(workflow().replace('  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws', entry))).toThrow()
+  })
+
+  it.each(['job', 'step'])('rejects a %s override of the shared registry', scope => {
+    const source = scope === 'job'
+      ? workflow().replace('      E2E_BASE_URL:', '      SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io\n      E2E_BASE_URL:')
+      : workflow().replace('        uses: supabase/setup-cli@v1', '        env:\n          SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io\n        uses: supabase/setup-cli@v1')
+    expect(() => extractWorkflow(source)).toThrow()
+  })
+})
+
 describe('explicit Data API grant proof inventory', () => {
   it('preserves the complete historical inventory and adds one runtime proof', () => {
     const current = selectPlan(extractWorkflow(withoutMembershipAdoptionProof(workflow())), 'database')[0]

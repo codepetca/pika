@@ -212,6 +212,57 @@ describe('announcement markdown rendering', () => {
     vi.unstubAllGlobals()
   })
 
+  it.each([null, '2026-05-13T12:00:00Z'])('saves a changed post date only on explicit Save and retains it after failure (historical schedule=%s)', async scheduled_for => {
+    const original = { ...markdownAnnouncement, scheduled_for }
+    const patches: unknown[] = []
+    let fail = true
+    vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        patches.push(JSON.parse(init.body as string))
+        return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement,
+          published_at: '2026-05-12T04:00:00.000Z', scheduled_for: null } }), { status: fail ? 500 : 200 })
+      }
+      return new Response(JSON.stringify({ announcements: [original] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    fireEvent.click(await screen.findByText('bring notes'))
+    const field = screen.getByLabelText('Post date (Toronto)')
+    expect(field).toHaveValue('2026-05-13')
+    fireEvent.change(field, { target: { value: '2026-05-12' } })
+    expect(patches).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await screen.findByRole('alert')
+    expect(field).toHaveValue('2026-05-12')
+    expect(patches).toEqual([{ posted_on: '2026-05-12' }])
+    fail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument())
+    fireEvent.click(screen.getByText('bring notes'))
+    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2026-05-12')
+  })
+
+  it('disables invalid post-date Save while keeping the future scheduling action available', async () => {
+    render(teacherAnnouncementsElement(classroom))
+    fireEvent.click(await screen.findByText('bring notes'))
+    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
+    expect(screen.getByText('Choose today or an earlier date.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+    expect(screen.getByLabelText('Date (Toronto)')).toBeInTheDocument()
+  })
+
+  it.each(['draft', 'scheduled', 'future-publication'] as const)('hides the post-date field for %s announcements', async state => {
+    mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: state === 'draft',
+      published_at: state === 'draft' ? null : '2099-01-01T12:00:00Z',
+      scheduled_for: state === 'scheduled' ? '2099-01-01T12:00:00Z' : null }])
+    render(teacherAnnouncementsElement(classroom))
+    fireEvent.click(await screen.findByText('bring notes'))
+    expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument()
+    if (state === 'future-publication') expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
+  })
+
   it.each(['new', 'draft', 'posted'] as const)('keeps %s native picker text in an inert closing view without command authority', async (owner) => {
     motionForAnnouncementMenus()
     mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: owner === 'draft' }])
@@ -615,13 +666,13 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByRole('textbox', { name: 'Announcement body' })).toHaveFocus()
   })
 
-  it.each(['new', 'draft', 'posted'] as const)('keeps the %s primary Post action available while its schedule picker is open', async (owner) => {
+  it.each(['new', 'draft', 'posted'] as const)('keeps the %s primary save/publication action available while its schedule picker is open', async (owner) => {
     const response = deferred<Response>()
     vi.stubGlobal('fetch', vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => init?.method ? response.promise : new Response(JSON.stringify({ announcements: [{ ...markdownAnnouncement, is_draft: owner === 'draft' }] }), { status: 200 })))
     render(teacherTabElement())
     await openAnnouncementMenu(owner)
     fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: owner === 'posted' ? 'Save' : 'Post' }))
     expect(vi.mocked(fetch).mock.calls.filter(([, init]) => init?.method === (owner === 'new' ? 'POST' : 'PATCH'))).toHaveLength(1)
     await act(async () => response.resolve(new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, content: 'Published from picker' } }), { status: 200 })))
     expect(screen.getByText('Published from picker', { selector: 'p' })).toBeInTheDocument()
@@ -634,7 +685,7 @@ describe('announcement markdown rendering', () => {
     const view = render(teacherTabElement())
     await openAnnouncementMenu(method === 'POST' ? 'new' : 'posted')
     fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: method === 'POST' ? 'Post' : 'Save' }))
     view.unmount()
     settled = true
     await act(async () => response.resolve(new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, content: 'Fresh after unmount' } }), { status: 200 })))
@@ -651,7 +702,7 @@ describe('announcement markdown rendering', () => {
     const view = render(teacherTabElement())
     await openAnnouncementMenu(method === 'POST' ? 'new' : 'posted')
     fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: method === 'POST' ? 'Post' : 'Save' }))
     view.rerender(teacherTabElement(false))
     await act(async () => response.resolve(new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, id: method === 'POST' ? 'inactive-create' : markdownAnnouncement.id, content: 'Settled while inactive' } }), { status })))
     view.rerender(teacherTabElement())
@@ -661,7 +712,7 @@ describe('announcement markdown rendering', () => {
     } else {
       expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm')
       expect(screen.getByRole('textbox', { name: method === 'POST' ? 'Announcement body' : 'Edit announcement body' })).toHaveValue(method === 'POST' ? 'Retained new draft' : 'Retained edit draft')
-      expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: method === 'POST' ? 'Post' : 'Save' })).toBeEnabled()
     }
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
@@ -1360,7 +1411,7 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), {
       target: { value: 'Edited Classroom A update' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     view.rerender(teacherAnnouncementsElement(secondClassroom))
     expect(await screen.findByText('Second classroom update')).toBeInTheDocument()
@@ -1498,7 +1549,7 @@ describe('announcement markdown rendering', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), {
       target: { value: 'Edited while switch is suspended' },
     })
-    fireEvent.click(screen.getByRole('button', { name: 'Post' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     fireEvent.click(screen.getByRole('button', { name: 'Attempt classroom switch' }))
 
     await act(async () => {
@@ -1520,7 +1571,7 @@ describe('announcement markdown rendering', () => {
     } else {
       expect(screen.getByRole('alert')).toHaveTextContent('Pika could not confirm saving changes to this announcement.')
       expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toHaveValue('Edited while switch is suspended')
-      expect(screen.getByRole('button', { name: 'Post' })).toBeEnabled()
+      expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
     }
     expect(screen.getByRole('button', { name: 'Create announcement' })).toBeEnabled()
   })
@@ -1599,7 +1650,7 @@ describe('announcement markdown rendering', () => {
     await screen.findByText('Unit update')
     fireEvent.click(screen.getByText('bring notes'))
     fireEvent.change(screen.getByRole('textbox', { name: 'Edit announcement body' }), { target: { value: 'Cancelled edit body' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
     expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
     await act(async () => pending.resolve(new Response('{}', { status: 500 })))
@@ -1610,7 +1661,7 @@ describe('announcement markdown rendering', () => {
     expect(fresh).toHaveValue(markdownAnnouncement.content)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
     fireEvent.change(fresh, { target: { value: 'Fresh edit' } })
-    expect(screen.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
     expect(writes).toBe(1)
   })
 

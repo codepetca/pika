@@ -75,7 +75,7 @@ export async function verifyAnnouncementMutationFeedback(page: Page, info: TestI
   const cancelledEdit = page.getByRole('textbox', { name: 'Edit announcement body', exact: true })
   await cancelledEdit.fill('Cancelled edit body')
   const cancelledPatchBefore = writes.length
-  await page.getByRole('button', { name: 'Post', exact: true }).click()
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect.poll(() => writes.length).toBe(cancelledPatchBefore + 1)
   await expect(cancelledEdit).toBeDisabled()
   await nativeTabTo(page, page.getByRole('button', { name: 'Cancel', exact: true }))
@@ -88,7 +88,7 @@ export async function verifyAnnouncementMutationFeedback(page: Page, info: TestI
   await expect(cancelledEdit).toHaveValue(unit.content)
   await expect(page.locator('main').last().getByRole('alert')).toHaveCount(0)
   await cancelledEdit.fill('Fresh edit draft')
-  await expect(page.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
+  await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
   expect(writes.length).toBe(cancelledPatchBefore + 1)
   await capture(page, info, 'teacher-cancelled-patch')
   await page.getByRole('button', { name: 'Cancel', exact: true }).click()

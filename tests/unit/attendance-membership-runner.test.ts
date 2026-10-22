@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 
-const runner = () => readFileSync('scripts/check-attendance-membership-adoption-database.sh', 'utf8')
+const runner = (path = 'scripts/check-attendance-membership-adoption-database.sh') => readFileSync(path, 'utf8')
 
 function resolveCachedMeta(registry: string, cachedRegistry = registry || 'public.ecr.aws', imageId = `sha256:${'a'.repeat(64)}`, inspectStatus = 0) {
   const definition = runner().match(/^resolve_attendance_meta_image\(\) \{\n[\s\S]*?^\}/m)?.[0]
@@ -26,17 +26,28 @@ resolve_attendance_meta_image`], {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
-    const source = runner()
-    const start = source.indexOf('[[ "$source_version" =~')
-    const end = source.indexOf('pnpm --dir "$root" exec tsx')
-    expect(start).toBeGreaterThan(-1)
-    expect(end).toBeGreaterThan(start)
-    const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${source.slice(start, end)}`], {
-      encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version },
+    for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
+      const source = runner(path)
+      const start = source.indexOf('[[ "$source_version" =~')
+      const end = source.indexOf('pnpm --dir "$root" exec tsx')
+      expect(start).toBeGreaterThan(-1)
+      expect(end).toBeGreaterThan(start)
+      const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${source.slice(start, end)}`], {
+        encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version },
+      })
+      expect(result.status === 0, path).toBe(accepted)
+    }
+  })
+
+  it('executes the actual sealed replay-target preflight against the current migration chain', () => {
+    const command = runner().match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
+    expect(command, 'exercise the same preflight that runs before cloning').toBeDefined()
+    const result = spawnSync('pnpm', ['exec', 'tsx', '-e', command!], {
+      encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' },
     })
-    expect(result.status === 0).toBe(accepted)
+    expect(result.status, result.stderr).toBe(0)
   })
 
   it('makes every top-level conditional safety gate explicit for macOS Bash3.2', () => {
@@ -104,7 +115,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,288")
+    expect(source).toContain("assert.equal(migrations.length,290")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
@@ -125,5 +136,21 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('Baseline must remain unchanged')
     expect(source).toContain('drop schema public cascade; drop schema private cascade; create schema public;')
     expect(source).not.toContain('10#$number > 10#$source_version')
+  })
+})
+
+
+describe('isolated material and announcement post-date proof target', () => {
+  it('requires all three rollback proofs before exact metadata comparison', () => {
+    const source = runner('scripts/check-material-post-date-database.sh')
+    expect(source).toContain('assert.equal(migrations.length,290')
+    expect(source).toContain('validateLifecycleServicesReviewedMigrations(migrations)')
+    const proof = source.indexOf('check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql; do')
+    expect(proof).toBeGreaterThan(-1)
+    expect(proof).toBeLessThan(source.indexOf('meta_id="$(docker create'))
+    expect(source).toContain('update_announcement_for_owner_v1:; do')
+    expect(source).toContain('cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts"')
+    expect(source).toContain('pika.material-post-date.owner')
+    expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
 })

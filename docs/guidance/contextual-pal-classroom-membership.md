@@ -17,7 +17,10 @@ restoration, immediate source/dependency preservation and owned cleanup passed.
 Old-event equality can compare empty fixture history; this is not nonempty
 historical-fact or provider-policy acceptance. Final evidence review/CI and
 cutover verification remain gates.
-No provider operation or production/shared-local application has occurred.
+Production001–288 is applied and read-only verified as of2026-10-21; see the
+[release receipt](production-release-2026-10-21.md). Pal membership/signals remain
+OFF and shared admission absent. Shared-local application and live-provider
+acceptance remain separate; the historical source-preparation evidence follows.
 
 The existing shared experience admission selects current membership rather than
 the historical account label on the existing classroom token and visit routes.
@@ -102,6 +105,8 @@ Shared243 schema equality and exact owned cleanup passed; two earlier fixture/
 output-format failures remain separately retained, not relabeled as successes.
 This is SQL/wire evidence, not real-provider, token-revocation or browser proof.
 Independent review and exact-head CI remain acceptance gates.
-Production/shared-local migrations and live-provider/publication/configuration,
-account/billing/cohort/home/page/cutover holds remain unchanged. Source preparation
-does not complete the attached-service batch or authorize provider operations.
+Production application through288 and app release1658 were separately approved;
+the dated receipt above supersedes the production-application hold for that exact
+set. Shared-local, live-provider acceptance, activation/configuration, account,
+billing, cohort, home/page and cutover holds remain. Applying287 does not activate
+Pal membership/signals or complete the attached-service batch.

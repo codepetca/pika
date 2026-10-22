@@ -46,4 +46,18 @@ describe('legacy material scheduling uses locked owner operations', () => {
     rpc.mockResolvedValue({ data: null, error: { code: '42501' } })
     expect((await PATCH(request({ scheduled_for }), context())).status).toBe(403)
   })
+  it('changes a published material post date through the locked owner operation', async () => {
+    const changed = { ...material(), released_at: '2026-10-02T04:00:00.000Z' }
+    rpc.mockResolvedValue({ data: { actor_id: actorId, classroom_id: classroomId, material: changed }, error: null })
+    const result = await PATCH(request({ posted_on: '2026-10-02' }), context())
+    expect(result.status).toBe(200)
+    expect(await result.json()).toEqual({ material: changed })
+    expect(rpc).toHaveBeenCalledWith('update_classwork_material_for_owner_v1', expect.objectContaining({ p_patch: { posted_on: '2026-10-02' } }))
+  })
+  it.each([{ posted_on: '2026-02-30' }, { posted_on: '2099-01-01' }, { posted_on: null },
+    { posted_on: '2026-10-02', is_draft: true }, { posted_on: '2026-10-02', scheduled_for: null },
+  ])('rejects invalid post date changes %j before writing', async body => {
+    expect((await PATCH(request(body), context())).status).toBe(400)
+    expect(rpc).not.toHaveBeenCalled()
+  })
 })

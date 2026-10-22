@@ -15,6 +15,10 @@ on:
 permissions:
   contents: read
 
+# setup-cli preserves this override; all later pulls and metadata proofs use it.
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
+
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
