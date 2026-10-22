@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Frozen classroom authoring-guidance read preparation
-
-Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
-reviewed reorder1d1d2b while PR1626 finishes CI. Prepared278 and admitted GET bind
-actual classroom ownership and selected frozen structural/adopted saved Versions
-in one read-only snapshot. Preserve archived/null-pointer behavior and legacy
-unmatched routing; no live Draft/latest or extra Blueprint-owner requirement.
-Only service-role SELECT(course_blueprint_id) on the purge fence is added.
-Private8MiB/10000-item work bounds reject rather than truncate. No UI change.
-Core Sol6.1/high delivered SQL and exact278 closed-profile seals; leaf Sol6.1/high
-delivered finite12-HTTP/18-SQL/60-guard SDK fixture with full Blueprint/history
-preservation. Root independently inspected output;1075 integration tests/9files
-pass, plus1388 closed-profile tests/10suites. Only pending genuine278 RPC metadata
-fails TypeScript; no manual metadata/cast. Audit, independent security and
-compatibility review, isolated proof, genuine generation and stable-head CI
-remain. Cumulative306 review turns/4 fix batches preserved; workflow-stop waiver
-active, per-worker cost unknown. Production/shared-local249+/provider/accounts/
-billing/AI/admission/home/page/cutover holds unchanged; no phase-exit claim.
-
-Initial307/308 and composition309 CLEAN. PR1626 normally merged7e56151e at07:10:21Z
-after all ten39380704259 CI/PRGate checks passed on1d1d2b; treec52abc45 identical,
-canonical clean main ff-only. New isolated guidance gi4jdD/project0f0ad5ed69d2
-actual70867JOINED0 PASSED001–278 rollback SQL/catalog/ACL/lineage/size boundaries,
-genuine generation,12actualSDKadapterreads18SQL60guards7DTOhashes4null/fullgraph
-and complement restoration/canonical read-only/global equality/owned teardown.
-100actions1675controls51707374B12HTTPmax1/final0open or uncertain. Immediate next
-tool FIRST17921JOINED0 verifies7933source98970depsunchanged0process; freeze released
-only after join. Genuine278444042B29a85e7b installedapply_patch+cmp; removing ONLY
-newrequired2UUID→JsonRPC reconstructs entire2774645aad3. Original false authority
-flags unchanged; profile now spent/fail-closed, no replay. Final checks/current-main
-integration/review/CI remain. Cumulative309reviews/4batches and all holds retained.
-
-Current-main rebase60351bd5 preserves exercised integration tree75ddfaa7. Final
-focused checks exposed one stale recovery-profile test expecting277 in the now
-reviewed278 chain (2810other tests passed). Update only that count and its genuine
-unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
-batched remediation5, not a new native attempt or weakened profile. Final targeted
-integration review includes the delta; no routine approval needed under waiver.
-
 ## 2026-10-20 — Dual-owner classroom guidance preview preparation
 
 Coordinator owns codex/contextual-classroom-guidance-preview, child of reviewed
@@ -786,6 +747,14 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
+
+## 2026-10-22 — Settings switch motion consistency
+
+- Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
+- Native baseline confirmed 150ms track/thumb transitions persisted under reduced motion. Shared fast duration/standard easing and transition-none now cover both decorative spans, preserving immediate native state/callbacks and fixed labels.
+- Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
+- Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
+- No dependency, database, grade policy or production change; broader experience epic remains incomplete.
 
 ## 2026-10-22 — Roster join dates
 

@@ -48451,7 +48451,7 @@ Existing review/runtime evidence and spent attempts remain immutable; no product
 shared-local249+, provider, account or activation action. New report child worktree
 is independent source-only work; no migrations applied.
 
-<!-- pika-session-log-archive-batch:96eff2569d2459b571953a279fe6767af120e009e7d729b795ad606789b7dac6 -->
+<!-- pika-session-log-archive-batch:41418fa36302a7e2a57f68d6f0a14ab90c64289cd93ed3572d7059a55a69a6b0 -->
 ## 2026-10-20 — Dormant owner Daily Log attendance report preparation
 
 Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
@@ -48474,7 +48474,7 @@ production, provider, real account, billing/AI or activation operations. Latest
 owner decision retains current-membership-only learner attendance with earlier
 records preserved for owner; this report does not claim learner provenance.
 
-<!-- pika-session-log-archive-batch:375e81ee6ab2fe686abb27b1772dfddcbba7c25a0d1e03030c4c39154a7367d5 -->
+<!-- pika-session-log-archive-batch:7017a8d7b00870ae50ef639028f62bdb51e0ed86e55f7110a91573f53a8a4eff -->
 ## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
 
 Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
@@ -48499,7 +48499,6 @@ task waiver; tokens/effective config unknown. Final metadata/current-main review
 focused checks and CI remain gates. No prod/shared-local249+, provider, real
 account/plan, billing/AI, admission or activation action; learner provenance separate.
 
-<!-- pika-session-log-archive-batch:c77db5436c5ed5ee37baa88a19b8c4e8afa9f7560d6327c10fbb5cb61bd03a70 -->
 ## 2026-10-20 — Prepare atomic contextual classroom-list ordering
 
 Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
@@ -48538,3 +48537,42 @@ Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918sourc
 443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
 No original receipt rewritten; spent profile stays fail-closed. Final focused
 checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.
+
+## 2026-10-20 — Frozen classroom authoring-guidance read preparation
+
+Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
+reviewed reorder1d1d2b while PR1626 finishes CI. Prepared278 and admitted GET bind
+actual classroom ownership and selected frozen structural/adopted saved Versions
+in one read-only snapshot. Preserve archived/null-pointer behavior and legacy
+unmatched routing; no live Draft/latest or extra Blueprint-owner requirement.
+Only service-role SELECT(course_blueprint_id) on the purge fence is added.
+Private8MiB/10000-item work bounds reject rather than truncate. No UI change.
+Core Sol6.1/high delivered SQL and exact278 closed-profile seals; leaf Sol6.1/high
+delivered finite12-HTTP/18-SQL/60-guard SDK fixture with full Blueprint/history
+preservation. Root independently inspected output;1075 integration tests/9files
+pass, plus1388 closed-profile tests/10suites. Only pending genuine278 RPC metadata
+fails TypeScript; no manual metadata/cast. Audit, independent security and
+compatibility review, isolated proof, genuine generation and stable-head CI
+remain. Cumulative306 review turns/4 fix batches preserved; workflow-stop waiver
+active, per-worker cost unknown. Production/shared-local249+/provider/accounts/
+billing/AI/admission/home/page/cutover holds unchanged; no phase-exit claim.
+
+Initial307/308 and composition309 CLEAN. PR1626 normally merged7e56151e at07:10:21Z
+after all ten39380704259 CI/PRGate checks passed on1d1d2b; treec52abc45 identical,
+canonical clean main ff-only. New isolated guidance gi4jdD/project0f0ad5ed69d2
+actual70867JOINED0 PASSED001–278 rollback SQL/catalog/ACL/lineage/size boundaries,
+genuine generation,12actualSDKadapterreads18SQL60guards7DTOhashes4null/fullgraph
+and complement restoration/canonical read-only/global equality/owned teardown.
+100actions1675controls51707374B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST17921JOINED0 verifies7933source98970depsunchanged0process; freeze released
+only after join. Genuine278444042B29a85e7b installedapply_patch+cmp; removing ONLY
+newrequired2UUID→JsonRPC reconstructs entire2774645aad3. Original false authority
+flags unchanged; profile now spent/fail-closed, no replay. Final checks/current-main
+integration/review/CI remain. Cumulative309reviews/4batches and all holds retained.
+
+Current-main rebase60351bd5 preserves exercised integration tree75ddfaa7. Final
+focused checks exposed one stale recovery-profile test expecting277 in the now
+reviewed278 chain (2810other tests passed). Update only that count and its genuine
+unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
+batched remediation5, not a new native attempt or weakened profile. Final targeted
+integration review includes the delta; no routine approval needed under waiver.

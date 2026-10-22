@@ -88,6 +88,7 @@ import { CLASSROOM_NAV_ITEMS } from '@/components/layout/classroom-nav-items'
 import { TestReferenceImagePattern } from './TestReferenceImagePattern'
 import { StudentGradesPattern } from './StudentGradesPattern'
 import { TooltipMotionPattern, UiConsistencyPattern } from './UiConsistencyPattern'
+import { SettingsSwitchMotionPattern } from './SettingsSwitchMotionPattern'
 import { TooltipAdoptionPattern } from './TooltipAdoptionPattern'
 import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
@@ -677,6 +678,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
         </div>
 
         <TooltipMotionPattern />
+        <SettingsSwitchMotionPattern />
         <TooltipAdoptionPattern role={role} />
         <ClassroomsReadRecoveryPattern role={role} />
         <PatternSection

@@ -1484,7 +1484,7 @@ describe('TeacherClassroomView', () => {
     })
     render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
     await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Assignment grading actions' })).toBeInTheDocument())
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
     expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'markdown')
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
@@ -1508,7 +1508,7 @@ describe('TeacherClassroomView', () => {
     render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
     await waitFor(() => expect(screen.getByRole('toolbar', { name: 'Assignment grading actions' })).toBeInTheDocument())
 
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
     expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'markdown')
     fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
