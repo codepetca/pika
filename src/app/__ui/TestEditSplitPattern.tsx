@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, ListPlus, Plus, Settings, Text, Trash2 } from 'lucide-react'
-import { CreationModalTitleField, CreationModalShell } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalTitleField, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import type { ExamDocumentItem } from '@/components/ExamDocumentWorkspace'
 import { MarkdownContentEditor } from '@/components/editor'
@@ -512,8 +512,9 @@ export function TestEditSplitPattern() {
         <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
           <div
             data-testid="test-editor-details-pane"
-            className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto"
+            className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto"
           >
+            <CreationModalContextHeader itemType="Test" classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning" />
             <CreationModalTitleField
               error={titleError}
               actions={(

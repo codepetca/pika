@@ -100,6 +100,7 @@ describe('AssignmentForm', () => {
       <TooltipProvider><AssignmentForm
         fillHeight
         desktopSplit
+        classroomName="Health for Life"
         title="Essay"
         instructionsMarkdown="Explain why."
         dueAt=""
@@ -117,6 +118,7 @@ describe('AssignmentForm', () => {
     const toolbar = await within(content).findByRole('toolbar', { name: 'Formatting options' })
     const actions = screen.getByTestId('assignment-editor-primary-actions')
 
+    expect(within(details).getByTitle('Health for Life')).toHaveTextContent('Health for Life')
     expect(details).toContainElement(screen.getByRole('textbox', { name: 'Title' }))
     expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
     expect(details).toContainElement(screen.getByRole('button', { name: 'Configure required submissions' }))

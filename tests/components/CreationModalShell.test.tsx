@@ -2,9 +2,19 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { CreationModalShell, CreationModalTitleField, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalShell, CreationModalTitleField, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 
 describe('CreationModalShell', () => {
+  it('retains the complete classroom name and supports an item without classroom context', () => {
+    const classroomName = 'Health for Life · Period 2 · Community, wellbeing and lifelong learning'
+    const { rerender } = render(<CreationModalContextHeader itemType="Material" classroomName={classroomName} />)
+    expect(screen.getByText('Material', { exact: true })).toBeInTheDocument()
+    expect(screen.getByTitle(classroomName)).toHaveTextContent(classroomName)
+    rerender(<CreationModalContextHeader itemType="Assignment" />)
+    expect(screen.getByText('Assignment', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByTitle(classroomName)).not.toBeInTheDocument()
+  })
+
   it('preserves title naming, placeholder and error semantics alongside settings', async () => {
     const user = userEvent.setup()
     render(<CreationModalTitleField error="Enter a title" actions={<button>Settings</button>}>

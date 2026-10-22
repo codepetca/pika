@@ -4,13 +4,14 @@ import { useState } from 'react'
 import { Eye } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Button, ContentDialog, DialogPanel, FormField, Input, SplitButton } from '@/ui'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { ContentField, RichTextEditor, RichTextViewer } from '@/components/editor'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { combineScheduleDateTimeToIso, DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, isScheduleIsoInFuture, parseScheduleIsoToParts } from '@/lib/scheduling'
 import type { TiptapContent } from '@/types'
 
 interface MaterialCreationDialogProps {
+  classroomName?: string
   materialKey?: string
   isOpen: boolean
   isExisting?: boolean
@@ -35,7 +36,7 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 
 function MaterialEditor({
   isOpen, isExisting = false, isDraft = true, releasedAt, readOnly = false, saving = false,
-  error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
+  classroomName, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
 }: MaterialCreationDialogProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const isScheduled = !isDraft && !!releasedAt && isScheduleIsoInFuture(releasedAt)
@@ -73,8 +74,9 @@ function MaterialEditor({
         contentClassName="!overflow-hidden !p-0"
         tall
       >
-        <div className="grid h-full min-h-0 w-full overflow-y-auto lg:grid-cols-3 lg:overflow-hidden">
-          <section aria-label="Material details" className="flex flex-col gap-4 bg-surface p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+        <div className="grid h-full min-h-0 w-full grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:overflow-hidden">
+          <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+            <CreationModalContextHeader itemType="Material" classroomName={classroomName} />
             <FormField label="Title" required hideLabel collapseHiddenLabel className="modal-title-field">
               <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
             </FormField>

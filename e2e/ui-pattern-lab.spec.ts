@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
+import { expect, test, type Page, type TestInfo, type Locator } from '@playwright/test'
 import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility'
 import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-student-tables'
 
@@ -300,6 +300,7 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('survey-edit-split')
   await page.getByRole('button', { name: 'Open survey edit prototype' }).click()
   const dialog = page.getByRole('dialog', { name: 'Edit Survey', exact: true })
+  await expectEditorContext(dialog, 'Survey', testInfo)
   const details = dialog.getByTestId('survey-editor-details-pane')
   const content = dialog.getByTestId('survey-editor-content-pane')
   const number = content.getByRole('spinbutton', { name: 'Question number' })
@@ -345,10 +346,11 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await expect(content.getByRole('textbox', { name: 'Question 1 option E' })).toHaveValue('')
   await expectNoOverflow()
   if (testInfo.project.metadata.viewport === 'mobile') {
-    const panel = (await dialog.boundingBox())!, field = (await details.getByRole('textbox', { name: 'Title' }).boundingBox())!
-    expect(field.y).toBeGreaterThanOrEqual(panel.y)
+    const panel = (await dialog.boundingBox())!, context = (await details.locator('.modal-context-row').boundingBox())!
+    expect(context.y).toBeGreaterThanOrEqual(panel.y)
     const corner = (await dialog.getByRole('button', { name: 'Close survey edit prototype' }).boundingBox())!
-    expect(field.x + field.width).toBeLessThanOrEqual(corner.x - 4)
+    const classroom = (await details.locator('.modal-context-row [title]').boundingBox())!
+    expect(classroom.x + classroom.width).toBeLessThanOrEqual(corner.x - 4)
   }
   await capture('survey-edit-multiple-choice')
 
@@ -806,6 +808,27 @@ for (const role of ['teacher', 'student'] as const) {
   })
 }
 
+async function expectEditorContext(dialog: Locator, itemType: string, testInfo: TestInfo) {
+  const context = dialog.locator('.modal-context-row')
+  await expect(context.getByText(itemType, { exact: true })).toBeVisible()
+  const classroom = context.locator('[title]')
+  await expect(classroom).toHaveAttribute('title', 'Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+  await expect(classroom).toHaveText('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+  expect(await classroom.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
+  expect(await classroom.evaluate(element => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+  const contextBounds = (await context.boundingBox())!
+  const titleBounds = (await dialog.getByRole('textbox', { name: 'Title', exact: true }).boundingBox())!
+  expect(titleBounds.y).toBeGreaterThanOrEqual(contextBounds.y + contextBounds.height + 10)
+  const closeBounds = (await dialog.locator('[data-dialog-close]').boundingBox())!
+  expect(Math.abs(closeBounds.y + closeBounds.height / 2 - contextBounds.y - contextBounds.height / 2)).toBeLessThanOrEqual(2)
+  if (testInfo.project.metadata.viewport === 'mobile') {
+    const classroomBounds = (await classroom.boundingBox())!
+    expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual(closeBounds.x - 4)
+    // The second-row input can use the full details width below the corner X.
+    expect(titleBounds.y).toBeGreaterThan(closeBounds.y + closeBounds.height)
+  }
+}
+
 async function openPatternLab(page: Page, testInfo: TestInfo, role: 'teacher' | 'student') {
   await page.goto(`/pattern-lab?role=${role}`, { waitUntil: 'domcontentloaded' })
   await expect(page.locator('[data-pattern-lab-ready=true]')).toBeVisible()
@@ -984,6 +1007,7 @@ test.describe('teacher Pattern Lab', () => {
     const heading = dialog.getByRole('heading', { name: 'New Assignment' })
     const status = dialog.locator('[role="status"][aria-live="polite"]')
     const close = dialog.getByRole('button', { name: 'Close assignment example' })
+    await expectEditorContext(dialog, 'Assignment', testInfo)
     const detailsPane = dialog.getByTestId('assignment-editor-details-pane')
     const contentPane = dialog.getByTestId('assignment-editor-content-pane')
     const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
@@ -1132,6 +1156,7 @@ test.describe('teacher Pattern Lab', () => {
     await openPatternLab(page, testInfo, 'teacher')
     await page.getByRole('button', { name: 'Open assignment edit prototype' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit Assignment', exact: true })
+    await expectEditorContext(dialog, 'Assignment', testInfo)
     const detailsPane = dialog.getByTestId('assignment-editor-details-pane')
     const contentPane = dialog.getByTestId('assignment-editor-content-pane')
     const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
@@ -1143,12 +1168,12 @@ test.describe('teacher Pattern Lab', () => {
     if (testInfo.project.metadata.viewport === 'desktop') {
       const modeBounds = (await contentPane.getByRole('group', { name: 'Instructions editing mode' }).boundingBox())!
       expect(Math.abs(xBounds.y + xBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
-      const titleBounds = (await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!
-      expect(Math.abs(titleBounds.y + titleBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
+      const contextBounds = (await detailsPane.locator('.modal-context-row').boundingBox())!
+      expect(Math.abs(contextBounds.y + contextBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
       expect(modeBounds.x + modeBounds.width).toBeLessThanOrEqual(xBounds.x - 4)
     } else {
-      const titleBounds = (await dialog.getByRole('textbox', { name: 'Title' }).boundingBox())!
-      expect(titleBounds.x + titleBounds.width).toBeLessThanOrEqual(xBounds.x - 4)
+      const classroomBounds = (await dialog.locator('.modal-context-row [title]').boundingBox())!
+      expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual(xBounds.x - 4)
     }
     expect(xBounds.y - modalFrame.y).toBeLessThanOrEqual(17)
     await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
@@ -1221,6 +1246,7 @@ test.describe('teacher Pattern Lab', () => {
     await openPatternLab(page, testInfo, 'teacher')
     await page.getByRole('button', { name: 'Open test edit prototype' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit Test', exact: true })
+    await expectEditorContext(dialog, 'Test', testInfo)
     const detailsPane = dialog.getByTestId('test-editor-details-pane')
     const contentPane = dialog.getByTestId('test-editor-content-pane')
     const actionbar = contentPane.getByTestId('test-question-actionbar')
@@ -1360,9 +1386,10 @@ test.describe('teacher Pattern Lab', () => {
     } else {
       expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
       expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)
-      const titleBounds = (await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!
-      expect(titleBounds.y).toBeGreaterThanOrEqual((await dialog.boundingBox())!.y)
-      expect(titleBounds.x + titleBounds.width).toBeLessThanOrEqual((await close.boundingBox())!.x - 4)
+      const contextBounds = (await detailsPane.locator('.modal-context-row').boundingBox())!
+      expect(contextBounds.y).toBeGreaterThanOrEqual((await dialog.boundingBox())!.y)
+      const classroomBounds = (await detailsPane.locator('.modal-context-row [title]').boundingBox())!
+      expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual((await close.boundingBox())!.x - 4)
     }
 
     await testInfo.attach('test-edit-split-prototype', {
@@ -1609,6 +1636,7 @@ test.describe('teacher Pattern Lab', () => {
     const open = page.getByRole('button', { name: 'Open material example' })
     await open.click()
     const dialog = page.getByRole('dialog', { name: 'New Material', exact: true })
+    await expectEditorContext(dialog, 'Material', testInfo)
     const preview = dialog.getByRole('button', { name: 'Preview', exact: true })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('region', { name: 'Material details' })).toBeVisible()

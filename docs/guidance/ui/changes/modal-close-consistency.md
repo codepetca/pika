@@ -55,7 +55,7 @@ Both roles, desktop/mobile, light/dark; verify mode switching, long titles,
 question menus, source mode, scroll, busy guards and focus. Primary signal remains
 the shared corner X; must not add another row or another close control.
 
-Compact creation callers mark the mobile title field with `modal-title-field`,
+Compact creation callers mark the mobile context row with `modal-context-row`,
 the desktop top control row with `modal-controls-row`, centered question grids
 with `modal-question-controls-row` (clear only the trailing actions), or the wrapper around
 the first rich-text toolbar with `modal-toolbar-row`. CreationModalShell scopes
@@ -91,3 +91,27 @@ on desktop/mobile in light/dark; both shared role references remain covered.
 
 Saving feedback remains available in survey Edit, Markdown and Preview while
 metadata stays editable. Preview reuses its existing title row for the indicator.
+
+## Item context refinement — 2026-10-22
+
+Owner requested the classwork type and classroom at the top left, with the title
+and remaining details below. Extend the existing creation modal compositions with
+CreationModalContextHeader for Assignment, Material, Test and Survey. Reuse the
+AppHeader classroom-name fade; preserve the full name as text and native title.
+The context row aligns with the existing right-pane controls and reserves X on
+mobile; it adds no row above the right pane. Title/settings move down together.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Type and classroom context | Creation modal compositions | extend | Four real editor adopters share the same narrow presentation |
+| Long classroom names | AppHeader fade | reuse | Bound the name to the pane while preserving the full text |
+| Editable title | Existing title fields | reuse | Keep labels, placeholders, validation and save callbacks |
+
+Reference: Pattern Lab assignment/test/survey/material split editors and AppHeader.
+Teacher × desktop1440×900/mobile390×844 × light/dark; student n/a because these
+editor details are teacher-only and no shared student dialog changes. Verify long
+and missing classroom names, empty title, mode/settings menus, scroll, saving and
+corner clearance. Primary signal: type followed by classroom name, above the
+editable title. No new icons, badges, save behavior or full-width header band.
+Composite accessibility review: yes; preserve dialog names, input names, focus,
+menu operation, one X and existing busy dismissal guards.

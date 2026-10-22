@@ -17,6 +17,7 @@ interface TeacherTestAuthoringDialogProps {
   initialView?: AuthoringView
   test: TestAssessmentWithStats | null
   classroomId: string
+  classroomName?: string
   apiBasePath: string
   hasPendingMarkdownImport: boolean
   publicationError?: string
@@ -38,6 +39,7 @@ export function TeacherTestAuthoringDialog({
   initialView = 'edit',
   test,
   classroomId,
+  classroomName,
   apiBasePath,
   publicationError = '',
   onClose,
@@ -137,6 +139,7 @@ export function TeacherTestAuthoringDialog({
           <TestDetailPanel
             test={test}
             classroomId={classroomId}
+            classroomName={classroomName}
             apiBasePath={apiBasePath}
             onDraftSummaryChange={onDraftSummaryChange}
             onTestUpdate={onTestUpdate}

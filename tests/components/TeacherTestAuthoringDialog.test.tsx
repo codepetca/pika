@@ -20,6 +20,7 @@ const draftPristineCheck = vi.hoisted(() => vi.fn(() => ({
 
 vi.mock('@/components/TestDetailPanel', () => ({
   TestDetailPanel: ({
+    classroomName,
     testQuestionLayout,
     initialSplitView,
     onRequestClose,
@@ -32,6 +33,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onDraftFlushReady,
     onDraftPristineCheckReady,
   }: {
+    classroomName?: string
     testQuestionLayout?: string
     initialSplitView?: string
     onRequestClose?: () => void
@@ -48,7 +50,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
   }) => {
     onDraftFlushReady?.(draftFlush)
     onDraftPristineCheckReady?.(draftPristineCheck)
-    return <div data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} data-editor-view={initialSplitView}>
+    return <div data-classroom-name={classroomName} data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} data-editor-view={initialSplitView}>
       <button onClick={onRequestClose} disabled={isClosing}>{isClosing ? 'Saving...' : 'Close'}</button>
       {assessment.status === 'draft' && <button onClick={onRequestPublish}>Publish</button>}
       {onRequestUnpublish && <button onClick={onRequestUnpublish} disabled={!canUnpublish}>Unpublish</button>}
@@ -103,6 +105,7 @@ function renderDialog({
         isOpen
         initialView={initialView}
         test={testOverride}
+        classroomName="Health for Life"
         classroomId="classroom-1"
         apiBasePath="/api/teacher/tests"
         hasPendingMarkdownImport={hasPendingMarkdownImport}
@@ -174,6 +177,7 @@ describe('TeacherTestAuthoringDialog', () => {
 
   it('names the authoring surface and delegates the split editor controls', () => {
     renderDialog()
+    expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute('data-classroom-name', 'Health for Life')
     const dialog = screen.getByRole('dialog', { name: 'Edit test' })
     expect(within(dialog).getByText('Edit test')).toBeInTheDocument()
     expect(screen.getByTestId('test-authoring-detail')).toHaveAttribute(

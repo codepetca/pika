@@ -14,7 +14,7 @@ vi.mock('@/components/editor', () => ({
 }))
 
 const props = () => ({
-  isOpen: true, title: 'Field guide',
+  isOpen: true, title: 'Field guide', classroomName: 'Health for Life',
   content: { type: 'doc' as const, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Unsaved reading content' }] }] },
   onTitleChange: vi.fn(), onContentChange: vi.fn(), onSave: vi.fn(), onClose: vi.fn(),
 })
@@ -31,6 +31,7 @@ describe('Material formatted editing', () => {
     }
     render(<ControlledEditor />, { wrapper: TooltipProvider })
     expect(screen.queryByRole('button', { name: /^(Visual|Markdown|Apply Markdown|Discard Markdown)$/ })).not.toBeInTheDocument()
+    expect(screen.getByTitle('Health for Life')).toHaveTextContent('Health for Life')
     const close = screen.getByRole('button', { name: 'Close material modal' })
     expect(close.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     expect(screen.getByRole('dialog').querySelectorAll('[data-dialog-close]')).toHaveLength(1)

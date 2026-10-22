@@ -404,6 +404,7 @@ function TeacherMaterialDialog({
   return (
     <MaterialCreationDialog
       materialKey={`${classroom.id}:${material?.id ?? 'new'}`}
+      classroomName={classroom.title}
       isOpen={isOpen}
       isExisting={!!material}
       isDraft={isDraft}
@@ -3065,6 +3066,7 @@ export function TeacherClassroomView({
         isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
         assignment={editAssignment}
+        classroomName={classroom.title}
         instructionsMode={assignmentInstructionsMode}
         classDays={classDays}
         onClose={closeAssignmentModal}
@@ -3126,6 +3128,7 @@ export function TeacherClassroomView({
             key={surveyModalId}
             classroomId={classroom.id}
             surveyId={surveyModalId}
+            classroomName={classroom.title}
             isReadOnly={isReadOnly}
             initialEditMode={
               createdSurveyEditorIntent?.surveyId === surveyModalId

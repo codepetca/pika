@@ -61,6 +61,7 @@ export function AssignmentEditSplitPattern() {
         contentClassName="!overflow-hidden !p-0"
       >
         <AssignmentForm
+          classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning"
           fillHeight
           desktopSplit
           title={title}

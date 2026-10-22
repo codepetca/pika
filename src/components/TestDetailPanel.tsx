@@ -1,6 +1,6 @@
 'use client'
 
-import { CreationModalTitleField } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalTitleField } from '@/components/creation/CreationModalShell'
 
 import {
   useCallback,
@@ -66,6 +66,7 @@ import type {
 interface Props {
   test: TestAssessmentWithStats
   classroomId: string
+  classroomName?: string
   apiBasePath?: string
   onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onDraftSummaryChange?: (update: AssessmentEditorSummaryUpdate) => void
@@ -181,6 +182,7 @@ function summarizeDraftContent(
 export function TestDetailPanel({
   test,
   classroomId,
+  classroomName,
   apiBasePath = '/api/teacher/tests',
   onTestUpdate,
   onDraftSummaryChange,
@@ -2283,7 +2285,8 @@ export function TestDetailPanel({
 
   const testsSplitPanel = (
     <div data-testid="test-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
-      <div data-testid="test-editor-details-pane" className="flex flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+      <div data-testid="test-editor-details-pane" className="flex min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
+        <CreationModalContextHeader itemType="Test" classroomName={classroomName} />
         <CreationModalTitleField
           actions={(
             <div className="flex items-center gap-1">

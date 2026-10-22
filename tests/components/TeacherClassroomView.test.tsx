@@ -1487,6 +1487,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
     expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'markdown')
+    expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classroomName).toBe(classroom.title)
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
     fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))

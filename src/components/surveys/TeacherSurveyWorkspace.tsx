@@ -1,6 +1,6 @@
 'use client'
 
-import { CreationModalTitleField } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalTitleField } from '@/components/creation/CreationModalShell'
 
 import {
   forwardRef,
@@ -32,6 +32,7 @@ import type { Survey, SurveyQuestion, SurveyQuestionResult, SurveyQuestionType }
 
 interface TeacherSurveyWorkspaceProps {
   classroomId: string
+  classroomName?: string
   surveyId: string
   isReadOnly?: boolean
   initialEditMode?: 'edit' | 'markdown'
@@ -472,6 +473,7 @@ function TeacherSurveyPreview({
 }
 
 export function TeacherSurveyWorkspace({
+  classroomName,
   surveyId,
   isReadOnly = false,
   initialEditMode,
@@ -979,7 +981,8 @@ export function TeacherSurveyWorkspace({
 
   return (
     <div data-testid="survey-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
-      <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
+      <div data-testid="survey-editor-details-pane" className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
+        <CreationModalContextHeader itemType="Survey" classroomName={classroomName} />
         <CreationModalTitleField error={titleError} actions={(
           <div className="flex items-center gap-1">
             <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[

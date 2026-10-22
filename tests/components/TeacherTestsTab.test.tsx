@@ -50,6 +50,7 @@ vi.mock('@/lib/gradebook-cache', () => ({
 
 vi.mock('@/components/TestDetailPanel', () => ({
   TestDetailPanel: ({
+    classroomName,
     test,
     testQuestionLayout,
     showPreviewButton,
@@ -65,6 +66,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onRequestPublish,
     generatedTitleLabel,
   }: {
+    classroomName?: string
     test?: TestAssessmentWithStats
     testQuestionLayout?: string
     showPreviewButton?: boolean
@@ -111,6 +113,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
       <>
         <div
           data-testid="mock-test-detail"
+          data-classroom-name={classroomName}
           data-question-layout={testQuestionLayout}
           data-editor-view={markdownView ? 'markdown' : 'edit'}
           data-show-preview={String(showPreviewButton)}
@@ -1628,6 +1631,7 @@ describe('TeacherTestsTab', () => {
     const view = renderTab({ testsTabClickToken: 0 })
 
     expect(await openEditModalFromSelectedTest()).toHaveTextContent('Detail for Unit Test')
+    expect(screen.getByTestId('mock-test-detail')).toHaveAttribute('data-classroom-name', classroom.title)
 
     fireEvent.click(screen.getByRole('button', { name: 'Simulate draft change' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close' }))

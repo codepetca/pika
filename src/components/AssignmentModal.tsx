@@ -174,6 +174,7 @@ function getScheduleDueDateValidationMessage(scheduleIso: string, dueAt: string,
 }
 
 interface AssignmentModalProps {
+  classroomName?: string
   isOpen: boolean
   classroomId: string
   assignment?: Assignment | null // null/undefined for create mode
@@ -183,7 +184,7 @@ interface AssignmentModalProps {
   onSuccess: (assignment: Assignment, options?: { closeModal?: boolean }) => void
 }
 
-export function AssignmentModal({ isOpen, classroomId, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
+export function AssignmentModal({ isOpen, classroomId, classroomName, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
   // Only a new logical open retires the old body's local editor/menu/history state.
   const [bodyLifetime, setBodyLifetime] = useState({ open: isOpen, key: 0 })
   if (bodyLifetime.open !== isOpen) {
@@ -993,6 +994,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         <AssignmentEditorBody
           key={bodyLifetime.key}
           sourceClassroomId={classroomId}
+          classroomName={classroomName}
           sourceArtifactId={assignment?.id}
           requirements={submissionRequirements}
           onRequirementsChange={activeInput(handleSubmissionRequirementsChange)}

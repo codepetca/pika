@@ -221,7 +221,10 @@ X cancels; pending non-dismissible operations remain protected. Drawers and
 inline panel/item controls are separate contracts.
 
 Compact assignment, test, survey and material title inputs use hidden accessible
-labels and empty-title placeholders, aligned with the right-pane controls.
+labels and empty-title placeholders. A first row identifies the item type and
+classroom, aligned with the right-pane controls; the title and remaining details
+follow below it. The classroom name fades at the left-pane edge and retains its
+full text for assistive technology and the native title tooltip.
 Settings shares the title input row. Saving uses CircularProgress through
 SaveStatus's indicator presentation in existing mode/question controls; saved
 and unsaved announcements stay available to assistive tech, and failures remain visible.

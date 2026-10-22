@@ -3309,6 +3309,7 @@ export function TeacherTestsTab({
       </DialogPanel>
 
       <TeacherTestAuthoringDialog
+        classroomName={classroom.title}
         isOpen={isTestEditorOpen}
         initialView={testEditorInitialView}
         test={selectedTestWorkspace}

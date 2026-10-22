@@ -33,6 +33,7 @@ export function MaterialCreationPattern() {
       }}>Open material example</Button>
       <p role="status" className="mt-2 text-xs text-text-muted">{result}</p>
       <MaterialCreationDialog
+        classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning"
         isOpen={open}
         title={title}
         content={content}

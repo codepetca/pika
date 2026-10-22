@@ -156,8 +156,9 @@ describe('TeacherSurveyWorkspace', () => {
 
   it.each(['', 'Incomplete prompt'] as const)('cancels an unwanted staged question with prompt %j without creating it', async (prompt) => {
     fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion(), makeQuestion({ id: 'question-2', question_text: 'Original second question' })] }))
-    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    render(<TeacherSurveyWorkspace classroomName="Health for Life" classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
     await screen.findByLabelText('Prompt')
+    expect(screen.getByTitle('Health for Life')).toHaveTextContent('Health for Life')
     selectQuestion(2)
     await waitFor(() => expect(screen.getByLabelText('Prompt')).toHaveValue('Original second question'))
     questionAction('Add multiple-choice question')

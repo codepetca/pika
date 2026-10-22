@@ -634,8 +634,19 @@ Assignment/test fixture scroll sizing was aligned with the existing survey/test
 production pattern. Independent review accepted one P2: Preview metadata saves
 had no indicator. Its existing title row now carries the same feedback;37survey
 component cases (including held title/settings requests) and4full-classroom
-Preview browser cases pass. Extra targeted review approval requested at the
-seven-turn budget; canonical gate and review tracked in PR.
+Preview browser cases pass. Owner-approved eighth targeted review was clean;
+final6c4ea6cc1 focused gate passed3786/3786 and all static checks.
+Owner then requested type/classroom context above the title in the left pane.
+Shared CreationModalContextHeader identifies Assignment/Material/Test/Survey,
+reuses the AppHeader name fade and preserves the full text/native tooltip.
+Production classroom titles are passed from their existing owners; right-pane
+controls and top-right X retain their positions. Title/settings and remaining
+details follow below; mobile context owns corner clearance. Pattern Lab, stable
+guidance and focused semantic/geometry checks updated. Component156/156 and
+24browser cases pass across desktop/mobile and light/dark, including held
+production saves, empty titles, long names, scrolling and menus. Explicit mobile
+grid columns prevent long-name width expansion. Docker/owned preview stopped
+after screenshots; final canonical gate and delta review remain tracked in PR.
 
 ## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
 
