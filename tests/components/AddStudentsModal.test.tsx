@@ -135,6 +135,10 @@ describe('AddStudentsModal', () => {
     fireEvent.blur(rosterInput)
     fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' }))
     expect(await screen.findByRole('button', { name: 'Adding...' })).toBeDisabled()
+    const close = screen.getByRole('button', { name: 'Close Add Students' })
+    expect(close).toBeDisabled()
+    fireEvent.click(close)
+    expect(onCloseA).not.toHaveBeenCalled()
 
     view.rerender(
       <AddStudentsModal

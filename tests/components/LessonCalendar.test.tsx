@@ -286,6 +286,8 @@ describe('LessonCalendar', () => {
       editable={false} onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
     await user.click(screen.getByRole('button', { name: /open monday, march 16, 2026/i }))
     await user.tab()
+    expect(within(screen.getByRole('dialog')).getByRole('button', { name: 'Close', exact: true })).toHaveFocus()
+    await user.tab()
     expect(screen.getByRole('button', { name: 'Previous day' })).toHaveFocus()
     await user.tab()
     expect(screen.getByRole('button', { name: 'Next day' })).toHaveFocus()

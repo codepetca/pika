@@ -240,6 +240,8 @@ describe('PageMockups', () => {
     await user.click(openQr)
     const qrDialog = screen.getByRole('dialog', { name: 'Check in for attendance' })
     expect(qrDialog).toHaveClass('aspect-[2/3]', 'sm:aspect-video')
+    expect(qrDialog.querySelectorAll('[data-dialog-close]')).toHaveLength(1)
+    expect(within(qrDialog).getByRole('button', { name: 'Close', exact: true }).closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     expect(within(qrDialog).getByLabelText('Environmental Science check in for attendance QR code')).toBeVisible()
     expect(within(qrDialog).getByText('Environmental Science')).toHaveClass('sm:text-5xl')
     expect(within(qrDialog).getByText('Environmental Science').parentElement).toHaveClass('text-center', 'items-center')

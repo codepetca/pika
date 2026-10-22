@@ -79,6 +79,7 @@ interface Props {
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only' | 'split'
   initialSplitView?: 'edit' | 'markdown'
   onRequestClose?: () => void
+  showCloseButton?: boolean
   onRequestPublish?: () => Promise<boolean | void> | void
   onTestDateSaved?: (test: TestAssessment) => void
   onRequestUnpublish?: () => void
@@ -191,6 +192,7 @@ export function TestDetailPanel({
   testQuestionLayout = 'stacked',
   initialSplitView = 'edit',
   onRequestClose,
+  showCloseButton = true,
   onRequestPublish,
   onTestDateSaved,
   onRequestUnpublish,
@@ -2312,7 +2314,7 @@ export function TestDetailPanel({
                   },
                 ]}
               />
-              {onRequestClose ? (
+              {onRequestClose && showCloseButton ? (
                 <Button
                   type="button"
                   variant="ghost"

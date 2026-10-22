@@ -31,6 +31,9 @@ describe('Material formatted editing', () => {
     }
     render(<ControlledEditor />, { wrapper: TooltipProvider })
     expect(screen.queryByRole('button', { name: /^(Visual|Markdown|Apply Markdown|Discard Markdown)$/ })).not.toBeInTheDocument()
+    const close = screen.getByRole('button', { name: 'Close material modal' })
+    expect(close.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
+    expect(screen.getByRole('dialog').querySelectorAll('[data-dialog-close]')).toHaveLength(1)
     const editor = screen.getByRole('textbox', { name: 'Material content' })
     await user.clear(editor)
     await user.type(editor, 'Updated reading')

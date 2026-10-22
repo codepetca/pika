@@ -48498,3 +48498,43 @@ actual acceptance separately. Cumulative301reviews/4fix batches preserved under
 task waiver; tokens/effective config unknown. Final metadata/current-main review,
 focused checks and CI remain gates. No prod/shared-local249+, provider, real
 account/plan, billing/AI, admission or activation action; learner provenance separate.
+
+<!-- pika-session-log-archive-batch:114f2efe2dcddb040ae96107463b653aa62adc4ac48b21092a3d79f17bbae110 -->
+## 2026-10-20 — Prepare atomic contextual classroom-list ordering
+
+Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
+79a4. Two Sol6.1/high workers delivered disjoint core/seal and fixture/SDK files;
+root inspected and integrated CI/API-boundary inventory. Migration277 serializes
+the complete active-owned set without requiring creation capacity; one RPC retains
+position/timestamp/archive-revision semantics and unchanged Blueprint/other rows.
+Configured unmatched teachers adopt the same writer; admission absent stays
+legacy. No user-facing layout, DTO, plan quota or notice change. Risk high,
+profile none: consequential ownership/atomic-write boundary. Independent security
+and compatibility reviews, genuine metadata and isolated native acceptance remain
+required. Source-only63tests/7files,1369profile tests/10files and317CI tests/5files
+PASS; audit22TS PASS. Full TypeScript has only the intentionally pending genuine
+277 RPC metadata error; no cast/manual metadata workaround. Cumulative302 prior
+review turns/4 batches retained under standing waiver. Earlier rejoin decision
+remains current-membership-only for learners, retained history owner-only; this
+slice does not implement learner provenance. Production/shared-local249+,
+provider/accounts/billing/AI and all activation holds unchanged.
+
+Report1625 merged normally at06:02:37Z asd40b1ff90, reviewed79a4 and squash trees
+identical66e22695. All ten exact39375680181 checks/PRGate passed; clean canonical
+main ff-only, lifecycle receipts recorded. No production operation. Reorder C1
+086e60fa source reviews303Astra/high security and304Sol6.1/high compatibility
+complete CLEAN, no actionableP0–P2; cumulative304reviews/4batches. Next is isolated
+SQL/SDK plus three distinct subject/operation/row-lock paths, not activation.
+
+Composition305Astra/high clean; genuine isolated SuY6uP/projectdf2a20c1df78 passed
+actual55880JOINED0,001–277 rollback SQL/1001classes,12SDK18SQL60guards +3real lock
+pairs7SQL8guards/postflight. Subject blocking is not performed creation; actual268
+archive and normal triggered owner transfer commit, then fresh stale sets fail
+and correct sets succeed under rollback. Full graph/complement/Pal/audit/Blueprint/
+disabled grant/exact versions, canonical read-only/global equality and owned
+teardown pass.115actions1847controls57053160B12HTTPmax2/final0open/uncertain.
+Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918source/
+98970deps unchanged/0process; freeze released after join. Genuine2774645aad3,
+443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
+No original receipt rewritten; spent profile stays fail-closed. Final focused
+checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.

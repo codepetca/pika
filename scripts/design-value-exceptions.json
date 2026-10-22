@@ -454,12 +454,6 @@
           "count": 7,
           "fingerprint": "71ef16118e60e33d",
           "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 1,
-          "fingerprint": "4e8f0a87a0dc6164",
-          "reason": "special-layer"
         }
       ]
     },
@@ -775,8 +769,8 @@
         },
         {
           "kind": "raw-z-index",
-          "count": 6,
-          "fingerprint": "9e98a891f5a40b7a",
+          "count": 7,
+          "fingerprint": "888a886eada15088",
           "reason": "special-layer"
         }
       ]

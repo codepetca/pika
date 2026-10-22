@@ -188,6 +188,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
       <DialogPanel
         isOpen={isOpen}
         onClose={handleCancelConfirmation}
+        closeDisabled={loading}
         maxWidth="max-w-lg"
         className="p-6"
         ariaLabelledBy="confirm-roster-title"
@@ -286,6 +287,7 @@ export function UploadRosterModal({ isOpen, onClose, classroomId, onSuccess }: U
     <DialogPanel
       isOpen={isOpen}
       onClose={handleClose}
+      closeDisabled={loading}
       maxWidth="max-w-lg"
       className="p-6"
       ariaLabelledBy="upload-roster-title"

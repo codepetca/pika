@@ -240,8 +240,10 @@ vi.mock('@/ui', async (importOriginal) => {
     ...actual,
     Button: ({ children, ...props }: any) => <button {...props}>{children}</button>,
     ConfirmDialog: () => null,
-    DialogPanel: ({ isOpen, children, ariaLabelledBy }: any) => (
-      isOpen ? (
+    DialogPanel: ({ isOpen, children, ariaLabelledBy, ...props }: any) => (
+      ariaLabelledBy === 'assignments-markdown-dialog-title'
+        ? <actual.DialogPanel isOpen={isOpen} ariaLabelledBy={ariaLabelledBy} {...props}>{children}</actual.DialogPanel>
+        : isOpen ? (
         <div role="dialog" aria-labelledby={ariaLabelledBy}>
           {children}
         </div>
@@ -1104,7 +1106,10 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await waitFor(() => {
       expect(screen.getByText('Markdown editor: ## Assignment One')).toBeInTheDocument()
     })
-    expect(screen.getByRole('dialog', { name: 'Edit Markdown' })).toBeInTheDocument()
+    const editorDialog = screen.getByRole('dialog', { name: 'Edit Markdown' })
+    const cornerClose = editorDialog.querySelector('[data-dialog-close] button')
+    expect(cornerClose).toHaveAccessibleName('Close')
+    expect(cornerClose?.parentElement).toHaveClass('right-3', 'top-3')
     expect(mockFetchJSONWithCache).toHaveBeenCalledTimes(1)
 
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
@@ -1112,6 +1117,17 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await waitFor(() => {
       expect(screen.queryByText(/Markdown editor:/)).not.toBeInTheDocument()
     })
+  })
+
+  it('closes the assignment bulk editor from its shared corner control', async () => {
+    renderClient()
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Markdown' }))
+    await screen.findByText('Markdown editor: ## Assignment One')
+    const dialog = screen.getByRole('dialog', { name: 'Edit Markdown' })
+    const close = dialog.querySelector<HTMLButtonElement>('[data-dialog-close] button')!
+    expect(close).toHaveAccessibleName('Close')
+    fireEvent.click(close)
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Edit Markdown' })).not.toBeInTheDocument())
   })
 
   it('does not pin the selected assignment title in the app shell title slot', () => {

@@ -1963,6 +1963,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Edit survey' })).not.toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit survey' }))
+    expect(screen.getByRole('button', { name: 'Close survey editor' }).closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     fireEvent.click(screen.getByRole('button', { name: 'Mock add survey question' }))
 
     await waitFor(() => {

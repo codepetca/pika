@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, ListPlus, Plus, Settings, Text, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, ListPlus, Plus, Settings, Text, Trash2 } from 'lucide-react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import type { ExamDocumentItem } from '@/components/ExamDocumentWorkspace'
@@ -504,7 +504,6 @@ export function TestEditSplitPattern() {
         title="Edit Test"
         titleId="pattern-test-edit-title"
         closeLabel="Close test edit prototype"
-        showCloseButton={false}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
@@ -553,16 +552,6 @@ export function TestEditSplitPattern() {
                       },
                     ]}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Close test edit prototype"
-                    onClick={() => setOpen(false)}
-                    className="h-11 w-11 p-0"
-                  >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                  </Button>
                 </div>
               )}
             >

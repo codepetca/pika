@@ -1,8 +1,7 @@
 'use client'
 
 import { useId, type ReactNode, type Ref } from 'react'
-import { X } from 'lucide-react'
-import { Button, DialogPanel, FormField, Input } from '@/ui'
+import { DialogCloseButton, DialogPanel, FormField, Input } from '@/ui'
 import { cn } from '@/ui'
 
 interface CreationModalShellProps {
@@ -15,7 +14,6 @@ interface CreationModalShellProps {
   closeDisabled?: boolean
   /** Use false only when the dialog content provides its own accessible close control. */
   showCloseButton?: boolean
-  closeButtonClassName?: string
   maxWidth?: string
   panelClassName?: string
   contentClassName?: string
@@ -73,7 +71,6 @@ export function CreationModalShell({
   closeLabel,
   closeDisabled = false,
   showCloseButton = true,
-  closeButtonClassName,
   maxWidth = '!max-w-4xl',
   panelClassName,
   contentClassName,
@@ -89,44 +86,27 @@ export function CreationModalShell({
     onClose()
   }
 
-  const closeControl = (
-    <Button
-      type="button"
-      variant="ghost"
-      size="sm"
-      className={cn('z-20 h-11 w-11 px-0 text-text-default', !showTitle && 'absolute right-1 top-1', closeButtonClassName)}
-      onClick={handleRequestClose}
-      disabled={closeDisabled}
-      aria-label={closeLabel}
-      title="Close"
-    >
-      <X className="h-4 w-4" aria-hidden="true" />
-    </Button>
-  )
-
   return (
     <DialogPanel
       isOpen={isOpen}
       exitMotion={exitMotion}
       onClose={handleRequestClose}
+      closeDisabled={closeDisabled}
+      showCloseButton={false}
       maxWidth={maxWidth}
       className={cn(CREATION_PANEL_CLASS, tall && 'h-[90dvh]', panelClassName)}
       viewportPaddingClassName="p-2 sm:p-4"
       ariaLabelledBy={titleId}
     >
-      {showTitle ? (
-        <div className={cn('grid h-12 shrink-0 items-center gap-2 px-3 sm:px-4', headerCenter ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_auto]')}>
-          <h2 id={titleId} className="min-w-0 truncate text-base font-semibold text-text-default" title={title}>
+      {(showTitle || showCloseButton) ? (
+        <div className={cn('grid min-h-14 shrink-0 items-center gap-2 px-3 sm:px-4', headerCenter ? 'grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]' : 'grid-cols-[minmax(0,1fr)_auto]')}>
+          <h2 id={titleId} className={showTitle ? 'min-w-0 truncate pr-14 text-base font-semibold text-text-default' : 'sr-only'} title={title}>
             {title}
           </h2>
-          {headerCenter && <div className="flex items-center justify-center">{headerCenter}</div>}
-          {showCloseButton && <div className="flex justify-end">{closeControl}</div>}
+          {headerCenter && <div className="flex flex-1 items-center justify-center">{headerCenter}</div>}
+          {showCloseButton && <DialogCloseButton label={closeLabel} onClose={handleRequestClose} disabled={closeDisabled} />}
         </div>
-      ) : (
-        <h2 id={titleId} className="sr-only">{title}</h2>
-      )}
-
-      {!showTitle && showCloseButton && closeControl}
+      ) : <h2 id={titleId} className="sr-only">{title}</h2>}
 
       <div className={cn('min-h-0 flex-1 overflow-y-auto p-3 sm:p-4', contentClassName)}>
         {children}

@@ -139,6 +139,10 @@ describe('UploadRosterModal', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Upload' }))
     expect(await screen.findByRole('button', { name: 'Uploading...' })).toBeDisabled()
+    const close = screen.getByRole('button', { name: 'Close', exact: true })
+    expect(close).toBeDisabled()
+    fireEvent.click(close)
+    expect(onClose).not.toHaveBeenCalled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Switch classroom', hidden: true }))
     expect(screen.queryByText('Switching')).not.toBeInTheDocument()

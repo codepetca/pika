@@ -67,6 +67,7 @@ export function CreateBlueprintModal({ isOpen, onClose, onSuccess }: Props) {
     <DialogPanel
       isOpen={isOpen}
       onClose={handleClose}
+      closeDisabled={loading}
       maxWidth="max-w-xl"
       className="p-6"
       ariaLabelledBy="create-blueprint-title"

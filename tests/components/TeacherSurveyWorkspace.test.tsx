@@ -118,6 +118,17 @@ describe('TeacherSurveyWorkspace', () => {
     vi.restoreAllMocks()
   })
 
+  it('lets the modal shell own dismissal while loading without rendering a duplicate X', () => {
+    fetchMock.mockReturnValue(new Promise(() => {}))
+    const onCloseReady = vi.fn(), onCloseDisabledChange = vi.fn()
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()}
+      showCloseButton={false} onCloseReady={onCloseReady} onCloseDisabledChange={onCloseDisabledChange}
+      onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Close survey editor' })).not.toBeInTheDocument()
+    expect(onCloseReady).toHaveBeenCalledWith(expect.any(Function))
+    expect(onCloseDisabledChange).toHaveBeenCalledWith(false)
+  })
+
   it.each(['loading', 'failed'] as const)('allows the shell and visible close control to dismiss a %s survey', async (state) => {
     fetchMock.mockReturnValue(state === 'loading' ? new Promise(() => {}) : Promise.resolve({ ok: false, json: async () => ({ error: 'Survey unavailable' }) }))
     const onBack = vi.fn()

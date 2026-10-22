@@ -12,6 +12,15 @@ export interface PatternCatalogEntry {
 
 export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   {
+    id: 'modal-close',
+    name: 'Modal close controls',
+    owner: 'src/ui/DialogCloseButton.tsx; src/ui/Dialog.tsx',
+    maturity: 'stable',
+    useWhen: 'A dismissible modal needs its one 44px ghost X at the top-right, outside scrolling content.',
+    avoidWhen: 'Inline panes, remove-item actions, side drawers, or bypassing a pending-operation dismissal guard.',
+    reference: 'docs/guidance/ui/changes/modal-close-consistency.md',
+  },
+  {
     id: 'markdown-authoring',
     name: 'Write / Markdown authoring',
     owner: 'src/components/editor/MarkdownAuthoringEditor.tsx',

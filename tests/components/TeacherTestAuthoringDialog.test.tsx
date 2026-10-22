@@ -120,6 +120,8 @@ function renderDialog({
     </TooltipProvider>,
   )
 
+  const close = screen.getByRole('button', { name: 'Close test editor' })
+  expect(close.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
   return { onClose, onRequestPreview, onRequestPublish, onDiscardPristine }
 }
 

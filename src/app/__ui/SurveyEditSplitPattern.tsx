@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Code2, Copy, Eye, ListPlus, Plus, Settings, Trash2, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Code2, Copy, Eye, ListPlus, Plus, Settings, Trash2 } from 'lucide-react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { SurveyQuestionOptions } from '@/components/surveys/SurveyQuestionOptions'
 import { MarkdownContentEditor } from '@/components/editor'
@@ -147,7 +147,7 @@ export function SurveyEditSplitPattern() {
         <p className="mt-2 text-sm text-text-muted">Experimental. Based on the Test modal: survey details on the left, one question at a time on the right. Explore multiple-choice and open responses. Changes and publishing stay in this prototype.</p>
         <Button className="mt-3" variant="surface" onClick={reset}>Open survey edit prototype</Button>
       </Card>
-      <CreationModalShell isOpen={open && !preview} onClose={() => setOpen(false)} title="Edit Survey" titleId="pattern-survey-edit-title" closeLabel="Close survey edit prototype" showCloseButton={false} maxWidth="!max-w-6xl" panelClassName="!p-0" tall contentClassName="!overflow-hidden !p-0">
+      <CreationModalShell isOpen={open && !preview} onClose={() => setOpen(false)} title="Edit Survey" titleId="pattern-survey-edit-title" closeLabel="Close survey edit prototype" maxWidth="!max-w-6xl" panelClassName="!p-0" tall contentClassName="!overflow-hidden !p-0">
         <div className="grid min-h-0 w-full grid-cols-1 overflow-y-auto lg:h-full lg:grid-cols-3 lg:overflow-hidden">
           <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
             <FormField label="Title" required error={titleError} labelAccessory={(
@@ -157,7 +157,6 @@ export function SurveyEditSplitPattern() {
                   { id: 'results', label: 'Show class results to students', checked: showResults, checkedRole: 'menuitemcheckbox', onSelect: () => { setShowResults(!showResults); change() } },
                   { id: 'dynamic', label: 'Allow students to update responses', checked: dynamicResponses, checkedRole: 'menuitemcheckbox', onSelect: () => { setDynamicResponses(!dynamicResponses); change() } },
                 ]} />
-                <Tooltip content="Close"><Button variant="ghost" size="sm" aria-label="Close survey edit prototype" onClick={() => setOpen(false)} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
               </div>
             )}>
               <Input disabled={code} value={title} placeholder="Title" maxLength={200} onChange={(event) => { setTitle(event.target.value); change() }} />

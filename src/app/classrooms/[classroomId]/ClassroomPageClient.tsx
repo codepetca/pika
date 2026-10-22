@@ -2280,12 +2280,13 @@ function ClassroomPageContent({
         onClose={() => {
           if (!bulkSaving) closeAssignmentsMarkdownDialog()
         }}
+        closeDisabled={bulkSaving}
         maxWidth="max-w-5xl"
         className="h-[85vh] overflow-hidden p-0"
         viewportPaddingClassName="p-2 sm:p-4"
         ariaLabelledBy="assignments-markdown-dialog-title"
       >
-        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3">
+        <div className="flex flex-shrink-0 items-center justify-between gap-3 px-4 py-3 pr-16">
           <div className="min-w-0">
             <h2 id="assignments-markdown-dialog-title" className="text-base font-semibold text-text-default">
               Edit Markdown

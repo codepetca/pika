@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { cva } from 'class-variance-authority'
 import { Button } from './Button'
+import { DialogCloseButton } from './DialogCloseButton'
 import { ModalLayer, type ModalLayerProps } from './ModalLayer'
 
 // Dialog panel styles with CVA
@@ -93,7 +94,8 @@ export function AlertDialog({
       panelClassName={`${dialogPanelStyles()} max-w-sm`}
     >
       <>
-        <div className="flex items-center gap-3">
+        <DialogCloseButton onClose={onClose} />
+        <div className="flex min-h-control items-center gap-3 pr-14">
           {icon}
           <div id={titleId} className={dialogTitleStyles}>{title}</div>
         </div>
@@ -192,7 +194,8 @@ export function ConfirmDialog({
       panelClassName={`${dialogPanelStyles()} max-w-sm`}
     >
       <>
-        <div id={titleId} className={dialogTitleStyles}>{title}</div>
+        <DialogCloseButton onClose={onCancel} disabled={isCancelDisabled} />
+        <div id={titleId} className={`${dialogTitleStyles} min-h-control pr-14`}>{title}</div>
         {description && (
           <div id={descriptionId} className={dialogDescriptionStyles}>
             {description}
@@ -247,13 +250,16 @@ export interface DialogPanelProps {
   viewportPaddingClassName?: string
   /** ID of the element that labels the dialog (for accessibility) */
   ariaLabelledBy?: string
+  closeLabel?: string
+  closeDisabled?: boolean
+  showCloseButton?: boolean
   children: ReactNode
 }
 
 /**
  * DialogPanel is a lower-level primitive for building custom modal dialogs.
  *
- * Unlike ContentDialog, it provides no built-in header or footer structure —
+ * It supplies the standard corner close but no built-in header or footer —
  * children control their own layout via flex utilities. Use this when you need
  * full control over the dialog content (e.g., forms, wizards, multi-step flows).
  *
@@ -279,16 +285,23 @@ export function DialogPanel({
   ariaLabelledBy,
   children,
   exitMotion,
+  closeLabel = 'Close',
+  closeDisabled = false,
+  showCloseButton = true,
 }: DialogPanelProps) {
+  function requestClose() { if (!closeDisabled) onClose() }
   return (
     <ModalLayer
       isOpen={isOpen}
       exitMotion={exitMotion}
-      onClose={onClose}
+      onClose={requestClose}
+      closeOnEscape={!closeDisabled}
+      closeOnBackdrop={!closeDisabled}
       ariaLabelledBy={ariaLabelledBy}
       rootClassName={`flex items-center justify-center ${viewportPaddingClassName}`}
-      panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${className ?? ''}`}
+      panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${showCloseButton ? '[&>h2]:min-h-control [&>h2]:shrink-0 [&>h2]:pr-14 [&>h3]:min-h-control [&>h3]:shrink-0 [&>h3]:pr-14' : ''} ${className ?? ''}`}
     >
+      {showCloseButton && <DialogCloseButton onClose={requestClose} label={closeLabel} disabled={closeDisabled} />}
       {children}
     </ModalLayer>
   )
@@ -309,6 +322,7 @@ export interface ContentDialogProps {
   /** Max width class, defaults to 'max-w-2xl' */
   maxWidth?: string
   showHeaderClose?: boolean
+  closeDisabled?: boolean
   showFooterClose?: boolean
   panelClassName?: string
   /** Actions kept visible while the dialog content scrolls. */
@@ -340,6 +354,7 @@ export function ContentDialog({
   children,
   maxWidth = 'max-w-2xl',
   showHeaderClose = true,
+  closeDisabled = false,
   showFooterClose = true,
   panelClassName,
   footer,
@@ -347,17 +362,20 @@ export function ContentDialog({
 }: ContentDialogProps) {
   const titleId = useId()
   const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+  function requestClose() { if (!closeDisabled) onClose() }
 
   return (
     <ModalLayer
       isOpen={isOpen}
       exitMotion={exitMotion}
-      onClose={onClose}
+      onClose={requestClose}
+      closeOnEscape={!closeDisabled}
+      closeOnBackdrop={!closeDisabled}
       ariaLabelledBy={titleId}
       initialFocusRef={showHeaderClose ? closeButtonRef : undefined}
       panelClassName={`${dialogPanelStyles()} ${maxWidth} max-w-[90vw] max-h-[85vh] flex flex-col ${panelClassName ?? ''}`}
     >
-        <div className="flex items-start justify-between gap-3 flex-shrink-0">
+        <div className={`flex min-h-control items-start justify-between gap-3 flex-shrink-0 ${showHeaderClose ? 'pr-14' : ''}`}>
           <div className="min-w-0">
             <h3 id={titleId} className={dialogTitleStyles}>{title}</h3>
             {subtitle && (
@@ -365,11 +383,7 @@ export function ContentDialog({
             )}
           </div>
           {showHeaderClose && (
-            <Button ref={closeButtonRef} variant="ghost" size="sm" onClick={onClose} aria-label="Close">
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </Button>
+            <DialogCloseButton ref={closeButtonRef} onClose={requestClose} disabled={closeDisabled} />
           )}
         </div>
         <div className="mt-4 flex-1 min-h-0 overflow-y-auto">
@@ -381,7 +395,7 @@ export function ContentDialog({
           </div>
         ) : showFooterClose && (
           <div className="mt-6 flex justify-end flex-shrink-0">
-            <Button variant="secondary" onClick={onClose}>
+            <Button variant="secondary" onClick={requestClose} disabled={closeDisabled}>
               Close
             </Button>
           </div>

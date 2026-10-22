@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
-import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
@@ -986,7 +985,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         titleId="assignment-modal-title"
         closeLabel="Close assignment modal"
         closeDisabled={creating || saving || releasing || discarding}
-        showCloseButton={false}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
@@ -1017,18 +1015,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
           titleAccessory={(
             <div className="flex items-center gap-1">
               <SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Close assignment modal"
-                title="Close"
-                disabled={creating || saving || releasing || discarding}
-                onClick={() => void handleClose()}
-                className="h-11 w-11 p-0"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
             </div>
           )}
           disabled={saving || releasing || creating}

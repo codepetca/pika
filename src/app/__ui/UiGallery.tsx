@@ -95,6 +95,7 @@ import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { DialogEntryPattern } from './DialogEntryPattern'
 import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
 import { MarkdownAuthoringPattern } from './MarkdownAuthoringPattern'
+import { ModalClosePattern } from './ModalClosePattern'
 
 const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
 
@@ -749,6 +750,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
           <div className="space-y-6 [&>section]:scroll-mt-28">
             <CalendarIdentityPattern />
             <MarkdownAuthoringPattern role={role} />
+            <ModalClosePattern />
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
@@ -864,6 +866,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
     { value: 'markdown-authoring', label: 'Editors — Write / Markdown' },
+    { value: 'modal-close', label: 'Dialogs — Close controls' },
     ...(role === 'teacher' ? [
       { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
       { value: 'page-mockups', label: 'Page mockups — Daily, classrooms, gradebook, calendar, announcements, roster, settings, and workspaces' },

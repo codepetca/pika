@@ -101,6 +101,8 @@ describe('CreationModalShell', () => {
     const save = within(dialog).getByRole('button', { name: 'Save draft' })
     const body = within(dialog).getByRole('textbox', { name: 'Title' }).parentElement!
     expect(body).toHaveClass('overflow-y-auto')
+    expect(body).not.toContainElement(within(dialog).getByRole('button', { name: 'Close material' }))
+    expect(dialog.querySelectorAll('[data-dialog-close]')).toHaveLength(1)
     expect(body).not.toContainElement(save)
     expect(save.parentElement).toHaveClass('shrink-0')
     await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())

@@ -208,6 +208,20 @@ Source grounding:
 - [`src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx)
 - [`src/app/classrooms/[classroomId]/TeacherTestsTab.tsx`](/src/app/classrooms/[classroomId]/TeacherTestsTab.tsx)
 
+### 3g. Modal windows use one shared corner close control
+
+Owner approved 2026-10-22. Dismissible AlertDialog, ConfirmDialog,
+ContentDialog, DialogPanel and creation/edit modals use DialogCloseButton:
+44px ghost X, accessible owner-specific label, native Close tooltip, and
+right-3/top-3 inset. Keep it anchored to the panel outside scrolling content;
+long headings and authoring controls reserve the corner. Existing save-flush,
+cancel and busy guards apply equally to X, Escape and backdrop. A confirmation
+X cancels; pending non-dismissible operations remain protected. Drawers and
+inline panel/item controls are separate contracts.
+
+Reference: Pattern Lab `modal-close` and
+[`modal-close-consistency.md`](./changes/modal-close-consistency.md).
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.

@@ -795,6 +795,7 @@ describe('TeacherSettingsTab - Classroom Blueprint Promotion', () => {
     opener.focus()
     fireEvent.click(opener)
     const dialog = screen.getByRole('dialog')
+    expect(within(dialog).getByRole('button', { name: 'Close', exact: true }).closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     const title = within(dialog).getByPlaceholderText('Grade 11 Computer Science')
     const save = within(dialog).getByRole('button', { name: 'Save Blueprint' })
     fireEvent.change(title, { target: { value: 'Outgoing title' } })

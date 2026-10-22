@@ -996,6 +996,10 @@ describe('CreateClassroomModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(await screen.findByRole('button', { name: 'Creating...' })).toBeDisabled()
+    const cornerClose = screen.getByRole('button', { name: 'Close', exact: true })
+    expect(cornerClose).toBeDisabled()
+    fireEvent.click(cornerClose)
+    expect(onClose).not.toHaveBeenCalled()
     fireEvent.keyDown(document, { key: 'Escape' })
 
     expect(onClose).not.toHaveBeenCalled()

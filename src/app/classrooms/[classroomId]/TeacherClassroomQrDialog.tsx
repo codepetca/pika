@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Download, MoreVertical, Printer, RotateCcw, Settings, X } from 'lucide-react'
+import { Download, MoreVertical, Printer, RotateCcw, Settings } from 'lucide-react'
 import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { TeacherClassroomQrPresentation } from '@/lib/teacher-attendance'
 import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
@@ -209,16 +209,6 @@ export function TeacherClassroomQrDialog({
         className="aspect-[2/3] overflow-hidden sm:aspect-video"
       >
         <h2 id={titleId} className="sr-only">Check in for attendance</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="absolute right-3 top-3 z-local-menu h-11 w-11 p-0"
-          aria-label="Close"
-          onClick={onClose}
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </Button>
         {loading ? (
           <div className="flex h-full items-center justify-center">
             <PageState kind="loading" title="Loading classroom QR" compact />

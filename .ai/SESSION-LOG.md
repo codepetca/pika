@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Prepare atomic contextual classroom-list ordering
-
-Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
-79a4. Two Sol6.1/high workers delivered disjoint core/seal and fixture/SDK files;
-root inspected and integrated CI/API-boundary inventory. Migration277 serializes
-the complete active-owned set without requiring creation capacity; one RPC retains
-position/timestamp/archive-revision semantics and unchanged Blueprint/other rows.
-Configured unmatched teachers adopt the same writer; admission absent stays
-legacy. No user-facing layout, DTO, plan quota or notice change. Risk high,
-profile none: consequential ownership/atomic-write boundary. Independent security
-and compatibility reviews, genuine metadata and isolated native acceptance remain
-required. Source-only63tests/7files,1369profile tests/10files and317CI tests/5files
-PASS; audit22TS PASS. Full TypeScript has only the intentionally pending genuine
-277 RPC metadata error; no cast/manual metadata workaround. Cumulative302 prior
-review turns/4 batches retained under standing waiver. Earlier rejoin decision
-remains current-membership-only for learners, retained history owner-only; this
-slice does not implement learner provenance. Production/shared-local249+,
-provider/accounts/billing/AI and all activation holds unchanged.
-
-Report1625 merged normally at06:02:37Z asd40b1ff90, reviewed79a4 and squash trees
-identical66e22695. All ten exact39375680181 checks/PRGate passed; clean canonical
-main ff-only, lifecycle receipts recorded. No production operation. Reorder C1
-086e60fa source reviews303Astra/high security and304Sol6.1/high compatibility
-complete CLEAN, no actionableP0–P2; cumulative304reviews/4batches. Next is isolated
-SQL/SDK plus three distinct subject/operation/row-lock paths, not activation.
-
-Composition305Astra/high clean; genuine isolated SuY6uP/projectdf2a20c1df78 passed
-actual55880JOINED0,001–277 rollback SQL/1001classes,12SDK18SQL60guards +3real lock
-pairs7SQL8guards/postflight. Subject blocking is not performed creation; actual268
-archive and normal triggered owner transfer commit, then fresh stale sets fail
-and correct sets succeed under rollback. Full graph/complement/Pal/audit/Blueprint/
-disabled grant/exact versions, canonical read-only/global equality and owned
-teardown pass.115actions1847controls57053160B12HTTPmax2/final0open/uncertain.
-Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918source/
-98970deps unchanged/0process; freeze released after join. Genuine2774645aad3,
-443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
-No original receipt rewritten; spent profile stays fail-closed. Final focused
-checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.
-
 ## 2026-10-20 — Frozen classroom authoring-guidance read preparation
 
 Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
@@ -825,6 +786,33 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
+
+## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
+
+Owner expanded Markdown authoring scope to put modal X controls consistently in
+the top-right. Shared 44px ghost DialogCloseButton now owns the 12px corner
+position across shared dialogs, creation/edit shells, QR/submission/add-student,
+reward and test previews. Removed left-title/duplicate controls; retained existing
+close callbacks, save-flush behavior, busy guards, Escape/backdrop and focus return.
+Stable guidance promoted by explicit owner request; Pattern Lab modal-close added.
+Teacher/student desktop/mobile light/dark screenshots inspected; long-title
+shrink overlap corrected. Existing keyboard layout tests updated for corner close.
+Bounded native inventory/caller worker used GPT-6.1 Sol medium; coordinator verified
+all delivery. DeepSeek remains explicitly paused. Review and final gate recorded
+in PR #1662 lifecycle; no schema, dependency or production changes.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-10-22 — Settings switch motion consistency
 

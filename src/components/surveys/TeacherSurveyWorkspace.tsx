@@ -36,6 +36,8 @@ interface TeacherSurveyWorkspaceProps {
   autoEditTitle?: boolean
   onInitialEditModeConsumed?: () => void
   onCloseReady?: (close: (() => Promise<void>) | null) => void
+  showCloseButton?: boolean
+  onCloseDisabledChange?: (disabled: boolean) => void
   onBack: () => void
   onSurveyUpdated: (survey: Survey) => void
   onQuestionCountChanged?: (surveyId: string, questionsCount: number) => void
@@ -470,6 +472,8 @@ export function TeacherSurveyWorkspace({
   onInitialEditModeConsumed,
   onBack,
   onCloseReady,
+  showCloseButton = true,
+  onCloseDisabledChange,
   onSurveyUpdated,
   onQuestionCountChanged,
   onSurveyDeleted,
@@ -932,10 +936,13 @@ export function TeacherSurveyWorkspace({
     return () => onCloseReady?.(null)
   })
 
+  const busy = navigationPending || surveyMarkdownSaving || addingQuestion || responseSettingSaving || statusChanging
+  useEffect(() => { onCloseDisabledChange?.(busy) }, [busy, onCloseDisabledChange])
+
   if (loading || (detail !== null && !activeDetail) || !survey) {
     return (
       <div className="relative flex flex-1 items-center justify-center p-6">
-        <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" onClick={() => { void closeEditor() }} className="absolute right-3 top-3 h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+        {showCloseButton && <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" onClick={() => { void closeEditor() }} className="absolute right-3 top-3 h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>}
         {loading || (detail !== null && !activeDetail) ? <Spinner /> : <p className="text-sm text-danger" role="alert">{error || 'Survey unavailable'}</p>}
       </div>
     )
@@ -943,7 +950,6 @@ export function TeacherSurveyWorkspace({
 
   const selectedIndex = selectedQuestion ? questions.indexOf(selectedQuestion) : -1
   const currentType = selectedQuestion ? editingQuestionType ?? selectedQuestion.question_type : newQuestionType
-  const busy = navigationPending || surveyMarkdownSaving || addingQuestion || responseSettingSaving || statusChanging
   const metadataDisabled = isReadOnly || surveyEditMode === 'markdown' || busy
   const titleDirty = titleDraft !== getDisplayAssessmentTitle(survey.title, 'Untitled Survey')
   const newQuestionDirty = !selectedQuestion && Boolean(newQuestionText.trim() || newOptionsText.trim())
@@ -975,7 +981,7 @@ export function TeacherSurveyWorkspace({
               { id: 'dynamic', label: 'Allow students to update responses', checked: survey.dynamic_responses, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('dynamic_responses', !survey.dynamic_responses) } },
               { id: 'delete', label: 'Delete survey', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, destructive: true, onSelect: () => setDeleteConfirmOpen(true) },
             ]} />
-            <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" disabled={busy} onClick={() => { void closeEditor() }} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+            {showCloseButton && <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" disabled={busy} onClick={() => { void closeEditor() }} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>}
           </div>
         )}>
           <Input ref={titleInputRef} aria-label="Survey title" value={titleDraft} placeholder="Title" disabled={metadataDisabled || titleSaving} onChange={(event) => { setTitleDraft(event.target.value); setTitleError('') }} onBlur={() => { if (!metadataDisabled) void flushTitle() }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void flushTitle() } }} />

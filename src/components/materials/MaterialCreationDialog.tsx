@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Eye, X } from 'lucide-react'
+import { Eye } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Button, ContentDialog, DialogPanel, FormField, Input, SplitButton } from '@/ui'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
@@ -71,16 +71,11 @@ function MaterialEditor({
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         contentClassName="!overflow-hidden !p-0"
-        showCloseButton={false}
         tall
       >
         <div className="grid h-full min-h-0 w-full overflow-y-auto lg:grid-cols-3 lg:overflow-hidden">
           <section aria-label="Material details" className="flex flex-col gap-4 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
-            <FormField label="Title" required labelAccessory={
-              <Button variant="ghost" size="sm" className="h-11 w-11 p-0" aria-label="Close material modal" title="Close" disabled={saving} onClick={onClose}>
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            }>
+            <FormField label="Title" required>
               <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
             </FormField>
             <Button variant="secondary" size="sm" fullWidth disabled={saving} onClick={() => setPreviewOpen(true)}>

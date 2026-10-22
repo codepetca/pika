@@ -458,12 +458,14 @@ describe('TestDetailPanel', () => {
         classroomId="classroom-1"
         onTestUpdate={vi.fn()}
         onRequestClose={vi.fn()}
+        showCloseButton={false}
         onRequestPublish={vi.fn()}
         testQuestionLayout="split"
       />,
       { wrapper: Wrapper },
     )
 
+    expect(screen.queryByRole('button', { name: 'Close test editor' })).not.toBeInTheDocument()
     expect(await screen.findByTestId('test-split-layout')).toBeInTheDocument()
     expect(screen.getByTestId('test-editor-details-pane')).toHaveTextContent('Reference Docs')
     expect(screen.getByTestId('test-editor-content-pane')).toHaveTextContent('Multiple choice')

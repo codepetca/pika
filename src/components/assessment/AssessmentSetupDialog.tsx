@@ -1,8 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { X } from 'lucide-react'
-import { Button, DialogPanel } from '@/ui'
+import { DialogPanel } from '@/ui'
 
 interface AssessmentSetupDialogProps {
   isOpen: boolean
@@ -38,30 +37,20 @@ export function AssessmentSetupDialog({
       className={isCompact ? 'p-6' : FULL_VIEWPORT_PANEL_CLASS}
       viewportPaddingClassName={isCompact ? undefined : 'p-1 sm:p-2'}
       ariaLabelledBy={titleId}
+      closeLabel={closeLabel}
+      closeDisabled={closeDisabled}
     >
       <div className={isCompact ? '' : 'flex min-h-0 flex-1 flex-col'}>
         <div
           className={
             isCompact
-              ? 'mb-4 flex flex-shrink-0 items-start gap-3'
-              : 'flex flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3'
+              ? 'mb-4 flex min-h-control flex-shrink-0 items-start gap-3 pr-14'
+              : 'flex min-h-control flex-shrink-0 items-center gap-3 border-b border-border px-4 py-3 pr-16'
           }
         >
           <h2 id={titleId} className="min-w-0 flex-1 truncate text-xl font-bold text-text-default">
             {title}
           </h2>
-          <Button
-            type="button"
-            variant="surface"
-            size="sm"
-            className="h-10 w-10 flex-shrink-0 px-0"
-            onClick={onClose}
-            disabled={closeDisabled}
-            aria-label={closeLabel}
-            title="Close"
-          >
-            <X className="h-5 w-5" aria-hidden="true" />
-          </Button>
         </div>
         {children}
       </div>

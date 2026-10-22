@@ -119,7 +119,7 @@ export function TeacherTestAuthoringDialog({
       title="Edit test"
       titleId="test-authoring-dialog-title"
       closeLabel="Close test editor"
-      showCloseButton={false}
+      closeDisabled={isClosing || isPreparingPublish}
       maxWidth="!max-w-6xl"
       panelClassName="!p-0"
       contentClassName="!overflow-hidden !p-0"
@@ -152,6 +152,7 @@ export function TeacherTestAuthoringDialog({
             testQuestionLayout="split"
             initialSplitView={initialView}
             onRequestClose={() => { void handleClose() }}
+            showCloseButton={false}
             onRequestPublish={handlePublish}
             onTestDateSaved={onTestDateSaved}
             onRequestUnpublish={onRequestUnpublish ? () => { void handleUnpublish() } : undefined}

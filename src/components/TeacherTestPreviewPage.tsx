@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Maximize, X } from 'lucide-react'
-import { Button, ModalLayer, PageState } from '@/ui'
+import { Maximize } from 'lucide-react'
+import { Button, DialogCloseButton, ModalLayer, PageState } from '@/ui'
 import {
   ExamDocumentWorkspace,
   type ExamDocumentItem,
@@ -366,7 +366,7 @@ export function TeacherTestPreviewPage({
     <div
       role="region"
       aria-label="Teacher test preview"
-      className="h-dvh overflow-hidden bg-page flex flex-col"
+      className="relative h-dvh overflow-hidden bg-page flex flex-col"
     >
       {showNotMaximizedWarning && (
         <div
@@ -412,25 +412,17 @@ export function TeacherTestPreviewPage({
           showNotMaximizedWarning ? 'relative z-[66]' : ''
         }`}
       >
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-          <Button
-            type="button"
-            variant={showNotMaximizedWarning ? 'surface' : 'secondary'}
-            size={showNotMaximizedWarning ? 'md' : 'sm'}
-            className={showNotMaximizedWarning
-              ? 'gap-2 border-warning/40 bg-surface shadow-lg hover:bg-surface-2'
-              : 'gap-1.5'}
-            onClick={handleClosePreview}
-          >
-            <X className="h-4 w-4" />
-            Close Preview
-          </Button>
+        <div className="mb-2 flex min-h-11 flex-wrap items-center justify-between gap-2 pr-14">
           {!showNotMaximizedWarning ? (
             <span className="rounded-md border border-warning bg-warning-bg px-3 py-1 text-xs font-medium text-warning">
               Preview Mode
             </span>
           ) : null}
         </div>
+      </div>
+
+      <div className="absolute inset-x-0 top-0 z-[66]">
+        <DialogCloseButton onClose={handleClosePreview} label="Close Preview" />
       </div>
 
       {isLoadingCurrentPreview || error ? (
