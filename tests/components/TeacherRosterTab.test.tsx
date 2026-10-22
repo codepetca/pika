@@ -196,7 +196,8 @@ describe('TeacherRosterTab', () => {
       secondInvitedRosterRow,
     ] }))
     const joinedRow = (await screen.findByText('Ada')).closest('tr')!
-    expect(within(joinedRow).getByText('Joined')).toBeVisible()
+    expect(within(joinedRow).getByText('Joined')).toBeInTheDocument()
+    expect(within(joinedRow).getByText('Joined').closest('td')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     expect(joinedRow.querySelector('time')).toBeNull()
     const invitedRow = screen.getByText('Grace').closest('tr')!
     expect(within(invitedRow).queryByText('Joined')).not.toBeInTheDocument()

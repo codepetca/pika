@@ -11,45 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Prepare atomic contextual classroom-list ordering
-
-Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
-79a4. Two Sol6.1/high workers delivered disjoint core/seal and fixture/SDK files;
-root inspected and integrated CI/API-boundary inventory. Migration277 serializes
-the complete active-owned set without requiring creation capacity; one RPC retains
-position/timestamp/archive-revision semantics and unchanged Blueprint/other rows.
-Configured unmatched teachers adopt the same writer; admission absent stays
-legacy. No user-facing layout, DTO, plan quota or notice change. Risk high,
-profile none: consequential ownership/atomic-write boundary. Independent security
-and compatibility reviews, genuine metadata and isolated native acceptance remain
-required. Source-only63tests/7files,1369profile tests/10files and317CI tests/5files
-PASS; audit22TS PASS. Full TypeScript has only the intentionally pending genuine
-277 RPC metadata error; no cast/manual metadata workaround. Cumulative302 prior
-review turns/4 batches retained under standing waiver. Earlier rejoin decision
-remains current-membership-only for learners, retained history owner-only; this
-slice does not implement learner provenance. Production/shared-local249+,
-provider/accounts/billing/AI and all activation holds unchanged.
-
-Report1625 merged normally at06:02:37Z asd40b1ff90, reviewed79a4 and squash trees
-identical66e22695. All ten exact39375680181 checks/PRGate passed; clean canonical
-main ff-only, lifecycle receipts recorded. No production operation. Reorder C1
-086e60fa source reviews303Astra/high security and304Sol6.1/high compatibility
-complete CLEAN, no actionableP0–P2; cumulative304reviews/4batches. Next is isolated
-SQL/SDK plus three distinct subject/operation/row-lock paths, not activation.
-
-Composition305Astra/high clean; genuine isolated SuY6uP/projectdf2a20c1df78 passed
-actual55880JOINED0,001–277 rollback SQL/1001classes,12SDK18SQL60guards +3real lock
-pairs7SQL8guards/postflight. Subject blocking is not performed creation; actual268
-archive and normal triggered owner transfer commit, then fresh stale sets fail
-and correct sets succeed under rollback. Full graph/complement/Pal/audit/Blueprint/
-disabled grant/exact versions, canonical read-only/global equality and owned
-teardown pass.115actions1847controls57053160B12HTTPmax2/final0open/uncertain.
-Immediate NEXTTOOLFIRST11479JOINED0 before any post-run action verifies7918source/
-98970deps unchanged/0process; freeze released after join. Genuine2774645aad3,
-443895B installedapply_patch+cmp, removing only newRPC reconstructs entire276fac561.
-No original receipt rewritten; spent profile stays fail-closed. Final focused
-checks/review/CI remain gates. Cumulative305reviews/4batches and all holds retained.
-
 ## 2026-10-20 — Frozen classroom authoring-guidance read preparation
 
 Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
@@ -852,3 +813,11 @@ teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
 without a timestamp show the text Joined; unjoined cells stay empty. No new
 component, pattern, or widget behavior. PR1661 returned to draft for this delta;
 focused checks, screenshot refresh and targeted independent review required.
+
+## 2026-10-22 — Joined fallback checkmark
+
+Owner refinement: joined records without a saved date use the original simple
+Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
+unjoined rows remain empty. Reuse original roster status icon; same teacher-only
+roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
+No component or widget contract change. PR1661 draft during validation/review.

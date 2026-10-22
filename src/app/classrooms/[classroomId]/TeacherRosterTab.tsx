@@ -982,7 +982,12 @@ export function TeacherRosterTab({ classroom }: Props) {
                               <span className="sr-only">Joined </span>
                               <time dateTime={row.joined_at!}>{joinedDate}</time>
                             </>
-                          ) : 'Joined'}
+                          ) : (
+                            <>
+                              <Check className="mx-auto h-5 w-5 text-success" aria-hidden="true" />
+                              <span className="sr-only">Joined</span>
+                            </>
+                          )}
                         </span>
                       )}
                     </DataTableCell>
