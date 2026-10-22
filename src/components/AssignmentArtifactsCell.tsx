@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState, type ComponentPropsWithoutRef, type HTMLAttributes } from 'react'
 import { ExternalLink, FolderGit2, Image as ImageIcon, Link2 } from 'lucide-react'
 import {
   summarizeArtifactUrl,
@@ -12,6 +12,92 @@ interface AssignmentArtifactsCellProps {
   artifacts: AssignmentArtifact[]
   isCompact: boolean
 }
+
+// These private native adapters receive Radix's public asChild handlers. Let
+// keyboard focus reveal the table cell before invoking its focus handler; Root
+// has not opened yet, so cancelling this frame leaves no provider-close debt.
+function useArtifactFocus<T extends HTMLElement>(props: HTMLAttributes<T>) {
+  const focusHandler = useRef(props.onFocus)
+  // Hover can open Radix while a focus frame is pending. Its current controlled
+  // handler must decide whether opening is still needed, not the old closure.
+  useLayoutEffect(() => { focusHandler.current = props.onFocus })
+  const cleanupFocus = useRef<(() => void) | null>(null)
+  const cleanupPointer = useRef<(() => void) | null>(null)
+  const pointerDown = useRef(false)
+  const cancelFocus = useCallback(() => {
+    cleanupFocus.current?.()
+    cleanupFocus.current = null
+  }, [])
+  const resetPointer = useCallback(() => {
+    cleanupPointer.current?.()
+    cleanupPointer.current = null
+    pointerDown.current = false
+  }, [])
+
+  useEffect(() => () => { cancelFocus(); resetPointer() }, [cancelFocus, resetPointer])
+
+  return {
+    onFocus: (event: React.FocusEvent<T>) => {
+      cancelFocus()
+      if (document.visibilityState === 'hidden') return
+      if (pointerDown.current || event.defaultPrevented) {
+        props.onFocus?.(event)
+        return
+      }
+      // React clears currentTarget after dispatch; retain the element separately.
+      const target = event.currentTarget
+      const hide = () => { if (document.visibilityState === 'hidden') cancelFocus() }
+      const intentEvents = ['keydown', 'pointerdown', 'wheel', 'touchmove'] as const
+      const frame = requestAnimationFrame(() => {
+        cancelFocus()
+        if (target.isConnected && document.activeElement === target &&
+            document.visibilityState !== 'hidden' && !target.closest('[inert]') &&
+            !target.matches(':disabled, [aria-disabled="true"]')) focusHandler.current?.(event)
+      })
+      for (const type of intentEvents) document.addEventListener(type, cancelFocus, true)
+      document.addEventListener('visibilitychange', hide)
+      window.addEventListener('blur', cancelFocus)
+      cleanupFocus.current = () => {
+        cancelAnimationFrame(frame)
+        for (const type of intentEvents) document.removeEventListener(type, cancelFocus, true)
+        document.removeEventListener('visibilitychange', hide)
+        window.removeEventListener('blur', cancelFocus)
+      }
+    },
+    onBlur: (event: React.FocusEvent<T>) => {
+      cancelFocus()
+      resetPointer()
+      props.onBlur?.(event)
+    },
+    onPointerDown: (event: React.PointerEvent<T>) => {
+      cancelFocus()
+      resetPointer()
+      pointerDown.current = true
+      document.addEventListener('pointerup', resetPointer, { once: true })
+      document.addEventListener('pointercancel', resetPointer, { once: true })
+      cleanupPointer.current = () => {
+        document.removeEventListener('pointerup', resetPointer)
+        document.removeEventListener('pointercancel', resetPointer)
+      }
+      props.onPointerDown?.(event)
+    },
+    onClick: (event: React.MouseEvent<T>) => {
+      cancelFocus()
+      resetPointer()
+      props.onClick?.(event)
+    },
+  }
+}
+
+const ArtifactButton = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<'button'>>(function ArtifactButton(props, ref) {
+  const focusHandlers = useArtifactFocus<HTMLButtonElement>(props)
+  return <button {...props} {...focusHandlers} ref={ref} />
+})
+
+const ArtifactLink = forwardRef<HTMLAnchorElement, ComponentPropsWithoutRef<'a'>>(function ArtifactLink(props, ref) {
+  const focusHandlers = useArtifactFocus<HTMLAnchorElement>(props)
+  return <a {...props} {...focusHandlers} ref={ref} />
+})
 
 function getArtifactLabel(artifact: AssignmentArtifact): string {
   const prefix = artifact.title?.trim() || (artifact.type === 'image' ? 'Image' : artifact.type === 'repo' ? 'Repo' : 'Link')
@@ -186,16 +272,16 @@ export function AssignmentArtifactsCell({
               ].join(' ')
 
               return hasMultipleArtifacts ? (
-                <button
+                <ArtifactButton
                   type="button"
                   onClick={handleOpenChooser}
                   className="inline-flex min-h-control min-w-control shrink-0 items-center justify-center rounded-control focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
                   aria-label={`View work items; ${requiredLabel}artifact ${index + 1} is ${getArtifactLabel(artifact)}`}
                 >
                   <span className={pillClassName}><ArtifactTypeIcon artifact={artifact} /><span>{index + 1}</span></span>
-                </button>
+                </ArtifactButton>
               ) : (
-                <a
+                <ArtifactLink
                   href={artifact.url}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -204,7 +290,7 @@ export function AssignmentArtifactsCell({
                   aria-label={`Open ${requiredLabel}artifact ${index + 1}: ${getArtifactLabel(artifact)}`}
                 >
                   <span className={pillClassName}><ArtifactTypeIcon artifact={artifact} /><span>{index + 1}</span></span>
-                </a>
+                </ArtifactLink>
               )
             })()}
           </Tooltip>

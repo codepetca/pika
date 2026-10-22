@@ -48429,3 +48429,24 @@ canonical main fast-forwarded. Clean session rebase949→2ef95168 keeps identica
 policies, resolving only the two generated275 gaps. Metadata/evidence review
 and session PR/CI remain;
 no production/shared-local249+/provider/activation or learner-history change.
+
+<!-- pika-session-log-archive-batch:e21e7c965046bbd9f5f90bdf09e90164b969a0f69cbd66601d0a90f0a4417879 -->
+## 2026-10-20 — Correct the CI mail-service exclusion
+
+PR1624 first exact-head CI39370931599 failed on hosted lifecycle-job118458471791
+during initial Supabase startup, before SQL/proofs: mail container could not bind
+54324. Pinned CLI2.103.0 explicitly warned that inbucket is not a valid exclusion
+and listed mailpit as the recognized name. Returned PR to draft before correction;
+that transition cancelled the remaining lanes. No app/SQL failure was observed.
+Minimal fix adds mailpit to the existing seven startup commands and the identical
+local safety binding; old aliases remain to avoid unrelated component changes.
+Two source assertions RED before fix; all273 workflow/local-CI/session-CI checks
+pass after correction, including rejection of the ineffective old command.
+Full focused checks expose four legacy CI command assertions, updated to the
+same recognized exclusion;2611tests/97files plus TypeScript/lint/policies pass.
+Port preflight, cleanup conditions, proof inventories, required jobs and PR Gate
+are unchanged. Targeted CI-only review precedes a new ready SHA;
+no repeat native proof is needed for unchanged app/migration/fixture bytes.
+Existing review/runtime evidence and spent attempts remain immutable; no production,
+shared-local249+, provider, account or activation action. New report child worktree
+is independent source-only work; no migrations applied.
