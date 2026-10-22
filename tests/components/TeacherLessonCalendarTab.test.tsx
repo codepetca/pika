@@ -8,7 +8,7 @@ import { invalidateCachedJSON } from '@/lib/request-cache'
 import type { CalendarSidebarState } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
 import type { LessonPlan } from '@/types'
 import type { ReactNode } from 'react'
-import { TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
+import { CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { resetTeacherLessonPlanMutationQueuesForTests } from '@/lib/teacher-lesson-plan-mutation-queue'
 
 const sidebarState = vi.hoisted(() => ({
@@ -64,6 +64,7 @@ vi.mock('@/components/LessonCalendar', () => ({
       data-lesson-content={lessonPlans.map((plan: LessonPlan) => plan.content_markdown).join(',')}
       data-assignment-classrooms={assignments.map((assignment: any) => assignment.classroom_id).join(',')}
       data-assignment-ids={assignments.map((assignment: any) => assignment.id).join(',')}
+      data-announcement-dates={announcements.map((announcement: any) => announcement.published_at).join(',')}
       data-announcement-classrooms={announcements.map((announcement: any) => announcement.classroom_id).join(',')}
     >
       {materials.map((material: any) => <button key={material.id} onClick={() => onMaterialClick(material)}>Open {material.id}</button>)}
@@ -149,6 +150,26 @@ describe('TeacherLessonCalendarTab', () => {
     vi.useRealTimers()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('refreshes an already-mounted calendar after a confirmed announcement edit in this classroom', async () => {
+    let published_at = '2026-10-22T04:00:00Z'
+    let reads = 0
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => {
+      if (String(url).includes('/announcements')) {
+        reads++
+        return { announcements: [{ id: 'post', classroom_id: classroom.id, published_at }] }
+      }
+      return { lesson_plans: [], assignments: [], materials: [], tests: [] }
+    } }))
+    render(<TeacherLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-dates', published_at))
+    published_at = '2026-10-21T04:00:00Z'
+    act(() => window.dispatchEvent(new CustomEvent(CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, { detail: { classroomId: 'other' } })))
+    expect(reads).toBe(1)
+    act(() => window.dispatchEvent(new CustomEvent(CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-dates', published_at))
+    expect(reads).toBe(2)
   })
 
   it('preserves teacher view selection and the existing Markdown sidebar action', async () => {

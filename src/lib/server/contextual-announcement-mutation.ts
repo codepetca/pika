@@ -1,3 +1,4 @@
+import { getCalendarAnnouncementDate } from '@/lib/calendar-items'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
@@ -39,6 +40,9 @@ function announcementResult(response: unknown, classroomId: string, body: Announ
   if (announcement.classroom_id !== classroomId
     || (body.content !== undefined && announcement.content !== body.content)
     || (body.title !== undefined && announcement.title !== body.title)
+    || (body.posted_on !== undefined && (announcement.is_draft || announcement.published_at === null
+      || announcement.scheduled_for !== null || getCalendarAnnouncementDate(announcement) !== body.posted_on
+      || Date.parse(announcement.published_at) > Date.now()))
     || (body.is_draft === true && !announcement.is_draft)
     || (body.is_draft === false && announcement.is_draft)
     || (body.is_draft !== true && body.scheduled_for !== undefined && (

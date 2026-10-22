@@ -349,6 +349,20 @@ describe('LessonCalendar', () => {
     }
   })
 
+  it.each([true, false])('moves a backdated announcement to its saved publication day (editable=%s)', editable => {
+    const properties = { classroom: mockClassroom, lessonPlans: [], viewMode: 'week' as const,
+      currentDate: new Date('2026-03-16T12:00:00'), editable,
+      onDateChange: vi.fn(), onViewModeChange: vi.fn() }
+    const post = { ...markdownAnnouncement, is_draft: false, published_at: '2026-03-17T04:00:00Z' }
+    const view = render(<LessonCalendar {...properties} announcements={[post]} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: /open tuesday, march 17, 2026/i }))
+    expect(within(screen.getByRole('dialog')).getByRole('link', { name: 'course outline' })).toBeInTheDocument()
+    view.rerender(<LessonCalendar {...properties} announcements={[{ ...post, published_at: '2026-03-16T04:00:00Z' }]} />)
+    expect(within(screen.getByRole('dialog')).queryByRole('link', { name: 'course outline' })).not.toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'ArrowLeft' })
+    expect(within(screen.getByRole('dialog', { name: 'Mon Mar 16, 2026' })).getByRole('link', { name: 'course outline' })).toBeInTheDocument()
+  })
+
   it('renders announcement markdown in the focused day dialog', () => {
     render(
       <LessonCalendar

@@ -48609,3 +48609,90 @@ e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
 tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
 preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
 313actual review turns/5fix batches and all holds retained.
+
+<!-- pika-session-log-archive-batch:54264872c328c8ae6aa762beeebff312c82cf485c54b38f0c9a133cb8d32ba37 -->
+## 2026-10-20 — Atomic dual-owner guidance adoption preparation
+
+Prepared280 adds an admitted POST branch requiring current active-classroom AND
+linked Blueprint ownership, using the existing canonical snapshot builder and
+one atomic112-save/222-adopt composition. Complete five-collection source/digest
+prevents truncation and catches parent-only moves not reflected by older Draft
+revision triggers. Existing immutable Versions/provenance remain; a rejected
+transaction leaves no stray Version, but a lost post-commit response is uncertain
+and never retried or compensated by deletion. Legacy POST/GET stay unchanged.
+Root API/adapter/legacy tests93/5 pass, SQL source tests9 pass, CI/policy314/6 pass;
+complete source-codec/builder tests66/3 pass. Genuine280 metadata and native proof
+remain pending; only the two new RPC metadata references fail TypeScript. No
+runtime acceptance or phase exit is claimed. Sol6.1/high bounded workers own
+closed-profile extension and four finite SDK fixture/test paths. The proof will
+assert exact allowed committed changes and preserve existing history/complement,
+retaining only proven legitimate temporary-transition timestamps/revisions.
+Cumulative314 actual independent review turns/5 remediation batches retained;
+routine workflow-stop waiver active. Production/shared-local249+, provider,
+account/billing/AI and activation holds unchanged. Learner current-membership-only
+attendance is an approved separate boundary, not implemented by this write.
+
+Parent preview PR1628 merged normally ascd3876dfa at08:52:50Z after all ten
+exacte2d2fff3 CI39392011940 checks/PRGate passed. Reviewed/squash treeb3df6d46 is
+identical; clean canonical main fast-forwarded. Original CI host-port collision
+and its failed receipt remain retained; no source/gate bypass or rollout.
+All280writers stopped. Root integration checks955/11 pass; leaf25/2 and concurrency
+10 plus carrier114/4 CPU checks pass. Genuine metadata/native acceptance remain
+pending. New private wrappers and carrier source remain deliberately unbound.
+
+Subsequent isolated280 SQL rollback and genuine metadata generation passed;
+SDK/concurrency acceptance remains pending. Earlier SQL42601 was corrected at
+three IF/CASE sites with source regression and independent review. A separate
+attempt stopped after source200 and before any writer dispatch. One offline8.1s
+delay reproduced its exact counters: the rehearsal's network timer included
+pre-request SQL/guards. The prepared two-file fix retains the actual ten-second
+caller abort, all58guards and all caps, with26 SDK/30 combined tests passing.
+Both failed attempts retain positive exact cleanup and immediate independent
+source/dependency preservation. Fixed private failure labels contain no payload,
+IDs or raw errors. Cumulative320 review turns/8 correction batches; further
+review and one separately bound proof remain, not runtime acceptance. All holds
+and the separate current-membership-only learner boundary remain unchanged.
+
+The next isolated attempt identified unchanged SDK caller expiry in rehearsal
+preflight (write/preflight/caller); SQL/types passed again and writer dispatch
+remained zero. Rather than extend a live timeout, the prepared closed observer
+now schedules all58 guards/17SQL after genuine SDK settlement, before adapter
+continuation. Interventions are explicitly before canonicalization, after source
+capture. Actual builders, lazy native then, argument/result identity and native
+abortSignal remain; live8s/10s failures still refuse.36/2 CPU tests pass, including
+real attachment zero-prior-unsettled entry and held-observer settlement. Root
+inspected the complete two-path delta; cumulative321 reviews/9 fix batches.
+New source/composition review and a separate fresh native proof remain gates;
+no acceptance, migration application, production release or activation claim.
+
+Fresh C5 isolated001–280 proof PASS:6actual adapters/12SDK HTTP/17SQL/58guards,
+5005-child completeness,2new immutable Versions/dedup/3denials and3genuine
+two-session contention pairs.112actions1851controls58573054bytes/max2sessions,
+final0open/uncertain. Actual terminal→immediate FIRST PASS7973source/98970deps/
+0processes before any post-work; full preservation records equal, owned workdir/
+Docker resources absent, reviewed canonical/global equality gates pass. Original
+nativefalse/missing fields remain unmodified; coordinator acceptance is scoped.
+Genuine280 generated types installed byte-identically242b3c7a (only2RPC additions
+over complete279); full focused3215/127 plus TypeScript/lint/policies PASS.
+322Astra SDK-truth and323Sol carriercomposition reviews clean; final metadata/
+evidence review, draft PR and exact-head CI/main merge remain. All holds unchanged.
+
+Final review324 completed clean and PR1629 entered normal exact-head CI onb0f75836.
+Database contracts reached strict lint, which rejected the untyped empty-object
+initializer in the private280 helper (42804); the PR returned to draft before
+correction. A source regression failed then passed with explicit `'{}'::jsonb.
+Only the initializer and its reviewed migration digest change; public signatures,
+SQL flow and generated types remain identical. Earlier native C5 evidence stays
+bound to its original source, not relabeled. Targeted correction review and a
+fresh final-head CI replay/lint remain required. Production/shared-local249+ and
+all activation holds remain unchanged. Reuse workflow mapping completed read-only;
+linked reuse retains both owners and new-classroom creation limits.
+
+The next CI coverage lane passed19810 tests but exposed one inherited guidance
+cleanup test's80ms real-wall-clock race. Its preflight could exhaust the deadline
+before fetch dispatch, correctly restore zero open sessions, and contradict the
+test's intended unclosed-request assertion. Returned PR to draft before a
+test-only correction: await a real fake-transport dispatch barrier, then advance
+fake timers through the unchanged80ms/160ms deadlines. All20 leaf tests pass;
+runtime proof/application/SQL/limits are unchanged. Targeted review and fresh CI
+remain; no native proof, migration, deployment or activation is implied.

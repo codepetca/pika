@@ -174,7 +174,7 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()
   })
   it('reproduces the former exact257 rejection of the complete current288 chain', () => {
-    expect(current).toHaveLength(289)
+    expect(current).toHaveLength(290)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })

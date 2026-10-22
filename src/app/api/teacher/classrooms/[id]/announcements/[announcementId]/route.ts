@@ -55,6 +55,11 @@ export const PATCH = withErrorHandler('PatchAnnouncement', async (request, conte
   const user = await requireRole('teacher')
   const { id: classroomId, announcementId } = await context.params
   const body = await request.json()
+  if (body && typeof body === 'object' && 'posted_on' in body) {
+    return NextResponse.json(await updateContextualAnnouncement({
+      actorId: user.id, classroomId, announcementId, body: parseAnnouncementUpdateBody(body),
+    }))
+  }
   const { content, is_draft, scheduled_for, title } = body as {
     content?: string
     is_draft?: boolean

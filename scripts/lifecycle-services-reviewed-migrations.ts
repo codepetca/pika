@@ -1,6 +1,7 @@
-/** Exact source-only271–289 extension. This does not grant migration, native
+/** Exact source-only271–290 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
+import { validateAnnouncementPostDateReviewedMigration } from './announcement-post-date-reviewed-migration'
 import { validateMaterialPostDateReviewedMigration } from './material-post-date-reviewed-migration'
 import { validateMaterialReleaseSchedulingReviewedMigration } from './material-release-scheduling-reviewed-migration'
 import { validateAttendanceMembershipAdoptionReviewedMigration } from './attendance-membership-adoption-reviewed-migration'
@@ -29,7 +30,7 @@ export const LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS = Object.freeze([
 
 export function validateLifecycleServicesReviewedMigrations(migrations: readonly { name: string; sql: string; sha256: string }[]) {
   validateAssignmentListMigrationChain(migrations)
-  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
+  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
   for (const seal of LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS) {
     // Data API282 has its own validator; attendance283 follows that exact slot.
     const number = Number(seal.name.slice(0, 3))
@@ -46,4 +47,5 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
   if (migrations.length >= 287) validatePalOwnerQueueStopReviewedMigration(migrations[286])
   if (migrations.length >= 288) validateContextualRemovedMembershipCleanupReviewedMigration(migrations[287])
   if (migrations.length >= 289) validateMaterialPostDateReviewedMigration(migrations[288])
+  if (migrations.length >= 290) validateAnnouncementPostDateReviewedMigration(migrations[289])
 }
