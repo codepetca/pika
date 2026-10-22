@@ -199,6 +199,6 @@ describe('AssignmentForm', () => {
     expect(
       within(instructions.closest('.simple-editor-wrapper')!)
         .getByRole('toolbar', { name: 'Formatting options' }),
-    ).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
+    ).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
   })
 })

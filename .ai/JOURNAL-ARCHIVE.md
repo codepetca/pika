@@ -48473,3 +48473,28 @@ final checks and exact-head CI remain gates. No canonical/shared-local249+,
 production, provider, real account, billing/AI or activation operations. Latest
 owner decision retains current-membership-only learner attendance with earlier
 records preserved for owner; this report does not claim learner provenance.
+
+<!-- pika-session-log-archive-batch:36d6467785a589a5c3780943f2021b97076e34d9fd7c73ece4a6a7ad89fdf44d -->
+## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
+
+Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
+c10fd9547 at05:30Z, identical7175fbe7 tree, clean canonical main fast-forwarded.
+Report297/298 source reviews clean. Composition299 settlement predicate omission
+fixed and300 clean with actual-controls RED/GREEN joins/uncertainty regressions.
+First native report6wj8mp remains failed: generated observe SQL glued numeric
+literal to OR. Tiny separate read-only PG fragment confirmed42601; regression
+RED then75/4GREEN. Minimal fixture separator/pin update and exact recovery301
+clean; removed only5containers2volumes1network, retained temp/evidence privately.
+No application permission change or softened poison/cleanup checks.
+Fresh report uTZw3f actual4140JOINED0 passed001–276 rollback SQL, genuine metadata,
+12realSDK adapters/6fullDTO/18SQL/60guards, restoration before final reads, complete
+fixture/complement and canonical/global equality plus owned teardown.100actions,
+1672controls,51235392B,12HTTP,max1session,final0sessions/uncertainSQL/unsettled.
+Immediate NEXTTOOLFIRST60593JOINED0 before any check/edit/CI query confirms7901
+source/98970deps unchanged/0process. Genuine276 fac561c3,443760B installed byte-
+exact after FIRST; deleting only newRPC reconstructs entire275e295 baseline.
+All receipts retain nativeVerified:false; private coordinator outcome records
+actual acceptance separately. Cumulative301reviews/4fix batches preserved under
+task waiver; tokens/effective config unknown. Final metadata/current-main review,
+focused checks and CI remain gates. No prod/shared-local249+, provider, real
+account/plan, billing/AI, admission or activation action; learner provenance separate.

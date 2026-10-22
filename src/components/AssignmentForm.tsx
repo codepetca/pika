@@ -1,9 +1,9 @@
 'use client'
 
-import type { ReactNode, RefObject } from 'react'
+import { useEffect, useState, type ReactNode, type RefObject } from 'react'
 import { Eye } from 'lucide-react'
 import { Button, FormField, IconButton, Input } from '@/ui'
-import { ContentField, MarkdownContentEditor } from '@/components/editor'
+import { MarkdownAuthoringEditor } from '@/components/editor'
 import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
@@ -59,6 +59,8 @@ export function AssignmentForm({
   fillHeight = false,
   desktopSplit = false,
 }: AssignmentFormProps) {
+  const [mode, setMode] = useState(instructionsMode)
+  useEffect(() => { setMode(instructionsMode) }, [instructionsMode])
   const relativeDueDate = getRelativeDueDate(dueAt, classDays)
   const relativeDateSubtitle = relativeDueDate
     ? `${relativeDueDate.text.charAt(0).toUpperCase()}${relativeDueDate.text.slice(1)}`
@@ -71,40 +73,21 @@ export function AssignmentForm({
           {markdownWarning}
         </div>
       )}
-      {instructionsMode === 'markdown' ? (
-        <FormField label="Instructions Markdown" className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}>
-          <textarea
-            value={instructionsMarkdown}
-            onChange={(event) => onInstructionsMarkdownChange(event.target.value)}
-            onBlur={onBlur}
-            disabled={disabled}
-            spellCheck={false}
-            rows={14}
-            className="min-h-64 w-full flex-1 resize-y rounded-control border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2"
-          />
-        </FormField>
-      ) : <ContentField
+      <MarkdownAuthoringEditor
         label="Instructions"
-        hideLabel
-        collapseHiddenLabel
-        className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}
-      >
-        <MarkdownContentEditor
-          markdown={instructionsMarkdown}
-          onMarkdownChange={onInstructionsMarkdownChange}
-          onConversionWarningChange={onInstructionsConversionWarningChange}
-          onBlur={onBlur}
-          placeholder="Instructions"
-          disabled={disabled}
-          editable={!disabled}
-          interactionActive={interactionActive}
-          toolbarPreset="markdown-safe"
-          className={[
-            'overflow-hidden rounded-lg border border-border-strong',
-            fillHeight ? 'simple-editor-wrapper--fill-height min-h-0 flex-1' : '',
-          ].join(' ')}
-        />
-      </ContentField>}
+        mode={mode}
+        onModeChange={setMode}
+        markdown={instructionsMarkdown}
+        onMarkdownChange={onInstructionsMarkdownChange}
+        onConversionWarningChange={onInstructionsConversionWarningChange}
+        onBlur={onBlur}
+        placeholder="Instructions"
+        disabled={disabled}
+        editable={!disabled}
+        interactionActive={interactionActive}
+        fillHeight={fillHeight}
+        className="rounded-control border border-border-strong"
+      />
     </>
   )
 

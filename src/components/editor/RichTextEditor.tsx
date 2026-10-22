@@ -45,6 +45,7 @@ import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
 import { BlocksDropdownMenu } from '@/components/tiptap-ui/blocks-dropdown-menu'
 import { MarksDropdownMenu } from '@/components/tiptap-ui/marks-dropdown-menu'
 import { AlignmentDropdownMenu } from '@/components/tiptap-ui/alignment-dropdown-menu'
+import { MarkdownFormatMenu } from '@/components/tiptap-ui/markdown-format-menu'
 import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover'
 import { MarkButton } from '@/components/tiptap-ui/mark-button'
 import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button'
@@ -238,6 +239,7 @@ export type RichTextToolbarPreset =
   | 'compact'
   | 'document'
   | 'markdown-safe'
+  | 'markdown-authoring'
 
 const MainToolbarContent = ({
   onLinkClick,
@@ -256,6 +258,15 @@ const MainToolbarContent = ({
 }) => {
   const isDocument = preset === 'document'
   const isMarkdownSafe = preset === 'markdown-safe'
+
+  if (preset === 'markdown-authoring') {
+    return <ToolbarGroup className="[&_.tiptap-button]:min-h-control [&_.tiptap-button]:min-w-control">
+      <MarkButton type="bold" />
+      <MarkButton type="italic" />
+      {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+      <MarkdownFormatMenu />
+    </ToolbarGroup>
+  }
 
   return (
     <>
@@ -375,6 +386,7 @@ export function RichTextEditor({
     resolvedToolbarPreset === 'none' || resolvedToolbarPreset === 'brief'
       ? null
       : resolvedToolbarPreset
+  const markdownAuthoring = resolvedToolbarPreset === 'markdown-authoring'
   const isMobile = useIsBreakpoint()
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -437,6 +449,7 @@ export function RichTextEditor({
   // Build extensions array based on props (memoized to avoid recreating on every render)
   const extensions = useMemo(() => [
     StarterKit.configure({
+      ...(markdownAuthoring ? { underline: false, strike: false } : {}),
       horizontalRule: false,
       heading: {
         levels: [1, 2, 3],
@@ -460,27 +473,31 @@ export function RichTextEditor({
         },
       },
     }),
-    HorizontalRule,
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    TaskList,
-    TaskItem.configure({ nested: true }),
-    Typography,
-    Superscript,
-    Subscript,
+    ...(!markdownAuthoring ? [
+      HorizontalRule,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Typography,
+      Superscript,
+      Subscript,
+    ] : []),
     Selection,
     Placeholder.configure({
       placeholder,
       includeChildren: true,  // Check child nodes for content (fixes placeholder showing after paste)
     }),
     Markdown,  // Enables markdown parsing for setContent/getMarkdown
-    // Image extensions (always included for rendering, upload only when enabled)
-    ManagedImage.configure({
-      HTMLAttributes: {
-        class: 'max-w-full h-auto rounded',
-      },
-    }),
-    ReadOnlyImageUpload,
-  ], [placeholder])
+    // Rich documents retain managed images; this Markdown preset accepts text.
+    ...(!markdownAuthoring ? [
+      ManagedImage.configure({
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded',
+        },
+      }),
+      ReadOnlyImageUpload,
+    ] : []),
+  ], [placeholder, markdownAuthoring])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -772,6 +789,7 @@ export function RichTextEditor({
       <EditorContext.Provider value={{ editor }}>
         {canEdit && visibleToolbarPreset && (interactionActive ? (
           <Toolbar
+            tabIndex={markdownAuthoring ? 0 : undefined}
             ref={toolbarRef}
             aria-label="Formatting options"
             data-toolbar-preset={visibleToolbarPreset}

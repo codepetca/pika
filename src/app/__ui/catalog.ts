@@ -12,6 +12,15 @@ export interface PatternCatalogEntry {
 
 export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   {
+    id: 'markdown-authoring',
+    name: 'Write / Markdown authoring',
+    owner: 'src/components/editor/MarkdownAuthoringEditor.tsx',
+    maturity: 'experimental',
+    useWhen: 'Course Guide and assignment instructions edit a single Markdown draft in Write or source mode.',
+    avoidWhen: 'Rich student documents, image uploads, or broader adoption before human promotion.',
+    reference: 'docs/guidance/ui/changes/markdown-authoring-toolbar.md',
+  },
+  {
     id: 'tab-entry-extension',
     name: 'Quiet tab entry',
     owner: 'src/ui/TabContentTransition.tsx',

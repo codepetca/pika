@@ -18,6 +18,7 @@ vi.mock('@/components/HistoryGraph', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
+  MarkdownAuthoringEditor: () => <div />,
   MarkdownContentEditor: () => <div />,
   RichTextEditor: () => <div />,
   RichTextViewer: () => <div />,

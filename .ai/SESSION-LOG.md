@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
-
-Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
-c10fd9547 at05:30Z, identical7175fbe7 tree, clean canonical main fast-forwarded.
-Report297/298 source reviews clean. Composition299 settlement predicate omission
-fixed and300 clean with actual-controls RED/GREEN joins/uncertainty regressions.
-First native report6wj8mp remains failed: generated observe SQL glued numeric
-literal to OR. Tiny separate read-only PG fragment confirmed42601; regression
-RED then75/4GREEN. Minimal fixture separator/pin update and exact recovery301
-clean; removed only5containers2volumes1network, retained temp/evidence privately.
-No application permission change or softened poison/cleanup checks.
-Fresh report uTZw3f actual4140JOINED0 passed001–276 rollback SQL, genuine metadata,
-12realSDK adapters/6fullDTO/18SQL/60guards, restoration before final reads, complete
-fixture/complement and canonical/global equality plus owned teardown.100actions,
-1672controls,51235392B,12HTTP,max1session,final0sessions/uncertainSQL/unsettled.
-Immediate NEXTTOOLFIRST60593JOINED0 before any check/edit/CI query confirms7901
-source/98970deps unchanged/0process. Genuine276 fac561c3,443760B installed byte-
-exact after FIRST; deleting only newRPC reconstructs entire275e295 baseline.
-All receipts retain nativeVerified:false; private coordinator outcome records
-actual acceptance separately. Cumulative301reviews/4fix batches preserved under
-task waiver; tokens/effective config unknown. Final metadata/current-main review,
-focused checks and CI remain gates. No prod/shared-local249+, provider, real
-account/plan, billing/AI, admission or activation action; learner provenance separate.
-
 ## 2026-10-20 — Prepare atomic contextual classroom-list ordering
 
 Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
@@ -857,3 +833,13 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
 - Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
 - No dependency, database, grade policy or production change; broader experience epic remains incomplete.
+
+## 2026-10-22 — Course Guide and assignment Markdown authoring
+
+Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
+opt-in Bold/Italic/Link/Format toolbar and unchanged Markdown persistence.
+Mode changes emit no content writes; source blur still uses assignment autosave.
+Focused 121 files/2,093 tests and all static policies passed; browser role,
+desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
+Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
+Independent stable-SHA review/PR completion follows; no production promotion.

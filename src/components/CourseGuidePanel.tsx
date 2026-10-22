@@ -5,7 +5,7 @@ import { ExternalLink } from 'lucide-react'
 import { CourseGuideOptionsDialog } from '@/components/CourseGuideOptionsDialog'
 import { CourseGuideImportDialog } from '@/components/CourseGuideImportDialog'
 import { CourseGuideView } from '@/components/CourseGuideView'
-import { MarkdownContentEditor } from '@/components/editor'
+import { MarkdownAuthoringEditor } from '@/components/editor'
 import { toCourseGuideVisibility, type CourseGuideData } from '@/lib/course-guide'
 import {
   normalizeActualCourseSiteConfig,
@@ -15,7 +15,6 @@ import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import {
   ACTIONBAR_BUTTON_SECONDARY_CLASSNAME,
   Button,
-  FormField,
   PageActionBar,
   PageContent,
   PageLayout,
@@ -306,28 +305,16 @@ export function CourseGuidePanel({
 
   const guideEditor = (
     <div className="space-y-3">
-      {editorMode === 'markdown' ? (
-        <FormField label="Course guide Markdown">
-          <textarea
-            value={overviewDraft}
-            onChange={(event) => setOverviewDraft(event.target.value)}
-            disabled={overviewSaving || isArchived}
-            spellCheck={false}
-            rows={18}
-            className="min-h-80 w-full resize-y rounded-control border border-border bg-surface px-3 py-3 font-mono text-sm text-text-default focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2"
-          />
-        </FormField>
-      ) : (
-        <MarkdownContentEditor
-          markdown={overviewDraft}
-          onMarkdownChange={setOverviewDraft}
-          placeholder="Paste or write your course guide..."
-          editable={!overviewSaving && !isArchived}
-          toolbarPreset="document"
-          aria-label="Course guide"
-          className="min-h-80"
-        />
-      )}
+      <MarkdownAuthoringEditor
+        label="Course guide"
+        mode={editorMode ?? 'visual'}
+        onModeChange={setEditorMode}
+        markdown={overviewDraft}
+        onMarkdownChange={setOverviewDraft}
+        placeholder="Paste or write your course guide..."
+        editable={!overviewSaving && !isArchived}
+        className="min-h-80"
+      />
       {overviewError ? (
         <div role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
           {overviewError}

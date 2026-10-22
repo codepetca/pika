@@ -112,15 +112,12 @@ describe('AssignmentModal', () => {
       expect(screen.queryByText(/Supported markdown:/i)).not.toBeInTheDocument()
       expect(screen.getByText('Instructions')).toBeInTheDocument()
       const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
-      expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
-      expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+      expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
+      expect(screen.getByRole('button', { name: 'Format' })).toBeInTheDocument()
+      expect(within(toolbar).getAllByRole('button')).toHaveLength(4)
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Italic' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'List options' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Underline' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Block formatting' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
@@ -163,7 +160,7 @@ describe('AssignmentModal', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Format' })).toBeInTheDocument()
       })
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
@@ -1419,7 +1416,8 @@ describe('AssignmentModal', () => {
         assignment: { ...baseAssignment, instructions_markdown: source },
       }) })
       render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment}
-        instructionsMode="markdown" onClose={vi.fn()} onSuccess={vi.fn()} />)
+        onClose={vi.fn()} onSuccess={vi.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
       const editor = screen.getByRole('textbox', { name: 'Instructions Markdown' })
       expect(editor).toHaveValue(baseAssignment.instructions_markdown)
       expect(fetchMock).not.toHaveBeenCalled()

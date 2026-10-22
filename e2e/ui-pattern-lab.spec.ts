@@ -1,8 +1,90 @@
 import { expect, test, type Page, type TestInfo } from '@playwright/test'
 import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility'
+import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-student-tables'
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+for (const role of ['teacher', 'student'] as const) {
+  test(`Markdown authoring preserves ${role} Course Guide and assignment content`, async ({ page }, info) => {
+    const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+    await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+    await mockTableShellReads(page, role)
+    const source = '# Field observations\n\nExplain **why**.\n\n- First observation\n- Second observation\n\n> Keep your notes.\n'
+    const guide = { classroom: { title: 'Field observations course' },
+      visibility: { overview: true, resources: false, assignments: false, tests: false },
+      overviewMarkdown: source, resourcesContent: null, assignments: [], tests: [] }
+    await page.route('**/api/classrooms/*/course-guide', route => route.fulfill({ json: { guide } }))
+    const saves: unknown[] = []
+    await page.route(`**/api/teacher/classrooms/${TABLE_CLASSROOM_ID}`, async route => {
+      saves.push(route.request().postDataJSON())
+      await route.fulfill({ json: {} })
+    })
+    const capture = async (name: string) => {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+      await info.attach(name, { body: await page.screenshot({ path: info.outputPath(`${name}.png`), animations: 'disabled' }), contentType: 'image/png' })
+    }
+    await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=resources&guideContinuity=true`)
+    await expect(page.getByRole('heading', { name: 'Field observations course', exact: true })).toBeVisible()
+    if (role === 'student') {
+      await expect(page.getByRole('heading', { name: 'Field observations', exact: true })).toBeVisible()
+      await expect(page.getByRole('group', { name: 'Course guide editing mode' })).toHaveCount(0)
+      await capture('student-course-guide-reading')
+      await openPatternLab(page, info, 'student')
+      await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('markdown-authoring')
+      await page.locator('#markdown-authoring').scrollIntoViewIfNeeded()
+      await expect(page.locator('#markdown-authoring').getByRole('heading', { name: 'Field observations', exact: true })).toBeInViewport()
+      await capture('student-assignment-instructions-reading')
+      return
+    }
+    await page.getByRole('button', { name: 'More actions', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click()
+    const modes = page.getByRole('group', { name: 'Course guide editing mode' })
+    await expect(modes.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-pressed', 'true')
+    await modes.getByRole('button', { name: 'Markdown' }).click()
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
+    await page.getByRole('textbox', { name: 'Course guide Markdown', exact: true }).fill(source)
+    await capture('teacher-course-guide-markdown')
+    await modes.getByRole('button', { name: 'Write' }).click()
+    const toolbar = page.getByRole('toolbar', { name: 'Formatting options' })
+    await expect(toolbar.getByRole('button')).toHaveCount(4)
+    await expect(page.getByRole('textbox', { name: 'Course guide', exact: true })).toContainText('First observation')
+    await capture('teacher-course-guide-write')
+    const format = toolbar.getByRole('button', { name: 'Format', exact: true })
+    await format.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('menuitem', { name: 'Heading 2', exact: true })).toBeVisible()
+    await capture('teacher-course-guide-format')
+    await page.keyboard.press('Escape')
+    await expect(format).toBeFocused()
+    for (const button of await toolbar.getByRole('button').all()) {
+      const box = (await button.boundingBox())!
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.width).toBeGreaterThanOrEqual(44)
+    }
+    await modes.getByRole('button', { name: 'Markdown' }).click()
+    await expect(page.getByRole('textbox', { name: 'Course guide Markdown', exact: true })).toHaveValue(source)
+    expect(saves).toEqual([])
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect.poll(() => saves).toEqual([{ courseOverviewMarkdown: source }])
+    await expect(page.getByRole('heading', { name: 'Field observations', exact: true })).toBeVisible()
+
+    await openPatternLab(page, info, 'teacher')
+    await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('assignment-edit-split')
+    await page.getByRole('button', { name: 'Open assignment edit prototype' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit Assignment', exact: true })
+    const assignmentModes = dialog.getByRole('group', { name: 'Instructions editing mode' })
+    await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
+    await dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true }).fill(source)
+    await capture('teacher-assignment-markdown')
+    await assignmentModes.getByRole('button', { name: 'Write' }).click()
+    await expect(dialog.getByRole('textbox', { name: 'Instructions', exact: true })).toContainText('First observation')
+    await expect(dialog.getByRole('toolbar').getByRole('button')).toHaveCount(4)
+    await capture('teacher-assignment-write')
+    await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
+    await expect(dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true })).toHaveValue(source)
+  })
+}
 
 for (const role of ['teacher', 'student'] as const) {
   test(`${role} browser tab follows classroom identity and theme`, async ({ page }, testInfo) => {
