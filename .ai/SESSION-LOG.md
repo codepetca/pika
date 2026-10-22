@@ -701,6 +701,10 @@ Aligned the existing teacher/student account menu with Pattern Lab action-menu m
 
 CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
 
+## 2026-10-20 — Promote updated student details to production
+
+Owner authorized main-to-production for the enlarged student inspector. Draft1641 batches main1e1c6b667, including Calendar motion and dormant server compatibility already merged/reviewed on main. Reconciled production0a1d78c38 archive history, preserving its sole unique promotion receipt and all main entries; product/config/dependency/migration bytes remain exact main. Production migrations001–282 are already verified in main3fd1fc1a4; this promotion applies none and changes no environment or activation controls. Startup/verify-env passed; weekly67% remaining, storage271GB healthy. Release risk runtime-platform/workspace-state; independent security/compatibility review, focused checks and exact-head PR Gate precede authorized merge/deployment verification. DeepSeek pause honored; native reviewers GPT6.1Sol/high, bounded one initial wave, tokens/active time unknown.
+
 ## 2026-10-21 — Calendar category themes and Classwork icons
 
 Owner approved shared amber for due dates/tests, quiet light green for materials/surveys, and existing orange for announcements. Added semantic light/dark calendar tokens and reused them across agenda/grid/weekend/day chips. ClassworkTypeIcon keeps ClipboardList/FileText/ListChecks consistent in teacher creation menus, teacher/student lists and prototypes. Saved the convention in stable UI guidance and a scoped brief; Pattern Lab calendar-identity renders the real cell and shared icons. No new survey scheduling, statuses, dependencies or migrations.
@@ -940,3 +944,23 @@ and exact owned clone cleanup is independently verified. Focused checks against
 the prepared parent pass3562 tests/104files plus all static gates; independent
 review and exact-head CI remain pending. No grouped writer/index change, shared-local migration,
 production/provider action, publication or activation is included.
+
+## 2026-10-21 — Prepare calendar and attendance production batch
+
+Owner explicitly authorized main-to-production after green checks. Draft1657
+batches seven reviewed main PRs through82ffc5cdd: Calendar themes/Classwork icons,
+shared Tooltip fade/formatted content, announcement scheduling dismissal, and
+admitted attendance membership/learner paths. Reconcile production25aba4152's
+unique history receipts in this ephemeral promotion checkout; application,
+configuration, dependency and SQL bytes remain exact reviewed main. Production
+history001–284 is the last verified schema;285/286 are source-only and remain
+unapplied. Current admission and compatibility verification, cumulative independent
+security/compatibility review and exact-head CI/PR Gate precede the authorized
+merge. No environment, cohort, provider, account or migration mutation is part
+of this app release. Startup/verify-env passes; weekly35% remaining and storage
+healthy. Risk runtime-platform/workspace-state; bounded two-reviewer initial wave
+using GPT6.1Sol/high, per-review tokens and active time unknown.
+
+## 2026-10-21 — Prepare classroom safeguards production release
+
+Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
