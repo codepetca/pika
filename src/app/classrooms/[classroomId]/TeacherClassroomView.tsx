@@ -363,7 +363,7 @@ function TeacherMaterialDialog({
     setError(null)
   }, [isOpen, material])
 
-  async function saveMaterial(nextDraft: boolean, scheduledFor?: string | null) {
+  async function saveMaterial(nextDraft: boolean, scheduledFor?: string | null, postedOn?: string) {
     const cleanTitle = title.trim()
     if (!cleanTitle) {
       setError('Title is required')
@@ -380,7 +380,10 @@ function TeacherMaterialDialog({
         {
           method: material ? 'PATCH' : 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft, ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}) }),
+          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft,
+            ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}),
+            ...(postedOn !== undefined ? { posted_on: postedOn } : {}),
+          }),
         },
       )
       const data = await response.json().catch(() => ({}))
@@ -408,6 +411,7 @@ function TeacherMaterialDialog({
       isExisting={!!material}
       isDraft={isDraft}
       releasedAt={material?.released_at}
+      createdAt={material?.created_at}
       readOnly={isReadOnly}
       saving={saving}
       error={error}
@@ -415,7 +419,7 @@ function TeacherMaterialDialog({
       content={content}
       onTitleChange={setTitle}
       onContentChange={setContent}
-      onSave={(asDraft, scheduledFor) => { void saveMaterial(asDraft, scheduledFor) }}
+      onSave={(asDraft, scheduledFor, postedOn) => { void saveMaterial(asDraft, scheduledFor, postedOn) }}
       onClose={onClose}
       onDelete={material && !isReadOnly ? () => onRequestDelete(material) : undefined}
     />

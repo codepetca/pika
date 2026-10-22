@@ -9,6 +9,7 @@ import { ContentField, RichTextEditor, RichTextViewer } from '@/components/edito
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { combineScheduleDateTimeToIso, DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, isScheduleIsoInFuture, parseScheduleIsoToParts } from '@/lib/scheduling'
 import type { TiptapContent } from '@/types'
+import { materialPostDateSchema } from '@/lib/validations/material-post-date'
 
 interface MaterialCreationDialogProps {
   materialKey?: string
@@ -16,6 +17,7 @@ interface MaterialCreationDialogProps {
   isExisting?: boolean
   isDraft?: boolean
   releasedAt?: string | null
+  createdAt?: string
   readOnly?: boolean
   saving?: boolean
   error?: string | null
@@ -23,7 +25,7 @@ interface MaterialCreationDialogProps {
   content: TiptapContent
   onTitleChange: (title: string) => void
   onContentChange: (content: TiptapContent) => void
-  onSave: (asDraft: boolean, scheduledFor?: string | null) => void
+  onSave: (asDraft: boolean, scheduledFor?: string | null, postedOn?: string) => void
   onClose: () => void
   onDelete?: () => void
 }
@@ -34,11 +36,18 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 }
 
 function MaterialEditor({
-  isOpen, isExisting = false, isDraft = true, releasedAt, readOnly = false, saving = false,
+  isOpen, isExisting = false, isDraft = true, releasedAt, createdAt, readOnly = false, saving = false,
   error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
 }: MaterialCreationDialogProps) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const isScheduled = !isDraft && !!releasedAt && isScheduleIsoInFuture(releasedAt)
+  const canEditPostDate = isExisting && !isDraft && !isScheduled
+  const originalPostTimestamp = releasedAt ?? createdAt
+  const initialPostDate = originalPostTimestamp
+    ? formatInTimeZone(originalPostTimestamp, 'America/Toronto', 'yyyy-MM-dd')
+    : getTodayInSchedulingTimezone()
+  const [postDate, setPostDate] = useState(initialPostDate)
+  const validPostDate = materialPostDateSchema.safeParse(postDate).success
   const [action, setAction] = useState<'post' | 'draft' | 'schedule'>(isScheduled ? 'schedule' : 'post')
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const initialSchedule = releasedAt && isScheduled ? parseScheduleIsoToParts(releasedAt) : null
@@ -47,7 +56,7 @@ function MaterialEditor({
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const validSchedule = !!scheduleIso && isScheduleIsoInFuture(scheduleIso)
   const disabled = saving || readOnly
-  const saveDisabled = disabled
+  const saveDisabled = disabled || (action === 'post' && canEditPostDate && !validPostDate)
   const publishLabel = isScheduled ? 'Post now' : isDraft ? 'Post' : 'Save'
   const primaryLabel = action === 'draft' ? 'Save draft' : action === 'schedule' ? isScheduled ? 'Save schedule' : 'Schedule' : publishLabel
 
@@ -56,6 +65,7 @@ function MaterialEditor({
     if (action === 'schedule') { setScheduleOpen(true); return }
     if (action === 'draft') { onSave(true); return }
     if (isScheduled) onSave(false, null)
+    else if (canEditPostDate && postDate !== initialPostDate) onSave(false, undefined, postDate)
     else onSave(false)
   }
 
@@ -89,6 +99,10 @@ function MaterialEditor({
             <p role="status" className="text-xs text-text-muted">{isScheduled && releasedAt
               ? `Scheduled for ${formatInTimeZone(releasedAt, 'America/Toronto', 'EEE MMM d, h:mm a')} (Toronto)`
               : isExisting ? isDraft ? 'Draft' : 'Posted' : 'Not posted'}</p>
+            {canEditPostDate && <FormField label="Post date (Toronto)" error={!validPostDate ? 'Choose today or an earlier date.' : undefined}>
+              <Input type="date" value={postDate} min="0001-01-01" max={getTodayInSchedulingTimezone()}
+                disabled={disabled} onChange={(event) => setPostDate(event.target.value)} />
+            </FormField>}
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <div className="shrink-0 lg:mt-auto">
               <SplitButton
@@ -96,12 +110,12 @@ function MaterialEditor({
                 variant={action === 'post' && (isDraft || isScheduled) ? 'success' : 'primary'}
                 size="md"
                 className="w-full shadow-sm"
-                disabled={saveDisabled}
+                disabled={disabled}
                 interactionActive={!previewOpen && !scheduleOpen}
                 exitMotion="opacity"
                 toggleAriaLabel="Choose material action"
                 menuPlacement="up"
-                primaryButtonProps={{ className: 'flex-1 justify-center font-semibold' }}
+                primaryButtonProps={{ className: 'flex-1 justify-center font-semibold', disabled: saveDisabled }}
                 onPrimaryClick={save}
                 options={[
                   ...(action !== 'post' ? [{ id: 'post', label: publishLabel, onSelect: () => setAction('post') }] : []),

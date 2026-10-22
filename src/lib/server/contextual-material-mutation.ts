@@ -11,6 +11,7 @@ import {
   materialMutationEnvelopeSchema, materialDeleteEnvelopeSchema, type MaterialUpdateInput,
 } from '@/lib/validations/material-mutations'
 import { compareAnnouncementReadTimestamps } from '@/lib/validations/announcement-reads'
+import { getCalendarMaterialDate } from '@/lib/calendar-items'
 import type { AuthenticatedUser } from '@/types'
 import type { Json } from '@/types/database.generated'
 
@@ -55,6 +56,8 @@ function materialResult(response: unknown, actor: string, classroomId: string, b
     || (body.is_draft !== undefined && material.is_draft !== body.is_draft)
     || (body.is_draft === true && material.released_at !== null)
     || (body.is_draft === false && material.released_at === null)
+    || (body.posted_on !== undefined && (material.is_draft || material.released_at === null
+      || getCalendarMaterialDate(material) !== body.posted_on || Date.parse(material.released_at) > Date.now()))
     || (body.is_draft !== true && body.scheduled_for !== undefined && (material.is_draft
       || material.released_at === null || (body.scheduled_for !== null
         ? compareAnnouncementReadTimestamps(material.released_at, body.scheduled_for) !== 0

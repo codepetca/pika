@@ -45,6 +45,30 @@ describe('announcement owner mutation RPC contracts', () => {
     })
   })
 
+  it('sends a date-only patch and binds the receipt to its Toronto publication day', async () => {
+    const published_at = '2026-10-21T04:00:00.000Z'
+    rpc.mockResolvedValue(success({ ...row(), published_at }))
+    const body = announcementUpdateBodySchema.parse({ posted_on: '2026-10-21' })
+    expect((await update(body)).announcement.published_at).toBe(published_at)
+    expect(rpc).toHaveBeenCalledWith('update_announcement_for_owner_v1', {
+      p_actor_id: actorId, p_classroom_id: classroomId, p_announcement_id: announcementId,
+      p_patch: { posted_on: '2026-10-21' },
+    })
+    rpc.mockResolvedValue(success())
+    await expect(update(body)).rejects.toMatchObject({ statusCode: 503 })
+    rpc.mockResolvedValue(success({ ...row(), published_at, scheduled_for: published_at }))
+    await expect(update(body)).rejects.toMatchObject({ statusCode: 503 })
+  })
+
+  it.each([
+    { posted_on: '2099-01-01' }, { posted_on: '0000-01-01' }, { posted_on: '2026-02-30' },
+    { posted_on: null }, { posted_on: '2026-10-21', is_draft: true },
+    { posted_on: '2026-10-21', scheduled_for: null },
+  ])('rejects invalid or competing post-date mutations: %j', body => {
+    expect(announcementUpdateBodySchema.safeParse(body).success).toBe(false)
+    expect(announcementCreateBodySchema.safeParse({ content: 'Content', ...body }).success).toBe(false)
+  })
+
   it('accepts a historical author after ownership transfer', async () => {
     rpc.mockResolvedValue(success({ ...row(), created_by: otherId }))
     expect((await update()).announcement.created_by).toBe(otherId)

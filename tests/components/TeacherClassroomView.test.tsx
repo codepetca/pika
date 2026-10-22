@@ -1589,6 +1589,27 @@ describe('TeacherClassroomView', () => {
     expect(params.has('materialId')).toBe(false)
   })
 
+  it('saves a changed material post date and invalidates both calendar material caches', async () => {
+    const material = makeMaterialSummary('material-post-date', 'Calendar reading', { is_draft: false, released_at: '2026-10-22T14:00:00Z' })
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    const saved = { ...material, released_at: '2026-10-21T04:00:00Z' }
+    vi.mocked(global.fetch).mockResolvedValue({ ok: true, json: async () => ({ material: saved }) } as Response)
+    render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} />, { wrapper: TooltipProvider })
+    const dialog = await screen.findByRole('dialog', { name: 'Material' })
+    const date = within(dialog).getByLabelText('Post date (Toronto)')
+    fireEvent.change(date, { target: { value: '2026-10-21' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      `/api/teacher/classrooms/${classroom.id}/materials/${material.id}`,
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'Calendar reading', content: material.content, is_draft: false, posted_on: '2026-10-21' }) }),
+    ))
+    await waitFor(() => expect(dialog).not.toBeInTheDocument())
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-materials:${classroom.id}`)
+    expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`student-materials:${classroom.id}`)
+  })
+
   it('follows Back and Forward for URL-owned material dialogs without closing a local new-material dialog', async () => {
     const material = makeMaterialSummary('material-history', 'History reading')
     mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
