@@ -785,3 +785,11 @@ worker before ready. Initial independent review PASS at de56dbceb; focused run
 heavy-tests-released under the owner-authorized serial test plan before rerun;
 targeted review required for this test-only correction. No shared local/production
 migration applied and no production promotion.
+
+CI follow-up: owner approved one additional compatibility batch and targeted
+review within a45-minute extension. Attendance clone harness still required288;
+advance its exact-count/source upper bound to sealed289, preserving rejection of
+unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
+preflight in its runner regression. Application and migration bytes unchanged.
+Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
+focused rerun waits for toolbar's local test slot; targeted delta review pending.

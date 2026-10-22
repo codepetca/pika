@@ -26,7 +26,7 @@ resolve_attendance_meta_image`], {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     const source = runner()
     const start = source.indexOf('[[ "$source_version" =~')
@@ -37,6 +37,15 @@ describe('isolated attendance membership database proof', () => {
       encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version },
     })
     expect(result.status === 0).toBe(accepted)
+  })
+
+  it('executes the actual sealed replay-target preflight against the current migration chain', () => {
+    const command = runner().match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
+    expect(command, 'exercise the same preflight that runs before cloning').toBeDefined()
+    const result = spawnSync('pnpm', ['exec', 'tsx', '-e', command!], {
+      encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' },
+    })
+    expect(result.status, result.stderr).toBe(0)
   })
 
   it('makes every top-level conditional safety gate explicit for macOS Bash3.2', () => {
@@ -104,7 +113,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,288")
+    expect(source).toContain("assert.equal(migrations.length,289")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
