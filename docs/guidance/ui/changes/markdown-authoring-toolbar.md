@@ -56,3 +56,13 @@ Evidence and final review receipt will be recorded below.
 - Refactor candidate: Blueprint guidance retains its separate source/visual
   composition; broader adoption and any Markdown-dialect expansion are outside
   this change. Student rich documents retain their existing preset.
+
+## Independent review correction
+
+The initial complete review at `46c0c799c` found one P2 keyboard blocker: the
+newly reachable toolbar inherited Tab trapping. One remediation batch lets
+native toolbar Tab/Enter handling proceed while retaining arrow navigation.
+The new Tab regression failed before the fix; 75 focused editor/lifecycle tests
+and TypeScript passed after it. Teacher browser checks passed 4/4 with explicit
+forward Tab and reverse Shift+Tab assertions. Existing student reading evidence
+remains applicable because the correction changes only toolbar keyboard handling.

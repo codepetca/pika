@@ -17,6 +17,24 @@ function Harness({ onChange = vi.fn(), disabled = false, interactionActive = tru
 }
 
 describe('MarkdownAuthoringEditor', () => {
+  it('lets Tab leave toolbar controls for the editor and Shift+Tab return to mode selection', async () => {
+    const user = userEvent.setup()
+    render(<Harness />)
+    const editor = await screen.findByRole('textbox', { name: 'Instructions' })
+    const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
+    const write = screen.getByRole('button', { name: 'Write' })
+    write.focus()
+    await user.tab()
+    expect(toolbar).toHaveFocus()
+    await user.keyboard('{ArrowRight}')
+    expect(within(toolbar).getByRole('button', { name: 'Bold' })).toHaveFocus()
+    await user.tab()
+    expect(editor).toHaveFocus()
+    toolbar.focus()
+    await user.tab({ shift: true })
+    expect(write).toHaveFocus()
+  })
+
   it('keeps the Pattern Lab student reference readable without teacher editing controls', () => {
     render(<MarkdownAuthoringPattern role="student" />)
     expect(screen.getByRole('heading', { name: 'Field observations', exact: true })).toBeInTheDocument()

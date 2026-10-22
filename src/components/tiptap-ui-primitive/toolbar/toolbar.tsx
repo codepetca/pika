@@ -46,7 +46,7 @@ const useToolbarNavigation = (
     orientation: "horizontal",
     onSelect: (el) => el.click(),
     autoSelectFirstItem: false,
-    nativeActivation: true,
+    nativeKeyboard: true,
   })
 
   useEffect(() => {

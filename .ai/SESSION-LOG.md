@@ -843,3 +843,6 @@ Focused 121 files/2,093 tests and all static policies passed; browser role,
 desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
 Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
 Independent stable-SHA review/PR completion follows; no production promotion.
+Initial independent review found toolbar Tab trapping; one batch fixes native
+Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
+and corrected teacher browser matrix4/4 passed. Targeted review pending.

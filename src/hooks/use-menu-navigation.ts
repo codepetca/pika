@@ -40,8 +40,8 @@ interface MenuNavigationOptions<T> {
    * @default true
    */
   autoSelectFirstItem?: boolean
-  /** Let native buttons and composite triggers handle Enter themselves. */
-  nativeActivation?: boolean
+  /** Keep native Tab navigation and Enter activation for toolbar controls. */
+  nativeKeyboard?: boolean
 }
 
 /**
@@ -62,7 +62,7 @@ export function useMenuNavigation<T>({
   onClose,
   orientation = "vertical",
   autoSelectFirstItem = true,
-  nativeActivation = false,
+  nativeKeyboard = false,
 }: MenuNavigationOptions<T>) {
   const [selectedIndex, setSelectedIndex] = useState<number>(
     autoSelectFirstItem ? 0 : -1
@@ -114,6 +114,7 @@ export function useMenuNavigation<T>({
         }
 
         case "Tab": {
+          if (nativeKeyboard) return false
           event.preventDefault()
           if (event.shiftKey) {
             movePrev()
@@ -136,7 +137,7 @@ export function useMenuNavigation<T>({
         }
 
         case "Enter": {
-          if (nativeActivation) return false
+          if (nativeKeyboard) return false
           if (event.isComposing) return false
           event.preventDefault()
           if (selectedIndex !== -1 && items[selectedIndex]) {
@@ -185,7 +186,7 @@ export function useMenuNavigation<T>({
     onSelect,
     onClose,
     orientation,
-    nativeActivation,
+    nativeKeyboard,
   ])
 
   useEffect(() => {
