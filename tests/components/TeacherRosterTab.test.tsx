@@ -181,6 +181,29 @@ function getRequestBody(call: unknown[]) {
 
 // Long-roster scrolling is covered in the experience matrix browser suite.
 describe('TeacherRosterTab', () => {
+  it('shows the Toronto join date beside the joined status', async () => {
+    mockRosterFetch()
+    renderRoster()
+    const row = (await screen.findByText('Ada')).closest('tr')!
+    expect(within(row).getByText('Jan 2')).toHaveAttribute('datetime', rosterRow.joined_at)
+    expect(within(row).getByText('Jan 2').closest('td')?.querySelector('svg')).toBeNull()
+    expect(within(row).getByText('Joined')).toBeInTheDocument()
+  })
+
+  it('keeps joined status with no date and leaves unjoined rows empty', async () => {
+    renderRosterWithFetch(() => mockJson({ roster: [
+      { ...rosterRow, joined_at: null },
+      secondInvitedRosterRow,
+    ] }))
+    const joinedRow = (await screen.findByText('Ada')).closest('tr')!
+    expect(within(joinedRow).getByText('Joined')).toBeInTheDocument()
+    expect(within(joinedRow).getByText('Joined').closest('td')?.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    expect(joinedRow.querySelector('time')).toBeNull()
+    const invitedRow = screen.getByText('Grace').closest('tr')!
+    expect(within(invitedRow).queryByText('Joined')).not.toBeInTheDocument()
+    expect(invitedRow.querySelector('time')).toBeNull()
+  })
+
   afterEach(() => {
     cleanup()
     window.localStorage.clear()

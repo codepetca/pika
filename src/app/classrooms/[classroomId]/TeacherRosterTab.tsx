@@ -41,6 +41,7 @@ import { useTableSelection } from '@/hooks/useTableSelection'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { formatShortDateInToronto } from '@/lib/timezone'
 
 type Role = 'student' | 'teacher'
 type RosterSortColumn = 'first_name' | 'last_name' | 'email' | 'counselor_email' | 'joined'
@@ -770,7 +771,7 @@ export function TeacherRosterTab({ classroom }: Props) {
               <col style={{ width: `${columnWidths.last}px` }} />
               <col className="hidden md:table-column" style={{ width: `${columnWidths.email}px` }} />
               <col className="hidden md:table-column" style={{ width: `${columnWidths.counselor}px` }} />
-              <col style={{ width: '88px' }} />
+              <col className="w-28" />
             </colgroup>
             <DataTableHead dividers={showGridlines}>
               <DataTableRow>
@@ -848,6 +849,7 @@ export function TeacherRosterTab({ classroom }: Props) {
             </DataTableHead>
             <DataTableBody dividers={showGridlines}>
               {sortedRoster.map((row) => {
+                const joinedDate = formatShortDateInToronto(row.joined_at)
                 const isSelected = row.id === selectedRosterId
                 const rowName = formatRosterRowName(row)
                 const counselorErrorId = `roster-counselor-error-${row.id}`
@@ -974,7 +976,19 @@ export function TeacherRosterTab({ classroom }: Props) {
                     </DataTableCell>
                     <DataTableCell align="center">
                       {row.joined && (
-                        <Check className="mx-auto h-5 w-5 text-success" aria-hidden="true" />
+                        <span className="whitespace-nowrap">
+                          {joinedDate ? (
+                            <>
+                              <span className="sr-only">Joined </span>
+                              <time dateTime={row.joined_at!}>{joinedDate}</time>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="mx-auto h-5 w-5 text-success" aria-hidden="true" />
+                              <span className="sr-only">Joined</span>
+                            </>
+                          )}
+                        </span>
                       )}
                     </DataTableCell>
                   </DataTableRow>
