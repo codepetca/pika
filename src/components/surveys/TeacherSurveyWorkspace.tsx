@@ -347,9 +347,11 @@ export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPa
 function TeacherSurveyPreview({
   survey,
   questions,
+  saveStatus,
 }: {
   survey: Survey
   questions: SurveyQuestion[]
+  saveStatus: SaveStatusState
 }) {
   const [responses, setResponses] = useState<Record<string, SurveyPreviewResponse>>({})
 
@@ -361,7 +363,10 @@ function TeacherSurveyPreview({
     <Card tone="panel" padding="lg" className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-xl font-semibold text-text-default">{survey.title}</h2>
+          <div className="flex items-center gap-2">
+            <SaveStatus presentation="indicator" status={saveStatus} />
+            <h2 className="min-w-0 text-xl font-semibold text-text-default">{survey.title}</h2>
+          </div>
           <p className="mt-1 text-sm text-text-muted">Survey</p>
         </div>
         <span className="self-start rounded-badge bg-surface-2 px-2.5 py-1 text-xs font-semibold text-text-muted">
@@ -1064,7 +1069,7 @@ export function TeacherSurveyWorkspace({
             />
           </Card>
         ) : surveyEditMode === 'preview' ? (
-          <TeacherSurveyPreview survey={survey} questions={questions} />
+          <TeacherSurveyPreview survey={survey} questions={questions} saveStatus={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} />
 
         ) : (
           <>

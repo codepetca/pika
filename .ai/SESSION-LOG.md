@@ -631,7 +631,11 @@ Shared title-field composition retains naming/error/keyboard behavior. Targeted
 140component checks passed;24accepted browser cases cover desktop/mobile and
 light/dark, including a held production autosave and empty-title placeholders.
 Assignment/test fixture scroll sizing was aligned with the existing survey/test
-production pattern. Canonical gate and independent review tracked in PR.
+production pattern. Independent review accepted one P2: Preview metadata saves
+had no indicator. Its existing title row now carries the same feedback;37survey
+component cases (including held title/settings requests) and4full-classroom
+Preview browser cases pass. Extra targeted review approval requested at the
+seven-turn budget; canonical gate and review tracked in PR.
 
 ## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
 

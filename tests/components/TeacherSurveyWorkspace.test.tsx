@@ -608,6 +608,37 @@ describe('TeacherSurveyWorkspace', () => {
     expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/surveys/survey-1/results')
   })
 
+  it.each(['title', 'settings'] as const)('keeps circular saving feedback visible for %s edits in Preview', async (field) => {
+    const pending = createDeferred<Response>()
+    const survey = makeSurvey()
+    let patch: Partial<Survey> = {}
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        patch = JSON.parse(String(init.body))
+        return pending.promise
+      }
+      return jsonResponse({ survey, questions: [makeQuestion()] })
+    })
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1"
+      onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview', exact: true }))
+    await screen.findByText('Student preview')
+    if (field === 'title') {
+      const title = screen.getByLabelText('Survey title')
+      fireEvent.change(title, { target: { value: 'Updated preview title' } })
+      fireEvent.blur(title)
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'Settings', exact: true }))
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show class results to students' }))
+    }
+    const pane = screen.getByTestId('survey-editor-content-pane')
+    await waitFor(() => expect(within(pane).getByRole('status')).toHaveTextContent('Saving…'))
+    expect(within(pane).getByRole('status').querySelector('svg')).toBeInTheDocument()
+    await act(async () => { pending.resolve(jsonResponse({ survey: { ...survey, ...patch } })) })
+    await waitFor(() => expect(within(pane).getByRole('status')).toHaveTextContent('Saved'))
+    expect(within(pane).getByRole('status').querySelector('svg')).not.toBeInTheDocument()
+  })
+
   it('previews the survey from the authoring workspace without saving preview responses', async () => {
     fetchMock.mockImplementation(async (url: string | URL) => {
       const href = String(url)

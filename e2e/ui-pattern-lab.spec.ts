@@ -439,6 +439,54 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await expect(dialog).toHaveCount(0)
   expect(writes).toEqual([])
   expect(pageErrors).toEqual([])
+
+  await mockTableShellReads(page, 'teacher')
+  let surveyRecord = {
+    id: 'survey-preview-source', classroom_id: TABLE_CLASSROOM_ID, title: 'Preview saving feedback',
+    status: 'draft', opens_at: null, show_results: true, dynamic_responses: true, position: 0,
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z',
+    stats: { total_students: 0, responded: 0, questions_count: 1 },
+  }
+  const previewQuestions = [{ id: 'preview-question', survey_id: surveyRecord.id, question_type: 'multiple_choice',
+    question_text: 'Which activity helped?', options: ['Discussion', 'Fieldwork'], response_max_chars: 1200,
+    position: 0, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' }]
+  let releasePreviewSave!: () => void
+  let previewSaveStarted = false
+  const previewSaveGate = new Promise<void>(resolve => { releasePreviewSave = resolve })
+  await page.route('**/api/teacher/surveys**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (route.request().method() === 'PATCH' && path === `/api/teacher/surveys/${surveyRecord.id}`) {
+      previewSaveStarted = true
+      await previewSaveGate
+      surveyRecord = { ...surveyRecord, ...route.request().postDataJSON() }
+      return route.fulfill({ json: { survey: surveyRecord } })
+    }
+    if (route.request().method() !== 'GET') return route.abort()
+    return route.fulfill({ json: path === '/api/teacher/surveys' ? { surveys: [surveyRecord] }
+      : path.endsWith('/results') ? { results: [], stats: surveyRecord.stats }
+      : { survey: surveyRecord, questions: previewQuestions } })
+  })
+  await page.goto(`/e2e-fixtures/teacher-student-tables?role=teacher&tab=assignments&surveyId=${surveyRecord.id}`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'More survey actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
+  const workspace = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close survey editor' }) })
+  await workspace.getByRole('button', { name: 'Preview', exact: true }).click()
+  await expect(workspace.getByText('Student preview', { exact: true })).toBeVisible()
+  const previewTitle = workspace.getByRole('textbox', { name: 'Title', exact: true })
+  await previewTitle.fill('Updated preview title')
+  await previewTitle.press('Tab')
+  const previewSave = workspace.getByRole('status').filter({ hasText: /^(Saved|Saving…|Unsaved)$/ })
+  try {
+    await expect.poll(() => previewSaveStarted).toBe(true)
+    await expect(previewSave).toHaveText('Saving…')
+    await expect(previewSave.locator('svg')).toBeVisible()
+    await testInfo.attach('survey-preview-saving-circle', { body: await workspace.screenshot({ path: testInfo.outputPath('survey-preview-saving-circle.png'), animations: 'disabled' }), contentType: 'image/png' })
+  } finally { releasePreviewSave() }
+  await expect(previewSave).toHaveText('Saved')
+  await expect(workspace.getByRole('heading', { name: 'Updated preview title', exact: true })).toBeVisible()
+  expect(writes.map(url => new URL(url).pathname)).toEqual([`/api/teacher/surveys/${surveyRecord.id}`])
+  expect(pageErrors).toEqual([])
 })
 for (const role of ['teacher', 'student'] as const) {
   for (const motion of ['no-preference', 'reduce'] as const) {

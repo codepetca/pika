@@ -88,3 +88,6 @@ Apply to the same assignment, test, survey and material editor references and
 production callers. Preserve Markdown, autosave callbacks and validation.
 Verify empty titles, saving/saved/unsaved/error states, geometry and keyboard use
 on desktop/mobile in light/dark; both shared role references remain covered.
+
+Saving feedback remains available in survey Edit, Markdown and Preview while
+metadata stays editable. Preview reuses its existing title row for the indicator.
