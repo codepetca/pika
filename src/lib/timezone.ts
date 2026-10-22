@@ -32,6 +32,14 @@ export function formatDateInToronto(date: Date): string {
   return format(torontoDate, 'yyyy-MM-dd')
 }
 
+/** Formats an optional timestamp as a compact Toronto calendar date. */
+export function formatShortDateInToronto(value: string | null): string | null {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
+  return formatInTimeZone(date, TIMEZONE, 'MMM d')
+}
+
 /**
  * Converts a Toronto date string (YYYY-MM-DD) to end-of-day ISO timestamp.
  */

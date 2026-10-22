@@ -11,163 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Frozen classroom authoring-guidance read preparation
-
-Coordinator owns codex/contextual-classroom-authoring-guidance-read, based on
-reviewed reorder1d1d2b while PR1626 finishes CI. Prepared278 and admitted GET bind
-actual classroom ownership and selected frozen structural/adopted saved Versions
-in one read-only snapshot. Preserve archived/null-pointer behavior and legacy
-unmatched routing; no live Draft/latest or extra Blueprint-owner requirement.
-Only service-role SELECT(course_blueprint_id) on the purge fence is added.
-Private8MiB/10000-item work bounds reject rather than truncate. No UI change.
-Core Sol6.1/high delivered SQL and exact278 closed-profile seals; leaf Sol6.1/high
-delivered finite12-HTTP/18-SQL/60-guard SDK fixture with full Blueprint/history
-preservation. Root independently inspected output;1075 integration tests/9files
-pass, plus1388 closed-profile tests/10suites. Only pending genuine278 RPC metadata
-fails TypeScript; no manual metadata/cast. Audit, independent security and
-compatibility review, isolated proof, genuine generation and stable-head CI
-remain. Cumulative306 review turns/4 fix batches preserved; workflow-stop waiver
-active, per-worker cost unknown. Production/shared-local249+/provider/accounts/
-billing/AI/admission/home/page/cutover holds unchanged; no phase-exit claim.
-
-Initial307/308 and composition309 CLEAN. PR1626 normally merged7e56151e at07:10:21Z
-after all ten39380704259 CI/PRGate checks passed on1d1d2b; treec52abc45 identical,
-canonical clean main ff-only. New isolated guidance gi4jdD/project0f0ad5ed69d2
-actual70867JOINED0 PASSED001–278 rollback SQL/catalog/ACL/lineage/size boundaries,
-genuine generation,12actualSDKadapterreads18SQL60guards7DTOhashes4null/fullgraph
-and complement restoration/canonical read-only/global equality/owned teardown.
-100actions1675controls51707374B12HTTPmax1/final0open or uncertain. Immediate next
-tool FIRST17921JOINED0 verifies7933source98970depsunchanged0process; freeze released
-only after join. Genuine278444042B29a85e7b installedapply_patch+cmp; removing ONLY
-newrequired2UUID→JsonRPC reconstructs entire2774645aad3. Original false authority
-flags unchanged; profile now spent/fail-closed, no replay. Final checks/current-main
-integration/review/CI remain. Cumulative309reviews/4batches and all holds retained.
-
-Current-main rebase60351bd5 preserves exercised integration tree75ddfaa7. Final
-focused checks exposed one stale recovery-profile test expecting277 in the now
-reviewed278 chain (2810other tests passed). Update only that count and its genuine
-unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
-batched remediation5, not a new native attempt or weakened profile. Final targeted
-integration review includes the delta; no routine approval needed under waiver.
-
-## 2026-10-20 — Dual-owner classroom guidance preview preparation
-
-Coordinator owns codex/contextual-classroom-guidance-preview, child of reviewed
-guidance-read23d71d while PR1627 finishes CI. GET authoring-guidance/update now has
-a dormant admitted branch requiring current active-classroom AND Blueprint
-ownership, independent of account label. Prepared279 is service-only invoker,
-single read snapshot/no locks/new data grants. Preserve normalized preview DTO,
-adopted/fallback Version lineage, exact errors, private8MiB bounds and legacy GET;
-POST adoption unchanged. No UI change or production/shared-local migration.
-Core/leaf Sol6.1/high delivered SQL,20-path exact279 seals and four finite SDK
-fixture/test paths. Root inspected full sources and graph predicate equivalence;
-67 API/adapter/SQL-source tests pass,28 leaf tests pass,1478 profile tests pass,
-309 CI/policy tests pass. Only pending genuine279 RPC metadata fails TypeScript.
-Independent security/compatibility review, frozen isolated proof, genuine metadata,
-current-main reconciliation/final checks and exact-head CI remain. Cumulative310
-actual review turns/5 remediation batches retained; task-stop waiver remains active.
-Production/shared-local249+/provider/accounts/billing/AI and activation holds unchanged.
-
-Initial311/312 and composition313 reviews CLEAN. Fresh isolatednaHFuy/project
-23c6d2c507aa actual59973JOINED0 passes001–279 rollback SQL/catalog/ACL/lineage/UTF8
-bounds/genuine metadata/12actualSDK18SQL60guards3DTO/full63-tablegraph/complement/
-restoration/canonical read-only/global equality and positive owned teardown.
-100actions1672controls51169222B12HTTPmax1/final0open or uncertain. Immediate next
-tool FIRST55092JOINED0 verifies7948source98970depsunchanged0process; freeze released
-only after join. Genuine279444192Ba0e2ff00 installedafterFIRST; removing only new
-RPC reconstructs entire27829a85e7b. Original false authority flags untouched; spent
-profile remains fail-closed, never rebound/replayed. PR1627 then merged normally
-e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
-tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
-preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
-313actual review turns/5fix batches and all holds retained.
-
-## 2026-10-20 — Atomic dual-owner guidance adoption preparation
-
-Prepared280 adds an admitted POST branch requiring current active-classroom AND
-linked Blueprint ownership, using the existing canonical snapshot builder and
-one atomic112-save/222-adopt composition. Complete five-collection source/digest
-prevents truncation and catches parent-only moves not reflected by older Draft
-revision triggers. Existing immutable Versions/provenance remain; a rejected
-transaction leaves no stray Version, but a lost post-commit response is uncertain
-and never retried or compensated by deletion. Legacy POST/GET stay unchanged.
-Root API/adapter/legacy tests93/5 pass, SQL source tests9 pass, CI/policy314/6 pass;
-complete source-codec/builder tests66/3 pass. Genuine280 metadata and native proof
-remain pending; only the two new RPC metadata references fail TypeScript. No
-runtime acceptance or phase exit is claimed. Sol6.1/high bounded workers own
-closed-profile extension and four finite SDK fixture/test paths. The proof will
-assert exact allowed committed changes and preserve existing history/complement,
-retaining only proven legitimate temporary-transition timestamps/revisions.
-Cumulative314 actual independent review turns/5 remediation batches retained;
-routine workflow-stop waiver active. Production/shared-local249+, provider,
-account/billing/AI and activation holds unchanged. Learner current-membership-only
-attendance is an approved separate boundary, not implemented by this write.
-
-Parent preview PR1628 merged normally ascd3876dfa at08:52:50Z after all ten
-exacte2d2fff3 CI39392011940 checks/PRGate passed. Reviewed/squash treeb3df6d46 is
-identical; clean canonical main fast-forwarded. Original CI host-port collision
-and its failed receipt remain retained; no source/gate bypass or rollout.
-All280writers stopped. Root integration checks955/11 pass; leaf25/2 and concurrency
-10 plus carrier114/4 CPU checks pass. Genuine metadata/native acceptance remain
-pending. New private wrappers and carrier source remain deliberately unbound.
-
-Subsequent isolated280 SQL rollback and genuine metadata generation passed;
-SDK/concurrency acceptance remains pending. Earlier SQL42601 was corrected at
-three IF/CASE sites with source regression and independent review. A separate
-attempt stopped after source200 and before any writer dispatch. One offline8.1s
-delay reproduced its exact counters: the rehearsal's network timer included
-pre-request SQL/guards. The prepared two-file fix retains the actual ten-second
-caller abort, all58guards and all caps, with26 SDK/30 combined tests passing.
-Both failed attempts retain positive exact cleanup and immediate independent
-source/dependency preservation. Fixed private failure labels contain no payload,
-IDs or raw errors. Cumulative320 review turns/8 correction batches; further
-review and one separately bound proof remain, not runtime acceptance. All holds
-and the separate current-membership-only learner boundary remain unchanged.
-
-The next isolated attempt identified unchanged SDK caller expiry in rehearsal
-preflight (write/preflight/caller); SQL/types passed again and writer dispatch
-remained zero. Rather than extend a live timeout, the prepared closed observer
-now schedules all58 guards/17SQL after genuine SDK settlement, before adapter
-continuation. Interventions are explicitly before canonicalization, after source
-capture. Actual builders, lazy native then, argument/result identity and native
-abortSignal remain; live8s/10s failures still refuse.36/2 CPU tests pass, including
-real attachment zero-prior-unsettled entry and held-observer settlement. Root
-inspected the complete two-path delta; cumulative321 reviews/9 fix batches.
-New source/composition review and a separate fresh native proof remain gates;
-no acceptance, migration application, production release or activation claim.
-
-Fresh C5 isolated001–280 proof PASS:6actual adapters/12SDK HTTP/17SQL/58guards,
-5005-child completeness,2new immutable Versions/dedup/3denials and3genuine
-two-session contention pairs.112actions1851controls58573054bytes/max2sessions,
-final0open/uncertain. Actual terminal→immediate FIRST PASS7973source/98970deps/
-0processes before any post-work; full preservation records equal, owned workdir/
-Docker resources absent, reviewed canonical/global equality gates pass. Original
-nativefalse/missing fields remain unmodified; coordinator acceptance is scoped.
-Genuine280 generated types installed byte-identically242b3c7a (only2RPC additions
-over complete279); full focused3215/127 plus TypeScript/lint/policies PASS.
-322Astra SDK-truth and323Sol carriercomposition reviews clean; final metadata/
-evidence review, draft PR and exact-head CI/main merge remain. All holds unchanged.
-
-Final review324 completed clean and PR1629 entered normal exact-head CI onb0f75836.
-Database contracts reached strict lint, which rejected the untyped empty-object
-initializer in the private280 helper (42804); the PR returned to draft before
-correction. A source regression failed then passed with explicit `'{}'::jsonb.
-Only the initializer and its reviewed migration digest change; public signatures,
-SQL flow and generated types remain identical. Earlier native C5 evidence stays
-bound to its original source, not relabeled. Targeted correction review and a
-fresh final-head CI replay/lint remain required. Production/shared-local249+ and
-all activation holds remain unchanged. Reuse workflow mapping completed read-only;
-linked reuse retains both owners and new-classroom creation limits.
-
-The next CI coverage lane passed19810 tests but exposed one inherited guidance
-cleanup test's80ms real-wall-clock race. Its preflight could exhaust the deadline
-before fetch dispatch, correctly restore zero open sessions, and contradict the
-test's intended unclosed-request assertion. Returned PR to draft before a
-test-only correction: await a real fake-transport dispatch barrier, then advance
-fake timers through the unchanged80ms/160ms deadlines. All20 leaf tests pass;
-runtime proof/application/SQL/limits are unchanged. Targeted review and fresh CI
-remain; no native proof, migration, deployment or activation is implied.
-
 ## 2026-10-20 — Contextual archived reuse workflow preparation
 
 Prepared eight existing HTTP methods for admitted actual owners of either account
@@ -834,3 +677,38 @@ Independent stable-SHA review/PR completion follows; no production promotion.
 Initial independent review found toolbar Tab trapping; one batch fixes native
 Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
 and corrected teacher browser matrix4/4 passed. Targeted review pending.
+
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
+
+## 2026-10-22 — Roster dates without checkmarks
+
+Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
+Extend the existing roster Joined cell; same roster/Pattern Lab reference and
+teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
+without a timestamp show the text Joined; unjoined cells stay empty. No new
+component, pattern, or widget behavior. PR1661 returned to draft for this delta;
+focused checks, screenshot refresh and targeted independent review required.
+
+## 2026-10-22 — Joined fallback checkmark
+
+Owner refinement: joined records without a saved date use the original simple
+Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
+unjoined rows remain empty. Reuse original roster status icon; same teacher-only
+roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
+No component or widget contract change. PR1661 draft during validation/review.

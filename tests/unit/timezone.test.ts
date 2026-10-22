@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   formatDateInToronto,
+  formatShortDateInToronto,
   formatRelativeDateTimeInToronto,
   getTodayInToronto,
   isOnTime,
@@ -8,6 +9,13 @@ import {
 } from '@/lib/timezone'
 
 describe('timezone utilities', () => {
+  it('formats compact dates on the Toronto calendar, including both DST offsets', () => {
+    expect(formatShortDateInToronto('2026-09-07T02:00:00Z')).toBe('Sep 6')
+    expect(formatShortDateInToronto('2026-01-03T03:00:00Z')).toBe('Jan 2')
+    expect(formatShortDateInToronto(null)).toBeNull()
+    expect(formatShortDateInToronto('invalid')).toBeNull()
+  })
+
   afterEach(() => {
     vi.useRealTimers()
     vi.unstubAllEnvs()
