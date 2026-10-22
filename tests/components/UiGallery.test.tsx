@@ -65,6 +65,25 @@ vi.mock('@/components/editor', async (importOriginal) => ({
 }))
 
 describe('UiGallery history preview fixture', () => {
+  it.each(['teacher', 'student'] as const)('keeps the %s settings-switch reference separate from the catalog and paired grade visibility', (role) => {
+    renderGallery(role)
+    const catalog = screen.getByTestId('pattern-lab-contracts')
+    const reference = screen.getByRole('region', { name: 'Settings switch motion' })
+    const controls = within(reference)
+    const paired = within(screen.getByTestId('student-grades-pattern'))
+      .getByRole('switch', { name: 'Student grades visibility' })
+    const visibility = controls.getByRole('switch', { name: 'Student grades visibility' })
+
+    expect(catalog).not.toContainElement(reference)
+    fireEvent.click(visibility)
+    expect(visibility).toHaveAttribute('aria-checked', 'true')
+    expect(paired).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(controls.getByRole('button', { name: 'Simulate saving' }))
+    expect(visibility).toBeDisabled()
+    expect(controls.getByRole('button', { name: 'Make switches available' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByTestId('pattern-lab-contracts')).toBe(catalog)
+  })
+
   it('demonstrates Course Guide wrapping through the shared heading owner', () => {
     renderGallery('teacher')
     const example = within(screen.getByTestId('wrapping-course-heading-example'))

@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant owner Daily Log attendance report preparation
-
-Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
-0bb2a2bc; owner Daily Log report GET only, no provider or learner-history change.
-276 adds a complete service-only current-owner snapshot. Existing pure attendance
-logic is unchanged (structural input types only); archived owners, full roster,
-Unicode/Toronto semantics and browser DTO preserved. Generic private response/work
-bounds fail closed without truncation or subscription notices. Source rollback
-contracts include real1004 enrollments,1001 days/entries and complete graph
-preservation; inert installed-SDK leaf specifies12 adapter reads/18SQL/60guards,
-six independent complete DTO commitments and restoration before final reads.
-Core112/7 and leaf33/2 CPU tests pass; one expected missing genuine276 RPC type
-remains until isolated generation. CI command/inventory RED then310/5GREEN;
-exact reviewed migration profile extension remains in progress. Sol6.1/high
-workers own core/seals and leaf/carrier, root integrates CI/evidence; effective
-configuration/tokens unknown. Weekly92% remaining; storage287GB healthy.
-Native verification, genuine metadata, independent security/compatibility review,
-final checks and exact-head CI remain gates. No canonical/shared-local249+,
-production, provider, real account, billing/AI or activation operations. Latest
-owner decision retains current-membership-only learner attendance with earlier
-records preserved for owner; this report does not claim learner provenance.
-
 ## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
 
 Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
@@ -871,3 +849,11 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
+
+## 2026-10-22 — Settings switch motion consistency
+
+- Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
+- Native baseline confirmed 150ms track/thumb transitions persisted under reduced motion. Shared fast duration/standard easing and transition-none now cover both decorative spans, preserving immediate native state/callbacks and fixed labels.
+- Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
+- Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
+- No dependency, database, grade policy or production change; broader experience epic remains incomplete.
