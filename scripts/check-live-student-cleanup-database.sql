@@ -342,4 +342,222 @@ insert into public.report_card_rows (id, report_card_id, student_id, final_perce
     raise exception 'Stale callback accepted after fresh join';
   exception when sqlstate '55000' then null; end;
 end $$;
+
+-- Forward288 real singleton removal/automatic reservation/completion contract.
+-- Historical175 cases above remain unchanged; no provider HTTP is performed.
+-- Rollback-only callback witness: never read Vault or queue an HTTP request.
+create or replace function private.kick_removed_student_cleanup(p_source text)
+returns bigint language plpgsql security definer set search_path='' as $$
+begin
+  perform set_config('pika.cleanup288_kicks',
+    (coalesce(nullif(current_setting('pika.cleanup288_kicks',true),''),'0')::integer+1)::text,true);
+  return null;
+end;
+$$;
+do $contextual_live288$
+declare owner_label text; member_label text; owner_id uuid; member_id uuid; peer_id uuid;
+  class_id uuid; other_class uuid; roster_id uuid; v_generation_id uuid; fresh_generation uuid;
+  op_id uuid; job_id uuid; lease_id uuid; assignment_id uuid; doc_id uuid; before_peer jsonb; before_other jsonb;
+  teaching_class uuid; teaching_assignment uuid; teaching_event uuid; teaching_before jsonb; teaching_after jsonb; kick_before integer;
+  fallback_roster uuid; fallback_operation uuid; fallback_before jsonb;
+  saved jsonb; job jsonb; result jsonb; receipt jsonb; owner_before jsonb; member_before jsonb;
+begin
+  if pg_get_functiondef('private.reserve_live_student_cleanup(uuid,uuid,uuid,uuid,uuid)'::regprocedure)
+    not like '%Exact removed enrollment/generation/scope%' then return; end if;
+  if has_function_privilege('service_role','private.reserve_live_student_cleanup(uuid,uuid,uuid,uuid,uuid)','execute')
+    or has_function_privilege('anon','public.advance_removed_student_academic_cleanup(uuid,uuid,uuid,uuid,uuid,text,integer,uuid,uuid)','execute') then
+    raise exception 'Live288 private reservation/public RPC authority widened'; end if;
+  update private.student_provider_cleanup_settings set enabled=true,live_enabled=true,automatic_enabled=true,
+    eligible_after=clock_timestamp()-interval '1 minute' where singleton;
+  update private.removed_student_academic_settings set enabled=true where singleton;
+  update private.pal_membership_settings set enabled=true where singleton;
+  -- The signal gate compares with transaction-stable now(), not wall clock.
+  update private.pal_classroom_signal_settings set enabled=true,activated_at=coalesce(activated_at,now()-interval '1 second') where singleton;
+  update public.managed_storage_settings set mode='enforced',activated_at=clock_timestamp(),
+    readiness_verified_at=clock_timestamp(),readiness_digest=repeat('e',64) where singleton;
+  foreach owner_label in array array['student','teacher'] loop
+    foreach member_label in array array['student','teacher'] loop
+      owner_id:=gen_random_uuid(); member_id:=gen_random_uuid(); peer_id:=gen_random_uuid();
+      class_id:=gen_random_uuid(); other_class:=gen_random_uuid(); roster_id:=gen_random_uuid();
+      teaching_class:=gen_random_uuid(); teaching_assignment:=gen_random_uuid();
+      v_generation_id:=gen_random_uuid(); lease_id:=gen_random_uuid(); assignment_id:=gen_random_uuid(); doc_id:=gen_random_uuid();
+      insert into public.users(id,email,role) values
+        (owner_id,'owner288-'||owner_id::text||'@example.invalid',owner_label),
+        (member_id,'member288-'||member_id::text||'@example.invalid',member_label),
+        (peer_id,'peer288-'||peer_id::text||'@example.invalid','student');
+      perform public.set_effective_feature_entitlement_v1(gen_random_uuid(),owner_id,'classrooms.create','manual',true,
+        clock_timestamp(),null,2,'test:live288','live288_fixture',
+        coalesce((select revision from public.effective_feature_entitlements where subject_user_id=owner_id and feature_key='classrooms.create'),0));
+      perform public.set_effective_feature_entitlement_v1(gen_random_uuid(),member_id,'classrooms.create','manual',true,
+        clock_timestamp(),null,2,'test:live288','live288_fixture',
+        coalesce((select revision from public.effective_feature_entitlements where subject_user_id=member_id and feature_key='classrooms.create'),0));
+      insert into public.classrooms(id,teacher_id,title,class_code) values
+        (class_id,owner_id,'Singleton cleanup288',upper(substr(replace(class_id::text,'-',''),1,10))),
+        (other_class,owner_id,'Unrelated cleanup288',upper(substr(replace(other_class::text,'-',''),1,10))),
+        (teaching_class,member_id,'Learner also teaches288',upper(substr(replace(teaching_class::text,'-',''),1,10)));
+      insert into public.classroom_roster(id,classroom_id,email) values
+        (roster_id,class_id,'member288-'||member_id::text||'@example.invalid');
+      insert into public.classroom_enrollments(id,classroom_id,student_id) values
+        (v_generation_id,class_id,member_id),(gen_random_uuid(),other_class,member_id),(gen_random_uuid(),class_id,peer_id),
+        (gen_random_uuid(),teaching_class,peer_id);
+      -- The real contextual writer carries stable bindings for either label.
+      insert into public.classroom_roster_student_bindings(roster_id,classroom_id,student_id)
+        values(roster_id,class_id,member_id) on conflict do nothing;
+      insert into public.attendance_roster_mappings(classroom_id) values(class_id),(teaching_class);
+      insert into public.attendance_principal_mappings(user_id) values(owner_id),(member_id);
+      insert into public.attendance_participant_mappings(classroom_id,student_id) values(class_id,member_id),(teaching_class,peer_id);
+      insert into public.assignments(id,classroom_id,title,due_at,created_by)
+        values(assignment_id,class_id,'Preserved shared assignment288',clock_timestamp()+interval '1 day',owner_id);
+      insert into public.assignments(id,classroom_id,title,due_at,created_by)
+        values(teaching_assignment,teaching_class,'Mixed-role teaching work288',clock_timestamp()+interval '1 day',member_id);
+      insert into public.assignment_docs(id,assignment_id,student_id,content) values
+        (doc_id,assignment_id,member_id,'{"type":"doc","content":[]}'::jsonb);
+      insert into public.entries(classroom_id,student_id,date,text,on_time) values
+        (class_id,member_id,'2026-09-11','removed member288',true),
+        (class_id,peer_id,'2026-09-11','preserved peer288',true),
+        (other_class,member_id,'2026-09-11','preserved other classroom288',true),
+        (teaching_class,peer_id,'2026-09-11','preserved teaching classroom288',true);
+      teaching_event:=private.enqueue_membership_pal_fact(peer_id,teaching_class,'platform.session.started','preserved-teaching288',clock_timestamp(),'{}'::jsonb);
+      if teaching_event is null then raise exception 'Live288 must preserve nonempty mixed-role Pal history'; end if;
+      update public.pal_event_outbox set status='processing',lease_token=lease_id,lease_expires_at=now()+interval '1 minute' where id=teaching_event;
+      if not public.complete_pal_event_outbox(teaching_event,lease_id) then raise exception 'Live288 teaching event was not delivered'; end if;
+      select jsonb_build_object('class',to_jsonb(c),'assignment',to_jsonb(a),'entry',to_jsonb(e),
+        'enrollment',to_jsonb(enrollment),'attendance',to_jsonb(mapping),'pal',to_jsonb(event)) into teaching_before
+        from public.classrooms c join public.assignments a on a.classroom_id=c.id
+        join public.entries e on e.classroom_id=c.id join public.classroom_enrollments enrollment on enrollment.classroom_id=c.id
+        join public.attendance_participant_mappings mapping on mapping.classroom_id=c.id
+        join public.pal_event_outbox event on event.id=teaching_event where c.id=teaching_class;
+      select to_jsonb(entry) into before_peer from public.entries entry where classroom_id=class_id and student_id=peer_id;
+      select to_jsonb(entry) into before_other from public.entries entry where classroom_id=other_class and student_id=member_id;
+      select to_jsonb(account) into owner_before from public.users account where id=owner_id;
+      select to_jsonb(account) into member_before from public.users account where id=member_id;
+      if member_label='teacher' then
+        -- Genuine public-table fallback: this actual enrolled learner's legacy
+        -- email binder deliberately leaves the teacher-labelled roster unbound.
+        fallback_roster:=gen_random_uuid(); fallback_operation:=gen_random_uuid();
+        insert into public.classroom_roster(id,classroom_id,email,first_name)
+          values(fallback_roster,other_class,'member288-'||member_id::text||'@example.invalid','Unbound fallback288');
+        if exists(select 1 from public.classroom_roster_student_bindings binding where binding.roster_id=fallback_roster)
+          or not exists(select 1 from public.classroom_enrollments where classroom_id=other_class and student_id=member_id) then
+          raise exception 'Live288 fallback fixture is not an unbound active teacher-labelled membership'; end if;
+        select to_jsonb(roster) into fallback_before from public.classroom_roster roster where id=fallback_roster;
+        begin
+          -- Install a synthetic exact non-provider lifecycle fence under the
+          -- real membership/purge locks. No begin/erase/provider action occurs.
+          perform private.try_lock_classroom_membership_change(other_class,member_id);
+          perform public.student_purge_lock(other_class,member_id);
+          perform public.guard_classroom_purge_lifecycle(other_class);
+          insert into public.student_purge_operations(id,teacher_id,classroom_id,student_id,
+            student_binding_sha256,request_sha256,status,source_revision)
+            values(fallback_operation,owner_id,other_class,member_id,repeat('a',64),repeat('b',64),'inventorying',1);
+          insert into public.student_purge_fences(classroom_id,student_id,operation_id,teacher_id)
+            values(other_class,member_id,fallback_operation,owner_id);
+          if coalesce(current_setting('pika.student_purge_finalize',true),'off')='on'
+            or private.removed_academic_delete_allowed('classroom_roster',fallback_before)
+            or exists(select 1 from private.removed_academic_mutations where transaction_id=txid_current()) then
+            raise exception 'Live288 fallback witness acquired a trusted delete capability'; end if;
+          begin
+            update public.classroom_roster set first_name='Must be fenced288' where id=fallback_roster;
+            raise exception 'Live288 active-enrollment email fallback allowed update';
+          exception when sqlstate '55000' then if sqlerrm<>'student_purge_active' then raise; end if; end;
+          begin
+            delete from public.classroom_roster where id=fallback_roster;
+            raise exception 'Live288 active-enrollment email fallback allowed untrusted delete';
+          exception when sqlstate '55000' then if sqlerrm<>'student_purge_active' then raise; end if; end;
+          if fallback_before is distinct from (select to_jsonb(roster) from public.classroom_roster roster where id=fallback_roster)
+            or before_peer is distinct from (select to_jsonb(entry) from public.entries entry where classroom_id=class_id and student_id=peer_id)
+            or before_other is distinct from (select to_jsonb(entry) from public.entries entry where classroom_id=other_class and student_id=member_id) then
+            raise exception 'Live288 fallback denial changed roster/peer/other-class evidence'; end if;
+          raise exception using errcode='ZX288',message='rollback_live288_fallback_fence';
+        exception when sqlstate 'ZX288' then
+          if sqlerrm<>'rollback_live288_fallback_fence' then raise; end if;
+        end;
+        if exists(select 1 from public.student_purge_operations where id=fallback_operation)
+          or exists(select 1 from public.student_purge_fences where operation_id=fallback_operation)
+          or exists(select 1 from public.classroom_roster_student_bindings binding where binding.roster_id=fallback_roster)
+          or fallback_before is distinct from (select to_jsonb(roster) from public.classroom_roster roster where id=fallback_roster) then
+          raise exception 'Live288 fallback subtransaction did not restore exact fence-free state'; end if;
+      end if;
+      kick_before:=coalesce(nullif(current_setting('pika.cleanup288_kicks',true),''),'0')::integer;
+      perform public.remove_classroom_students_for_owner_v1(owner_id,class_id,array[roster_id]);
+      if coalesce(current_setting('pika.cleanup288_kicks',true),'0')::integer<>kick_before+1
+        or (select count(*) from private.removed_student_cleanup_jobs queued where queued.generation_id=v_generation_id)<>1 then
+        raise exception 'Live288 removal did not queue exactly one generation'; end if;
+      job:=public.claim_removed_student_cleanup_job(lease_id);
+      if (job->>'generation_id')::uuid is distinct from v_generation_id
+        or (job->>'teacher_id')::uuid is distinct from owner_id or (job->>'student_id')::uuid is distinct from member_id then
+        raise exception 'Live288 actual claimed job identity changed'; end if;
+      op_id:=(job->>'operation_id')::uuid; job_id:=(job->>'job_id')::uuid;
+      -- Same-class owner promotion is not removed-subject cleanup authority.
+      begin
+        update public.classrooms set teacher_id=member_id where id=class_id;
+        perform public.advance_removed_student_academic_cleanup(op_id,member_id,class_id,member_id,v_generation_id,'live_reserve');
+        raise exception 'Live288 current owner accepted as cleanup subject';
+      exception when sqlstate '55000' then
+        if sqlerrm<>'retained_roster_cleanup_group_invalid' then raise; end if;
+      end;
+      saved:=public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'live_reserve');
+      if saved->>'pal_schema_version'<>'2' or saved->>'pal_policy'<>'pika-live-v1'
+        or saved<>public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'live_reserve') then
+        raise exception 'Live288 role-neutral reservation lost exact live replay'; end if;
+      if public.get_student_provider_cleanup(op_id,owner_id,class_id,member_id,v_generation_id) is distinct from saved
+        or public.discover_retained_student_cleanup_groups(owner_id,class_id,member_id)->'targets'->0->>'operation_id' is distinct from op_id::text then
+        raise exception 'Live288 actual owner could not read exact saved progress'; end if;
+      begin
+        perform public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'live_complete');
+        raise exception 'Live288 completed without receipts/academic absence';
+      exception when sqlstate '55000' then if sqlerrm<>'student_live_absence_unverified' then raise; end if; end;
+      receipt:=jsonb_build_object('schema_version',2,'policy','pika-live-v1','operation_id',op_id,
+        'learner_id',saved->>'pal_reference','status','completed','begun_at','2026-09-13T15:00:00.000Z',
+        'completed_at','2026-09-13T15:01:00.000Z','historical_backups','excluded','backup_retention','not_attested');
+      begin
+        perform public.record_student_provider_cleanup_receipt(op_id,owner_id,class_id,member_id,v_generation_id,'pal',
+          receipt||jsonb_build_object('learner_id','wrong_scope'));
+        raise exception 'Live288 substituted receipt accepted';
+      exception when sqlstate '22023' then null; end;
+      perform public.record_student_provider_cleanup_receipt(op_id,owner_id,class_id,member_id,v_generation_id,'pal',receipt);
+      perform public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'inventory');
+      result:=public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'claim');
+      if not exists(select 1 from public.assignment_docs where id=doc_id)
+        or result->>'local_status'='local_completed' then raise exception 'Live288 missing Bara allowed academic deletion'; end if;
+      update private.removed_student_academic_settings set enabled=false where singleton;
+      begin
+        perform public.authorize_student_provider_cleanup(op_id,owner_id,class_id,member_id,v_generation_id);
+        raise exception 'Live288 ignored revoked academic prerequisite';
+      exception when sqlstate '55000' then if sqlerrm<>'student_live_cleanup_prerequisite_paused' then raise; end if; end;
+      update private.removed_student_academic_settings set enabled=true where singleton;
+      receipt:=jsonb_build_object('schema_version',1,'ok',true,'installation_ref',saved->>'installation_ref',
+        'roster_ref',saved->>'roster_ref','participant_ref',saved->>'participant_ref',
+        'operation_ref','erase_participant_'||replace(op_id::text,'-',''),'state','deleted','absence_verified',true,'deleted_count',0);
+      perform public.record_student_provider_cleanup_receipt(op_id,owner_id,class_id,member_id,v_generation_id,'bara',receipt);
+      result:=public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'claim');
+      if result->>'local_status'<>'local_completed' then raise exception 'Live288 academic stage did not complete'; end if;
+      result:=public.advance_removed_student_academic_cleanup(op_id,owner_id,class_id,member_id,v_generation_id,'live_complete');
+      if result->>'status'<>'completed' or not public.release_removed_student_cleanup_job(job_id,lease_id,true,null,30) then
+        raise exception 'Live288 exact job/live completion failed'; end if;
+      if exists(select 1 from public.assignment_docs where id=doc_id)
+        or not exists(select 1 from public.assignments where id=assignment_id)
+        or before_peer is distinct from (select to_jsonb(entry) from public.entries entry where classroom_id=class_id and student_id=peer_id)
+        or before_other is distinct from (select to_jsonb(entry) from public.entries entry where classroom_id=other_class and student_id=member_id)
+        or owner_before is distinct from (select to_jsonb(account) from public.users account where id=owner_id)
+        or member_before is distinct from (select to_jsonb(account) from public.users account where id=member_id) then
+        raise exception 'Live288 cleanup changed shared/account/other-class evidence'; end if;
+      insert into public.classroom_roster(classroom_id,email) values(class_id,'member288-'||member_id::text||'@example.invalid');
+      insert into public.classroom_enrollments(classroom_id,student_id) values(class_id,member_id) returning id into fresh_generation;
+      insert into public.attendance_participant_mappings(classroom_id,student_id) values(class_id,member_id);
+      if fresh_generation=v_generation_id or (select pal_reference from private.pal_membership_generations membership where membership.generation_id=fresh_generation)=saved->>'pal_reference'
+        or (select participant_ref from public.attendance_participant_mappings where classroom_id=class_id and student_id=member_id)=saved->>'participant_ref'
+        or not private.attendance_participant_generation_closed(saved->>'participant_ref') then
+        raise exception 'Live288 fresh rejoin reused removed evidence'; end if;
+      select jsonb_build_object('class',to_jsonb(c),'assignment',to_jsonb(a),'entry',to_jsonb(e),
+        'enrollment',to_jsonb(enrollment),'attendance',to_jsonb(mapping),'pal',to_jsonb(event)) into teaching_after
+        from public.classrooms c join public.assignments a on a.classroom_id=c.id
+        join public.entries e on e.classroom_id=c.id join public.classroom_enrollments enrollment on enrollment.classroom_id=c.id
+        join public.attendance_participant_mappings mapping on mapping.classroom_id=c.id
+        join public.pal_event_outbox event on event.id=teaching_event where c.id=teaching_class;
+      if teaching_before is distinct from teaching_after then raise exception 'Live288 scoped cleanup changed mixed-role teaching data'; end if;
+    end loop;
+  end loop;
+end;
+$contextual_live288$;
 rollback;

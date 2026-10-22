@@ -208,15 +208,24 @@ async function deliverClaimedPalOutboxRow(input: {
     return 'non_retryable'
   }
 
-  const authorizeMembership = async (): Promise<ClaimedDeliveryResult | null> => {
+  const authorizeMembership = async (afterAcknowledgement = false): Promise<ClaimedDeliveryResult | null> => {
     if (!input.membership) return null
     try {
       const { data, error } = await withAbortSignal(input.supabase.rpc(
         'authorize_pal_membership_delivery', {
           p_outbox_id: input.row.id, p_lease_token: input.row.lease_token,
         }), input.signal)
-      const parsed = z.object({ status: z.enum(['active', 'disabled', 'forbidden', 'legacy']) }).strict().safeParse(data)
+      const parsed = z.object({ status: z.enum(['active', 'disabled', 'forbidden', 'legacy', 'owner']) }).strict().safeParse(data)
       if (!error && parsed.success && parsed.data.status === 'active') return null
+      if (!error && parsed.success && parsed.data.status === 'owner') {
+        // SQL emits this narrow variant only with an otherwise valid bound
+        // membership and lease. It denies a future send, not a known HTTP2xx.
+        // Existing completion still fences removed generations and lost leases.
+        if (afterAcknowledgement) return null
+        await markNonRetryable(input.supabase, input.row, 'membership_owner',
+          'Classroom ownership transition stopped further learner event delivery', input.transitionSignal)
+        return 'non_retryable'
+      }
       if (!error && parsed.success && ['forbidden', 'legacy'].includes(parsed.data.status)) {
         await markNonRetryable(input.supabase, input.row, 'membership_denied',
           'Membership is unavailable or event namespace is invalid', input.transitionSignal)
@@ -273,7 +282,7 @@ async function deliverClaimedPalOutboxRow(input: {
   }
 
   if (response.ok) {
-    const afterAuthorization = await authorizeMembership()
+    const afterAuthorization = await authorizeMembership(true)
     if (afterAuthorization) return afterAuthorization
     await transition(input.supabase, {
       functionName: 'complete_pal_event_outbox',

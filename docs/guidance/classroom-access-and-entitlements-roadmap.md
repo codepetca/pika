@@ -534,6 +534,13 @@ owner/unarchive/revision/compaction/purge begin/finalize/replay matrix remains
 batch3/cutover evidence, alongside authenticated/provider compatibility and the
 queued-fact/token policy; it is not marked passed. The unchanged archive writer
 protocol is not being recertified by this narrow read/postflight integration.
+The owner has since chosen to stop queued learner delivery on same-class ownership.
+The connected source287 correction is recorded in the
+[Pal membership contract](contextual-pal-classroom-membership.md#queued-delivery-on-ownership-change--source287):
+durable per-event stop, preserved in-flight leases/known acknowledgements and
+earned history, current-owner membership denial, no provider revocation or
+activation. Native verification, independent review and final-head CI remain
+gates; this does not close batch3 or lift any operational hold.
 PR1620 merged normally into main as `2c9658abfa99153d98b96847679ffddf23c5fa9b`
 on2026-10-19 after all ten exact-head CI checks, including PR Gate, passed.
 Canonical main is fast-forwarded and clean. This dormant merge does not claim
@@ -1037,6 +1044,47 @@ evidence or allocating provider identities.
 Mixed-cohort readiness is still a rollout gate; this source group does not prove
 it. Current ownership also takes precedence over retained self-enrollment for
 both status and scan authorization, even when that enrollment has a valid pointer.
+
+2026-10-21 attendance source acceptance: PR1651 merged as `9a9cb02ca` after
+independent review and all ten exact-head CI39636331831 checks passed. The
+reviewed and merge trees match, canonical main is synced, and shared local
+remains243. This is not production deployment, learner activation or a phase exit.
+
+The next bounded backend group admits active owned classroom capture through
+the existing shared selector. It reuses the atomic v3 capture and saved Version,
+owned Blueprint reads and entitlement-checked v2 classroom instantiation. A fresh
+active-owner check before private managed copies complements the existing atomic
+commit owner/source-revision fences; it is not a serializable source-graph claim.
+Absent/unmatched admission retains the teacher guard. Blank Blueprint creation,
+general editing/import/export, AI/repository tools and the teacher-page shell
+remain outside this group. Existing SQL fixtures cover both account labels and
+independent creation capacity; authored cases are not native acceptance until
+the isolated suite actually passes. No migration, new permission framework or
+new rollout flag is introduced. Backend acceptance does not make the existing
+teacher-only redirect/page journey available to neutral accounts.
+
+The owner also settled the remaining Pal owner-transition policy: stop queued
+learner-event delivery after the learner becomes that same classroom's owner,
+preserve earned progression, and stop new learner activity/token requests.
+Already-issued tokens keep their existing expiry; immediate remote revocation,
+erasure or retraction is not implied. Source287 now prepares that connected
+Pal queue integration; no live delivery or activation is claimed.
+All production, shared-local249+, live-provider/publication/configuration and
+account/billing/cohort/page/home/cutover activation holds remain unchanged.
+
+The following bounded backend group prepares singleton removed-membership cleanup
+for either account label via forward288 and the existing automatic worker. The
+actual removed enrollment/generation/scope, current owner, provider receipts,
+academic absence and fresh-rejoin gates remain authoritative. Owner progress GET
+uses the same strict experience admission without enabling teacher-directed POST
+or advancing providers. The active-enrollment email fallback resource fence also
+covers teacher-labelled learners; legacy171 strict-v1 and grouped-removal164/236
+restrictions are unchanged. See the [forward cleanup contract](retained-roster-group-consumers.md#forward-contextual-integration--2026-10-21-prepared-not-activated).
+Isolated001–288 replay and all five existing cleanup rollback suites pass,
+including both-label removal/completion/rejoin and actual unbound-roster fencing;
+exact owned cleanup and unchanged shared243 schema are verified. Full focused
+checks, independent review and CI remain gates. This is not concurrent
+finalization/provider compatibility, grouped removal, activation or a batch3 exit.
 
 The bounded Test workflow map was accepted against main `763edbb18`. The coherent
 dormant owner group (metadata, reference-document lifecycle/delivery and selected

@@ -11,71 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Keep attendance hot-fence fixture eligible for purge admission
-
-The first isolated273 proof failed in SQLcontract before generation or HTTP.
-Immediate independent source/dependency preservation and zero-process observation
-pass; exact isolated containers/volumes/network and temporary directory are absent.
-The failed attempt and evidence remain spent. Source diagnosis found the suite
-inserted a hot purge operation after adding attendance state, which the real127
-decommission trigger correctly rejects. Use a separate owner-owned attendance-free
-class for this fence assertion, without bypassing the trigger. A source regression
-checks that predecessor prerequisite;12 focused tests, lint and audit pass.
-Missing failure diagnostics prevent proving this was the first observed error.
-Independent review and a new bounded proof remain required. Production and shared
-local migration, provider, account and rollout holds are unchanged.
-
-## 2026-10-19 — Resolve the actual temporary schema for rollback helper usage
-
-The fresh corrected-fixture proof failed before HTTP with fixed command/3F000
-diagnostics. PostgreSQL17's GRANT resolves literal namespace names, unlike object
-lookup's pg_temp alias. The rollback suite now contains the original alias failure
-in an expected-error subtransaction, resolves only pg_my_temp_schema's actual
-catalog identity, and safely quotes that name for the session-only USAGE grant.
-Function client revocations, service-only execution and all production grants are
-unchanged. Source regression failed before correction;9 affected checks and lint
-pass. This is not yet real PostgreSQL regression acceptance. Original failed
-attempts remain spent; immediate FIRST and exact resource absence pass for both.
-Independent review and a new bounded isolated proof remain required; all holds stay.
-
-## 2026-10-19 — Complete isolated attendance owner-policy proof
-
-Fresh Bg888j actual proof passes complete001–273 replay, rollback SQL including
-the temporary-schema regression, genuine273 metadata and16 RPC reads:13 actual
-adapter plus3 exact-canary.64actions/1325controls/41887666bytes/max1final0sessions
-stay within original caps. Complete fixture/complement restoration, canonical
-read-only equality and positive owned/global cleanup pass. Immediate FIRST before
-any post-run changes preserves7853source/98970dependency files with zero matching
-processes; separate exact Docker/workdir absence passes. Earlier failures/spent
-records remain unchanged. Generated273 bytes installed exactly (SHA32368aa8ad6c),
-only the new RPC over prior272; full TypeScript now passes without casts.
-Full focused checks exposed two CI wiring omissions: closed local DB inventory
-and canonical workflow-test list. Exact54-proof current and53-proof historical
-profiles, once-only command/order and87-proof lifecycle lane are retained;
-369 affected/related tests pass. Final current-main focused checks and independent
-metadata/evidence/integration review remain before PR readiness. Native source
-reviews279–285 retained; no repeated runtime needed for metadata/docs/base sync.
-Owner selected current-membership-only learner attendance with older records and
-overrides preserved for the classroom owner; member integration remains future.
-PR1620 merged2c9658abf after all10CI checks; canonical main clean/fast-forwarded.
-Production/shared-local249+/provider/account/billing/AI/activation holds remain.
-
-## 2026-10-19 — Owner attendance write isolated proof passed
-
-Product26089ed3/carrier096d2c05 passed one fresh disposable001–274 SQL/SDK/lock/type
-proof; no retries. Sixteen HTTP requests (thirteen actual adapter, three canary),
-three real two-session pairs, full fixture/complement restoration, canonical and
-global resource equality, positive owned teardown pass. Immediate NEXT TOOL FIRST
-then confirmed7872source/98970dependency files unchanged and zero matching
-processes before any tests/copies/edits. Additional exact project labels/names and
-workdir absence checks pass.139actions/2218controls/67657342bytes/max2sessions,
-final0open/uncertain/unsettled; original limits unchanged. Generated274 metadata
-443243bytes SHAba402a75 installed exact artifact-derived patch, only one new RPC.
-Full focused checks pass2628tests/98files, architecture/UI/design/TypeScript/lint.
-Core reviews287/288 and composition289 clean; final metadata/evidence review,
-draft PR and exact-head CI remain dormant-main merge gates. No production/shared
-local249+/account/provider/billingAI/home/cohort/cutover changes or batch3 exit.
-
 ## 2026-10-19 — Owner attendance read merged; write source reviews clean
 
 PR1622 exact72d93 passed all ten CI39361093628 gates, then normally squash-merged
@@ -949,6 +884,67 @@ never permission for allocation or a legacy fallback.
 - Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
 - Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
 
+## 2026-10-21 — Durable Pal owner-transition queue preparation
+
+Owner chose to stop queued learner delivery on same-class ownership, preserving
+earned progress and issued-token expiry. Forward287 stamps the existing private
+event binding at actual ownership changes, terminates pending rows and preserves
+processing leases for known acknowledgements. Current-owner membership activity
+is denied; stopped events stay stopped after demotion, while later fresh learner
+facts use current membership. Global account Pal and activation gates are unchanged.
+The existing authorizer/worker retains exact generation, provenance, lease and
+closed-generation fences, separating future-send denial from a known HTTP2xx.
+Current287 profile seals extend the existing proofs without weakening history.
+Full focused10086 checks plus static/audit gates pass; isolated nonempty backfill
+preserves earned/other-subject facts and initialized-OFF settings. Two failed
+fixture/output-format attempts remain preserved, with positive owned cleanup and
+unchanged shared243 schema. Fresh complete287 replay/backfill and old/current Pal
+suites pass both labels, exact metadata, nonempty history, wire validation and real
+ownership contention/fresh reads. Independent review and exact-head CI remain
+gates. No production/shared-local migration, provider call,
+publication, account change or rollout is authorized by this source preparation.
+
+## 2026-10-21 — Prepare contextual active classroom capture
+
+Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
+checks green; shared local remains243. The next backend group reuses shared
+admission for active owned classroom capture, owned Blueprint reads and existing
+entitled instantiation. Source access is rechecked after loading before private
+copies; atomic commit/source/version/replay and provisional-copy settlement stay
+in place. TDD reproduced the role/pre-copy gaps;116 API/domain checks now pass.
+The existing rollback suite adds current v3 capture and v2 instantiation for both
+account labels, with owner/revision/archive/purge/replay and independent capacity
+denials; authored SQL is not native acceptance. Final focused checks, independent
+review and isolated CI remain required. No general Blueprint authoring, page/UI,
+schema application or activation is included. Owner settled Pal's following
+policy: stop pending delivery upon same-class ownership, preserve earned progress,
+stop new learner activity/token requests, retain existing issued-token expiry.
+That policy is recorded, not implemented here. Production/live-provider/shared-
+local249+/publication/configuration/account/cohort/cutover holds remain unchanged.
+
+## 2026-10-21 — Prepare contextual removed-membership cleanup
+
+Forward288 removes only legacy account-label prerequisites from the existing live
+removed-membership reservation and active-enrollment email fallback resource fence.
+Actual ownership, removed generation/scope, current enrollment exclusion, receipt,
+academic cleanup, replay and rejoin rules remain unchanged. GET progress adopts
+strict shared admission without provider advancement; teacher-directed POST stays
+retired. Both-label singleton removal/job/completion/rejoin and a genuine unbound
+teacher-member roster fence are added to the existing rollback suite, preserving
+other teaching data, accounts and delivered Pal history. TDD reproduced8 API gaps;
+39 API/source checks now pass. First isolated001–288 replay and strict-v1 regression
+passed; the new fixture stopped because wall-clock activation was later than the
+transaction's now(). Only fixture setup was corrected to the existing transaction-
+time convention. A fixture column ambiguity and omitted replay-history metadata
+were also corrected without changing migration SQL. Failed attempts stay retained.
+Fresh isolated001–288 replay and all five existing cleanup suites now pass,
+including both-label lifecycle/rejoin and actual unbound teacher-member fencing.
+All six input hashes match; shared243 schema and source identity are unchanged,
+and exact owned clone cleanup is independently verified. Focused checks against
+the prepared parent pass3562 tests/104files plus all static gates; independent
+review and exact-head CI remain pending. No grouped writer/index change, shared-local migration,
+production/provider action, publication or activation is included.
+
 ## 2026-10-21 — Prepare calendar and attendance production batch
 
 Owner explicitly authorized main-to-production after green checks. Draft1657
@@ -964,3 +960,7 @@ merge. No environment, cohort, provider, account or migration mutation is part
 of this app release. Startup/verify-env passes; weekly35% remaining and storage
 healthy. Risk runtime-platform/workspace-state; bounded two-reviewer initial wave
 using GPT6.1Sol/high, per-review tokens and active time unknown.
+
+## 2026-10-21 — Prepare classroom safeguards production release
+
+Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
