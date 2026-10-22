@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant owner Daily Log attendance report preparation
-
-Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
-0bb2a2bc; owner Daily Log report GET only, no provider or learner-history change.
-276 adds a complete service-only current-owner snapshot. Existing pure attendance
-logic is unchanged (structural input types only); archived owners, full roster,
-Unicode/Toronto semantics and browser DTO preserved. Generic private response/work
-bounds fail closed without truncation or subscription notices. Source rollback
-contracts include real1004 enrollments,1001 days/entries and complete graph
-preservation; inert installed-SDK leaf specifies12 adapter reads/18SQL/60guards,
-six independent complete DTO commitments and restoration before final reads.
-Core112/7 and leaf33/2 CPU tests pass; one expected missing genuine276 RPC type
-remains until isolated generation. CI command/inventory RED then310/5GREEN;
-exact reviewed migration profile extension remains in progress. Sol6.1/high
-workers own core/seals and leaf/carrier, root integrates CI/evidence; effective
-configuration/tokens unknown. Weekly92% remaining; storage287GB healthy.
-Native verification, genuine metadata, independent security/compatibility review,
-final checks and exact-head CI remain gates. No canonical/shared-local249+,
-production, provider, real account, billing/AI or activation operations. Latest
-owner decision retains current-membership-only learner attendance with earlier
-records preserved for owner; this report does not claim learner provenance.
-
 ## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
 
 Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
@@ -871,3 +849,21 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
+
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
