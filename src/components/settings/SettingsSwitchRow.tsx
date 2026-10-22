@@ -43,7 +43,7 @@ export function SettingsSwitch({
       <span
         aria-hidden="true"
         className={cn(
-          'absolute inset-x-0 rounded-full border transition-colors',
+          'absolute inset-x-0 rounded-full border transition-colors duration-fast ease-standard motion-reduce:transition-none',
           hasIcon ? 'top-1.5 h-8' : 'top-2 h-7',
           disabled && !retainCheckedTone
             ? 'border-border bg-surface-2'
@@ -61,7 +61,7 @@ export function SettingsSwitch({
         ) : null}
         <span
           className={cn(
-            'absolute left-0 top-1 inline-flex items-center justify-center rounded-full shadow-sm transition-transform',
+            'absolute left-0 top-1 inline-flex items-center justify-center rounded-full shadow-sm transition-transform duration-fast ease-standard motion-reduce:transition-none',
             hasIcon ? 'h-6 w-6' : 'h-5 w-5',
             checked && checkedTone === 'success'
               ? 'bg-surface'

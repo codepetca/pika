@@ -48450,3 +48450,26 @@ no repeat native proof is needed for unchanged app/migration/fixture bytes.
 Existing review/runtime evidence and spent attempts remain immutable; no production,
 shared-local249+, provider, account or activation action. New report child worktree
 is independent source-only work; no migrations applied.
+
+<!-- pika-session-log-archive-batch:41418fa36302a7e2a57f68d6f0a14ab90c64289cd93ed3572d7059a55a69a6b0 -->
+## 2026-10-20 — Dormant owner Daily Log attendance report preparation
+
+Branch codex/contextual-attendance-report-read, parent exact reviewed1624 head
+0bb2a2bc; owner Daily Log report GET only, no provider or learner-history change.
+276 adds a complete service-only current-owner snapshot. Existing pure attendance
+logic is unchanged (structural input types only); archived owners, full roster,
+Unicode/Toronto semantics and browser DTO preserved. Generic private response/work
+bounds fail closed without truncation or subscription notices. Source rollback
+contracts include real1004 enrollments,1001 days/entries and complete graph
+preservation; inert installed-SDK leaf specifies12 adapter reads/18SQL/60guards,
+six independent complete DTO commitments and restoration before final reads.
+Core112/7 and leaf33/2 CPU tests pass; one expected missing genuine276 RPC type
+remains until isolated generation. CI command/inventory RED then310/5GREEN;
+exact reviewed migration profile extension remains in progress. Sol6.1/high
+workers own core/seals and leaf/carrier, root integrates CI/evidence; effective
+configuration/tokens unknown. Weekly92% remaining; storage287GB healthy.
+Native verification, genuine metadata, independent security/compatibility review,
+final checks and exact-head CI remain gates. No canonical/shared-local249+,
+production, provider, real account, billing/AI or activation operations. Latest
+owner decision retains current-membership-only learner attendance with earlier
+records preserved for owner; this report does not claim learner provenance.
