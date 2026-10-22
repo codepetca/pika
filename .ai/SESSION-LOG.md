@@ -779,5 +779,9 @@ coordination time unknown. Disposable001–289 replay, scheduling/post-date roll
 proofs, generated-type equality and unchanged shared schema PASS; evidence
 /tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
 overlapping profile tests under host load140+. Focused gate rerunning with one
-worker before ready; draft independent review pending. No shared local/production
+worker before ready. Initial independent review PASS at de56dbceb; focused run
+4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
+598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
+heavy-tests-released under the owner-authorized serial test plan before rerun;
+targeted review required for this test-only correction. No shared local/production
 migration applied and no production promotion.
