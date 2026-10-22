@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant contextual cold recovery
-
-PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
-including strict warning lint, replay and PRGate passed. Canonical main synced;
-no production or shared-local migration/activation. Reuse PR1630 is separately
-reviewed and in CI. Prepared the existing cold-restore route's shared-admission
-dispatch with current-owner preflight, strict operation/archive/ledger binding,
-final archived-hot revision confirmation and completed same-key replay. Existing
-coordinator, immutable bytes, actor reconciliation, canary/budget gates and
-cleanup remain; uncertain outcomes503 without automatic retry/deletion.
-Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
-The existing guarded isolated recovery drill covers both owner labels with actual
-row/byte/teardown assertions; authored SDK/source checks are not native evidence.
-Independent review, final-head CI and that real drill remain gates. Current-
-membership-only learner attendance remains separate; owners retain old records.
-All production, account/provider/billing and cutover holds remain unchanged.
-
 ## 2026-10-20 — Dormant contextual purge workflows
 
 Prepared the eight existing hot/cold impact/start/status/tick methods behind the
@@ -723,3 +706,19 @@ risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
 dependencies, image contents, shared database or production changes. Docker stays
 stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
 prior feature review coverage reused, no extra full review wave.
+
+## 2026-10-22 — Production post-date release completed
+
+Owner authorized production289/290, then main promotion after checks. Single
+apply39862570602 returned applied-verified001–290, matching preview39862341945
+and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
+metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
+midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
+parent entries; two cumulative Sol/high reviews and one targeted pass found no
+blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
+ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
+dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
+GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
+retry, fixture/post mutation, flag/account/provider/billing change or Docker
+restart. Attributable tokens/active time unknown. Final receipt docs review/CI
+remains; production promotion worktree retired, shared env target preserved.
