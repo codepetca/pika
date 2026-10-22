@@ -976,10 +976,13 @@ export function TeacherRosterTab({ classroom }: Props) {
                     </DataTableCell>
                     <DataTableCell align="center">
                       {row.joined && (
-                        <span className="inline-flex items-center justify-center gap-1 whitespace-nowrap">
-                          <Check className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
-                          <span className="sr-only">Joined{joinedDate ? ' ' : ''}</span>
-                          {joinedDate && <time dateTime={row.joined_at!}>{joinedDate}</time>}
+                        <span className="whitespace-nowrap">
+                          {joinedDate ? (
+                            <>
+                              <span className="sr-only">Joined </span>
+                              <time dateTime={row.joined_at!}>{joinedDate}</time>
+                            </>
+                          ) : 'Joined'}
                         </span>
                       )}
                     </DataTableCell>

@@ -186,6 +186,7 @@ describe('TeacherRosterTab', () => {
     renderRoster()
     const row = (await screen.findByText('Ada')).closest('tr')!
     expect(within(row).getByText('Jan 2')).toHaveAttribute('datetime', rosterRow.joined_at)
+    expect(within(row).getByText('Jan 2').closest('td')?.querySelector('svg')).toBeNull()
     expect(within(row).getByText('Joined')).toBeInTheDocument()
   })
 
@@ -195,7 +196,7 @@ describe('TeacherRosterTab', () => {
       secondInvitedRosterRow,
     ] }))
     const joinedRow = (await screen.findByText('Ada')).closest('tr')!
-    expect(within(joinedRow).getByText('Joined')).toBeInTheDocument()
+    expect(within(joinedRow).getByText('Joined')).toBeVisible()
     expect(joinedRow.querySelector('time')).toBeNull()
     const invitedRow = screen.getByText('Grace').closest('tr')!
     expect(within(invitedRow).queryByText('Joined')).not.toBeInTheDocument()

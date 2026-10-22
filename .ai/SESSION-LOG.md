@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Owner report isolated proof passed; parent1624 merged
-
-Parent1624 all10 exact0bb gates passed CI39371975554 attempt2; normal squash
-c10fd9547 at05:30Z, identical7175fbe7 tree, clean canonical main fast-forwarded.
-Report297/298 source reviews clean. Composition299 settlement predicate omission
-fixed and300 clean with actual-controls RED/GREEN joins/uncertainty regressions.
-First native report6wj8mp remains failed: generated observe SQL glued numeric
-literal to OR. Tiny separate read-only PG fragment confirmed42601; regression
-RED then75/4GREEN. Minimal fixture separator/pin update and exact recovery301
-clean; removed only5containers2volumes1network, retained temp/evidence privately.
-No application permission change or softened poison/cleanup checks.
-Fresh report uTZw3f actual4140JOINED0 passed001–276 rollback SQL, genuine metadata,
-12realSDK adapters/6fullDTO/18SQL/60guards, restoration before final reads, complete
-fixture/complement and canonical/global equality plus owned teardown.100actions,
-1672controls,51235392B,12HTTP,max1session,final0sessions/uncertainSQL/unsettled.
-Immediate NEXTTOOLFIRST60593JOINED0 before any check/edit/CI query confirms7901
-source/98970deps unchanged/0process. Genuine276 fac561c3,443760B installed byte-
-exact after FIRST; deleting only newRPC reconstructs entire275e295 baseline.
-All receipts retain nativeVerified:false; private coordinator outcome records
-actual acceptance separately. Cumulative301reviews/4fix batches preserved under
-task waiver; tokens/effective config unknown. Final metadata/current-main review,
-focused checks and CI remain gates. No prod/shared-local249+, provider, real
-account/plan, billing/AI, admission or activation action; learner provenance separate.
-
 ## 2026-10-20 — Prepare atomic contextual classroom-list ordering
 
 Coordinator owns codex/contextual-classroom-list-reorder, based on reviewed report
@@ -867,3 +843,12 @@ Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focuse
 checks and independent review receipts tracked in PR lifecycle. No migration.
 Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
 Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
+
+## 2026-10-22 — Roster dates without checkmarks
+
+Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
+Extend the existing roster Joined cell; same roster/Pattern Lab reference and
+teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
+without a timestamp show the text Joined; unjoined cells stay empty. No new
+component, pattern, or widget behavior. PR1661 returned to draft for this delta;
+focused checks, screenshot refresh and targeted independent review required.
