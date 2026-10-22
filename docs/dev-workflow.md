@@ -301,6 +301,11 @@ CI classifies changes conservatively:
   exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
+CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws` before `setup-cli`,
+which preserves that setting. Startup and later metadata proofs inherit the same
+registry; pinned CLI and image versions remain unchanged. The local CI runner
+inherits this literal workflow setting and rejects job/step registry overrides.
+
 Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
 while classification and `PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted
 fallback are defined in [self-hosted CI](./guidance/self-hosted-ci.md). A manual

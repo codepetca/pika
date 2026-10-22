@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Contextual archived reuse workflow preparation
-
-Prepared eight existing HTTP methods for admitted actual owners of either account
-label: archived reuse, Blueprint list/detail, selected merge review, stored
-proposal list/apply and instantiation. Reused existing role-independent atomic
-writers, creation entitlements and managed-copy settlement; no SQL, new flag,
-dependency or UI change. Added current source owner/archive/link/Version/revision
-rechecks and stored classroom-origin/Blueprint-target proposal binding. Legacy
-teachers retain active-source review through final apply and all own proposal
-types behind explicit teacher guards; nonteacher admission grants none of those
-adjacent legacy capabilities. Root found compatibility gaps before formal review;
-RED10+4 cases became GREEN, and root independently passed237 checks/15 suites plus
-audit. Author TypeScript/lint/architecture pass. Existing partial manual review
-and automatic provenance semantics remain; no stronger source snapshot or atomic
-archive guarantee is claimed. Sol6.1/high source mapping and bounded implementation
-delivered; attributable usage/time unknown. Final checks, independent review,
-parent-main integration and CI remain. All production/shared-local249+,
-provider/account/plan/billing/AI and activation holds remain unchanged.
-
 ## 2026-10-20 — Dormant contextual cold recovery
 
 PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
@@ -725,3 +706,20 @@ ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
 stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
 /tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
 release. Final focused gate and new-scope independent delta review pending.
+
+## 2026-10-22 — PR1663 CI registry repair
+
+Owner authorized fixing CI and merging1663 after all checks pass. Announcement
+469773050 focused5406 and complete independent delta review passed; CI Test &
+Build passed but all seven Supabase setups and an isolated retry hit GHCR
+toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
+action preserves the override and both pinned Postgres/metadata OCI indexes are
+byte-identical across registries. Bounded Sol/high read-only worker verified
+upstream behavior/manifests; coordinator owns all edits. Local runner now imports
+only the literal reviewed workflow registry, refuses job/step overrides, retains
+historical no-env plans and all existing isolation/inventory/cleanup guards.
+Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
+risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
+dependencies, image contents, shared database or production changes. Docker stays
+stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
+prior feature review coverage reused, no extra full review wave.
