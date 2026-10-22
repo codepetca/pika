@@ -40,7 +40,8 @@ absent from the production environment. Existing provider/live/automatic/academi
 cleanup controls remain ON. Migration288 therefore immediately broadens the
 existing automatic pipeline's eligibility; shared admission does not gate it.
 Existing cutoff, retained generation/binding/receipt/rejoin guards and current-owner
-exclusion remain. Strict164/236 writers and171 reservation remain closed as before.
+exclusion remain. Grouped-removal restrictions164/236 remain installed; strict171
+reservation and its student-role prerequisite remain unchanged.
 No feature flag, cohort, account, environment or billing setting was changed.
 
 ## Application release
