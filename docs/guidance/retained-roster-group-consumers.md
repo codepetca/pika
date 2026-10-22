@@ -1,8 +1,15 @@
 # Retained-roster group consumers — compatibility slice
 
-## Forward contextual integration — 2026-10-21 (prepared, not activated)
+Production update2026-10-21: migrations001–288 are applied/read-only verified;
+see the [release receipt](production-release-2026-10-21.md). Forward288 removes
+the LIVE reservation's account-label prerequisite while preserving exact removed
+membership, current-owner exclusion and receipt/finalization guards. Existing
+automatic cleanup is ON, so this eligibility change is effective immediately.
+Grouped removal writers remain closed. Historical source239 evidence follows.
 
-Migration288 prepares the existing live cleanup consumer for removed learners
+## Forward contextual integration — 2026-10-21
+
+Migration288 updates the existing live cleanup consumer for removed learners
 with either account label. Exact current ownership, removed enrollment/generation,
 retained scope, cutoff, leases and Pal/Bara receipt checks still authorize it;
 an account label does not. A learner who owns another classroom retains that
@@ -68,8 +75,8 @@ Suppressed, substituted or late writes roll back. OLD/NEW retained identities an
 bindings remain fenced independently of a caller-set legacy finalize GUC.
 Migration179's queue kicks only after the first inserted job for a generation.
 Existing provider policy, cutoff, quarantine, backup exclusion and168 immutability
-remain unchanged. The legacy175 global-role prerequisite is intentionally retained;
-role-neutral lifecycle integration follows separately.
+remain unchanged. Source239 retained the legacy175 global-role prerequisite. Forward288 supersedes
+that prerequisite in the LIVE reservation; strict171 reservation remains unchanged.
 
 ## Discovery and compatibility
 
@@ -118,5 +125,6 @@ and live-cleanup rollback regressions also passed without source changes.
 
 Final cumulative review and exact-head CI remain gates. This slice alone completes
 neither grouped removal nor batch3, cutover or
-production rollout. Production remains lastverified001–225; no deployment or
+production rollout. That source239 evidence did not authorize production; the
+dated001–288 receipt above records the later exact approval. No additional
 provider/account/plan/AI/billing/cohort activation is included.

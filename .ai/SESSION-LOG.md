@@ -11,79 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-19 — Owner attendance read merged; write source reviews clean
-
-PR1622 exact72d93 passed all ten CI39361093628 gates, then normally squash-merged
-03e45f263 with reviewed tree79181 unchanged. Canonical clean main fast-forwarded;
-CI/merge receipts recorded. No production release or migration application.
-Owner-write C1ae388842 initial independent reviews287 Astra/security and288
-Sol/compatibility complete clean;360 combined CPU checks, staged audit/lint pass.
-Only two expected generated274 metadata errors remain. Added inert three-pair
-contention descriptors and nine CPU regressions;45 adjacent proof checks pass.
-Real RPC conflict/fresh authorization/savepoint rollback and full graph receipts
-are prepared, not executed. Existing carrier closed write assembly126 CPU checks
-passes, original127-action source plan before contention; native composition,
-genuine metadata, isolated SQL/SDK/locks and final CI remain gates. Current learner
-membership-only policy recorded; earlier owner history preserved, not implemented
-by this owner PUT. All production/shared-local249+/provider/account/activation
-holds unchanged; cumulative independent review counter288 and waiver retained.
-
-## 2026-10-19 — Prepare contextual attendance owner policy writes
-
-Dependent worktree starts from reviewed read72d93; startup/environment verified,
-existing dependencies reused. Source-only274 wraps unchanged138 timing writes
-under operation-before-row and132 entitlement serialization, with locked owner,
-active/fence/scope/roster checks. Existing grants remain mandatory even for exact
-canary; no provider/principal/outbox/history operation is introduced. Admitted
-PUT uses either historical account label; GET and unmatched PUT remain legacy.
-Eight focused suites/110 tests and lint pass; only two expected genuine274 metadata
-references remain pending, not cast away. Core implementation writer stopped.
-Root CI once-only/order guards preserve53/54 historical and55 current primary
-proof inventories plus87 lifecycle. CI regressions pass271/5 and150/2 (overlap),
-including duplicate/rename/reorder/conditional/hidden-command refusals. Exact274
-raw/stored/name source seal extends all predecessor profiles;12 expected failures
-became1172 passing checks/9 suites, with275 unknown tails still rejected.
-Separate Sol/high worker prepares inert finite16-request write proof leaves;
-no native execution or source review acceptance is claimed yet. Student owner
-success assumes a pre-existing grant, not the still-teacher-only132 admin flow.
-PR1622 remains in exact-head CI39361093628; no production/shared-local249+/provider/
-real account/billing/AI/admission/home/page/cohort/cutover change is authorized.
-
-## 2026-10-20 — Verify contextual owner attendance day-view reads
-
-Dependent worktree starts from reviewed owner-write218d7b2a; startup/environment
-verified and existing dependencies reused. Prepared275 is service-only, invoker,
-stable: current owner and all roster/day rows share one snapshot and DB clock.
-Archived/runtime-unavailable/unentitled/canary-mismatch owner responses remain
-roster-only; nonowner403 and lifecycle fence503. Pure converter retains existing
-DTO/V1 queue/override/invalidation semantics; legacy GET and every POST unchanged.
-Core Sol6.1/high delivery70tests/9suites and lint pass; two expected missing genuine
-275 metadata references remain, not cast away. Separate Sol6.1/high finite SDK
-leaf covers thirteen actual adapter plus three typed canary requests; source only.
-Root once-only CI/order checks302/5 pass, preserving historical inventories.
-Full-source seal extends exact275 and refuses changed bytes/unknown276; offline
-profile tests expose then correct the missing offline-helper tail, not a relaxed
-validator. No native execution or phase exit claimed. User current-membership-only
-learner rule remains recorded; earlier records preserved for owner, not implemented
-by this owner read. Parent PR1623 exact-head CI39366937586 still running. Production,
-shared-local249+, provider/real-account/billing/AI and activation holds unchanged.
-Weekly remaining93%; storage healthy287GB; per-worker time/tokens unknown.
-Superseding checkpoint: initial security291/compat292 CLEAN. Composition293 found
-pending postguard cleanup bookkeeping; five composed RED cases became GREEN and
-targeted294 accepted the terminal-only reconciliation with closure/caps intact.
-One fresh94934b01/626f6a74 proof passed001–275 replay/rollback, genuine metadata,
-16SDK requests/26SQL/84guards, committed scope/fence denial/restoration and exact
-fixture/complement/canonical/global cleanup.136actions/2224controls/67593566bytes,
-max1session/final0open/uncertain/unsettled. Immediate NEXT TOOL FIRST passed before
-postchecks/copies/edits:7887source/98970dependency files unchanged, zero processes.
-Genuine275443624bytes SHAe29502a2 installed exact after FIRST. PR1623 all ten
-CI39366937586 gates passed; normal squash4f57a94c5 retains reviewed5847tree and
-canonical main fast-forwarded. Clean session rebase949→2ef95168 keeps identical
-84d6tree. Final focused checks pass2610tests/97files plus TypeScript/lint and
-policies, resolving only the two generated275 gaps. Metadata/evidence review
-and session PR/CI remain;
-no production/shared-local249+/provider/activation or learner-history change.
-
 ## 2026-10-20 — Correct the CI mail-service exclusion
 
 PR1624 first exact-head CI39370931599 failed on hosted lifecycle-job118458471791
@@ -940,3 +867,21 @@ and exact owned clone cleanup is independently verified. Focused checks against
 the prepared parent pass3562 tests/104files plus all static gates; independent
 review and exact-head CI remain pending. No grouped writer/index change, shared-local migration,
 production/provider action, publication or activation is included.
+
+## 2026-10-21 — Apply production285–288 and deploy classroom safeguards
+
+Owner approved exact production285–288 with permanent Pal queue and expanded
+cleanup/provider-erasure effects acknowledged. Preview39699999718 and single
+apply39705435520 use merged source86633c561, CI39668023820 and digestd3d96ac8;
+applied-verified with complete001–288 history. All18 read-only query groups pass,
+including39 exact function body/metadata/ACL rows, RLS/keys/capabilities, new
+column/index/trigger, unchanged controls/cutoff/public ACLs and delivered history.
+No eligible owner queue or teacher-labelled removed cleanup backlog at verification.
+Existing provider/live/automatic/academic remain ON; Pal membership/signals, quota
+and billing OFF; admission absent. Approval consumed; no retry/fixtures/activation.
+Release1658 reviewed at79eca9c18 by two GPT6.1Sol/high reviewers, complete0 findings;
+focused892 tests/70files and all10 CI39700764872 lanes PASS. Normal protected merge
+produced81a675a41 at01:25:46UTC; exact-SHA Vercel READY/production success01:28:53UTC,
+with public /200,/login200,/api/auth/me401,/pattern-lab404 PASS. Receipt
+records separate historical source proofs and current production state without
+claiming provider canaries, batch3 exit or shared-local application.
