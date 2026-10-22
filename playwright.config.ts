@@ -165,7 +165,8 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
-    stdout: 'ignore',
+    // Preserve startup and compilation output when CI fails its readiness check.
+    stdout: process.env.CI ? 'pipe' : 'ignore',
     stderr: 'pipe',
   },
 })
