@@ -29,7 +29,7 @@ interface AssignmentFormProps {
   onBlur?: () => void
   topRowActions?: ReactNode
   statusContent?: ReactNode
-  titleAccessory?: ReactNode
+  saveStatusContent?: ReactNode
   markdownWarning?: string | null
   fillHeight?: boolean
   desktopSplit?: boolean
@@ -54,7 +54,7 @@ export function AssignmentForm({
   onBlur,
   topRowActions,
   statusContent,
-  titleAccessory,
+  saveStatusContent,
   markdownWarning,
   fillHeight = false,
   desktopSplit = false,
@@ -86,6 +86,7 @@ export function AssignmentForm({
         editable={!disabled}
         interactionActive={interactionActive}
         fillHeight={fillHeight}
+        statusContent={saveStatusContent}
         className="rounded-control border border-border-strong"
       />
     </>
@@ -95,7 +96,7 @@ export function AssignmentForm({
     return (
       <div
         data-testid="assignment-editor-split"
-        className="grid h-full min-h-0 w-full overflow-y-auto lg:grid-cols-3 lg:overflow-hidden"
+        className="grid h-full min-h-0 w-full auto-rows-max overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden"
       >
         <div
           data-testid="assignment-editor-details-pane"
@@ -105,9 +106,8 @@ export function AssignmentForm({
             className="modal-title-field"
             label="Title"
             required
-            hideLabel={!titleAccessory}
-            collapseHiddenLabel={!titleAccessory}
-            labelAccessory={titleAccessory}
+            hideLabel
+            collapseHiddenLabel
           >
             <Input
               ref={titleInputRef}

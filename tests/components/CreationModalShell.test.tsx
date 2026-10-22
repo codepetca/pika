@@ -2,9 +2,23 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { CreationModalShell, CreationModalTitleField, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 
 describe('CreationModalShell', () => {
+  it('preserves title naming, placeholder and error semantics alongside settings', async () => {
+    const user = userEvent.setup()
+    render(<CreationModalTitleField error="Enter a title" actions={<button>Settings</button>}>
+      <input placeholder="Title" />
+    </CreationModalTitleField>)
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    expect(title).toHaveAttribute('placeholder', 'Title')
+    expect(title).toHaveAttribute('aria-invalid', 'true')
+    expect(title).toHaveAccessibleDescription('Enter a title')
+    expect(screen.getByText('Title')).toHaveClass('sr-only')
+    title.focus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Settings' })).toHaveFocus()
+  })
   it('can visually hide and collapse a top-row label without removing its semantics', () => {
     render(
       <CreationModalTopRow

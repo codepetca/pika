@@ -111,6 +111,8 @@ describe('Material creation', () => {
     expect(screen.getByRole('button', { name: 'Close material modal' })).toBeDisabled()
     rerender(<MaterialCreationDialog {...handlers} readOnly error="Could not save material" />)
     expect(screen.getByRole('textbox', { name: /^Title/ })).toBeDisabled()
+    expect(document.getElementById(screen.getByRole('textbox', { name: /^Title/ }).getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
+    expect(screen.getByRole('textbox', { name: /^Title/ })).toHaveAttribute('placeholder', 'Title')
     expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save material')

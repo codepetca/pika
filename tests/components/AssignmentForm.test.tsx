@@ -2,7 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { AssignmentForm } from '@/components/AssignmentForm'
-import { TooltipProvider } from '@/ui'
+import { SaveStatus, TooltipProvider } from '@/ui'
 
 describe('AssignmentForm', () => {
   it('keeps mode selection and panel dismissal separate in a compact modal', () => {
@@ -128,27 +128,28 @@ describe('AssignmentForm', () => {
     expect(details).not.toHaveClass('lg:border-r')
   })
 
-  it('keeps the Title label and its close action accessible in split mode', () => {
-    const onClose = vi.fn()
+  it('keeps the title accessible without a label row and moves saving feedback to the controls', () => {
     render(
       <AssignmentForm
         desktopSplit
-        title="Essay"
+        title=""
         instructionsMarkdown=""
         dueAt=""
         onTitleChange={vi.fn()}
         onInstructionsMarkdownChange={vi.fn()}
         onDueAtChange={vi.fn()}
-        titleAccessory={<button type="button" onClick={onClose} aria-label="Close assignment modal">Close</button>}
+        saveStatusContent={<SaveStatus presentation="indicator" status="saving" />}
       />,
     )
 
     const details = screen.getByTestId('assignment-editor-details-pane')
     const title = within(details).getByRole('textbox', { name: 'Title' })
-    expect(within(details).getByText('Title')).not.toHaveClass('sr-only')
+    expect(within(details).getByText('Title')).toHaveClass('sr-only')
+    expect(title).toHaveValue('')
+    expect(title).toHaveAttribute('placeholder', 'Title')
     expect(details).toContainElement(title)
-    fireEvent.click(within(details).getByRole('button', { name: 'Close assignment modal' }))
-    expect(onClose).toHaveBeenCalledOnce()
+    expect(details).not.toContainElement(screen.getByRole('status'))
+    expect(screen.getByTestId('assignment-editor-content-pane')).toContainElement(screen.getByRole('status'))
   })
 
   it('lets Due fill the bottom row when an assignment has no Post action', async () => {

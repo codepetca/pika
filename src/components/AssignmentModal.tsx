@@ -1012,9 +1012,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
             cancelTitleFocus()
             setShowInstructionsPreview(true)
           })}
-          titleAccessory={(
+          saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
+              <SaveStatus presentation="indicator" status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
             </div>
           )}
           disabled={saving || releasing || creating}

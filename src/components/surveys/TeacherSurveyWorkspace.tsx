@@ -1,5 +1,7 @@
 'use client'
 
+import { CreationModalTitleField } from '@/components/creation/CreationModalShell'
+
 import {
   forwardRef,
   useCallback,
@@ -973,9 +975,8 @@ export function TeacherSurveyWorkspace({
   return (
     <div data-testid="survey-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
       <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
-        <FormField label="Title" required className="modal-title-field" error={titleError} labelAccessory={(
+        <CreationModalTitleField error={titleError} actions={(
           <div className="flex items-center gap-1">
-            <SaveStatus status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} className={!titleSaving && !busy && !titleDirty && !newQuestionDirty && questionStatus === 'saved' ? 'text-text-muted' : undefined} />
             <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[
               { id: 'results', label: 'Show class results to students', checked: survey.show_results, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('show_results', !survey.show_results) } },
               { id: 'dynamic', label: 'Allow students to update responses', checked: survey.dynamic_responses, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('dynamic_responses', !survey.dynamic_responses) } },
@@ -985,7 +986,7 @@ export function TeacherSurveyWorkspace({
           </div>
         )}>
           <Input ref={titleInputRef} aria-label="Survey title" value={titleDraft} placeholder="Title" disabled={metadataDisabled || titleSaving} onChange={(event) => { setTitleDraft(event.target.value); setTitleError('') }} onBlur={() => { if (!metadataDisabled) void flushTitle() }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void flushTitle() } }} />
-        </FormField>
+        </CreationModalTitleField>
         <div className="rounded-md border border-border bg-surface px-3 py-2"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Questions</p><p className="text-xs text-text-muted">{questions.length} total</p></div></div>
         <Button type="button" variant={surveyEditMode === 'markdown' ? 'subtle' : 'surface'} size="sm" fullWidth aria-pressed={surveyEditMode === 'markdown'} disabled={busy} onClick={() => { void navigate(() => { setSurveyEditMode((current) => current === 'markdown' ? 'edit' : 'markdown'); setSurveyMarkdownError(''); setSurveyMarkdownInfo('') }) }} className="justify-start"><Code2 className="h-4 w-4" aria-hidden="true" />Markdown</Button>
         {error ? <p className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p> : null}
@@ -1001,9 +1002,11 @@ export function TeacherSurveyWorkspace({
         {surveyEditMode === 'markdown' ? (
           <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
             <div className="modal-controls-row flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-semibold text-text-default">Survey Markdown</h3>
+              <div className="flex items-center gap-2">
+                <SaveStatus presentation="indicator" status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} />
+                <div><h3 className="text-base font-semibold text-text-default">Survey Markdown</h3>
                 <p className="text-sm text-text-muted">{questions.length} question{questions.length === 1 ? '' : 's'}</p>
+                </div>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {surveyMarkdownDirty ? (
@@ -1066,7 +1069,7 @@ export function TeacherSurveyWorkspace({
         ) : (
           <>
             <div className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-              <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">{currentType === 'multiple_choice' ? 'Multiple choice' : currentType === 'short_text' ? 'Open response' : 'Link response'}</p>
+              <div className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1 flex items-center gap-2"><SaveStatus presentation="indicator" status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} /><p>{currentType === 'multiple_choice' ? 'Multiple choice' : currentType === 'short_text' ? 'Open response' : 'Link response'}</p></div>
               <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                 <Tooltip content="Previous question"><Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={busy || selectedIndex <= 0} onClick={() => selectQuestion(questions[selectedIndex - 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
                 {selectedQuestion ? <Input type="number" min="1" max={questions.length} value={numberDraft} aria-label="Question number" disabled={busy} onChange={(event) => setNumberDraft(event.target.value)} onBlur={() => {

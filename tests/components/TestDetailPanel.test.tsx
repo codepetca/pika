@@ -467,6 +467,10 @@ describe('TestDetailPanel', () => {
 
     expect(screen.queryByRole('button', { name: 'Close test editor' })).not.toBeInTheDocument()
     expect(await screen.findByTestId('test-split-layout')).toBeInTheDocument()
+    const title = within(screen.getByTestId('test-editor-details-pane')).getByRole('textbox', { name: 'Title' })
+    expect(title.getAttribute('placeholder')).toBeTruthy()
+    expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
+    expect(screen.getByTestId('test-editor-content-pane')).toContainElement(screen.getByText('Saved'))
     expect(screen.getByTestId('test-editor-details-pane')).toHaveTextContent('Reference Docs')
     expect(screen.getByTestId('test-editor-content-pane')).toHaveTextContent('Multiple choice')
     expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()

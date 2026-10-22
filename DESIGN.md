@@ -244,6 +244,10 @@ for new or deliberately modified work.
   horizontal space beside mode switches and title controls. The same close
   callback and busy guard govern X, Escape and backdrop; X cancels rather than
   confirms. Side drawers, inline panes and item removal keep their own controls.
+- Compact authoring modals align their title input with the right-pane controls.
+  Keep Title as an accessible label and empty-field placeholder, without a visible
+  label/status row. Show circular saving feedback in existing authoring controls;
+  keep saved/unsaved announcements accessible and failures visible.
 - Portable layer-responsibility and light/dark scrim tokens back the shared
   owners. They do not grant feature code permission to choose a global layer.
 - Overlay containment remains a behavioral boundary: new work reuses an

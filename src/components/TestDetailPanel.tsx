@@ -1,5 +1,7 @@
 'use client'
 
+import { CreationModalTitleField } from '@/components/creation/CreationModalShell'
+
 import {
   useCallback,
   useEffect,
@@ -1897,9 +1899,9 @@ export function TestDetailPanel({
   const testsMarkdownPanel = (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="modal-controls-row flex flex-wrap items-center justify-between gap-2">
-        <span data-testid="markdown-helper-status" className="text-xs font-medium text-text-muted">
+        <div className="flex items-center gap-2"><SaveStatus presentation="indicator" status={saveStatus} /><span data-testid="markdown-helper-status" className="text-xs font-medium text-text-muted">
           {markdownHelperStatus}
-        </span>
+        </span></div>
         <div className="flex flex-wrap items-center gap-2">
           {!usesMarkdownOnlyQuestions && !isMarkdownEditing ? (
             <Button
@@ -2282,13 +2284,9 @@ export function TestDetailPanel({
   const testsSplitPanel = (
     <div data-testid="test-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
       <div data-testid="test-editor-details-pane" className="flex flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
-        <FormField
-          label="Title"
-          className="modal-title-field"
-          required
-          labelAccessory={(
+        <CreationModalTitleField
+          actions={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={saveStatus} />
               <TeacherWorkSurfaceIconMenuButton
                 icon={<Settings className="h-4 w-4" aria-hidden="true" />}
                 ariaLabel="Settings"
@@ -2338,7 +2336,7 @@ export function TestDetailPanel({
             onChange={(event) => handleTitleDraftChange(event.target.value)}
             onBlur={() => { void handleTitleSave(editTitle) }}
           />
-        </FormField>
+        </CreationModalTitleField>
 
         <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
           <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
@@ -2426,9 +2424,9 @@ export function TestDetailPanel({
         ) : (
           <>
             <div data-testid="test-question-actionbar" className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-              <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">
+              <div className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1 flex items-center gap-2"><SaveStatus presentation="indicator" status={saveStatus} /><p>
                 {selectedQuestion?.question_type === 'multiple_choice' ? 'Multiple choice' : selectedQuestion ? 'Open response' : ''}
-              </p>
+              </p></div>
               <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                 <Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={selectedQuestionIndex <= 0} onClick={() => selectSplitQuestion(selectedQuestionIndex - 1)} className="h-11 w-11 p-0 text-text-muted">
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />

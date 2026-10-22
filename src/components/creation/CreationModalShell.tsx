@@ -1,7 +1,7 @@
 'use client'
 
 import { useId, type ReactNode, type Ref } from 'react'
-import { DialogCloseButton, DialogPanel, FormField, Input } from '@/ui'
+import { DialogCloseButton, DialogPanel, FormField, Input, type FormFieldProps } from '@/ui'
 import { cn } from '@/ui'
 
 interface CreationModalShellProps {
@@ -132,6 +132,16 @@ export function CreationModalShell({
       )}
     </DialogPanel>
   )
+}
+
+/** An accessible title input and its settings share the existing controls' height. */
+export function CreationModalTitleField({ children, actions, error }: Pick<FormFieldProps, 'children' | 'error'> & { actions?: ReactNode }) {
+  return <div className="modal-title-field flex items-start gap-2">
+    <FormField label="Title" required hideLabel collapseHiddenLabel error={error} className="min-w-0 flex-1">
+      {children}
+    </FormField>
+    {actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
+  </div>
 }
 
 export function CreationModalTopRow({

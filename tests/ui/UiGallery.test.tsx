@@ -3,6 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { CalendarIdentityPattern } from '@/app/__ui/CalendarIdentityPattern'
+import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
+import { AssignmentEditSplitPattern } from '@/app/__ui/AssignmentEditSplitPattern'
+import { SurveyEditSplitPattern } from '@/app/__ui/SurveyEditSplitPattern'
+import { TestEditSplitPattern } from '@/app/__ui/TestEditSplitPattern'
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { CalendarMockup } from '@/app/__ui/PageMockups'
 import { StudentPageMockup } from '@/app/__ui/StudentPageMockups'
@@ -35,6 +39,20 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it.each([
+    [AssignmentCreationPattern, 'Open assignment example'],
+    [AssignmentEditSplitPattern, 'Open assignment edit prototype'],
+    [SurveyEditSplitPattern, 'Open survey edit prototype'],
+    [TestEditSplitPattern, 'Open test edit prototype'],
+  ] as const)('keeps the %s title accessible and shows its empty placeholder without a label row', (Pattern, opener) => {
+    render(<TooltipProvider><Pattern /></TooltipProvider>)
+    fireEvent.click(screen.getByRole('button', { name: opener }))
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
+    fireEvent.change(title, { target: { value: '' } })
+    expect(title).toHaveValue('')
+    expect(title).toHaveAttribute('placeholder', 'Title')
+  })
   it.each(['2026-08-31T16:00:00Z', '2026-10-21T16:00:00Z'])('keeps the calendar identity fixture unscheduled at %s', (now) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(now))

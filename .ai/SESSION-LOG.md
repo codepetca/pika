@@ -623,6 +623,15 @@ Full focused gate3777/3777 plus architecture, UI/design policy, types and lint p
 Browser verification exposed rich-text toolbars covering question menus after
 sticky rows were introduced; compact shells now isolate editor stacking.
 Final role/theme/viewport matrix, delta checks and review tracked in PR.
+Owner then requested title/status cleanup: hidden accessible Title labels, retained
+empty placeholders, aligned title/settings inputs, and circular saving feedback
+in existing right-pane mode/question controls. Reused CircularProgress and kept
+SaveStatus text presentation as its default; save failures remain visible.
+Shared title-field composition retains naming/error/keyboard behavior. Targeted
+140component checks passed;24accepted browser cases cover desktop/mobile and
+light/dark, including a held production autosave and empty-title placeholders.
+Assignment/test fixture scroll sizing was aligned with the existing survey/test
+production pattern. Canonical gate and independent review tracked in PR.
 
 ## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
 

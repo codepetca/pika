@@ -70,3 +70,21 @@ fixture must match the production workspace's full-height grid scroll owner.
 Compact shells isolate each rich-text editor's internal stacking context so its
 sticky toolbar stays beneath question menus in the existing control rows. This
 retains existing layer tokens and the panel-owned X above both.
+
+## Title and saving refinement — 2026-10-22
+
+Owner requested no visible Title or Unsaved labels, title textboxes aligned with
+existing right-pane controls, and circular saving feedback elsewhere. Reference:
+the compact assignment editor and shared CircularProgress/SaveStatus owners.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Title without a label row | FormField hideLabel/collapseHiddenLabel | reuse | Preserve the accessible name, required/error semantics and empty-title placeholder |
+| Quiet saving feedback | SaveStatus + CircularProgress | extend | Opt-in indicator presentation; retain live status and visible failure feedback |
+| Saving position | Existing right-pane control rows | extend | Place the indicator beside modes/question controls without adding a row |
+| Title/settings alignment | CreationModalShell / FormField | extend | Shared CreationModalTitleField composition keeps the input and settings on one 44px row, preserving names/errors and corner clearance |
+
+Apply to the same assignment, test, survey and material editor references and
+production callers. Preserve Markdown, autosave callbacks and validation.
+Verify empty titles, saving/saved/unsaved/error states, geometry and keyboard use
+on desktop/mobile in light/dark; both shared role references remain covered.

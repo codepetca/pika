@@ -91,9 +91,9 @@ export function AssignmentCreationPattern() {
           title={title}
           instructionsMarkdown={instructions}
           dueAt={dueAt}
-          titleAccessory={(
+          saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
+              <SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
             </div>
           )}
           onTitleChange={(value) => { setTitle(value); setChanged(true); setError('') }}

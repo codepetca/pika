@@ -220,6 +220,12 @@ cancel and busy guards apply equally to X, Escape and backdrop. A confirmation
 X cancels; pending non-dismissible operations remain protected. Drawers and
 inline panel/item controls are separate contracts.
 
+Compact assignment, test, survey and material title inputs use hidden accessible
+labels and empty-title placeholders, aligned with the right-pane controls.
+Settings shares the title input row. Saving uses CircularProgress through
+SaveStatus's indicator presentation in existing mode/question controls; saved
+and unsaved announcements stay available to assistive tech, and failures remain visible.
+
 Reference: Pattern Lab `modal-close` and
 [`modal-close-consistency.md`](./changes/modal-close-consistency.md).
 

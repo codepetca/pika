@@ -140,6 +140,45 @@ for (const role of ['teacher', 'student'] as const) {
     await capture('teacher-assignment-write')
     await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
     await expect(dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true })).toHaveValue(source)
+
+    await cornerClose.click()
+    let finishSave!: () => void
+    let saveStarted = false
+    const saveGate = new Promise<void>(resolve => { finishSave = resolve })
+    await page.route('**/api/teacher/assignments/assignment-controller-A', async route => {
+      if (route.request().method() !== 'PATCH') return route.fulfill({ json: {} })
+      saveStarted = true
+      await saveGate
+      await route.fulfill({ json: { assignment: {
+        id: 'assignment-controller-A', classroom_id: 'classroom-controller',
+        title: 'Updated field observations', description: 'Original instructions',
+        instructions_markdown: 'Original instructions', rich_instructions: null,
+        due_at: '2030-10-21T03:59:59.999Z', position: 0, is_draft: true,
+        released_at: null, track_authenticity: true, created_by: 'teacher-controller',
+        submission_requirements: [], created_at: '2026-10-01T00:00:00Z',
+        updated_at: '2026-10-22T12:00:00Z', ...route.request().postDataJSON(),
+      } } })
+    })
+    await page.goto('/pattern-lab?role=teacher&fixture=assignment-controller', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('[data-pattern-lab-ready=true]')).toBeVisible()
+    await page.getByRole('button', { name: 'Open controlled assignment' }).click()
+    const controlled = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close assignment modal' }) })
+    const controlledTitle = controlled.getByRole('textbox', { name: 'Title', exact: true })
+    const saveIndicator = controlled.getByRole('status').filter({ hasText: /^(Saved|Saving…|Unsaved)$/ })
+    await controlledTitle.fill('')
+    await expect(controlledTitle).toHaveAttribute('placeholder', 'Title')
+    await expect(controlledTitle).toHaveValue('')
+    await controlledTitle.fill('Updated field observations')
+    await controlledTitle.press('Tab')
+    try {
+      await expect.poll(() => saveStarted).toBe(true)
+      await expect(saveIndicator).toHaveText('Saving…')
+      await expect(saveIndicator.locator('svg')).toBeVisible()
+      await expect(saveIndicator.getByText('Saving…', { exact: true })).toHaveClass(/sr-only/)
+      await info.attach('assignment-saving-circle', { body: await controlled.screenshot({ path: info.outputPath('assignment-saving-circle.png'), animations: 'disabled' }), contentType: 'image/png' })
+    } finally { finishSave() }
+    await expect(saveIndicator).toHaveText('Saved')
+    await expect(saveIndicator.locator('svg')).toHaveCount(0)
   })
 }
 
@@ -904,7 +943,7 @@ test.describe('teacher Pattern Lab', () => {
     const titleField = detailsPane.getByRole('textbox', { name: 'Title' })
     await expect(titleField).toHaveValue('Field observations')
     await expect(titleField).toHaveAttribute('placeholder', 'Title')
-    await expect(detailsPane.locator('label').filter({ hasText: /^Title/ })).not.toHaveClass(/sr-only/)
+    await expect(detailsPane.locator('label').filter({ hasText: /^Title/ })).toHaveClass(/sr-only/)
     const attachments = dialog.getByRole('group', { name: 'Submission Requirement' })
     await expect(attachments.getByText('Submission Requirement', { exact: true })).toBeVisible()
     const addRequirement = attachments.getByRole('button', { name: 'Add submission requirement' })
@@ -1056,6 +1095,8 @@ test.describe('teacher Pattern Lab', () => {
     if (testInfo.project.metadata.viewport === 'desktop') {
       const modeBounds = (await contentPane.getByRole('group', { name: 'Instructions editing mode' }).boundingBox())!
       expect(Math.abs(xBounds.y + xBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
+      const titleBounds = (await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!
+      expect(Math.abs(titleBounds.y + titleBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
       expect(modeBounds.x + modeBounds.width).toBeLessThanOrEqual(xBounds.x - 4)
     } else {
       const titleBounds = (await dialog.getByRole('textbox', { name: 'Title' }).boundingBox())!
@@ -1063,7 +1104,7 @@ test.describe('teacher Pattern Lab', () => {
     }
     expect(xBounds.y - modalFrame.y).toBeLessThanOrEqual(17)
     await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
-    await expect(detailsPane.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
+    await expect(contentPane.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
     await expect(close).toBeVisible()
     expect((await detailsPane.boundingBox())!.y - (await dialog.boundingBox())!.y).toBeLessThanOrEqual(2)
     await expect(detailsPane.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
@@ -1139,7 +1180,7 @@ test.describe('teacher Pattern Lab', () => {
     const toolbar = contentPane.getByRole('toolbar', { name: 'Formatting options' })
     const editor = contentPane.getByRole('textbox', { name: 'Question 1 prompt' })
     const close = dialog.getByRole('button', { name: 'Close test edit prototype' })
-    const status = detailsPane.getByRole('status')
+    const status = contentPane.getByRole('status')
 
     await expect(close).toBeVisible()
     await expect(status).toHaveText('Saved')
@@ -1271,6 +1312,9 @@ test.describe('teacher Pattern Lab', () => {
     } else {
       expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
       expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)
+      const titleBounds = (await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!
+      expect(titleBounds.y).toBeGreaterThanOrEqual((await dialog.boundingBox())!.y)
+      expect(titleBounds.x + titleBounds.width).toBeLessThanOrEqual((await close.boundingBox())!.x - 4)
     }
 
     await testInfo.attach('test-edit-split-prototype', {

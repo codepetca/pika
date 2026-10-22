@@ -70,9 +70,9 @@ export function AssignmentEditSplitPattern() {
           onInstructionsMarkdownChange={(value) => update(setInstructions, value)}
           onDueAtChange={(value) => update(setDueAt, value)}
           onPreviewInstructions={() => setPreviewOpen(true)}
-          titleAccessory={(
+          saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
+              <SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
             </div>
           )}
           extraFields={(

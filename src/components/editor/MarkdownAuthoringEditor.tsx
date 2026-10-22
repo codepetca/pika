@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { FormField, SegmentedControl, cn } from '@/ui'
 import { ContentField } from './ContentField'
 import { MarkdownContentEditor, type MarkdownContentEditorProps } from './MarkdownContentEditor'
@@ -13,19 +14,21 @@ interface MarkdownAuthoringEditorProps extends Pick<MarkdownContentEditorProps,
   mode: MarkdownAuthoringMode
   onModeChange: (mode: MarkdownAuthoringMode) => void
   fillHeight?: boolean
+  statusContent?: ReactNode
 }
 
 /** Both views edit the caller's Markdown draft; selecting a mode never serializes it. */
 export function MarkdownAuthoringEditor({
   label, mode, onModeChange, markdown, onMarkdownChange, onConversionWarningChange,
   onBlur, placeholder, disabled = false, editable = true, interactionActive = true,
-  className, fillHeight = false,
+  className, fillHeight = false, statusContent,
 }: MarkdownAuthoringEditorProps) {
   const inactive = disabled || !editable || !interactionActive
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', fillHeight && 'min-h-0 flex-1')}>
-      <div className="modal-controls-row flex justify-end">
+      <div className="modal-controls-row flex items-center justify-end gap-2">
+        {statusContent}
         <SegmentedControl
           ariaLabel={`${label} editing mode`}
           value={mode}
