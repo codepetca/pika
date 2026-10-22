@@ -11,96 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant contextual cold recovery
-
-PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
-including strict warning lint, replay and PRGate passed. Canonical main synced;
-no production or shared-local migration/activation. Reuse PR1630 is separately
-reviewed and in CI. Prepared the existing cold-restore route's shared-admission
-dispatch with current-owner preflight, strict operation/archive/ledger binding,
-final archived-hot revision confirmation and completed same-key replay. Existing
-coordinator, immutable bytes, actor reconciliation, canary/budget gates and
-cleanup remain; uncertain outcomes503 without automatic retry/deletion.
-Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
-The existing guarded isolated recovery drill covers both owner labels with actual
-row/byte/teardown assertions; authored SDK/source checks are not native evidence.
-Independent review, final-head CI and that real drill remain gates. Current-
-membership-only learner attendance remains separate; owners retain old records.
-All production, account/provider/billing and cutover holds remain unchanged.
-
-## 2026-10-20 — Dormant contextual purge workflows
-
-Prepared the eight existing hot/cold impact/start/status/tick methods behind the
-existing admission selector. Actual ownership and durable actor/class/archive/
-operation/scope bindings authorize shared callers of either label; legacy
-guards, confirmations/digests, independent gates and SQL state machines remain.
-Completed audit/replay survives parent removal. Malformed/lost results fail
-closed without automatic retries, compensation or rollback claims. Root found
-and fixed exact generated-lease binding before any Storage request: two wrong-
-lease regressions failed before the fix; root independently passed156 tests/6
-suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
-pass. The existing rollback matrices are extended to both current owner labels
-after fixture capture, retaining historical actors and all prior assertions;
-not yet native evidence. Source-only rebase onto1630's actual main merge had no
-conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
-Final focused checks, independent review, real CI matrices and main merge remain.
-No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
-activation change. Production/shared-local249+ and cutover holds remain.
-
-Full security334 review was clean; compatibility335 found the generic409 mapping
-hid the existing fixed attendance-decommission prerequisite signal. Two real-
-PostgREST-envelope regressions failed, then passed after preserving only the
-recognized typed public constant; arbitrary errors remain sanitized. All158
-targeted tests/6 suites pass. Source correction, targeted re-review and final CI
-remain distinct from any provider change or native acceptance.
-
-## 2026-10-20 — Consolidated owner attendance-decommission preparation
-
-Folded all three existing begin/status/advance methods into the still-draft purge
-workflow, using shared admission with legacy teacher behavior retained. Reused
-unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
-verifier maps malformed stored evidence to503, preserves safe service errors and
-validates public result identity/state. Sol6.1/high delivered53 affected tests/3
-suites, TypeScript and scoped lint PASS; root reviewed all source and added a
-rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
-operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
-focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
-commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
-64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
-No native SQL or provider call was made. Retained-generation175 can block153's
-participant mapping deletion after remote completion; preserve the guard/fence
-and inspectable state. Documented as a separate activation prerequisite, not
-claimed complete by mock transport/basic synthetic fixtures. Combined checks,
-proportional independent review, latest-main integration and CI remain. No SQL
-migration, dependency, UI, gate, provider identity, real deletion or activation
-change. All production/shared-local249+ and provider/account/billing/AI holds
-remain. Source writer stopped; attributable active time/tokens unknown.
-
-Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
-all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
-passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
-Consolidated purge source rebased onto that actual main; only roadmap/history
-overlaps required union, retaining main receipts and one copy of the identical
-already-archived entry. No migration resequencing, stash use or hold change.
-
-## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
-
-Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
-table-scoped DELETE capability only after verified remote completion. Existing
-ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
-private membership replay history is retained. Pending automatic cleanup jobs
-block new intent, including quarantine without an individual operation. Fresh
-read-committed admission avoids stale snapshots. Existing rollback harness adds
-both owner labels, historical generations, scoped/forged denial, failure rollback,
-fresh object-free final purge and saved-status/private-history preservation;
-existing contention harness adds both actual-RPC winner orders. No DB/provider
-execution or shared/production migration application during preparation. Exact281
-source-only profiles and complete capability-table fingerprints extend prior
-seals without rebinding old proofs. Initial focused run caught stale280 counts
-and mocked fingerprints; fixtures corrected without weakening restoration checks.
-Independent review, actual native verification and exact-head CI remain required.
-Production/shared-local249+/live-provider/configuration and activation holds stay.
-
 ## 2026-10-20 — explicit Data API grant compatibility
 
 Prepared migration281 preserving historical001–280 relation ACLs and server-only
@@ -346,6 +256,10 @@ change in this documentation update.
 Aligned the existing teacher/student account menu with Pattern Lab action-menu motion: semantic fast opacity at a fixed position, retaining immediate inert/hidden close and shared keyboard/focus ownership. Native baseline covered 16 contexts and reproduced the prior 4px slide/200ms timing; the new motion regression fails against that baseline. Existing owner/hook tests pass (9). Expanded browser coverage checks natural motion, rapid reopen, theme, Feedback focus and dismissal without submitting Feedback or Logout. Final visual/focused checks, independent review and exact-head CI follow before main merge.
 
 CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
+
+## 2026-10-20 — Promote updated student details to production
+
+Owner authorized main-to-production for the enlarged student inspector. Draft1641 batches main1e1c6b667, including Calendar motion and dormant server compatibility already merged/reviewed on main. Reconciled production0a1d78c38 archive history, preserving its sole unique promotion receipt and all main entries; product/config/dependency/migration bytes remain exact main. Production migrations001–282 are already verified in main3fd1fc1a4; this promotion applies none and changes no environment or activation controls. Startup/verify-env passed; weekly67% remaining, storage271GB healthy. Release risk runtime-platform/workspace-state; independent security/compatibility review, focused checks and exact-head PR Gate precede authorized merge/deployment verification. DeepSeek pause honored; native reviewers GPT6.1Sol/high, bounded one initial wave, tokens/active time unknown.
 
 ## 2026-10-21 — Calendar category themes and Classwork icons
 
@@ -611,6 +525,26 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
 
+## 2026-10-21 — Prepare calendar and attendance production batch
+
+Owner explicitly authorized main-to-production after green checks. Draft1657
+batches seven reviewed main PRs through82ffc5cdd: Calendar themes/Classwork icons,
+shared Tooltip fade/formatted content, announcement scheduling dismissal, and
+admitted attendance membership/learner paths. Reconcile production25aba4152's
+unique history receipts in this ephemeral promotion checkout; application,
+configuration, dependency and SQL bytes remain exact reviewed main. Production
+history001–284 is the last verified schema;285/286 are source-only and remain
+unapplied. Current admission and compatibility verification, cumulative independent
+security/compatibility review and exact-head CI/PR Gate precede the authorized
+merge. No environment, cohort, provider, account or migration mutation is part
+of this app release. Startup/verify-env passes; weekly35% remaining and storage
+healthy. Risk runtime-platform/workspace-state; bounded two-reviewer initial wave
+using GPT6.1Sol/high, per-review tokens and active time unknown.
+
+## 2026-10-21 — Prepare classroom safeguards production release
+
+Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
+
 ## 2026-10-22 — Settings switch motion consistency
 
 - Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
@@ -723,3 +657,15 @@ risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
 dependencies, image contents, shared database or production changes. Docker stays
 stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
 prior feature review coverage reused, no extra full review wave.
+
+## 2026-10-22 — Production post-date promotion preparation
+
+Owner authorized one production application of289/290 followed by main promotion.
+Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
+CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
+service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
+checks PASS. Two Sol/high cumulative production→main reviews passed with no
+findings. PR1664 encountered only journal conflict; union preserves both parent
+histories and trim restores chronology. Application/Supabase trees stay identical
+to main. One journal-resolution batch and targeted review/final CI pending; no
+production retry, fixture write, flag, account or provider change.

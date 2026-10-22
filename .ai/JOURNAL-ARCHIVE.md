@@ -48119,6 +48119,11 @@ Coordinator owns codex/classroom-tab-branding; direct implementation. Startup us
 
 <!-- pika-session-log-archive-batch:bf858f8aa43e026fa06f53f5a73e2425c6b30915997c52297d497716a6826eb6 -->
 <!-- pika-session-log-archive-batch:8c070cfecafc825b68469da894de1a4481cf855535d0f98baac3a5b69c262345 -->
+## 2026-10-19 — Production promotion of classroom branding
+
+Owner explicitly requests production app deployment after PR1615 main merge10793ded1. Draft promotion1621 includes reviewed branding/header and dormant Gradebook integration; attendance correction is already source-equivalent in production99a4103. Production Vercel env-name inventory51 confirms shared experience admission absent, so active paths retain legacy services and SQL270 is not required. No migration apply, cohort/flag, provider/billing or real-data write authorized or performed. Security/correctness review clean at10793; compatibility review covers release integration. Prior full10-lane CI39350459331 validates identical application tree. Resolved archive-only prior-production ancestry conflict in ephemeral promotion checkout, preserving main and production notes; application tree unchanged. Stable-head PRGate, production merge and Vercel verification follow in external production1621 release receipt.
+
+<!-- pika-session-log-archive-batch:a455e5b55b969e43e3c54155fc2024eff5d4b140b0c3334536af6cc05da3aefc -->
 ## 2026-10-19 — CI signal-containment fixture repair
 
 PR1615 continuation: investigated unchanged offline Tart-host timeout after user explicitly requested CI repair and merge readiness. Found a signal sender that could silently abandon its5s readiness wait before command's60s timeout, exceeding the harness10s watchdog; Linux delayed-start replay reaches blocked communicate, matching the liveness failure (the original CI log cannot identify its phase). Split orphan-descendant and real-signal checks; deliver actual SIGTERM synchronously inside the owned child's protected communicate call and retain child/group-death assertions and each10s watchdog. Host runtime, containment policy, credentials, and gates unchanged. Mac runner suite52PASS; Linux delayed/repeated proof and focused gate recorded in ignored artifacts/browser-tab-branding; final exact-head CI required.
@@ -48716,3 +48721,94 @@ archive guarantee is claimed. Sol6.1/high source mapping and bounded implementat
 delivered; attributable usage/time unknown. Final checks, independent review,
 parent-main integration and CI remain. All production/shared-local249+,
 provider/account/plan/billing/AI and activation holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:3303cebf96a01be2a3d990c781f60070a05c9c3466f9c1e46b7fedb42f47e0a8 -->
+## 2026-10-20 — Dormant contextual cold recovery
+
+PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
+including strict warning lint, replay and PRGate passed. Canonical main synced;
+no production or shared-local migration/activation. Reuse PR1630 is separately
+reviewed and in CI. Prepared the existing cold-restore route's shared-admission
+dispatch with current-owner preflight, strict operation/archive/ledger binding,
+final archived-hot revision confirmation and completed same-key replay. Existing
+coordinator, immutable bytes, actor reconciliation, canary/budget gates and
+cleanup remain; uncertain outcomes503 without automatic retry/deletion.
+Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
+The existing guarded isolated recovery drill covers both owner labels with actual
+row/byte/teardown assertions; authored SDK/source checks are not native evidence.
+Independent review, final-head CI and that real drill remain gates. Current-
+membership-only learner attendance remains separate; owners retain old records.
+All production, account/provider/billing and cutover holds remain unchanged.
+
+## 2026-10-20 — Dormant contextual purge workflows
+
+Prepared the eight existing hot/cold impact/start/status/tick methods behind the
+existing admission selector. Actual ownership and durable actor/class/archive/
+operation/scope bindings authorize shared callers of either label; legacy
+guards, confirmations/digests, independent gates and SQL state machines remain.
+Completed audit/replay survives parent removal. Malformed/lost results fail
+closed without automatic retries, compensation or rollback claims. Root found
+and fixed exact generated-lease binding before any Storage request: two wrong-
+lease regressions failed before the fix; root independently passed156 tests/6
+suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
+pass. The existing rollback matrices are extended to both current owner labels
+after fixture capture, retaining historical actors and all prior assertions;
+not yet native evidence. Source-only rebase onto1630's actual main merge had no
+conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
+Final focused checks, independent review, real CI matrices and main merge remain.
+No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
+activation change. Production/shared-local249+ and cutover holds remain.
+
+Full security334 review was clean; compatibility335 found the generic409 mapping
+hid the existing fixed attendance-decommission prerequisite signal. Two real-
+PostgREST-envelope regressions failed, then passed after preserving only the
+recognized typed public constant; arbitrary errors remain sanitized. All158
+targeted tests/6 suites pass. Source correction, targeted re-review and final CI
+remain distinct from any provider change or native acceptance.
+
+## 2026-10-20 — Consolidated owner attendance-decommission preparation
+
+Folded all three existing begin/status/advance methods into the still-draft purge
+workflow, using shared admission with legacy teacher behavior retained. Reused
+unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
+verifier maps malformed stored evidence to503, preserves safe service errors and
+validates public result identity/state. Sol6.1/high delivered53 affected tests/3
+suites, TypeScript and scoped lint PASS; root reviewed all source and added a
+rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
+operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
+focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
+commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
+64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
+No native SQL or provider call was made. Retained-generation175 can block153's
+participant mapping deletion after remote completion; preserve the guard/fence
+and inspectable state. Documented as a separate activation prerequisite, not
+claimed complete by mock transport/basic synthetic fixtures. Combined checks,
+proportional independent review, latest-main integration and CI remain. No SQL
+migration, dependency, UI, gate, provider identity, real deletion or activation
+change. All production/shared-local249+ and provider/account/billing/AI holds
+remain. Source writer stopped; attributable active time/tokens unknown.
+
+Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
+all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
+passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
+Consolidated purge source rebased onto that actual main; only roadmap/history
+overlaps required union, retaining main receipts and one copy of the identical
+already-archived entry. No migration resequencing, stash use or hold change.
+
+## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
+
+Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
+table-scoped DELETE capability only after verified remote completion. Existing
+ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
+private membership replay history is retained. Pending automatic cleanup jobs
+block new intent, including quarantine without an individual operation. Fresh
+read-committed admission avoids stale snapshots. Existing rollback harness adds
+both owner labels, historical generations, scoped/forged denial, failure rollback,
+fresh object-free final purge and saved-status/private-history preservation;
+existing contention harness adds both actual-RPC winner orders. No DB/provider
+execution or shared/production migration application during preparation. Exact281
+source-only profiles and complete capability-table fingerprints extend prior
+seals without rebinding old proofs. Initial focused run caught stale280 counts
+and mocked fingerprints; fixtures corrected without weakening restoration checks.
+Independent review, actual native verification and exact-head CI remain required.
+Production/shared-local249+/live-provider/configuration and activation holds stay.
