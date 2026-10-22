@@ -66,3 +66,7 @@ Existing compact title/control rows stay sticky within the editor's actual
 scroller so moving through long content never places X over another card.
 Use the existing local sticky layer beneath the close/menu layer. The survey
 fixture must match the production workspace's full-height grid scroll owner.
+
+Compact shells isolate each rich-text editor's internal stacking context so its
+sticky toolbar stays beneath question menus in the existing control rows. This
+retains existing layer tokens and the panel-owned X above both.

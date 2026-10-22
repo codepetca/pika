@@ -619,7 +619,10 @@ space in existing desktop controls/mobile title fields. Applied to assignment,
 material, test and survey editors; shared dismissal callbacks/guards unchanged.
 Stable guidance and Pattern Lab examples reflect the compact contract.
 Desktop assignment browser check confirms mode/X alignment and regained56px.
-Role/theme/viewport matrix, local checks and bounded delta review tracked in PR.
+Full focused gate3777/3777 plus architecture, UI/design policy, types and lint pass.
+Browser verification exposed rich-text toolbars covering question menus after
+sticky rows were introduced; compact shells now isolate editor stacking.
+Final role/theme/viewport matrix, delta checks and review tracked in PR.
 
 ## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
 

@@ -49,6 +49,21 @@ describe('CreationModalShell', () => {
     expect(onClose).toHaveBeenCalledOnce()
   })
 
+  it('retains header metadata when the dialog title is visually hidden', () => {
+    render(
+      <CreationModalShell isOpen title="Edit assignment" titleId="metadata-title"
+        closeLabel="Close assignment" onClose={vi.fn()} headerCenter={<span role="status">Saved</span>}>
+        <input aria-label="Assignment title" />
+      </CreationModalShell>,
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Edit assignment' })
+    const heading = within(dialog).getByRole('heading', { name: 'Edit assignment' })
+    expect(heading).toHaveClass('sr-only')
+    expect(heading.parentElement).toContainElement(within(dialog).getByRole('status'))
+    expect(heading.parentElement).not.toContainElement(within(dialog).getByRole('textbox'))
+    expect(dialog.querySelectorAll('[data-dialog-close]')).toHaveLength(1)
+  })
+
   it('supports a headerless dialog with a close control inside its content', () => {
     const onClose = vi.fn()
 

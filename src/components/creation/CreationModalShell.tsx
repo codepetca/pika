@@ -87,9 +87,10 @@ export function CreationModalShell({
   const compactCloseSpace = !hasHeader && showCloseButton
     ? cn(
       '[&_.modal-title-field]:sticky [&_.modal-title-field]:top-3 sm:[&_.modal-title-field]:top-4 [&_.modal-title-field]:z-sticky-table [&_.modal-title-field]:bg-inherit [&_.modal-title-field]:pr-14 lg:[&_.modal-title-field]:static lg:[&_.modal-title-field]:pr-0',
-      '[&_.modal-controls-row]:sticky [&_.modal-controls-row]:top-3 sm:[&_.modal-controls-row]:top-4 [&_.modal-controls-row]:z-sticky-table [&_.modal-controls-row]:min-h-control [&_.modal-controls-row]:bg-surface [&_.modal-controls-row]:pr-14',
-      '[&_.modal-question-controls-row]:sticky [&_.modal-question-controls-row]:top-3 sm:[&_.modal-question-controls-row]:top-4 [&_.modal-question-controls-row]:z-sticky-table [&_.modal-question-controls-row]:bg-surface lg:[&_.modal-question-controls-row>div:last-child]:pr-14',
+      '[&_.modal-controls-row]:sticky [&_.modal-controls-row]:top-0 [&_.modal-controls-row]:z-sticky-table [&_.modal-controls-row]:min-h-control [&_.modal-controls-row]:bg-surface [&_.modal-controls-row]:pr-14',
+      '[&_.modal-question-controls-row]:sticky [&_.modal-question-controls-row]:top-0 [&_.modal-question-controls-row]:z-sticky-table [&_.modal-question-controls-row]:bg-surface lg:[&_.modal-question-controls-row>div:last-child]:pr-14',
       'lg:[&_.modal-toolbar-row_[role=toolbar]]:pr-14',
+      '[&_.simple-editor-wrapper]:isolate',
     )
     : undefined
 

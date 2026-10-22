@@ -127,6 +127,10 @@ for (const role of ['teacher', 'student'] as const) {
     expect(Math.abs(closeBounds.y - dialogBounds.y - inset)).toBeLessThanOrEqual(1)
     expect(Math.abs(dialogBounds.x + dialogBounds.width - closeBounds.x - closeBounds.width - inset)).toBeLessThanOrEqual(1)
     const assignmentModes = dialog.getByRole('group', { name: 'Instructions editing mode' })
+    if (info.project.metadata.viewport === 'desktop') {
+      const modes = (await assignmentModes.boundingBox())!
+      expect(Math.abs(modes.y + modes.height / 2 - closeBounds.y - closeBounds.height / 2)).toBeLessThanOrEqual(2)
+    }
     await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
     await dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true }).fill(source)
     await capture('teacher-assignment-markdown')
@@ -282,6 +286,9 @@ test('prototypes survey editing with accessible split panes and local authoring 
   if (testInfo.project.metadata.viewport === 'desktop') {
     expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
     expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThanOrEqual(1)
+    const corner = (await dialog.getByRole('button', { name: 'Close survey edit prototype' }).boundingBox())!
+    const questionActions = (await actions.boundingBox())!
+    expect(Math.abs(corner.y + corner.height / 2 - questionActions.y - questionActions.height / 2)).toBeLessThanOrEqual(2)
   } else {
     expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
     expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThanOrEqual(1)
