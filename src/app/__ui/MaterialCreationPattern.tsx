@@ -15,6 +15,7 @@ const SAMPLE_CONTENT: TiptapContent = {
 
 export function MaterialCreationPattern() {
   const [open, setOpen] = useState(false)
+  const [existing, setExisting] = useState(false)
   const [title, setTitle] = useState('Field guide')
   const [content, setContent] = useState(SAMPLE_CONTENT)
   const [error, setError] = useState<string | null>(null)
@@ -26,23 +27,35 @@ export function MaterialCreationPattern() {
       <h3 className="font-semibold">Material creation</h3>
       <p className="mt-2 text-sm text-text-muted">Assignment-style details and content panes with a single formatted editor, Preview, and Post / Schedule / Save draft actions. Materials have no due date.</p>
       <Button variant="surface" className="mt-3" onClick={() => {
+        setExisting(false)
         setTitle('Field guide')
         setContent(SAMPLE_CONTENT)
         setError(null)
         setOpen(true)
       }}>Open material example</Button>
+      <Button variant="surface" className="ml-2 mt-3" onClick={() => {
+        setExisting(true)
+        setTitle('Field guide')
+        setContent(SAMPLE_CONTENT)
+        setError(null)
+        setOpen(true)
+      }}>Edit posted material example</Button>
       <p role="status" className="mt-2 text-xs text-text-muted">{result}</p>
       <MaterialCreationDialog
         isOpen={open}
+        materialKey={existing ? 'posted' : 'new'}
+        isExisting={existing}
+        isDraft={!existing}
+        releasedAt={existing ? '2026-01-22T17:00:00Z' : null}
         title={title}
         content={content}
         error={error}
         onTitleChange={setTitle}
         onContentChange={setContent}
         onClose={() => setOpen(false)}
-        onSave={(asDraft) => {
+        onSave={(asDraft, _scheduledFor, postedOn) => {
           if (!title.trim()) { setError('Title is required'); return }
-          setResult(`${asDraft ? 'Save draft' : 'Post'} selected. Example only—nothing was saved or posted.`)
+          setResult(`${postedOn ? `Post date ${postedOn}` : asDraft ? 'Save draft' : 'Post'} selected. Example only—nothing was saved or posted.`)
           setOpen(false)
         }}
       />

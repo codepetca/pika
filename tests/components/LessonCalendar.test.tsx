@@ -540,6 +540,17 @@ describe('test calendar reminders', () => {
 describe('material calendar chips', () => {
   const material = { id: 'material-1', classroom_id: 'cls-123', title: 'Course reading', is_draft: false,
     released_at: '2026-03-21T14:00:00Z', created_at: '2026-03-01T12:00:00Z' } as ClassworkMaterial
+  it.each([true, false])('moves a backdated material to its saved calendar day for editable=%s', editable => {
+    const props = { classroom: mockClassroom, lessonPlans: [], materials: [material], viewMode: 'week' as const,
+      currentDate: new Date('2026-03-16T12:00:00'), editable, onDateChange: vi.fn(), onViewModeChange: vi.fn() }
+    const view = render(<LessonCalendar {...props} />, { wrapper: Wrapper })
+    const day = (label: string) => screen.getByRole('button', { name: label }).closest('article')!
+    // The day owns its date even when its child material is independently actionable.
+    expect(day('Open Saturday, March 21, 2026')).toContainElement(screen.getByRole('button', { name: 'Material: Course reading' }))
+    view.rerender(<LessonCalendar {...props} materials={[{ ...material, released_at: '2026-03-20T04:00:00Z' }]} />)
+    expect(day('Open Friday, March 20, 2026')).toContainElement(screen.getByRole('button', { name: 'Material: Course reading' }))
+    expect(day('Open Saturday, March 21, 2026')).not.toContainElement(screen.getByRole('button', { name: 'Material: Course reading' }))
+  })
   it.each(['week', 'month', 'all'] as const)('opens the exact weekend material in %s view and excludes drafts', viewMode => {
     const onMaterialClick = vi.fn()
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]} materials={[material, { ...material, id: 'draft', title: 'Hidden draft', is_draft: true }]}

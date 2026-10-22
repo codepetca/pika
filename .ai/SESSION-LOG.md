@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dual-owner classroom guidance preview preparation
-
-Coordinator owns codex/contextual-classroom-guidance-preview, child of reviewed
-guidance-read23d71d while PR1627 finishes CI. GET authoring-guidance/update now has
-a dormant admitted branch requiring current active-classroom AND Blueprint
-ownership, independent of account label. Prepared279 is service-only invoker,
-single read snapshot/no locks/new data grants. Preserve normalized preview DTO,
-adopted/fallback Version lineage, exact errors, private8MiB bounds and legacy GET;
-POST adoption unchanged. No UI change or production/shared-local migration.
-Core/leaf Sol6.1/high delivered SQL,20-path exact279 seals and four finite SDK
-fixture/test paths. Root inspected full sources and graph predicate equivalence;
-67 API/adapter/SQL-source tests pass,28 leaf tests pass,1478 profile tests pass,
-309 CI/policy tests pass. Only pending genuine279 RPC metadata fails TypeScript.
-Independent security/compatibility review, frozen isolated proof, genuine metadata,
-current-main reconciliation/final checks and exact-head CI remain. Cumulative310
-actual review turns/5 remediation batches retained; task-stop waiver remains active.
-Production/shared-local249+/provider/accounts/billing/AI and activation holds unchanged.
-
-Initial311/312 and composition313 reviews CLEAN. Fresh isolatednaHFuy/project
-23c6d2c507aa actual59973JOINED0 passes001–279 rollback SQL/catalog/ACL/lineage/UTF8
-bounds/genuine metadata/12actualSDK18SQL60guards3DTO/full63-tablegraph/complement/
-restoration/canonical read-only/global equality and positive owned teardown.
-100actions1672controls51169222B12HTTPmax1/final0open or uncertain. Immediate next
-tool FIRST55092JOINED0 verifies7948source98970depsunchanged0process; freeze released
-only after join. Genuine279444192Ba0e2ff00 installedafterFIRST; removing only new
-RPC reconstructs entire27829a85e7b. Original false authority flags untouched; spent
-profile remains fail-closed, never rebound/replayed. PR1627 then merged normally
-e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
-tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
-preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
-313actual review turns/5fix batches and all holds retained.
-
 ## 2026-10-20 — Atomic dual-owner guidance adoption preparation
 
 Prepared280 adds an admitted POST branch requiring current active-classroom AND
@@ -790,3 +758,26 @@ Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
 unjoined rows remain empty. Reuse original roster status icon; same teacher-only
 roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
 No component or widget contract change. PR1661 draft during validation/review.
+
+## 2026-10-22 — Material calendar post dates
+
+Added teacher Post date (Toronto) editing for already-posted Classwork materials;
+explicit Save moves the existing release date, with future release still owned
+by Schedule. Owner PATCH/receipt validation and migration289 retain locked
+ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
+saved release date. Guidance: docs/guidance/material-post-date.md.
+UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
+extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
+focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
+boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
+state covered, no manual follow-up. Student date editor n/a; both calendar modes
+covered by date-movement regression. Risk profile none; standard independent
+review required. Branch codex/material-post-date owned by this chat. Sol/high DB
+worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
+Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
+coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
+proofs, generated-type equality and unchanged shared schema PASS; evidence
+/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
+overlapping profile tests under host load140+. Focused gate rerunning with one
+worker before ready; draft independent review pending. No shared local/production
+migration applied and no production promotion.

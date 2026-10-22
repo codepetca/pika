@@ -52,7 +52,7 @@ export const PATCH = withErrorHandler('PatchTeacherClassworkMaterial', async (re
   const user = await requireRole('teacher')
   const { id: classroomId, materialId } = await context.params
   const body = await request.json()
-  if (body && typeof body === 'object' && 'scheduled_for' in body) {
+  if (body && typeof body === 'object' && ('scheduled_for' in body || 'posted_on' in body)) {
     return NextResponse.json(await updateContextualMaterial({
       actorId: user.id, classroomId, materialId, body: parseMaterialUpdateBody(body),
     }))

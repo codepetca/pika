@@ -16,6 +16,7 @@ import { classroomHotLifecycleNativePlan } from '../../scripts/contextual-classr
 import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
 import { GRADEBOOK_WORKFLOW_REVIEWED_MIGRATION, validateGradebookWorkflowReviewedMigration } from '../../scripts/gradebook-workflow-reviewed-migration'
 import { LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS, validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
+import { MATERIAL_POST_DATE_REVIEWED_MIGRATION, validateMaterialPostDateReviewedMigration } from '../../scripts/material-post-date-reviewed-migration'
 import { MATERIAL_RELEASE_SCHEDULING_REVIEWED_MIGRATION, validateMaterialReleaseSchedulingReviewedMigration } from '../../scripts/material-release-scheduling-reviewed-migration'
 import { ATTENDANCE_MEMBERSHIP_ADOPTION_REVIEWED_MIGRATION, validateAttendanceMembershipAdoptionReviewedMigration } from '../../scripts/attendance-membership-adoption-reviewed-migration'
 import { ATTENDANCE_LEARNER_MEMBERSHIP_REVIEWED_MIGRATION, validateAttendanceLearnerMembershipReviewedMigration } from '../../scripts/attendance-learner-membership-reviewed-migration'
@@ -52,15 +53,16 @@ const profiles: SourceProfile[] = [
 ]
 afterEach(() => vi.restoreAllMocks())
 
-describe.each(profiles)('$name reviewed288 source profile (offline)', ({ name, validate }) => {
-  it('accepts the complete actual reviewed288 source chain', () => {
-    expect(current).toHaveLength(288)
+describe.each(profiles)('$name reviewed289 source profile (offline)', ({ name, validate }) => {
+  it('accepts the complete actual reviewed289 source chain', () => {
+    expect(current).toHaveLength(289)
     expect(current[281]).toMatchObject(DATA_API_GRANTS_REVIEWED_MIGRATION)
     expect(current[283]).toMatchObject(MATERIAL_RELEASE_SCHEDULING_REVIEWED_MIGRATION)
     expect(current[284]).toMatchObject(ATTENDANCE_MEMBERSHIP_ADOPTION_REVIEWED_MIGRATION)
     expect(current[285]).toMatchObject(ATTENDANCE_LEARNER_MEMBERSHIP_REVIEWED_MIGRATION)
     expect(current[286]).toMatchObject(PAL_OWNER_QUEUE_STOP_REVIEWED_MIGRATION)
     expect(current[287]).toMatchObject(CONTEXTUAL_REMOVED_MEMBERSHIP_CLEANUP_REVIEWED_MIGRATION)
+    expect(current[288]).toMatchObject(MATERIAL_POST_DATE_REVIEWED_MIGRATION)
     expect(current[268]).toMatchObject({ name: '269_contextual_surveys_workflow.sql',
       sha256: 'f67a65eb3e7017c44ae0f595e19d6aaa1d42a8af36f82b62ea499fdb616290c2' })
     expect(current[269]).toMatchObject(GRADEBOOK_WORKFLOW_REVIEWED_MIGRATION)
@@ -80,14 +82,14 @@ describe.each(profiles)('$name reviewed288 source profile (offline)', ({ name, v
   })
   const minimum: Record<string, number> = { 'member list': 253, 'owner reorder': 254, learner: 257, 'owner grading': 265,
     'owner recovery': 260, 'owner unpublication': 261, 'owner deletion': 262, 'hot archive restore': 268, 'offline learner helper': 257 }
-  it.each([253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287].filter(count => count >= minimum[name]))(
+  it.each([253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288].filter(count => count >= minimum[name]))(
     'preserves its reviewed historical%i prefix', count => {
       const migrations = current.slice(0, count)
       vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
       expect(() => validate(migrations)).not.toThrow()
     })
-  it.each([268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
-    'rejects changed $number $defect on the complete288 chain', ({ number, defect }) => {
+  it.each([268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
+    'rejects changed $number $defect on the complete289 chain', ({ number, defect }) => {
       const migrations = current.map(m => ({ ...m })), tail = migrations[number - 1]
       if (defect === 'name') tail.name = `${number}_unknown.sql`
       if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
@@ -96,9 +98,9 @@ describe.each(profiles)('$name reviewed288 source profile (offline)', ({ name, v
       vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
       expect(() => validate(migrations)).toThrow()
     })
-  it('rejects a contiguous unknown289 tail', () => {
+  it('rejects a contiguous unknown290 tail', () => {
     const sql = 'select 1;'
-    const migrations = [...current, { name: '289_unknown.sql', sql, sha256: digest(sql) }]
+    const migrations = [...current, { name: '290_unknown.sql', sql, sha256: digest(sql) }]
     vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
     expect(() => validate(migrations)).toThrow()
   })
@@ -128,13 +130,13 @@ describe('fixed Data API282 reviewed migration seal', () => {
 })
 
 describe('reviewed285 offline learner prefix helper', () => {
-  it.each([257, 258] as const)('preserves the explicit historical%i prefix after validating actual288', count => {
+  it.each([257, 258] as const)('preserves the explicit historical%i prefix after validating actual289', count => {
     const offline = createOfflineTestLearnerRepository(repository, count)
     try {
       expect(platform.loadAssignmentListReviewedMigrations(offline.repository)).toEqual(current.slice(0, count))
     } finally { offline.dispose() }
   })
-  it.each([268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
+  it.each([268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
     'rejects changed $number $defect before copying a historical prefix', ({ number, defect }) => {
       const migrations = current.map(m => ({ ...m })), tail = migrations[number - 1]
       if (defect === 'name') tail.name = `${number}_unknown.sql`
@@ -144,10 +146,10 @@ describe('reviewed285 offline learner prefix helper', () => {
       vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(migrations)
       expect(() => createOfflineTestLearnerRepository(repository)).toThrow()
     })
-  it('rejects a contiguous unknown289 tail before copying a historical prefix', () => {
+  it('rejects a contiguous unknown290 tail before copying a historical prefix', () => {
     const sql = 'select 1;'
     vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue([...current,
-      { name: '289_unknown.sql', sql, sha256: digest(sql) }])
+      { name: '290_unknown.sql', sql, sha256: digest(sql) }])
     expect(() => createOfflineTestLearnerRepository(repository)).toThrow()
   })
 })
@@ -169,7 +171,7 @@ describe('fixed lifecycle271–285 reviewed migration seals', () => {
       ['283_attendance_current_membership_foundation.sql','a464c8285cbc08755fa03d6b33b08342310089226d6ea0517c82fcd0271012ab'],
     ])
   })
-  it.each([271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288].flatMap(number => ['name','digest','bytes','self-hashed-bytes'].map(defect => ({number,defect}))))(
+  it.each([271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289].flatMap(number => ['name','digest','bytes','self-hashed-bytes'].map(defect => ({number,defect}))))(
     'directly rejects changed lifecycle $number $defect', ({number,defect}) => {
       const migrations=current.map(m=>({...m})),tail=migrations[number-1]
       if(defect==='name')tail.name=`${number}_unknown.sql`
@@ -181,7 +183,7 @@ describe('fixed lifecycle271–285 reviewed migration seals', () => {
   it('validates all fifteen exact source additions and rejects an unknown future tail', () => {
     expect(() => validateLifecycleServicesReviewedMigrations(current)).not.toThrow()
     const sql = 'select 1;'
-    expect(() => validateLifecycleServicesReviewedMigrations([...current, { name: '289_unknown.sql', sql, sha256: digest(sql) }])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...current, { name: '290_unknown.sql', sql, sha256: digest(sql) }])).toThrow()
   })
 })
 
@@ -240,5 +242,20 @@ describe('fixed learner attendance286 source migration seal', () => {
     if (defect === 'bytes' || defect === 'self-hashed-bytes') candidate.sql += '\n'
     if (defect === 'self-hashed-bytes') candidate.sha256 = digest(candidate.sql)
     expect(() => validateAttendanceLearnerMembershipReviewedMigration(candidate)).toThrow()
+  })
+})
+
+
+describe('fixed material post-date289 reviewed migration seal', () => {
+  it('accepts only the fixed reviewed migration', () => {
+    expect(() => validateMaterialPostDateReviewedMigration(current[288])).not.toThrow()
+  })
+  it.each(['name', 'digest', 'bytes', 'self-hashed-bytes'])('rejects changed %s', defect => {
+    const candidate = { ...current[288] }
+    if (defect === 'name') candidate.name = '289_unknown.sql'
+    if (defect === 'digest') candidate.sha256 = 'f'.repeat(64)
+    if (defect === 'bytes' || defect === 'self-hashed-bytes') candidate.sql += '\n'
+    if (defect === 'self-hashed-bytes') candidate.sha256 = digest(candidate.sql)
+    expect(() => validateMaterialPostDateReviewedMigration(candidate)).toThrow()
   })
 })

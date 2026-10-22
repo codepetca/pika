@@ -48576,3 +48576,36 @@ reviewed278 chain (2810other tests passed). Update only that count and its genui
 unknown-future tail to279; product/SQL/fixture/metadata bytes unchanged. This is
 batched remediation5, not a new native attempt or weakened profile. Final targeted
 integration review includes the delta; no routine approval needed under waiver.
+
+<!-- pika-session-log-archive-batch:cebfda71e1b7dfc40735c8dec1869347a540b25aeb81e965fff1bfe797d7c80b -->
+## 2026-10-20 — Dual-owner classroom guidance preview preparation
+
+Coordinator owns codex/contextual-classroom-guidance-preview, child of reviewed
+guidance-read23d71d while PR1627 finishes CI. GET authoring-guidance/update now has
+a dormant admitted branch requiring current active-classroom AND Blueprint
+ownership, independent of account label. Prepared279 is service-only invoker,
+single read snapshot/no locks/new data grants. Preserve normalized preview DTO,
+adopted/fallback Version lineage, exact errors, private8MiB bounds and legacy GET;
+POST adoption unchanged. No UI change or production/shared-local migration.
+Core/leaf Sol6.1/high delivered SQL,20-path exact279 seals and four finite SDK
+fixture/test paths. Root inspected full sources and graph predicate equivalence;
+67 API/adapter/SQL-source tests pass,28 leaf tests pass,1478 profile tests pass,
+309 CI/policy tests pass. Only pending genuine279 RPC metadata fails TypeScript.
+Independent security/compatibility review, frozen isolated proof, genuine metadata,
+current-main reconciliation/final checks and exact-head CI remain. Cumulative310
+actual review turns/5 remediation batches retained; task-stop waiver remains active.
+Production/shared-local249+/provider/accounts/billing/AI and activation holds unchanged.
+
+Initial311/312 and composition313 reviews CLEAN. Fresh isolatednaHFuy/project
+23c6d2c507aa actual59973JOINED0 passes001–279 rollback SQL/catalog/ACL/lineage/UTF8
+bounds/genuine metadata/12actualSDK18SQL60guards3DTO/full63-tablegraph/complement/
+restoration/canonical read-only/global equality and positive owned teardown.
+100actions1672controls51169222B12HTTPmax1/final0open or uncertain. Immediate next
+tool FIRST55092JOINED0 verifies7948source98970depsunchanged0process; freeze released
+only after join. Genuine279444192Ba0e2ff00 installedafterFIRST; removing only new
+RPC reconstructs entire27829a85e7b. Original false authority flags untouched; spent
+profile remains fail-closed, never rebound/replayed. PR1627 then merged normally
+e3d7727dc at08:05:10Z after all ten exact23dCI39386625698 checks/PRGate passed;
+tree6aec81cb identical and canonical clean main ff-only. Child rebase13642898
+preserves entire exercised tree d6c4fbcc. Final checks/review/CI remain. Cumulative
+313actual review turns/5fix batches and all holds retained.
