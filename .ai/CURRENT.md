@@ -13,7 +13,7 @@ Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
 admission/home/page/cutover/billing OFF;
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Quota/Pal membership/signals OFF; admission absent Oct21.
+Controls unchanged: quota/Pal membership/signals OFF; admission absent Oct21.
 Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Owner259–262 installed/dormant; Tests adopter1580 prepared.
