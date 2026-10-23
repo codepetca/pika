@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { chmodSync, closeSync, constants, fstatSync, lstatSync, mkdtempSync, openSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, closeSync, constants, fstatSync, lstatSync, mkdtempSync, openSync, readFileSync, readdirSync, readSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -8,6 +8,9 @@ const DIRECTORY_PREFIX = 'pika-supabase-registry-'
 const DIRECTORY_NAME = /^pika-supabase-registry-[A-Za-z0-9]{6}$/
 const OWNER_FILE = '.pika-ci-registry-auth'
 const OWNER_CONTENT = 'pika-supabase-registry-auth-v1\n'
+const INVENTORY_DENIED_ENV = /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i
+const MAX_CONFIG_BYTES = 16 * 1024
+const BASE64_AUTH = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/][AQgw]==|[A-Za-z0-9+/]{2}[AEIMQUYcgkosw048]=)?$/
 
 function assertSafePath(value) {
   if (typeof value !== 'string' || !isAbsolute(value) || /[\x00-\x1f\x7f]/.test(value) || resolve(value) !== value) {
@@ -44,9 +47,7 @@ function openGithubEnv(env) {
   }
 }
 
-/** Remove only this helper's private, marked, direct-child Docker config. */
-export function cleanupRegistryAuth({ env = process.env } = {}) {
-  if (!env.PIKA_CI_REGISTRY_AUTH_DIR) return false
+function ownedAuthDirectory(env, { allowMissing = false } = {}) {
   const root = runnerTemp(env)
   const directory = assertSafePath(env.PIKA_CI_REGISTRY_AUTH_DIR)
   if (env.DOCKER_CONFIG !== directory || dirname(directory) !== root || !DIRECTORY_NAME.test(basename(directory))) {
@@ -56,7 +57,7 @@ export function cleanupRegistryAuth({ env = process.env } = {}) {
   try {
     stat = lstatSync(directory)
   } catch (error) {
-    if (error.code === 'ENOENT') return false
+    if (allowMissing && error.code === 'ENOENT') return undefined
     throw error
   }
   if (!stat.isDirectory() || stat.isSymbolicLink() || realpathSync(directory) !== directory) {
@@ -72,6 +73,72 @@ export function cleanupRegistryAuth({ env = process.env } = {}) {
   } finally {
     closeSync(marker)
   }
+  return directory
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function onlyKey(value, key) {
+  return isRecord(value) && Object.keys(value).length === 1 && Object.hasOwn(value, key)
+}
+
+/** Preserve daemon-routing restrictions, allowing only the job's GHCR auth file. */
+export function assertDockerInventoryEnvironment(env = process.env) {
+  try {
+    const denied = Object.keys(env).filter(name => INVENTORY_DENIED_ENV.test(name))
+    if (!denied.length) return
+    if (denied.length !== 1 || denied[0] !== 'DOCKER_CONFIG' || env.GITHUB_ACTIONS !== 'true' || env.SUPABASE_INTERNAL_IMAGE_REGISTRY !== 'ghcr.io') {
+      throw new Error('Unsupported Docker inventory environment')
+    }
+    const directory = ownedAuthDirectory(env)
+    const members = readdirSync(directory).sort()
+    if (members.length !== 2 || members[0] !== OWNER_FILE || members[1] !== 'config.json') {
+      throw new Error('Unexpected Docker config directory members')
+    }
+    const configPath = join(directory, 'config.json')
+    if (realpathSync(configPath) !== configPath) throw new Error('Unsafe Docker config file')
+    const fd = openSync(configPath, constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+    let contents
+    try {
+      const stat = fstatSync(fd)
+      if (!stat.isFile() || (stat.mode & 0o777) !== 0o600 || stat.nlink !== 1 || stat.size <= 0 || stat.size > MAX_CONFIG_BYTES ||
+        (typeof process.getuid === 'function' && stat.uid !== process.getuid())) {
+        throw new Error('Unsafe Docker config file metadata')
+      }
+      // Read at most the allowed size plus one byte, even if a file grows after
+      // fstat. Never decode the auth value or include config data in diagnostics.
+      const bytes = Buffer.alloc(MAX_CONFIG_BYTES + 1)
+      let length = 0
+      while (length < bytes.length) {
+        const count = readSync(fd, bytes, length, bytes.length - length, length)
+        if (count === 0) break
+        length += count
+      }
+      if (length > MAX_CONFIG_BYTES) throw new Error('Oversized Docker config file')
+      contents = bytes.subarray(0, length).toString('utf8')
+    } finally {
+      closeSync(fd)
+    }
+    const config = JSON.parse(contents)
+    if (!onlyKey(config, 'auths') || !onlyKey(config.auths, 'ghcr.io') || !onlyKey(config.auths['ghcr.io'], 'auth')) {
+      throw new Error('Unexpected Docker configuration keys')
+    }
+    const auth = config.auths['ghcr.io'].auth
+    if (typeof auth !== 'string' || auth.length === 0 || auth.length > 12 * 1024 || !BASE64_AUTH.test(auth)) {
+      throw new Error('Invalid Docker registry credential encoding')
+    }
+  } catch {
+    throw new Error('Docker inventory environment is not permitted')
+  }
+}
+
+/** Remove only this helper's private, marked, direct-child Docker config. */
+export function cleanupRegistryAuth({ env = process.env } = {}) {
+  if (!env.PIKA_CI_REGISTRY_AUTH_DIR) return false
+  const directory = ownedAuthDirectory(env, { allowMissing: true })
+  if (!directory) return false
   // No Docker command is needed: this also works after Supabase and its daemon stop.
   rmSync(directory, { recursive: true, force: true })
   return true

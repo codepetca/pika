@@ -1,6 +1,7 @@
 /** Inert source preparation. Root reviews this complete finite manifest before
  * invocation inside the original disposable-project lifecycle. No CLI entrypoint. */
 import assert from 'node:assert/strict'
+import { assertDockerInventoryEnvironment } from './ci-supabase-registry-auth.mjs'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
@@ -936,7 +937,7 @@ function createNativeOwnerContracts<M extends NativeManifestShape, C, R,
     })
   }
   async function verifyEndpoint() {
-    assert(!Object.keys(process.env).some(name => /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
+    assertDockerInventoryEnvironment(process.env)
     const raw = JSON.parse(await command('docker', ['context', 'inspect', '--format', manifest.contextTemplate])) as {
       endpoints?: { docker?: { Host?: unknown; SkipTLSVerify?: unknown } }; tlsMaterial?: unknown;
     }

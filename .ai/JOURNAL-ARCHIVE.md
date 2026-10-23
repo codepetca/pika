@@ -49018,3 +49018,10 @@ assignment-style Preview and verifies both panes. Existing keyboard/preview/focu
 pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
 light/dark local Playwright contracts PASS. PR returned to draft before changes;
 prior run cancelled by draft transition. No product/runtime/SQL change.
+
+<!-- pika-session-log-archive-batch:40d42cf5cde4519eb3d261e78fc3731c678ec09e86828cee3f256c5498729c83 -->
+## 2026-10-20 — Calendar cell text stability
+
+- Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
+- Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
+- Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.

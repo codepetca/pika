@@ -310,6 +310,11 @@ by an `always()` step after guarded stack cleanup. Operator credentials are neve
 modified. The local CI runner validates these exact GitHub-only steps, skips
 their credential handling, and inherits the literal registry while rejecting
 job/step registry overrides. Historical ECR and no-registry plans remain readable.
+Native proof guards admit this credential-only config only after checking the
+owned private directory, marker, file permissions and bounded GHCR-only auth
+shape. Other Docker/proxy overrides and context/header/helper/plugin settings
+remain forbidden; context, local socket identity and full resource checks still
+run against the actual config used by Docker.
 
 Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
 while classification and `PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted

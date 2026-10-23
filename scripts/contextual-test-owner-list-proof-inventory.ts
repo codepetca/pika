@@ -3,6 +3,7 @@
  * the sealed assignment-list parser still validates and constructs the result.
  */
 import assert from 'node:assert/strict'
+import { assertDockerInventoryEnvironment } from './ci-supabase-registry-auth.mjs'
 import { execFile } from 'node:child_process'
 import { closeSync, constants, fstatSync, openSync, readFileSync, readSync, realpathSync, statSync } from 'node:fs'
 import { request, type ClientRequest, type IncomingMessage } from 'node:http'
@@ -52,7 +53,7 @@ function readConfig(env: NodeJS.ProcessEnv): string | undefined {
   } finally { closeSync(fd) }
 }
 async function localEndpoint(transport: NativeTransport) {
-  assert(!Object.keys(transport.env).some(name => /^(?:DOCKER_(?:HOST|CONTEXT|CONFIG|API_VERSION|TLS.*|CERT_PATH|CUSTOM_HEADERS)|(?:.*_)?PROXY)$/i.test(name)))
+  assertDockerInventoryEnvironment(transport.env)
   const configText = transport.readConfig(transport.env)
   if (configText !== undefined) {
     const config: unknown = JSON.parse(bounded(configText))

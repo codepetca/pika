@@ -2,7 +2,7 @@ import { chmodSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, realpathS
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanupRegistryAuth, loginRegistryAuth, runRegistryAuthCli } from '../../scripts/ci-supabase-registry-auth.mjs'
+import { assertDockerInventoryEnvironment, cleanupRegistryAuth, loginRegistryAuth, runRegistryAuthCli } from '../../scripts/ci-supabase-registry-auth.mjs'
 
 type DockerOptions = {
   input: string
@@ -55,6 +55,136 @@ describe('job-owned Supabase CI registry authentication', () => {
   function login() {
     return loginRegistryAuth({ env, runDocker: docker })
   }
+
+  function inventoryEnv() {
+    docker.mockImplementation((_binary, _args, options) => {
+      writeFileSync(join(options.env.DOCKER_CONFIG!, 'config.json'), JSON.stringify({ auths: { 'ghcr.io': { auth: Buffer.from(`pika-ci:${secret}`).toString('base64') } } }))
+      return { status: 0 }
+    })
+    login()
+    const result = { ...env, ...exportedEnv() }
+    delete result.SUPABASE_CI_GHCR_TOKEN
+    return result
+  }
+
+  it('accepts the authenticated job config for inventory without changing credentials or environment', () => {
+    const transportEnv = inventoryEnv()
+    const beforeEnv = { ...transportEnv }
+    const configPath = join(transportEnv.DOCKER_CONFIG!, 'config.json')
+    const beforeConfig = readFileSync(configPath, 'utf8')
+    Object.freeze(transportEnv)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).not.toThrow()
+    expect(transportEnv).toEqual(beforeEnv)
+    expect(readFileSync(configPath, 'utf8')).toBe(beforeConfig)
+    expect(docker).toHaveBeenCalledTimes(1)
+    expect(() => assertDockerInventoryEnvironment({ PATH: '/bin' })).not.toThrow()
+  })
+
+  it.each(['DOCKER_HOST', 'docker_host', 'DOCKER_CONTEXT', 'DOCKER_API_VERSION', 'DOCKER_TLS', 'DOCKER_TLS_VERIFY', 'Docker_Tls_Extra', 'DOCKER_CERT_PATH', 'DOCKER_CUSTOM_HEADERS', 'PROXY', 'HTTP_PROXY', 'https_proxy', 'NO_PROXY', 'CUSTOM_SERVICE_PROXY', 'docker_config', 'Docker_Config'])('keeps inventory routing/header/proxy override %s forbidden even with a valid config', name => {
+    const transportEnv = inventoryEnv()
+    expect(() => assertDockerInventoryEnvironment({ ...transportEnv, [name]: '' })).toThrow('Docker inventory environment is not permitted')
+    expect(() => assertDockerInventoryEnvironment({ ...transportEnv, [name]: secret })).toThrow('Docker inventory environment is not permitted')
+  })
+
+  it.each([
+    { DOCKER_CONFIG: '' },
+    { GITHUB_ACTIONS: 'false' },
+    { SUPABASE_INTERNAL_IMAGE_REGISTRY: 'docker.io' },
+    { PIKA_CI_REGISTRY_AUTH_DIR: '' },
+    { PIKA_CI_REGISTRY_AUTH_DIR: '/unowned' },
+  ])('refuses an inventory config outside its authenticated job context: %j', overrides => {
+    const transportEnv = inventoryEnv()
+    expect(() => assertDockerInventoryEnvironment({ ...transportEnv, ...overrides })).toThrow('Docker inventory environment is not permitted')
+    expect(statSync(transportEnv.DOCKER_CONFIG!).isDirectory()).toBe(true)
+  })
+
+  it.each([
+    '{}',
+    '{"auths":{}}',
+    '{"auths":{"ghcr.io":{}}}',
+    '{"auths":{"ghcr.io":{"auth":""}}}',
+    '{"auths":{"ghcr.io":{"auth":"invalid-base64"}}}',
+    '{"auths":{"ghcr.io":{"auth":"AB=="}}}',
+    '{"auths":{"ghcr.io":{"auth":123}}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ==","identitytoken":"private"}}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="},"docker.io":{"auth":"YQ=="}}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"credsStore":"osxkeychain"}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"credHelpers":{"ghcr.io":"helper"}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"currentContext":"remote"}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"HttpHeaders":{"Authorization":"private"}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"proxies":{}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"plugins":{}}',
+    '{"auths":{"ghcr.io":{"auth":"YQ=="}},"cliPluginsExtraDirs":[]}',
+    '{"auths":[]}',
+    '[]',
+    'null',
+  ])('rejects unexpected or invalid inventory config JSON without reporting its contents: %s', contents => {
+    const transportEnv = inventoryEnv()
+    const configPath = join(transportEnv.DOCKER_CONFIG!, 'config.json')
+    writeFileSync(configPath, contents)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow('Docker inventory environment is not permitted')
+    expect(readFileSync(configPath, 'utf8')).toBe(contents)
+  })
+
+  it('bounds inventory config reads and sanitizes JSON/filesystem failures', () => {
+    const transportEnv = inventoryEnv()
+    const configPath = join(transportEnv.DOCKER_CONFIG!, 'config.json')
+    for (const contents of [`${secret}{malformed`, ' '.repeat(16 * 1024 + 1), JSON.stringify({ auths: { 'ghcr.io': { auth: 'YWFh'.repeat(4096) } } })]) {
+      writeFileSync(configPath, contents)
+      try {
+        assertDockerInventoryEnvironment(transportEnv)
+        throw new Error('Expected inventory config rejection')
+      } catch (error) {
+        expect((error as Error).message).toBe('Docker inventory environment is not permitted')
+        expect(String(error)).not.toContain(secret)
+        expect(String(error)).not.toContain(configPath)
+      }
+    }
+    unlinkSync(configPath)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow('Docker inventory environment is not permitted')
+  })
+
+  it('refuses inventory config symlinks, wrong mode, wrong owner, and unexpected sidefiles', () => {
+    const transportEnv = inventoryEnv()
+    const configPath = join(transportEnv.DOCKER_CONFIG!, 'config.json')
+    chmodSync(configPath, 0o644)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    chmodSync(configPath, 0o600)
+    const sidefile = join(transportEnv.DOCKER_CONFIG!, 'contexts')
+    mkdirSync(sidefile)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    rmSync(sidefile, { recursive: true })
+    writeFileSync(sidefile, 'unexpected plugin/context/header configuration')
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    unlinkSync(sidefile)
+    const realUid = process.getuid!()
+    const uid = vi.spyOn(process, 'getuid').mockReturnValueOnce(realUid).mockReturnValue(realUid + 1)
+    try { expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow() }
+    finally { uid.mockRestore() }
+    unlinkSync(configPath)
+    symlinkSync(join(operatorConfig, 'config.json'), configPath)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    expect(readFileSync(join(operatorConfig, 'config.json'), 'utf8')).toContain('keep')
+  })
+
+  it('requires the existing private nonsymlink directory and ownership marker for inventory', () => {
+    const transportEnv = inventoryEnv()
+    const directory = transportEnv.DOCKER_CONFIG!
+    chmodSync(directory, 0o755)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    chmodSync(directory, 0o700)
+    const marker = join(directory, '.pika-ci-registry-auth')
+    unlinkSync(marker)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    symlinkSync(join(operatorConfig, 'config.json'), marker)
+    expect(() => assertDockerInventoryEnvironment(transportEnv)).toThrow()
+    const link = join(env.RUNNER_TEMP!, 'pika-supabase-registry-ABC123')
+    symlinkSync(directory, link)
+    expect(() => assertDockerInventoryEnvironment({ ...transportEnv, DOCKER_CONFIG: link, PIKA_CI_REGISTRY_AUTH_DIR: link })).toThrow()
+    const unowned = join(env.RUNNER_TEMP!, 'pika-supabase-registry-DEF456')
+    mkdirSync(unowned, { mode: 0o700 })
+    expect(() => assertDockerInventoryEnvironment({ ...transportEnv, DOCKER_CONFIG: unowned, PIKA_CI_REGISTRY_AUTH_DIR: unowned })).toThrow()
+  })
 
   it('sends credentials only through stdin with a private isolated config and bounded Docker call', () => {
     const previousUmask = process.umask()

@@ -88,6 +88,12 @@ the runner account's Docker config or requires a stored registry secret. Local
 ordinary local image downloads use the selected registry without importing a
 workflow token. Do not add operator credentials to the runner to work around
 download failures.
+Native inventory and draft GET/save guards accept only this validated job-owned
+credential file. They reject arbitrary Docker configs and all routing overrides,
+including extra config keys or directory members, then retain their existing
+context/TLS/local Unix socket identity and full resource discovery checks. The
+outer PATCH transport and its inner inventory keep the same config, including
+credentials needed for later image pulls.
 
 Preflight refuses existing Docker resources, occupied test ports or checkout
 environment files before stack startup, without deleting them. Jobs stop their

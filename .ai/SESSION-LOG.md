@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Calendar cell text stability
-
-- Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
-- Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
-- Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.
-
 ## 2026-10-20 — Material single-editor prototype parity and main sync
 
 Owner explicitly requested the assignment prototype's single formatted editor, removal of the Visual/Markdown switch, an extended review budget, Calendar conflict resolution and main merge for PR1639. MaterialCreationDialog now directly reuses RichTextEditor with the assignment toolbar preset and ContentField layout; existing JSON content is never converted. Removed the obsolete material Markdown draft/conversion owners and replaced their tests with direct editing/preview/manual-save checks. Preview, future Toronto scheduling, drafts, busy/read-only and delete contracts remain. UI brief: docs/guidance/ui/changes/material-assignment-parity.md; teacher authoring desktop/mobile x light/dark, both roles Calendar/navigation. No new dependencies or shared primitive.
@@ -713,3 +707,21 @@ both new registry suites in check:workflow; preserve every existing test. Initia
 full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
 then required focused/static checks and one targeted independent correction review
 before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+## 2026-10-23 Native inventory compatibility with CI registry credentials
+
+Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
+39971332075 proved all7GHCR logins and image-download/startup paths, then reached
+previously blocked owner-list/draft-GET/reorder proofs. Their native environment
+checks rejected DOCKER_CONFIG before endpoint/resource discovery. PR returned to
+draft; obsolete run cancelled before any correction push. One shared assertion
+now permits only exactGHA/GHCR job-owned private config with marker, owned0600
+single-link regular bounded16KB file and onlyauths.ghcr.io.auth. Other Docker/
+proxy selectors, config keys and sidefiles remain forbidden. All3direct guards
+use it; context/TLS/local Unix socket identity, resource discovery and outer/inner
+actual-config propagation remain unchanged. Regression matrix covers credential
+isolation plus real offline native/PATCH transport protocols. No daemon restart,
+application/schema change or migration. Batch10 and two new independent guard
+reviews retain the existing human budget waiver. Normal reviewed1662main merge
+now explicitly authorized by direct human reply in classroom-home coordinator;
+verified with read_thread. No production/deploy/provider/rollout authority added.
