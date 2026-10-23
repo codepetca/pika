@@ -23,41 +23,16 @@
     max-height: var(--radix-popover-content-available-height);
   }
 
-  /* Animation states */
+  // Keep text stationary; closed Radix commands unmount immediately.
   &[data-state="open"] {
-    animation:
-      fadeIn var(--tt-transition-duration-medium) var(--tt-transition-easing-popover),
-      zoomIn var(--tt-transition-duration-medium) var(--tt-transition-easing-popover);
+    animation: fadeIn var(--motion-duration-fast) var(--motion-easing-standard);
   }
 
   &[data-state="closed"] {
-    animation:
-      fadeOut var(--tt-transition-duration-medium) var(--tt-transition-easing-popover),
-      zoomOut var(--tt-transition-duration-medium) var(--tt-transition-easing-popover);
+    animation: none;
   }
 
-  /* Position-based animations */
-  &[data-side="top"],
-  &[data-side="top-start"],
-  &[data-side="top-end"] {
-    animation: slideFromBottom var(--tt-transition-duration-medium) var(--tt-transition-easing-popover);
-  }
-
-  &[data-side="right"],
-  &[data-side="right-start"],
-  &[data-side="right-end"] {
-    animation: slideFromLeft var(--tt-transition-duration-medium) var(--tt-transition-easing-popover);
-  }
-
-  &[data-side="bottom"],
-  &[data-side="bottom-start"],
-  &[data-side="bottom-end"] {
-    animation: slideFromTop var(--tt-transition-duration-medium) var(--tt-transition-easing-popover);
-  }
-
-  &[data-side="left"],
-  &[data-side="left-start"],
-  &[data-side="left-end"] {
-    animation: slideFromRight var(--tt-transition-duration-medium) var(--tt-transition-easing-popover);
+  @media (prefers-reduced-motion: reduce) {
+    &[data-state] { animation: none; }
   }
 }
