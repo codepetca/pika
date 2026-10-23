@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { AlertDialog, ConfirmDialog, ContentDialog, DialogPanel, TooltipProvider } from '@/ui'
 import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
@@ -23,7 +24,7 @@ describe('DialogCloseButton shared modal contract', () => {
     [AssignmentEditSplitPattern, 'Open assignment edit prototype', 'Edit Assignment', 'Close assignment edit prototype'],
     [TestEditSplitPattern, 'Open test edit prototype', 'Edit Test', 'Close test edit prototype'],
     [SurveyEditSplitPattern, 'Open survey edit prototype', 'Edit Survey', 'Close survey edit prototype'],
-  ] as const)('gives %s one modal-owned corner close', (Pattern, opener, title, label) => {
+  ] as const)('gives %s one modal-owned corner close', async (Pattern, opener, title, label) => {
     render(<TooltipProvider><Pattern /></TooltipProvider>)
     fireEvent.click(screen.getByRole('button', { name: opener }))
     const dialog = screen.getByRole('dialog', { name: title })
@@ -34,6 +35,17 @@ describe('DialogCloseButton shared modal contract', () => {
     expect(dialog.querySelectorAll('[data-dialog-close]')).toHaveLength(1)
     expect(close.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     expect(dialog.querySelector('[data-testid$="editor-details-pane"]')).not.toContainElement(close)
+    if (Pattern === TestEditSplitPattern || Pattern === SurveyEditSplitPattern) {
+      const user = userEvent.setup()
+      const actions = within(dialog).getByRole('button', { name: 'Question actions', exact: true })
+      actions.focus()
+      await user.keyboard('{Enter}')
+      expect(screen.getByRole('menuitem', { name: 'Add multiple-choice question' })).toHaveFocus()
+      await user.keyboard('{Escape}')
+      expect(screen.queryByRole('menu', { name: 'Question actions' })).not.toBeInTheDocument()
+      expect(actions).toHaveFocus()
+      expect(close).toBeEnabled()
+    }
     fireEvent.click(close)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })

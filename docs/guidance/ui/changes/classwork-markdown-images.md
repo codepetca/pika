@@ -102,3 +102,43 @@ The reserved fresh Sol/high reviewer (launch12) completed the behavioral scope: 
 P2issues resolved, no new blocker. Final exact-head verdict/CI receipt is tracked
 in PR1662. Native DB and Docker Desktop are stopped again; no merge authorized. Effective reviewer configurations and per-turn tokens were
 not exposed. PR1662 remains draft until native types and review gates pass.
+
+CI follow-up (same approved layout; no new pattern): dark Pattern Lab exposed
+legacy prototype Question actions under the shared X and older layout assertions.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Prototype question-menu clearance | CreationModalShell modal-question-controls-tail | reuse | Same reserved X slot as the production question header |
+| Header/layout assertions | Approved spacious context + right mode bar | extend | Assert current panes and X alignment without relaxing target size |
+| Posted-material example readiness | openPatternLab readiness helper | reuse | Wait for hydration before the example action |
+
+Affected role: teacher prototypes; student control n/a. Verify desktop/mobile,
+light/dark, question menu open/keyboard, headers, Material Write/Markdown/Preview
+and existing published date. Production editor owners and schema stay unchanged.
+
+The first ready-head run passed Test & Build, including coverage and production
+build. Three database/browser setup jobs hit ECR image rate limits before tests;
+returning the PR to draft cancelled two remaining lanes. The completed dark
+Pattern Lab lane identified outdated assertions and the prototype X collision.
+Posted-material date coverage now uses the shared hydration readiness helper.
+Mobile content focus may scroll the dialog, so action placement is measured
+relative to its details pane. Classroom boxes end at the close slot, with the
+existing 24px fade providing visible separation. Target sizes stay unchanged.
+All28affected browser cases pass across desktop/mobile and light/dark; screenshots
+were inspected and retained with provenance under ci-correction-2026-10-23.
+
+The completed publication native lane also exposed a nested PL/pgSQL name
+collision: its caller's pg_proc record named p shadowed the additive catalog's
+policy/procedure SQL aliases. The helper now uses distinct authoring_policy and
+authoring_catalog_proc aliases. A READ ONLY execution of the complete nested
+publication catalog reproduces the old failure and passes after correction;
+all capability predicates, migration hashes, ACLs and trigger checks are retained.
+The83affected unit/source checks pass. Isolated native execution and the final
+review/CI status are recorded on PR1662; no production schema changed in this
+correction batch.
+
+The16focused close/prototype component checks also pass, including keyboard menu
+entry, Escape focus return, and the independent enabled corner X. Composite
+widget checklist reviewed: yes; keyboard and semantic-state coverage: yes;
+remaining manual follow-up: none. Architecture, UI/design policy, TypeScript,
+lint (warnings only) and Pika audit pass for this batch.

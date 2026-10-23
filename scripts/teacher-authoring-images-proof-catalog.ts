@@ -47,7 +47,7 @@ export function teacherAuthoringImagesCatalogSql() {
      where a.grantee<>authoring_table.relowner and (a.grantee<>'service_role'::regrole or a.privilege_type<>'SELECT' or a.is_grantable))
    or not pg_catalog.has_table_privilege('service_role',authoring_table.oid,'SELECT')
    or exists(select 1 from pg_catalog.pg_attribute a cross join lateral pg_catalog.aclexplode(a.attacl) acl where a.attrelid=authoring_table.oid and acl.grantee<>authoring_table.relowner)
-   or exists(select 1 from pg_catalog.pg_policy p where p.polrelid=authoring_table.oid)
+   or exists(select 1 from pg_catalog.pg_policy authoring_policy where authoring_policy.polrelid=authoring_table.oid)
    or not exists(select 1 from pg_catalog.pg_constraint c where c.conrelid=authoring_table.oid and c.contype='c'
      and c.conname='teacher_authoring_image_references_owner_table_check' and c.convalidated and not c.connoinherit
      and pg_catalog.regexp_replace(pg_catalog.replace(pg_catalog.pg_get_expr(c.conbin,c.conrelid),'::text',''),'[()[:space:]]','','g')
@@ -68,7 +68,7 @@ export function teacherAuthoringImagesCatalogSql() {
      and i.indpred is null and i.indexprs is null and am.amname='btree')
  then raise exception 'Authoring291 reference ledger capability differs';end if;
  ${(['sync_teacher_authoring_image_references', 'queue_removed_teacher_authoring_image'] as const).map((name) => `
- select p.* into strict authoring_proc from pg_catalog.pg_proc p where p.oid=${q(`public.${name}()`)}::regprocedure;
+ select authoring_catalog_proc.* into strict authoring_proc from pg_catalog.pg_proc authoring_catalog_proc where authoring_catalog_proc.oid=${q(`public.${name}()`)}::regprocedure;
  if authoring_proc.pronargs<>0 or authoring_proc.prorettype<>'trigger'::regtype or not authoring_proc.prosecdef
    or authoring_proc.provolatile<>'v' or authoring_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='plpgsql')
    or pg_catalog.pg_get_userbyid(authoring_proc.proowner)<>'postgres'
@@ -76,7 +76,7 @@ export function teacherAuthoringImagesCatalogSql() {
    or pg_catalog.md5(authoring_proc.prosrc)<>${q(TEACHER_AUTHORING_IMAGE_ROUTINE_MD5[name])}
    or exists(select 1 from pg_catalog.aclexplode(coalesce(authoring_proc.proacl,pg_catalog.acldefault('f',authoring_proc.proowner))) a where a.grantee<>authoring_proc.proowner)
  then raise exception 'Authoring291 trigger routine capability differs';end if;`).join('')}
- select p.* into strict authoring_proc from pg_catalog.pg_proc p where p.oid='public.managed_storage_object_is_referenced(uuid)'::regprocedure;
+ select authoring_catalog_proc.* into strict authoring_proc from pg_catalog.pg_proc authoring_catalog_proc where authoring_catalog_proc.oid='public.managed_storage_object_is_referenced(uuid)'::regprocedure;
  if authoring_proc.pronargs<>1 or authoring_proc.prorettype<>'boolean'::regtype or authoring_proc.prosecdef
    or authoring_proc.provolatile<>'s' or authoring_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='sql')
    or pg_catalog.pg_get_userbyid(authoring_proc.proowner)<>'postgres'

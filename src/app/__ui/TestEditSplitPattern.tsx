@@ -822,7 +822,7 @@ export function TestEditSplitPattern() {
                       <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
-                  <div role="group" aria-label="Question actions" className="col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
+                  <div role="group" aria-label="Question actions" className="modal-question-controls-tail col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
                     <div className="relative w-24 shrink-0">
                       <label htmlFor="pattern-test-question-points" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</label>
                       <Input

@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Calendar cell disclosure continuity
-
-User-requested Calendar refinement on codex/calendar-cell-motion: only the selected date expands; Week/Month/Term cell geometry uses semantic standard motion and reduced-motion policy. Editor clicks preserve the live caret owner, Escape returns focus without deferred work, outside blur keeps its destination, and closing an older editor cannot collapse a new same-week selection. Removed whole-cell entry scrolling; existing autosave/data owners retained. One Sol medium implementation worker plus root native acceptance; three bounded native/visual correction batches, no dependency/schema changes. Final component57 and hook7 tests PASS; native16-context matrix PASS (98 PNGs/16 videos, synthetic API only), representative originals/reference inspected. Required focused/static/goldens and exact-head independent review/CI are recorded externally before main landing. Broad fluidity goal open; production and old PR1217 holds retained.
-
-Calendar review correction: one accepted P2 anchored the empty non-class Week edit overlay to its full lesson region; actual fixture reproduced22px escape before fix. Added native event-upper-edge regression, PASS8 viewport/theme/motion cases plus4 unchanged goldens. Synced main Gradebook landing with only continuity conflicts; preserved all40 main recent entries once and main archive as exact prefix before normal trim. Grid/hook/data source remains byte-identical; targeted motion/focused checks and delta review qualify final head.
-
 ## 2026-10-20 — production migrations266–282 verified
 
 Owner approved production266–282 and acknowledged281's existing destructive
@@ -739,6 +733,18 @@ suites71PASS. No UI delta; existing visual hashes retained. Launch12
 reserved for correction/integration after metadata/native gates; no further
 launch approved beyond12. Requested model/effort recorded; effective config,
 per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
+
+## 2026-10-23 — Markdown editor CI correction batch
+
+PR1662 returned to draft after391a CI: Test & Build passed; ECR throttled3setup jobs;
+dark PatternLab and publication catalog checks exposed real fixture/proof issues.
+Reuse shared prototype X clearance; update obsolete header/mode assertions and
+hydration readiness.28affected browser cases and83unit/source checks pass;
+visual matrix inspected (teacher desktop/mobile light/dark, student n/a for these
+experimental prototype controls). Fix nested catalog p-alias shadowing without
+changing capability checks or migration291. READ ONLY nested catalog passes.
+Native isolated publication verification follows on a clean committed checkpoint;
+final receipts/CI/review status live on PR1662. No merge or production authority.
 
 ## 2026-10-23 — Local244–291 authorized application and final verification
 

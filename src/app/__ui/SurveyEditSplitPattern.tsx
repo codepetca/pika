@@ -192,7 +192,7 @@ export function SurveyEditSplitPattern() {
                     <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
                     <Tooltip content="Next question"><Button variant="ghost" size="sm" aria-label="Next question" disabled={selected === questions.length - 1} onClick={() => select(selected + 1)} className="h-11 w-11 p-0 text-text-muted"><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
                   </div>
-                  <div className="col-start-2 row-start-2 justify-self-end lg:col-start-3 lg:row-start-1">
+                  <div className="modal-question-controls-tail col-start-2 row-start-2 justify-self-end lg:col-start-3 lg:row-start-1">
                     <TeacherWorkSurfaceIconMenuButton icon={<ListPlus className="h-5 w-5" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="primary" menuPlacement="down" menuAlign="end" className="h-11 w-14 shadow-sm" items={[
                       { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => addQuestion('multiple_choice') },
                       { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => addQuestion('short_text') },
