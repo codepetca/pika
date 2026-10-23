@@ -79,6 +79,16 @@ access. Use a dedicated account without provider credentials or developer `.env`
 files. Images and package/browser caches may persist; database containers, volumes
 and custom networks may not.
 
+Supabase jobs pull the pinned official GHCR images using only their ephemeral
+workflow token with `packages: read`. The registry helper creates a private Docker
+config under `RUNNER_TEMP`, exports its ownership before login, and removes it in
+an `always()` step after stack cleanup, including failed startup. It never changes
+the runner account's Docker config or requires a stored registry secret. Local
+`ci:local` plans validate and skip these exact GitHub-only credential steps;
+ordinary local image downloads use the selected registry without importing a
+workflow token. Do not add operator credentials to the runner to work around
+download failures.
+
 Preflight refuses existing Docker resources, occupied test ports or checkout
 environment files before stack startup, without deleting them. Jobs stop their
 own stack without backup. If interruption leaves resources, inspect and repair

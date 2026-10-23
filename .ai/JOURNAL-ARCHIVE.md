@@ -48916,3 +48916,52 @@ All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main the
 User-requested Calendar refinement on codex/calendar-cell-motion: only the selected date expands; Week/Month/Term cell geometry uses semantic standard motion and reduced-motion policy. Editor clicks preserve the live caret owner, Escape returns focus without deferred work, outside blur keeps its destination, and closing an older editor cannot collapse a new same-week selection. Removed whole-cell entry scrolling; existing autosave/data owners retained. One Sol medium implementation worker plus root native acceptance; three bounded native/visual correction batches, no dependency/schema changes. Final component57 and hook7 tests PASS; native16-context matrix PASS (98 PNGs/16 videos, synthetic API only), representative originals/reference inspected. Required focused/static/goldens and exact-head independent review/CI are recorded externally before main landing. Broad fluidity goal open; production and old PR1217 holds retained.
 
 Calendar review correction: one accepted P2 anchored the empty non-class Week edit overlay to its full lesson region; actual fixture reproduced22px escape before fix. Added native event-upper-edge regression, PASS8 viewport/theme/motion cases plus4 unchanged goldens. Synced main Gradebook landing with only continuity conflicts; preserved all40 main recent entries once and main archive as exact prefix before normal trim. Grid/hook/data source remains byte-identical; targeted motion/focused checks and delta review qualify final head.
+
+<!-- pika-session-log-archive-batch:54bb6e1d033df3e2cb3ee28170f3717c9ca14baa565e6deefa7531b7369d664a -->
+## 2026-10-20 — production migrations266–282 verified
+
+Owner approved production266–282 and acknowledged281's existing destructive
+call path. Manual rollout39476697299 applied exact sourcee534015201ea42758252f45dc7e19d56792d801e
+once, using preview39465198595/digest21867530234c92a4f98b79f08435e8e82a2c39fccf808431debccadc9148bbe1
+and CI39458606979. Applied-verified; independent metadata history is001–282.
+Read-only checks:47 final function bodies/owners/security/search paths/ACLs,
+151 relation/sequence grant objects with775 operations, client denial, closed
+postgres relation defaults, both narrow column grants,10 existing guard trigger
+attachments, and281 capability RLS/three validated constraints PASS. Existing
+decommission DB mode stayed enabled. No write fixture, purge/provider call,
+shared-local migration, application promotion or flag change. Approval consumed.
+Receipts retained privately under ~/.codex/receipts/production-migrations/2026-10-20T183940Z/.
+
+HQ read-only baseline investigation found654 source function-name body matches
+and75 retained source files, but no canonical migration ledger or authoritative
+execution/restore receipt in90 backup manifests. Body/file agreement does not
+prove backfills, overload signatures or execution history. No HQ application,
+history repair or hosted-project resume; owner edits preserved. Sol6.1/high
+worker returned metadata evidence; coordinator inspected conclusions/source.
+Weekly remaining75%; attributable tokens/active time unknown.
+
+Continuity-only receipt: startup79 tests PASS and prompt budget restored. The
+required focused run remains blocked by unchanged Mac process/timing fixtures
+in ci-tart-host and focused-checks; no test/control weakening or runtime fix.
+Keep the receipt PR draft until the complete focused gate passes.
+
+
+Owner-authorized PR1638 fixture repair supersedes the draft checkpoint above.
+The exit2 process fixture now allows the existing sibling2s startup budget,
+retains all finite containment watchdogs, and injects0.6s startup delay while
+requiring exact idle-timeout, one attempt and empty group. Focused-runner default/
+limited assertions are four single-run cases with exact command arrays; no
+production code, global timeout or dependency changed. Sol6.1/high worker
+reproduced both old failures and passed82 tests, including controlled latency.
+Coordinator inspected both diffs; full focused gate and final review recorded
+in PR1638 before merge. Main's unrelated Calendar changes retained exactly.
+HQ plan is proposed only: recover lineage, compare full catalog and independently
+prove historical effects; choose reconstruction or honest present-state adoption
+before an exact separately approved history action. No75-version execution claim,
+HQ query/write, hosted resume or grant application. Private plan: same receipt
+folder/hq-baseline-plan.json. Weekly remaining74%; worker/coordinator time and
+tokens not fully attributable; bounded delegation outcomes verified.
+
+Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
+policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
+unchanged after these checks; final independent review/CI recorded in PR1638.

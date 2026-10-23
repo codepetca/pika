@@ -301,10 +301,15 @@ CI classifies changes conservatively:
   exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
-CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws` before `setup-cli`,
-which preserves that setting. Startup and later metadata proofs inherit the same
-registry; pinned CLI and image versions remain unchanged. The local CI runner
-inherits this literal workflow setting and rejects job/step registry overrides.
+CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`, which
+preserves that setting. Supabase jobs authenticate official image downloads with
+the ephemeral workflow token and job-scoped `packages: read`. Startup and later
+metadata proofs inherit the same registry; pinned CLI and image versions remain
+unchanged. A private temporary Docker config is exported before login and removed
+by an `always()` step after guarded stack cleanup. Operator credentials are never
+modified. The local CI runner validates these exact GitHub-only steps, skips
+their credential handling, and inherits the literal registry while rejecting
+job/step registry overrides. Historical ECR and no-registry plans remain readable.
 
 Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
 while classification and `PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted

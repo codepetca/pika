@@ -11,54 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — production migrations266–282 verified
-
-Owner approved production266–282 and acknowledged281's existing destructive
-call path. Manual rollout39476697299 applied exact sourcee534015201ea42758252f45dc7e19d56792d801e
-once, using preview39465198595/digest21867530234c92a4f98b79f08435e8e82a2c39fccf808431debccadc9148bbe1
-and CI39458606979. Applied-verified; independent metadata history is001–282.
-Read-only checks:47 final function bodies/owners/security/search paths/ACLs,
-151 relation/sequence grant objects with775 operations, client denial, closed
-postgres relation defaults, both narrow column grants,10 existing guard trigger
-attachments, and281 capability RLS/three validated constraints PASS. Existing
-decommission DB mode stayed enabled. No write fixture, purge/provider call,
-shared-local migration, application promotion or flag change. Approval consumed.
-Receipts retained privately under ~/.codex/receipts/production-migrations/2026-10-20T183940Z/.
-
-HQ read-only baseline investigation found654 source function-name body matches
-and75 retained source files, but no canonical migration ledger or authoritative
-execution/restore receipt in90 backup manifests. Body/file agreement does not
-prove backfills, overload signatures or execution history. No HQ application,
-history repair or hosted-project resume; owner edits preserved. Sol6.1/high
-worker returned metadata evidence; coordinator inspected conclusions/source.
-Weekly remaining75%; attributable tokens/active time unknown.
-
-Continuity-only receipt: startup79 tests PASS and prompt budget restored. The
-required focused run remains blocked by unchanged Mac process/timing fixtures
-in ci-tart-host and focused-checks; no test/control weakening or runtime fix.
-Keep the receipt PR draft until the complete focused gate passes.
-
-
-Owner-authorized PR1638 fixture repair supersedes the draft checkpoint above.
-The exit2 process fixture now allows the existing sibling2s startup budget,
-retains all finite containment watchdogs, and injects0.6s startup delay while
-requiring exact idle-timeout, one attempt and empty group. Focused-runner default/
-limited assertions are four single-run cases with exact command arrays; no
-production code, global timeout or dependency changed. Sol6.1/high worker
-reproduced both old failures and passed82 tests, including controlled latency.
-Coordinator inspected both diffs; full focused gate and final review recorded
-in PR1638 before merge. Main's unrelated Calendar changes retained exactly.
-HQ plan is proposed only: recover lineage, compare full catalog and independently
-prove historical effects; choose reconstruction or honest present-state adoption
-before an exact separately approved history action. No75-version execution claim,
-HQ query/write, hosted resume or grant application. Private plan: same receipt
-folder/hq-baseline-plan.json. Weekly remaining74%; worker/coordinator time and
-tokens not fully attributable; bounded delegation outcomes verified.
-
-Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
-policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
-unchanged after these checks; final independent review/CI recorded in PR1638.
-
 ## 2026-10-20 Material authoring and calendar
 
 Branch codex/material-authoring-parity. Material creation/edit now follows the
@@ -779,3 +731,22 @@ findings resolved, no new blocker; exact-head receipt follows in PR1662. Request
 model/effort recorded, effective configuration/tokens/seconds not exposed.
 Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
 Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+## 2026-10-23 Authenticated CI Supabase registry repair
+
+PR1662's four remaining lanes failed before tests with the anonymous ECR data
+transfer cap, including one failed-only retry. Returned the PR to draft before
+repair. All seven Supabase jobs now select the official GHCR mirror with the
+existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
+image versions, proof commands, selectors and PR Gate remain unchanged; all17
+pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
+The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
+before login, sends the token on stdin, suppresses diagnostics and always removes
+only its own marked directory after stack cleanup. Local CI validates these exact
+credential slots and skips them without importing secrets; historical ECR/no-env
+plans remain supported. 360 focused helper/workflow/parser tests pass, including
+failed startup and rejection cases. Broader focused gate and two independent
+credential/parser reviews precede final stable-SHA CI. Existing human review-limit
+waiver covers this repair; prior13review receipts and7fix batches retained.
+No local Docker operation, migration, dependency or application/UI change in this
+batch. Another chat's bounded local verification hold remains active.
