@@ -28,8 +28,8 @@ source_version="$(docker exec "$source_container" psql -U postgres -d postgres -
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 291)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,291,'Material post date proof target must be exactly291'); validateLifecycleServicesReviewedMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 292)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,292,'Material post date proof target must be exactly292'); validateLifecycleServicesReviewedMigrations(migrations);"
 meta_image="$(resolve_material_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-material-post-date.XXXXXX)"
@@ -96,7 +96,7 @@ if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then
   tail -25 "$scratch/replay.log" >&2
   exit 1
 fi
-echo 'PASS replay001–291.'
+echo 'PASS replay001–292.'
 for proof in check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-teacher-authoring-images-database.sql; do
   if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
     tail -25 "$scratch/$proof.log" >&2
@@ -121,4 +121,4 @@ sed '/^\\restrict /d; /^\\unrestrict /d' "$scratch/schema.sql" > "$scratch/schem
 sed '/^\\restrict /d; /^\\unrestrict /d' "$scratch/schema-after.sql" > "$scratch/schema-after-normalized.sql"
 cmp -s "$scratch/schema-normalized.sql" "$scratch/schema-after-normalized.sql" || { echo 'Baseline must remain unchanged' >&2; exit 1; }
 cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts" || { echo 'Generated types differ from the replay schema' >&2; exit 1; }
-echo 'PASS isolated291 replay, rollback behavior, generated-type equality and unchanged shared schema.'
+echo 'PASS isolated292 replay, rollback behavior, generated-type equality and unchanged shared schema.'

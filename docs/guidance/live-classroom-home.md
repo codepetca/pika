@@ -111,6 +111,16 @@ upstream `DialogPanel` changes. The temporary app stopped and the shared env
 symlink was restored. These remain synthetic-input visuals plus isolated SQL
 evidence, not signed-in mixed-role activation evidence.
 
+The first ready-event CI run (`40004265801`) exposed two stale 291 pins in the
+attendance-membership and material-post-date verification harnesses. Their source
+admission and sealed replay targets now include exactly 292; unknown 293 and
+malformed profiles still fail closed. Both actual preflight commands have unit
+coverage. Fresh offline proofs (`native-attendance292-wrxE3Q` and
+`native-material292-EsxZkh`) passed full 001–292 replay, their existing behavioral
+and concurrency contracts, generated-type equality and shared-schema preservation.
+Canonical history remained 001–291 and owned containers were removed. This is a
+verification correction, not a shared migration application or rollout.
+
 Checklist reviewed: yes. Keyboard menu opening/Escape/focus return, checked edit
 semantics, role-labelled sections, joined-only actions and disabled controls have
 focused coverage. Full changed-base independent review, final CI and signed-in

@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Calendar category themes and Classwork icons
-
-Owner approved shared amber for due dates/tests, quiet light green for materials/surveys, and existing orange for announcements. Added semantic light/dark calendar tokens and reused them across agenda/grid/weekend/day chips. ClassworkTypeIcon keeps ClipboardList/FileText/ListChecks consistent in teacher creation menus, teacher/student lists and prototypes. Saved the convention in stable UI guidance and a scoped brief; Pattern Lab calendar-identity renders the real cell and shared icons. No new survey scheduling, statuses, dependencies or migrations.
-
-Coordinator owns codex/calendar-classwork-themes. Browser reference captures cover both roles, 1440/390px, light/dark, agenda/grid and chip activation; real teacher list/menu captures show all three item identities. Evidence is in this chat's visualization directory. Focused checks, contrast contracts and audit required before publication; independent review ledger and final SHA belong in the PR. Initial full check passed 1,339 tests; subsequent added audit coverage exposed a mocked Assignment card assertion, removed after confirming the real card in the browser. No product remediation was needed. Usage at start: 56% weekly remaining; implementation handled directly; independent review is one bounded fast-tier wave. Per-task tokens/cost unknown.
-
-Owner refinement in the same chat: soften announcements to a subtle peach-orange fill and restore Material to the first prototype's quiet slate theme; Survey stays light green. Updated the prototype, semantic tokens, Pattern Lab and saved canon. Icons and item behavior are unchanged. Fresh theme/role/viewport reference captures and contrast checks cover the revised palette; targeted independent review follows the new fixed SHA.
-
-Owner label refinement: Announcement, Material and Survey calendar chips now display titles without type prefixes; Due/Test keep theirs. Type icons, colors, scheduled markers and accessible type names remain. Updated the inline prototype, real material chips/day dialog, survey reference and saved standard. Verification uses the same role/theme/viewport matrix and focused tests.
-
-Owner density refinement: Month/Term Test and Material chips inherited full control height. The grid now uses consistent 24px rows for fine pointers, retaining standard minimum targets on coarse/unknown pointers. Week and day presentation stay unchanged. Shared cell sizing also drives the survey reference; browser geometry/focus/activation and Week comparison verify the scoped density convention.
-
-Owner identity refinement: announcement peach was still too similar to Test amber. Announcement chips now use soft blue and retain Megaphone icons in agenda, grid and weekend markers; Material/FileText and Survey/ListChecks remain visible. The inline prototype no longer hides these icons in grid view. Updated the saved standard; compact heights and title-only labels are preserved.
-
-Owner authorized merging PR1648 once checks pass. Rebased onto main's documentation-only tooltip audit; resolved only an archive-batch marker collision while preserving both session entries. Application/test/config trees are byte-identical to the previously reviewed3646f90ed source. Final focused checks, independent integration verification and exact-head PR Gate precede squash merge to main. Production promotion remains separate.
-
 ## 2026-10-21 — Fix calendar reference hydration before PR1648 merge
 
 Owner extended the review budget for one batched correction and one targeted
@@ -802,3 +786,18 @@ regressions reproduced the mismatch before the fix;79 focused checks then passed
 No SQL, UI, provider execution or shared database change. Native292/16-case UI
 evidence remains unchanged; final focused checks and targeted review429 required.
 All deployment/provider/account/cohort/cutover holds stay in place.
+
+## 2026-10-23 — Correct current-chain native verification pins
+
+Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
+material native harnesses;21,759 CPU checks passed, one preflight unit failed.
+Returned1666 to draft before one batched correction. RED5/31 reproduced boundary
+and actual-command failures;1519/3 then passed with both sealed preflights and
+future293/malformed rejection. Fresh offline attendance/material292 proofs passed
+full replay, rollback behavior, actual attendance contention, generated types and
+unchanged canonical001–291/schema; owned containers removed. Evidence retained
+privately. Two launcher failures used pnpm9 before clone setup, retained as failed
+evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
+accepted visual and home-native evidence reused. Final focused gate and targeted
+review430 precede new ready-event CI; editor release-order interlock remains.
+Production, providers, shared applications, account and activation holds remain.
