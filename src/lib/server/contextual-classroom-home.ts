@@ -98,10 +98,9 @@ function configuredHomeCohort(): string[] | null {
  * independent from the classroom-core pair pilot: home admission reveals every
  * current relationship for one identity, not a cross-product of configured IDs.
  */
-export async function authenticateContextualClassroomHome(): Promise<AuthenticatedUser> {
-  const user = await requireAuth()
+export function isContextualClassroomHomeAdmitted(user: Pick<AuthenticatedUser, 'id'>): boolean {
   if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED !== 'true') {
-    throw new ApiError(404, 'Not found')
+    return false
   }
 
   const cohort = configuredHomeCohort()
@@ -109,7 +108,12 @@ export async function authenticateContextualClassroomHome(): Promise<Authenticat
   if (cohort === null || !identity.success) {
     throw new ApiError(503, 'Classroom home access configuration is unavailable')
   }
-  if (!cohort.includes(identity.data)) throw new ApiError(404, 'Not found')
+  return cohort.includes(identity.data)
+}
+
+export async function authenticateContextualClassroomHome(): Promise<AuthenticatedUser> {
+  const user = await requireAuth()
+  if (!isContextualClassroomHomeAdmitted(user)) throw new ApiError(404, 'Not found')
   return user
 }
 

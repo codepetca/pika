@@ -2,6 +2,7 @@ import { createHash,randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it,vi } from 'vitest'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 import { testOwnerRecoveryNativePlan } from '../../scripts/contextual-test-owner-recovery-native-contracts'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerRecoveryFixture, recoveryUnsubmitPayload, validateTestOwnerRecoveryResult,
@@ -64,10 +65,14 @@ describe('inert recovery proof and exact selected-work projections', () => {
   })
 })
 
-describe('recovery current288 sealed source profile',()=>{
+describe('recovery current292 sealed source profile',()=>{
   const observed=Object.freeze([1,2].map(i=>Object.freeze({actorId:f.actors[i].id,attemptId:randomUUID(),revision:1})))
   const nativePlan=()=>testOwnerRecoveryNativePlan(original,observed,'a'.repeat(40),process.cwd())
-  it('retains the complete current291 tail',()=>{expect(nativePlan().migrations).toHaveLength(291)})
+  it('retains the complete current292 tail',()=>{
+    const migrations=nativePlan().migrations
+    expect(migrations).toHaveLength(292)
+    expect(migrations.at(-1)).toEqual(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
+  })
   it.each(['name','digest','bytes','self-hashed-bytes','unknown289'])('refuses changed268 or future tail %s',defect=>{
     const migrations=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m})),tail=migrations[267]
     if(defect==='name')tail.name='268_unknown.sql'

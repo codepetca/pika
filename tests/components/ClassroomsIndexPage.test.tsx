@@ -6,6 +6,7 @@ import type { ReactElement } from 'react'
 
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), teacher: vi.fn(), from: vi.fn(), redirect: vi.fn(), display: vi.fn(),
+  homeAdmission: vi.fn(), experienceAdmission: vi.fn(), home: vi.fn(), visibility: vi.fn(), creation: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mocks.user }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from }) }))
@@ -19,6 +20,10 @@ vi.mock('@/components/AppShell', () => ({ AppShell: () => null }))
 vi.mock('@/app/classrooms/TeacherClassroomsIndex', () => ({ TeacherClassroomsIndex: () => null }))
 vi.mock('@/app/classrooms/StudentClassroomsIndex', () => ({ StudentClassroomsIndex: () => null }))
 vi.mock('@/lib/server/classrooms', () => ({ hydrateClassroomRecords: (data: unknown) => data, classroomStudentRecord: (data: unknown) => data }))
+vi.mock('@/lib/server/contextual-classroom-home', () => ({ isContextualClassroomHomeAdmitted: mocks.homeAdmission, loadContextualClassroomHome: mocks.home }))
+vi.mock('@/lib/server/classroom-experience-admission', () => ({ resolveClassroomExperienceAdmission: mocks.experienceAdmission }))
+vi.mock('@/lib/server/classroom-home-visibility', () => ({ readClassroomHomeVisibility: mocks.visibility }))
+vi.mock('@/lib/server/classroom-home-creation', () => ({ loadClassroomHomeCreationAccess: mocks.creation }))
 
 const failure = { data: null, error: { message: 'PRIVATE DATABASE DETAIL' } }
 const success = (data: unknown[]) => ({ data, error: null })
@@ -40,6 +45,8 @@ describe('classroom index required server reads', () => {
     mocks.user.mockResolvedValue({ id: 'owner-id', role: 'student', email: 'owner@example.test' })
     mocks.display.mockResolvedValue({})
     mocks.redirect.mockImplementation(() => { throw new Error('REDIRECT') })
+    mocks.homeAdmission.mockReturnValue(false)
+    mocks.experienceAdmission.mockReturnValue({ status: 'not-admitted' })
   })
 
   it('passes a generic failure status for a failed teacher list', async () => {
@@ -100,5 +107,36 @@ describe('classroom index required server reads', () => {
     expect(mocks.redirect).toHaveBeenCalledWith('/login')
     expect(mocks.from).not.toHaveBeenCalled()
     expect(mocks.teacher).not.toHaveBeenCalled()
+  })
+
+  it.each(['teacher', 'student'])('renders the same live home for admitted %s accounts without changing session identity', async (role) => {
+    mocks.user.mockResolvedValue({ id: 'actor', role })
+    mocks.homeAdmission.mockReturnValue(true)
+    mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
+    mocks.teacher.mockResolvedValue(success([{ id: 'owned' }]))
+    mocks.home.mockResolvedValue({ owned: [], joined: [
+      { id: 'visible', enrollment_id: 'membership-a' }, { id: 'hidden', enrollment_id: 'membership-b' },
+    ] })
+    mocks.visibility.mockResolvedValue({ actor_id: 'actor', hidden_enrollment_ids: ['membership-b'] })
+    mocks.creation.mockResolvedValue({ canCreate: true })
+    const shell = await ClassroomsIndexPage() as ReactElement<{ user: { id: string; role: string }; children: ReactElement }>
+    expect(shell.props.user).toMatchObject({ id: 'actor', role })
+    expect(shell.props.children.type).toBe(TeacherClassroomsIndex)
+    expect(shell.props.children.props).toMatchObject({
+      initialClassrooms: [{ id: 'owned' }],
+      contextualHome: { joined: [{ id: 'visible', enrollment_id: 'membership-a' }], hidden: [{ id: 'hidden', enrollment_id: 'membership-b' }], canCreate: true, canImportBlueprint: role === 'teacher' },
+    })
+    expect(mocks.teacher).toHaveBeenCalledWith(expect.anything(), 'actor')
+  })
+
+  it('does not fall back to a role-based list when live persistence is unavailable', async () => {
+    mocks.homeAdmission.mockReturnValue(true)
+    mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
+    mocks.teacher.mockResolvedValue(success([]))
+    mocks.home.mockResolvedValue({ owned: [], joined: [] })
+    mocks.creation.mockResolvedValue({ canCreate: false })
+    mocks.visibility.mockRejectedValue(new Error('PRIVATE DETAIL'))
+    expect(await indexProps()).toMatchObject({ initialClassrooms: [], initialReadError: true, contextualHome: { joined: [], hidden: [], canCreate: false } })
+    expect(mocks.from).not.toHaveBeenCalled()
   })
 })

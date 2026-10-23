@@ -7,6 +7,7 @@ import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-conte
 import { buildTestLearnerNativeContractsManifest, createTestLearnerNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
 import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 
 const offline = createOfflineTestLearnerRepository(process.cwd())
 const projectionOffline = createOfflineTestLearnerRepository(process.cwd(), 258)
@@ -25,13 +26,14 @@ const targetFor = (manifest: ReturnType<typeof plan>, phase: 'contracts'|'concur
 })
 
 describe('closed learner native profile source', () => {
-  it('accepts exact projection258 and full288 profiles with unchanged predecessor seals', () => {
+  it('accepts exact projection258 and full291 profiles with unchanged predecessor seals', () => {
     const projection = testLearnerNativePlan(original, observed, 'b'.repeat(40), projectionOffline.repository)
     expect(projection.migrations).toHaveLength(258)
     expect(projection.migrations[257]).toEqual({ name: '258_student_test_session_status_projection.sql',
       sha256: '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f' })
     const current = testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())
-    expect(current.migrations).toHaveLength(291)
+    expect(current.migrations).toHaveLength(292)
+    expect(current.migrations.at(-1)).toEqual(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(current.migrations[257]).toEqual(projection.migrations[257])
     expect(current.migrations[258]).toEqual({ name: '259_contextual_test_owner_grading.sql',
       sha256: '698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540' })

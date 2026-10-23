@@ -27,6 +27,7 @@ import {
   CopyPlus,
   DatabaseBackup,
   GripVertical,
+  LogIn,
   MoreVertical,
   Plus,
   RotateCw,
@@ -59,10 +60,14 @@ import { formatClassroomDateRange } from '@/lib/classroom-date-range'
 import { getClassroomThemeDefinition, getClassroomThemeStyle } from '@/lib/classroom-theme'
 import { classroomArchiveOperationId } from '@/lib/classroom-archive-operation-id'
 import { APP_HOME_SELECTED_EVENT } from '@/lib/events'
+import type { ClassroomHomePresentation } from '@/lib/contracts/classroom-home'
+import { setJoinedClassroomHidden } from '@/lib/classroom-home-client'
+import { JoinedHomeClassrooms } from './JoinedHomeClassrooms'
 
 interface Props {
   initialClassrooms: Classroom[]
   initialReadError?: boolean
+  contextualHome?: ClassroomHomePresentation
 }
 
 type ViewMode = 'active' | 'archived'
@@ -115,7 +120,7 @@ function isResumableHotArchiveOperation(
     || Date.parse(operation.retention.delete_after) > Date.now()
 }
 
-export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = false }: Props) {
+export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = false, contextualHome }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const lastPathRef = useRef(pathname)
@@ -156,6 +161,10 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
   const [draggingClassroomId, setDraggingClassroomId] = useState<string | null>(null)
   const [openingClassroomId, setOpeningClassroomId] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [joinedHome, setJoinedHome] = useState(contextualHome)
+  const [isSavingVisibility, setIsSavingVisibility] = useState(false)
+  const [visibilityMessage, setVisibilityMessage] = useState('')
+  const canCreate = contextualHome?.canCreate ?? true
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -286,6 +295,27 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
     setHasSuccessfulRead(true)
   }, [initialClassrooms, initialReadError])
 
+  useEffect(() => { setJoinedHome(contextualHome) }, [contextualHome])
+
+  async function changeJoinedVisibility(row: ClassroomHomePresentation['joined'][number], hidden: boolean) {
+    if (!row.enrollment_id || isSavingVisibility) return
+    setIsSavingVisibility(true)
+    setError('')
+    try {
+      await setJoinedClassroomHidden(row.id, row.enrollment_id, hidden)
+      setJoinedHome(current => current ? {
+        ...current,
+        joined: hidden ? current.joined.filter(item => item.enrollment_id !== row.enrollment_id) : [...current.joined, row],
+        hidden: hidden ? [...current.hidden, row] : current.hidden.filter(item => item.enrollment_id !== row.enrollment_id),
+      } : current)
+      setVisibilityMessage(`${row.title} ${hidden ? 'hidden' : 'unhidden'}. You’re still a member.`)
+      window.requestAnimationFrame(() => listHeadingRef.current?.focus())
+      router.refresh()
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to save classroom visibility. Try again.')
+    } finally { setIsSavingVisibility(false) }
+  }
+
 
   useEffect(() => {
     if (pathname === '/classrooms' && lastPathRef.current !== '/classrooms') {
@@ -352,6 +382,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
       invalidateTeacherClassrooms()
       setActiveClassrooms((prev) => prev.filter((c) => c.id !== classroom.id))
       setArchivedClassrooms((prev) => [updated, ...prev.filter((c) => c.id !== classroom.id)])
+      if (contextualHome) router.refresh()
     } catch (err: any) {
       setError(err.message || 'Failed to archive classroom')
     } finally {
@@ -377,6 +408,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
       invalidateTeacherClassrooms()
       setArchivedClassrooms((prev) => prev.filter((c) => c.id !== classroom.id))
       setActiveClassrooms((prev) => [updated, ...prev.filter((c) => c.id !== classroom.id)])
+      if (contextualHome) router.refresh()
     } catch (err: any) {
       setError(err.message || 'Failed to restore classroom')
     } finally {
@@ -614,12 +646,13 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
     : 'Confirm'
 
   const classroomActions: TeacherWorkSurfaceActionItem[] = [
-    {
+    ...(canCreate ? [{
       id: 'create',
       label: 'New Classroom',
       icon: <Plus className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => setShowCreate(true),
-    },
+    }] : []),
+    ...(contextualHome ? [{ id: 'join', label: 'Join classroom', icon: <LogIn className="h-4 w-4" aria-hidden="true" />, onSelect: () => router.push('/join?mode=code') }] : []),
     {
       id: 'edit',
       label: 'Edit classrooms',
@@ -724,12 +757,13 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
               action={<IconButton icon={RotateCw} label="Try loading archived classrooms again" variant="secondary" onClick={() => void loadArchived()} />}
             />
           ) : view === 'active' && initialReadError && visibleClassrooms.length === 0 ? null
-          : (view === 'active' ? visibleClassrooms.length === 0 : !hasArchivedItems) ? (
+          : (view === 'active' ? visibleClassrooms.length === 0 && !joinedHome?.joined.length : !hasArchivedItems) ? (
             view === 'active' ? (
               /* Empty active: center the CTA on screen */
               <div className="flex flex-col items-center justify-center" style={{ minHeight: 'calc(100dvh - 12rem)' }}>
-                <p className="text-sm text-text-muted">Create your first classroom</p>
-                <IconButton
+                <p className="text-sm text-text-muted">{contextualHome ? 'No active classrooms' : 'Create your first classroom'}</p>
+                {contextualHome && <Button className="mt-4" onClick={() => router.push('/join?mode=code')}>Join classroom</Button>}
+                {canCreate && <IconButton
                   type="button"
                   variant="primary"
                   size="sm"
@@ -737,7 +771,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
                   onClick={() => setShowCreate(true)}
                   icon={Plus}
                   label="Create classroom"
-                />
+                />}
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -750,6 +784,8 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
           ) : (
             <div className="flex flex-col gap-2">
               {view === 'active' ? (
+                <section aria-label={contextualHome ? 'Teaching classrooms' : undefined} className="flex flex-col gap-2">
+                {contextualHome && activeClassrooms.length > 0 && <h2 className="mb-2 text-xs font-medium text-text-muted">Teaching</h2>}
                 <DndContext
                   sensors={sensors}
                   collisionDetection={closestCenter}
@@ -780,6 +816,7 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
                     ) : null}
                   </DragOverlay>
                 </DndContext>
+                </section>
               ) : (
                 <>
                   {!hotArchiveRecoveryStatusAvailable ? (
@@ -955,11 +992,18 @@ export function TeacherClassroomsIndex({ initialClassrooms, initialReadError = f
             </div>
           )}
 
+          {joinedHome && <JoinedHomeClassrooms rows={view === 'active' ? joinedHome.joined : joinedHome.hidden}
+            hidden={view === 'archived'} editing={isEditingClassrooms}
+            busy={isSavingVisibility || openingClassroomId !== null}
+            onOpen={id => { setOpeningClassroomId(id); router.push(`/classrooms/${id}`) }}
+            onVisibility={(row, hidden) => void changeJoinedVisibility(row, hidden)} />}
+          {visibilityMessage && <p role="status" className="mt-3 text-xs text-text-muted">{visibilityMessage}</p>}
         </PageContent>
 
       </div>
 
       <CreateClassroomModal
+        canImportBlueprint={contextualHome?.canImportBlueprint ?? true}
         isOpen={showCreate}
         initialBlueprintId={reuseBlueprintId}
         onClose={() => {

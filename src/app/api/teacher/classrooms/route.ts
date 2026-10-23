@@ -14,6 +14,7 @@ import {
 } from '@/lib/server/classroom-purge-availability'
 import { getLeastUsedClassroomThemeColor } from '@/lib/classroom-theme'
 import { observeClassroomCreationShadow } from '@/lib/server/classroom-access-shadow'
+import { assertManagedClassroomHomeCreationAccess, authorizeClassroomHomeActor } from '@/lib/server/classroom-home-creation'
 import {
   createClassroomAtomic,
   mapClassroomCreationDatabaseError,
@@ -35,7 +36,9 @@ function generateClassCode(): string {
 
 // GET /api/teacher/classrooms - List teacher's classrooms
 export const GET = withErrorHandler('GetTeacherClassrooms', async (request: NextRequest) => {
-  if (new URL(request.url).searchParams.get('archived') === 'true') {
+  const { searchParams } = new URL(request.url)
+  const archivedParam = searchParams.get('archived')
+  if (archivedParam === 'true') {
     const actor = await authorizeSharedClassroomArchiveActor()
     if (actor.mode === 'shared') {
       return NextResponse.json(await listContextualClassroomArchiveRecovery({
@@ -43,10 +46,10 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       }))
     }
   }
-  const user = await requireRole('teacher')
+  const user = archivedParam === 'true'
+    ? await requireRole('teacher')
+    : (await authorizeClassroomHomeActor()).user
   const supabase = getServiceRoleClient()
-  const { searchParams } = new URL(request.url)
-  const archivedParam = searchParams.get('archived')
 
   if (archivedParam === 'true') {
     const archived = await listTeacherArchivedClassrooms({ supabase, teacherId: user.id })
@@ -104,11 +107,12 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
 
 // POST /api/teacher/classrooms - Create classroom
 export const POST = withErrorHandler('CreateClassroom', async (request: NextRequest) => {
-  const user = await requireRole('teacher')
+  const { user, contextual } = await authorizeClassroomHomeActor()
   observeClassroomCreationShadow(user)
   const { title, classCode, termLabel, themeColor } = createClassroomSchema.parse(await request.json())
 
   const supabase = getServiceRoleClient()
+  if (contextual) await assertManagedClassroomHomeCreationAccess(user.id, supabase)
 
   const finalClassCode = classCode || generateClassCode()
   const activeClassroomsResult = themeColor ? null : await listActiveTeacherClassrooms(supabase, user.id)

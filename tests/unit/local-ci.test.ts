@@ -6,7 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutMembershipAdoptionProof = (source: string) => source.replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutHomeVisibilityProof = (source: string) => source.replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutMembershipAdoptionProof = (source: string) => withoutHomeVisibilityProof(source).replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutDataApiProof = (source: string) => withoutMembershipAdoptionProof(source).replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
 const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutGuidancePreviewProof = (source: string) => withoutGuidanceAdoptionProof(source).replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
@@ -79,7 +80,7 @@ describe('explicit Data API grant proof inventory', () => {
 
 describe('attendance membership proof inventory', () => {
   it('adds only the complete isolated proof while retaining the exact historical inventory', () => {
-    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const current = selectPlan(extractWorkflow(withoutHomeVisibilityProof(workflow())), 'database')[0]
     const historical = selectPlan(extractWorkflow(withoutMembershipAdoptionProof(workflow())), 'database')[0]
     const command = 'bash scripts/check-attendance-membership-adoption-database.sh'
     expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
@@ -92,6 +93,25 @@ describe('attendance membership proof inventory', () => {
       : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
       : defect === 'renamed' ? block.replace('allocation and retained delivery', 'renamed proof')
       : block.replace('adoption-database.sh', 'adoption-database.sh --skip')
+    expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
+
+describe('personal joined-home visibility proof inventory', () => {
+  it('adds the isolated visibility proof while preserving the historical inventory', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const historical = selectPlan(extractWorkflow(withoutHomeVisibilityProof(workflow())), 'database')[0]
+    const command = 'bash scripts/check-classroom-home-visibility-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(historical.steps)
+  })
+  it.each(['changed-command', 'conditional', 'duplicate', 'renamed'])('rejects %s visibility proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : defect === 'renamed' ? block.replace('visibility and concurrency', 'renamed proof')
+      : block.replace('visibility-database.sh', 'visibility-database.sh --skip')
     expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
   })
 })

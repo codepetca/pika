@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
+import { ClassroomRowFrame, ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import { createMockClassroom } from '../helpers/mocks'
 
 vi.mock('@dnd-kit/sortable', () => ({
@@ -23,6 +23,15 @@ vi.mock('@dnd-kit/utilities', () => ({
 }))
 
 describe('SortableClassroomRow', () => {
+  it('reuses the row frame for joined presentation without inventing owner controls', () => {
+    const onOpen = vi.fn()
+    const { rerender } = render(<ClassroomRowFrame classroom={{ title: 'Joined science', term_label: null, start_date: null, end_date: null }} dragHandle={null} action={<button type="button">Hide Joined science</button>} onOpen={onOpen} />)
+    fireEvent.click(screen.getByRole('button', { name: /^Joined science Semester dates/ }))
+    expect(onOpen).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('button', { name: /Archive|Drag to reorder/ })).not.toBeInTheDocument()
+    rerender(<ClassroomRowFrame classroom={{ title: 'Joined science', term_label: null, start_date: null, end_date: null }} dragHandle={null} action={null} onOpen={onOpen} isDisabled />)
+    expect(screen.getByRole('button', { name: /^Joined science Semester dates/ })).toBeDisabled()
+  })
   it('uses gradient-only classroom theming on sortable rows', () => {
     const classroom = createMockClassroom({ id: 'c1', title: 'Math 101', theme_color: 'teal' })
 

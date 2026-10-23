@@ -173,6 +173,7 @@ const databaseProofInventories = {
     [61, 'aa87e79d84589a8e1b5ded37393558652f95d9fdec3c59a1dfeab12e82db5e45'],
     [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
     [63, 'af0b5bfaf89b750d29ef409d9b1c4a053bdbf231dd514ab8627bf53d1b25f54c'],
+    [64, 'd8e8fdbd037f7cb20440875c07f655e40e92a47da68ad1c137b8d9dae7eb88af'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -205,6 +206,15 @@ function validateDatabaseInventory(jobs) {
     throw new Error('Canonical attendance membership proof is duplicated or changed.')
   }
   const secondary = jobs[jobsByLane['database-lifecycle']]
+  const homeVisibilityName = 'Verify personal joined classroom home visibility and concurrency'
+  const homeVisibilityCommand = 'bash scripts/check-classroom-home-visibility-database.sh'
+  const homeVisibilitySteps = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === homeVisibilityName || step.run?.includes(homeVisibilityCommand)).map(step => ({ job, step })))
+  if (homeVisibilitySteps.length && (homeVisibilitySteps.length !== 1 || homeVisibilitySteps.some(({ job, step }) =>
+    job !== primary || step.if || step.name !== homeVisibilityName || step.run !== homeVisibilityCommand
+    || !databaseProofs(primary).includes(step)))) {
+    throw new Error('Canonical personal home visibility proof is duplicated or changed.')
+  }
   if (secondary) {
     for (const lane of ['database', 'database-lifecycle']) {
       const job = jobs[jobsByLane[lane]], proofs = databaseProofs(job)

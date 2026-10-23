@@ -18,6 +18,7 @@ import { isPalEnabled, isClassroomPalRequested } from '@/lib/server/pal-config'
 import { buildClassroomJoinedEvent } from '@/lib/server/pal-events'
 import {
   attemptImmediatePalEventDelivery,
+  attemptMembershipPalActionDelivery,
   type PalImmediateDeliveryStatus,
 } from '@/lib/server/pal-outbox'
 import {
@@ -334,6 +335,7 @@ async function joinClassroomByCode(
   user: AuthenticatedUser,
   classCode: string,
   profile: { firstName: string | null; lastName: string | null; studentNumber: string | null },
+  options: { membershipOnly?: boolean } = {},
 ) {
   const supabase = getServiceRoleClient()
   const normalizedCode = normalizeClassroomJoinCode(classCode)
@@ -387,13 +389,21 @@ async function joinClassroomByCode(
     firstName: profile.firstName,
     lastName: profile.lastName,
     studentNumber: profile.studentNumber,
+    membershipOnly: options.membershipOnly,
     occurredAt,
     supabase,
   })
   if (!result.ok) return contextualRpcFailure(result)
 
   let palDelivery: PalImmediateDeliveryStatus | undefined
-  if (result.created && isPalEnabled()) {
+  if (result.created && options.membershipOnly) {
+    // The enrollment transaction's triggers own the generation-scoped fact.
+    // This dispatcher remains disabled by its existing membership gates.
+    palDelivery = await attemptMembershipPalActionDelivery({
+      membership: { studentId: user.id, classroomId: result.classroom.id },
+      supabase,
+    })
+  } else if (result.created && isPalEnabled()) {
     palDelivery = await attemptImmediatePalEventDelivery({
       membership: { studentId: user.id, classroomId: result.classroom.id },
       event: isClassroomPalRequested() ? null : buildClassroomJoinedEvent({
@@ -539,6 +549,18 @@ async function joinClassroomLegacy(user: AuthenticatedUser, body: ClassroomJoinR
 export const POST = withErrorHandler('PostStudentJoinClassroom', async (request: NextRequest) => {
   const authenticated = await authenticateClassroomEnrollmentRequest()
   const body = classroomJoinRequestSchema.parse(await request.json())
+
+  if (authenticated.mode === 'home_code') {
+    const classCode = body.classCode
+    if (typeof classCode !== 'string' || !classCode.trim() || body.classroomId) {
+      return NextResponse.json({ error: 'A class code is required to join this classroom.', code: 'code_required' }, { status: 400 })
+    }
+    return joinClassroomByCode(authenticated.user, classCode, {
+      firstName: cleanOptionalString(body.firstName),
+      lastName: cleanOptionalString(body.lastName),
+      studentNumber: cleanOptionalString(body.studentNumber),
+    }, { membershipOnly: true })
+  }
 
   if (!body.classCode && !body.classroomId) {
     return NextResponse.json(

@@ -25,6 +25,7 @@ export default function JoinClassroomPage() {
   const searchParams = useSearchParams()
   const code = String(params.code || '')
   const profileRequiredHint = searchParams.get('profile') === 'required'
+  const codeOnly = searchParams.get('mode') === 'code'
   const [view, setView] = useState<JoinView>({ kind: 'loading' })
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
@@ -45,7 +46,7 @@ export default function JoinClassroomPage() {
       setView({ kind: 'loading' })
     }
     try {
-      const isLegacyClassroomId =
+      const isLegacyClassroomId = !codeOnly &&
         /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(code.trim())
       const response = await fetch('/api/student/classrooms/join', {
         method: 'POST',
@@ -55,7 +56,11 @@ export default function JoinClassroomPage() {
           : { classCode: code, ...(profile || {}) }),
       })
       if (response.status === 401) {
-        const returnPath = `/join/${encodeURIComponent(code)}${profileRequiredHint ? '?profile=required' : ''}`
+        const returnQuery = new URLSearchParams()
+        if (codeOnly) returnQuery.set('mode', 'code')
+        if (profileRequiredHint) returnQuery.set('profile', 'required')
+        const query = returnQuery.toString()
+        const returnPath = `/join/${encodeURIComponent(code)}${query ? `?${query}` : ''}`
         push(`/login?next=${encodeURIComponent(returnPath)}`)
         return
       }
@@ -124,7 +129,7 @@ export default function JoinClassroomPage() {
     } finally {
       if (profile) setProfileSubmitting(false)
     }
-  }, [code, profileRequiredHint, push])
+  }, [code, codeOnly, profileRequiredHint, push])
 
   useEffect(() => {
     if (profileRequiredHint) {

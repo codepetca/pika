@@ -20,7 +20,7 @@ interface SortableClassroomRowProps {
 }
 
 interface ClassroomRowFrameProps {
-  classroom: Classroom
+  classroom: Pick<Classroom, 'title' | 'term_label' | 'start_date' | 'end_date'>
   dragHandle: ReactNode
   action: ReactNode
   onOpen?: () => void
@@ -29,7 +29,7 @@ interface ClassroomRowFrameProps {
   className?: string
 }
 
-function ClassroomRowFrame({
+export function ClassroomRowFrame({
   classroom,
   dragHandle,
   action,

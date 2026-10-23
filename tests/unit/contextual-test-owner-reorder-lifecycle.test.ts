@@ -10,6 +10,7 @@ import { newTestOwnerReorderFixture, TEST_OWNER_REORDER_SNAPSHOT_TABLES, testOwn
 import { assignmentListExpectedResources, assignmentListRestorationPolicy, loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 import {
   parseTestOwnerReorderLifecycleArgs, testOwnerReorderForcedReceipt, validateTestOwnerReorderGeneratedTypes,
   testOwnerReorderUnionManifest, testOwnerReorderMatrixCompletion, validateTestOwnerReorderSnapshotCatalog,
@@ -79,8 +80,9 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current291 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(291)
+  it('binds the complete current292 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(292)
+    expect(current.at(-1)).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))

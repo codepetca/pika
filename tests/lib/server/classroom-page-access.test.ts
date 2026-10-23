@@ -91,6 +91,37 @@ describe('contextual classroom page pilot', () => {
     expect(supabase.from).not.toHaveBeenCalled()
   })
 
+  it.each(['teacher', 'student'] as const)('opens newly created owned classrooms for a live-home %s without preconfiguring its ID', async (role) => {
+    vi.stubEnv('PIKA_CLASSROOM_PAGE_ACCESS_ENABLED', 'false')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', JSON.stringify([ownerId]))
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [ownerId] }))
+    const { supabase } = database()
+    await expect(resolveClassroomPagePilotAccess(authenticatedUser(ownerId, role), classroomId, { supabase: supabase as never }))
+      .resolves.toMatchObject({ mode: 'contextual', context: { relationship: 'owner' } })
+  })
+
+  it('does not admit a home-only user into contextual pages', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_PAGE_ACCESS_ENABLED', 'false')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', JSON.stringify([ownerId]))
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [] }))
+    const { supabase } = database()
+    await expect(resolveClassroomPagePilotAccess(authenticatedUser(), classroomId, { supabase: supabase as never }))
+      .resolves.toEqual({ mode: 'legacy' })
+    expect(supabase.from).not.toHaveBeenCalled()
+  })
+
+  it('does not grant a live-home actor access to an unrelated classroom', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_PAGE_ACCESS_ENABLED', 'false')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', JSON.stringify([memberId]))
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [memberId] }))
+    const { supabase } = database()
+    await expect(resolveClassroomPagePilotAccess(authenticatedUser(memberId), classroomId, { supabase: supabase as never }))
+      .rejects.toMatchObject({ statusCode: 403 })
+  })
+
   it('resolves a student-valued owner without rewriting the session role', async () => {
     const { supabase, enrollments } = database()
 

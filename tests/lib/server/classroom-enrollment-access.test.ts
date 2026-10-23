@@ -121,3 +121,47 @@ describe('dormant contextual enrollment access', () => {
     expect(selectAuthenticatedClassroomEnrollmentMode(authenticated, classroomId).mode).toBe('legacy')
   })
 })
+
+describe('exact home classroom code admission', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', JSON.stringify([userId]))
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [userId] }))
+    vi.stubEnv('PIKA_CLASSROOM_ENROLLMENT_ACCESS_ENABLED', 'false')
+    vi.mocked(requireAuth).mockResolvedValue(user())
+    vi.mocked(requireRole).mockRejectedValue(Object.assign(new Error('student role required'), { name: 'AuthorizationError' }))
+  })
+  afterEach(() => { vi.unstubAllEnvs(); vi.restoreAllMocks() })
+
+  it.each(['teacher', 'student'])('admits a home and shared %s for code verification without role rewriting', async role => {
+    vi.mocked(requireAuth).mockResolvedValue(user(userId, role))
+    const authenticated = await authenticateClassroomEnrollmentRequest()
+    expect(authenticated).toEqual({ mode: 'home_code', user: user(userId, role) })
+    expect(Object.isFrozen(authenticated)).toBe(true)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(() => selectAuthenticatedClassroomEnrollmentMode(authenticated, classroomId)).toThrow()
+  })
+
+  it.each(['home', 'shared'])('retains the legacy rejection when %s admission misses', async gate => {
+    if (gate === 'home') vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', '[]')
+    else vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [] }))
+    await expect(authenticateClassroomEnrollmentRequest()).rejects.toMatchObject({ name: 'AuthorizationError' })
+    expect(requireRole).toHaveBeenCalledWith('student')
+  })
+
+  it('retains existing exact pair scope for an unmatched home actor', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', '[]')
+    vi.stubEnv('PIKA_CLASSROOM_ENROLLMENT_ACCESS_ENABLED', 'true')
+    vi.stubEnv('PIKA_CLASSROOM_ENROLLMENT_ACCESS_PAIRS', JSON.stringify([{ userId, classroomId }]))
+    const authenticated = await authenticateClassroomEnrollmentRequest()
+    expect(authenticated).toMatchObject({ mode: 'contextual_lookup', allowedClassroomIds: [classroomId] })
+    expect(() => selectAuthenticatedClassroomEnrollmentMode(authenticated, otherClassroomId)).toThrow()
+  })
+
+  it('fails closed for configured malformed shared admission before consulting legacy authority', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')
+    await expect(authenticateClassroomEnrollmentRequest()).rejects.toMatchObject({ statusCode: 503 })
+    expect(requireRole).not.toHaveBeenCalled()
+  })
+})

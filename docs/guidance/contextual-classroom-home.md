@@ -1,9 +1,11 @@
 # Contextual classroom home backend
 
-This is the dormant backend half of phase 2 home/navigation batch B in the
-[classroom access roadmap](classroom-access-and-entitlements-roadmap.md). It does
-not change the live `/classrooms` page, global role routing, signup, joining,
-creation policy, plans or billing. No migration is required.
+This records the original dormant home reader in the
+[classroom access roadmap](classroom-access-and-entitlements-roadmap.md).
+The [live-home integration](live-classroom-home.md) now prepares its SSR consumer,
+personal visibility persistence and capability-based entry. Those changes remain
+dormant; they do not activate production, change plans or rewrite account roles.
+The original summary reader requires no new migration; visibility persistence does.
 
 ## Contract
 
@@ -30,7 +32,9 @@ global-role authority.
 
 ## Rollout gate
 
-The endpoint is unavailable by default and has no live UI consumer:
+The endpoint is unavailable by default. The prepared `/classrooms` SSR consumer
+uses the same reader only when both this home cohort and complete-experience
+admission select the authenticated account:
 
 - `PIKA_CLASSROOM_HOME_ACCESS_ENABLED=true` enables cohort evaluation. Every
   other value returns 404 after authentication.
@@ -45,7 +49,7 @@ This user-scoped gate is deliberately separate from
 relationships for one identity, whereas the core API pilot admits exact
 user/classroom pairs. Enabling one does not enable the other.
 
-## Verification and next boundary
+## Verification and activation boundary
 
 API coverage proves authentication-before-gating, exact enabled values, strict
 cohort parsing, mixed legacy-role values, owner precedence, active membership,
@@ -53,13 +57,26 @@ subject-bound queries, sanitized responses, deduplication and fail-closed source
 or evidence errors. A local service-client canary must return only aggregate
 owned/joined counts; do not print account or classroom identifiers.
 
-The independently gated contextual classroom-page routing foundation now selects
+The contextual classroom-page routing foundation selects
 the existing owner/member experience without rewriting the session role. Do not point
 the live home at this endpoint until every downstream surface reachable from those
 experiences is compatible. The eventual home UI must use the approved Pattern Lab
 Teaching / Joined reference, remain off by default, and complete Pika's teacher/student
 desktop/mobile light/dark verification. Production cohort enablement requires a separate
 permission-widening decision, canaries, stop thresholds and compatible rollback floor.
+
+For the new complete live-home cohort, the home gate plus complete-experience
+admission also selects trusted relationship resolution on classroom pages. It
+does not require prelisting a newly created classroom ID. Home admission alone
+does not change page access. The older exact-pair page pilot remains available
+independently for accounts outside that complete cohort. Personal visibility
+writes require the same two admissions and reprove exact current membership in SQL.
+
+### Historical incremental reader preparation
+
+The following paragraphs describe the original domain-by-domain preparation,
+not the current integration exit. Consult the roadmap and live-home report for
+current evidence; none of these historical entries authorizes activation.
 
 Contextual owner/member announcement list reads are now available behind another
 independent dormant gate, but announcement mutations/read receipts and the other

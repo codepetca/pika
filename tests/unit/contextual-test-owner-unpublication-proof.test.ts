@@ -11,6 +11,7 @@ import { buildTestOwnerUnpublicationNativeContractsManifest } from '../../script
 import type { DraftSaveDriver,DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { validateTestDraftContent } from '../../src/lib/validations/assessment-drafts'
 import { TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION, validateTestOwnerUnpublicationReviewedMigration } from '../../scripts/test-owner-unpublication-reviewed-migration'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 
 vi.mock('node:fs',async importOriginal=>{
   const actual=await importOriginal<typeof import('node:fs')>()
@@ -99,7 +100,8 @@ describe('inert unpublication source proof', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')
     expect(() => validateTestOwnerUnpublicationReviewedMigration({ name, sql, sha256: createHash('sha256').update(sql).digest('hex') })).not.toThrow()
     const m = testOwnerUnpublicationNativePlan(original, 'b'.repeat(40), process.cwd())
-    expect(m.migrations).toHaveLength(291)
+    expect(m.migrations).toHaveLength(292)
+    expect(m.migrations.at(-1)).toEqual(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.nativeVerified).toBe(false)
     for (const sql of [m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
       expect(validateTestOwnerUnpublicationNativePlanSql(m,sql)).toBe(true)

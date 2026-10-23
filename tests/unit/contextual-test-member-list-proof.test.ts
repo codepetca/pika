@@ -16,6 +16,7 @@ import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quo
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
 import type { Database } from '../../src/types/database'
 import { readContextualStudentTestList } from '../../src/lib/server/contextual-student-test-list-read'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 
 function fixture() {
   const original = newAssignmentListProofFixture(new Date('2026-10-08T12:00:00Z'))
@@ -176,8 +177,9 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 284))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()
   })
-  it('reproduces the former exact257 rejection of the complete current291 chain', () => {
-    expect(current).toHaveLength(291)
+  it('reproduces the former exact257 rejection of the complete current292 chain', () => {
+    expect(current).toHaveLength(292)
+    expect(current.at(-1)).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })

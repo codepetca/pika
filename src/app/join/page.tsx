@@ -1,18 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, FormField, Input } from '@/ui'
 
 export default function JoinPage() {
+  return <Suspense><JoinCodeForm /></Suspense>
+}
+
+function JoinCodeForm() {
   const router = useRouter()
+  const codeOnly = useSearchParams().get('mode') === 'code'
   const [code, setCode] = useState('')
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
     const trimmed = code.trim()
     if (!trimmed) return
-    router.push(`/join/${encodeURIComponent(trimmed)}`)
+    router.push(`/join/${encodeURIComponent(trimmed)}${codeOnly ? '?mode=code' : ''}`)
   }
 
   return (
