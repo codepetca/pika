@@ -518,10 +518,11 @@ export function TestDocumentsEditor({
       <DialogPanel
         isOpen={activeModal === 'add'}
         onClose={closeAddModal}
+        closeDisabled={uploading || saving}
         maxWidth={activeAddTab === 'text' ? 'max-w-xl' : 'max-w-lg'}
         ariaLabelledBy="add-test-document-title"
       >
-        <h4 id="add-test-document-title" className="text-base font-semibold text-text-default">
+        <h4 id="add-test-document-title" className="pr-14 text-base font-semibold text-text-default">
           Add Document
         </h4>
         <div className="mt-4">
@@ -672,10 +673,11 @@ export function TestDocumentsEditor({
       <DialogPanel
         isOpen={activeModal === 'edit' && !!editingDoc}
         onClose={closeAddModal}
+        closeDisabled={uploading || saving}
         maxWidth={editingDoc?.source === 'text' ? 'max-w-xl' : 'max-w-lg'}
         ariaLabelledBy="edit-test-document-title"
       >
-        <h4 id="edit-test-document-title" className="text-base font-semibold text-text-default">
+        <h4 id="edit-test-document-title" className="pr-14 text-base font-semibold text-text-default">
           Edit document
         </h4>
         <div className="mt-4 space-y-3">

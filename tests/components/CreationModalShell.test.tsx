@@ -2,9 +2,33 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalShell, CreationModalTitleField, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 
 describe('CreationModalShell', () => {
+  it('retains the complete classroom name and supports an item without classroom context', () => {
+    const classroomName = 'Health for Life · Period 2 · Community, wellbeing and lifelong learning'
+    const { rerender } = render(<CreationModalContextHeader itemType="Material" classroomName={classroomName} />)
+    expect(screen.getByText('Material', { exact: true })).toBeInTheDocument()
+    expect(screen.getByTitle(classroomName)).toHaveTextContent(classroomName)
+    rerender(<CreationModalContextHeader itemType="Assignment" />)
+    expect(screen.getByText('Assignment', { exact: true })).toBeInTheDocument()
+    expect(screen.queryByTitle(classroomName)).not.toBeInTheDocument()
+  })
+
+  it('preserves title naming, placeholder and error semantics alongside settings', async () => {
+    const user = userEvent.setup()
+    render(<CreationModalTitleField error="Enter a title" actions={<button>Settings</button>}>
+      <input placeholder="Title" />
+    </CreationModalTitleField>)
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    expect(title).toHaveAttribute('placeholder', 'Title')
+    expect(title).toHaveAttribute('aria-invalid', 'true')
+    expect(title).toHaveAccessibleDescription('Enter a title')
+    expect(screen.getByText('Title')).toHaveClass('sr-only')
+    title.focus()
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Settings' })).toHaveFocus()
+  })
   it('can visually hide and collapse a top-row label without removing its semantics', () => {
     render(
       <CreationModalTopRow
@@ -38,10 +62,30 @@ describe('CreationModalShell', () => {
 
     expect(screen.getByRole('dialog', { name: 'Create assignment' })).toBeInTheDocument()
     expect(screen.getByRole('dialog')).not.toHaveClass('h-[90dvh]')
-    expect(screen.getByText('Assignment fields')).toBeInTheDocument()
+    const fields = screen.getByText('Assignment fields')
+    const title = screen.getByRole('heading', { name: 'Create assignment' })
+    expect(fields).toBeInTheDocument()
+    expect(title).toHaveClass('sr-only')
+    expect(title.parentElement).toBe(screen.getByRole('dialog'))
+    expect(title.nextElementSibling).toContainElement(fields)
 
     fireEvent.click(screen.getByRole('button', { name: 'Close assignment editor' }))
     expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('retains header metadata when the dialog title is visually hidden', () => {
+    render(
+      <CreationModalShell isOpen title="Edit assignment" titleId="metadata-title"
+        closeLabel="Close assignment" onClose={vi.fn()} headerCenter={<span role="status">Saved</span>}>
+        <input aria-label="Assignment title" />
+      </CreationModalShell>,
+    )
+    const dialog = screen.getByRole('dialog', { name: 'Edit assignment' })
+    const heading = within(dialog).getByRole('heading', { name: 'Edit assignment' })
+    expect(heading).toHaveClass('sr-only')
+    expect(heading.parentElement).toContainElement(within(dialog).getByRole('status'))
+    expect(heading.parentElement).not.toContainElement(within(dialog).getByRole('textbox'))
+    expect(dialog.querySelectorAll('[data-dialog-close]')).toHaveLength(1)
   })
 
   it('supports a headerless dialog with a close control inside its content', () => {
@@ -101,6 +145,8 @@ describe('CreationModalShell', () => {
     const save = within(dialog).getByRole('button', { name: 'Save draft' })
     const body = within(dialog).getByRole('textbox', { name: 'Title' }).parentElement!
     expect(body).toHaveClass('overflow-y-auto')
+    expect(body).not.toContainElement(within(dialog).getByRole('button', { name: 'Close material' }))
+    expect(dialog.querySelectorAll('[data-dialog-close]')).toHaveLength(1)
     expect(body).not.toContainElement(save)
     expect(save.parentElement).toHaveClass('shrink-0')
     await waitFor(() => expect(within(dialog).getByRole('textbox', { name: 'Title' })).toHaveFocus())

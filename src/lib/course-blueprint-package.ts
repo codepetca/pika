@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api-error'
 import { courseBlueprintAssignmentsToMarkdown, markdownToCourseBlueprintAssignments } from '@/lib/course-blueprint-assignments'
 import {
   courseBlueprintAssessmentsToMarkdown,
@@ -57,6 +58,8 @@ import {
 } from '@/lib/course-site-publishing'
 import type { PortableCoursePackageTestDocument } from '@/lib/contracts/course-blueprint-portable-test-documents'
 import {
+  containsCourseBlueprintAuthoringImage,
+  COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR,
   containsPikaManagedStorageUrl,
   isPikaManagedStorageUrl,
 } from '@/lib/course-blueprint-package-storage-policy'
@@ -496,6 +499,7 @@ export function buildCourseBlueprintExportBundle(
   detail: CourseBlueprintDetail,
   source?: Parameters<typeof buildCoursePackageManifest>[1]
 ): CoursePackageRawV6 {
+  if (containsCourseBlueprintAuthoringImage(detail)) throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
   const assignments = detail.assignments.map((assignment) => ({
     id: assignment.id,
     artifact_id: assignment.artifact_id,
@@ -793,7 +797,9 @@ function parseVerifiedCoursePackage(verified: VerifiedCoursePackage): CourseBlue
       && isPikaManagedStorageUrl(document.url!)
     ))
   ))
-  const packageStorageErrors = structuredManagedUrl
+  const packageStorageErrors = containsCourseBlueprintAuthoringImage(Object.values(files))
+    ? [COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR]
+    : structuredManagedUrl
     || Object.values(files).some((value) => containsPikaManagedStorageUrl(value))
     ? ['Course packages cannot contain Pika-managed storage references']
     : []

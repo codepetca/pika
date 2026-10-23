@@ -2716,6 +2716,8 @@ test('confirms assignment AI grading before sending selected students', async ({
   await page.keyboard.press('Tab')
   await expect(twoStudents.getByRole('button', { name: 'AI grade', exact: true })).toBeFocused()
   await page.keyboard.press('Tab')
+  await expect(twoStudents.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
+  await page.keyboard.press('Tab')
   await expect(twoStudents.getByRole('button', { name: 'Cancel', exact: true })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(twoStudents).toHaveCount(0)

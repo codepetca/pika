@@ -25,7 +25,7 @@ export function MaterialCreationPattern() {
     <section id="material-creation">
     <Card tone="panel" padding="md">
       <h3 className="font-semibold">Material creation</h3>
-      <p className="mt-2 text-sm text-text-muted">Assignment-style details and content panes with a single formatted editor, Preview, and Post / Schedule / Save draft actions. Materials have no due date.</p>
+      <p className="mt-2 text-sm text-text-muted">Assignment-style details and content panes with Write / Markdown editing, Preview, and Post / Schedule / Save draft actions. Materials have no due date.</p>
       <Button variant="surface" className="mt-3" onClick={() => {
         setExisting(false)
         setTitle('Field guide')
@@ -42,6 +42,7 @@ export function MaterialCreationPattern() {
       }}>Edit posted material example</Button>
       <p role="status" className="mt-2 text-xs text-text-muted">{result}</p>
       <MaterialCreationDialog
+        classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning"
         isOpen={open}
         materialKey={existing ? 'posted' : 'new'}
         isExisting={existing}

@@ -1,3 +1,4 @@
+import { containsCourseBlueprintAuthoringImage, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import {
@@ -116,6 +117,9 @@ export async function submitCourseBlueprintProposal(args: {
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
 > {
+  if (containsCourseBlueprintAuthoringImage(args.candidate)) {
+    return { ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const proposal = buildCourseBlueprintChangeProposal(args.base, args.candidate, args.source)
   const candidateSha256 = hashCourseBlueprintSnapshot(args.candidate)
   const diff = {
@@ -319,6 +323,9 @@ export async function submitClassroomBlueprintProposal(args: {
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
 > {
+  if (containsCourseBlueprintAuthoringImage([args.candidate, args.plan])) {
+    return { ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const proposal = buildCourseBlueprintChangeProposal(
     args.base,
     args.candidate,
@@ -391,6 +398,9 @@ export async function applyPersistedClassroomBlueprintProposal(args: {
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
 > {
+  if (containsCourseBlueprintAuthoringImage(args.plan)) {
+    return { ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const { data, error } = await args.supabase.rpc(
     'apply_course_blueprint_classroom_proposal_atomic',
     {
@@ -616,6 +626,9 @@ export async function applyPersistedCourseBlueprintProposal(args: {
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
 > {
+  if (containsCourseBlueprintAuthoringImage(args.candidate)) {
+    return { ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const candidateSha256 = hashCourseBlueprintSnapshot(args.candidate)
   const { data, error } = await args.supabase.rpc(
     'apply_course_blueprint_proposal_with_guidance_atomic',
@@ -666,6 +679,9 @@ export async function applyArchivedClassroomCourseBlueprintProposal(args: {
   | { ok: true; proposal: CourseBlueprintProposalRecord }
   | { ok: false; status: number; error: string }
 > {
+  if (containsCourseBlueprintAuthoringImage(args.candidate)) {
+    return { ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const candidateSha256 = hashCourseBlueprintSnapshot(args.candidate)
   const resultSnapshot = {
     ...structuredClone(args.candidate),

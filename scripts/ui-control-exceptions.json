@@ -326,28 +326,6 @@
       ]
     },
     {
-      "file": "src/components/AssignmentForm.tsx",
-      "reviewBy": "phase-3-assignments",
-      "controls": [
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        }
-      ]
-    },
-    {
-      "file": "src/components/CourseGuidePanel.tsx",
-      "reviewBy": "phase-3-calendar-announcements",
-      "controls": [
-        {
-          "kind": "textarea",
-          "count": 1,
-          "reason": "native-textarea"
-        }
-      ]
-    },
-    {
       "file": "src/components/AssignmentArtifactsCell.tsx",
       "reviewBy": "phase-3-assignments",
       "controls": [
@@ -609,7 +587,7 @@
       "controls": [
         {
           "kind": "button",
-          "count": 6,
+          "count": 5,
           "reason": "legacy-form-control"
         }
       ]
@@ -718,6 +696,17 @@
           "kind": "button",
           "count": 3,
           "reason": "composite-widget"
+        }
+      ]
+    },
+    {
+      "file": "src/components/editor/MarkdownAuthoringEditor.tsx",
+      "reviewBy": "phase-3-assignments",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
         }
       ]
     }

@@ -25,12 +25,14 @@ export function classroomTestQuotaProofCatalog(
   const hasMembership = migrations.length >= 283 || migrations.some(migration => migration.name.startsWith('283_'))
   const hasMembershipAdoption = migrations.length >= 285 || migrations.some(migration => migration.name.startsWith('285_'))
   const hasLearnerMembership = migrations.length >= 286 || migrations.some(migration => migration.name.startsWith('286_'))
-  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership) validateLifecycleServicesReviewedMigrations(migrations)
+  const hasAuthoringImages = migrations.length >= 291 || migrations.some(migration => migration.name.startsWith('291_'))
+  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership || hasAuthoringImages) validateLifecycleServicesReviewedMigrations(migrations)
   const expected = [...new Set([...canonicalTables, quotaTable,
     ...(hasDecommission ? ['private.attendance_decommission_delete_capabilities'] : []),
     ...(hasMembership ? ['private.attendance_participant_associations', 'private.attendance_override_event_generations'] : []),
     ...(hasMembershipAdoption ? ['private.attendance_pointer_mutations'] : []),
-    ...(hasLearnerMembership ? ['private.attendance_override_mutations'] : [])])].sort()
+    ...(hasLearnerMembership ? ['private.attendance_override_mutations'] : []),
+    ...(hasAuthoringImages ? ['public.teacher_authoring_image_references'] : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
 }

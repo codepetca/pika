@@ -1,8 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Code2, Copy, Eye, ListPlus, Plus, Settings, Trash2, X } from 'lucide-react'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { ChevronLeft, ChevronRight, Code2, Copy, Eye, ListPlus, Plus, Settings, Trash2 } from 'lucide-react'
+import { CreationModalContextHeader, CreationModalTitleField, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { SurveyQuestionOptions } from '@/components/surveys/SurveyQuestionOptions'
 import { MarkdownContentEditor } from '@/components/editor'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
@@ -147,21 +147,20 @@ export function SurveyEditSplitPattern() {
         <p className="mt-2 text-sm text-text-muted">Experimental. Based on the Test modal: survey details on the left, one question at a time on the right. Explore multiple-choice and open responses. Changes and publishing stay in this prototype.</p>
         <Button className="mt-3" variant="surface" onClick={reset}>Open survey edit prototype</Button>
       </Card>
-      <CreationModalShell isOpen={open && !preview} onClose={() => setOpen(false)} title="Edit Survey" titleId="pattern-survey-edit-title" closeLabel="Close survey edit prototype" showCloseButton={false} maxWidth="!max-w-6xl" panelClassName="!p-0" tall contentClassName="!overflow-hidden !p-0">
-        <div className="grid min-h-0 w-full grid-cols-1 overflow-y-auto lg:h-full lg:grid-cols-3 lg:overflow-hidden">
-          <div data-testid="survey-editor-details-pane" className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
-            <FormField label="Title" required error={titleError} labelAccessory={(
+      <CreationModalShell isOpen={open && !preview} onClose={() => setOpen(false)} title="Edit Survey" titleId="pattern-survey-edit-title" closeLabel="Close survey edit prototype" maxWidth="!max-w-6xl" panelClassName="!p-0" tall contentClassName="!overflow-hidden !p-0">
+        <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+          <div data-testid="survey-editor-details-pane" className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
+            <CreationModalContextHeader itemType="Survey" classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning" />
+            <CreationModalTitleField error={titleError} actions={(
               <div className="flex items-center gap-1">
-                <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
                 <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" disabled={code} variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" items={[
                   { id: 'results', label: 'Show class results to students', checked: showResults, checkedRole: 'menuitemcheckbox', onSelect: () => { setShowResults(!showResults); change() } },
                   { id: 'dynamic', label: 'Allow students to update responses', checked: dynamicResponses, checkedRole: 'menuitemcheckbox', onSelect: () => { setDynamicResponses(!dynamicResponses); change() } },
                 ]} />
-                <Tooltip content="Close"><Button variant="ghost" size="sm" aria-label="Close survey edit prototype" onClick={() => setOpen(false)} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
               </div>
             )}>
               <Input disabled={code} value={title} placeholder="Title" maxLength={200} onChange={(event) => { setTitle(event.target.value); change() }} />
-            </FormField>
+            </CreationModalTitleField>
             <div className="rounded-md border border-border bg-surface px-3 py-2">
               <div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Questions</p><p className="text-xs text-text-muted">{questions.length} total</p></div>
             </div>
@@ -178,22 +177,22 @@ export function SurveyEditSplitPattern() {
           <div data-testid="survey-editor-content-pane" className="flex min-h-96 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
             {code ? (
               <div className="flex min-h-0 flex-1 flex-col gap-3">
-                <div className="flex items-center justify-between gap-2"><p className="text-sm font-medium">Survey Markdown</p><Button size="sm" onClick={applyMarkdown}>Apply Markdown</Button></div>
+                <div className="modal-controls-row flex items-center justify-between gap-2"><div className="flex items-center gap-2"><SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} /><p className="text-sm font-medium">Survey Markdown</p></div><Button size="sm" onClick={applyMarkdown}>Apply Markdown</Button></div>
                 <p className="text-xs text-text-muted">Edit the title, settings, and questions here, then apply to return to questions.</p>
                 {markdownError ? <p role="alert" className="whitespace-pre-wrap text-sm text-danger">{markdownError}</p> : null}
                 <textarea aria-label="Survey markdown editor" value={markdown} spellCheck={false} onChange={(event) => setMarkdown(event.target.value)} className="min-h-96 flex-1 resize-none rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             ) : (
               <>
-                <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">{isMc ? 'Multiple choice' : 'Open response'}</p>
+                <div className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  <div className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1 flex items-center gap-2"><SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} /><p>{isMc ? 'Multiple choice' : 'Open response'}</p></div>
                   <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                     <Tooltip content="Previous question"><Button variant="ghost" size="sm" aria-label="Previous question" disabled={selected === 0} onClick={() => select(selected - 1)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
                     <Input type="number" min="1" max={questions.length} value={numberDraft} aria-label="Question number" onChange={(event) => setNumberDraft(event.target.value)} onBlur={applyNumber} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applyNumber() } }} className="w-14 px-2 text-center" />
                     <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
                     <Tooltip content="Next question"><Button variant="ghost" size="sm" aria-label="Next question" disabled={selected === questions.length - 1} onClick={() => select(selected + 1)} className="h-11 w-11 p-0 text-text-muted"><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
                   </div>
-                  <div className="col-start-2 row-start-2 justify-self-end lg:col-start-3 lg:row-start-1">
+                  <div className="modal-question-controls-tail col-start-2 row-start-2 justify-self-end lg:col-start-3 lg:row-start-1">
                     <TeacherWorkSurfaceIconMenuButton icon={<ListPlus className="h-5 w-5" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="primary" menuPlacement="down" menuAlign="end" className="h-11 w-14 shadow-sm" items={[
                       { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => addQuestion('multiple_choice') },
                       { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => addQuestion('short_text') },

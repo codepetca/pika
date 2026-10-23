@@ -36,12 +36,15 @@ describe('externally sealed Test quota proof table addition', () => {
     const adoption = 'private.attendance_pointer_mutations'
     const historical = [capability, quota, ...additions, ...before].sort()
     const learner = 'private.attendance_override_mutations'
-    const expected = [...historical, adoption, learner].sort()
+    const authoring = 'public.teacher_authoring_image_references'
+    const expected = [...historical, adoption, learner, authoring].sort()
     expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 283))).toEqual(historical)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 284))).toEqual(historical)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 285))).toEqual([...historical, adoption].sort())
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 290))).toEqual([...historical, adoption, learner].sort())
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 290))).not.toContain(authoring)
     expect(historical).not.toContain(adoption)
     const futureSql = 'select 1;'
     expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '289_unknown.sql',
@@ -79,11 +82,11 @@ describe('externally sealed Test quota proof table addition', () => {
       expect(() => classroomTestQuotaProofCatalog(catalog, migrations)).toThrow()
     }
   })
-  describe.each(profiles)('$name complete288 preservation', profile => {
+  describe.each(profiles)('$name complete291 preservation', profile => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const canonical = [...new Set([...profile.scopes, 'storage.objects', 'storage.buckets'])].sort()
     const expected = classroomTestQuotaProofCatalog(canonical, current)
-    const adoption = 'private.attendance_override_mutations'
+    const adoption = 'public.teacher_authoring_image_references'
     const graph = (): Rows => ({ ...Object.fromEntries(profile.scopes.map(table => [table, []])),
       __nontarget_fingerprints: expected.map(table => ({ table, fingerprint: 'unchanged' })) })
     it('requires the complete new capability-table fingerprint', () => {

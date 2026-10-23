@@ -11,255 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant contextual purge workflows
-
-Prepared the eight existing hot/cold impact/start/status/tick methods behind the
-existing admission selector. Actual ownership and durable actor/class/archive/
-operation/scope bindings authorize shared callers of either label; legacy
-guards, confirmations/digests, independent gates and SQL state machines remain.
-Completed audit/replay survives parent removal. Malformed/lost results fail
-closed without automatic retries, compensation or rollback claims. Root found
-and fixed exact generated-lease binding before any Storage request: two wrong-
-lease regressions failed before the fix; root independently passed156 tests/6
-suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
-pass. The existing rollback matrices are extended to both current owner labels
-after fixture capture, retaining historical actors and all prior assertions;
-not yet native evidence. Source-only rebase onto1630's actual main merge had no
-conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
-Final focused checks, independent review, real CI matrices and main merge remain.
-No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
-activation change. Production/shared-local249+ and cutover holds remain.
-
-Full security334 review was clean; compatibility335 found the generic409 mapping
-hid the existing fixed attendance-decommission prerequisite signal. Two real-
-PostgREST-envelope regressions failed, then passed after preserving only the
-recognized typed public constant; arbitrary errors remain sanitized. All158
-targeted tests/6 suites pass. Source correction, targeted re-review and final CI
-remain distinct from any provider change or native acceptance.
-
-## 2026-10-20 — Consolidated owner attendance-decommission preparation
-
-Folded all three existing begin/status/advance methods into the still-draft purge
-workflow, using shared admission with legacy teacher behavior retained. Reused
-unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
-verifier maps malformed stored evidence to503, preserves safe service errors and
-validates public result identity/state. Sol6.1/high delivered53 affected tests/3
-suites, TypeScript and scoped lint PASS; root reviewed all source and added a
-rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
-operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
-focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
-commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
-64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
-No native SQL or provider call was made. Retained-generation175 can block153's
-participant mapping deletion after remote completion; preserve the guard/fence
-and inspectable state. Documented as a separate activation prerequisite, not
-claimed complete by mock transport/basic synthetic fixtures. Combined checks,
-proportional independent review, latest-main integration and CI remain. No SQL
-migration, dependency, UI, gate, provider identity, real deletion or activation
-change. All production/shared-local249+ and provider/account/billing/AI holds
-remain. Source writer stopped; attributable active time/tokens unknown.
-
-Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
-all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
-passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
-Consolidated purge source rebased onto that actual main; only roadmap/history
-overlaps required union, retaining main receipts and one copy of the identical
-already-archived entry. No migration resequencing, stash use or hold change.
-
-## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
-
-Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
-table-scoped DELETE capability only after verified remote completion. Existing
-ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
-private membership replay history is retained. Pending automatic cleanup jobs
-block new intent, including quarantine without an individual operation. Fresh
-read-committed admission avoids stale snapshots. Existing rollback harness adds
-both owner labels, historical generations, scoped/forged denial, failure rollback,
-fresh object-free final purge and saved-status/private-history preservation;
-existing contention harness adds both actual-RPC winner orders. No DB/provider
-execution or shared/production migration application during preparation. Exact281
-source-only profiles and complete capability-table fingerprints extend prior
-seals without rebinding old proofs. Initial focused run caught stale280 counts
-and mocked fingerprints; fixtures corrected without weakening restoration checks.
-Independent review, actual native verification and exact-head CI remain required.
-Production/shared-local249+/live-provider/configuration and activation holds stay.
-
-## 2026-10-20 — explicit Data API grant compatibility
-
-Prepared migration281 preserving historical001–280 relation ACLs and server-only
-access; closes public postgres relation defaults. Added absent-default replay/ACL
-equality harness, future-object source policy, sealed281 profiles and CI inventory.
-Canonical schema checklist records explicit table/sequence decisions. Cross-project
-audit: RESPMax private/direct SQL unaffected; HQ health SELECT(id) fix prepared
-separately. Sol/high workers handled bounded Pika ACL/harness and HQ audit/fix;
-coordinator verified source and local regressions. Usage90% weekly remaining at
-start; per-worker tokens/total active time unknown. Docker stopped after historical
-replay; full281 native regression pending CI. Owned throwaway container cleanup
-pending Docker availability: pika-data-api-grants-investigate-51450,
-4c25786d7a2417726eaf1d4d898e21df89944bc566fa46f035c4d5ab19de7e09.
-No shared local/production migration, reset, owner-data write or deployment.
-
-Follow-up: literal-context and archive integration reviews clean;2959 focused
-tests/policies/types/lint pass. Hosted001–281 replay passed. Initial isolated
-grant proof exited before assertions; TCP readiness and retained reset diagnostics
-then reached the contract, exposing its unparenthesized IF/CASE expression.
-Parenthesized the expression; native PostgreSQL14 validator reproduces the old
-syntax error and compiles all three corrected bodies. Exact temporary parser
-cluster removed, without TCP or persistent DB use. Target PostgreSQL17 execution
-and full ACL equality remain pending the reviewed-head CI at this checkpoint.
-
-Superseding source integration: full CI39439201298/PR Gate passed at795ffb29c,
-then main advanced to attendance281. Grant SQL is now named282 with identical
-9ffd5b83… bytes; baseline replay includes281 and explicitly checks its private
-capability table stays inaccessible directly to service_role. Existing281 seal,
-all historical seals and unknown-tail rejection retained. Owner approved this
-last integration/review and merge; native282/final-head CI remain pending at
-this checkpoint. HQ129 merged089c721 with its reviewed tree unchanged; canonical
-HQ fast-forwarded while preserving the owner company-profile edit. No shared or
-production migration applied. Sol6.1/high worker reconciled bounded unit tests;
-coordinator verified seals/source and owns final integration. Usage/time per
-worker unknown; existing review ledger retained without reset. Integration focused
-gate PASS:3169tests/103files, architecture/policies/TypeScript/lint; audit and
-shell syntax PASS. Final targeted review/CI remain required.
-
-## 2026-10-20 — Expand the Gradebook student inspector
-
-Removed the inspector X. Gradebook's existing shared divider now permits up to85% details width while retaining240px for names. Below420px actual table width, the left pane renders only both name columns with sorting, active selection and keyboard navigation; widening restores the existing matrix. Reuses TeacherWorkspaceSplit, GradebookTable, useElementRect and the inspector; Pattern Lab demonstrates the real split. Risk: workspace-state. No modal, calculation, student-disclosure, API/schema/dependency change. Semantic tests cover narrow/expanded restoration, selection, Escape, bounds and reset. Playwright deterministic local fixtures cover desktop light/dark default/dragged/keyboard-expanded/restored states; screenshot receipts and final checks/review recorded in PR1635. Local Supabase unavailable, so no database-backed browser run. Student product and teacher mobile composition unaffected. Composite accessibility checklist reviewed; keyboard/semantic coverage yes. Initial modal implementation superseded by owner request; its interrupted independent review is partial, not acceptance. Direct implementation; weekly allowance84% remaining and storage282GB healthy at startup. Task token/active-time attribution unknown.
-
-## 2026-10-20 — Prepare student inspector PR1635 for merge
-
-Owner authorized merge after green CI. Initial83e85adc build/dark browser/Pattern Lab lanes passed; light browser lane failed exam-navigation timeouts and one connection reset, outside this Gradebook change. Rebased onto main daaf1a64b, retaining the identical source/test implementation and all main receipts; the sole conflict was an archive batch marker around an already-identical entry, resolved with main's marker. Fresh focused checks, independent integration confirmation and exact-head CI required before squash merge. No unrelated runtime/test fix or production promotion.
-
-## 2026-10-20 — Preserve compact student roster click targets
-
-Final geometry review found the new name-only selectable rows inherited28px text density, below the required44px click target. Added h-11 only to those rows; names, sorting, selection and keyboard behavior remain. Prior35056b5 build/dark lanes passed and the previously failing exam lifecycle also passed on rerun; its light lane was cancelled for this required target correction, without an unrelated exam patch. Browser bounds and fresh exact-head review/CI required before owner-authorized merge.
-
-## 2026-10-20 — Integrate student inspector with final main grants changes
-
-All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main then advanced to e53401520 via1633 and produced archive-only conflicts. Rebased onto that main, retaining its complete continuity and the byte-identical six feature source/test files; regenerated normal session-log trimming. No migration applied or database touched. Targeted integration review, focused checks and fresh exact-head CI precede owner-authorized squash merge; production promotion remains outside scope.
-
-## 2026-10-20 — Calendar cell disclosure continuity
-
-User-requested Calendar refinement on codex/calendar-cell-motion: only the selected date expands; Week/Month/Term cell geometry uses semantic standard motion and reduced-motion policy. Editor clicks preserve the live caret owner, Escape returns focus without deferred work, outside blur keeps its destination, and closing an older editor cannot collapse a new same-week selection. Removed whole-cell entry scrolling; existing autosave/data owners retained. One Sol medium implementation worker plus root native acceptance; three bounded native/visual correction batches, no dependency/schema changes. Final component57 and hook7 tests PASS; native16-context matrix PASS (98 PNGs/16 videos, synthetic API only), representative originals/reference inspected. Required focused/static/goldens and exact-head independent review/CI are recorded externally before main landing. Broad fluidity goal open; production and old PR1217 holds retained.
-
-Calendar review correction: one accepted P2 anchored the empty non-class Week edit overlay to its full lesson region; actual fixture reproduced22px escape before fix. Added native event-upper-edge regression, PASS8 viewport/theme/motion cases plus4 unchanged goldens. Synced main Gradebook landing with only continuity conflicts; preserved all40 main recent entries once and main archive as exact prefix before normal trim. Grid/hook/data source remains byte-identical; targeted motion/focused checks and delta review qualify final head.
-
-## 2026-10-20 — production migrations266–282 verified
-
-Owner approved production266–282 and acknowledged281's existing destructive
-call path. Manual rollout39476697299 applied exact sourcee534015201ea42758252f45dc7e19d56792d801e
-once, using preview39465198595/digest21867530234c92a4f98b79f08435e8e82a2c39fccf808431debccadc9148bbe1
-and CI39458606979. Applied-verified; independent metadata history is001–282.
-Read-only checks:47 final function bodies/owners/security/search paths/ACLs,
-151 relation/sequence grant objects with775 operations, client denial, closed
-postgres relation defaults, both narrow column grants,10 existing guard trigger
-attachments, and281 capability RLS/three validated constraints PASS. Existing
-decommission DB mode stayed enabled. No write fixture, purge/provider call,
-shared-local migration, application promotion or flag change. Approval consumed.
-Receipts retained privately under ~/.codex/receipts/production-migrations/2026-10-20T183940Z/.
-
-HQ read-only baseline investigation found654 source function-name body matches
-and75 retained source files, but no canonical migration ledger or authoritative
-execution/restore receipt in90 backup manifests. Body/file agreement does not
-prove backfills, overload signatures or execution history. No HQ application,
-history repair or hosted-project resume; owner edits preserved. Sol6.1/high
-worker returned metadata evidence; coordinator inspected conclusions/source.
-Weekly remaining75%; attributable tokens/active time unknown.
-
-Continuity-only receipt: startup79 tests PASS and prompt budget restored. The
-required focused run remains blocked by unchanged Mac process/timing fixtures
-in ci-tart-host and focused-checks; no test/control weakening or runtime fix.
-Keep the receipt PR draft until the complete focused gate passes.
-
-
-Owner-authorized PR1638 fixture repair supersedes the draft checkpoint above.
-The exit2 process fixture now allows the existing sibling2s startup budget,
-retains all finite containment watchdogs, and injects0.6s startup delay while
-requiring exact idle-timeout, one attempt and empty group. Focused-runner default/
-limited assertions are four single-run cases with exact command arrays; no
-production code, global timeout or dependency changed. Sol6.1/high worker
-reproduced both old failures and passed82 tests, including controlled latency.
-Coordinator inspected both diffs; full focused gate and final review recorded
-in PR1638 before merge. Main's unrelated Calendar changes retained exactly.
-HQ plan is proposed only: recover lineage, compare full catalog and independently
-prove historical effects; choose reconstruction or honest present-state adoption
-before an exact separately approved history action. No75-version execution claim,
-HQ query/write, hosted resume or grant application. Private plan: same receipt
-folder/hq-baseline-plan.json. Weekly remaining74%; worker/coordinator time and
-tokens not fully attributable; bounded delegation outcomes verified.
-
-Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
-policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
-unchanged after these checks; final independent review/CI recorded in PR1638.
-
-## 2026-10-20 Material authoring and calendar
-
-Branch codex/material-authoring-parity. Material creation/edit now follows the
-assignment desktop details/content split and mobile stack, preserving Visual /
-Markdown review/apply and preview. Post / Schedule / Save draft uses Toronto time;
-no due date. Calendar publication chips open the exact material for both roles,
-with independently fenced loading/retry and scoped material refresh events.
-Migration283 extends owner publication RPCs atomically and keeps student future
-releases hidden on legacy/contextual/shared reads. Shared local and production
-migration application remain unapproved/unattempted; local243 lacks tests.test_date,
-so browser student Calendar correctly showed its independent Retry tests alert.
-Material reads/chips and exact teacher/student destinations passed real Playwright
-checks; temporary posted fixture deleted200. Editor and both-role Calendar captured
-1440x900 /390x844, light/dark under output/playwright (ignored); matrix reviewed.
-Reference: AssignmentForm.desktopSplit and Pattern Lab assignment creation. Reuse
-CreationModalShell/controls/ScheduleDateTimePicker; extend material editor and
-calendar chip owners. No new stable pattern or shared mega-form; composite keyboard
-and focus tests pass. TypeScript, UI/design policy and audit pass; focused gate,
-disposable DB proof and independent review recorded in PR before readiness.
-Orchestration: Sol6.1/high calendar worker accepted after source/tests verification
-(131 focused tests), backend worker owns isolated rollback DB proof and metadata.
-No file conflicts. Weekly remaining71% at start; storage healthy275GB. Effective
-worker config, attributable tokens/time unknown; one interrupted default-wide
-focused run due contention, replaced with bounded2-worker final run. DeepSeek
-owner pause through2026-12-31 respected. No hosted rollout or migration claim.
-
-PR1639 initial independent Sol6.1/high reviews accepted4 findings. Batch1 adds
-exact283 source seal and closed-profile extensions (historical prefixes retained,
-unknown284 rejected), retires URL-owned material dialogs on Back/selection/class
-changes and fences late save callbacks, corrects native material-read proof/docs
-for hidden future releases and separate release/cursor filters, and restricts
-privilege-free clone baselines to234–282. Native shared fixture proof intentionally
-not run; disposable proof rerun PASS/clean containers. Profiles968 tests and
-teacher authoring/TestDetail150 tests PASS, plus late-save regression. Real browser
-Back closes and Forward reopens exact material for teacher; both-role destinations
-PASS, fixture delete200. Existing preview test now awaits async navigation to avoid
-its broad-run race. Initial focused3563pass/13fail drove this batch; final focused
-and targeted rereview recorded in PR. Review ledger /tmp/pika-material-review-ledger.txt;
-worker/proof receipts private /tmp; tokens/time attribution unknown. No rollout.
-
-Final broad source-related run exposed8 more legacy current282 test-count
-assertions (4974passed/8failed); batch2 updates only those8 tests to current283
-and changes unknown-future cases to284. All701tests across those8 suites PASS.
-No product/proof runtime change; targeted rereview and final gate tracked in PR.
-
-Owner requested PR/merge. CI39524309194 exposed old material Preview icon-only
-browser assertions; batch3 updates only that contract to the approved labeled
-assignment-style Preview and verifies both panes. Existing keyboard/preview/focus,
-pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
-light/dark local Playwright contracts PASS. PR returned to draft before changes;
-prior run cancelled by draft transition. No product/runtime/SQL change.
-
-## 2026-10-20 — Calendar cell text stability
-
-- Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
-- Added an opt-out from initial editor scrolling, used by Calendar while other consumers retain the default. Native traces reproduced the autofocus-induced upward text shift, then verified anchored text and unchanged font metrics.
-- Validation: 102 owner tests; formatted 16-context teacher/student desktop/mobile light/dark normal/reduced matrix; rich-format smoke; 28 committed browser checks including permanent Month text anchors, empty-event controls and four unchanged Pattern Lab goldens. Focused/static checks and independent draft-first review follow before main merge. Local preview remains running at localhost:3561.
-
-## 2026-10-20 — Material single-editor prototype parity and main sync
-
-Owner explicitly requested the assignment prototype's single formatted editor, removal of the Visual/Markdown switch, an extended review budget, Calendar conflict resolution and main merge for PR1639. MaterialCreationDialog now directly reuses RichTextEditor with the assignment toolbar preset and ContentField layout; existing JSON content is never converted. Removed the obsolete material Markdown draft/conversion owners and replaced their tests with direct editing/preview/manual-save checks. Preview, future Toronto scheduling, drafts, busy/read-only and delete contracts remain. UI brief: docs/guidance/ui/changes/material-assignment-parity.md; teacher authoring desktop/mobile x light/dark, both roles Calendar/navigation. No new dependencies or shared primitive.
-
-Synced main PR1640 while preserving lesson text anchors, editor handoff and main tests; material chips remain inside the measured Calendar wrapper. Historical log conflict preserves both archive receipts. Four real browser editor/preview/action/validation contracts and both-role Week/Month Calendar click/Back/Forward checks pass; all editor and Calendar matrix screenshots were inspected. Initial broad run5383pass/3fail: one stale toolbar expectation corrected; two existing test timeouts require serialized replay. Task dev server stopped after visual capture to reduce load. Focused gate, both-role Calendar visuals, targeted independent delta review and final-head CI are tracked in retained receipts; migration283 remains unapplied to shared environments. Budget extension permits this combined batch4 and targeted review; cumulative5reviewturns before extension, weekly67%remaining/storage271GBhealthy, DeepSeek pause honored. No production promotion or migration application.
-
-## 2026-10-20 — Material production smoke and registry alignment
-
-Targeted c90ccfd5 review accepted the single rich editor, current-main Calendar anchors and unchanged backend/SQL, finding obsolete Markdown-specific production smoke and Pattern Lab copy. Replaced that smoke with direct formatted editing, preview/Escape focus, byte-preserved saved draft before explicit Post, student-hidden draft and posted heading/link/list/code/bold assertions; retains four viewport/theme cases, local-only disposable fixtures and exact cleanup. Corrected Pattern Lab copy and removed the obsolete native textarea/checkbox exception after policy identified it. Editor/Calendar runtime unchanged from the prior correction. Full required focused gate passes4984tests174files, architecture, UI/design policies, TypeScript and lint. Existing lint warnings remain unchanged. Production browser matrix and one targeted final review are tracked in retained receipts. No migration/deployment or new dependency.
-
 ## 2026-10-20 — Prepare current-membership attendance attribution
 
 Prepared dormant282 private opaque associations and exact event-generation
@@ -594,6 +345,70 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Actual mobile baseline4/4 reproduced; 43owner/shared tests PASS after expected RED, including hover superseding a pending focus frame. Native16contexts PASS (teacher16button/link cases,4wheel dismissals,8pointer activations; student shared reference unchanged);8screenshots inspected. Persistent first-focus browser regression4PASS and4existing goldens unchanged. TypeScript/lint/UI/design policy PASS. Startup/locator attempts retained privately.
 - Canonical focused, draft PR, independent review and exact-head CI/PR Gate/main merge remain. No dependency or migration change; production held. Broader experience epic remains incomplete.
 
+## 2026-10-22 — Compact modal close refinement (PR #1662)
+
+Owner requested the X inline with Write/Markdown instead of a close-only band.
+CreationModalShell now omits empty heading rows and reserves horizontal corner
+space in existing desktop controls/mobile title fields. Applied to assignment,
+material, test and survey editors; shared dismissal callbacks/guards unchanged.
+Stable guidance and Pattern Lab examples reflect the compact contract.
+Desktop assignment browser check confirms mode/X alignment and regained56px.
+Full focused gate3777/3777 plus architecture, UI/design policy, types and lint pass.
+Browser verification exposed rich-text toolbars covering question menus after
+sticky rows were introduced; compact shells now isolate editor stacking.
+Final role/theme/viewport matrix, delta checks and review tracked in PR.
+Owner then requested title/status cleanup: hidden accessible Title labels, retained
+empty placeholders, aligned title/settings inputs, and circular saving feedback
+in existing right-pane mode/question controls. Reused CircularProgress and kept
+SaveStatus text presentation as its default; save failures remain visible.
+Shared title-field composition retains naming/error/keyboard behavior. Targeted
+140component checks passed;24accepted browser cases cover desktop/mobile and
+light/dark, including a held production autosave and empty-title placeholders.
+Assignment/test fixture scroll sizing was aligned with the existing survey/test
+production pattern. Independent review accepted one P2: Preview metadata saves
+had no indicator. Its existing title row now carries the same feedback;37survey
+component cases (including held title/settings requests) and4full-classroom
+Preview browser cases pass. Owner-approved eighth targeted review was clean;
+final6c4ea6cc1 focused gate passed3786/3786 and all static checks.
+Owner then requested type/classroom context above the title in the left pane.
+Shared CreationModalContextHeader identifies Assignment/Material/Test/Survey,
+reuses the AppHeader name fade and preserves the full text/native tooltip.
+Production classroom titles are passed from their existing owners; right-pane
+controls and top-right X retain their positions. Title/settings and remaining
+details follow below; mobile context owns corner clearance. Pattern Lab, stable
+guidance and focused semantic/geometry checks updated. Component156/156 and
+24browser cases pass across desktop/mobile and light/dark, including held
+production saves, empty titles, long names, scrolling and menus. Explicit mobile
+grid columns prevent long-name width expansion. Docker/owned preview stopped
+after screenshots; final canonical gate and delta review remain tracked in PR.
+
+## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
+
+Owner expanded Markdown authoring scope to put modal X controls consistently in
+the top-right. Shared 44px ghost DialogCloseButton now owns the 12px corner
+position across shared dialogs, creation/edit shells, QR/submission/add-student,
+reward and test previews. Removed left-title/duplicate controls; retained existing
+close callbacks, save-flush behavior, busy guards, Escape/backdrop and focus return.
+Stable guidance promoted by explicit owner request; Pattern Lab modal-close added.
+Teacher/student desktop/mobile light/dark screenshots inspected; long-title
+shrink overlap corrected. Existing keyboard layout tests updated for corner close.
+Bounded native inventory/caller worker used GPT-6.1 Sol medium; coordinator verified
+all delivery. DeepSeek remains explicitly paused. Review and final gate recorded
+in PR #1662 lifecycle; no schema, dependency or production changes.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
 ## 2026-10-22 — Settings switch motion consistency
 
 - Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
@@ -601,6 +416,19 @@ claiming provider canaries, batch3 exit or shared-local application.
 - Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
 - Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
 - No dependency, database, grade policy or production change; broader experience epic remains incomplete.
+
+## 2026-10-22 — Course Guide and assignment Markdown authoring
+
+Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
+opt-in Bold/Italic/Link/Format toolbar and unchanged Markdown persistence.
+Mode changes emit no content writes; source blur still uses assignment autosave.
+Focused 121 files/2,093 tests and all static policies passed; browser role,
+desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
+Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
+Independent stable-SHA review/PR completion follows; no production promotion.
+Initial independent review found toolbar Tab trapping; one batch fixes native
+Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
+and corrected teacher browser matrix4/4 passed. Targeted review pending.
 
 ## 2026-10-22 — Roster join dates
 
@@ -636,6 +464,20 @@ Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
 unjoined rows remain empty. Reuse original roster status icon; same teacher-only
 roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
 No component or widget contract change. PR1661 draft during validation/review.
+
+## 2026-10-22 — Approved four-editor Markdown/image implementation
+
+Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
+separate type/classroom header, one question control bar, icon modes and green
+Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
+Markdown images round-trip and Material stores exact source beside compatibility
+nodes. Student readers use the same Markdown source. Prepared protected teacher
+image uploads, publication-aware reads, archive remapping and migration291 for
+transactional reference tracking/deferred cleanup. No migration applied yet;
+local291 and up to three extra reviewer launches explicitly requested and pending.
+Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
+apart from a corrected source-wire assertion awaiting rerun; final focused gate,
+local database/browser evidence and independent review remain. PR1662 stays draft.
 
 ## 2026-10-22 — Material calendar post dates
 
@@ -722,3 +564,198 @@ GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No app
 retry, fixture/post mutation, flag/account/provider/billing change or Docker
 restart. Attributable tokens/active time unknown. Final receipt docs review/CI
 remains; production promotion worktree retired, shared env target preserved.
+
+## 2026-10-22 — Approved four-editor implementation verification
+
+Actual Assignment/Material/Test/Survey now match the approved compact prototype:
+Markdown source, shared mode/close/status header, question navigation and green
+Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
+legacy Material until content edit; source-only changes regenerate readers.
+Source/API checks cover publication timing, legacy submitted-Test access and
+literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
+transactional save attachment, archive/snapshot pins and narrow1h unclaimed
+retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
+Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
+Blueprint private-image portability is unsupported: reject incoming portable
+assets before copying/applying; preserve existing classroom source.
+
+Actual-source browser16teacher+4student matrix and existing8authoring contracts
+PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
+Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
+canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
+UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
+PASS. Audit PASS66changedTSfiles; composite mode,
+menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
+generated types and native ACL/schema/behavior receipts pending exact local
+permission. No Docker restart, shared migration or production action. Owned
+Next3036 stopped; owner prototype9026 retained. Current independent-review
+coverage ends94bd0b389;9historical launches consumed, approval for up to3new
+launches pending. PR1662 stays draft. Bounded implementation workers assisted;
+not independent review. Inherited effective models/tokens unknown; serial local
+verification limits honored after correcting an initial unflagged focused run.
+
+## 2026-10-22 — Local291 preflight and independent review
+
+Owner approved local291 and3additional reviews. Supabase local target verified
+Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
+application attempted; asked expanded exact244–291 authority, pending. Existing
+244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
+proofs PASS; shared schema unchanged. Harness final type equality differs only
+new2914-column ledger/2FKs; generated metadata pending official local generation.
+Data API historical/absent-default ACL replay PASS. Native receipts:
+/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
+Owned clones removed, local DB and Docker stopped again.
+
+Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
+and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
+(stale compatibility images and absolute URLs). One correction batch uses SQL's
+canonical source precedence and remaps protected URLs to new relative identity.
+Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
+PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
+suites71PASS. No UI delta; existing visual hashes retained. Launch12
+reserved for correction/integration after metadata/native gates; no further
+launch approved beyond12. Requested model/effort recorded; effective config,
+per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
+
+## 2026-10-23 — Markdown editor CI correction batch
+
+PR1662 returned to draft after391a CI: Test & Build passed; ECR throttled3setup jobs;
+dark PatternLab and publication catalog checks exposed real fixture/proof issues.
+Reuse shared prototype X clearance; update obsolete header/mode assertions and
+hydration readiness.28affected browser cases and83unit/source checks pass;
+visual matrix inspected (teacher desktop/mobile light/dark, student n/a for these
+experimental prototype controls). Fix nested catalog p-alias shadowing without
+changing capability checks or migration291. READ ONLY nested catalog passes.
+Native isolated publication verification follows on a clean committed checkpoint;
+final receipts/CI/review status live on PR1662. No merge or production authority.
+
+## 2026-10-23 — Local244–291 authorized application and final verification
+
+Owner explicitly authorized exact local244–291, checks/final review and Docker
+shutdown. Fresh target Pika54322/source243,48-file preview and manifest hashes
+matched. Source schema byte-identical to prior native baseline; no main drift.
+One supabase db push --local --yes succeeded; history291rows/max291. No reset,
+seed, history repair, production change or rollout activation. Apply receipt:
+/tmp/pika-authoring244-291-apply.log. Read-only exact291catalog PASS. Official
+db:types:generate/check PASS; only36-line new ledger metadata, byte-identical to
+prior isolated expected output. Final isolated001–291 replay, all4rollback
+proofs, generated-type equality and unchanged shared schema PASS:
+/tmp/pika-material-post-date.r5fxEg. Data API static PASS; historical/absent-default
+ACL proof reused unchanged source. Exact-source archive71tests PASS from prior
+correction; no UI delta, prior16teacher+4student+8existing browser evidence reused.
+Final full one-worker check and reserved cumulative review12 pending. Native
+clones cleaned; Docker will stop again before completion. No merge authorized.
+
+## 2026-10-23 — Final editor/image review candidate
+
+Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
+and no backend remains. Durable native receipts beside actual-editor captures:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
+Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
+17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
+change. Correct archive fixture to real rich_instructions field. All160affected
+startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
+UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
+remain identical to full-checked00ae6b071; closing docs/test-only delta.
+Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
+findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
+model/effort recorded, effective configuration/tokens/seconds not exposed.
+Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
+Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+## 2026-10-23 Authenticated CI Supabase registry repair
+
+PR1662's four remaining lanes failed before tests with the anonymous ECR data
+transfer cap, including one failed-only retry. Returned the PR to draft before
+repair. All seven Supabase jobs now select the official GHCR mirror with the
+existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
+image versions, proof commands, selectors and PR Gate remain unchanged; all17
+pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
+The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
+before login, sends the token on stdin, suppresses diagnostics and always removes
+only its own marked directory after stack cleanup. Local CI validates these exact
+credential slots and skips them without importing secrets; historical ECR/no-env
+plans remain supported. 360 focused helper/workflow/parser tests pass, including
+failed startup and rejection cases. Broader focused gate and two independent
+credential/parser reviews precede final stable-SHA CI. Existing human review-limit
+waiver covers this repair; prior13review receipts and7fix batches retained.
+No local Docker operation, migration, dependency or application/UI change in this
+batch. Another chat's bounded local verification hold remains active.
+
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+## 2026-10-23 Native inventory compatibility with CI registry credentials
+
+Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
+39971332075 proved all7GHCR logins and image-download/startup paths, then reached
+previously blocked owner-list/draft-GET/reorder proofs. Their native environment
+checks rejected DOCKER_CONFIG before endpoint/resource discovery. PR returned to
+draft; obsolete run cancelled before any correction push. One shared assertion
+now permits only exactGHA/GHCR job-owned private config with marker, owned0600
+single-link regular bounded16KB file and onlyauths.ghcr.io.auth. Other Docker/
+proxy selectors, config keys and sidefiles remain forbidden. All3direct guards
+use it; context/TLS/local Unix socket identity, resource discovery and outer/inner
+actual-config propagation remain unchanged. Regression matrix covers credential
+isolation plus real offline native/PATCH transport protocols. No daemon restart,
+application/schema change or migration. Batch10 and two new independent guard
+reviews retain the existing human budget waiver. Normal reviewed1662main merge
+now explicitly authorized by direct human reply in classroom-home coordinator;
+verified with read_thread. No production/deploy/provider/rollout authority added.
+
+Guard reviews17/18 completed0af438c68. One P2 accepted: collector still read the
+ignored HOME Docker config after admitting the private override. Read the effective
+config instead; real-file tests cover ambient headers/malformed JSON and preserve
+default-config rejection without DOCKER_CONFIG. All207 affected helper/inventory
+cases PASS. The superseded0af full gate was deliberately cancelled before this
+source edit; new exact-source gate and targeted review19 precede CI. No timeout,
+assertion, endpoint, resource or permission control was weakened. Batch11; human
+review-limit waiver remains active.
+
+## 2026-10-23 Derived image ledger and modal keyboard CI integration
+
+CI39977192319 proves all seven authenticated Supabase starts and the previously
+blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
+TypeScript, lint and production build. The final lifecycle audit exposed the
+291 image-reference ledger missing from the classroom graph declaration. Declare
+its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
+contract; archive source rows and remapped managed objects rebuild references.
+Keep it outside portable resources, purge adapters and Gradex. Regression starts
+RED against the observed FK/composite key, then62affected archive cases PASS;
+missing-FK and unexpected-resource guards remain strict. No SQL changes.
+Browser CI exposed stale keyboard order after the shared corner Close and the
+removed mobile heading trigger. Update contracts to assert accessible Close in
+the tab cycle and the compact Format menu, retaining all focus, retirement,
+Escape, no-write and confirmed-write checks. Four-project native fixture checks,
+required focused gate and targeted review are recorded in retained receipts.
+Human waived review limits; normal reviewed1662-to-main merge is explicitly
+authorized after all checks. No production operation or additional DB change.
+
+## 2026-10-23 Compaction image rehearsal correction
+
+Independent targeted review20 accepted the ledger/browser correction but found
+an image lifecycle interaction: compaction stages real-restore URLs containing
+fresh identities before those objects are reserved. Preserve original authoring
+image identities only in rollback rehearsal via the verified plan's inverse ID
+map; real restore retains fresh identities, paths and reservation protocol.
+Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
+reproduced the unreserved staged URL;68affected archive cases PASS. Native local
+291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
+for original IDs, preserves exact managed state, and rolls every fixture back.
+Actual classroom schema audit passes284FKs; canonical migration history291 and
+zero fixture users/objects verified afterward. No SQL migration changed. Docker
+DB-only window is closed after proof; full focused gate and review21 tracked in
+retained receipts. Superseded7bbc gate deliberately terminated before edits.

@@ -184,7 +184,7 @@ describe('AssignmentModal Instructions preview lifecycle with the real editor', 
     expect(editor).toHaveTextContent('Original instructions updated')
     expect(preview).toHaveTextContent('Original instructions')
     expect(preview).not.toHaveTextContent('updated')
-    expect(screen.getByRole('button', { name: 'Undo' })).toBeEnabled()
+    expect(tiptap.can().undo()).toBe(true)
     await advance(80)
     const reopened = openPreview()
     await advance(0) // Flush the existing blur-triggered save, independent of preview dismissal.

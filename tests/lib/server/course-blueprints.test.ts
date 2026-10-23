@@ -1,9 +1,11 @@
+import { COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   assertTeacherOwnsCourseBlueprint,
   createClassroomFromBlueprint,
   createCourseBlueprintFromClassroom,
   createCourseBlueprint,
+  exportCourseBlueprintBundle,
   deleteCourseBlueprint,
   getCourseBlueprintDetail,
   getNextTeacherCourseBlueprintPosition,
@@ -78,6 +80,56 @@ describe('course-blueprints server helpers', () => {
     }))
     managedStorageCopyMocks.queue.mockReset()
     managedStorageCopyMocks.queue.mockResolvedValue(undefined)
+  })
+
+
+  it.each(['assignments', 'materials', 'tests', 'surveys'])('rejects captured %s images before storage copies or writes', async area => {
+    const image = '![Private](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+    const source: any = { classroom: { id: 'c-1', title: 'Source', blueprint_source_revision: 7 },
+      resources_markdown: '', assignments: [], materials: [], tests: [], surveys: [], lesson_templates: [],
+    }
+    source[area] = [area === 'assignments' ? { instructions_markdown: image }
+      : area === 'materials' ? { content_markdown: image }
+      : area === 'tests' ? { content: { questions: [{ question_text: image }] }, documents: [] }
+      : { questions_json: [{ question_text: image }] }]
+    const before = structuredClone(source)
+    mockAssertTeacherCanMutateClassroom.mockResolvedValue({ ok: true })
+    mockLoadClassroomBlueprintSource.mockResolvedValue({ ok: true, source })
+    mockSupabase = { rpc: vi.fn(), from: vi.fn() }
+    expect(await createCourseBlueprintFromClassroom('owner', 'c-1', {})).toEqual({ ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR })
+    expect(source).toEqual(before)
+    expect(managedStorageCopyMocks.copy).not.toHaveBeenCalled()
+    expect(mockSupabase.rpc).not.toHaveBeenCalled()
+    expect(mockSupabase.from).not.toHaveBeenCalled()
+  })
+
+
+  it('ignores nonportable announcements when checking a capture source', async () => {
+    mockLoadClassroomBlueprintSource.mockResolvedValue({ ok: true, source: {
+      classroom: { id: 'c-1', title: 'Source' }, assignments: [], materials: [], tests: [], surveys: [], lesson_templates: [],
+      announcements: [{ content: '/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101' }],
+    } })
+    mockAssertTeacherCanMutateClassroom.mockResolvedValueOnce({ ok: true }).mockResolvedValueOnce({ ok: false, status: 409, error: 'Source changed' })
+    expect(await createCourseBlueprintFromClassroom('owner', 'c-1', {})).toEqual({ ok: false, status: 409, error: 'Source changed' })
+  })
+
+  it.each(['export', 'instantiate'])('rejects unsafe Blueprint %s before versions, editing sessions or private copies', async action => {
+    mockSupabase = makeSupabaseFromQueues({
+      course_blueprints: [makeQueryBuilder({ data: { id: 'b-1', teacher_id: 'owner', title: 'Course', content_revision: 1,
+        overview_markdown: '![Private](https://pika.example/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)',
+      }, error: null }), makeQueryBuilder({ data: { content_revision: 1 }, error: null })],
+      course_blueprint_assignments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_assessments: [makeQueryBuilder({ data: [], error: null })],
+      course_blueprint_lesson_templates: [makeQueryBuilder({ data: [], error: null })],
+      classrooms: [makeQueryBuilder({ data: [], error: null })],
+    })
+    mockSupabase.rpc = vi.fn()
+    const result = action === 'export' ? await exportCourseBlueprintBundle('owner', 'b-1')
+      : await createClassroomFromBlueprint('owner', { blueprintId: 'b-1' } as any)
+    expect(result).toEqual({ ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR })
+    expect(mockSupabase.rpc).not.toHaveBeenCalled()
+    expect(managedStorageCopyMocks.copy).not.toHaveBeenCalled()
+    expect(mockSupabase.from).not.toHaveBeenCalledWith('course_blueprint_editing_sessions')
   })
 
   it.each([

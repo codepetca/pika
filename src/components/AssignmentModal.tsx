@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
-import { X } from 'lucide-react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
@@ -49,6 +48,7 @@ function AssignmentEditorBody({
   return (
     <AssignmentForm
       {...formProps}
+      classroomId={sourceClassroomId}
       interactionActive={active}
       extraFields={(
         <div className="space-y-3">
@@ -175,6 +175,7 @@ function getScheduleDueDateValidationMessage(scheduleIso: string, dueAt: string,
 }
 
 interface AssignmentModalProps {
+  classroomName?: string
   isOpen: boolean
   classroomId: string
   assignment?: Assignment | null // null/undefined for create mode
@@ -184,7 +185,7 @@ interface AssignmentModalProps {
   onSuccess: (assignment: Assignment, options?: { closeModal?: boolean }) => void
 }
 
-export function AssignmentModal({ isOpen, classroomId, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
+export function AssignmentModal({ isOpen, classroomId, classroomName, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
   // Only a new logical open retires the old body's local editor/menu/history state.
   const [bodyLifetime, setBodyLifetime] = useState({ open: isOpen, key: 0 })
   if (bodyLifetime.open !== isOpen) {
@@ -986,7 +987,6 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         titleId="assignment-modal-title"
         closeLabel="Close assignment modal"
         closeDisabled={creating || saving || releasing || discarding}
-        showCloseButton={false}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
@@ -995,6 +995,7 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
         <AssignmentEditorBody
           key={bodyLifetime.key}
           sourceClassroomId={classroomId}
+          classroomName={classroomName}
           sourceArtifactId={assignment?.id}
           requirements={submissionRequirements}
           onRequirementsChange={activeInput(handleSubmissionRequirementsChange)}
@@ -1014,21 +1015,9 @@ export function AssignmentModal({ isOpen, classroomId, assignment, instructionsM
             cancelTitleFocus()
             setShowInstructionsPreview(true)
           })}
-          titleAccessory={(
+          saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Close assignment modal"
-                title="Close"
-                disabled={creating || saving || releasing || discarding}
-                onClick={() => void handleClose()}
-                className="h-11 w-11 p-0"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
+              <SaveStatus presentation="indicator" status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
             </div>
           )}
           disabled={saving || releasing || creating}

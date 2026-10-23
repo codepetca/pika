@@ -1,7 +1,13 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render as renderWithTestingLibrary, screen, within } from '@testing-library/react'
+import type { ReactElement } from 'react'
+import { TooltipProvider } from '@/ui'
 import { describe, expect, it, vi } from 'vitest'
 import { TestQuestionEditor } from '@/components/TestQuestionEditor'
 import { createMockTestQuestion } from '../helpers/mocks'
+
+function render(ui: ReactElement) {
+  return renderWithTestingLibrary(<TooltipProvider>{ui}</TooltipProvider>)
+}
 
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
@@ -41,7 +47,8 @@ describe('TestQuestionEditor', () => {
     expect(
       within(prompt.closest('.simple-editor-wrapper')!)
         .getByRole('toolbar', { name: 'Formatting options' }),
-    ).toHaveAttribute('data-toolbar-preset', 'compact')
+    ).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
+    expect(within(prompt.closest('.simple-editor-wrapper')!).getByRole('button', { name: 'Insert image' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toHaveValue('First')
     expect(screen.getByRole('textbox', { name: 'Question 1 option B' })).toHaveValue('Second')
   })

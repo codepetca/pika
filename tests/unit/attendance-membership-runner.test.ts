@@ -26,7 +26,7 @@ resolve_attendance_meta_image`], {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -115,7 +115,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,290")
+    expect(source).toContain("assert.equal(migrations.length,291")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
@@ -141,11 +141,11 @@ describe('isolated attendance membership database proof', () => {
 
 
 describe('isolated material and announcement post-date proof target', () => {
-  it('requires all three rollback proofs before exact metadata comparison', () => {
+  it('requires scheduling, post-date and image rollback proofs before exact metadata comparison', () => {
     const source = runner('scripts/check-material-post-date-database.sh')
-    expect(source).toContain('assert.equal(migrations.length,290')
+    expect(source).toContain('assert.equal(migrations.length,291')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations(migrations)')
-    const proof = source.indexOf('check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql; do')
+    const proof = source.indexOf('check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-teacher-authoring-images-database.sql; do')
     expect(proof).toBeGreaterThan(-1)
     expect(proof).toBeLessThan(source.indexOf('meta_id="$(docker create'))
     expect(source).toContain('update_announcement_for_owner_v1:; do')

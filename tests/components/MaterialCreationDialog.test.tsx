@@ -4,17 +4,35 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { TooltipProvider } from '@/ui'
+import { getMaterialMarkdownSource } from '@/lib/material-markdown'
+import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
+vi.mock('@/lib/markdown-image-upload', () => ({ uploadMarkdownImage: vi.fn() }))
 
 vi.mock('@/components/editor', () => ({
-  ContentField: ({ children, label }: any) => <div>{label}{children}</div>,
-  RichTextEditor: ({ content, editable, onChange }: any) => <textarea aria-label="Material content" disabled={!editable}
-    value={content.content?.map((node: any) => node.content?.map((child: any) => child.text).join('')).join('\n')}
-    onChange={(event) => onChange({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: event.target.value }] }] })} />,
+  MarkdownAuthoringEditor: ({ markdown, onMarkdownChange, visualContent, onVisualContentChange, disabled, mode, onModeChange, statusContent, imageUpload }: any) => (
+    <div>
+      <div>
+        {statusContent}
+        <button onClick={() => onModeChange('visual')}>Write</button>
+        <button onClick={() => onModeChange('markdown')}>Markdown</button>
+      </div>
+      {imageUpload && <button onClick={() => void imageUpload(new File(['png'], 'diagram.png', { type: 'image/png' }))}>Upload fixture image</button>}
+      <textarea
+        aria-label={mode === 'markdown' ? 'Material content Markdown' : 'Material content'}
+        disabled={disabled}
+        value={mode === 'markdown' ? markdown : visualContent.content?.map((node: any) => node.content?.map((child: any) => child.text).join('')).join('\n')}
+        onChange={event => {
+          if (mode === 'markdown') onMarkdownChange(event.target.value)
+          else onVisualContentChange({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: event.target.value }] }] })
+        }}
+      />
+    </div>
+  ),
   RichTextViewer: ({ content }: any) => <div>{content.content?.map((node: any) => node.content?.map((child: any) => child.text).join('')).join('\n')}</div>,
 }))
 
 const props = () => ({
-  isOpen: true, title: 'Field guide',
+  isOpen: true, title: 'Field guide', classroomName: 'Health for Life',
   content: { type: 'doc' as const, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Unsaved reading content' }] }] },
   onTitleChange: vi.fn(), onContentChange: vi.fn(), onSave: vi.fn(), onClose: vi.fn(),
 })
@@ -22,6 +40,42 @@ const props = () => ({
 // MaterialCreationPattern renders this production owner; shared editor, preview and action
 // contracts below also cover the deterministic Pattern Lab composition.
 describe('Material formatted editing', () => {
+  it('uses the TeacherClassroomView classroom context for image uploads', async () => {
+    const user = userEvent.setup()
+    vi.mocked(uploadMarkdownImage).mockResolvedValue('/api/storage/authoring-images?object_id=11111111-1111-4111-8111-111111111111')
+    render(<MaterialCreationDialog {...props()} classroomId="owner-classroom" />, { wrapper: TooltipProvider })
+    await user.click(screen.getByRole('button', { name: 'Upload fixture image' }))
+    expect(uploadMarkdownImage).toHaveBeenCalledWith('owner-classroom', expect.objectContaining({ name: 'diagram.png' }), undefined)
+  })
+
+  it('keeps the context header separate from details and preserves literal Markdown through save and reopen', async () => {
+    // Actual-owner Playwright captures cover responsive row sizing; this suite
+    // retains the accessible header/details order and source round-trip contract.
+    const user = userEvent.setup()
+    const handlers = props()
+    let latestContent = handlers.content
+    function ControlledEditor() {
+      const [content, setContent] = useState(handlers.content)
+      return <MaterialCreationDialog {...handlers} content={content} onContentChange={next => { latestContent = next as typeof content; handlers.onContentChange(next); setContent(next as typeof content) }} />
+    }
+    const view = render(<ControlledEditor />, { wrapper: TooltipProvider })
+    const details = screen.getByRole('region', { name: 'Material details' })
+    const header = screen.getByTitle('Health for Life').closest('.modal-context-row')!
+    expect(details).not.toContainElement(header)
+    expect(header.nextElementSibling).toBe(details)
+    await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect(handlers.onContentChange).not.toHaveBeenCalled()
+    const markdown = '# Reading\n\n- First  \n- Second\n'
+    fireEvent.change(screen.getByRole('textbox', { name: 'Material content Markdown' }), { target: { value: markdown } })
+    expect(getMaterialMarkdownSource(latestContent)).toBe(markdown)
+    await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(handlers.onSave).toHaveBeenCalledWith(false)
+    view.unmount()
+    render(<MaterialCreationDialog {...handlers} content={latestContent} />, { wrapper: TooltipProvider })
+    await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Material content Markdown' })).toHaveValue(markdown)
+  })
+
   it('edits directly in one editor, previews current changes and saves only on explicit action', async () => {
     const user = userEvent.setup()
     const handlers = props()
@@ -30,7 +84,12 @@ describe('Material formatted editing', () => {
       return <MaterialCreationDialog {...handlers} content={content} onContentChange={(next) => { handlers.onContentChange(next); setContent(next as typeof content) }} />
     }
     render(<ControlledEditor />, { wrapper: TooltipProvider })
-    expect(screen.queryByRole('button', { name: /^(Visual|Markdown|Apply Markdown|Discard Markdown)$/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Markdown', exact: true })).toBeVisible()
+    expect(screen.getByTitle('Health for Life')).toHaveTextContent('Health for Life')
+    const close = screen.getByRole('button', { name: 'Close material modal' })
+    expect(close.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
+    expect(screen.getByRole('dialog').querySelectorAll('[data-dialog-close]')).toHaveLength(1)
     const editor = screen.getByRole('textbox', { name: 'Material content' })
     await user.clear(editor)
     await user.type(editor, 'Updated reading')
@@ -41,6 +100,8 @@ describe('Material formatted editing', () => {
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
     expect(handlers.onSave).toHaveBeenCalledWith(false)
+    await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+    expect(handlers.onClose).toHaveBeenCalledOnce()
   })
 
   it('opens and previews existing rich content without converting or replacing it', async () => {
@@ -53,6 +114,12 @@ describe('Material formatted editing', () => {
     expect(handlers.onContentChange).not.toHaveBeenCalled()
     expect(handlers.onSave).not.toHaveBeenCalled()
     await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    await user.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'New title' } })
+    await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(handlers.onContentChange).not.toHaveBeenCalled()
+    expect(content.content[0]).toMatchObject({ type: 'image', attrs: { src: 'https://example.com/diagram.png' } })
     view.rerender(<MaterialCreationDialog {...handlers} content={content} readOnly />)
     expect(screen.getByRole('textbox', { name: 'Material content' })).toBeDisabled()
   })
@@ -106,6 +173,8 @@ describe('Material creation', () => {
     expect(screen.getByRole('button', { name: 'Close material modal' })).toBeDisabled()
     rerender(<MaterialCreationDialog {...handlers} readOnly error="Could not save material" />)
     expect(screen.getByRole('textbox', { name: /^Title/ })).toBeDisabled()
+    expect(document.getElementById(screen.getByRole('textbox', { name: /^Title/ }).getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
+    expect(screen.getByRole('textbox', { name: /^Title/ })).toHaveAttribute('placeholder', 'Title')
     expect(screen.getByRole('button', { name: 'Post' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Preview' })).toBeEnabled()
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save material')

@@ -715,4 +715,16 @@ describe('classroom blueprint source loader', () => {
       error: 'Classroom content changed while preparing the blueprint; review and retry',
     })
   })
+
+  it('extracts authoritative Material Markdown instead of stale compatibility nodes', async () => {
+    const source = 'Exact source  \n![Image](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)\n'
+    seedSourceSupabase({ materials: [{ id: 'material-source', title: 'Source', position: 0,
+      content: { type: 'doc', attrs: { authoring_markdown: source }, markdown: 'Stale compatibility content' },
+    }] })
+    const result = await loadClassroomBlueprintSource('teacher-1', 'c-1')
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error('Expected source')
+    expect(result.source.materials[0].content_markdown).toBe(source)
+  })
+
 })

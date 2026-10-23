@@ -1,0 +1,117 @@
+# Modal close consistency — 2026-10-22
+
+Owner requested top-right X dismissal consistently across the app. Reference:
+existing QR dialog corner controls and shared ContentDialog; use canonical
+44px Button, ghost treatment, Lucide X, right-3/top-3 inset.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Close action appearance | Button | reuse | Accessible name, native Close tooltip, focus and 44px target without introducing a TooltipProvider dependency into standalone dialogs |
+| Modal close position | DialogCloseButton | create | Shared dialogs, creation shells and legacy modal owners all adopt it |
+| Dismissal guards | DialogPanel / ContentDialog | extend | Button, Escape and backdrop share closeDisabled |
+| Editor layout | CreationModalShell | extend | Reserve horizontal space in existing title/control rows and remove close duplicates |
+
+Scope: dismissible dialog windows, including creation/edit, previews, alerts,
+confirmations and custom dialog panels. Side drawers, inline pane dismissal,
+remove-item X controls and non-dismissible pending operations retain their
+semantics. Close uses the existing cancellation/save-flush callback; it never
+confirms a destructive operation. Do not change mutation payloads or auth.
+
+Teacher/student, desktop1440×900/mobile390×844, light/dark. Verify default,
+long-title, scrolling, nested, busy/disabled, keyboard/focus and retained exits.
+Primary signal: the one consistent corner X. No decorative close styling.
+Composite accessibility checklist required: names, one icon close, focus return,
+Escape/backdrop/busy parity. Owner request promotes this as stable modal guidance.
+
+Implementation evidence: shared DialogCloseButton; all shared dialog families,
+creation editors, legacy submission/add-student dialogs, reward and test preview
+owners adopt the corner convention. Horizontal clearance in existing rows prevents title/control
+collisions without an empty header band. The executable `/pattern-lab#modal-close` covers all five families.
+
+Verification: teacher/student × desktop/mobile × light/dark screenshots inspected;
+44px target, 12px corner inset, scrolling, disabled dismissal and focus return
+covered in Playwright. Production assignment/test/survey fixtures also exercise
+save/preview/close paths. Unit coverage checks cancellation, busy guards and one
+modal-owned close. Artifacts: local visualization folder `modal-close/` and
+`modal-editor-layouts/` under the task's 2026-10-22 visualization directory.
+
+## Compact header refinement — 2026-10-22
+
+Owner requested a compact header without a close-only band. Headerless creation/edit shells place
+X alongside existing top controls (Write / Markdown for assignments), with no
+additional vertical row. On stacked mobile layouts the title field reserves the
+corner; desktop control rows reserve it instead. Visible dialog headings keep X
+in that same heading row. Keep one 44px target outside the scroller, existing
+callbacks/guards and accessible labels. Reference: current assignment mode row,
+Pattern Lab assignment/test/survey/material editors and modal-close examples.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Corner action | DialogCloseButton | extend | Allow creation-shell inset to match existing responsive form padding |
+| Empty header removal | CreationModalShell | extend | Only render a heading row for visible titles/metadata; reserve inline control space |
+| Inline clearance | Existing editor/title rows | extend | Semantic class hooks reserve horizontal space only in compact creation shells |
+
+Both roles, desktop/mobile, light/dark; verify mode switching, long titles,
+question menus, source mode, scroll, busy guards and focus. Primary signal remains
+the shared corner X; must not add another row or another close control.
+
+Compact creation callers mark the mobile context row with `modal-context-row`,
+the desktop top control row with `modal-controls-row`, centered question grids
+with `modal-question-controls-row` (clear only the trailing actions), or the wrapper around
+the first rich-text toolbar with `modal-toolbar-row`. CreationModalShell scopes
+clearance to those rows only; inline editors outside that shell retain their
+layout. Visible headings/metadata retain their own existing row.
+
+Existing compact title/control rows stay sticky within the editor's actual
+scroller so moving through long content never places X over another card.
+Use the existing local sticky layer beneath the close/menu layer. The survey
+fixture must match the production workspace's full-height grid scroll owner.
+
+Compact shells isolate each rich-text editor's internal stacking context so its
+sticky toolbar stays beneath question menus in the existing control rows. This
+retains existing layer tokens and the panel-owned X above both.
+
+## Title and saving refinement — 2026-10-22
+
+Owner requested no visible Title or Unsaved labels, title textboxes aligned with
+existing right-pane controls, and circular saving feedback elsewhere. Reference:
+the compact assignment editor and shared CircularProgress/SaveStatus owners.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Title without a label row | FormField hideLabel/collapseHiddenLabel | reuse | Preserve the accessible name, required/error semantics and empty-title placeholder |
+| Quiet saving feedback | SaveStatus + CircularProgress | extend | Opt-in indicator presentation; retain live status and visible failure feedback |
+| Saving position | Existing right-pane control rows | extend | Place the indicator beside modes/question controls without adding a row |
+| Title/settings alignment | CreationModalShell / FormField | extend | Shared CreationModalTitleField composition keeps the input and settings on one 44px row, preserving names/errors and corner clearance |
+
+Apply to the same assignment, test, survey and material editor references and
+production callers. Preserve Markdown, autosave callbacks and validation.
+Verify empty titles, saving/saved/unsaved/error states, geometry and keyboard use
+on desktop/mobile in light/dark; both shared role references remain covered.
+
+Saving feedback remains available in survey Edit, Markdown and Preview while
+metadata stays editable. Preview reuses its existing title row for the indicator.
+
+## Item context refinement — 2026-10-22
+
+Owner requested the classwork type and classroom at the top left, with the title
+and remaining details below. Extend the existing creation modal compositions with
+CreationModalContextHeader for Assignment, Material, Test and Survey. Reuse the
+AppHeader classroom-name fade; preserve the full name as text and native title.
+The context row aligns with the existing right-pane controls and reserves X on
+mobile; it adds no row above the right pane. Title/settings move down together.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Type and classroom context | Creation modal compositions | extend | Four real editor adopters share the same narrow presentation |
+| Long classroom names | AppHeader fade | reuse | Bound the name to the pane while preserving the full text |
+| Editable title | Existing title fields | reuse | Keep labels, placeholders, validation and save callbacks |
+
+Reference: Pattern Lab assignment/test/survey/material split editors and AppHeader.
+Teacher × desktop1440×900/mobile390×844 × light/dark; student n/a because these
+editor details are teacher-only and no shared student dialog changes. Verify long
+and missing classroom names, empty title, mode/settings menus, scroll, saving and
+corner clearance. Primary signal: type followed by classroom name, above the
+editable title. No new icons, badges, save behavior or full-width header band.
+Composite accessibility review: yes; preserve dialog names, input names, focus,
+menu operation, one X and existing busy dismissal guards.

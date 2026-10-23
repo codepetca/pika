@@ -1,3 +1,4 @@
+import { createCiRegistryEnvironment } from '../helpers/ci-registry-environment'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AssertionError } from 'node:assert'
 import { EventEmitter } from 'node:events'
@@ -5,7 +6,7 @@ import { readdirSync } from 'node:fs'
 import { PassThrough, Writable } from 'node:stream'
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
   snapshotSqlReads: false, sourceDrift: false, sqlFileCache: new Map<string, string>() }))
-vi.mock('node:child_process', () => ({ spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
+vi.mock('node:child_process', async importOriginal => ({ ...await importOriginal<typeof import('node:child_process')>(), spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
   return { ...actual, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? path : actual.realpathSync(path),
@@ -162,16 +163,20 @@ describe('native persistent-session transport with offline child mocks', () => {
   })
   // All 12 mocked schedules repeatedly hash the complete migration inventory;
   // allow bounded coverage overhead for this full-protocol regression.
-  it('runs the finite protocol through persistent sessions and binds every exact child command', async () => {
-    const adapter = factory(); await adapter.setup(); const result = await adapter.run()
-    expect(result.races.schedules).toHaveLength(DRAFT_GET_CAPS.schedules)
-    expect(result.fixtureUnchanged).toBe(true)
-    expect(children.every(c => c.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
-    expect(terminations).toHaveLength(children.length)
-    expect(mocks.inventory.mock.calls.length).toBeGreaterThan(children.length)
-    for (const args of mocks.spawn.mock.calls.map(call => call[1] as string[])) {
-      expect(args).toContain(resources[0].id); expect(args).toContain('-XqAt'); expect(args).not.toContain('-h')
-    }
+  it.each(['default', 'ci-registry'])('runs the finite protocol and binds every exact child command with %s config', async config => {
+    const registry = config === 'ci-registry' ? createCiRegistryEnvironment() : undefined
+    if (registry) for (const [key, value] of Object.entries(registry.env)) vi.stubEnv(key, value)
+    try {
+      const adapter = factory(); await adapter.setup(); const result = await adapter.run()
+      expect(result.races.schedules).toHaveLength(DRAFT_GET_CAPS.schedules)
+      expect(result.fixtureUnchanged).toBe(true)
+      expect(children.every(c => c.kill.mock.calls.some(([signal]) => signal === 'SIGKILL'))).toBe(true)
+      expect(terminations).toHaveLength(children.length)
+      expect(mocks.inventory.mock.calls.length).toBeGreaterThan(children.length)
+      for (const args of mocks.spawn.mock.calls.map(call => call[1] as string[])) {
+        expect(args).toContain(resources[0].id); expect(args).toContain('-XqAt'); expect(args).not.toContain('-h')
+      }
+    } finally { vi.unstubAllEnvs(); registry?.dispose() }
   }, 15000)
   it('terminates the exact remote backend and reaps the child after a timed-out action', async () => {
     vi.useFakeTimers(); hangingSetup = true

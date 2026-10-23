@@ -45,6 +45,33 @@ describe('limited markdown WYSIWYG round trips', () => {
     expect(result.markdown).toBe('Open this')
   })
 
+  it('preserves image nodes, alt descriptions, and escaped URL parentheses through source edits', () => {
+    const markdown = 'Before ![A \\[label\\]](https://example.com/chart%281%29.png) after.\n\n![Photo](/api/teacher/images/photo.png)'
+    const result = roundTripLimitedMarkdown(markdown)
+    expect(result.isStable).toBe(true)
+    expect(result.hasLossyConversion).toBe(false)
+    expect(result.markdown).toBe(markdown)
+    expect(result.content.content?.[0].content).toContainEqual({ type: 'image', attrs: {
+      src: 'https://example.com/chart%281%29.png', alt: 'A [label]',
+    } })
+    expect(markdownToTiptapContent(result.markdown)).toEqual(result.content)
+  })
+
+  it.each(['javascript:evil', 'data:image/png;base64,abc', 'blob:https://example.com/id', '//other.example/image.png', 'mailto:a@b.com'])(
+    'keeps unsafe image sources inert: %s', (src) => {
+      const content = markdownToTiptapContent(`![Description](${src})`)
+      expect(JSON.stringify(content)).not.toContain('"type":"image"')
+    },
+  )
+
+  it('warns when image attributes cannot be represented by Markdown', () => {
+    const converted = tiptapToMarkdown({ type: 'doc', content: [{ type: 'image', attrs: {
+      src: 'https://example.com/image.png', alt: 'Diagram', width: 400,
+    } }] })
+    expect(converted.markdown).toBe('![Diagram](https://example.com/image.png)')
+    expect(converted.hasLossyConversion).toBe(true)
+  })
+
   it('reports formatting that is not safe for markdown-backed fields', () => {
     const content: TiptapContent = {
       type: 'doc',

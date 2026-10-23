@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, History, X } from 'lucide-react'
-import { Button } from '@/ui'
+import { ChevronLeft, ChevronRight, History } from 'lucide-react'
+import { Button, DialogCloseButton } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { RichTextViewer } from '@/components/editor'
 import { countCharacters, hasRenderableContent } from '@/lib/tiptap-content'
@@ -183,7 +183,8 @@ export function TeacherStudentWorkModal({
         aria-modal="true"
         className="relative w-full max-w-6xl h-[95vh] rounded-lg border border-border bg-surface shadow-xl overflow-hidden flex flex-col"
       >
-        <div className="border-b border-border p-4">
+        <DialogCloseButton onClose={onClose} />
+        <div className="border-b border-border p-4 pr-16">
           <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
             <div className="min-w-0">
               <div className="text-sm font-medium text-text-default truncate">
@@ -244,14 +245,6 @@ export function TeacherStudentWorkModal({
                 aria-label={isHistoryOpen ? 'Hide history' : 'Show history'}
               >
                 <History className="h-4 w-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 rounded-md hover:bg-surface-hover text-text-muted"
-                aria-label="Close"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
               </button>
             </div>
           </div>

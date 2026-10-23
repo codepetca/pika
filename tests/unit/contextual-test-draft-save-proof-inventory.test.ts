@@ -8,6 +8,7 @@ vi.mock('../../scripts/contextual-test-owner-list-proof-inventory', () => ({ tes
 vi.mock('node:child_process', async importOriginal => ({ ...await importOriginal<typeof import('node:child_process')>(), spawn: mocks.spawn }))
 vi.mock('node:fs', async importOriginal => { const original = await importOriginal<typeof import('node:fs')>(); return { ...original, readFileSync: vi.fn(original.readFileSync) } })
 import { draftSaveProofDockerInventory } from '../../scripts/contextual-test-draft-save-proof-inventory'
+import { createCiRegistryEnvironment } from '../helpers/ci-registry-environment'
 
 const context = ['context', 'inspect', '--format', '{"endpoints":{{json .Endpoints}},"tlsMaterial":{{json .TLSMaterial}}}']
 const template = [...readFileSync('scripts/contextual-assignment-list-proof-platform.ts', 'utf8').matchAll(/^const containerTemplate = '([^'\r\n]+)'$/gm)][0][1]
@@ -186,51 +187,57 @@ describe('PATCH-only full HTTP inventory (offline)', () => {
     const bytes = Buffer.from('雪😀'); children[0].stdout.write(bytes.subarray(0, 1)); children[0].complete(bytes.subarray(1))
     expect(await pending).toBe('雪😀'); expect(active).toBe(0)
   })
-  it.each(['DOCKER_HOST', 'HTTPS_PROXY'])('runs native %s denial before CLI/HTTP', async name => {
+  it.each(['DOCKER_HOST', 'DOCKER_CONFIG', 'HTTPS_PROXY'])('runs native %s denial before CLI/HTTP', async name => {
     const shared = await vi.importActual<typeof import('../../scripts/contextual-test-owner-list-proof-inventory')>('../../scripts/contextual-test-owner-list-proof-inventory')
     mocks.collect.mockImplementation(shared.testOwnerListDockerInventory)
     await expect(draftSaveProofDockerInventory({ ...options(), env: { [name]: '' }, readConfig: () => undefined })).rejects.toThrow('Private Test draft save inventory rejected')
     expect(children).toHaveLength(0); expect(calls).toHaveLength(0)
   })
-  it('replays the real unchanged export/parser on 129 containers,617 volumes,23 networks with full parity and three total slots', async () => {
-    const shared = await vi.importActual<typeof import('../../scripts/contextual-test-owner-list-proof-inventory')>('../../scripts/contextual-test-owner-list-proof-inventory')
-    const platform = await import('../../scripts/contextual-assignment-list-proof-platform')
-    mocks.collect.mockImplementation(shared.testOwnerListDockerInventory)
-    const names = ids(129); const networks = ids(23).map((id, n) => ({ Id: (10000 + n).toString(16).padStart(64, '0'), Name: `network_${n}`, Created: 'RAW', Labels: null,
-      Containers: n === 0 ? { [names[0]]: {}, [names[1]]: {}, [ids(999)[998]]: {} } : null }))
-    const volumes = Array.from({ length: 617 }, (_, n) => ({ Name: `volume_${n}`, CreatedAt: '  RAW+timezone  ', Labels: null }))
-    const containers = names.map((id, n) => ({ ...projection(raw(id)), labels: n ? { foreign: 'yes' } : null,
-      mounts: [{ Type: 'volume', Name: volumes[n].Name }, ...(n === 1 ? [{ Type: 'volume', Name: volumes[0].Name }] : [])],
-      networks: n < 2 ? { shared: { NetworkID: networks[0].Id } } : null,
-      bindings: n === 0 ? { '5432/tcp': [{ HostPort: '54332' }], 'null/tcp': null } : null }))
-    const command = (args: string[]) => {
-      if (JSON.stringify(args) === JSON.stringify(context)) return JSON.stringify({ endpoints: { docker: { Host: host[1], SkipTLSVerify: false } }, tlsMaterial: {} })
-      if (args[0] === 'ps') return names.join('\n')
-      if (args[0] === 'volume' && args[1] === 'ls') return volumes.map(v => v.Name).join('\n')
-      if (args[0] === 'network' && args[1] === 'ls') return networks.map(n => n.Id).join('\n')
-      if (args[0] === 'network' && args[1] === 'inspect') return JSON.stringify(networks.filter(n => args.slice(2).includes(n.Id)))
-      if (args[0] === 'volume' && args[1] === 'inspect') return JSON.stringify(volumes.filter(v => args.slice(2).includes(v.Name)))
-      if (args[0] === 'inspect') return containers.filter(c => args.slice(3).includes(c.id)).map(c => JSON.stringify(c)).join('\n')
-      throw Error('offline unexpected command')
-    }
-    const spawn = mocks.spawn.getMockImplementation()!
-    mocks.spawn.mockImplementation((file, args, opts) => {
-      const child = spawn(file, args, opts) as Child
-      queueMicrotask(() => child.complete(command(args[0] === '--host' ? args.slice(2) : args))); return child
-    })
-    onRequest = call => {
-      if (call.options.path === '/v1.45/volumes') call.respond(JSON.stringify({ Volumes: volumes, Warnings: null }))
-      else {
-        const projected = containers.find(c => c.id === requestedId(call))!
-        call.respond(JSON.stringify({ ...raw(projected.id), Config: { Labels: projected.labels, Env: ['PRIVATE_SECRET=never_return'] }, Mounts: projected.mounts,
-          NetworkSettings: { Networks: projected.networks }, HostConfig: { PortBindings: projected.bindings } }))
+  it.each(['default', 'ci-registry'])('replays the real parser on the full topology with %s config and three total slots', async config => {
+    const registry = config === 'ci-registry' ? createCiRegistryEnvironment() : undefined
+    const environment = registry?.env ?? {}
+    try {
+      const shared = await vi.importActual<typeof import('../../scripts/contextual-test-owner-list-proof-inventory')>('../../scripts/contextual-test-owner-list-proof-inventory')
+      const platform = await import('../../scripts/contextual-assignment-list-proof-platform')
+      mocks.collect.mockImplementation(shared.testOwnerListDockerInventory)
+      const names = ids(129); const networks = ids(23).map((id, n) => ({ Id: (10000 + n).toString(16).padStart(64, '0'), Name: `network_${n}`, Created: 'RAW', Labels: null,
+        Containers: n === 0 ? { [names[0]]: {}, [names[1]]: {}, [ids(999)[998]]: {} } : null }))
+      const volumes = Array.from({ length: 617 }, (_, n) => ({ Name: `volume_${n}`, CreatedAt: '  RAW+timezone  ', Labels: null }))
+      const containers = names.map((id, n) => ({ ...projection(raw(id)), labels: n ? { foreign: 'yes' } : null,
+        mounts: [{ Type: 'volume', Name: volumes[n].Name }, ...(n === 1 ? [{ Type: 'volume', Name: volumes[0].Name }] : [])],
+        networks: n < 2 ? { shared: { NetworkID: networks[0].Id } } : null,
+        bindings: n === 0 ? { '5432/tcp': [{ HostPort: '54332' }], 'null/tcp': null } : null }))
+      const command = (args: string[]) => {
+        if (JSON.stringify(args) === JSON.stringify(context)) return JSON.stringify({ endpoints: { docker: { Host: host[1], SkipTLSVerify: false } }, tlsMaterial: {} })
+        if (args[0] === 'ps') return names.join('\n')
+        if (args[0] === 'volume' && args[1] === 'ls') return volumes.map(v => v.Name).join('\n')
+        if (args[0] === 'network' && args[1] === 'ls') return networks.map(n => n.Id).join('\n')
+        if (args[0] === 'network' && args[1] === 'inspect') return JSON.stringify(networks.filter(n => args.slice(2).includes(n.Id)))
+        if (args[0] === 'volume' && args[1] === 'inspect') return JSON.stringify(volumes.filter(v => args.slice(2).includes(v.Name)))
+        if (args[0] === 'inspect') return containers.filter(c => args.slice(3).includes(c.id)).map(c => JSON.stringify(c)).join('\n')
+        throw Error('offline unexpected command')
       }
-    }
-    const stat = vi.fn(() => ({ dev: 1, ino: 2, mode: 0o140600, rdev: 0, isSocket: () => true }) as ReturnType<typeof statSync>)
-    const actual = await draftSaveProofDockerInventory({ ...options(), readConfig: () => undefined, realpath: () => host[1].slice(7), stat })
-    const expected = await platform.assignmentListDockerInventory(async (_file, args) => command(args))
-    expect(actual).toEqual(expected); expect(actual).toHaveLength(769); expect(JSON.stringify(actual)).not.toContain('PRIVATE_SECRET')
-    expect(children).toHaveLength(5); expect(calls).toHaveLength(130); expect(calls.filter(c => c.options.path === '/v1.45/volumes')).toHaveLength(1)
-    expect(ownMaximum).toBeLessThanOrEqual(2); expect(maximum).toBeLessThanOrEqual(3); expect(active + httpActive).toBe(0); expect(stat).toHaveBeenCalledTimes(2)
+      const spawn = mocks.spawn.getMockImplementation()!
+      mocks.spawn.mockImplementation((file, args, opts) => {
+        const child = spawn(file, args, opts) as Child
+        queueMicrotask(() => child.complete(command(args[0] === '--host' ? args.slice(2) : args))); return child
+      })
+      onRequest = call => {
+        if (call.options.path === '/v1.45/volumes') call.respond(JSON.stringify({ Volumes: volumes, Warnings: null }))
+        else {
+          const projected = containers.find(c => c.id === requestedId(call))!
+          call.respond(JSON.stringify({ ...raw(projected.id), Config: { Labels: projected.labels, Env: ['PRIVATE_SECRET=never_return'] }, Mounts: projected.mounts,
+            NetworkSettings: { Networks: projected.networks }, HostConfig: { PortBindings: projected.bindings } }))
+        }
+      }
+      const stat = vi.fn(() => ({ dev: 1, ino: 2, mode: 0o140600, rdev: 0, isSocket: () => true }) as ReturnType<typeof statSync>)
+      const actual = await draftSaveProofDockerInventory({ ...options(), env: environment, readConfig: () => undefined, realpath: () => host[1].slice(7), stat })
+      const expected = await platform.assignmentListDockerInventory(async (_file, args) => command(args))
+      expect(actual).toEqual(expected); expect(actual).toHaveLength(769); expect(JSON.stringify(actual)).not.toContain('PRIVATE_SECRET')
+      expect(children).toHaveLength(5); expect(calls).toHaveLength(130); expect(calls.filter(c => c.options.path === '/v1.45/volumes')).toHaveLength(1)
+      expect(ownMaximum).toBeLessThanOrEqual(2); expect(maximum).toBeLessThanOrEqual(3); expect(active + httpActive).toBe(0); expect(stat).toHaveBeenCalledTimes(2)
+      expect(mocks.collect.mock.calls[0][1].env).toEqual(environment)
+      for (const call of mocks.spawn.mock.calls) expect(call[2].env).toEqual(environment)
+    } finally { registry?.dispose() }
   })
 })

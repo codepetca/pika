@@ -199,7 +199,12 @@ describe('StudentPalExperience', () => {
     renderExperience({ getSnapshot: async () => snapshot, markRewardSeen })
 
     expect(await screen.findByRole('dialog', { name: 'Reward earned' })).toBeVisible()
+    const cornerClose = screen.getByRole('button', { name: 'Close reward' })
+    expect(cornerClose.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    expect(markRewardSeen).toHaveBeenCalledTimes(1)
+    expect(cornerClose).toBeDisabled()
+    fireEvent.click(cornerClose)
     expect(markRewardSeen).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('dialog', { name: 'Reward earned' })).toBeVisible()
 

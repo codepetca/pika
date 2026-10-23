@@ -37,6 +37,10 @@ const lifecycleProofs = new Set(['draft-get', 'pristine-discard', 'publication']
 const actions = new Set(['actions/checkout@v7', 'actions/setup-node@v6', 'pnpm/action-setup@v6',
   'supabase/setup-cli@v1', 'actions/cache@v6', 'actions/upload-artifact@v7'])
 const summaryNames = new Set(['Summarize dependency setup evidence', 'Summarize browser setup evidence'])
+const registryLoginName = 'Authenticate Supabase image pulls'
+const registryCleanupName = 'Remove Supabase registry credentials'
+const registryLoginCommand = 'node scripts/ci-supabase-registry-auth.mjs login'
+const registryCleanupCommand = 'node scripts/ci-supabase-registry-auth.mjs cleanup'
 const selector = "needs.classify-changes.outputs.run_test_build == 'true'"
 const cleanupCondition = "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'"
 const startCommand = 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector'
@@ -100,6 +104,7 @@ function parseStep(lines) {
       throw new Error(`Unsupported CI step property in ${step.name}: ${line.trim()}`)
     }
     const [, key, value] = property
+    if (key === 'env' && step.githubOnlyRegistry === 'login') throw new Error('Duplicate Supabase registry credential environment.')
     if ((key !== 'env' && key !== 'with' && key in step) || ((key === 'env' || key === 'with') && Object.keys(step[key]).length)) throw new Error(`Duplicate ${key} in ${step.name}.`)
     if (key === 'run' && value === '|') {
       const body = []
@@ -112,7 +117,11 @@ function parseStep(lines) {
       if (value) throw new Error(`Inline ${key} is unsupported in ${step.name}.`)
       const body = []
       while (index + 1 < lines.length && (/^ {10}/.test(lines[index + 1]) || !lines[index + 1].trim())) body.push(lines[++index])
-      if (key === 'env') step.env = literalEnvironment(body, 10)
+      if (key === 'env' && step.name === registryLoginName) {
+        // The workflow token is never imported or evaluated by a local run.
+        if (body.filter(line => line.trim()).join('\n') !== '          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}') throw new Error('Unsupported Supabase registry credential expression.')
+        step.githubOnlyRegistry = 'login'
+      } else if (key === 'env') step.env = literalEnvironment(body, 10)
       else {
         // Action configuration is never executed locally. Preserve it for pinned
         // tool-version validation and report each action as an explicit override.
@@ -143,6 +152,7 @@ function parseStep(lines) {
     step.localOverride = 'Cache setup summary is emitted locally without GitHub cache evidence.'
     step.run = step.run.replace(/\$\{\{ steps\.[a-z-]+\.outputs\.cache-hit \}\}/g, 'unavailable (local setup)')
   }
+  if (step.name === registryCleanupName) step.githubOnlyRegistry = 'cleanup'
   return step
 }
 
@@ -315,7 +325,7 @@ export function extractWorkflow(source) {
     let end = start + 1
     while (end < lines.length && !/^\S/.test(lines[end])) end += 1
     workflowEnv = literalEnvironment(lines.slice(start + 1, end), 2)
-    if (Object.keys(workflowEnv).length !== 1 || workflowEnv.SUPABASE_INTERNAL_IMAGE_REGISTRY !== 'public.ecr.aws') {
+    if (Object.keys(workflowEnv).length !== 1 || !['public.ecr.aws', 'ghcr.io'].includes(workflowEnv.SUPABASE_INTERNAL_IMAGE_REGISTRY)) {
       throw new Error('Unsupported workflow environment; expected the pinned Supabase image registry.')
     }
   }
@@ -348,9 +358,21 @@ export function extractWorkflow(source) {
     const body = lines.slice(start, end)
     const stepsIndex = body.findIndex(line => line === '    steps:')
     if (stepsIndex === -1) throw new Error(`Missing steps in ${id}.`)
-    for (const line of body.slice(0, stepsIndex)) {
+    const header = body.slice(0, stepsIndex)
+    const permissionHeaders = header.map((line, index) => line === '    permissions:' ? index : -1).filter(index => index !== -1)
+    const permissions = {}
+    if (permissionHeaders.length) {
+      if (permissionHeaders.length !== 1) throw new Error('Duplicate CI registry permissions.')
+      const index = permissionHeaders[0]
+      if (header[index + 1] !== '      contents: read' || header[index + 2] !== '      packages: read'
+        || /^ {6}\S/.test(header[index + 3] ?? '')) throw new Error('Supabase registry permissions must be read-only and exact.')
+      Object.assign(permissions, { contents: 'read', packages: 'read' })
+    }
+    for (const [index, line] of header.entries()) {
+      if (permissionHeaders.length && index > permissionHeaders[0] && index <= permissionHeaders[0] + 2) continue
       if (!line.trim() || line.trimStart().startsWith('#') || /^ {6}[A-Z][A-Z0-9_]*:/.test(line)) continue
-      if (!/^    (?:name|needs|if|runs-on|timeout-minutes|env):/.test(line)) throw new Error(`Unsupported canonical job property in ${id}: ${line.trim()}`)
+      if (line.startsWith('    permissions:') && line !== '    permissions:') throw new Error('Unsupported inline CI permissions.')
+      if (!/^    (?:name|needs|if|runs-on|timeout-minutes|env|permissions):/.test(line)) throw new Error(`Unsupported canonical job property in ${id}: ${line.trim()}`)
     }
     if (databaseSplit && ['database', 'database-lifecycle'].includes(lane)) {
       const header = body.slice(0, stepsIndex)
@@ -380,7 +402,7 @@ export function extractWorkflow(source) {
     if (chunk.length) steps.push(parseStep(chunk))
     if (!steps.length) throw new Error(`No steps in ${id}.`)
     if (steps.some(step => Object.hasOwn(step.env, 'SUPABASE_INTERNAL_IMAGE_REGISTRY'))) throw new Error('Step cannot override the shared Supabase image registry.')
-    jobs[id] = { id, lane, env, steps }
+    jobs[id] = { id, lane, env, permissions, steps }
     validateLaneSafety(jobs[id])
   }
   validateDatabaseInventory(jobs)
@@ -480,11 +502,25 @@ export function selectPlan(jobs, lane) {
 export function validateLaneSafety(job) {
   const preflight = job.steps.filter(step => step.id === 'ci-isolation' || step.name === 'Verify isolated CI runner')
   if (preflight.length !== 1 || preflight[0].id !== 'ci-isolation' || preflight[0].if || preflight[0].run !== `node scripts/ci-runner-preflight.mjs --lane ${job.lane}`) throw new Error(`Canonical ${job.lane} preflight is missing or changed.`)
+  const registrySteps = job.steps.filter(step => step.githubOnlyRegistry || step.name === registryLoginName || step.name === registryCleanupName
+    || ['supabase-registry-auth', 'supabase-registry-cleanup'].includes(step.id) || step.run?.includes('ci-supabase-registry-auth.mjs'))
+  const authenticated = job.lane !== 'test-build' && job.env.SUPABASE_INTERNAL_IMAGE_REGISTRY === 'ghcr.io'
+  const permissions = job.permissions ?? {}
+  if (!authenticated && (registrySteps.length || Object.keys(permissions).length)) throw new Error('Registry credentials require the exact authenticated Supabase plan.')
   if (job.lane === 'test-build') return
   const starts = job.steps.filter(step => step.id === 'supabase-start' || /\bsupabase\s+start\b/.test(step.run ?? ''))
   const stops = job.steps.filter(step => /\bsupabase\s+stop\b/.test(step.run ?? ''))
   if (starts.length !== 1 || starts[0].id !== 'supabase-start' || starts[0].if || starts[0].run !== startCommand || stops.length !== 1 || stops[0].run !== 'supabase stop --no-backup' || stops[0].if !== cleanupCondition) throw new Error(`Canonical ${job.lane} startup or cleanup changed; update the local safety contract.`)
-  if (job.steps.indexOf(preflight[0]) >= job.steps.indexOf(starts[0]) || job.steps.indexOf(starts[0]) >= job.steps.indexOf(stops[0]) || job.steps.some((step, index) => index > job.steps.indexOf(stops[0]) && step.run)) throw new Error(`Canonical ${job.lane} preflight/start/cleanup order changed.`)
+  const login = registrySteps.find(step => step.name === registryLoginName)
+  const cleanup = registrySteps.find(step => step.name === registryCleanupName)
+  if (authenticated && (Object.keys(permissions).length !== 2 || permissions.contents !== 'read' || permissions.packages !== 'read'
+    || registrySteps.length !== 2 || !login || !cleanup
+    || login.id !== 'supabase-registry-auth' || login.run !== registryLoginCommand || login.githubOnlyRegistry !== 'login' || login.if || login.shell
+    || cleanup.id !== 'supabase-registry-cleanup' || cleanup.run !== registryCleanupCommand || cleanup.githubOnlyRegistry !== 'cleanup' || cleanup.if !== 'always()' || cleanup.shell
+    || Object.keys(login.env).length || Object.keys(cleanup.env).length || Object.keys(login.with).length || Object.keys(cleanup.with).length
+    || job.steps.indexOf(login) <= job.steps.indexOf(preflight[0]) || job.steps.indexOf(login) !== job.steps.indexOf(starts[0]) - 1
+    || job.steps.indexOf(cleanup) !== job.steps.indexOf(stops[0]) + 1)) throw new Error(`Canonical ${job.lane} registry authentication/cleanup changed.`)
+  if (job.steps.indexOf(preflight[0]) >= job.steps.indexOf(starts[0]) || job.steps.indexOf(starts[0]) >= job.steps.indexOf(stops[0]) || job.steps.some((step, index) => index > job.steps.indexOf(stops[0]) && step.run && step !== cleanup)) throw new Error(`Canonical ${job.lane} preflight/start/cleanup order changed.`)
 }
 
 export function shouldRun(condition, failed, outcomes = {}) {
@@ -617,6 +653,11 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
     for (const [index, step] of job.steps.entries()) {
       if (interrupted() && step.run !== 'supabase stop --no-backup') { if (step.id) outcomes[step.id] = 'skipped'; continue }
       if (!shouldRun(step.if, laneFailed || interrupted(), outcomes)) { if (step.id) outcomes[step.id] = 'skipped'; continue }
+      if (step.githubOnlyRegistry) {
+        console.log(`Local setup override: ${step.name}; GitHub workflow credentials are not imported or executed locally.`)
+        if (step.id) outcomes[step.id] = 'success'
+        continue
+      }
       if (step.uses) {
         console.log(`Local setup override: ${step.name}`)
         if (step.uses === 'actions/upload-artifact@v7' && isBrowserLane(job.lane)) {

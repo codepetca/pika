@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { UiGallery } from '@/app/__ui/UiGallery'
 import { CalendarIdentityPattern } from '@/app/__ui/CalendarIdentityPattern'
+import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
+import { AssignmentEditSplitPattern } from '@/app/__ui/AssignmentEditSplitPattern'
+import { SurveyEditSplitPattern } from '@/app/__ui/SurveyEditSplitPattern'
+import { TestEditSplitPattern } from '@/app/__ui/TestEditSplitPattern'
+import { MarkdownAuthoringPattern } from '@/app/__ui/MarkdownAuthoringPattern'
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { CalendarMockup } from '@/app/__ui/PageMockups'
 import { StudentPageMockup } from '@/app/__ui/StudentPageMockups'
@@ -18,6 +23,7 @@ vi.mock('@/components/HistoryGraph', () => ({
 }))
 
 vi.mock('@/components/editor', () => ({
+  MarkdownAuthoringEditor: () => <div />,
   MarkdownContentEditor: () => <div />,
   RichTextEditor: () => <div />,
   RichTextViewer: () => <div />,
@@ -34,6 +40,28 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('shows accessible Markdown images in the student reading reference without authoring controls', () => {
+    render(<TooltipProvider><MarkdownAuthoringPattern role="student" /></TooltipProvider>)
+    expect(screen.getByRole('img', { name: 'Pika example image' })).toHaveAttribute('src', '/pika.png')
+    expect(screen.queryByRole('group', { name: 'Course guide editing mode' })).not.toBeInTheDocument()
+  })
+  it.each([
+    [AssignmentCreationPattern, 'Open assignment example'],
+    [AssignmentEditSplitPattern, 'Open assignment edit prototype'],
+    [SurveyEditSplitPattern, 'Open survey edit prototype'],
+    [TestEditSplitPattern, 'Open test edit prototype'],
+  ] as const)('keeps the %s title accessible and shows its empty placeholder without a label row', (Pattern, opener) => {
+    render(<TooltipProvider><Pattern /></TooltipProvider>)
+    fireEvent.click(screen.getByRole('button', { name: opener }))
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    const classroom = screen.getByTitle('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+    expect(classroom).toHaveTextContent('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+    expect(classroom.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
+    fireEvent.change(title, { target: { value: '' } })
+    expect(title).toHaveValue('')
+    expect(title).toHaveAttribute('placeholder', 'Title')
+  })
   it.each(['2026-08-31T16:00:00Z', '2026-10-21T16:00:00Z'])('keeps the calendar identity fixture unscheduled at %s', (now) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(now))
@@ -60,6 +88,9 @@ describe('UiGallery accessibility contracts', () => {
 
   it.each(['teacher', 'student'] as const)('offers the shared calendar identity example for %s', (role) => {
     renderGallery(role)
+    expect(screen.getByRole('main')).toHaveAttribute('data-pattern-lab-ready', 'true')
+    expect(screen.getByRole('option', { name: 'Dialogs — Close controls' })).toBeInTheDocument()
+    expect(screen.getByTestId('modal-close-pattern')).toBeInTheDocument()
     const example = within(screen.getByTestId('calendar-identity-pattern'))
     expect(example.getByRole('group', { name: 'Identity calendar layout' })).toBeVisible()
     fireEvent.click(example.getByRole('button', { name: 'Survey: Field trip check-in' }))
@@ -130,6 +161,7 @@ describe('UiGallery accessibility contracts', () => {
     renderGallery(role)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
     expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('survey-controller-fixture')).not.toBeInTheDocument()
     expect(screen.queryByTestId('create-classroom-controller-fixture')).not.toBeInTheDocument()
   })
 
@@ -152,11 +184,15 @@ describe('UiGallery accessibility contracts', () => {
     expect(fixture.getByRole('button', { name: 'Open controlled test' })).toBeVisible()
     // The real teacher shell portals outside the fixture; keep this global.
     expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    // SurveyControllerPattern shares this explicit, teacher-only fixture gate.
+    expect(within(screen.getByTestId('survey-controller-fixture')).getByRole('button', { name: 'Open controlled survey' })).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Edit survey' })).not.toBeInTheDocument()
   })
 
   it('keeps the enabled TestControllerPattern absent for students', () => {
     renderGallery('student', false, true)
     expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('survey-controller-fixture')).not.toBeInTheDocument()
   })
 
   it('renders the explicitly enabled teacher CreateClassroomControllerPattern closed', () => {

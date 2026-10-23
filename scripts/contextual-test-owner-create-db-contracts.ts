@@ -1,3 +1,4 @@
+import { teacherAuthoringImageTriggerRowsSql, teacherAuthoringImagesCatalogSql } from './teacher-authoring-images-proof-catalog'
 /** Inert rollback-SQL source preparation. Importing this module performs no IO,
  * SQL, Docker, SDK, provider, or process operation. Native evidence exists only
  * after an independently accepted driver runs this against its sealed target. */
@@ -261,14 +262,14 @@ function catalogSql() {
   ((select c.relname::text,t.tgname::text,fnn.nspname::text,fn.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid
    join pg_namespace n on n.oid=c.relnamespace join pg_proc fn on fn.oid=t.tgfoid join pg_namespace fnn on fnn.oid=fn.pronamespace
    where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal)
-  except (select * from (${triggers}) expected(table_name,trigger_name,function_schema,function_name,trigger_type)))
+  except (select * from (${triggers} union all ${teacherAuthoringImageTriggerRowsSql(['tests', 'assessment_drafts'], true)}) expected(table_name,trigger_name,function_schema,function_name,trigger_type)))
   union all
-  ((select * from (${triggers}) expected(table_name,trigger_name,function_schema,function_name,trigger_type))
+  ((select * from (${triggers} union all ${teacherAuthoringImageTriggerRowsSql(['tests', 'assessment_drafts'], true)}) expected(table_name,trigger_name,function_schema,function_name,trigger_type))
   except (select c.relname::text,t.tgname::text,fnn.nspname::text,fn.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid
    join pg_namespace n on n.oid=c.relnamespace join pg_proc fn on fn.oid=t.tgfoid join pg_namespace fnn on fnn.oid=fn.pronamespace
    where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal))
  ) delta;if bad<>0 then raise exception 'Exact noninternal trigger closure differs';end if;
- ${quota253CatalogSql()}
+ ${quota253CatalogSql()}${teacherAuthoringImagesCatalogSql()}
  if exists(select 1 from pg_trigger t where t.tgrelid in ('public.tests'::regclass,'public.assessment_drafts'::regclass)
    and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred))
  then raise exception 'Trigger enable/deferral mode differs';end if;

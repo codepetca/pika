@@ -75,6 +75,7 @@ import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentControllerPattern } from './AssignmentControllerPattern'
 import { TestControllerPattern } from './TestControllerPattern'
+import { SurveyControllerPattern } from './SurveyControllerPattern'
 import { CreateClassroomControllerPattern } from './CreateClassroomControllerPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
@@ -94,6 +95,8 @@ import { TabSelectionVisibilityPattern } from './TabSelectionVisibilityPattern'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { DialogEntryPattern } from './DialogEntryPattern'
 import { MobileDrawerControlsPattern } from './MobileDrawerControlsPattern'
+import { MarkdownAuthoringPattern } from './MarkdownAuthoringPattern'
+import { ModalClosePattern } from './ModalClosePattern'
 
 const HEADER_REFERENCE_INITIAL_NOW = Date.parse('2026-10-05T16:00:00Z')
 
@@ -221,7 +224,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
   }
 
   return (
-    <main className="min-h-screen bg-page text-text-default">
+    <main data-pattern-lab-ready={mounted || undefined} className="min-h-screen bg-page text-text-default">
       <section aria-label="Application header references">
         <AppHeader initialNow={HEADER_REFERENCE_INITIAL_NOW} user={{ email: `${role}@example.invalid`, role }} pageTitle="Classrooms" />
         <AppHeader
@@ -747,6 +750,8 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
         >
           <div className="space-y-6 [&>section]:scroll-mt-28">
             <CalendarIdentityPattern />
+            <MarkdownAuthoringPattern role={role} />
+            <ModalClosePattern />
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
@@ -763,6 +768,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'teacher' && assignmentControllerFixture && <AssignmentControllerPattern />}
             {role === 'teacher' && testControllerFixture && <TestControllerPattern />}
+            {role === 'teacher' && testControllerFixture && <SurveyControllerPattern />}
             {role === 'teacher' && createClassroomControllerFixture && <CreateClassroomControllerPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"
@@ -861,6 +867,8 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'tooltip-adopters', label: 'Controls — Tooltip adopter consistency' },
     { value: 'page-states', label: 'Page states — Loading, error, empty, and unavailable' },
     { value: 'owned-joined-home', label: 'Home prototype — Owned / Joined classrooms' },
+    { value: 'markdown-authoring', label: 'Editors — Write / Markdown' },
+    { value: 'modal-close', label: 'Dialogs — Close controls' },
     ...(role === 'teacher' ? [
       { value: 'teacher-patterns', label: 'Teacher patterns — Page shells and action bars' },
       { value: 'page-mockups', label: 'Page mockups — Daily, classrooms, gradebook, calendar, announcements, roster, settings, and workspaces' },

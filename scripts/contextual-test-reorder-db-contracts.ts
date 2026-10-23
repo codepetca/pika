@@ -1,3 +1,4 @@
+import { teacherAuthoringImageTriggerRowsSql, teacherAuthoringImagesCatalogSql } from './teacher-authoring-images-proof-catalog'
 /** Inert source preparation. No import-time IO, connection, CLI or SQL execution.
  * Native acceptance requires a separately reviewed disposable target and driver.
  * Every fixed batch rolls back and compares the complete fixture/non-target graph.
@@ -150,6 +151,7 @@ function catalogSql(routines: ReturnType<typeof reachableFunctions>) {
   const triggerArgs = (name:string) => name==='car_tests'||name==='classroom_purge_fence_tests' ? Buffer.from('classrooms\0classroom_id\0').toString('hex')
     :name==='delete_test_gradebook_score_overrides'?Buffer.from('test\0').toString('hex'):''
   const expectedTriggers = triggers.map(t => `(${q(t[0])},${q(t[1])},${q(t[2])},${t[3]},array[${t[4].map(q).join(',')}]::text[],${q(t[5])},${q(triggerArgs(t[0]))})`).join(',')
+  const expectedTriggerRows = `select * from (values ${expectedTriggers}) historical(name,fn_schema,fn_name,tgtype,update_columns,qualifier,args) union all select extension.*,array[]::text[],''::text,''::text from (${teacherAuthoringImageTriggerRowsSql(['tests'], false)}) extension`
   // pg_get_expr cannot resolve both OLD/NEW namespaces in a trigger WHEN.
   // A non-null qualifier with a missing delimiter stays NULL and fails EXCEPT.
   const actualTriggers = `select t.tgname::text,nf.nspname::text,fn.proname::text,t.tgtype::integer,
@@ -169,10 +171,11 @@ function catalogSql(routines: ReturnType<typeof reachableFunctions>) {
  then raise exception 'Exact reorder function capability differs';end if;
  select array_agg(a.attname::text order by a.attnum) into actual from pg_catalog.pg_attribute a where a.attrelid='public.tests'::regclass and a.attnum>0 and not a.attisdropped;
  if actual is distinct from array[${TEST_OWNER_REORDER_TEST_COLUMNS.map(q).join(',')}]::text[] then raise exception 'Exact21 Test columns differ';end if;
- if exists((${actualTriggers}) except (select * from (values ${expectedTriggers}) e(name,fn_schema,fn_name,tgtype,update_columns,qualifier,args)))
- or exists((select * from (values ${expectedTriggers}) e(name,fn_schema,fn_name,tgtype,update_columns,qualifier,args)) except (${actualTriggers}))
+ if exists((${actualTriggers}) except (${expectedTriggerRows}))
+ or exists((${expectedTriggerRows}) except (${actualTriggers}))
  or exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid='public.tests'::regclass and not t.tgisinternal and(t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred))
  then raise exception 'Exact14 Test trigger closure differs';end if;
+ ${teacherAuthoringImagesCatalogSql()}
  if (select count(*) from private.classroom_test_quota_settings)<>1
  or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
  then raise exception 'Dormant quota setting differs';end if;

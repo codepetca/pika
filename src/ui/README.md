@@ -57,6 +57,13 @@ label and busy semantics. `Button`, `IconButton`, `PageState`, and the legacy
 `Spinner` wrapper all use this owner. Do not recreate a loading SVG or add a
 background around the indicator.
 
+### SaveStatus
+
+Use the default text presentation for existing save feedback. Compact editors use
+`presentation="indicator"` in their existing control row: CircularProgress appears
+only while saving, saved/unsaved states remain screen-reader announcements, and
+errors stay visible. Keep saving state owned by the existing autosave controller.
+
 ### IconButton
 
 Use `IconButton` for icon-only actions. Pass a Lucide `icon` and contextual `label`;

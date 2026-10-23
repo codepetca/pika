@@ -208,6 +208,30 @@ Source grounding:
 - [`src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx`](/src/app/classrooms/[classroomId]/TeacherAttendanceTab.tsx)
 - [`src/app/classrooms/[classroomId]/TeacherTestsTab.tsx`](/src/app/classrooms/[classroomId]/TeacherTestsTab.tsx)
 
+### 3g. Modal windows use one shared corner close control
+
+Owner approved 2026-10-22. Dismissible AlertDialog, ConfirmDialog,
+ContentDialog, DialogPanel and creation/edit modals use DialogCloseButton:
+44px ghost X, accessible owner-specific label, native Close tooltip, and
+right-3/top-3 inset (creation editors follow responsive form padding). Share
+the existing title/control row; never add a close-only band. Keep it anchored to the panel outside scrolling content;
+long headings and authoring controls reserve the corner. Existing save-flush,
+cancel and busy guards apply equally to X, Escape and backdrop. A confirmation
+X cancels; pending non-dismissible operations remain protected. Drawers and
+inline panel/item controls are separate contracts.
+
+Compact assignment, test, survey and material title inputs use hidden accessible
+labels and empty-title placeholders. A first row identifies the item type and
+classroom, aligned with the right-pane controls; the title and remaining details
+follow below it. The classroom name fades at the left-pane edge and retains its
+full text for assistive technology and the native title tooltip.
+Settings shares the title input row. Saving uses CircularProgress through
+SaveStatus's indicator presentation in existing mode/question controls; saved
+and unsaved announcements stay available to assistive tech, and failures remain visible.
+
+Reference: Pattern Lab `modal-close` and
+[`modal-close-consistency.md`](./changes/modal-close-consistency.md).
+
 ### 4. Attendance stays presence-first and scan-friendly
 
 - Attendance UI is optimized for quick scanning and teacher drill-down, not extra status taxonomy.

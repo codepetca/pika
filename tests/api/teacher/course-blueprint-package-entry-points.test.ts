@@ -62,6 +62,12 @@ describe('course package application entry points', () => {
   })
 
   it.each([
+    ['private authoring image', (bundle: any) => {
+      bundle.files['course-overview.md'] = '![Private](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+    }],
+    ['absolute private authoring image', (bundle: any) => {
+      bundle.files['course-overview.md'] = '![Private](https://pika.example/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+    }],
     ['upload source', (bundle: any) => {
       bundle.files['tests.md'] = bundle.files['tests.md'].replace(
         'Source: link',

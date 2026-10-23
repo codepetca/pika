@@ -21,7 +21,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useIsBreakpoint } from '@/hooks/use-is-breakpoint'
 import { PIKA_LOCATION_CHANGE_EVENT } from '@/lib/browser-navigation'
 import { PIKA_PAL_REFRESH_EVENT, notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
-import { ModalLayer } from '@/ui'
+import { DialogCloseButton, ModalLayer } from '@/ui'
 
 import { createPikaPalClient, type PalMembershipScope } from './pal-client'
 import { PalWidgetThemeBoundary } from './PalWidgetThemeBoundary'
@@ -105,8 +105,9 @@ function StudentPalHostLayers() {
         ariaLabel="Reward earned"
         closeOnEscape={!rewardPending}
         closeOnBackdrop={!rewardPending}
-        panelClassName="flex w-full max-w-lg justify-center"
+        panelClassName="relative flex w-full max-w-lg justify-center pt-14"
       >
+        <DialogCloseButton onClose={closeReward} label="Close reward" disabled={rewardPending} />
         <PalWidgetThemeBoundary>
           <PalRewardCelebration
             effect="fireworks"

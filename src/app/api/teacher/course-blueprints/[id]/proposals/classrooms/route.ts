@@ -1,3 +1,4 @@
+import { containsCourseBlueprintAuthoringImage, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { requireRole } from '@/lib/auth'
@@ -72,6 +73,10 @@ export const POST = withErrorHandler(
         409,
         'Save or reconcile new classroom artifacts with this Blueprint before preparing a classroom update',
       )
+    }
+
+    if (containsCourseBlueprintAuthoringImage(detailResult.detail)) {
+      throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
     }
 
     const versionResult = await saveCourseBlueprintVersion({

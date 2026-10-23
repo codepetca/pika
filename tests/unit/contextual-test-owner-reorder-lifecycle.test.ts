@@ -28,7 +28,7 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
-    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations'].sort()
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references'].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
@@ -79,8 +79,8 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current288 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(290)
+  it('binds the complete current291 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(291)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))

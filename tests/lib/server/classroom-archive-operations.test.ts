@@ -36,6 +36,8 @@ function createSupabaseMock(options: {
   v2BeginError?: { code?: string; message?: string }
   omittedTable?: string
   v2Unavailable?: boolean
+  managedMode?: 'enforced' | 'compatibility'
+  managedImages?: Array<Record<string, unknown>>
 } = {}) {
   const sourceRows: Record<string, Array<Record<string, unknown>>> = {
     classrooms: [{
@@ -116,6 +118,8 @@ function createSupabaseMock(options: {
   })
 
   function executeQuery(state: QueryState) {
+    if (state.table === 'managed_storage_settings') return { data: options.managedMode ? { mode: options.managedMode } : null, error: null }
+    if (state.table === 'managed_storage_objects') return { data: options.managedImages || [], error: null }
     if (state.table === 'classroom_archive_snapshot_resources') {
       return {
         data: (sourceRows[String(state.filters.table_name)] || []).map((row) => ({
@@ -172,6 +176,7 @@ function createSupabaseMock(options: {
       }),
       order: vi.fn(() => query),
       range: vi.fn(() => query),
+      maybeSingle: vi.fn(async () => executeQuery(state)),
       then: (resolve: (value: unknown) => void, reject: (reason: unknown) => void) =>
         Promise.resolve(executeQuery(state)).then(resolve, reject),
     }
@@ -185,7 +190,7 @@ function createSupabaseMock(options: {
         return bytes
           ? {
               data: {
-                type: 'application/gzip',
+                type: bucket === 'test-documents' ? 'image/png' : 'application/gzip',
                 arrayBuffer: async () => bytes.buffer.slice(
                   bytes.byteOffset,
                   bytes.byteOffset + bytes.byteLength,
@@ -275,6 +280,29 @@ describe('classroom archive export coordinator', () => {
     const storedArchive = [...mock.stored.values()][0]
     const verification = verifyClassroomArchiveBundle(storedArchive)
     expect(verification.ok && verification.manifest.version).toBe(2)
+  })
+
+  it.each(['enforced', 'compatibility'] as const)('archives ID-only authoring image inventory in %s mode', async (managedMode) => {
+    const objectId = '82000000-0000-4000-8000-000000000001'
+    const path = 'authoring/image.png'
+    const mock = createSupabaseMock({ managedMode, managedImages: [{
+      id: objectId, storage_bucket: 'test-documents', storage_path: path,
+      purpose: 'teacher_authoring_image', status: 'ready', created_by_user_id: TEACHER_ID,
+      data_subject_user_id: null, resource_type: 'classroom', resource_id: CLASSROOM_ID,
+    }] })
+    mock.stored.set(`test-documents/${path}`, new Uint8Array([1, 2, 3]))
+    const result = await exportClassroomArchive({ supabase: mock.client, operationId: OPERATION_ID,
+      teacherId: TEACHER_ID, classroomId: CLASSROOM_ID, expectedSourceRevision: 7,
+      retention: { mode: 'teacher_managed', delete_after: null }, sourceAppCommit: 'abcdef1234567890', supabaseUrl: 'https://project.supabase.co' })
+    expect(result.ok).toBe(true)
+    const archive = [...mock.stored.entries()].find(([key]) => key.startsWith(`${CLASSROOM_ARCHIVE_BUCKET}/`))?.[1]
+    expect(archive).toBeDefined()
+    const verified = verifyClassroomArchiveBundle(archive!)
+    expect(verified.ok).toBe(true)
+    if (!verified.ok) throw new Error(verified.error)
+    expect(verified.manifest.storage_objects).toHaveLength(1)
+    expect(verified.manifest.storage_objects[0].managed_owner).toMatchObject({ object_id: objectId,
+      purpose: 'teacher_authoring_image', resource_type: 'classroom', resource_id: CLASSROOM_ID })
   })
 
   it('fails closed instead of falling back when migration 126 is unavailable', async () => {

@@ -407,6 +407,8 @@ function TeacherMaterialDialog({
   return (
     <MaterialCreationDialog
       materialKey={`${classroom.id}:${material?.id ?? 'new'}`}
+      classroomId={classroom.id}
+      classroomName={classroom.title}
       isOpen={isOpen}
       isExisting={!!material}
       isDraft={isDraft}
@@ -606,6 +608,7 @@ export function TeacherClassroomView({
   const [creatingSurvey, setCreatingSurvey] = useState(false)
   const surveyCreationPendingRef = useRef(false)
   const surveyCloseRef = useRef<(() => Promise<void>) | null>(null)
+  const [surveyCloseDisabled, setSurveyCloseDisabled] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
   const [pendingMaterialDelete, setPendingMaterialDelete] = useState<ClassworkMaterial | null>(null)
   const [isDeletingMaterial, setIsDeletingMaterial] = useState(false)
@@ -3068,6 +3071,7 @@ export function TeacherClassroomView({
         isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
         assignment={editAssignment}
+        classroomName={classroom.title}
         instructionsMode={assignmentInstructionsMode}
         classDays={classDays}
         onClose={closeAssignmentModal}
@@ -3118,7 +3122,7 @@ export function TeacherClassroomView({
         title="Edit survey"
         titleId="survey-workspace-dialog-title"
         closeLabel="Close survey editor"
-        showCloseButton={false}
+        closeDisabled={surveyCloseDisabled}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         contentClassName="!overflow-hidden !p-0"
@@ -3129,6 +3133,7 @@ export function TeacherClassroomView({
             key={surveyModalId}
             classroomId={classroom.id}
             surveyId={surveyModalId}
+            classroomName={classroom.title}
             isReadOnly={isReadOnly}
             initialEditMode={
               createdSurveyEditorIntent?.surveyId === surveyModalId
@@ -3142,6 +3147,8 @@ export function TeacherClassroomView({
             onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
             onBack={() => closeSurveyModal()}
             onCloseReady={(close) => { surveyCloseRef.current = close }}
+            showCloseButton={false}
+            onCloseDisabledChange={setSurveyCloseDisabled}
             onSurveyUpdated={(updatedSurvey) => {
               setSurveys((current) =>
                 current.map((survey) =>

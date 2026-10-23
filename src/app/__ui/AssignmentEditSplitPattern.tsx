@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
@@ -56,13 +55,13 @@ export function AssignmentEditSplitPattern() {
         title="Edit Assignment"
         titleId="pattern-assignment-edit-title"
         closeLabel="Close assignment edit prototype"
-        showCloseButton={false}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
         contentClassName="!overflow-hidden !p-0"
       >
         <AssignmentForm
+          classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning"
           fillHeight
           desktopSplit
           title={title}
@@ -72,20 +71,9 @@ export function AssignmentEditSplitPattern() {
           onInstructionsMarkdownChange={(value) => update(setInstructions, value)}
           onDueAtChange={(value) => update(setDueAt, value)}
           onPreviewInstructions={() => setPreviewOpen(true)}
-          titleAccessory={(
+          saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Close assignment edit prototype"
-                title="Close"
-                onClick={() => setOpen(false)}
-                className="h-11 w-11 p-0"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
+              <SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
             </div>
           )}
           extraFields={(

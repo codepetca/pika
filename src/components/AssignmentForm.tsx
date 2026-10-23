@@ -1,15 +1,18 @@
 'use client'
 
-import type { ReactNode, RefObject } from 'react'
+import { useEffect, useState, type ReactNode, type RefObject } from 'react'
 import { Eye } from 'lucide-react'
 import { Button, FormField, IconButton, Input } from '@/ui'
-import { ContentField, MarkdownContentEditor } from '@/components/editor'
-import { CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { MarkdownAuthoringEditor } from '@/components/editor'
+import { CreationModalContextHeader, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
+import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import type { ClassDay } from '@/types'
 
 interface AssignmentFormProps {
+  classroomId?: string
+  classroomName?: string
   title: string
   instructionsMarkdown: string
   instructionsMode?: 'visual' | 'markdown'
@@ -29,13 +32,15 @@ interface AssignmentFormProps {
   onBlur?: () => void
   topRowActions?: ReactNode
   statusContent?: ReactNode
-  titleAccessory?: ReactNode
+  saveStatusContent?: ReactNode
   markdownWarning?: string | null
   fillHeight?: boolean
   desktopSplit?: boolean
 }
 
 export function AssignmentForm({
+  classroomId,
+  classroomName,
   title,
   instructionsMarkdown,
   instructionsMode = 'visual',
@@ -54,11 +59,13 @@ export function AssignmentForm({
   onBlur,
   topRowActions,
   statusContent,
-  titleAccessory,
+  saveStatusContent,
   markdownWarning,
   fillHeight = false,
   desktopSplit = false,
 }: AssignmentFormProps) {
+  const [mode, setMode] = useState(instructionsMode)
+  useEffect(() => { setMode(instructionsMode) }, [instructionsMode])
   const relativeDueDate = getRelativeDueDate(dueAt, classDays)
   const relativeDateSubtitle = relativeDueDate
     ? `${relativeDueDate.text.charAt(0).toUpperCase()}${relativeDueDate.text.slice(1)}`
@@ -71,40 +78,23 @@ export function AssignmentForm({
           {markdownWarning}
         </div>
       )}
-      {instructionsMode === 'markdown' ? (
-        <FormField label="Instructions Markdown" className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}>
-          <textarea
-            value={instructionsMarkdown}
-            onChange={(event) => onInstructionsMarkdownChange(event.target.value)}
-            onBlur={onBlur}
-            disabled={disabled}
-            spellCheck={false}
-            rows={14}
-            className="min-h-64 w-full flex-1 resize-y rounded-control border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus disabled:cursor-not-allowed disabled:bg-surface-2"
-          />
-        </FormField>
-      ) : <ContentField
+      <MarkdownAuthoringEditor
         label="Instructions"
-        hideLabel
-        collapseHiddenLabel
-        className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : ''}
-      >
-        <MarkdownContentEditor
-          markdown={instructionsMarkdown}
-          onMarkdownChange={onInstructionsMarkdownChange}
-          onConversionWarningChange={onInstructionsConversionWarningChange}
-          onBlur={onBlur}
-          placeholder="Instructions"
-          disabled={disabled}
-          editable={!disabled}
-          interactionActive={interactionActive}
-          toolbarPreset="markdown-safe"
-          className={[
-            'overflow-hidden rounded-lg border border-border-strong',
-            fillHeight ? 'simple-editor-wrapper--fill-height min-h-0 flex-1' : '',
-          ].join(' ')}
-        />
-      </ContentField>}
+        mode={mode}
+        onModeChange={setMode}
+        markdown={instructionsMarkdown}
+        onMarkdownChange={onInstructionsMarkdownChange}
+        onConversionWarningChange={onInstructionsConversionWarningChange}
+        onBlur={onBlur}
+        placeholder="Instructions"
+        disabled={disabled}
+        editable={!disabled}
+        interactionActive={interactionActive}
+        fillHeight={fillHeight}
+        statusContent={saveStatusContent}
+        imageUpload={classroomId ? (file, signal) => uploadMarkdownImage(classroomId, file, signal) : undefined}
+        className="rounded-control border border-border-strong"
+      />
     </>
   )
 
@@ -112,18 +102,19 @@ export function AssignmentForm({
     return (
       <div
         data-testid="assignment-editor-split"
-        className="grid h-full min-h-0 w-full overflow-y-auto lg:grid-cols-3 lg:overflow-hidden"
+        className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden"
       >
+        <CreationModalContextHeader itemType="Assignment" classroomName={classroomName} spacious />
         <div
           data-testid="assignment-editor-details-pane"
-          className="flex flex-col gap-4 border-b border-border p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0"
+          className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto"
         >
           <FormField
+            className="modal-title-field"
             label="Title"
             required
-            hideLabel={!titleAccessory}
-            collapseHiddenLabel={!titleAccessory}
-            labelAccessory={titleAccessory}
+            hideLabel
+            collapseHiddenLabel
           >
             <Input
               ref={titleInputRef}
@@ -179,7 +170,7 @@ export function AssignmentForm({
 
         <div
           data-testid="assignment-editor-content-pane"
-          className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden"
+          className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden"
         >
           {editor}
         </div>

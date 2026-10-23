@@ -1487,6 +1487,7 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Edit Markdown' }))
     expect(screen.getByRole('dialog')).toHaveAttribute('data-instructions-mode', 'markdown')
+    expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classroomName).toBe(classroom.title)
     expect(screen.getByRole('dialog')).toHaveTextContent('Editing Assignment One')
     fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
@@ -1676,7 +1677,7 @@ describe('TeacherClassroomView', () => {
     expect(
       within(screen.getByRole('dialog', { name: 'New Material' }))
         .getByRole('toolbar', { name: 'Formatting options' }),
-    ).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
+    ).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
   })
 
   it('disables classwork create and options actions for archived classrooms', async () => {
@@ -1984,6 +1985,7 @@ describe('TeacherClassroomView', () => {
     expect(screen.getByRole('button', { name: 'Edit survey' })).not.toBeDisabled()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit survey' }))
+    expect(screen.getByRole('button', { name: 'Close survey editor' }).closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     fireEvent.click(screen.getByRole('button', { name: 'Mock add survey question' }))
 
     await waitFor(() => {

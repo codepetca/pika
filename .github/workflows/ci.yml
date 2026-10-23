@@ -15,9 +15,9 @@ on:
 permissions:
   contents: read
 
-# setup-cli preserves this override; all later pulls and metadata proofs use it.
+# setup-cli and all later native/metadata pulls share the authenticated mirror.
 env:
-  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -89,6 +89,9 @@ jobs:
 
   architecture-database-contracts:
     name: Architecture Database Contracts
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
@@ -152,6 +155,12 @@ jobs:
       - name: Verify isolated CI runner
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane database
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
@@ -467,8 +476,16 @@ jobs:
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
+
   architecture-database-contracts-lifecycle:
     name: Architecture Database Contracts Lifecycle
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
     # Independent hosted VM/daemon, including self-hosted dispatches.
@@ -530,6 +547,12 @@ jobs:
       - name: Verify isolated CI runner
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane database-lifecycle
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
@@ -1123,8 +1146,16 @@ jobs:
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
+
   contextual-test-owner-sdk:
     name: Contextual Test Owner SDK
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
     # A hosted job gets its own VM and Docker daemon, even for self-hosted dispatches.
@@ -1186,6 +1217,12 @@ jobs:
       - name: Verify isolated CI runner
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane test-owner-sdk
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
@@ -1266,6 +1303,11 @@ jobs:
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
+
       - name: Upload sanitized Test proof timings
         if: always()
         uses: actions/upload-artifact@v7
@@ -1276,6 +1318,9 @@ jobs:
 
   contextual-test-owner-sdk-lifecycle:
     name: Contextual Test Owner SDK Lifecycle
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
     # A hosted job gets its own VM and Docker daemon, even for self-hosted dispatches.
@@ -1338,6 +1383,12 @@ jobs:
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane test-owner-sdk-lifecycle
 
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
+
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
         run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
@@ -1397,6 +1448,11 @@ jobs:
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
+
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
 
   test-and-build:
     name: Test & Build
@@ -1516,6 +1572,9 @@ jobs:
 
   browser-experience-matrix:
     name: Browser Experience Matrix
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
@@ -1568,6 +1627,12 @@ jobs:
       - name: Verify isolated CI runner
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane browser
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
@@ -1630,8 +1695,16 @@ jobs:
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
+
   browser-experience-dark:
     name: Browser Experience Matrix Dark
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
     # This partition needs its own VM and Docker daemon, including self-hosted dispatches.
@@ -1685,6 +1758,12 @@ jobs:
       - name: Verify isolated CI runner
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane browser-dark
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
@@ -1747,8 +1826,16 @@ jobs:
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
+
   browser-pattern-lab-dark:
     name: Browser Pattern Lab Dark
+    permissions:
+      contents: read
+      packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
     # This partition needs its own VM and Docker daemon, including self-hosted dispatches.
@@ -1802,6 +1889,12 @@ jobs:
       - name: Verify isolated CI runner
         id: ci-isolation
         run: node scripts/ci-runner-preflight.mjs --lane browser-pattern-dark
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
 
       - name: Start ephemeral Supabase and replay migrations
         id: supabase-start
@@ -1863,6 +1956,11 @@ jobs:
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
+
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
 
   pr-gate:
     name: PR Gate

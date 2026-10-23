@@ -46,6 +46,14 @@ describe('QuestionMarkdown', () => {
     expect(screen.getByText(/click me/)).toBeInTheDocument()
   })
 
+  it('renders prompt images through the shared teacher and student question display', () => {
+    render(<QuestionMarkdown content={'Inspect this diagram.\n\n![Wetland zones](https://example.com/wetland.png "Study diagram")'} />)
+    expect(screen.getByRole('img', { name: 'Wetland zones' })).toHaveAttribute('src', 'https://example.com/wetland.png')
+    expect(screen.getByRole('img', { name: 'Wetland zones' })).toHaveAttribute('title', 'Study diagram')
+    expect(screen.getByRole('img', { name: 'Wetland zones' })).toHaveClass('max-w-full')
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
   it('shows placeholder when content is empty', () => {
     render(<QuestionMarkdown content="   " />)
     expect(screen.getByText('—')).toBeInTheDocument()

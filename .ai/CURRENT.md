@@ -1,4 +1,4 @@
-# Checkpoint — 2026-10-22 (America/Toronto)
+# Checkpoint — 2026-10-23 (America/Toronto)
 
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
@@ -18,7 +18,7 @@ Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Owner259–262 installed/dormant; Tests adopter1580 prepared.
 251/252 native/review/CI PASS.
-LegacyPATCH preserved; local249+ held.
+LegacyPATCH; local001–291 applied Oct23; flags unchanged.
 No exit; `docs/guidance/contextual-test-publication.md`.
 
 253#1524 OFF (CI37715526569 PASS).

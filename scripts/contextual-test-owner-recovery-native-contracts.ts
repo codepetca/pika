@@ -39,7 +39,7 @@ export function testOwnerRecoveryNativePlan(original: AssignmentListProofFixture
   })
   assert.notEqual(observed[0].attemptId, observed[1].attemptId)
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([260,261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
+  assert([260,261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258]); validateTestOwnerRecoveryReviewedMigration(inventory[259]); if (inventory.length >= 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
   if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
   if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])

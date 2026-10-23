@@ -1,3 +1,5 @@
+import { getProtectedSubmissionImageUrl } from '@/lib/managed-storage-urls'
+import { sanitizeMarkdownImageSrc, escapeMarkdownImageText, unescapeMarkdownImageText } from '@/lib/markdown-images'
 import { sanitizeLinkHref } from '@/lib/tiptap-content'
 import type { TiptapContent, TiptapMark, TiptapNode } from '@/types'
 
@@ -9,9 +11,9 @@ export type MarkdownBlock =
   | { type: 'blockquote'; text: string }
   | { type: 'code'; code: string }
 
-type InlineTokenType = 'code' | 'link' | 'bold' | 'italic'
+export type InlineTokenType = 'image' | 'code' | 'link' | 'bold' | 'italic'
 
-type InlineToken = {
+export type InlineToken = {
   type: InlineTokenType
   index: number
   match: RegExpExecArray
@@ -39,9 +41,10 @@ function pushWarning(warnings: string[], warning: string) {
   }
 }
 
-function findNextInlineToken(text: string): InlineToken | null {
+export function findNextInlineToken(text: string): InlineToken | null {
   const patterns: Array<{ type: InlineTokenType; regex: RegExp }> = [
     { type: 'code', regex: /`([^`\n]+?)`/ },
+    { type: 'image', regex: /!\[((?:\\.|[^\]\\\n])*)\]\((<?(?:\\.|[^\s()<>\\]|\((?:\\.|[^()\\\n])*\))+>?)(?:\s+"((?:\\.|[^"\\\n])*)")?\)/ },
     { type: 'link', regex: /\[([^\]\n]+?)\]\(([^)\n]+?)\)/ },
     { type: 'bold', regex: /\*\*([^\n]+?)\*\*/ },
     { type: 'italic', regex: /\*([^*\n]+?)\*/ },
@@ -216,6 +219,17 @@ function parseInlineToTiptap(text: string, activeMarks: TiptapMark[] = [], depth
     if (token.type === 'code') {
       const node = createMarkedTextNode(token.match[1] || '', [...activeMarks, { type: 'code' }])
       if (node) nodes.push(node)
+    } else if (token.type === 'image') {
+      const alt = unescapeMarkdownImageText(token.match[1] || '')
+      const src = sanitizeMarkdownImageSrc(unescapeMarkdownImageText((token.match[2] || '').replace(/^<|>$/g, '')))
+      if (src) {
+        nodes.push({ type: 'image', attrs: { src, alt,
+          ...(token.match[3] !== undefined ? { title: unescapeMarkdownImageText(token.match[3]) } : {}),
+        } })
+      } else {
+        const fallback = createMarkedTextNode(alt, activeMarks)
+        if (fallback) nodes.push(fallback)
+      }
     } else if (token.type === 'link') {
       const href = sanitizeLinkHref(token.match[2] || '')
       if (href) {
@@ -367,6 +381,19 @@ function wrapTextWithMarks(text: string, marks: TiptapMark[] | undefined, warnin
   return value
 }
 
+function imageNodeToMarkdown(node: TiptapNode, warnings: string[]): string {
+  const attrs = node.attrs || {}
+  const protectedSrc = getProtectedSubmissionImageUrl(attrs)
+  const src = sanitizeMarkdownImageSrc(protectedSrc || (typeof attrs.src === 'string' ? attrs.src : ''))
+  const alt = typeof attrs.alt === 'string' ? attrs.alt : ''
+  if (!src || Object.entries(attrs).some(([key, value]) => !['src', 'alt', 'title'].includes(key) && value != null)
+    || (node.marks?.length ?? 0) > 0) pushWarning(warnings, WARNING_IMAGES)
+  if (!src) return alt
+  const title = typeof attrs.title === 'string' && attrs.title
+    ? ` "${attrs.title.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]/g, ' ')}"` : ''
+  return `![${escapeMarkdownImageText(alt)}](${src.replace(/\(/g, '%28').replace(/\)/g, '%29')}${title})`
+}
+
 function inlineContentToMarkdown(nodes: TiptapNode[] | undefined, warnings: string[]): string {
   if (!nodes || nodes.length === 0) return ''
 
@@ -378,10 +405,7 @@ function inlineContentToMarkdown(nodes: TiptapNode[] | undefined, warnings: stri
       return '\n'
     }
     if (node.type === 'image') {
-      pushWarning(warnings, WARNING_IMAGES)
-      const src = typeof node.attrs?.src === 'string' ? node.attrs.src : ''
-      const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : 'Image'
-      return src ? `[${alt}](${src})` : alt
+      return imageNodeToMarkdown(node, warnings)
     }
     if (node.content && node.content.length > 0) {
       return inlineContentToMarkdown(node.content, warnings)
@@ -441,10 +465,7 @@ function blockNodeToMarkdown(
   }
 
   if (node.type === 'image') {
-    pushWarning(warnings, WARNING_IMAGES)
-    const src = typeof node.attrs?.src === 'string' ? node.attrs.src : ''
-    const alt = typeof node.attrs?.alt === 'string' ? node.attrs.alt : 'Image'
-    return [src ? `[${alt}](${src})` : alt]
+    return [imageNodeToMarkdown(node, warnings)]
   }
 
   if (node.type === 'doc') {
