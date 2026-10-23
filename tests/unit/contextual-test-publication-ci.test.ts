@@ -13,7 +13,7 @@ describe('publication isolated CI closure', () => {
     expect(database).toContain('name: Rehearse the production-shaped Test identity migration')
     expect(database).not.toContain('name: Verify contextual Daily Log save atomicity and privileges')
     expect(databaseLifecycle).toContain('name: Verify contextual Daily Log save atomicity and privileges')
-    expect(databaseLifecycle).toContain('runs-on: ubuntu-latest')
+    expect(databaseLifecycle).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(databaseLifecycle).toContain('run: node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
     expect(databaseLifecycle).toContain('run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector')
     expect(databaseLifecycle).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")

@@ -31,33 +31,35 @@ describe('CI compute routing', () => {
 
   it('changes only heavy-job compute and keeps refusal from triggering database cleanup', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
-    for (const job of ['classify-changes', 'pr-gate', 'architecture-database-contracts-lifecycle', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
+    for (const job of ['classify-changes']) {
       const body = workflow.split(`  ${job}:\n`)[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
       expect(body).toContain('runs-on: ubuntu-latest')
     }
+    const gate = workflow.split('  pr-gate:\n')[1]
+    expect(gate).toContain(`runs-on: \${{ fromJSON(needs.classify-changes.result == 'success' && needs.classify-changes.outputs.heavy_runner || '["ubuntu-latest"]') }}`)
     const shard = workflow.split('  contextual-test-owner-sdk:\n')[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
-    expect(shard).not.toContain('fromJSON(needs.classify-changes.outputs.heavy_runner)')
+    expect(shard).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(shard).toContain('node scripts/ci-runner-preflight.mjs --lane test-owner-sdk')
     expect(shard?.indexOf('id: ci-isolation')).toBeLessThan(shard?.indexOf('id: supabase-start') ?? -1)
     expect(shard).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     const lifecycle = workflow.split('  contextual-test-owner-sdk-lifecycle:\n')[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
-    expect(lifecycle).not.toContain('heavy_runner')
+    expect(lifecycle).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(lifecycle).toContain('node scripts/ci-runner-preflight.mjs --lane test-owner-sdk-lifecycle')
     expect(lifecycle?.indexOf('id: ci-isolation')).toBeLessThan(lifecycle?.indexOf('id: supabase-start') ?? -1)
     expect(lifecycle).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     const dark = workflow.split('  browser-experience-dark:\n')[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
-    expect(dark).not.toContain('heavy_runner')
+    expect(dark).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(dark).toContain('node scripts/ci-runner-preflight.mjs --lane browser-dark')
     expect(dark?.indexOf('id: ci-isolation')).toBeLessThan(dark?.indexOf('id: supabase-start') ?? -1)
     expect(dark).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     const patternDark = workflow.split('  browser-pattern-lab-dark:\n')[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
-    expect(patternDark).not.toContain('heavy_runner')
+    expect(patternDark).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(patternDark).toContain('node scripts/ci-runner-preflight.mjs --lane browser-pattern-dark')
     expect(patternDark?.indexOf('id: ci-isolation')).toBeLessThan(patternDark?.indexOf('id: supabase-start') ?? -1)
     const patternCleanup = patternDark?.split('      - name: Stop ephemeral database')[1]
     expect(patternCleanup).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     expect(patternCleanup).toContain('supabase stop --no-backup')
-    for (const job of ['architecture-database-contracts', 'test-and-build', 'browser-experience-matrix']) {
+    for (const job of ['architecture-database-contracts', 'architecture-database-contracts-lifecycle', 'test-and-build', 'browser-experience-matrix']) {
       const body = workflow.split(`  ${job}:\n`)[1]?.split(/\n  [a-z][a-z-]+:\n/)[0]
       expect(body).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
       expect(body).toContain('node scripts/ci-runner-preflight.mjs --lane')

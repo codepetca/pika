@@ -317,7 +317,7 @@ remain forbidden; context, local socket identity and full resource checks still
 run against the actual config used by Docker.
 
 Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
-while classification and `PR Gate` stay hosted. Setup, isolation, local full-CI commands and the hosted
+while classification stays hosted and `PR Gate` follows the selected runner with a hosted classification-failure fallback. Setup, isolation, local full-CI commands and the hosted
 fallback are defined in [self-hosted CI](./guidance/self-hosted-ci.md). A manual
 dispatch is diagnostic evidence, not a substitute for PR-required ruleset checks;
 use the documented draft-to-ready fallback for an unavailable runner.

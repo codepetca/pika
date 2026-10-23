@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Prepare contextual active classroom capture
-
-Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
-checks green; shared local remains243. The next backend group reuses shared
-admission for active owned classroom capture, owned Blueprint reads and existing
-entitled instantiation. Source access is rechecked after loading before private
-copies; atomic commit/source/version/replay and provisional-copy settlement stay
-in place. TDD reproduced the role/pre-copy gaps;116 API/domain checks now pass.
-The existing rollback suite adds current v3 capture and v2 instantiation for both
-account labels, with owner/revision/archive/purge/replay and independent capacity
-denials; authored SQL is not native acceptance. Final focused checks, independent
-review and isolated CI remain required. No general Blueprint authoring, page/UI,
-schema application or activation is included. Owner settled Pal's following
-policy: stop pending delivery upon same-class ownership, preserve earned progress,
-stop new learner activity/token requests, retain existing issued-token expiry.
-That policy is recorded, not implemented here. Production/live-provider/shared-
-local249+/publication/configuration/account/cohort/cutover holds remain unchanged.
-
 ## 2026-10-21 — Prepare contextual removed-membership cleanup
 
 Forward288 removes only legacy account-label prerequisites from the existing live
@@ -679,3 +661,27 @@ all original deadline/action/restoration corruption cases remain. Affected387/4
 plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
 real member-list/cleanup finalCI remains required. Production/provider/shared
 applications/accounts/activation holds remain; no native or Docker action.
+
+## 2026-10-23 — CI runner completion and capacity
+
+Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
+quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
+classification stays hosted and classification failure retains hosted gate refusal.
+Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
+Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
+current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
+Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
+in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
+routing, live runner acceptance and post-activation quota week remain pending.
+Local quota audit requires complete post-activation evidence and<=1000min/month,
+<=250MB artifacts. No visibility, plan, production or database changes. Focused
+workflow/policy/type/lint checks and bounded independent review recorded in PR.
+
+First exact-head CI passed every heavy lane except light browsers: clearing the
+remounted Pattern Lab question editor left Publish enabled. All assertions remain;
+the test now uses native Select All/Backspace and checks the editor is empty before
+parent validation. Local baseline passes did not reproduce the hosted failure.
+Owner approved one bounded correction/review continuation. Rebased onto reviewed
+main45fd19251, preserving its new classroom-home database proof and local aliases.
+Application source, visibility and runner opt-in remain unchanged. Final focused,
+browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.

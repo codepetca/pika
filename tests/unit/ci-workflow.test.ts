@@ -1,4 +1,7 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, mkdtempSync, mkdirSync, readdirSync, rmSync, symlinkSync, writeFileSync, statSync, globSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { collectCiDiagnostics, summarizeProofTimings, DIAGNOSTIC_MAX_BYTES, DIAGNOSTIC_MAX_FILES } from '../../scripts/ci-diagnostics.mjs'
 import { resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
@@ -64,7 +67,7 @@ describe('CI workflow', () => {
       expect(job.steps.find(step => step.name === 'Verify managed-storage migration lineage')?.run).toBe('pnpm run check:managed-storage-lineage')
       expect(job.steps.find(step => step.id === 'ci-isolation')?.run).toBe(`node scripts/ci-runner-preflight.mjs --lane ${job.lane}`)
     }
-    expect(jobSource(source, secondary.id)).toContain('runs-on: ubuntu-latest')
+    expect(jobSource(source, secondary.id)).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(jobSource(source, secondary.id)).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
     expect(jobSource(source, secondary.id)).toContain('needs: classify-changes')
     expect(jobSource(source, 'pr-gate')).toContain('DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}')
@@ -97,8 +100,7 @@ describe('CI workflow', () => {
       const body = jobSource(workflow, job.id)
       expect(body).toContain('needs: classify-changes\n')
       expect(body).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
-      expect(body).toContain('runs-on: ubuntu-latest')
-      expect(body).not.toContain('heavy_runner')
+      expect(body).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
       expect(job.steps.filter(step => step.run?.includes('--reviewed-head')).map(step => step.name))
         .toEqual(ownerProfiles.filter(([profile]) => primaryProfiles.has(profile) === (job === shard)).map(([, name]) => name))
       expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')
@@ -133,9 +135,9 @@ describe('CI workflow', () => {
       expect([database, jobs['architecture-database-contracts-lifecycle']].flatMap(job => job.steps).filter(step => step.name === name)).toHaveLength(1)
       for (const job of [shard, lifecycle]) expect(job.steps.some(step => step.name === name)).toBe(false)
     }
-    const upload = shard.steps.find(step => step.name === 'Upload sanitized Test proof timings')!
+    const upload = shard.steps.find(step => step.name === 'Summarize sanitized Test proof timings')!
     expect(database.steps.some(step => step.name === upload.name)).toBe(false)
-    expect(workflow.split('      - name: Upload sanitized Test proof timings\n')).toHaveLength(2)
+    expect(workflow.split('      - name: Summarize sanitized Test proof timings\n')).toHaveLength(2)
     expect(shard.steps.indexOf(upload)).toBeGreaterThan(shard.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
     const gate = jobSource(workflow, 'pr-gate')
     for (const dependency of ['classify-changes', 'architecture-database-contracts', 'architecture-database-contracts-lifecycle', 'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle', 'test-and-build', 'browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
@@ -245,9 +247,9 @@ describe('CI workflow', () => {
       expect(step).toContain(`PASS isolated test-owner-${profile} exact teardown and unchanged canonical baseline.`)
       expect(step).not.toMatch(/continue-on-error|wait |tee |\s&\s/)
     }
-    const upload = workflow.split('      - name: Upload sanitized Test proof timings')[1]?.split('\n  test-and-build:')[0]
+    const upload = workflow.split('      - name: Summarize sanitized Test proof timings')[1]?.split('\n  test-and-build:')[0]
     expect(upload).toContain('if: always()')
-    expect(upload).toContain('path: ${{ runner.temp }}/pika-proof-timings/*.json')
+    expect(upload).toContain('run: node scripts/ci-diagnostics.mjs proof-summary')
     expect(upload).not.toMatch(/startup|\.log|workdir/)
   })
   it('requires a separate serial integrated SDK rehearsal and exact forced-cleanup receipts', () => {
@@ -559,7 +561,8 @@ describe('CI workflow', () => {
       expect(body).toContain('run: pnpm seed')
       expect(body).toContain('pnpm exec playwright install --with-deps chromium')
       expect(body).toContain('name: ' + id)
-      expect(body).toContain('playwright-report/\n            test-results/')
+      expect(body).toContain('path: ci-failure-diagnostics/')
+      expect(body).not.toContain('path: |\n            playwright-report/')
     }
     expect(workflow).not.toContain('run: pnpm e2e:matrix')
     expect(workflow).not.toContain('run: pnpm e2e:student-purge')
@@ -589,7 +592,157 @@ describe('CI workflow', () => {
     expect(workflow.match(/run: pnpm run check:design-policy/g)).toHaveLength(1)
     expect(workflow).toContain('name: "Check No dark: Classes in App Code"')
     expect(workflow).toMatch(
-      /- name: Upload coverage reports\n\s+if: failure\(\) && needs\.classify-changes\.outputs\.run_test_build == 'true'\n\s+uses: actions\/upload-artifact@v7/,
+      /- name: Upload bounded failure diagnostics\n\s+if: failure\(\) && steps\.failure-diagnostics\.outcome == 'success'\n\s+uses: actions\/upload-artifact@v7/,
     )
+  })
+})
+
+
+describe('bounded CI failure evidence', () => {
+  it('uploads only prepared failure diagnostics with a one-day lifetime', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const jobs = extractWorkflow(workflow)
+    expect(workflow.match(/uses: actions\/upload-artifact@v7/g)).toHaveLength(4)
+    for (const id of ['test-and-build', 'browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
+      const steps = jobs[id].steps
+      const upload = steps.find(step => step.uses === 'actions/upload-artifact@v7')!
+      const prepare = steps[steps.indexOf(upload) - 1]
+      expect(prepare.name).toBe('Prepare bounded failure diagnostics')
+      expect(prepare.if).toBe(id === 'test-and-build' ? "failure() && needs.classify-changes.outputs.run_test_build == 'true'" : 'failure()')
+      expect(prepare.id).toBe('failure-diagnostics')
+      expect(prepare.run).toBe('node scripts/ci-diagnostics.mjs collect')
+      expect(upload.if).toBe("failure() && steps.failure-diagnostics.outcome == 'success'")
+      expect(upload.with).toEqual({ name: `${id}-failure`, path: 'ci-failure-diagnostics/', 'retention-days': '1', 'if-no-files-found': 'ignore' })
+    }
+    expect(jobs['contextual-test-owner-sdk'].steps.find(step => step.name === 'Summarize sanitized Test proof timings')?.run)
+      .toBe('node scripts/ci-diagnostics.mjs proof-summary')
+  })
+
+  it('bounds bytes and file count while excluding links, traces, HTML, video and oversized files', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ci-diagnostic-cap-'))
+    try {
+      mkdirSync(join(root, 'test-results'))
+      const outside = join(root, 'private.txt'); writeFileSync(outside, 'private auth')
+      for (let i = 0; i < 40; i++) {
+        const folder = join(root, 'test-results', `case-${String(i).padStart(2, '0')}`)
+        mkdirSync(folder)
+        writeFileSync(join(folder, 'error-context.md'), 'x'.repeat(i === 0 ? 400_000 : 60_000))
+        for (const name of ['trace.zip', 'index.html', 'video.webm']) writeFileSync(join(folder, name), 'excluded')
+      }
+      symlinkSync(outside, join(root, 'test-results', 'error-context.md'))
+      symlinkSync(join(root, 'test-results', 'case-01'), join(root, 'test-results', 'linked'))
+      collectCiDiagnostics(root)
+      const output = join(root, 'ci-failure-diagnostics')
+      const files = readdirSync(output)
+      expect(files.length).toBeLessThanOrEqual(DIAGNOSTIC_MAX_FILES)
+      expect(files.reduce((size, name) => size + statSync(join(output, name)).size, 0)).toBeLessThanOrEqual(DIAGNOSTIC_MAX_BYTES)
+      expect(files.filter(name => name !== 'manifest.json').length).toBeGreaterThan(0)
+      for (const name of files) expect(readFileSync(join(output, name), 'utf8')).not.toContain('private auth')
+      expect(files.some(name => /trace|html|webm/.test(name))).toBe(false)
+      expect(readFileSync(join(output, 'manifest.json'), 'utf8')).toContain('omitted')
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+
+  it('limits even tiny diagnostics to seven files plus the manifest and skips nonregular inputs', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ci-diagnostic-count-'))
+    try {
+      mkdirSync(join(root, 'test-results'))
+      for (let i = 0; i < 20; i++) {
+        const folder = join(root, 'test-results', `case-${i}`); mkdirSync(folder)
+        if (i === 0) mkdirSync(join(folder, 'error-context.md'))
+        else writeFileSync(join(folder, 'error-context.md'), 'failure')
+      }
+      const result = collectCiDiagnostics(root)
+      expect(result.files).toBe(DIAGNOSTIC_MAX_FILES)
+      expect(readdirSync(join(root, 'ci-failure-diagnostics'))).toHaveLength(DIAGNOSTIC_MAX_FILES)
+      expect(result.omitted).toBeGreaterThan(0)
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+
+  it('handles missing inputs, refuses existing staging, and skips linked source roots', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ci-diagnostic-empty-'))
+    try {
+      collectCiDiagnostics(root)
+      expect(readdirSync(join(root, 'ci-failure-diagnostics'))).toEqual(['manifest.json'])
+      expect(() => collectCiDiagnostics(root)).toThrow()
+      rmSync(join(root, 'ci-failure-diagnostics'), { recursive: true })
+      symlinkSync(root, join(root, 'test-results'))
+      collectCiDiagnostics(root)
+      expect(readdirSync(join(root, 'ci-failure-diagnostics'))).toEqual(['manifest.json'])
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+
+  it('renders only validated finite timing fields to a bounded job summary', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ci-proof-summary-'))
+    try {
+      const folder = join(root, 'pika-proof-timings'); mkdirSync(folder)
+      writeFileSync(join(folder, 'test-owner-detail-normal.json'), JSON.stringify({ version: 1, profile: 'test-owner-detail', mode: 'normal', outcome: 'passed', durationMs: 1234, reviewedSha: 'a'.repeat(40), secret: 'NEVER EMIT', operations: [] }))
+      writeFileSync(join(folder, 'test-owner-list-normal.json'), JSON.stringify({ version: 1, profile: 'test-owner-list', mode: 'normal', outcome: 'passed', durationMs: 'injection', reviewedSha: 'a'.repeat(40) }))
+      writeFileSync(join(folder, 'ignored.json'), 'sensitive')
+      const summary = summarizeProofTimings(root)
+      expect(summary).toContain('test-owner-detail | normal | passed | 1234')
+      expect(summary).not.toMatch(/NEVER EMIT|injection|sensitive/)
+      expect(Buffer.byteLength(summary)).toBeLessThan(4096)
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+})
+
+
+describe('local runner bounded evidence safety contract', () => {
+  it('keeps the uploader root and every staged file visible to default hidden-file filtering', () => {
+    const root = mkdtempSync(join(tmpdir(), 'ci-upload-discovery-'))
+    try {
+      mkdirSync(join(root, 'test-results', 'failed-case'), { recursive: true })
+      writeFileSync(join(root, 'test-results', 'failed-case', 'error-context.md'), 'Failure details')
+      collectCiDiagnostics(root)
+      const workflow = extractWorkflow(readFileSync(workflowPath, 'utf8'))
+      for (const id of ['test-and-build', 'browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
+        const upload = workflow[id].steps.find(step => step.uses === 'actions/upload-artifact@v7')!
+        const discovered = globSync(`${upload.with.path}**/*`, { cwd: root })
+          .filter(path => !path.split(/[\\/]/).some(part => part.startsWith('.')))
+          .filter(path => statSync(join(root, path)).isFile())
+        expect(discovered).toHaveLength(2)
+        expect(discovered).toContain(`${upload.with.path}manifest.json`)
+        expect(discovered).toContain(`${upload.with.path}error-context-001.md`)
+      }
+    } finally { rmSync(root, { recursive: true, force: true }) }
+  })
+
+  it.each([
+    ['failure guard removed', (source: string) => source.replace('        if: failure()\n        run: node scripts/ci-diagnostics.mjs collect', '        if: always()\n        run: node scripts/ci-diagnostics.mjs collect')],
+    ['upload preparation guard removed', (source: string) => source.replace("failure() && steps.failure-diagnostics.outcome == 'success'", 'failure()')],
+    ['full report upload', (source: string) => source.replace('path: ci-failure-diagnostics/', 'path: playwright-report/')],
+    ['long artifact lifetime', (source: string) => source.replace('retention-days: 1', 'retention-days: 7')],
+    ['unbounded collector', (source: string) => source.replace('node scripts/ci-diagnostics.mjs collect', 'cp -R test-results ci-failure-diagnostics')],
+    ['unknown artifact option', (source: string) => source.replace('if-no-files-found: ignore', 'include-hidden-files: true')],
+    ['conditional summary', (source: string) => source.replace('Summarize sanitized Test proof timings\n        if: always()', 'Summarize sanitized Test proof timings\n        if: success()')],
+  ])('rejects %s without silently weakening local checks', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(readFileSync(workflowPath, 'utf8')))).toThrow()
+  })
+})
+
+
+describe('PR Gate compute fallback', () => {
+  it.each(['failure', 'skipped', 'cancelled', ''])('keeps the actual aggregate gate closed when classification ends %s', result => {
+    expect(runGate({ CLASSIFY_RESULT: result }).status).toBe(1)
+  })
+  it('selects classified compute only after success and uses hosted compute for absent output or failed classification', () => {
+    const gate = jobSource(readFileSync(workflowPath, 'utf8'), 'pr-gate')
+    const runner = gate.match(/^    runs-on: (.+)$/m)![1]
+    expect(runner).toBe(`\${{ fromJSON(needs.classify-changes.result == 'success' && needs.classify-changes.outputs.heavy_runner || '["ubuntu-latest"]') }}`)
+    // Evaluate this restricted, exact workflow expression with concrete job contexts.
+    // GitHub's && / || operators select the same operand values as JavaScript here.
+    for (const [result, output, expected] of [
+      ['success', '["self-hosted","Linux","pika-ci"]', ['self-hosted', 'Linux', 'pika-ci']],
+      ['success', '["ubuntu-latest"]', ['ubuntu-latest']],
+      ['success', '', ['ubuntu-latest']],
+      ['failure', '["self-hosted","Linux","pika-ci"]', ['ubuntu-latest']],
+      ['skipped', '', ['ubuntu-latest']],
+    ] as const) {
+      const expression = runner.slice('\${{ fromJSON('.length, -') }}'.length)
+        .replace('needs.classify-changes.result', JSON.stringify(result))
+        .replace('needs.classify-changes.outputs.heavy_runner', JSON.stringify(output))
+      expect(JSON.parse(Function(`return (${expression})`)())).toEqual(expected)
+    }
   })
 })
