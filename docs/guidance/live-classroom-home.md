@@ -37,11 +37,19 @@ Pattern Lab fixtures alone do not establish those properties.
 
 ## Verification and sequencing checkpoint
 
-Prepared source, not yet independent-review or release acceptance:
+Prepared source, not yet changed-base review or release acceptance:
 
 - The existing server home reader feeds the real `/classrooms` composition.
   Nonadmitted accounts retain the original role-based branch. Failed required
   live reads produce an error state, not a legacy fallback or empty success.
+- Initial security review found a partial-list risk at the REST row ceiling.
+  Both relationship reads now use ordered 500-row pages and exact counts,
+  bounded to 4,096 rows per relationship source. Missing/changing counts,
+  incomplete pages, repeated primary keys and late errors fail closed. This is
+  an operational read bound, not a subscription or classroom allowance. Server
+  rendering and admitted active-list refresh both reuse the verified owned rows;
+  legacy list behavior is unchanged. Boundary regressions include 1,001 owned
+  and joined relationships, retaining the final Hidden candidate.
 - Owner ordering and the complete archive/recovery manager remain the existing
   implementation. Joined cards have only personal Hide/Unhide controls. Hidden
   cards remain accessible to current members and appear below Archived.
@@ -66,7 +74,8 @@ Prepared source, not yet independent-review or release acceptance:
   matrix, proving that personal Blueprint selection remains available while
   package import is absent for student-valued accounts. Root visually inspected
   representative active/edit/Archived/Hidden and wizard captures; the complete
-  screenshot matrix remains part of independent compatibility review.
+  screenshot matrix passed independent compatibility review: all 64 PNGs decoded,
+  with all active, Archived/Hidden and wizard combinations visually inspected.
 - Archiving or unarchiving refreshes server-resolved creation capabilities;
   freeing a slot must not leave the creation action unavailable until a reload.
 

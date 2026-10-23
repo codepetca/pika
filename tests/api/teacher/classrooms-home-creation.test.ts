@@ -3,11 +3,17 @@ import { NextRequest } from 'next/server'
 import { requireAuth, requireRole } from '@/lib/auth'
 import { GET, POST } from '@/app/api/teacher/classrooms/route'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { loadContextualClassroomHome } from '@/lib/server/contextual-classroom-home'
+import { ApiError } from '@/lib/api-error'
 
 const database = vi.hoisted(() => ({ rpc: vi.fn(), from: vi.fn() }))
 vi.mock('@/lib/auth', async original => ({ ...await original<typeof import('@/lib/auth')>(), requireAuth: vi.fn(), requireRole: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => database }))
 vi.mock('@/lib/server/classroom-order', () => ({ listActiveTeacherClassrooms: vi.fn() }))
+vi.mock('@/lib/server/contextual-classroom-home', async original => ({
+  ...await original<typeof import('@/lib/server/contextual-classroom-home')>(),
+  loadContextualClassroomHome: vi.fn(),
+}))
 
 const actorId = '11111111-1111-4111-8111-111111111111'
 const classroomId = '33333333-3333-4333-8333-333333333333'
@@ -34,6 +40,7 @@ describe('exact-home admitted classroom creation and refresh', () => {
     vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'student@example.invalid', role: 'student' })
     vi.mocked(requireRole).mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
     vi.mocked(listActiveTeacherClassrooms).mockResolvedValue({ data: [], error: null } as never)
+    vi.mocked(loadContextualClassroomHome).mockResolvedValue({ owned: [], joined: [] })
     database.rpc.mockImplementation(async name => ({ data: name === 'get_classroom_creation_access_v1' ? snapshot : atomicResult, error: null }))
   })
   afterEach(() => { vi.unstubAllEnvs() })
@@ -49,12 +56,25 @@ describe('exact-home admitted classroom creation and refresh', () => {
     expect(database.from).not.toHaveBeenCalled()
   })
 
-  it('refreshes only the actor-owned active classrooms without needing creation capacity', async () => {
+  it.each(['teacher', 'student'] as const)('refreshes the complete owned list for %s without creation capacity or leaking joined rows', async role => {
+    vi.mocked(requireAuth).mockResolvedValue({ id: actorId, email: 'actor@example.invalid', role })
+    vi.mocked(loadContextualClassroomHome).mockResolvedValue({
+      owned: [{ id: classroomId, title: 'Owned', relationship: 'owner' }],
+      joined: [{ id: otherId, title: 'Joined', relationship: 'member' }],
+    } as never)
     const response = await GET(new NextRequest('http://localhost/api/teacher/classrooms'))
     expect(response.status).toBe(200)
-    expect(listActiveTeacherClassrooms).toHaveBeenCalledExactlyOnceWith(database, actorId)
+    expect((await response.json()).classrooms.map((row: { id: string }) => row.id)).toEqual([classroomId])
+    expect(loadContextualClassroomHome).toHaveBeenCalledExactlyOnceWith(actorId, { supabase: database })
+    expect(listActiveTeacherClassrooms).not.toHaveBeenCalled()
     expect(requireRole).not.toHaveBeenCalled()
     expect(database.rpc).not.toHaveBeenCalled()
+  })
+
+  it('does not fall back to a partial legacy list when complete refresh fails', async () => {
+    vi.mocked(loadContextualClassroomHome).mockRejectedValueOnce(new ApiError(503, 'Unable to verify classroom home'))
+    expect((await GET(new NextRequest('http://localhost/api/teacher/classrooms'))).status).toBe(503)
+    expect(listActiveTeacherClassrooms).not.toHaveBeenCalled()
   })
 
   it.each(['home', 'shared'])('retains the student rejection when the actor misses the %s cohort', async gate => {

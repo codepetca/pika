@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Consolidated owner attendance-decommission preparation
-
-Folded all three existing begin/status/advance methods into the still-draft purge
-workflow, using shared admission with legacy teacher behavior retained. Reused
-unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
-verifier maps malformed stored evidence to503, preserves safe service errors and
-validates public result identity/state. Sol6.1/high delivered53 affected tests/3
-suites, TypeScript and scoped lint PASS; root reviewed all source and added a
-rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
-operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
-focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
-commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
-64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
-No native SQL or provider call was made. Retained-generation175 can block153's
-participant mapping deletion after remote completion; preserve the guard/fence
-and inspectable state. Documented as a separate activation prerequisite, not
-claimed complete by mock transport/basic synthetic fixtures. Combined checks,
-proportional independent review, latest-main integration and CI remain. No SQL
-migration, dependency, UI, gate, provider identity, real deletion or activation
-change. All production/shared-local249+ and provider/account/billing/AI holds
-remain. Source writer stopped; attributable active time/tokens unknown.
-
-Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
-all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
-passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
-Consolidated purge source rebased onto that actual main; only roadmap/history
-overlaps required union, retaining main receipts and one copy of the identical
-already-archived entry. No migration resequencing, stash use or hold change.
-
 ## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
 
 Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
@@ -1058,3 +1029,13 @@ unknown; prior review424/fix39 counters retained. Editor owns locally applied291
 owner authorized coordination and reviewed1662 merge to main only. Home numbering
 must follow upstream before readiness. No shared migration, production, provider,
 account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
+
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.

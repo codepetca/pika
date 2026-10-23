@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createClassroomSchema } from '@/lib/validations/teacher'
 import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
+import { loadContextualClassroomHome } from '@/lib/server/contextual-classroom-home'
 import { hydrateClassroomRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { listTeacherArchivedClassrooms } from '@/lib/server/classroom-archive-recovery-list'
 import { listTeacherHotArchiveRecovery } from '@/lib/server/classroom-archive-status'
@@ -46,9 +47,9 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       }))
     }
   }
-  const user = archivedParam === 'true'
-    ? await requireRole('teacher')
-    : (await authorizeClassroomHomeActor()).user
+  const { user, contextual } = archivedParam === 'true'
+    ? { user: await requireRole('teacher'), contextual: false }
+    : await authorizeClassroomHomeActor()
   const supabase = getServiceRoleClient()
 
   if (archivedParam === 'true') {
@@ -92,6 +93,11 @@ export const GET = withErrorHandler('GetTeacherClassrooms', async (request: Next
       hot_archive_recovery: hotArchiveRecovery.summaries,
       hot_archive_recovery_status_available: hotArchiveRecovery.ok,
     })
+  }
+
+  if (contextual) {
+    const home = await loadContextualClassroomHome(user.id, { supabase })
+    return NextResponse.json({ classrooms: hydrateClassroomRecords(home.owned) })
   }
 
   const { data: classrooms, error } = await listActiveTeacherClassrooms(supabase, user.id)

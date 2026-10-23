@@ -38,15 +38,13 @@ export default async function ClassroomsIndexPage() {
       joined: [], hidden: [], canCreate: false, canImportBlueprint: user.role === 'teacher',
     }
     try {
-      const [home, visibility, creation, owned] = await Promise.all([
+      const [home, visibility, creation] = await Promise.all([
         loadContextualClassroomHome(user.id, { supabase }),
         readClassroomHomeVisibility({ supabase, actorId: user.id }),
         loadClassroomHomeCreationAccess(user.id, supabase),
-        listActiveTeacherClassrooms(supabase, user.id),
       ])
-      if (owned.error) throw new Error('Home unavailable')
       const hidden = new Set(visibility.hidden_enrollment_ids)
-      initialClassrooms = hydrateClassroomRecords((owned.data || []) as Record<string, any>[])
+      initialClassrooms = hydrateClassroomRecords(home.owned)
       contextualHome = {
         joined: home.joined.filter(row => !row.enrollment_id || !hidden.has(row.enrollment_id)),
         hidden: home.joined.filter(row => row.enrollment_id && hidden.has(row.enrollment_id)),

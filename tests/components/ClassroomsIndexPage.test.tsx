@@ -114,7 +114,7 @@ describe('classroom index required server reads', () => {
     mocks.homeAdmission.mockReturnValue(true)
     mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
     mocks.teacher.mockResolvedValue(success([{ id: 'owned' }]))
-    mocks.home.mockResolvedValue({ owned: [], joined: [
+    mocks.home.mockResolvedValue({ owned: [{ id: 'owned' }], joined: [
       { id: 'visible', enrollment_id: 'membership-a' }, { id: 'hidden', enrollment_id: 'membership-b' },
     ] })
     mocks.visibility.mockResolvedValue({ actor_id: 'actor', hidden_enrollment_ids: ['membership-b'] })
@@ -126,7 +126,7 @@ describe('classroom index required server reads', () => {
       initialClassrooms: [{ id: 'owned' }],
       contextualHome: { joined: [{ id: 'visible', enrollment_id: 'membership-a' }], hidden: [{ id: 'hidden', enrollment_id: 'membership-b' }], canCreate: true, canImportBlueprint: role === 'teacher' },
     })
-    expect(mocks.teacher).toHaveBeenCalledWith(expect.anything(), 'actor')
+    expect(mocks.teacher).not.toHaveBeenCalled()
   })
 
   it('does not fall back to a role-based list when live persistence is unavailable', async () => {

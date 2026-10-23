@@ -7,6 +7,30 @@ import type { AuthenticatedUser } from '@/types'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
+const HOME_PAGE_SIZE = 500
+// Private bounded-read ceiling, not a plan or membership allowance. An uncertain
+// or oversized response must fail rather than silently return a partial home.
+const HOME_READ_CEILING = 4096
+type HomePage = { data: unknown; error: unknown; count: number | null }
+
+async function completeHomeRows(query: (from: number, to: number) => PromiseLike<HomePage>): Promise<unknown[]> {
+  const rows: unknown[] = []
+  let total: number | undefined
+  do {
+    const page = await query(rows.length, rows.length + HOME_PAGE_SIZE - 1)
+    if (page.error) throw new ApiError(503, 'Unable to load classroom home')
+    if (!Array.isArray(page.data) || !Number.isSafeInteger(page.count)
+      || page.count === null || page.count < 0 || page.count > HOME_READ_CEILING
+      || (total !== undefined && total !== page.count)
+      || page.data.length !== Math.min(HOME_PAGE_SIZE, page.count - rows.length)) {
+      throw new ApiError(503, 'Unable to verify classroom home')
+    }
+    total = page.count
+    rows.push(...page.data)
+  } while (rows.length < total)
+  return rows
+}
+
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
 const homeCohortSchema = z.array(canonicalUuid).max(100)
 const activeClassroomRowSchema = z.object({
@@ -150,29 +174,37 @@ export async function loadContextualClassroomHome(
   if (!identity.success) throw new ApiError(503, 'Unable to verify classroom home identity')
 
   const supabase = options.supabase ?? getServiceRoleClient()
-  const [ownedResult, joinedResult] = await Promise.all([
-    supabase
+  const [ownedData, joinedData] = await Promise.all([
+    completeHomeRows((from, to) => supabase
       .from('classrooms')
-      .select(OWNED_CLASSROOM_SELECT)
+      .select(OWNED_CLASSROOM_SELECT, { count: 'exact' })
       .eq('teacher_id', identity.data)
       .is('archived_at', null)
       .order('position', { ascending: true })
-      .order('updated_at', { ascending: false }),
-    supabase
+      .order('updated_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, to)
+      .abortSignal(AbortSignal.timeout(10_000))),
+    completeHomeRows((from, to) => supabase
       .from('classroom_enrollments')
-      .select(JOINED_CLASSROOM_SELECT)
+      .select(JOINED_CLASSROOM_SELECT, { count: 'exact' })
       .eq('student_id', identity.data)
       .is('classrooms.archived_at', null)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: true })
+      .range(from, to)
+      .abortSignal(AbortSignal.timeout(10_000))),
   ])
 
-  if (ownedResult.error || joinedResult.error) {
-    throw new ApiError(503, 'Unable to load classroom home')
-  }
-
-  const ownedRows = z.array(activeClassroomRowSchema).safeParse(ownedResult.data)
-  const joinedRows = z.array(joinedClassroomRowSchema).safeParse(joinedResult.data)
+  const ownedRows = z.array(activeClassroomRowSchema).safeParse(ownedData)
+  const joinedRows = z.array(joinedClassroomRowSchema).safeParse(joinedData)
   if (!ownedRows.success || !joinedRows.success) {
+    throw new ApiError(503, 'Unable to verify classroom home')
+  }
+  // A repeated primary key can conceal an omitted row when a paginated order
+  // changes between requests. Do not turn that uncertain read into success.
+  if (new Set(ownedRows.data.map(row => row.id)).size !== ownedRows.data.length
+    || new Set(joinedRows.data.map(row => row.id)).size !== joinedRows.data.length) {
     throw new ApiError(503, 'Unable to verify classroom home')
   }
   if (ownedRows.data.some((row) => row.teacher_id !== identity.data)) {
