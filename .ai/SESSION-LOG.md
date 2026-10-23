@@ -11,189 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Fix calendar reference hydration before PR1648 merge
-
-Owner extended the review budget for one batched correction and one targeted
-review after CI exposed four assignment Pattern Lab dialog failures. CI traces
-showed a hydration mismatch: Material's September release stamp appeared
-scheduled under the browser's August31 fixed clock but published on the server.
-The calendar identity fixture now has no release schedule, preserving identical
-server/client labels. The new two-clock unit regression failed before the fix;
-the original creation-dialog browser failure also reproduced locally. Rebased
-onto main's attendance membership PR1647; only an archive batch marker conflicted,
-and main's marker and both session entries were preserved. No calendar production
-behavior, attendance rollout, migration application or provider hold changed.
-Validation and the approved additional targeted review follow on the final SHA.
-
-Fresh Playwright captures cover teacher/student at1440/390px in light/dark and
-preserve the accepted chip/icon treatment. The two-clock regression passes;
-desktop creation/edit browser contracts pass in both themes. Later mobile
-attempts hit page-loading timeouts under severe host load, without the former
-hydration error. Final focused checks and isolated mobile rerun remain gates.
-
-PR1648's corrected6d0286 head passed all CI lanes, including the previously
-failing browser matrix and PR Gate (run39634162305). Main advanced to the
-independently reviewed Tooltip PR1650 while CI ran. Rebased without app conflicts;
-our source/test/config patch remains identical. Reuse the calendar independent
-reviews and Tooltip1650's completed independent reviews/CI, then verify their
-composition: calendar hover/focus descriptions retire immediately, chips retain
-icons/title/activation, and the fixed-clock example still opens dialogs. Retain42
-recent entries with --keep60 (within the canonical60-entry cap) so no duplicate
-historical archive batch markers are introduced. Main's archive is unchanged and
-all historical text is preserved. Fresh composed local checks and final-head CI
-remain required before the authorized squash merge.
-
-Composed verification passed: normal focused90files/1,353tests, architecture,
-UI/design policy, TypeScript and lint;14Tooltip unit tests. Eight native contexts
-(teacher/student,1440fine/390touch,light/dark) verify fixed-clock teacher first
-click, Material/Announcement icons, focus descriptions, Escape semantic retirement
-and Material activation, with zero page errors. Current composed screenshots were
-visually inspected. Own feature patch is identical to independently reviewed6d0286;
-Tooltip source/contract is the reviewed1650 base. Reused coverage plus this
-composition check leaves no identified integration gap; final exact-head CI is
-still required. No additional independent reviewer turn or review finding fix.
-
-Main's reviewed attendance PR1651 merged during the second final CI run. GitHub
-reports the shared log conflict despite the local union driver; application files
-merge without overlap. Reused main1651's security/compatibility reviews and CI,
-and verified the calendar/Tooltip source patch remains identical. Place this
-task's same-day entries before the existing October21 group so future log appends
-have separate edit locations; no history is removed and the archive is unchanged.
-The composed visual evidence remains valid because those source blobs are
-unchanged. Fresh focused validation and final-head CI remain required.
-
-Main's reviewed Tooltip PR1652 merged during CI. The prior candidate's
-Database Contracts timeout passed on one fresh failed-job retry with unchanged
-source and assertions; every lane and PR Gate passed. Strict up-to-date rules
-require another sync. Reused unchanged feature reviews after examining1652's
-four static Markdown tags, owner regression and native evidence. Removed duplicate
-calendar log entries produced by the union driver during commit replay, retaining
-one complete copy and all main history. Fresh local checks and exact-head CI
-remain the final gates. No new independent review turn is claimed.
-
-## 2026-10-21 — Production migrations 283–284 verified; promotion prepared
-
-Owner explicitly approved one production283+284 attempt after preview39595410439
-showed both pending. Apply39595797114 returned applied-verified at07:58Toronto,
-complete001–284 history; sourceef6b4b5bbe4122bf6381d027cb9247b0ef0814a9,
-CI39539800203 verified the complete Supabase tree. Both SQL files were reviewed;
-approval is consumed and does not authorize a retry or another migration.
-Read-only production checks matched all10 function bodies, postgres ownership,
-empty search paths, definer status and restricted ACLs; five guards enabled.
-Both new private attendance tables are empty, RLS-protected and inaccessible
-directly to browser/service roles. No production fixtures or feature activation.
-Prior282 control audit remains historical; unrelated holds and local249+ unchanged.
-Receipts: ~/.codex/receipts/production-migrations/2026-10-21T115811Z/.
-Draft productionPR1644 batches main attendance foundation, material scheduling,
-account-menu motion and readiness guidance. Cumulative Sol6.1/high integration
-review found no blocker; one interrupted attempt resumed without a replacement.
-This receipt goes through main before the final promotion review/PR Gate.
-
-## 2026-10-21 — Announcement Schedule closing consistency
-
-Extended the teacher create/draft/posted Schedule popovers with the shared fast opacity exit. The existing native date/time fields retain their DOM, scalar values and closing viewport bounds; Done no longer shifts the fading picker when its schedule label changes the toolbar. Logical dismissal immediately retires commands and focus refs, while reduced motion, hidden/read-only context and owner replacement remove the retained view immediately. The shared picker API and Assignment defaults remain unchanged.
-
-Owner regressions cover inert closing presentation, stale callbacks, rapid reopen, hidden/read-only retirement and reduced-motion preference changes (95 passing). Native viewport/theme/motion and student compatibility matrix, unchanged Pattern Lab goldens, focused checks and independent stable-SHA review are required before main merge. Broad product-fluidity goal remains open; production/migrations/dependencies/privacy priority1 and old Calendar1217 holds remain.
-
-## 2026-10-21 — Tooltip motion consistency audit
-
-Audited shared Tooltip on main192f4cbff with 16 current native role/viewport/theme/motion contexts and an interactive keyboard follow-up. Confirmed immediate Tooltip closing versus the shared fast-opacity reference; pointer/touch/keyboard focus and interactive hover paths work. Mobile first artifact focus can lose its hint when the table scrolls; settled refocus and the three-link keyboard chooser work. Recorded the separate low-priority issue and the retained-role/link retirement requirement for a future fade in `docs/guidance/ui/tooltip-motion-audit-2026-10-21.md`.
-
-One existing Tooltip owner test passes. Source/media hashes, 14 accepted screenshots, raw measurements and diagnosed harness/source-audit corrections are retained privately. This delivery changes audit documentation only; Tooltip implementation and stable canon remain unchanged. Broad UI fluidity goal stays open, with production/migrations/dependencies/privacy priority1 and old Calendar1217 holds preserved.
-
-## 2026-10-21 — Connected attendance membership preparation
-
-Prepared dormant285: admitted current owners of either account label retain exact
-WorkOS linkage and canary/entitlement checks; legacy dispatch is unchanged.
-Atomic exact-enrollment allocation, roster source/staging, retained-reference
-ingestion, closed delivery and a strict scan resolver form one connected group.
-Unknown historical generations remain unknown; owner history and existing
-cleanup/decommission fences remain. Learner reads/overrides/confirmation/cache
-adoption are still separate. Astra/high delivered SQL/native fixtures; Sol/high
-integrated exact source profiles. Final source profile1117checks, runtime289checks,
-full TypeScript and audit pass. First schema-only fixture failed missing historical
-settings; full001–285 offline replay corrected the fixture model and passed actual
-rollback behavior, genuine metadata and unchanged shared schema. Owned containers
-were removed and evidence retained privately. A complementary full replay then
-passed actual two-session prepare/prepare and prepare/removal/staging races,
-fresh committed-state checks, retained facts and positive connection/container
-closure. The exact CI proof inventory adds this isolated check without dropping
-historical lanes. Independent review, final focused gate and stable-head CI
-remain pending. No production/shared-local
-migration, live provider, configuration, account or rollout action occurred.
-
-CI exposed an obsolete decommission fixture expectation:285 correctly rejects
-closed-reference reuse before the historical283 capture guard. Returned1647 to
-draft; the fixture now requires the exact installed guard/SQLSTATE and proves
-no mapping or tombstone mutation. Its guarded offline-clone mode lets the new
-runner execute the entire old decommission matrix for both owner labels after
-genuine001–285 replay. One fresh isolated run passed that matrix, membership
-rollback/concurrency, metadata equality, unchanged shared243 and owned cleanup.
-SQL285 and runtime code are unchanged; targeted review and corrected-head CI
-remain required. Production and live-provider holds are unchanged.
-
-The next CI run passed both native behavior matrices and actual concurrency,
-then exposed a cached image alias mismatch: CI uses GHCR, local uses ECR.
-The runner now preflights the same pinned metadata version in either reviewed
-registry and launches its immutable cached image ID with pull-never. Shell-driven
-registry/missing-cache/identity tests reproduce the failure; a fresh full isolated
-run passed through real metadata equality and positive cleanup. No SQL/runtime
-change or production/provider action; corrected-head review/CI still required.
-
-## 2026-10-21 — Shared Tooltip stationary opacity
-
-Shared Tooltip now uses semantic fast opacity entry and a bounded decorative exit with fixed text geometry. Logical close unmounts live Radix content, descriptions, child owners and document handlers immediately. Only whitelisted static text/formatting/link/SVG DOM is copied, with IDs, roles, targets and focus/event attributes removed and inert/hidden pointer fencing. Unsupported widgets/media/custom content closes immediately; reopen, disabled/hidden/unmount and reduced motion retire the copy. No public API or dependency change. Pattern Lab includes an availability toggle for both roles; the separate mobile ancestor-scroll hint discovery issue remains open.
-
-Owner14 and gallery52 tests pass. Initial canonical focused3,690/274 plus architecture/UI/design policy, TypeScript, lint and audit pass; the final corrected gate is recorded with the PR. Independent review identified a first-hover regression after enabling: a fresh available pointer entry now clears the stale-open fence, while disabled clicks cannot release pending hover work. Three regressions and eight native availability cases cover the correction. Native16 role/viewport/theme/motion contexts verify fades, stationary bounds/font/text, immediate semantic retirement and existing focus/hover/touch paths. Four extra native lifecycle cases verify rapid reopen, live reduced motion, retired link fencing and second-Escape ownership; current screenshots inspected. Rework retained privately: replaced live Radix exit after its Escape-layer leak, fixed screenshot/capture readiness and owner matching, and held exit opacity through timer removal. Independent stable-SHA review and exact-head CI/PR Gate remain required before merge. The first CI attempt caught the added availability row changing catalog screenshot height (+60 desktop/+120 mobile). The recovery fixture moved after the stable catalog, with a placement regression and four unchanged local catalog goldens passing; the shared Tooltip owner is unchanged by this correction. Broad fluidity goal and existing production/schema/dependency/privacypriority1/Calendar1217 holds remain.
-
-## 2026-10-21 — Integrate current-membership learner attendance
-
-Prepared286 learner status/check-in and owner overrides behind existing shared
-admission. Exact enrollment targets survive queued corrections; stale generations
-cannot confirm or overwrite replacement memberships. Earlier facts/events remain
-owner-visible, unknown generations remain unknown. Existing confirmation/cache
-fences and UI owners are reused; legacy callers and deactivation remain intact.
-Initial disposable001–286 proof passed existing decommission, sequential/concurrent
-membership/override/entitlement contracts, genuine types, shared243 preservation
-and owned cleanup. First failed fixture attempt is retained; its ambiguous SQL
-identifier was fixed, not relabeled. Frozen source-profile1,175 checks pass;
-full focused checks, visual review, independent review and exact-head CI remain
-required. Global pause was honored and explicitly revoked; other production,
-shared-local249+, provider/publication and activation holds remain unchanged.
-Independent review then caught a strict-scan owner-precedence gap:286 now
-forward-corrects the resolver without editing285, preserving all earlier fences.
-Valid prepared self-enrollments must still be denied; both QR entrypoints reject
-without check-in dispatch. The added76 focused regression checks pass; corrected
-native proof, targeted review and final-head gates remain necessary before merge.
-Owner-sync/mixed-cohort readiness is explicitly held before learner activation,
-never permission for allocation or a legacy fallback.
-
-## 2026-10-21 — Formatted Tooltip transition consistency
-
-- Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
-- Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
-- Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
-
-## 2026-10-21 — Durable Pal owner-transition queue preparation
-
-Owner chose to stop queued learner delivery on same-class ownership, preserving
-earned progress and issued-token expiry. Forward287 stamps the existing private
-event binding at actual ownership changes, terminates pending rows and preserves
-processing leases for known acknowledgements. Current-owner membership activity
-is denied; stopped events stay stopped after demotion, while later fresh learner
-facts use current membership. Global account Pal and activation gates are unchanged.
-The existing authorizer/worker retains exact generation, provenance, lease and
-closed-generation fences, separating future-send denial from a known HTTP2xx.
-Current287 profile seals extend the existing proofs without weakening history.
-Full focused10086 checks plus static/audit gates pass; isolated nonempty backfill
-preserves earned/other-subject facts and initialized-OFF settings. Two failed
-fixture/output-format attempts remain preserved, with positive owned cleanup and
-unchanged shared243 schema. Fresh complete287 replay/backfill and old/current Pal
-suites pass both labels, exact metadata, nonempty history, wire validation and real
-ownership contention/fresh reads. Independent review and exact-head CI remain
-gates. No production/shared-local migration, provider call,
-publication, account change or rollout is authorized by this source preparation.
-
 ## 2026-10-21 — Prepare contextual active classroom capture
 
 Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
@@ -731,3 +548,134 @@ dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
 verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
 292, flags, provider, account/billing or cleanup activation. Receipt imports both
 production/main journal histories; application/test/schema/config unchanged.
+
+## 2026-10-23 — Prepare live relationship home
+
+Implement the approved Teaching/Joined composition under exact home plus shared
+admission, preserving legacy users/session roles and the owner lifecycle manager.
+Private current-enrollment preferences persist personal hide/unhide; stale rejoin
+requests fail. Managed creation hints retain atomic quotas/idempotent replay;
+code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
+Disposable replay, rollback and real two-session contention passed; shared source
+ID/version/schema preserved, generated RPC types matched and owned resources absent.
+UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
+evidence. Initial browser failure was a selector matching Next's route announcer;
+its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
+gate and independent review still pending. Creation capability refresh regression
+failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
+unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
+owner authorized coordination and reviewed1662 merge to main only. Home numbering
+must follow upstream before readiness. No shared migration, production, provider,
+account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
+
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
+
+## 2026-10-23 — Reconcile home with merged editor291
+
+Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
+historical receipts. Images291 remains fixed; visibility renamed292 with SQL hash
+3d5d47…f349d unchanged. Exact source profiles extend292 and reject293; no historical
+seal rebound. Initial profile run found the omitted offline-helper allowance;
+corrected1500/4PASS. Full001–292 isolated replay, rollback, real two-session locks,
+generated types and canonical291/schema preservation PASS. Launcher PATH failure
+preceded clone setup and remains failed evidence; corrected fresh proof passed.
+Fresh16UIcases/64PNG PASS40.425s; root inspected current captures, 48unchanged PNGs
+match prior bytes. Native/browser resources settled, envlink restored, Dockerwindow
+released; editor stopped exactsourceDB/Desktop preserving volumes. Final focused
+4486/143PASS; static completion and cumulative review428 tracked privately before
+ready/CI. No shared migration, production/provider/account/cohort/goal action.
+
+## 2026-10-23 — Reconcile authoring-image role boundaries
+
+Cumulative review428 accepted the rebase/native/visual evidence but found new
+upstream image endpoints still globally role-bound. Batch42 adapts existing
+reserve/finalize/cancel and delivery only within exact home/shared admission;
+actual owner/creator/object checks, current-member publication, archived denial,
+retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
+regressions reproduced the mismatch before the fix;79 focused checks then passed.
+No SQL, UI, provider execution or shared database change. Native292/16-case UI
+evidence remains unchanged; final focused checks and targeted review429 required.
+All deployment/provider/account/cohort/cutover holds stay in place.
+
+## 2026-10-23 — Correct current-chain native verification pins
+
+Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
+material native harnesses;21,759 CPU checks passed, one preflight unit failed.
+Returned1666 to draft before one batched correction. RED5/31 reproduced boundary
+and actual-command failures;1519/3 then passed with both sealed preflights and
+future293/malformed rejection. Fresh offline attendance/material292 proofs passed
+full replay, rollback behavior, actual attendance contention, generated types and
+unchanged canonical001–291/schema; owned containers removed. Evidence retained
+privately. Two launcher failures used pnpm9 before clone setup, retained as failed
+evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
+accepted visual and home-native evidence reused. Final focused gate and targeted
+review430 precede new ready-event CI; editor release-order interlock remains.
+Production, providers, shared applications, account and activation holds remain.
+
+## 2026-10-23 — Reconcile home proof with pinned CI image
+
+Review430 and full4544/145+static passed07cceb; normal draft push then one ready
+event started40007133291. CI passed corrected attendance292 native proof, then
+home preflight rejected the CI image before scratch creation. Returned1666 to
+draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
+local accepted stack uses17.6.1.044. Add only exact official aliases for132,
+retaining044 and cached/running ID equality. Actual shell regressions RED2/18
+reproduced the mismatch; future/custom/latest/malformed references and mismatched
+IDs remain rejected. No SQL/UI/database/provider change or new dependency.
+Targeted review and final CI remain required; unchanged native/visual evidence
+is reused. Editor1668 main correction is close; wait for actual merged SHA to
+combine compatibility reconciliation before another CI. Release interlock and
+all production/provider/shared application/account/activation holds persist.
+
+Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
+completed without conflicts. All six feature patches remain equivalent; image
+helper's UUID-case-only change and tests are the only upstream delta. Migration
+291/292 hashes unchanged, no renumbering/application or new stash. Combine this
+interaction and image-pin batch44 in targeted431 after affected checks; final
+focused gate/CI still required. Editor1667 release interlock remains held.
+
+## 2026-10-23 — Final home base reconciliation after editor release
+
+Editor release/receipt complete: actual finalmain24c294b1, interlock explicitly
+released by its owner. Rebased home onto docs-only1669, preserving CURRENT and
+exact production receipt. Conflicts only in history journals; keep both histories
+and markers, remove one merge-reinserted historical duplicate only after byte
+equality with its preserved earlier entry. All application/test/script/dependency/
+configuration/SQL bytes match reviewed4772;291/292digests unchanged. No shared
+migration/provider/activation action. Reused4557/145+static/source review431 and
+accepted native/UI evidence; final docs verification/review432 and exact-head CI
+precede normal1666mainmerge. This task's production/provider/account/plan/cohort
+holds remain; tool goal and DeepSeek stay paused.
+
+## 2026-10-23 — Include home preference in closed Test proof catalogs
+
+CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
+contention/types/source-preservation, then an older member-list canonical-before
+check rejected292's unlisted private home table before fixture allocation. Return
+1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
+include the sealed292 table centrally and preserve exact291 source compatibility.
+Test missing/drifted fingerprints for create/publication/discard restoration,
+tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
+provider behavior changed. Unchanged accepted native/UI evidence reused; full
+focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
+Prior failed CI is not acceptance. All deployment/provider/shared-application/
+account/activation holds remain unchanged.
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.

@@ -308,6 +308,9 @@ jobs:
       - name: Require warning-free database functions
         run: supabase db lint --local --level warning --fail-on warning
 
+      - name: Verify personal joined classroom home visibility and concurrency
+        run: bash scripts/check-classroom-home-visibility-database.sh
+
       - name: Verify Course Guide import shared lease and rate window
         run: bash scripts/check-course-guide-import-rate-limit-database.sh
 

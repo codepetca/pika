@@ -44,22 +44,30 @@ const joinedClassroom = {
   private_field: 'must not cross the API boundary',
 }
 
-type JoinedResult = { data: unknown; error: unknown }
+type JoinedResult = { data: unknown; error: unknown; count?: unknown }
 let ownedResult: JoinedResult
 let joinedResult: JoinedResult
 let ownedQuery: ReturnType<typeof query>
 let joinedQuery: ReturnType<typeof query>
 
-function query(result: () => JoinedResult) {
+function query(result: (range: [number, number] | null) => JoinedResult) {
   const filters: unknown[][] = []
+  let range: [number, number] | null = null
   const builder = {
     filters,
     select: vi.fn(() => builder),
     eq: vi.fn((column: string, value: unknown) => { filters.push(['eq', column, value]); return builder }),
     is: vi.fn((column: string, value: unknown) => { filters.push(['is', column, value]); return builder }),
     order: vi.fn((column: string, value: unknown) => { filters.push(['order', column, value]); return builder }),
-    then: (resolve: (value: JoinedResult) => unknown, reject: (reason: unknown) => unknown) =>
-      Promise.resolve(result()).then(resolve, reject),
+    range: vi.fn((from: number, to: number) => { range = [from, to]; return builder }),
+    abortSignal: vi.fn(() => builder),
+    then: (resolve: (value: JoinedResult) => unknown, reject: (reason: unknown) => unknown) => {
+      const value = result(range)
+      return Promise.resolve({ ...value,
+        count: 'count' in value ? value.count : Array.isArray(value.data) ? value.data.length : null,
+        data: Array.isArray(value.data) && range ? value.data.slice(range[0], range[1] + 1) : value.data,
+      }).then(resolve, reject)
+    },
   }
   return builder
 }
@@ -197,11 +205,13 @@ describe('contextual classroom home backend pilot', () => {
         ['is', 'archived_at', null],
         ['order', 'position', { ascending: true }],
         ['order', 'updated_at', { ascending: false }],
+        ['order', 'id', { ascending: true }],
       ])
       expect(joinedQuery.filters).toEqual([
         ['eq', 'student_id', actorId],
         ['is', 'classrooms.archived_at', null],
         ['order', 'created_at', { ascending: false }],
+        ['order', 'id', { ascending: true }],
       ])
     },
   )
@@ -220,6 +230,45 @@ describe('contextual classroom home backend pilot', () => {
     expect(body.owned).toHaveLength(1)
     expect(body.joined).toHaveLength(1)
     expect(body.joined[0].id).toBe(joinedId)
+  })
+
+  it('retrieves 1001 joined and owned relationships beyond the REST ceiling without losing Hidden candidates', async () => {
+    const id = (index: number) => `${index.toString(16).padStart(8, '0')}-aaaa-4aaa-8aaa-aaaaaaaaaaaa`
+    ownedResult.data = Array.from({ length: 1001 }, (_, i) => ({ ...ownedClassroom, id: id(i + 1) }))
+    joinedResult.data = Array.from({ length: 1001 }, (_, i) => enrollment(
+      { ...joinedClassroom, id: id(i + 2001) }, { id: id(i + 4001) },
+    ))
+    const response = await GET()
+    const body = await response.json()
+    expect(response.status).toBe(200)
+    expect(body.owned).toHaveLength(1001)
+    expect(body.joined).toHaveLength(1001)
+    expect(body.joined.at(-1).enrollment_id).toBe(id(5001))
+    expect(joinedQuery.range.mock.calls).toEqual([[0, 499], [500, 999], [1000, 1499]])
+    expect(ownedQuery.range.mock.calls).toEqual([[0, 499], [500, 999], [1000, 1499]])
+    expect(joinedQuery.select).toHaveBeenCalledWith(expect.any(String), { count: 'exact' })
+  })
+
+  it.each(['owned', 'joined'])('refuses incomplete/unbounded %s evidence', async source => {
+    for (const count of [null, undefined, -1, 1.5, 4097, 1001]) {
+      if (source === 'owned') ownedResult.count = count
+      else joinedResult.count = count
+      expect((await GET()).status).toBe(503)
+    }
+  })
+
+  it.each(['count drift', 'late error', 'repeated identity', 'short page'])('rejects %s after the first page without returning partial data', async failure => {
+    const rows = Array.from({ length: 501 }, (_, i) => enrollment(
+      { ...joinedClassroom, id: `${(i + 1).toString(16).padStart(8, '0')}-aaaa-4aaa-8aaa-aaaaaaaaaaaa` },
+      { id: `${(i + 1001).toString(16).padStart(8, '0')}-aaaa-4aaa-8aaa-aaaaaaaaaaaa` },
+    ))
+    if (failure === 'repeated identity') rows[500] = rows[0]
+    joinedQuery = query(range => ({
+      data: failure === 'short page' ? rows.slice(0, 499) : rows,
+      error: range?.[0] === 500 && failure === 'late error' ? { code: '08006' } : null,
+      count: range?.[0] === 500 && failure === 'count drift' ? 502 : 501,
+    }))
+    expect((await GET()).status).toBe(503)
   })
 
   it.each(['owned', 'joined'])('returns no partial home when the %s relationship read fails', async (source) => {

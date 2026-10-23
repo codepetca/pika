@@ -40,7 +40,7 @@ describe('CI workflow', () => {
     const primary = jobs['architecture-database-contracts'], secondary = jobs['architecture-database-contracts-lifecycle']
     const proofs = (job: typeof primary) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
       job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
-    expect(proofs(primary)).toHaveLength(63)
+    expect(proofs(primary)).toHaveLength(64)
     expect(proofs(secondary)).toHaveLength(87)
     expect(proofs(secondary).filter(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')).toHaveLength(1)
     expect(proofs(secondary).find(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')?.run).toBe('bash scripts/check-contextual-classroom-hot-lifecycle-database.sh')
@@ -50,9 +50,11 @@ describe('CI workflow', () => {
     expect(proofs(secondary).filter(step => step.name === 'Verify student Test session-status projection')).toHaveLength(1)
     expect(proofs(primary).at(-1)?.name).toBe('Verify isolated contextual Test member-list SDK reads')
     expect(proofs(secondary)[0].name).toBe('Verify isolated contextual Test owner reorder transactions')
-    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(150)
+    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(151)
     expect(proofs(primary).filter(step => step.name === 'Verify current-membership attendance allocation and retained delivery'))
       .toEqual([expect.objectContaining({ run: 'bash scripts/check-attendance-membership-adoption-database.sh' })])
+    expect(proofs(primary).filter(step => step.name === 'Verify personal joined classroom home visibility and concurrency'))
+      .toEqual([expect.objectContaining({ run: 'bash scripts/check-classroom-home-visibility-database.sh' })])
     for (const job of [primary, secondary]) {
       expect(proofs(job).every(step => step.run && !step.if && !step.uses)).toBe(true)
       expect(job.steps.find(step => step.uses === 'supabase/setup-cli@v1')?.with.version).toBe('2.103.0')
@@ -208,8 +210,8 @@ describe('CI workflow', () => {
     const repeated = light.filter(row => dark.includes(row))
     expect(repeated.sort()).toEqual(full.filter(row => JSON.parse(row)[0] === 'setup').sort())
     expect(patternDark.filter(row => light.includes(row) || dark.includes(row))).toEqual([])
-    expect(full).toHaveLength(622)
-    expect(light.length + dark.length + patternDark.length).toBe(624)
+    expect(full).toHaveLength(626)
+    expect(light.length + dark.length + patternDark.length).toBe(628)
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 20_000)
 

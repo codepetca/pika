@@ -5,6 +5,10 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertStudentCanAccessClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { isRetainedAuthoringImage, memberCanReadAuthoringImage } from '@/lib/server/authoring-images'
 import { buildPrivateStorageRedirect } from '@/lib/server/direct-storage-delivery'
+import { isContextualClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { resolveClassroomAccess } from '@/lib/server/classroom-access'
+import { canAccessClassroom } from '@/lib/access/classroom-policy'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -18,7 +22,17 @@ export const GET = withErrorHandler('ReadTeacherAuthoringImage', async request =
     || (!['verified', 'ready'].includes(object.status) && !isRetainedAuthoringImage(object))
     || object.storage_bucket !== 'test-documents' || !object.classroom_id
     || object.resource_type !== 'classroom' || object.resource_id !== object.classroom_id) throw new ApiError(404, 'Image not found')
-  if (user.role === 'teacher') {
+  if (isContextualClassroomHomeAdmitted(user)
+    && resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    const context = await resolveClassroomAccess(user.id, object.classroom_id, { supabase: db })
+    if (!context || !canAccessClassroom(context, 'read')) throw new ApiError(404, 'Image not found')
+    // Ownership wins over a historical self-enrollment. Members of either global
+    // role still need a ready image disclosed by their current learner surface.
+    if (context.relationship !== 'owner' && (object.status !== 'ready'
+      || !await memberCanReadAuthoringImage(object.classroom_id, user.id, object.id))) {
+      throw new ApiError(404, 'Image not found')
+    }
+  } else if (user.role === 'teacher') {
     const access = await assertTeacherOwnsClassroom(user.id, object.classroom_id)
     if (!access.ok) throw new ApiError(404, 'Image not found')
   } else if (user.role === 'student') {

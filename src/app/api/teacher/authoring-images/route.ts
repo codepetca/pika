@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
-import { requireRole } from '@/lib/auth'
+import { authorizeClassroomHomeActor } from '@/lib/server/classroom-home-creation'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { authoringImageReservationSchema, authoringImageIdentitySchema, authoringImageUrl, validateStoredAuthoringImage } from '@/lib/server/authoring-images'
@@ -10,7 +10,7 @@ import { reserveManagedStorageUpload, verifyManagedStorageUpload, queueManagedSt
 
 export const dynamic = 'force-dynamic'
 async function owner(classroomId: string) {
-  const user = await requireRole('teacher')
+  const { user } = await authorizeClassroomHomeActor()
   const access = await assertTeacherCanMutateClassroom(user.id, classroomId)
   if (!access.ok) throw new ApiError(access.status, access.error)
   return { user, db: getServiceRoleClient() }
@@ -53,7 +53,8 @@ export const PATCH = withErrorHandler('FinalizeTeacherAuthoringImage', async req
 })
 const cancellation = z.object({ managed_object_id: z.string().uuid() }).strict()
 export const DELETE = withErrorHandler('CancelTeacherAuthoringImage', async request => {
-  const user = await requireRole('teacher'), input = cancellation.parse(await request.json()), db = getServiceRoleClient()
+  const { user } = await authorizeClassroomHomeActor()
+  const input = cancellation.parse(await request.json()), db = getServiceRoleClient()
   const { data: object, error } = await db.from('managed_storage_objects').select('id,purpose,created_by_user_id,status,classroom_id').eq('id', input.managed_object_id).maybeSingle()
   if (error) throw new ApiError(503, 'Unable to cancel image upload')
   if (object && object.created_by_user_id === user.id && object.purpose === 'teacher_authoring_image' && object.status === 'reserved') {

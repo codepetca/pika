@@ -98,6 +98,79 @@ describe('TeacherClassroomsIndex', () => {
     vi.restoreAllMocks()
   })
 
+  const joined = {
+    id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', title: 'Joined science', class_code: 'JOIN12',
+    theme_color: 'rose' as const, term_label: 'Fall', start_date: null, end_date: null,
+    updated_at: '2026-10-23T12:00:00Z', relationship: 'member' as const,
+    enrollment_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', enrolled_at: '2026-09-01T12:00:00Z',
+  }
+  function renderHome(options: { canCreate?: boolean; hidden?: boolean } = {}) {
+    return render(<TooltipProvider><TeacherClassroomsIndex initialClassrooms={[createMockClassroom({ title: 'Owned math' })]} contextualHome={{
+      joined: options.hidden ? [] : [joined], hidden: options.hidden ? [joined] : [],
+      canCreate: options.canCreate ?? false, canImportBlueprint: false,
+    }} /></TooltipProvider>)
+  }
+
+  it('groups Teaching and Joined without counts or filters and hides unavailable creation', () => {
+    renderHome()
+    expect(screen.getByRole('region', { name: 'Teaching classrooms' })).toHaveTextContent('Owned math')
+    expect(screen.getByRole('region', { name: 'Joined classrooms' })).toHaveTextContent('Joined science')
+    fireEvent.click(screen.getByRole('button', { name: 'Classroom actions' }))
+    expect(screen.getByRole('menuitem', { name: 'Join classroom' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'New Classroom' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: 'Teaching' })).not.toBeInTheDocument()
+  })
+
+  it('uses creation capability rather than whether Teaching contains classrooms', () => {
+    renderHome({ canCreate: true })
+    selectClassroomAction('New Classroom')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(createClassroomModalProps.current.canImportBlueprint).toBe(false)
+  })
+
+  it('persists a joined hide and places it below Archived without offering archive', async () => {
+    renderHome()
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    const memberRegion = screen.getByRole('region', { name: 'Joined classrooms' })
+    expect(within(memberRegion).queryByRole('button', { name: /Archive/ })).not.toBeInTheDocument()
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ actor_id: '11111111-1111-4111-8111-111111111111', classroom_id: joined.id, enrollment_id: joined.enrollment_id, hidden: true }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Joined science' }))
+    await waitFor(() => expect(screen.queryByText('Joined science')).not.toBeInTheDocument())
+    expect(fetchMock).toHaveBeenCalledWith(`/api/classrooms/home/${joined.id}/visibility`, expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ enrollmentId: joined.enrollment_id, hidden: true }) }))
+    selectClassroomAction('Show Archived')
+    const hidden = await screen.findByRole('region', { name: 'Hidden classrooms' })
+    expect(hidden).toHaveTextContent('Joined science')
+    expect(within(hidden).getByRole('button', { name: 'Unhide Joined science' })).toBeInTheDocument()
+  })
+
+  it('keeps the joined row visible if persistence fails and exposes a retryable action', async () => {
+    renderHome()
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: 'Unable to save classroom visibility' }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Hide Joined science' }))
+    await screen.findByRole('alert')
+    expect(screen.getByText('Joined science')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Hide Joined science' })).toBeEnabled()
+  })
+
+  it('refreshes server capabilities after archiving frees a creation slot', async () => {
+    renderHome()
+    selectClassroomAction('Edit classrooms', 'menuitemcheckbox')
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ classroom: createMockClassroom({ title: 'Owned math', archived_at: '2026-10-23T12:00:00Z' }) }) })
+    fireEvent.click(screen.getByRole('button', { name: 'Archive Owned math' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Archive', exact: true }))
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce())
+  })
+
+  it('loads persisted hidden rows after a fresh mount and opens membership without a teaching tab', async () => {
+    renderHome({ hidden: true })
+    expect(screen.queryByText('Joined science')).not.toBeInTheDocument()
+    selectClassroomAction('Show Archived')
+    await screen.findByText('Joined science')
+    fireEvent.click(screen.getByRole('button', { name: /^Joined science Fall/ }))
+    expect(push).toHaveBeenCalledWith(`/classrooms/${joined.id}`)
+  })
+
   it('uses the governed compact reading-width page frame', () => {
     renderTeacherClassroomsIndex([
       createMockClassroom({ id: 'c1', title: 'Math 101' }),

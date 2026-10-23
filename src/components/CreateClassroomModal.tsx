@@ -83,6 +83,7 @@ interface CreateClassroomModalProps {
   onSuccess: (classroom: any) => void
   onBlueprintCreated?: (classroom: any) => void
   initialBlueprintId?: string | null
+  canImportBlueprint?: boolean
 }
 
 export function CreateClassroomModal({
@@ -91,6 +92,7 @@ export function CreateClassroomModal({
   onSuccess,
   onBlueprintCreated,
   initialBlueprintId = null,
+  canImportBlueprint = true,
 }: CreateClassroomModalProps) {
   const router = useRouter()
   const importInputRef = useRef<HTMLInputElement | null>(null)
@@ -177,6 +179,7 @@ export function CreateClassroomModal({
   }
 
   async function handleImportBlueprintFile(event: React.ChangeEvent<HTMLInputElement>) {
+    if (!canImportBlueprint) return
     const file = event.target.files?.[0]
     if (!file) return
     if (importInFlightRef.current) {
@@ -409,14 +412,14 @@ export function CreateClassroomModal({
 
         {step === 'blueprint' && (
           <div>
-            <input
+            {canImportBlueprint && <input
               ref={importInputRef}
               type="file"
               accept=".tar,.json,.course-package.tar"
               className="hidden"
               aria-label="Import course package file"
               onChange={handleImportBlueprintFile}
-            />
+            />}
             <FormField label="Course Blueprint" required>
               <select
                 ref={blueprintSelectRef}
@@ -424,7 +427,7 @@ export function CreateClassroomModal({
                 onChange={(e) => {
                   const nextValue = e.target.value
                   if (nextValue === CHOOSE_FILE_OPTION) {
-                    importInputRef.current?.click()
+                    if (canImportBlueprint) importInputRef.current?.click()
                     return
                   }
                   setSelectedBlueprintId(nextValue)
@@ -439,9 +442,9 @@ export function CreateClassroomModal({
                     {blueprint.title}
                   </option>
                 ))}
-                <option value={CHOOSE_FILE_OPTION}>
+                {canImportBlueprint && <option value={CHOOSE_FILE_OPTION}>
                   {importingBlueprint ? 'Importing package...' : 'Import course package...'}
-                </option>
+                </option>}
               </select>
             </FormField>
           </div>

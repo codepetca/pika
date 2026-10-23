@@ -17,6 +17,22 @@ function createClient(result: { data: unknown; error: unknown }) {
 describe('contextual classroom enrollment server adapter', () => {
   afterEach(() => vi.unstubAllEnvs())
 
+  it.each(['false', 'true'])('never builds an account Pal event for membership-only home enrollment (classroom routing %s)', async classroomRequested => {
+    vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
+    vi.stubEnv('PAL_ENABLED', 'true')
+    vi.stubEnv('PAL_CLASSROOM_ENABLED', classroomRequested)
+    vi.stubEnv('PAL_API_URL', 'http://localhost:4321')
+    vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-that-is-at-least-32-characters')
+    vi.stubEnv('PAL_PSEUDONYM_SECRET', 'pseudonym-secret-that-is-at-least-32-characters')
+    const client = createClient({ data: { ok: false, status: 403, error_code: 'enrollment_closed' }, error: null })
+    await joinClassroomByCodeAtomic({
+      actorId: '11111111-1111-4111-8111-111111111111',
+      expectedClassroomId: '33333333-3333-4333-8333-333333333333', classCode: 'BIO101',
+      firstName: null, lastName: null, studentNumber: null, membershipOnly: true, supabase: client as never,
+    })
+    expect(client.rpc).toHaveBeenCalledWith('join_classroom_by_code_atomic_v1', expect.objectContaining({ p_pal_event: null }))
+  })
+
   it('normalizes invitation codes and derives actor-scoped opaque keys', () => {
     vi.stubEnv('SESSION_SECRET', 'session-secret-that-is-at-least-32-characters')
     const actorA = '11111111-1111-4111-8111-111111111111'

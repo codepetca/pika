@@ -49045,6 +49045,7 @@ Synced main PR1640 while preserving lesson text anchors, editor handoff and main
 Targeted c90ccfd5 review accepted the single rich editor, current-main Calendar anchors and unchanged backend/SQL, finding obsolete Markdown-specific production smoke and Pattern Lab copy. Replaced that smoke with direct formatted editing, preview/Escape focus, byte-preserved saved draft before explicit Post, student-hidden draft and posted heading/link/list/code/bold assertions; retains four viewport/theme cases, local-only disposable fixtures and exact cleanup. Corrected Pattern Lab copy and removed the obsolete native textarea/checkbox exception after policy identified it. Editor/Calendar runtime unchanged from the prior correction. Full required focused gate passes4984tests174files, architecture, UI/design policies, TypeScript and lint. Existing lint warnings remain unchanged. Production browser matrix and one targeted final review are tracked in retained receipts. No migration/deployment or new dependency.
 
 <!-- pika-session-log-archive-batch:8b90d6f97f1a448f1525fb2227b00caa92bc9b559b6952490d468f33685aaaae -->
+<!-- pika-session-log-archive-batch:e97ce010e899fa8e6340d01098496be651641ba9b3db5f7d239ee6c6c57e1705 -->
 ## 2026-10-20 — explicit Data API grant compatibility
 
 Prepared migration281 preserving historical001–280 relation ACLs and server-only
@@ -49285,6 +49286,7 @@ before any separately approved resume/deploy/migration. Historical backfill and
 Storage preservation limits remain. No SQL, runtime, provider or permission
 change in this documentation update.
 
+<!-- pika-session-log-archive-batch:8d4ebeb222b5bf8168e34141d77ab547c4e6a0a092dac82e199d5ff3966c5a85 -->
 ## 2026-10-20 — Account menu transition consistency
 
 Aligned the existing teacher/student account menu with Pattern Lab action-menu motion: semantic fast opacity at a fixed position, retaining immediate inert/hidden close and shared keyboard/focus ownership. Native baseline covered 16 contexts and reproduced the prior 4px slide/200ms timing; the new motion regression fails against that baseline. Existing owner/hook tests pass (9). Expanded browser coverage checks natural motion, rapid reopen, theme, Feedback focus and dismissal without submitting Feedback or Logout. Final visual/focused checks, independent review and exact-head CI follow before main merge.
@@ -49296,6 +49298,7 @@ CI exposed an existing production-history documentation assertion after main's r
 Owner authorized main-to-production for the enlarged student inspector. Draft1641 batches main1e1c6b667, including Calendar motion and dormant server compatibility already merged/reviewed on main. Reconciled production0a1d78c38 archive history, preserving its sole unique promotion receipt and all main entries; product/config/dependency/migration bytes remain exact main. Production migrations001–282 are already verified in main3fd1fc1a4; this promotion applies none and changes no environment or activation controls. Startup/verify-env passed; weekly67% remaining, storage271GB healthy. Release risk runtime-platform/workspace-state; independent security/compatibility review, focused checks and exact-head PR Gate precede authorized merge/deployment verification. DeepSeek pause honored; native reviewers GPT6.1Sol/high, bounded one initial wave, tokens/active time unknown.
 
 <!-- pika-session-log-archive-batch:4601ceb5dc1135fb47bc474ce328d04cb5cabbe9af5c56a19d62b8dace5f3780 -->
+<!-- pika-session-log-archive-batch:84253bd23f1b7368361fd43db425f63cb43bd30d3d1f54641e9df251aff76dae -->
 ## 2026-10-21 — Calendar category themes and Classwork icons
 
 Owner approved shared amber for due dates/tests, quiet light green for materials/surveys, and existing orange for announcements. Added semantic light/dark calendar tokens and reused them across agenda/grid/weekend/day chips. ClassworkTypeIcon keeps ClipboardList/FileText/ListChecks consistent in teacher creation menus, teacher/student lists and prototypes. Saved the convention in stable UI guidance and a scoped brief; Pattern Lab calendar-identity renders the real cell and shared icons. No new survey scheduling, statuses, dependencies or migrations.
@@ -49311,3 +49314,190 @@ Owner density refinement: Month/Term Test and Material chips inherited full cont
 Owner identity refinement: announcement peach was still too similar to Test amber. Announcement chips now use soft blue and retain Megaphone icons in agenda, grid and weekend markers; Material/FileText and Survey/ListChecks remain visible. The inline prototype no longer hides these icons in grid view. Updated the saved standard; compact heights and title-only labels are preserved.
 
 Owner authorized merging PR1648 once checks pass. Rebased onto main's documentation-only tooltip audit; resolved only an archive-batch marker collision while preserving both session entries. Application/test/config trees are byte-identical to the previously reviewed3646f90ed source. Final focused checks, independent integration verification and exact-head PR Gate precede squash merge to main. Production promotion remains separate.
+
+<!-- pika-session-log-archive-batch:67f7597d23175d2541f34588132fbf11bfff8b2f73284457e850b825e9b62d93 -->
+## 2026-10-21 — Fix calendar reference hydration before PR1648 merge
+
+Owner extended the review budget for one batched correction and one targeted
+review after CI exposed four assignment Pattern Lab dialog failures. CI traces
+showed a hydration mismatch: Material's September release stamp appeared
+scheduled under the browser's August31 fixed clock but published on the server.
+The calendar identity fixture now has no release schedule, preserving identical
+server/client labels. The new two-clock unit regression failed before the fix;
+the original creation-dialog browser failure also reproduced locally. Rebased
+onto main's attendance membership PR1647; only an archive batch marker conflicted,
+and main's marker and both session entries were preserved. No calendar production
+behavior, attendance rollout, migration application or provider hold changed.
+Validation and the approved additional targeted review follow on the final SHA.
+
+Fresh Playwright captures cover teacher/student at1440/390px in light/dark and
+preserve the accepted chip/icon treatment. The two-clock regression passes;
+desktop creation/edit browser contracts pass in both themes. Later mobile
+attempts hit page-loading timeouts under severe host load, without the former
+hydration error. Final focused checks and isolated mobile rerun remain gates.
+
+PR1648's corrected6d0286 head passed all CI lanes, including the previously
+failing browser matrix and PR Gate (run39634162305). Main advanced to the
+independently reviewed Tooltip PR1650 while CI ran. Rebased without app conflicts;
+our source/test/config patch remains identical. Reuse the calendar independent
+reviews and Tooltip1650's completed independent reviews/CI, then verify their
+composition: calendar hover/focus descriptions retire immediately, chips retain
+icons/title/activation, and the fixed-clock example still opens dialogs. Retain42
+recent entries with --keep60 (within the canonical60-entry cap) so no duplicate
+historical archive batch markers are introduced. Main's archive is unchanged and
+all historical text is preserved. Fresh composed local checks and final-head CI
+remain required before the authorized squash merge.
+
+Composed verification passed: normal focused90files/1,353tests, architecture,
+UI/design policy, TypeScript and lint;14Tooltip unit tests. Eight native contexts
+(teacher/student,1440fine/390touch,light/dark) verify fixed-clock teacher first
+click, Material/Announcement icons, focus descriptions, Escape semantic retirement
+and Material activation, with zero page errors. Current composed screenshots were
+visually inspected. Own feature patch is identical to independently reviewed6d0286;
+Tooltip source/contract is the reviewed1650 base. Reused coverage plus this
+composition check leaves no identified integration gap; final exact-head CI is
+still required. No additional independent reviewer turn or review finding fix.
+
+Main's reviewed attendance PR1651 merged during the second final CI run. GitHub
+reports the shared log conflict despite the local union driver; application files
+merge without overlap. Reused main1651's security/compatibility reviews and CI,
+and verified the calendar/Tooltip source patch remains identical. Place this
+task's same-day entries before the existing October21 group so future log appends
+have separate edit locations; no history is removed and the archive is unchanged.
+The composed visual evidence remains valid because those source blobs are
+unchanged. Fresh focused validation and final-head CI remain required.
+
+Main's reviewed Tooltip PR1652 merged during CI. The prior candidate's
+Database Contracts timeout passed on one fresh failed-job retry with unchanged
+source and assertions; every lane and PR Gate passed. Strict up-to-date rules
+require another sync. Reused unchanged feature reviews after examining1652's
+four static Markdown tags, owner regression and native evidence. Removed duplicate
+calendar log entries produced by the union driver during commit replay, retaining
+one complete copy and all main history. Fresh local checks and exact-head CI
+remain the final gates. No new independent review turn is claimed.
+
+<!-- pika-session-log-archive-batch:829d3863b88985f6fdf06c6afa73d8df196f868131b83c1facf06723d4ff6bc9 -->
+## 2026-10-21 — Production migrations 283–284 verified; promotion prepared
+
+Owner explicitly approved one production283+284 attempt after preview39595410439
+showed both pending. Apply39595797114 returned applied-verified at07:58Toronto,
+complete001–284 history; sourceef6b4b5bbe4122bf6381d027cb9247b0ef0814a9,
+CI39539800203 verified the complete Supabase tree. Both SQL files were reviewed;
+approval is consumed and does not authorize a retry or another migration.
+Read-only production checks matched all10 function bodies, postgres ownership,
+empty search paths, definer status and restricted ACLs; five guards enabled.
+Both new private attendance tables are empty, RLS-protected and inaccessible
+directly to browser/service roles. No production fixtures or feature activation.
+Prior282 control audit remains historical; unrelated holds and local249+ unchanged.
+Receipts: ~/.codex/receipts/production-migrations/2026-10-21T115811Z/.
+Draft productionPR1644 batches main attendance foundation, material scheduling,
+account-menu motion and readiness guidance. Cumulative Sol6.1/high integration
+review found no blocker; one interrupted attempt resumed without a replacement.
+This receipt goes through main before the final promotion review/PR Gate.
+
+## 2026-10-21 — Announcement Schedule closing consistency
+
+Extended the teacher create/draft/posted Schedule popovers with the shared fast opacity exit. The existing native date/time fields retain their DOM, scalar values and closing viewport bounds; Done no longer shifts the fading picker when its schedule label changes the toolbar. Logical dismissal immediately retires commands and focus refs, while reduced motion, hidden/read-only context and owner replacement remove the retained view immediately. The shared picker API and Assignment defaults remain unchanged.
+
+Owner regressions cover inert closing presentation, stale callbacks, rapid reopen, hidden/read-only retirement and reduced-motion preference changes (95 passing). Native viewport/theme/motion and student compatibility matrix, unchanged Pattern Lab goldens, focused checks and independent stable-SHA review are required before main merge. Broad product-fluidity goal remains open; production/migrations/dependencies/privacy priority1 and old Calendar1217 holds remain.
+
+## 2026-10-21 — Tooltip motion consistency audit
+
+Audited shared Tooltip on main192f4cbff with 16 current native role/viewport/theme/motion contexts and an interactive keyboard follow-up. Confirmed immediate Tooltip closing versus the shared fast-opacity reference; pointer/touch/keyboard focus and interactive hover paths work. Mobile first artifact focus can lose its hint when the table scrolls; settled refocus and the three-link keyboard chooser work. Recorded the separate low-priority issue and the retained-role/link retirement requirement for a future fade in `docs/guidance/ui/tooltip-motion-audit-2026-10-21.md`.
+
+One existing Tooltip owner test passes. Source/media hashes, 14 accepted screenshots, raw measurements and diagnosed harness/source-audit corrections are retained privately. This delivery changes audit documentation only; Tooltip implementation and stable canon remain unchanged. Broad UI fluidity goal stays open, with production/migrations/dependencies/privacy priority1 and old Calendar1217 holds preserved.
+
+## 2026-10-21 — Connected attendance membership preparation
+
+Prepared dormant285: admitted current owners of either account label retain exact
+WorkOS linkage and canary/entitlement checks; legacy dispatch is unchanged.
+Atomic exact-enrollment allocation, roster source/staging, retained-reference
+ingestion, closed delivery and a strict scan resolver form one connected group.
+Unknown historical generations remain unknown; owner history and existing
+cleanup/decommission fences remain. Learner reads/overrides/confirmation/cache
+adoption are still separate. Astra/high delivered SQL/native fixtures; Sol/high
+integrated exact source profiles. Final source profile1117checks, runtime289checks,
+full TypeScript and audit pass. First schema-only fixture failed missing historical
+settings; full001–285 offline replay corrected the fixture model and passed actual
+rollback behavior, genuine metadata and unchanged shared schema. Owned containers
+were removed and evidence retained privately. A complementary full replay then
+passed actual two-session prepare/prepare and prepare/removal/staging races,
+fresh committed-state checks, retained facts and positive connection/container
+closure. The exact CI proof inventory adds this isolated check without dropping
+historical lanes. Independent review, final focused gate and stable-head CI
+remain pending. No production/shared-local
+migration, live provider, configuration, account or rollout action occurred.
+
+CI exposed an obsolete decommission fixture expectation:285 correctly rejects
+closed-reference reuse before the historical283 capture guard. Returned1647 to
+draft; the fixture now requires the exact installed guard/SQLSTATE and proves
+no mapping or tombstone mutation. Its guarded offline-clone mode lets the new
+runner execute the entire old decommission matrix for both owner labels after
+genuine001–285 replay. One fresh isolated run passed that matrix, membership
+rollback/concurrency, metadata equality, unchanged shared243 and owned cleanup.
+SQL285 and runtime code are unchanged; targeted review and corrected-head CI
+remain required. Production and live-provider holds are unchanged.
+
+The next CI run passed both native behavior matrices and actual concurrency,
+then exposed a cached image alias mismatch: CI uses GHCR, local uses ECR.
+The runner now preflights the same pinned metadata version in either reviewed
+registry and launches its immutable cached image ID with pull-never. Shell-driven
+registry/missing-cache/identity tests reproduce the failure; a fresh full isolated
+run passed through real metadata equality and positive cleanup. No SQL/runtime
+change or production/provider action; corrected-head review/CI still required.
+
+## 2026-10-21 — Shared Tooltip stationary opacity
+
+Shared Tooltip now uses semantic fast opacity entry and a bounded decorative exit with fixed text geometry. Logical close unmounts live Radix content, descriptions, child owners and document handlers immediately. Only whitelisted static text/formatting/link/SVG DOM is copied, with IDs, roles, targets and focus/event attributes removed and inert/hidden pointer fencing. Unsupported widgets/media/custom content closes immediately; reopen, disabled/hidden/unmount and reduced motion retire the copy. No public API or dependency change. Pattern Lab includes an availability toggle for both roles; the separate mobile ancestor-scroll hint discovery issue remains open.
+
+Owner14 and gallery52 tests pass. Initial canonical focused3,690/274 plus architecture/UI/design policy, TypeScript, lint and audit pass; the final corrected gate is recorded with the PR. Independent review identified a first-hover regression after enabling: a fresh available pointer entry now clears the stale-open fence, while disabled clicks cannot release pending hover work. Three regressions and eight native availability cases cover the correction. Native16 role/viewport/theme/motion contexts verify fades, stationary bounds/font/text, immediate semantic retirement and existing focus/hover/touch paths. Four extra native lifecycle cases verify rapid reopen, live reduced motion, retired link fencing and second-Escape ownership; current screenshots inspected. Rework retained privately: replaced live Radix exit after its Escape-layer leak, fixed screenshot/capture readiness and owner matching, and held exit opacity through timer removal. Independent stable-SHA review and exact-head CI/PR Gate remain required before merge. The first CI attempt caught the added availability row changing catalog screenshot height (+60 desktop/+120 mobile). The recovery fixture moved after the stable catalog, with a placement regression and four unchanged local catalog goldens passing; the shared Tooltip owner is unchanged by this correction. Broad fluidity goal and existing production/schema/dependency/privacypriority1/Calendar1217 holds remain.
+
+## 2026-10-21 — Integrate current-membership learner attendance
+
+Prepared286 learner status/check-in and owner overrides behind existing shared
+admission. Exact enrollment targets survive queued corrections; stale generations
+cannot confirm or overwrite replacement memberships. Earlier facts/events remain
+owner-visible, unknown generations remain unknown. Existing confirmation/cache
+fences and UI owners are reused; legacy callers and deactivation remain intact.
+Initial disposable001–286 proof passed existing decommission, sequential/concurrent
+membership/override/entitlement contracts, genuine types, shared243 preservation
+and owned cleanup. First failed fixture attempt is retained; its ambiguous SQL
+identifier was fixed, not relabeled. Frozen source-profile1,175 checks pass;
+full focused checks, visual review, independent review and exact-head CI remain
+required. Global pause was honored and explicitly revoked; other production,
+shared-local249+, provider/publication and activation holds remain unchanged.
+Independent review then caught a strict-scan owner-precedence gap:286 now
+forward-corrects the resolver without editing285, preserving all earlier fences.
+Valid prepared self-enrollments must still be denied; both QR entrypoints reject
+without check-in dispatch. The added76 focused regression checks pass; corrected
+native proof, targeted review and final-head gates remain necessary before merge.
+Owner-sync/mixed-cohort readiness is explicitly held before learner activation,
+never permission for allocation or a legacy fallback.
+
+<!-- pika-session-log-archive-batch:dad2511027012176b84559b629a98bce04be4ab4c4ec72d21aa8f084ed5ea911 -->
+## 2026-10-21 — Formatted Tooltip transition consistency
+
+- Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
+- Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
+- Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
+
+<!-- pika-session-log-archive-batch:383d9a63a87a733a78f7ccee4f96c387adfdc40f258ae24d342cea00ff813f32 -->
+## 2026-10-21 — Durable Pal owner-transition queue preparation
+
+Owner chose to stop queued learner delivery on same-class ownership, preserving
+earned progress and issued-token expiry. Forward287 stamps the existing private
+event binding at actual ownership changes, terminates pending rows and preserves
+processing leases for known acknowledgements. Current-owner membership activity
+is denied; stopped events stay stopped after demotion, while later fresh learner
+facts use current membership. Global account Pal and activation gates are unchanged.
+The existing authorizer/worker retains exact generation, provenance, lease and
+closed-generation fences, separating future-send denial from a known HTTP2xx.
+Current287 profile seals extend the existing proofs without weakening history.
+Full focused10086 checks plus static/audit gates pass; isolated nonempty backfill
+preserves earned/other-subject facts and initialized-OFF settings. Two failed
+fixture/output-format attempts remain preserved, with positive owned cleanup and
+unchanged shared243 schema. Fresh complete287 replay/backfill and old/current Pal
+suites pass both labels, exact metadata, nonempty history, wire validation and real
+ownership contention/fresh reads. Independent review and exact-head CI remain
+gates. No production/shared-local migration, provider call,
+publication, account change or rollout is authorized by this source preparation.

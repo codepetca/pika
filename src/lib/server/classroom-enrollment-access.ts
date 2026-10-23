@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
+import { isContextualClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
+import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 import type { AuthenticatedUser } from '@/types'
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
@@ -13,6 +15,7 @@ type EnrollmentPair = z.infer<typeof enrollmentPairsSchema>[number]
 const authenticatedEnrollmentEvidence = Symbol('authenticatedEnrollmentEvidence')
 type AuthenticatedEnrollmentRequest =
   | { mode: 'legacy'; user: AuthenticatedUser; [authenticatedEnrollmentEvidence]: true }
+  | { mode: 'home_code'; user: AuthenticatedUser; [authenticatedEnrollmentEvidence]: true }
   | {
     mode: 'contextual_lookup'
     user: AuthenticatedUser
@@ -44,11 +47,19 @@ function configuredPairs(): EnrollmentPair[] | null {
  * while keeping its contextual branch disabled by default.
  */
 export async function authenticateClassroomEnrollmentRequest(): Promise<AuthenticatedEnrollmentRequest> {
+  let homeUser: AuthenticatedUser | undefined
+  if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED === 'true' && isClassroomExperienceAdmissionConfigured()) {
+    homeUser = await requireAuth()
+    const sharedAdmission = resolveClassroomExperienceAdmission(homeUser)
+    if (isContextualClassroomHomeAdmitted(homeUser) && sharedAdmission.status === 'admitted') {
+      return trustedAuthentication({ mode: 'home_code', user: homeUser })
+    }
+  }
   if (process.env.PIKA_CLASSROOM_ENROLLMENT_ACCESS_ENABLED !== 'true') {
     return trustedAuthentication({ mode: 'legacy', user: await requireRole('student') })
   }
 
-  const user = await requireAuth()
+  const user = homeUser ?? await requireAuth()
   const pairs = configuredPairs()
   const identity = canonicalUuid.safeParse(user.id)
   if (pairs === null || !identity.success) {
@@ -81,6 +92,10 @@ export function selectAuthenticatedClassroomEnrollmentMode(
     throw new ApiError(503, 'Classroom enrollment authentication evidence is unavailable')
   }
   if (authenticated.mode === 'legacy') return authenticated
+  // Home admission permits code verification, never an unrestricted pair lookup.
+  if (authenticated.mode === 'home_code') {
+    throw new ApiError(503, 'Classroom invitation verification is required')
+  }
   const requestedId = canonicalUuid.safeParse(classroomId)
   if (!requestedId.success) throw new ApiError(400, 'Invalid classroom identifier')
 

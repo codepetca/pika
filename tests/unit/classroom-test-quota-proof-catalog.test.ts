@@ -28,6 +28,19 @@ const profiles = [
 ]
 
 describe('externally sealed Test quota proof table addition', () => {
+  it('includes every reviewed292 table in whole-row preservation rather than excluding the home preference', () => {
+    const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const introduced = [...current[291].sql.matchAll(/create table (private\.[a-z_]+)/g)].map(match => match[1])
+    expect(introduced).toEqual(['private.classroom_home_hidden_enrollments'])
+    const before = classroomTestQuotaProofCatalog(['public.tests'], current.slice(0, 291))
+    const expected = [...before, ...introduced].sort()
+    expect(classroomTestQuotaProofCatalog(['public.tests'], current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
+    for (const modified of [current.map((row, index) => index === 291 ? { ...row, sql: row.sql + '\n' } : row),
+      current.map((row, index) => index === 291 ? { ...row, sql: row.sql + '\n', sha256: createHash('sha256').update(row.sql + '\n').digest('hex') } : row)]) {
+      expect(() => classroomTestQuotaProofCatalog(['public.tests'], modified)).toThrow()
+    }
+  })
   it('includes the exact281 private capability table in complete preservation fingerprints', () => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const capability = 'private.attendance_decommission_delete_capabilities'
@@ -37,7 +50,8 @@ describe('externally sealed Test quota proof table addition', () => {
     const historical = [capability, quota, ...additions, ...before].sort()
     const learner = 'private.attendance_override_mutations'
     const authoring = 'public.teacher_authoring_image_references'
-    const expected = [...historical, adoption, learner, authoring].sort()
+    const home = 'private.classroom_home_hidden_enrollments'
+    const expected = [...historical, adoption, learner, authoring, home].sort()
     expect(classroomTestQuotaProofCatalog(before, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 283))).toEqual(historical)
@@ -45,6 +59,7 @@ describe('externally sealed Test quota proof table addition', () => {
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 285))).toEqual([...historical, adoption].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 290))).toEqual([...historical, adoption, learner].sort())
     expect(classroomTestQuotaProofCatalog(before, current.slice(0, 290))).not.toContain(authoring)
+    expect(classroomTestQuotaProofCatalog(before, current.slice(0, 291))).toEqual(expected.filter(table => table !== home))
     expect(historical).not.toContain(adoption)
     const futureSql = 'select 1;'
     expect(() => classroomTestQuotaProofCatalog(before, [...current, { name: '289_unknown.sql',
@@ -82,21 +97,20 @@ describe('externally sealed Test quota proof table addition', () => {
       expect(() => classroomTestQuotaProofCatalog(catalog, migrations)).toThrow()
     }
   })
-  describe.each(profiles)('$name complete291 preservation', profile => {
+  describe.each(profiles)('$name complete292 preservation', profile => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const canonical = [...new Set([...profile.scopes, 'storage.objects', 'storage.buckets'])].sort()
     const expected = classroomTestQuotaProofCatalog(canonical, current)
-    const adoption = 'public.teacher_authoring_image_references'
     const graph = (): Rows => ({ ...Object.fromEntries(profile.scopes.map(table => [table, []])),
       __nontarget_fingerprints: expected.map(table => ({ table, fingerprint: 'unchanged' })) })
-    it('requires the complete new capability-table fingerprint', () => {
+    it.each(['public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments'])('requires the complete new table fingerprint: %s', adoption => {
       expect(expected).toContain(adoption)
       expect(profile.validate(graph(), expected)).toEqual(graph())
       const missing = graph()
       missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== adoption)
       expect(() => profile.validate(missing, expected)).toThrow()
     })
-    it('rejects capability-table drift during privilege restoration', async () => {
+    it.each(['public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments'])('rejects table drift during privilege restoration: %s', async adoption => {
       await expect(profile.restore(graph(), async () => graph())).resolves.toBeDefined()
       const changed = graph()
       changed.__nontarget_fingerprints.find(row => row.table === adoption)!.fingerprint = 'changed'

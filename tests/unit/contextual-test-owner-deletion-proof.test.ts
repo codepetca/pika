@@ -7,6 +7,7 @@ import { newTestOwnerDeletionFixture,testOwnerDeletionSetupSql,testOwnerDeletion
 import { testOwnerDeletionNativePlan,validateTestOwnerDeletionNativePlanSql,runTestOwnerDeletionNativeContracts,runTestOwnerDeletionNativeRaces } from '../../scripts/contextual-test-owner-deletion-native-contracts'
 import type { DraftSaveDriver,DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import { buildTestOwnerDeletionNativeContractsManifest,createTestOwnerDeletionNativeContracts } from '../../scripts/contextual-test-draft-save-native-contracts'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 const sourceMutation=vi.hoisted(()=>({kind:''}))
 vi.mock('node:fs',async load=>{
   const actual=await load<typeof import('node:fs')>()
@@ -51,7 +52,8 @@ describe('finite deletion proof source, never native acceptance',()=>{
     expect(testOwnerDeletionSnapshotSql(f)).toContain('public.test_attempt_history')
   })
   it('seals actual262 bytes and admits only eight registered source frames plus sixteen schedules',()=>{
-    const m=plan();expect(m.migrations).toHaveLength(291);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
+    const m=plan();expect(m.migrations).toHaveLength(292);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
+    expect(m.migrations.at(-1)).toEqual(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(40)
     expect(m.caps).toMatchObject({sqlBytes:524288,responseBytes:8388608,requestMs:12000,totalMs:180000,dispatches:40})
     expect(m.sourceSha256).toBe(hash(readFileSync('supabase/migrations/262_contextual_test_owner_delete.sql','utf8')))
