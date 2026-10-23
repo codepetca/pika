@@ -4,7 +4,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { getTestStudentAvailabilityState } from '@/lib/server/tests'
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
 vi.mock('@/lib/server/tests', async original => ({ ...await original<typeof import('@/lib/server/tests')>(), getTestStudentAvailabilityState: vi.fn() }))
-const classroomId = 'classroom-1', studentId = 'student-1', id = '11111111-1111-4111-8111-111111111111', url = authoringImageUrl(id)
+const classroomId = 'classroom-1', studentId = 'student-1', id = 'abcdefab-cdef-4abc-8def-abcdefabcdef', url = authoringImageUrl(id)
 let rows: Record<string, unknown[]>, failures: Set<string>, filters: Array<[string,string,unknown]>
 beforeEach(() => {
  vi.clearAllMocks();rows = {};failures = new Set();filters = []
@@ -15,6 +15,21 @@ beforeEach(() => {
  } } as never)
 })
 describe('published authoring image visibility', () => {
+ it.each(['assignments', 'classwork_materials', 'survey_questions', 'test_questions'])('accepts UUID casing in published %s image references', async table => {
+  vi.mocked(getTestStudentAvailabilityState).mockResolvedValue({ state: 'open', missingTable: false, error: null })
+  for (const sourceId of [id.toUpperCase(), id.replace('abcdefab', 'aBcDeFaB')]) {
+   const source = `![Diagram](${authoringImageUrl(sourceId)})`
+   rows[table] = table === 'assignments' ? [{ instructions_markdown: source, released_at: null }]
+    : table === 'classwork_materials' ? [{ content: { attrs: { authoring_markdown: source } }, released_at: null }]
+    : table === 'survey_questions' ? [{ question_text: source, surveys: { id: 'survey-1', classroom_id: classroomId, status: 'active', opens_at: null, show_results: false } }]
+    : [{ question_text: source, tests: { id: 'test-1', classroom_id: classroomId, status: 'active' } }]
+   expect(await memberCanReadAuthoringImage(classroomId, studentId, id)).toBe(true)
+  }
+ })
+ it.each([url.replace('/api/', '/API/'), url.replace('object_id', 'objectXid'), `${url}a`, `${url}-`, url.replace(id, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')])('rejects a different or malformed protected image reference %s', async source => {
+  rows.assignments = [{ instructions_markdown: `![Diagram](${source})`, released_at: null }]
+  expect(await memberCanReadAuthoringImage(classroomId, studentId, id)).toBe(false)
+ })
  it('does not grant access simply from membership or a known object id', async () => {
   expect(await memberCanReadAuthoringImage(classroomId, studentId, id)).toBe(false)
   expect(filters).toContainEqual(['assignments','classroom_id',classroomId]);expect(filters).toContainEqual(['assignments','is_draft',false]);expect(filters).toContainEqual(['classwork_materials','is_draft',false])
