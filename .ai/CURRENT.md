@@ -18,8 +18,7 @@ Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Owner259–262 installed/dormant; Tests adopter1580 prepared.
 251/252 native/review/CI PASS.
-LegacyPATCH preserved; local001–291 applied Oct23 (244–291 owner-approved).
-Adopters/rollout gates unchanged; #1662 image/editor final review pending.
+LegacyPATCH; local001–291 applied Oct23; flags unchanged.
 No exit; `docs/guidance/contextual-test-publication.md`.
 
 253#1524 OFF (CI37715526569 PASS).

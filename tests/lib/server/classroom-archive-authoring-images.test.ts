@@ -58,7 +58,7 @@ describe('teacher authoring images in classroom archives', () => {
       fixture.resources[table] = [{ id: ORPHAN_ID, classroom_id: V2_CLASSROOM_ID, created_by: V2_TEACHER_ID,
         ...(table === 'classwork_materials'
           ? { content: { ...staleDoc, attrs: { authoring_markdown: source } } }
-          : { instructions_markdown: source, instructions_rich: staleDoc }),
+          : { instructions_markdown: source, rich_instructions: staleDoc }),
       }]
       // The removed image has already been cleaned up: export contains no bytes
       // or old managed identity. Build, read back and restore the actual bundle.

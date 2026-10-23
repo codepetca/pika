@@ -48904,3 +48904,8 @@ Owner authorized merge after green CI. Initial83e85adc build/dark browser/Patter
 ## 2026-10-20 — Preserve compact student roster click targets
 
 Final geometry review found the new name-only selectable rows inherited28px text density, below the required44px click target. Added h-11 only to those rows; names, sorting, selection and keyboard behavior remain. Prior35056b5 build/dark lanes passed and the previously failing exam lifecycle also passed on rerun; its light lane was cancelled for this required target correction, without an unrelated exam patch. Browser bounds and fresh exact-head review/CI required before owner-authorized merge.
+
+<!-- pika-session-log-archive-batch:6c0286f8a30b199ab9f68313b0364239f78fb558b4f2d52db1fffbffd83e891c -->
+## 2026-10-20 — Integrate student inspector with final main grants changes
+
+All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main then advanced to e53401520 via1633 and produced archive-only conflicts. Rebased onto that main, retaining its complete continuity and the byte-identical six feature source/test files; regenerated normal session-log trimming. No migration applied or database touched. Targeted integration review, focused checks and fresh exact-head CI precede owner-authorized squash merge; production promotion remains outside scope.

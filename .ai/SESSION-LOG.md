@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Integrate student inspector with final main grants changes
-
-All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main then advanced to e53401520 via1633 and produced archive-only conflicts. Rebased onto that main, retaining its complete continuity and the byte-identical six feature source/test files; regenerated normal session-log trimming. No migration applied or database touched. Targeted integration review, focused checks and fresh exact-head CI precede owner-authorized squash merge; production promotion remains outside scope.
-
 ## 2026-10-20 — Calendar cell disclosure continuity
 
 User-requested Calendar refinement on codex/calendar-cell-motion: only the selected date expands; Week/Month/Term cell geometry uses semantic standard motion and reduced-motion policy. Editor clicks preserve the live caret owner, Escape returns focus without deferred work, outside blur keeps its destination, and closing an older editor cannot collapse a new same-week selection. Removed whole-cell entry scrolling; existing autosave/data owners retained. One Sol medium implementation worker plus root native acceptance; three bounded native/visual correction batches, no dependency/schema changes. Final component57 and hook7 tests PASS; native16-context matrix PASS (98 PNGs/16 videos, synthetic API only), representative originals/reference inspected. Required focused/static/goldens and exact-head independent review/CI are recorded externally before main landing. Broad fluidity goal open; production and old PR1217 holds retained.
@@ -760,3 +756,20 @@ ACL proof reused unchanged source. Exact-source archive71tests PASS from prior
 correction; no UI delta, prior16teacher+4student+8existing browser evidence reused.
 Final full one-worker check and reserved cumulative review12 pending. Native
 clones cleaned; Docker will stop again before completion. No merge authorized.
+
+## 2026-10-23 — Final editor/image review candidate
+
+Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
+and no backend remains. Durable native receipts beside actual-editor captures:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
+Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
+17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
+change. Correct archive fixture to real rich_instructions field. All160affected
+startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
+UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
+remain identical to full-checked00ae6b071; closing docs/test-only delta.
+Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
+findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
+model/effort recorded, effective configuration/tokens/seconds not exposed.
+Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
+Ready-PR CI follows stable exact-head verdict; no merge or production action.

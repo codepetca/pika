@@ -91,6 +91,14 @@ assets and case-normalized UUIDs. Correction canonical gate passed10,168tests/50
 UI/design policy, TypeScript and lint. The final IPv6 URL variant was added during
 that run; a subsequent exact-source archive run passed71tests across5suites.
 No editor UI source changed, so prior visual hashes remain applicable.
-Official metadata generation and native/schema gates are complete. The reserved
-final independent correction/integration review remains pending (launch12). Effective reviewer configurations and per-turn tokens were
+Official metadata generation and native/schema gates are complete. Final full
+selection ran10,169tests:10,168passed, one startup-context budget failure. The
+CURRENT note was compacted (16,965/17,000chars), without changing the budget.
+All160affected startup/UI-guidance/archive tests then passed across7suites,
+including the realistic rich_instructions fixture correction. Remaining
+architecture/UI/design/TypeScript/lint checks pass. Production source is identical
+to checked00ae6b071; only closing docs/test fixture change afterward.
+The reserved fresh Sol/high reviewer (launch12) completed the behavioral scope: both
+P2issues resolved, no new blocker. Final exact-head verdict/CI receipt is tracked
+in PR1662. Native DB and Docker Desktop are stopped again; no merge authorized. Effective reviewer configurations and per-turn tokens were
 not exposed. PR1662 remains draft until native types and review gates pass.
