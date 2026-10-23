@@ -49045,6 +49045,7 @@ Synced main PR1640 while preserving lesson text anchors, editor handoff and main
 Targeted c90ccfd5 review accepted the single rich editor, current-main Calendar anchors and unchanged backend/SQL, finding obsolete Markdown-specific production smoke and Pattern Lab copy. Replaced that smoke with direct formatted editing, preview/Escape focus, byte-preserved saved draft before explicit Post, student-hidden draft and posted heading/link/list/code/bold assertions; retains four viewport/theme cases, local-only disposable fixtures and exact cleanup. Corrected Pattern Lab copy and removed the obsolete native textarea/checkbox exception after policy identified it. Editor/Calendar runtime unchanged from the prior correction. Full required focused gate passes4984tests174files, architecture, UI/design policies, TypeScript and lint. Existing lint warnings remain unchanged. Production browser matrix and one targeted final review are tracked in retained receipts. No migration/deployment or new dependency.
 
 <!-- pika-session-log-archive-batch:8b90d6f97f1a448f1525fb2227b00caa92bc9b559b6952490d468f33685aaaae -->
+<!-- pika-session-log-archive-batch:e97ce010e899fa8e6340d01098496be651641ba9b3db5f7d239ee6c6c57e1705 -->
 ## 2026-10-20 — explicit Data API grant compatibility
 
 Prepared migration281 preserving historical001–280 relation ACLs and server-only

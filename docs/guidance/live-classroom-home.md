@@ -85,13 +85,25 @@ Browser evidence: `live-home-ui.B8Mf2F` under the existing classroom-access priv
 verification directory. Production/provider calls were blocked in that browser run.
 Wizard evidence: `live-home-wizard.Nloh0u`, eight screenshots, no retries.
 
-Migration filename is provisional pending coordination: the separate editor PR
-#1662 already owns locally applied `291_teacher_authoring_images.sql`. Preserve
-that migration and give visibility the following number after the upstream merge;
-rebase/resequence, replay the combined schema and review before readiness. Never
-apply the provisional same-number source to the shared local database.
-The owner authorized coordinating numbering and the normal reviewed merge of
-#1662 after its required checks pass; that merge is owned by the editor chat.
+Editor PR #1662 merged as `61d9265b7e7adf181bea29d57bd62120f839df87`.
+The home branch is rebased onto that merge and preserves its already-applied
+`291_teacher_authoring_images.sql`. Home visibility is now
+`292_classroom_home_visibility.sql`, with the original reviewed SQL digest
+`3d5d47d92c0750f2a58e71bd0390653a98bbe0d67a49a450d46c2183837f349d`
+unchanged. Combined replay/generated types, changed-base review and final CI
+remain readiness gates. This source renumbering applies nothing to shared local
+or production databases.
+
+Combined-base local evidence, 2026-10-23: the fresh isolated 001–292 replay,
+rollback-only visibility contracts, actual two-session contention and generated
+type comparison passed (`native-home292-sLIXmT`). Canonical history stayed at 291;
+all owned clone/metadata containers were removed. Fresh home and wizard fixtures
+passed 16/16 in 40.425 seconds with no retries, skips, flaky cases or errors
+(`live-home292-ui.CFDmyF`, 64 screenshots). Forty-eight captures are byte-identical
+to the prior accepted matrix; the 16 changed creation-dialog captures include
+upstream `DialogPanel` changes. The temporary app stopped and the shared env
+symlink was restored. These remain synthetic-input visuals plus isolated SQL
+evidence, not signed-in mixed-role activation evidence.
 
 Checklist reviewed: yes. Keyboard menu opening/Escape/focus return, checked edit
 semantics, role-labelled sections, joined-only actions and disabled controls have
