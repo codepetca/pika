@@ -3,10 +3,10 @@
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Prod `a1b7c2a77` LIVE Oct22 19:36Toronto; #1664 CI39864745315 PASS.
-Login200/me401/pattern-lab404 PASS.
-Prod DB001–290 applied/verified;289/290 approval used Oct22;Oct30 READY.
-[Release/database receipt](../docs/guidance/production-release-2026-10-22.md).
+Prod `cd7179e64` LIVE Oct23 15:31Toronto; #1667 CI40006108276 PASS.
+Login200/me401/pattern-lab404/image401 PASS; Markdown editors/2MB images live.
+Prod DB001–291 verified;291 approval used Oct23;Oct30 READY.
+[Release/database receipt](../docs/guidance/production-release-2026-10-23.md).
 282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
 Poll5→1; fresh auth.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
