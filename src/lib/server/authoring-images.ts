@@ -68,6 +68,14 @@ export async function validateStoredAuthoringImage(path: string, type: string) {
   validateAuthoringImageHeader(type, bytes)
 }
 
+function containsAuthoringImageReference(source: string | undefined, objectId: string): boolean {
+  if (!source) return false
+  // Route and query names are literal; only the UUID identity is case-insensitive.
+  const references = source.matchAll(/\/api\/storage\/authoring-images\?object_id=([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})(?![0-9a-fA-F-])/g)
+  for (const [, id] of references) if (id.toLowerCase() === objectId.toLowerCase()) return true
+  return false
+}
+
 /**
  * Classroom assets are private until referenced by content the member may read.
  * A random object identifier is never a substitute for publication/access checks.
@@ -85,15 +93,15 @@ export async function memberCanReadAuthoringImage(classroomId: string, studentId
   const materialContains = (content: unknown) => {
     if (content && typeof content === 'object' && 'attrs' in content) {
       const attrs = content.attrs
-      if (attrs && typeof attrs === 'object' && 'authoring_markdown' in attrs && typeof attrs.authoring_markdown === 'string') return attrs.authoring_markdown.includes(url)
+      if (attrs && typeof attrs === 'object' && 'authoring_markdown' in attrs && typeof attrs.authoring_markdown === 'string') return containsAuthoringImageReference(attrs.authoring_markdown, objectId)
     }
-    return JSON.stringify(content).includes(url)
+    return containsAuthoringImageReference(JSON.stringify(content), objectId)
   }
-  if (assignments.data?.some(row => isAssignmentVisibleToStudents({ is_draft: false, released_at: row.released_at }, now) && row.instructions_markdown?.includes(url))
+  if (assignments.data?.some(row => isAssignmentVisibleToStudents({ is_draft: false, released_at: row.released_at }, now) && containsAuthoringImageReference(row.instructions_markdown ?? undefined, objectId))
     || materials.data?.some(row => (row.released_at === null || (typeof row.released_at === 'string'
       && compareAnnouncementReadTimestamps(row.released_at, now.toISOString()) <= 0)) && materialContains(row.content))) return true
   for (const row of surveyQuestions.data || []) {
-    if (!row.question_text.includes(url)) continue
+    if (!containsAuthoringImageReference(row.question_text, objectId)) continue
     const survey = row.surveys
     if (survey.status !== 'active' && survey.status !== 'closed') continue
     const typed = { ...survey, status: survey.status as 'active' | 'closed' }
@@ -103,7 +111,7 @@ export async function memberCanReadAuthoringImage(classroomId: string, studentId
     if (response.data?.length) return true
   }
   for (const row of testQuestions.data || []) {
-    if (!row.question_text.includes(url)) continue
+    if (!containsAuthoringImageReference(row.question_text, objectId)) continue
     const test = row.tests
     if (test.status !== 'active' && test.status !== 'closed') continue
     const [availability, attempt, responses] = await Promise.all([
