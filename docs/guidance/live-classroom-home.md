@@ -121,6 +121,25 @@ and concurrency contracts, generated-type equality and shared-schema preservatio
 Canonical history remained 001–291 and owned containers were removed. This is a
 verification correction, not a shared migration application or rollout.
 
+CI then reached the home proof and rejected its source image before creating a
+clone: that runner only allowed the existing local `17.6.1.044` image, whereas
+the repository's pinned Supabase CLI `2.103.0` uses `17.6.1.132` in its
+[tagged image manifest](https://github.com/supabase/cli/blob/v2.103.0/apps/cli-go/pkg/config/templates/Dockerfile).
+The runner now explicitly allows those two versions from the existing official
+ECR/GHCR mirrors only. Executed shell-guard tests reject future/modified tags,
+other registries and namespaces, mutable tags and image-ID mismatches. The
+running image must still match the cached exact ID; no pull, isolation, source
+preservation, cleanup or SQL behavior check is removed. The unchanged accepted
+local proof is reused; the new CI-image home proof still needs final-head CI.
+
+Editor follow-up #1668 merged as `b03198a9f80a74282d8027b15775f83ad58ca935`.
+The home branch is rebased onto it without conflicts or SQL changes. Its shared
+image-reference reader now compares only complete UUID identities without case
+sensitivity; literal route/query names and all existing publication/access
+checks remain. The home API retains exact cohort and current-relationship guards
+around that reader. Existing native/visual artifacts are unchanged; final
+changed-base image tests, focused checks and independent review remain gates.
+
 Checklist reviewed: yes. Keyboard menu opening/Escape/focus return, checked edit
 semantics, role-labelled sections, joined-only actions and disabled controls have
 focused coverage. Full changed-base independent review, final CI and signed-in

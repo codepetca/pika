@@ -11,8 +11,11 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == pika ]] || exit 1
 [[ "$(docker port "$source_id" 5432/tcp)" == *:54322 ]] || exit 1
 source_image="$(docker inspect "$source_id" --format '{{.Config.Image}}')"
+# Existing local stack: .044; CI's pinned Supabase CLI2.103.0: .132.
+# Keep exact official registry/version references, then bind the running image ID.
 case "$source_image" in
   public.ecr.aws/supabase/postgres:17.6.1.044|ghcr.io/supabase/postgres:17.6.1.044) ;;
+  public.ecr.aws/supabase/postgres:17.6.1.132|ghcr.io/supabase/postgres:17.6.1.132) ;;
   *) echo 'Refusing an unrecognized source database image/version.' >&2; exit 1 ;;
 esac
 [[ "$(docker inspect "$source_id" --format '{{.State.Running}}')" == true ]] || exit 1

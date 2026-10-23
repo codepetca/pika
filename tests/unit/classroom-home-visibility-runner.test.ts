@@ -1,10 +1,44 @@
 import { readFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { describe, expect, it } from 'vitest'
 
 const runner = readFileSync('scripts/check-classroom-home-visibility-database.sh', 'utf8')
 const contention = readFileSync('scripts/check-classroom-home-visibility-contention.mjs', 'utf8')
 
 describe('isolated home visibility proof runner source contracts', () => {
+  it.each([
+    ['public.ecr.aws/supabase/postgres:17.6.1.044', true],
+    ['ghcr.io/supabase/postgres:17.6.1.044', true],
+    ['public.ecr.aws/supabase/postgres:17.6.1.132', true],
+    ['ghcr.io/supabase/postgres:17.6.1.132', true],
+    ['ghcr.io/supabase/postgres:17.6.1.133', false],
+    ['ghcr.io/supabase/postgres:17.6.1.132-extra', false],
+    ['ghcr.io/supabase/postgres:latest', false],
+    ['docker.io/supabase/postgres:17.6.1.132', false],
+    ['unreviewed.example/supabase/postgres:17.6.1.132', false],
+    ['ghcr.io/other/postgres:17.6.1.132', false],
+    ['', false],
+  ] as const)('executes the actual pinned source-image guard for %j', (sourceImage, accepted) => {
+    const guard = runner.match(/^case "\$source_image" in\n[\s\S]*?^esac$/m)?.[0]
+    expect(guard).toBeDefined()
+    const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${guard}`], {
+      encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_image: sourceImage },
+    })
+    expect(result.status === 0).toBe(accepted)
+  })
+
+  it.each([true, false])('retains exact cached-versus-running image identity checks: match=%s', matches => {
+    const guard = runner.split('\n').find(line => line.startsWith('[[ "$(docker inspect "$source_id" --format \'{{.Image}}\')"'))
+    expect(guard).toBeDefined()
+    const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail
+docker() { printf '%s\\n' "$FIXTURE_RUNNING_IMAGE"; }
+${guard}`], {
+      encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_id: 'synthetic-source',
+        image: `sha256:${'a'.repeat(64)}`, FIXTURE_RUNNING_IMAGE: `sha256:${(matches ? 'a' : 'b').repeat(64)}` },
+    })
+    expect(result.status === 0).toBe(matches)
+  })
+
   it('resolves and freezes the exact project source with installed images, without pulling or shared migration writes', () => {
     for (const token of ['source_container=supabase_db_pika', 'source_id="$(docker inspect "$source_container" --format', '"$source_id" =~ ^[a-f0-9]{64}$', 'com.supabase.cli.project', 'docker port "$source_id" 5432/tcp', '*:54322', 'public.ecr.aws/supabase/postgres:17.6.1.044|ghcr.io/supabase/postgres:17.6.1.044', 'postgres-meta:v0.96.6', '--pull=never', '--network none', '--schema-only --no-owner --no-privileges', '--schema=public --schema=private --schema=auth --schema=storage']) {
       expect(runner).toContain(token)

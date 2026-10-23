@@ -11,66 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Fix calendar reference hydration before PR1648 merge
-
-Owner extended the review budget for one batched correction and one targeted
-review after CI exposed four assignment Pattern Lab dialog failures. CI traces
-showed a hydration mismatch: Material's September release stamp appeared
-scheduled under the browser's August31 fixed clock but published on the server.
-The calendar identity fixture now has no release schedule, preserving identical
-server/client labels. The new two-clock unit regression failed before the fix;
-the original creation-dialog browser failure also reproduced locally. Rebased
-onto main's attendance membership PR1647; only an archive batch marker conflicted,
-and main's marker and both session entries were preserved. No calendar production
-behavior, attendance rollout, migration application or provider hold changed.
-Validation and the approved additional targeted review follow on the final SHA.
-
-Fresh Playwright captures cover teacher/student at1440/390px in light/dark and
-preserve the accepted chip/icon treatment. The two-clock regression passes;
-desktop creation/edit browser contracts pass in both themes. Later mobile
-attempts hit page-loading timeouts under severe host load, without the former
-hydration error. Final focused checks and isolated mobile rerun remain gates.
-
-PR1648's corrected6d0286 head passed all CI lanes, including the previously
-failing browser matrix and PR Gate (run39634162305). Main advanced to the
-independently reviewed Tooltip PR1650 while CI ran. Rebased without app conflicts;
-our source/test/config patch remains identical. Reuse the calendar independent
-reviews and Tooltip1650's completed independent reviews/CI, then verify their
-composition: calendar hover/focus descriptions retire immediately, chips retain
-icons/title/activation, and the fixed-clock example still opens dialogs. Retain42
-recent entries with --keep60 (within the canonical60-entry cap) so no duplicate
-historical archive batch markers are introduced. Main's archive is unchanged and
-all historical text is preserved. Fresh composed local checks and final-head CI
-remain required before the authorized squash merge.
-
-Composed verification passed: normal focused90files/1,353tests, architecture,
-UI/design policy, TypeScript and lint;14Tooltip unit tests. Eight native contexts
-(teacher/student,1440fine/390touch,light/dark) verify fixed-clock teacher first
-click, Material/Announcement icons, focus descriptions, Escape semantic retirement
-and Material activation, with zero page errors. Current composed screenshots were
-visually inspected. Own feature patch is identical to independently reviewed6d0286;
-Tooltip source/contract is the reviewed1650 base. Reused coverage plus this
-composition check leaves no identified integration gap; final exact-head CI is
-still required. No additional independent reviewer turn or review finding fix.
-
-Main's reviewed attendance PR1651 merged during the second final CI run. GitHub
-reports the shared log conflict despite the local union driver; application files
-merge without overlap. Reused main1651's security/compatibility reviews and CI,
-and verified the calendar/Tooltip source patch remains identical. Place this
-task's same-day entries before the existing October21 group so future log appends
-have separate edit locations; no history is removed and the archive is unchanged.
-The composed visual evidence remains valid because those source blobs are
-unchanged. Fresh focused validation and final-head CI remain required.
-
-Main's reviewed Tooltip PR1652 merged during CI. The prior candidate's
-Database Contracts timeout passed on one fresh failed-job retry with unchanged
-source and assertions; every lane and PR Gate passed. Strict up-to-date rules
-require another sync. Reused unchanged feature reviews after examining1652's
-four static Markdown tags, owner regression and native evidence. Removed duplicate
-calendar log entries produced by the union driver during commit replay, retaining
-one complete copy and all main history. Fresh local checks and exact-head CI
-remain the final gates. No new independent review turn is claimed.
-
 ## 2026-10-21 — Production migrations 283–284 verified; promotion prepared
 
 Owner explicitly approved one production283+284 attempt after preview39595410439
@@ -801,3 +741,25 @@ evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
 accepted visual and home-native evidence reused. Final focused gate and targeted
 review430 precede new ready-event CI; editor release-order interlock remains.
 Production, providers, shared applications, account and activation holds remain.
+
+## 2026-10-23 — Reconcile home proof with pinned CI image
+
+Review430 and full4544/145+static passed07cceb; normal draft push then one ready
+event started40007133291. CI passed corrected attendance292 native proof, then
+home preflight rejected the CI image before scratch creation. Returned1666 to
+draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
+local accepted stack uses17.6.1.044. Add only exact official aliases for132,
+retaining044 and cached/running ID equality. Actual shell regressions RED2/18
+reproduced the mismatch; future/custom/latest/malformed references and mismatched
+IDs remain rejected. No SQL/UI/database/provider change or new dependency.
+Targeted review and final CI remain required; unchanged native/visual evidence
+is reused. Editor1668 main correction is close; wait for actual merged SHA to
+combine compatibility reconciliation before another CI. Release interlock and
+all production/provider/shared application/account/activation holds persist.
+
+Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
+completed without conflicts. All six feature patches remain equivalent; image
+helper's UUID-case-only change and tests are the only upstream delta. Migration
+291/292 hashes unchanged, no renumbering/application or new stash. Combine this
+interaction and image-pin batch44 in targeted431 after affected checks; final
+focused gate/CI still required. Editor1667 release interlock remains held.
