@@ -51,6 +51,21 @@ describe('shared-admission owner announcement writes', () => {
     expect(rpc).toHaveBeenCalledTimes(1)
   })
 
+  it.each(['shared', 'legacy'] as const)('routes %s post-date editing through the locked owner operation', async mode => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', mode === 'legacy' ? undefined : JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.mocked(requireRole).mockResolvedValue(user('teacher'))
+    const saved = { ...announcement, published_at: '2026-10-21T04:00:00.000Z' }
+    rpc.mockResolvedValue({ data: { announcement: saved }, error: null })
+    const res = await PATCH(request('PATCH', { posted_on: '2026-10-21' }), { params: Promise.resolve(routes[1].params) })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ announcement: saved })
+    expect(rpc).toHaveBeenCalledWith('update_announcement_for_owner_v1', {
+      p_actor_id: actorId, p_classroom_id: classroomId, p_announcement_id: announcementId,
+      p_patch: { posted_on: '2026-10-21' },
+    })
+    expect(from).not.toHaveBeenCalled()
+  })
+
   it.each(routes)('authenticates before malformed configuration, deferred params or body on $method', async ({ method, handler }) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{')
     vi.mocked(requireAuth).mockRejectedValue(new AuthenticationError())

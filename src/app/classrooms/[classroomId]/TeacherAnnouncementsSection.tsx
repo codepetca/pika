@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useLayoutEffect, useState, useRef, type ComponentProps, type MutableRefObject } from 'react'
 import { Trash2, Plus, Clock, Calendar, FileText, MoreVertical } from 'lucide-react'
 import { Button, IconButton, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
+import { getCalendarAnnouncementDate } from '@/lib/calendar-items'
+import { postDateSchema } from '@/lib/validations/post-date'
+import { CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT } from '@/lib/events'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
@@ -198,6 +201,8 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
   const [showAll, setShowAll] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
+  const [editPostDate, setEditPostDate] = useState('')
+  const validPostDate = postDateSchema.safeParse(editPostDate).success
   const [originalTitle, setOriginalTitle] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
@@ -350,6 +355,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     setShowAll(false)
     setEditingId(null)
     setEditTitle('')
+    setEditPostDate('')
     setOriginalTitle(null)
     setEditContent('')
     setOriginalContent('')
@@ -453,6 +459,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     if (isReadOnly || saving) return
     setEditingId(announcement.id)
     setEditTitle(announcement.title ?? '')
+    setEditPostDate(getCalendarAnnouncementDate(announcement) ?? getTodayDate())
     setOriginalTitle(announcement.title ?? null)
     setEditContent(announcement.content)
     setOriginalContent(announcement.content)
@@ -471,6 +478,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     setEditError(null)
     setEditingId(null)
     setEditTitle('')
+    setEditPostDate('')
     setOriginalTitle(null)
     setEditContent('')
     setOriginalContent('')
@@ -493,6 +501,13 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     const titleChanged = normalizedEditTitle !== normalizeAnnouncementTitle(originalTitle)
     const existingAnnouncement = announcements.find((announcement) => announcement.id === announcementId)
     if (!existingAnnouncement) return
+    const canEditPostDate = !existingAnnouncement.is_draft && !isScheduled(existingAnnouncement)
+      && !isScheduleIsoInFuture(getAnnouncementPublicationTimestamp(existingAnnouncement))
+    // Empty scheduling controls represent null; historical published schedules are retained until a date edit.
+    const hasPostDateEdit = mode === 'preserve' && canEditPostDate
+      && (editScheduleDateTime || null) === originalScheduledFor
+      && editPostDate !== getCalendarAnnouncementDate(existingAnnouncement)
+    if (hasPostDateEdit && !validPostDate) return
     const newIsDraft = mode === 'draft'
       ? true
       : mode === 'publish' || mode === 'schedule'
@@ -503,11 +518,11 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
       : editScheduleDateTime
         ? new Date(editScheduleDateTime).toISOString()
         : null
-    const scheduleChanged = newScheduledFor !== originalScheduledFor
+    const scheduleChanged = newScheduledFor !== (originalScheduledFor ? new Date(originalScheduledFor).toISOString() : null)
     const draftChanged = newIsDraft !== !!existingAnnouncement.is_draft
 
     // Don't save if nothing changed
-    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged) {
+    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged && !hasPostDateEdit) {
       cancelEditing()
       return
     }
@@ -542,7 +557,9 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         is_draft?: boolean
         scheduled_for?: string | null
         title?: string | null
+        posted_on?: string
       } = {}
+      if (hasPostDateEdit) body.posted_on = editPostDate
       if (titleChanged) {
         body.title = normalizedEditTitle
       }
@@ -572,6 +589,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
       setAnnouncements((prev) =>
         prev.map((a) => (a.id === data.announcement.id ? data.announcement : a))
       )
+      window.dispatchEvent(new CustomEvent(CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, { detail: { classroomId } }))
       cancelEditing()
     } catch (err) {
       if (saveRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroomId) return
@@ -1040,6 +1058,13 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                       rows={6}
                       className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     />
+                    {!announcement.is_draft && !scheduled
+                      && !isScheduleIsoInFuture(getAnnouncementPublicationTimestamp(announcement)) && (
+                      <FormField label="Post date (Toronto)" error={!validPostDate ? 'Choose today or an earlier date.' : undefined}>
+                        <Input type="date" value={editPostDate} min="0001-01-01" max={getTodayDate()}
+                          disabled={saving} onChange={(event) => setEditPostDate(event.target.value)} />
+                      </FormField>
+                    )}
                     {editError?.announcementId === announcement.id ? (
                       <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
                         <span>{editError.message}</span>
@@ -1082,7 +1107,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                             size="sm"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => saveEdit(announcement.is_draft ? 'schedule' : 'preserve')}
-                            disabled={saving || !editContent.trim()}
+                            disabled={saving || !editContent.trim() || (!scheduled && !announcement.is_draft && editScheduleDateTime === originalScheduledFor && !validPostDate)}
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </Button>
@@ -1116,7 +1141,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                             key={`${classroom.id}:${announcement.id}:posted`}
                             interactionActive={isActive && !isReadOnly}
                             exitMotion={showEditScheduleDropdown ? 'immediate' : 'opacity'}
-                            label={saving ? 'Saving...' : 'Post'}
+                            label={saving ? 'Saving...' : 'Save'}
                             onPrimaryClick={() => saveEdit('preserve')}
                             disabled={saving || !editContent.trim()}
                             options={[
@@ -1128,6 +1153,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                             ]}
                             toggleAriaLabel="Choose announcement action"
                             primaryButtonProps={{
+                              disabled: saving || !editContent.trim() || (!isScheduleIsoInFuture(getAnnouncementPublicationTimestamp(announcement)) && !validPostDate),
                               onMouseDown: (e) => e.preventDefault(),
                             }}
                           />

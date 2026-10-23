@@ -12,7 +12,7 @@ import { useClassDaysContext } from '@/hooks/useClassDays'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import type { Classroom, LessonPlan, Assignment, Announcement, ClassworkMaterial, TestAssessment } from '@/types'
 import { readCookie, writeCookie } from '@/lib/cookies'
-import { CLASSWORK_MATERIALS_UPDATED_EVENT, TEACHER_TESTS_UPDATED_EVENT, TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
+import { CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, CLASSWORK_MATERIALS_UPDATED_EVENT, TEACHER_TESTS_UPDATED_EVENT, TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_ASSIGNMENTS_UPDATED_EVENT } from '@/lib/events'
 import { normalizeLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { nowInToronto } from '@/lib/timezone'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
@@ -634,6 +634,17 @@ export function TeacherLessonCalendarTab({
       cancelled = true
     }
   }, [announcementsRefreshKey, classroom.id, showAnnouncements])
+
+  useEffect(() => {
+    const handleAnnouncementsUpdated = (event: Event) => {
+      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
+      if (detail?.classroomId !== classroom.id) return
+      invalidateCachedJSON(`teacher-announcements:${classroom.id}`)
+      setAnnouncementsRefreshKey(key => key + 1)
+    }
+    window.addEventListener(CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, handleAnnouncementsUpdated)
+    return () => window.removeEventListener(CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT, handleAnnouncementsUpdated)
+  }, [classroom.id])
 
   // Save a single lesson plan
   const saveLessonPlan = useCallback(

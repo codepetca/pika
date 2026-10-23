@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { postDateSchema } from '@/lib/validations/post-date'
 import { parseAnnouncementTitleInput } from '@/lib/announcements'
 import { announcementReadRowSchema } from '@/lib/validations/announcement-reads'
 
@@ -40,9 +41,13 @@ export const announcementCreateBodySchema = z.object({
 }).strict().superRefine(publicationCheck)
 export const announcementUpdateBodySchema = z.object({
   ...fields,
+  posted_on: postDateSchema.optional(),
   content: fields.content.optional(),
 }).strict().superRefine((value, context) => {
   publicationCheck(value, context)
+  if (value.posted_on !== undefined && (value.is_draft === true || value.scheduled_for !== undefined)) {
+    context.addIssue({ code: 'custom', message: 'Post date cannot be combined with draft or scheduling changes', path: ['posted_on'] })
+  }
   if (!Object.values(value).some(field => field !== undefined)) {
     context.addIssue({ code: 'custom', message: 'At least one announcement field is required' })
   }
@@ -50,7 +55,7 @@ export const announcementUpdateBodySchema = z.object({
 export type AnnouncementCreateInput = z.infer<typeof announcementCreateBodySchema>
 export type AnnouncementUpdateInput = z.infer<typeof announcementUpdateBodySchema>
 
-// The legacy branches still carry body-validation debt; these decoders cover only shared admission.
+// Legacy post-date edits also use the strict owner-operation decoder.
 export const parseAnnouncementCreateParams = (value: unknown) => announcementCreateParamsSchema.parse(value)
 export const parseAnnouncementMutationParams = (value: unknown) => announcementMutationParamsSchema.parse(value)
 export const parseAnnouncementCreateBody = (value: unknown) => announcementCreateBodySchema.parse(value)

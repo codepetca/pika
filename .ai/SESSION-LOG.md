@@ -727,3 +727,88 @@ local291 and up to three extra reviewer launches explicitly requested and pendin
 Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
 apart from a corrected source-wire assertion awaiting rerun; final focused gate,
 local database/browser evidence and independent review remain. PR1662 stays draft.
+## 2026-10-22 — Material calendar post dates
+
+Added teacher Post date (Toronto) editing for already-posted Classwork materials;
+explicit Save moves the existing release date, with future release still owned
+by Schedule. Owner PATCH/receipt validation and migration289 retain locked
+ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
+saved release date. Guidance: docs/guidance/material-post-date.md.
+UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
+extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
+focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
+boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
+state covered, no manual follow-up. Student date editor n/a; both calendar modes
+covered by date-movement regression. Risk profile none; standard independent
+review required. Branch codex/material-post-date owned by this chat. Sol/high DB
+worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
+Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
+coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
+proofs, generated-type equality and unchanged shared schema PASS; evidence
+/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
+overlapping profile tests under host load140+. Focused gate rerunning with one
+worker before ready. Initial independent review PASS at de56dbceb; focused run
+4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
+598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
+heavy-tests-released under the owner-authorized serial test plan before rerun;
+targeted review required for this test-only correction. No shared local/production
+migration applied and no production promotion.
+
+CI follow-up: owner approved one additional compatibility batch and targeted
+review within a45-minute extension. Attendance clone harness still required288;
+advance its exact-count/source upper bound to sealed289, preserving rejection of
+unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
+preflight in its runner regression. Application and migration bytes unchanged.
+Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
+focused rerun waits for toolbar's local test slot; targeted delta review pending.
+
+## 2026-10-22 — Announcement calendar post dates
+
+Owner expanded post-date editing to published announcements in PR1663. Reuse
+material native date field and shared civil-date schema; extend announcement
+card/locked owner patch, refresh mounted teacher calendar, reuse publication
+calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
+Risk none; no new dependency/shared UI pattern. Student editing n/a; student
+saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
+feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
+keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
+Effective model, tokens and active time unknown; weekly99% remaining at start.
+Owner approved brief Docker restart only for disposable verification:001–290
+material/announcement and attendance proofs plus Data API normal/absent-default
+ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
+stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
+/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
+release. Final focused gate and new-scope independent delta review pending.
+
+## 2026-10-22 — PR1663 CI registry repair
+
+Owner authorized fixing CI and merging1663 after all checks pass. Announcement
+469773050 focused5406 and complete independent delta review passed; CI Test &
+Build passed but all seven Supabase setups and an isolated retry hit GHCR
+toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
+action preserves the override and both pinned Postgres/metadata OCI indexes are
+byte-identical across registries. Bounded Sol/high read-only worker verified
+upstream behavior/manifests; coordinator owns all edits. Local runner now imports
+only the literal reviewed workflow registry, refuses job/step overrides, retains
+historical no-env plans and all existing isolation/inventory/cleanup guards.
+Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
+risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
+dependencies, image contents, shared database or production changes. Docker stays
+stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
+prior feature review coverage reused, no extra full review wave.
+
+## 2026-10-22 — Production post-date release completed
+
+Owner authorized production289/290, then main promotion after checks. Single
+apply39862570602 returned applied-verified001–290, matching preview39862341945
+and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
+metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
+midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
+parent entries; two cumulative Sol/high reviews and one targeted pass found no
+blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
+ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
+dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
+GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
+retry, fixture/post mutation, flag/account/provider/billing change or Docker
+restart. Attributable tokens/active time unknown. Final receipt docs review/CI
+remains; production promotion worktree retired, shared env target preserved.

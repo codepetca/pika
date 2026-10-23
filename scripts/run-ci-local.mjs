@@ -307,6 +307,18 @@ function validateDatabaseInventory(jobs) {
 
 export function extractWorkflow(source) {
   const lines = source.split(/\r?\n/)
+  const environmentHeaders = lines.map((line, index) => /^env:/.test(line) ? index : -1).filter(index => index !== -1)
+  let workflowEnv = {}
+  if (environmentHeaders.length) {
+    const start = environmentHeaders[0]
+    if (environmentHeaders.length !== 1 || lines[start] !== 'env:') throw new Error('Unsupported workflow environment.')
+    let end = start + 1
+    while (end < lines.length && !/^\S/.test(lines[end])) end += 1
+    workflowEnv = literalEnvironment(lines.slice(start + 1, end), 2)
+    if (Object.keys(workflowEnv).length !== 1 || workflowEnv.SUPABASE_INTERNAL_IMAGE_REGISTRY !== 'public.ecr.aws') {
+      throw new Error('Unsupported workflow environment; expected the pinned Supabase image registry.')
+    }
+  }
   const split = lines.includes(`  ${jobsByLane['test-owner-sdk']}:`)
   const sdkPartitioned = lines.includes(`  ${jobsByLane['test-owner-sdk-lifecycle']}:`)
   const databaseSplit = lines.includes(`  ${jobsByLane['database-lifecycle']}:`)
@@ -353,7 +365,9 @@ export function extractWorkflow(source) {
       if (required.some(line => header.filter(value => value === line).length !== 1)) throw new Error(`Canonical ${lane} browser job topology changed.`)
     }
     const envIndex = body.slice(0, stepsIndex).findIndex(line => line === '    env:')
-    const env = envIndex === -1 ? {} : literalEnvironment(body.slice(envIndex + 1, stepsIndex), 6)
+    const jobEnv = envIndex === -1 ? {} : literalEnvironment(body.slice(envIndex + 1, stepsIndex), 6)
+    if (Object.hasOwn(jobEnv, 'SUPABASE_INTERNAL_IMAGE_REGISTRY')) throw new Error('Job cannot override the shared Supabase image registry.')
+    const env = { ...workflowEnv, ...jobEnv }
     const steps = []
     let chunk = []
     for (const line of body.slice(stepsIndex + 1)) {
@@ -365,6 +379,7 @@ export function extractWorkflow(source) {
     }
     if (chunk.length) steps.push(parseStep(chunk))
     if (!steps.length) throw new Error(`No steps in ${id}.`)
+    if (steps.some(step => Object.hasOwn(step.env, 'SUPABASE_INTERNAL_IMAGE_REGISTRY'))) throw new Error('Step cannot override the shared Supabase image registry.')
     jobs[id] = { id, lane, env, steps }
     validateLaneSafety(jobs[id])
   }

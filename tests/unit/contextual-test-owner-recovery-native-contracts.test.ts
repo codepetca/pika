@@ -67,7 +67,7 @@ describe('inert recovery proof and exact selected-work projections', () => {
 describe('recovery current288 sealed source profile',()=>{
   const observed=Object.freeze([1,2].map(i=>Object.freeze({actorId:f.actors[i].id,attemptId:randomUUID(),revision:1})))
   const nativePlan=()=>testOwnerRecoveryNativePlan(original,observed,'a'.repeat(40),process.cwd())
-  it('retains the complete current288 tail',()=>{expect(nativePlan().migrations).toHaveLength(288)})
+  it('retains the complete current290 tail',()=>{expect(nativePlan().migrations).toHaveLength(290)})
   it.each(['name','digest','bytes','self-hashed-bytes','unknown289'])('refuses changed268 or future tail %s',defect=>{
     const migrations=platform.loadAssignmentListReviewedMigrations(process.cwd()).map(m=>({...m})),tail=migrations[267]
     if(defect==='name')tail.name='268_unknown.sql'
