@@ -1677,7 +1677,7 @@ describe('TeacherClassroomView', () => {
     expect(
       within(screen.getByRole('dialog', { name: 'New Material' }))
         .getByRole('toolbar', { name: 'Formatting options' }),
-    ).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
+    ).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
   })
 
   it('disables classwork create and options actions for archived classrooms', async () => {

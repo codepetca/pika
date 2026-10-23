@@ -75,6 +75,7 @@ import { MaterialCreationPattern } from './MaterialCreationPattern'
 import { AssignmentCreationPattern } from './AssignmentCreationPattern'
 import { AssignmentControllerPattern } from './AssignmentControllerPattern'
 import { TestControllerPattern } from './TestControllerPattern'
+import { SurveyControllerPattern } from './SurveyControllerPattern'
 import { CreateClassroomControllerPattern } from './CreateClassroomControllerPattern'
 import { AssignmentEditSplitPattern } from './AssignmentEditSplitPattern'
 import { TestEditSplitPattern } from './TestEditSplitPattern'
@@ -767,6 +768,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
             {role === 'teacher' && <AssignmentCreationPattern />}
             {role === 'teacher' && assignmentControllerFixture && <AssignmentControllerPattern />}
             {role === 'teacher' && testControllerFixture && <TestControllerPattern />}
+            {role === 'teacher' && testControllerFixture && <SurveyControllerPattern />}
             {role === 'teacher' && createClassroomControllerFixture && <CreateClassroomControllerPattern />}
             {role === 'student' && <StudentAssignmentAttachmentsPattern />}
             <PatternSection id="guided-assignment-markdown" eyebrow="Assignment instructions"

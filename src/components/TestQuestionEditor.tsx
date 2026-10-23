@@ -553,7 +553,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
             onBlur={() => handleSave()}
             aria-label={questionPromptLabel}
             placeholder={questionPlaceholder}
-            toolbarPreset="compact"
+            toolbarPreset="markdown-authoring"
             className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32"
           />
         ) : (
@@ -597,7 +597,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
           onBlur={() => handleSave()}
           aria-label={questionPromptLabel}
           placeholder={questionPlaceholder}
-          toolbarPreset="compact"
+          toolbarPreset="markdown-authoring"
           className="overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-[144px]"
         />
 
@@ -755,7 +755,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
                     onBlur={() => handleSave()}
                     aria-label={questionPromptLabel}
                     placeholder={questionPlaceholder}
-                    toolbarPreset="compact"
+                    toolbarPreset="markdown-authoring"
                     className="[&_.ProseMirror]:!min-h-[112px]"
                   />
                 </div>
@@ -816,7 +816,7 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
                 onBlur={() => handleSave()}
                 aria-label={questionPromptLabel}
                 placeholder={questionPlaceholder}
-                toolbarPreset="compact"
+                toolbarPreset="markdown-authoring"
                 className="overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-[88px]"
               />
               {multipleChoiceEditor}

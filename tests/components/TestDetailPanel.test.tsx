@@ -481,6 +481,7 @@ describe('TestDetailPanel', () => {
     expect(screen.getByTestId('test-question-actionbar')).toHaveTextContent('Q1')
     expect(within(screen.getByTestId('test-question-actionbar')).getByRole('button', { name: 'Write' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Insert image' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Question 2 prompt' })).not.toBeInTheDocument()
     expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
 
@@ -594,7 +595,7 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
     expect(source).toHaveValue(pending)
-    expect(screen.getByRole('button', { name: 'Question actions', exact: true })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Question actions', exact: true })).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
     expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()

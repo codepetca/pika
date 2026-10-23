@@ -49,6 +49,8 @@ describe('Material formatted editing', () => {
   })
 
   it('keeps the context header separate from details and preserves literal Markdown through save and reopen', async () => {
+    // Actual-owner Playwright captures cover responsive row sizing; this suite
+    // retains the accessible header/details order and source round-trip contract.
     const user = userEvent.setup()
     const handlers = props()
     let latestContent = handlers.content

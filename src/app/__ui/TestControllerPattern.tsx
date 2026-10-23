@@ -68,6 +68,7 @@ export function TestControllerPattern() {
       </Card>
       {owner.mounted && <TeacherTestAuthoringDialog
         isOpen={owner.open} test={owner.record} classroomId={owner.classroomId} apiBasePath={owner.apiBasePath}
+        classroomName="Biology 11 — Ecosystems and field studies — Classroom context fades at the pane edge"
         hasPendingMarkdownImport={pendingMarkdown} onPendingMarkdownImportChange={setPendingMarkdown}
         onDraftSummaryChange={mergeSummary}
         onTestUpdate={update => { if (update) mergeSummary(update) }}

@@ -76,4 +76,18 @@ describe('teacher Markdown image API', () => {
   object.status = 'ready';vi.mocked(requireAuth).mockResolvedValue({ id: teacherId, role: 'student', email: 'student@example.com' });vi.mocked(assertStudentCanAccessClassroom).mockResolvedValue({ ok: false, status: 403, error: 'Not enrolled' })
   expect((await GET(new NextRequest(`http://localhost/api/storage/authoring-images?object_id=${objectId}`))).status).toBe(404);expect(memberCanReadAuthoringImage).not.toHaveBeenCalled()
  })
+ it('keeps retained previews private to the owner and denies expired or claimed cleanup', async () => {
+  Object.assign(object, { status: 'cleanup_pending', cleanup_reason_code: 'authoring_image_reference_removed', attempt_count: 0,
+    next_attempt_at: '2099-01-01T00:00:00Z', lease_token: null, lease_expires_at: null, verified_at: '2026-10-01T00:00:00Z', ready_at: '2026-10-01T00:00:00Z' })
+  const read = () => GET(new NextRequest(`http://localhost/api/storage/authoring-images?object_id=${objectId}`))
+  expect((await read()).status).toBe(302)
+  vi.mocked(requireAuth).mockResolvedValue({ id: teacherId, role: 'student', email: 'student@example.com' })
+  vi.mocked(memberCanReadAuthoringImage).mockResolvedValue(true)
+  expect((await read()).status).toBe(404)
+  vi.mocked(requireAuth).mockResolvedValue({ id: teacherId, role: 'teacher', email: 'teacher@example.com' })
+  object.next_attempt_at = '2020-01-01T00:00:00Z'
+  expect((await read()).status).toBe(404)
+  object.next_attempt_at = '2099-01-01T00:00:00Z'; object.status = 'cleanup_processing'; object.lease_token = teacherId
+  expect((await read()).status).toBe(404)
+ })
 })

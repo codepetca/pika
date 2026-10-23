@@ -2482,7 +2482,7 @@ export function TestDetailPanel({
           </>
         )}
       </div>
-      <div className="absolute bottom-4 right-4 z-local-menu">
+      {splitView === 'edit' && <div className="absolute bottom-4 right-4 z-local-menu">
         <TeacherWorkSurfaceIconMenuButton
           key={documentEditorScopeKey}
           exitMotion="opacity"
@@ -2508,7 +2508,7 @@ export function TestDetailPanel({
             { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (selectedQuestion) handleQuestionDelete(selectedQuestion.id) } },
           ]}
         />
-      </div>
+      </div>}
     </div>
   )
 

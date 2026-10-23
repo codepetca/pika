@@ -2,6 +2,7 @@ import { differenceInCalendarDays, isValid, parseISO } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
+import { getMaterialMarkdownDraft } from '@/lib/material-markdown'
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { stripTestDocumentSnapshots } from '@/lib/test-documents'
 import {
@@ -452,7 +453,7 @@ export async function loadClassroomBlueprintSource(
         artifact_id: material.source_artifact_id ?? material.artifact_id ?? material.id,
         source_artifact_id: material.source_artifact_id ?? null,
         title: material.title,
-        content_markdown: tiptapToMarkdown(material.content).markdown,
+        content_markdown: getMaterialMarkdownDraft(material.content).markdown,
         position: material.position ?? 0,
       })),
       surveys: surveyRows.map((survey) => ({

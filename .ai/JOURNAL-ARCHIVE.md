@@ -48778,3 +48778,119 @@ row/byte/teardown assertions; authored SDK/source checks are not native evidence
 Independent review, final-head CI and that real drill remain gates. Current-
 membership-only learner attendance remains separate; owners retain old records.
 All production, account/provider/billing and cutover holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:f1535f271b8e41c120aba4c9606288092597343eaa9769fe03e1ebb03efe4aec -->
+## 2026-10-20 — Dormant contextual purge workflows
+
+Prepared the eight existing hot/cold impact/start/status/tick methods behind the
+existing admission selector. Actual ownership and durable actor/class/archive/
+operation/scope bindings authorize shared callers of either label; legacy
+guards, confirmations/digests, independent gates and SQL state machines remain.
+Completed audit/replay survives parent removal. Malformed/lost results fail
+closed without automatic retries, compensation or rollback claims. Root found
+and fixed exact generated-lease binding before any Storage request: two wrong-
+lease regressions failed before the fix; root independently passed156 tests/6
+suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
+pass. The existing rollback matrices are extended to both current owner labels
+after fixture capture, retaining historical actors and all prior assertions;
+not yet native evidence. Source-only rebase onto1630's actual main merge had no
+conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
+Final focused checks, independent review, real CI matrices and main merge remain.
+No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
+activation change. Production/shared-local249+ and cutover holds remain.
+
+Full security334 review was clean; compatibility335 found the generic409 mapping
+hid the existing fixed attendance-decommission prerequisite signal. Two real-
+PostgREST-envelope regressions failed, then passed after preserving only the
+recognized typed public constant; arbitrary errors remain sanitized. All158
+targeted tests/6 suites pass. Source correction, targeted re-review and final CI
+remain distinct from any provider change or native acceptance.
+
+## 2026-10-20 — Consolidated owner attendance-decommission preparation
+
+Folded all three existing begin/status/advance methods into the still-draft purge
+workflow, using shared admission with legacy teacher behavior retained. Reused
+unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
+verifier maps malformed stored evidence to503, preserves safe service errors and
+validates public result identity/state. Sol6.1/high delivered53 affected tests/3
+suites, TypeScript and scoped lint PASS; root reviewed all source and added a
+rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
+operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
+focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
+commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
+64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
+No native SQL or provider call was made. Retained-generation175 can block153's
+participant mapping deletion after remote completion; preserve the guard/fence
+and inspectable state. Documented as a separate activation prerequisite, not
+claimed complete by mock transport/basic synthetic fixtures. Combined checks,
+proportional independent review, latest-main integration and CI remain. No SQL
+migration, dependency, UI, gate, provider identity, real deletion or activation
+change. All production/shared-local249+ and provider/account/billing/AI holds
+remain. Source writer stopped; attributable active time/tokens unknown.
+
+Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
+all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
+passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
+Consolidated purge source rebased onto that actual main; only roadmap/history
+overlaps required union, retaining main receipts and one copy of the identical
+already-archived entry. No migration resequencing, stash use or hold change.
+
+## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
+
+Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
+table-scoped DELETE capability only after verified remote completion. Existing
+ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
+private membership replay history is retained. Pending automatic cleanup jobs
+block new intent, including quarantine without an individual operation. Fresh
+read-committed admission avoids stale snapshots. Existing rollback harness adds
+both owner labels, historical generations, scoped/forged denial, failure rollback,
+fresh object-free final purge and saved-status/private-history preservation;
+existing contention harness adds both actual-RPC winner orders. No DB/provider
+execution or shared/production migration application during preparation. Exact281
+source-only profiles and complete capability-table fingerprints extend prior
+seals without rebinding old proofs. Initial focused run caught stale280 counts
+and mocked fingerprints; fixtures corrected without weakening restoration checks.
+Independent review, actual native verification and exact-head CI remain required.
+Production/shared-local249+/live-provider/configuration and activation holds stay.
+
+## 2026-10-20 — explicit Data API grant compatibility
+
+Prepared migration281 preserving historical001–280 relation ACLs and server-only
+access; closes public postgres relation defaults. Added absent-default replay/ACL
+equality harness, future-object source policy, sealed281 profiles and CI inventory.
+Canonical schema checklist records explicit table/sequence decisions. Cross-project
+audit: RESPMax private/direct SQL unaffected; HQ health SELECT(id) fix prepared
+separately. Sol/high workers handled bounded Pika ACL/harness and HQ audit/fix;
+coordinator verified source and local regressions. Usage90% weekly remaining at
+start; per-worker tokens/total active time unknown. Docker stopped after historical
+replay; full281 native regression pending CI. Owned throwaway container cleanup
+pending Docker availability: pika-data-api-grants-investigate-51450,
+4c25786d7a2417726eaf1d4d898e21df89944bc566fa46f035c4d5ab19de7e09.
+No shared local/production migration, reset, owner-data write or deployment.
+
+Follow-up: literal-context and archive integration reviews clean;2959 focused
+tests/policies/types/lint pass. Hosted001–281 replay passed. Initial isolated
+grant proof exited before assertions; TCP readiness and retained reset diagnostics
+then reached the contract, exposing its unparenthesized IF/CASE expression.
+Parenthesized the expression; native PostgreSQL14 validator reproduces the old
+syntax error and compiles all three corrected bodies. Exact temporary parser
+cluster removed, without TCP or persistent DB use. Target PostgreSQL17 execution
+and full ACL equality remain pending the reviewed-head CI at this checkpoint.
+
+Superseding source integration: full CI39439201298/PR Gate passed at795ffb29c,
+then main advanced to attendance281. Grant SQL is now named282 with identical
+9ffd5b83… bytes; baseline replay includes281 and explicitly checks its private
+capability table stays inaccessible directly to service_role. Existing281 seal,
+all historical seals and unknown-tail rejection retained. Owner approved this
+last integration/review and merge; native282/final-head CI remain pending at
+this checkpoint. HQ129 merged089c721 with its reviewed tree unchanged; canonical
+HQ fast-forwarded while preserving the owner company-profile edit. No shared or
+production migration applied. Sol6.1/high worker reconciled bounded unit tests;
+coordinator verified seals/source and owns final integration. Usage/time per
+worker unknown; existing review ledger retained without reset. Integration focused
+gate PASS:3169tests/103files, architecture/policies/TypeScript/lint; audit and
+shell syntax PASS. Final targeted review/CI remain required.
+
+## 2026-10-20 — Expand the Gradebook student inspector
+
+Removed the inspector X. Gradebook's existing shared divider now permits up to85% details width while retaining240px for names. Below420px actual table width, the left pane renders only both name columns with sorting, active selection and keyboard navigation; widening restores the existing matrix. Reuses TeacherWorkspaceSplit, GradebookTable, useElementRect and the inspector; Pattern Lab demonstrates the real split. Risk: workspace-state. No modal, calculation, student-disclosure, API/schema/dependency change. Semantic tests cover narrow/expanded restoration, selection, Escape, bounds and reset. Playwright deterministic local fixtures cover desktop light/dark default/dragged/keyboard-expanded/restored states; screenshot receipts and final checks/review recorded in PR1635. Local Supabase unavailable, so no database-backed browser run. Student product and teacher mobile composition unaffected. Composite accessibility checklist reviewed; keyboard/semantic coverage yes. Initial modal implementation superseded by owner request; its interrupted independent review is partial, not acceptance. Direct implementation; weekly allowance84% remaining and storage282GB healthy at startup. Task token/active-time attribution unknown.

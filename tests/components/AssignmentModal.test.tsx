@@ -96,7 +96,7 @@ describe('AssignmentModal', () => {
       expect(content).not.toContainElement(screen.getByRole('button', { name: 'Preview' }))
     })
 
-    it('renders WYSIWYG instructions with markdown-safe formatting and a preview modal', async () => {
+    it('renders Markdown instructions with compact image formatting and a preview modal', async () => {
       const onClose = vi.fn()
 
       render(
@@ -116,10 +116,11 @@ describe('AssignmentModal', () => {
       const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
       expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
       expect(screen.getByRole('button', { name: 'Format' })).toBeInTheDocument()
-      expect(within(toolbar).getAllByRole('button')).toHaveLength(4)
+      expect(within(toolbar).getAllByRole('button')).toHaveLength(5)
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Italic' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
+      expect(within(toolbar).getByRole('button', { name: 'Insert image' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Underline' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Block formatting' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()

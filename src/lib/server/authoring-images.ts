@@ -5,6 +5,10 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { getEffectiveStudentTestAccess, getTestStudentAvailabilityState } from '@/lib/server/tests'
 import { isSurveyVisibleToStudents, canStudentViewSurveyResults } from '@/lib/surveys'
 import { parsePngDimensions, parseJpegDimensions } from '@/lib/server/test-document-image-validation'
+import { isAssignmentVisibleToStudents } from '@/lib/assignments'
+import { compareAnnouncementReadTimestamps } from '@/lib/validations/announcement-reads'
+import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
+import type { TableRow } from '@/types/database'
 
 export const AUTHORING_IMAGE_MAX_SIZE = MARKDOWN_IMAGE_MAX_SIZE
 export const authoringImageReservationSchema = z.object({
@@ -17,6 +21,17 @@ export const authoringImageIdentitySchema = z.object({
   classroom_id: z.string().uuid(), managed_object_id: z.string().uuid(),
 }).strict()
 export const authoringImageUrl = (id: string) => `/api/storage/authoring-images?object_id=${encodeURIComponent(id)}`
+
+/** Only owners may preview removed images during the unclaimed undo window. */
+export function isRetainedAuthoringImage(object: Pick<TableRow<'managed_storage_objects'>,
+  'purpose' | 'status' | 'cleanup_reason_code' | 'attempt_count' | 'next_attempt_at' |
+  'lease_token' | 'lease_expires_at' | 'verified_at' | 'ready_at'>, now = new Date()): boolean {
+  return object.purpose === 'teacher_authoring_image' && object.status === 'cleanup_pending'
+    && object.cleanup_reason_code === 'authoring_image_reference_removed' && object.attempt_count === 0
+    && object.lease_token === null && object.lease_expires_at === null
+    && typeof object.verified_at === 'string' && typeof object.ready_at === 'string'
+    && Date.parse(object.next_attempt_at) > now.getTime()
+}
 
 /** Validate the declared raster format; SVG and active content are never accepted. */
 export function validateAuthoringImageHeader(type: string, bytes: Uint8Array): void {
@@ -58,10 +73,10 @@ export async function validateStoredAuthoringImage(path: string, type: string) {
  * A random object identifier is never a substitute for publication/access checks.
  */
 export async function memberCanReadAuthoringImage(classroomId: string, studentId: string, objectId: string): Promise<boolean> {
-  const db = getServiceRoleClient(), url = authoringImageUrl(objectId)
+  const db = getServiceRoleClient(), url = authoringImageUrl(objectId), now = new Date()
   const [assignments, materials, surveyQuestions, testQuestions] = await Promise.all([
-    db.from('assignments').select('instructions_markdown').eq('classroom_id', classroomId).eq('is_draft', false).ilike('instructions_markdown', `%${url}%`),
-    db.from('classwork_materials').select('content').eq('classroom_id', classroomId).eq('is_draft', false),
+    db.from('assignments').select('instructions_markdown,released_at').eq('classroom_id', classroomId).eq('is_draft', false).ilike('instructions_markdown', `%${url}%`),
+    db.from('classwork_materials').select('content,released_at').eq('classroom_id', classroomId).eq('is_draft', false),
     db.from('survey_questions').select('question_text,surveys!inner(id,classroom_id,status,opens_at,show_results)').eq('surveys.classroom_id', classroomId).ilike('question_text', `%${url}%`),
     db.from('test_questions').select('question_text,tests!inner(id,classroom_id,status)').eq('tests.classroom_id', classroomId).ilike('question_text', `%${url}%`),
   ])
@@ -74,8 +89,11 @@ export async function memberCanReadAuthoringImage(classroomId: string, studentId
     }
     return JSON.stringify(content).includes(url)
   }
-  if (assignments.data?.some(row => row.instructions_markdown?.includes(url)) || materials.data?.some(row => materialContains(row.content))) return true
+  if (assignments.data?.some(row => isAssignmentVisibleToStudents({ is_draft: false, released_at: row.released_at }, now) && row.instructions_markdown?.includes(url))
+    || materials.data?.some(row => (row.released_at === null || (typeof row.released_at === 'string'
+      && compareAnnouncementReadTimestamps(row.released_at, now.toISOString()) <= 0)) && materialContains(row.content))) return true
   for (const row of surveyQuestions.data || []) {
+    if (!row.question_text.includes(url)) continue
     const survey = row.surveys
     if (survey.status !== 'active' && survey.status !== 'closed') continue
     const typed = { ...survey, status: survey.status as 'active' | 'closed' }
@@ -85,14 +103,18 @@ export async function memberCanReadAuthoringImage(classroomId: string, studentId
     if (response.data?.length) return true
   }
   for (const row of testQuestions.data || []) {
+    if (!row.question_text.includes(url)) continue
     const test = row.tests
     if (test.status !== 'active' && test.status !== 'closed') continue
-    const [availability, attempt] = await Promise.all([
+    const [availability, attempt, responses] = await Promise.all([
       getTestStudentAvailabilityState(db, test.id, studentId),
       db.from('test_attempts').select('is_submitted,returned_at,closed_for_grading_at').eq('test_id', test.id).eq('student_id', studentId).maybeSingle(),
+      db.from('test_responses').select('selected_option,response_text').eq('test_id', test.id).eq('student_id', studentId),
     ])
-    if (availability.error || attempt.error) throw new ApiError(503, 'Unable to verify test image access')
-    const access = getEffectiveStudentTestAccess({ testStatus: test.status, accessState: availability.state, hasSubmitted: attempt.data?.is_submitted, returnedAt: attempt.data?.returned_at, isLockedForGrading: Boolean(attempt.data?.closed_for_grading_at) })
+    if (availability.error || attempt.error || responses.error) throw new ApiError(503, 'Unable to verify test image access')
+    const isLockedForGrading = Boolean(attempt.data?.closed_for_grading_at)
+    const hasSubmitted = Boolean(attempt.data?.is_submitted) || (!isLockedForGrading && hasAnyMeaningfulTestResponse(responses.data))
+    const access = getEffectiveStudentTestAccess({ testStatus: test.status, accessState: availability.state, hasSubmitted, returnedAt: attempt.data?.returned_at, isLockedForGrading })
     if (access.can_start_or_continue || access.can_view_submitted) return true
   }
   return false

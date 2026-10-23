@@ -116,7 +116,7 @@ function MaterialEditor({
         contentClassName="!overflow-hidden !p-0"
         tall
       >
-        <div className="grid h-full min-h-0 w-full grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+        <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <CreationModalContextHeader itemType="Material" classroomName={classroomName} spacious />
           <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
             <FormField label="Title" required hideLabel collapseHiddenLabel className="modal-title-field">

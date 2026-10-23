@@ -117,7 +117,7 @@ function SurveyQuestionFields({ classroomId, questionType, questionText, options
 }) {
   return (
     <>
-      <MarkdownContentEditor imageUpload={(file, signal) => uploadMarkdownImage(classroomId, file, signal)} markdown={questionText} onMarkdownChange={onTextChange} aria-label={promptLabel} placeholder="Ask students a question" toolbarPreset="compact" disabled={disabled} onBlur={onBlur} className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32" />
+      <MarkdownContentEditor imageUpload={(file, signal) => uploadMarkdownImage(classroomId, file, signal)} markdown={questionText} onMarkdownChange={onTextChange} aria-label={promptLabel} placeholder="Ask students a question" toolbarPreset="markdown-authoring" disabled={disabled} onBlur={onBlur} className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32" />
       {questionType === 'multiple_choice' ? (
         <SurveyQuestionOptions options={optionsText.split('\n')} disabled={disabled} onChange={(options) => onOptionsChange(options.join('\n'))} onBlur={onBlur} />
       ) : (

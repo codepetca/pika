@@ -105,8 +105,24 @@ begin
       select * into v_object from public.managed_storage_objects where id = v_id for update;
       if not found or v_classroom_id is null or v_object.classroom_id is distinct from v_classroom_id
         or v_object.purpose <> 'teacher_authoring_image'
-        or v_object.storage_bucket <> 'test-documents'
-        or v_object.status not in ('verified','ready') then
+        or v_object.storage_bucket <> 'test-documents' then
+        raise exception using errcode = '23514', message = 'authoring_image_reference_not_attachable';
+      end if;
+      -- Sequential question saves and Undo may restore the last removed source
+      -- reference. Revive only this feature's unclaimed one-hour retention state;
+      -- the protocol and exact object row remain locked for the entire adoption.
+      if v_object.status = 'cleanup_pending'
+        and v_object.cleanup_reason_code = 'authoring_image_reference_removed'
+        and v_object.next_attempt_at > pg_catalog.clock_timestamp()
+        and v_object.attempt_count = 0
+        and v_object.lease_token is null and v_object.lease_expires_at is null
+        and v_object.verified_at is not null and v_object.ready_at is not null then
+        update public.managed_storage_objects
+          set status = 'ready', cleanup_reason_code = null, last_error_code = null,
+            updated_at = pg_catalog.clock_timestamp()
+          where id = v_id returning * into v_object;
+      end if;
+      if v_object.status not in ('verified','ready') then
         raise exception using errcode = '23514', message = 'authoring_image_reference_not_attachable';
       end if;
       perform public.managed_storage_mark_ready(v_id);
@@ -141,9 +157,19 @@ returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   perform public.lock_managed_storage_protocol();
   if not public.managed_storage_object_is_referenced(old.managed_object_id)
-    and not public.is_classroom_archive_maintenance_mode('restore')
-    and not public.is_classroom_archive_maintenance_mode('compaction') then
+    and not coalesce(public.is_classroom_archive_maintenance_mode('restore'), false)
+    and not coalesce(public.is_classroom_archive_maintenance_mode('compaction'), false) then
     perform public.queue_managed_storage_cleanup(old.managed_object_id,'authoring_image_reference_removed');
+    -- Delay only a never-attempted, unleased authoring-image removal. Generic
+    -- cleanup admission/claims and every other managed-storage purpose stay fixed.
+    update public.managed_storage_objects
+      set next_attempt_at = pg_catalog.clock_timestamp() + interval '1 hour',
+        updated_at = pg_catalog.clock_timestamp()
+      where id = old.managed_object_id and purpose = 'teacher_authoring_image'
+        and status = 'cleanup_pending'
+        and cleanup_reason_code = 'authoring_image_reference_removed'
+        and attempt_count = 0 and lease_token is null and lease_expires_at is null
+        and verified_at is not null and ready_at is not null;
   end if;
   return old;
 end;

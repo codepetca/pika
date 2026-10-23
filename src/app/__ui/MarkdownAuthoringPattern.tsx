@@ -5,7 +5,7 @@ import { MarkdownAuthoringEditor, type MarkdownAuthoringMode } from '@/component
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { Card } from '@/ui'
 
-const SAMPLE = '# Field observations\n\nRead the **field guide** before our next class.\n\n- Bring one observation.\n- Bring one question.\n\n> Describe what you noticed.\n'
+const SAMPLE = '# Field observations\n\nRead the **field guide** before our next class.\n\n- Bring one observation.\n- Bring one question.\n\n> Describe what you noticed.\n\n![Pika example image](/pika.png)\n'
 
 export function MarkdownAuthoringPattern({ role }: { role: 'teacher' | 'student' }) {
   const [markdown, setMarkdown] = useState(SAMPLE)

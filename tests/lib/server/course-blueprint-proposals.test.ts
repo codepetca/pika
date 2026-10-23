@@ -1,3 +1,4 @@
+import { COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { describe, expect, it, vi } from 'vitest'
 import {
   applyPersistedClassroomBlueprintProposal,
@@ -90,6 +91,36 @@ const proposalRow = {
 } as const
 
 describe('persisted course blueprint proposals', () => {
+
+  it.each(['submit-blueprint', 'submit-classroom', 'apply-blueprint', 'apply-classroom', 'apply-archived'])
+    ('rejects unsupported incoming %s references before proposal writes', async action => {
+      const candidate = structuredClone(base)
+      candidate.sections.overview_markdown = '![Private](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+      const rpc = vi.fn()
+      const args: any = { supabase: { rpc }, teacherId: proposalRow.teacher_id, base, candidate,
+        plan: { sections: candidate.sections }, source: 'classroom', proposalId: proposalRow.id,
+        idempotencyKey: proposalRow.idempotency_key,
+      }
+      const result = action === 'submit-blueprint' ? await submitCourseBlueprintProposal(args)
+        : action === 'submit-classroom' ? await submitClassroomBlueprintProposal(args)
+        : action === 'apply-blueprint' ? await applyPersistedCourseBlueprintProposal(args)
+        : action === 'apply-classroom' ? await applyPersistedClassroomBlueprintProposal(args)
+        : await applyArchivedClassroomCourseBlueprintProposal(args)
+      expect(result).toEqual({ ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR })
+      expect(rpc).not.toHaveBeenCalled()
+    })
+
+  it('checks the incoming candidate rather than blocking a retained live-source/base reference', async () => {
+    const prior = structuredClone(base)
+    prior.sections.overview_markdown = '![Private](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+    const rpc = vi.fn().mockResolvedValue({ data: proposalRow, error: null })
+    expect((await submitCourseBlueprintProposal({ supabase: { rpc } as any, teacherId: proposalRow.teacher_id,
+      base: prior, candidate: base, source: 'classroom', idempotencyKey: proposalRow.idempotency_key,
+    })).ok).toBe(true)
+    expect(rpc).toHaveBeenCalledOnce()
+    expect(prior.sections.overview_markdown).toContain('/api/storage/authoring-images')
+  })
+
   it('turns AI output into a candidate without changing the live Draft', () => {
     const detail = {
       id: base.blueprint_id,

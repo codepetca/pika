@@ -1,3 +1,4 @@
+import { teacherAuthoringImageTriggerRowsSql, teacherAuthoringImagesCatalogSql } from './teacher-authoring-images-proof-catalog'
 /** Inert rollback-only SQL source for migration252. Importing this module opens
  * no connection and performs no SQL. Execution is admitted only through the
  * fixed driver and exact manifest accepted by the owning native profile. */
@@ -97,8 +98,9 @@ function graph(f: TestOwnerPublicationFixture) {
 
 function exactTriggers(table: string, expected: readonly (readonly [string,string,string,number])[], message: string) {
   const tuples = expected.map(row => `(${q(row[0])},${q(row[1])},${q(row[2])},${row[3]})`).join(',')
+  const expectedRows = `select * from (values ${tuples}) historical(name,fn_schema,fn_name,tgtype) union all ${teacherAuthoringImageTriggerRowsSql([table], false)}`
   const actual = `select t.tgname::text,nf.nspname::text,catalog_proc.proname::text,t.tgtype::integer from pg_catalog.pg_trigger t join pg_catalog.pg_proc catalog_proc on catalog_proc.oid=t.tgfoid join pg_catalog.pg_namespace nf on nf.oid=catalog_proc.pronamespace where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal`
-  return `if exists((${actual}) except (select * from (values ${tuples}) e(name,fn_schema,fn_name,tgtype))) or exists((select * from (values ${tuples}) e(name,fn_schema,fn_name,tgtype)) except (${actual})) or exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred)) then raise exception ${q(message)};end if;`
+  return `if exists((${actual}) except (${expectedRows})) or exists((${expectedRows}) except (${actual})) or exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred)) then raise exception ${q(message)};end if;`
 }
 function note(label: typeof TEST_OWNER_PUBLICATION_DB_CHECK_LABELS[number]) { return `checks:=checks||pg_catalog.jsonb_build_array(${q(label)});` }
 function probe(label: typeof TEST_OWNER_PUBLICATION_DB_CHECK_LABELS[number], body: string) {
@@ -143,6 +145,7 @@ function catalogSql() {
  or not pg_catalog.has_function_privilege('service_role',p.oid,'EXECUTE')
  or exists(select 1 from pg_catalog.aclexplode(coalesce(p.proacl,pg_catalog.acldefault('f',p.proowner))) a where a.privilege_type='EXECUTE' and a.grantee not in (p.proowner,'service_role'::regrole)) then raise exception 'Publication function catalog differs';end if;${note('catalog-function')}
  ${columns('tests',TEST_OWNER_PUBLICATION_TEST_COLUMNS,'Exact21 Test columns differ')}${columns('assessment_drafts',TEST_OWNER_PUBLICATION_DRAFT_COLUMNS,'Exact10 Draft columns differ')}${columns('test_questions',TEST_OWNER_PUBLICATION_QUESTION_COLUMNS,'Exact21 question columns differ')}${note('catalog-columns')}
+ ${teacherAuthoringImagesCatalogSql()}
  ${exactTriggers('tests',testTriggers,'Exact Test trigger closure differs')}${quota253CatalogSql()}${note('catalog-test-triggers')}
  ${exactTriggers('assessment_drafts',draftTriggers,'Exact Draft trigger closure differs')}${note('catalog-draft-triggers')}
  ${exactTriggers('test_questions',questionTriggers,'Exact question trigger closure differs')}${note('catalog-question-triggers')}

@@ -8,6 +8,9 @@ const MAX_PATH_DECODE_ROUNDS = 3
 const MAX_FREEFORM_URL_CANDIDATES = 512
 const MAX_FREEFORM_URL_SPAN_CHARS = 16_384
 
+export const COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR =
+  'Inline classroom images cannot yet be copied into portable course blueprints. Your source content is unchanged and remains usable.'
+
 type OriginIdentity = {
   protocol: string
   hostname: string
@@ -81,6 +84,7 @@ export function isPikaManagedStorageUrl(
   value: string,
   configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
 ): boolean {
+  if (isPikaAuthoringImageUrl(value)) return true
   const configuredOrigin = configuredSupabaseOrigin(configuredUrl)
   if (!configuredOrigin) return false
   try {
@@ -94,6 +98,14 @@ export function isPikaManagedStorageUrl(
   } catch {
     return false
   }
+}
+
+/** This private application route is not a portable asset, on any origin. */
+function isPikaAuthoringImageUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value, 'https://pika.invalid')
+    return decodeStoragePath(parsed.pathname)?.replace(/\/+$/, '') === '/api/storage/authoring-images'
+  } catch { return false }
 }
 
 function isUrlCandidateBoundary(markdown: string, index: number): boolean {
@@ -131,6 +143,10 @@ export function containsPikaManagedStorageUrl(
   markdown: string,
   configuredUrl = process.env.NEXT_PUBLIC_SUPABASE_URL,
 ): boolean {
+  return containsUrlMatching(markdown, value => isPikaManagedStorageUrl(value, configuredUrl))
+}
+
+function containsUrlMatching(markdown: string, matches: (value: string) => boolean): boolean {
   const lower = markdown.toLowerCase()
   let candidateCount = 0
 
@@ -143,8 +159,16 @@ export function containsPikaManagedStorageUrl(
     if (end - index > MAX_FREEFORM_URL_SPAN_CHARS) return true
     candidateCount += 1
     if (candidateCount > MAX_FREEFORM_URL_CANDIDATES) return true
-    if (isPikaManagedStorageUrl(markdown.slice(index, end), configuredUrl)) return true
+    if (matches(markdown.slice(index, end))) return true
   }
 
+  return false
+}
+
+/** Inspect only the unsupported authoring route; existing test-document copying stays valid. */
+export function containsCourseBlueprintAuthoringImage(value: unknown): boolean {
+  if (typeof value === 'string') return containsUrlMatching(value, isPikaAuthoringImageUrl)
+  if (Array.isArray(value)) return value.some(containsCourseBlueprintAuthoringImage)
+  if (value && typeof value === 'object') return Object.values(value).some(containsCourseBlueprintAuthoringImage)
   return false
 }

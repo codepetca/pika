@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { authoringImageReservationSchema, validateAuthoringImageHeader, authoringImageUrl } from '@/lib/server/authoring-images'
+import { authoringImageReservationSchema, validateAuthoringImageHeader, authoringImageUrl, isRetainedAuthoringImage } from '@/lib/server/authoring-images'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
 
@@ -25,5 +25,17 @@ describe('teacher authoring image boundary', () => {
   })
   it('uses a durable protected URL instead of a signed URL in Markdown', () => {
     expect(authoringImageUrl(classroomId)).toBe(`/api/storage/authoring-images?object_id=${classroomId}`)
+  })
+  it('previews only previously attached, unclaimed images inside the undo window', () => {
+    const now = new Date('2026-10-22T12:00:00Z')
+    const retained = { purpose: 'teacher_authoring_image', status: 'cleanup_pending', cleanup_reason_code: 'authoring_image_reference_removed',
+      attempt_count: 0, next_attempt_at: '2026-10-22T13:00:00Z', lease_token: null, lease_expires_at: null,
+      verified_at: '2026-10-22T11:00:00Z', ready_at: '2026-10-22T11:00:01Z' }
+    expect(isRetainedAuthoringImage(retained, now)).toBe(true)
+    for (const change of [{ purpose: 'teacher_test_material' }, { status: 'cleanup_processing' }, { cleanup_reason_code: 'reservation_expired' },
+      { attempt_count: 1 }, { next_attempt_at: now.toISOString() }, { next_attempt_at: 'invalid' }, { lease_token: classroomId },
+      { lease_expires_at: '2026-10-22T13:00:00Z' }, { verified_at: null }, { ready_at: null }]) {
+      expect(isRetainedAuthoringImage({ ...retained, ...change }, now)).toBe(false)
+    }
   })
 })

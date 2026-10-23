@@ -7,6 +7,7 @@ import { AssignmentCreationPattern } from '@/app/__ui/AssignmentCreationPattern'
 import { AssignmentEditSplitPattern } from '@/app/__ui/AssignmentEditSplitPattern'
 import { SurveyEditSplitPattern } from '@/app/__ui/SurveyEditSplitPattern'
 import { TestEditSplitPattern } from '@/app/__ui/TestEditSplitPattern'
+import { MarkdownAuthoringPattern } from '@/app/__ui/MarkdownAuthoringPattern'
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { CalendarMockup } from '@/app/__ui/PageMockups'
 import { StudentPageMockup } from '@/app/__ui/StudentPageMockups'
@@ -39,6 +40,11 @@ function renderGallery(role: 'teacher' | 'student' = 'teacher', assignmentContro
 }
 
 describe('UiGallery accessibility contracts', () => {
+  it('shows accessible Markdown images in the student reading reference without authoring controls', () => {
+    render(<TooltipProvider><MarkdownAuthoringPattern role="student" /></TooltipProvider>)
+    expect(screen.getByRole('img', { name: 'Pika example image' })).toHaveAttribute('src', '/pika.png')
+    expect(screen.queryByRole('group', { name: 'Course guide editing mode' })).not.toBeInTheDocument()
+  })
   it.each([
     [AssignmentCreationPattern, 'Open assignment example'],
     [AssignmentEditSplitPattern, 'Open assignment edit prototype'],
@@ -155,6 +161,7 @@ describe('UiGallery accessibility contracts', () => {
     renderGallery(role)
     expect(screen.queryByTestId('assignment-controller-fixture')).not.toBeInTheDocument()
     expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('survey-controller-fixture')).not.toBeInTheDocument()
     expect(screen.queryByTestId('create-classroom-controller-fixture')).not.toBeInTheDocument()
   })
 
@@ -177,11 +184,15 @@ describe('UiGallery accessibility contracts', () => {
     expect(fixture.getByRole('button', { name: 'Open controlled test' })).toBeVisible()
     // The real teacher shell portals outside the fixture; keep this global.
     expect(screen.queryByRole('dialog', { name: 'Edit test' })).not.toBeInTheDocument()
+    // SurveyControllerPattern shares this explicit, teacher-only fixture gate.
+    expect(within(screen.getByTestId('survey-controller-fixture')).getByRole('button', { name: 'Open controlled survey' })).toBeVisible()
+    expect(screen.queryByRole('dialog', { name: 'Edit survey' })).not.toBeInTheDocument()
   })
 
   it('keeps the enabled TestControllerPattern absent for students', () => {
     renderGallery('student', false, true)
     expect(screen.queryByTestId('test-controller-fixture')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('survey-controller-fixture')).not.toBeInTheDocument()
   })
 
   it('renders the explicitly enabled teacher CreateClassroomControllerPattern closed', () => {

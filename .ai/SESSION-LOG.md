@@ -11,121 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant contextual purge workflows
-
-Prepared the eight existing hot/cold impact/start/status/tick methods behind the
-existing admission selector. Actual ownership and durable actor/class/archive/
-operation/scope bindings authorize shared callers of either label; legacy
-guards, confirmations/digests, independent gates and SQL state machines remain.
-Completed audit/replay survives parent removal. Malformed/lost results fail
-closed without automatic retries, compensation or rollback claims. Root found
-and fixed exact generated-lease binding before any Storage request: two wrong-
-lease regressions failed before the fix; root independently passed156 tests/6
-suites afterwards. Fourteen TypeScript files pass audit; shell/source guards22/2
-pass. The existing rollback matrices are extended to both current owner labels
-after fixture capture, retaining historical actors and all prior assertions;
-not yet native evidence. Source-only rebase onto1630's actual main merge had no
-conflict. Sol6.1/high bounded author stopped; per-task tokens/active time unknown.
-Final focused checks, independent review, real CI matrices and main merge remain.
-No SQL migration, gate, cron, UI, real deletion, provider/account/billing or
-activation change. Production/shared-local249+ and cutover holds remain.
-
-Full security334 review was clean; compatibility335 found the generic409 mapping
-hid the existing fixed attendance-decommission prerequisite signal. Two real-
-PostgREST-envelope regressions failed, then passed after preserving only the
-recognized typed public constant; arbitrary errors remain sanitized. All158
-targeted tests/6 suites pass. Source correction, targeted re-review and final CI
-remain distinct from any provider change or native acceptance.
-
-## 2026-10-20 — Consolidated owner attendance-decommission preparation
-
-Folded all three existing begin/status/advance methods into the still-draft purge
-workflow, using shared admission with legacy teacher behavior retained. Reused
-unchanged153/154 service/SQL authority and provider contract. The admitted-boundary
-verifier maps malformed stored evidence to503, preserves safe service errors and
-validates public result identity/state. Sol6.1/high delivered53 affected tests/3
-suites, TypeScript and scoped lint PASS; root reviewed all source and added a
-rollback-only two-owner-label SQL matrix plus foreign-owner and saved actor/class/
-operation denials. CPU harness RED1 became GREEN9/2. The separate preparation's
-focused checks pass884 tests/71 files plus policies, TypeScript and lint. Source
-commit911ce177 cherry-picked to60cff127 with identical full8-path patch digest
-64b64c4ddd1392c48ce18465e28153d3d1e9e9b1cb86d936d445b51e860e5b36.
-No native SQL or provider call was made. Retained-generation175 can block153's
-participant mapping deletion after remote completion; preserve the guard/fence
-and inspectable state. Documented as a separate activation prerequisite, not
-claimed complete by mock transport/basic synthetic fixtures. Combined checks,
-proportional independent review, latest-main integration and CI remain. No SQL
-migration, dependency, UI, gate, provider identity, real deletion or activation
-change. All production/shared-local249+ and provider/account/billing/AI holds
-remain. Source writer stopped; attributable active time/tokens unknown.
-
-Cold recovery PR1631 merged normally asf927926a5 at2026-10-20T13:14:03Z after
-all10 exact01fa CI39423632897 checks and the real two-owner archive recovery drill
-passed. Reviewed/squash trees match and canonical clean main fast-forwarded.
-Consolidated purge source rebased onto that actual main; only roadmap/history
-overlaps required union, retaining main receipts and one copy of the identical
-already-archived entry. No migration resequencing, stash use or hold change.
-
-## 2026-10-20 — Prepare retained-generation attendance decommission compatibility
-
-Prepared forward281 on mainaeba32cb2: private transaction/operation/class/phase/
-table-scoped DELETE capability only after verified remote completion. Existing
-ownership, installation/gates, receipt,500-row bounds and permanent fences remain;
-private membership replay history is retained. Pending automatic cleanup jobs
-block new intent, including quarantine without an individual operation. Fresh
-read-committed admission avoids stale snapshots. Existing rollback harness adds
-both owner labels, historical generations, scoped/forged denial, failure rollback,
-fresh object-free final purge and saved-status/private-history preservation;
-existing contention harness adds both actual-RPC winner orders. No DB/provider
-execution or shared/production migration application during preparation. Exact281
-source-only profiles and complete capability-table fingerprints extend prior
-seals without rebinding old proofs. Initial focused run caught stale280 counts
-and mocked fingerprints; fixtures corrected without weakening restoration checks.
-Independent review, actual native verification and exact-head CI remain required.
-Production/shared-local249+/live-provider/configuration and activation holds stay.
-
-## 2026-10-20 — explicit Data API grant compatibility
-
-Prepared migration281 preserving historical001–280 relation ACLs and server-only
-access; closes public postgres relation defaults. Added absent-default replay/ACL
-equality harness, future-object source policy, sealed281 profiles and CI inventory.
-Canonical schema checklist records explicit table/sequence decisions. Cross-project
-audit: RESPMax private/direct SQL unaffected; HQ health SELECT(id) fix prepared
-separately. Sol/high workers handled bounded Pika ACL/harness and HQ audit/fix;
-coordinator verified source and local regressions. Usage90% weekly remaining at
-start; per-worker tokens/total active time unknown. Docker stopped after historical
-replay; full281 native regression pending CI. Owned throwaway container cleanup
-pending Docker availability: pika-data-api-grants-investigate-51450,
-4c25786d7a2417726eaf1d4d898e21df89944bc566fa46f035c4d5ab19de7e09.
-No shared local/production migration, reset, owner-data write or deployment.
-
-Follow-up: literal-context and archive integration reviews clean;2959 focused
-tests/policies/types/lint pass. Hosted001–281 replay passed. Initial isolated
-grant proof exited before assertions; TCP readiness and retained reset diagnostics
-then reached the contract, exposing its unparenthesized IF/CASE expression.
-Parenthesized the expression; native PostgreSQL14 validator reproduces the old
-syntax error and compiles all three corrected bodies. Exact temporary parser
-cluster removed, without TCP or persistent DB use. Target PostgreSQL17 execution
-and full ACL equality remain pending the reviewed-head CI at this checkpoint.
-
-Superseding source integration: full CI39439201298/PR Gate passed at795ffb29c,
-then main advanced to attendance281. Grant SQL is now named282 with identical
-9ffd5b83… bytes; baseline replay includes281 and explicitly checks its private
-capability table stays inaccessible directly to service_role. Existing281 seal,
-all historical seals and unknown-tail rejection retained. Owner approved this
-last integration/review and merge; native282/final-head CI remain pending at
-this checkpoint. HQ129 merged089c721 with its reviewed tree unchanged; canonical
-HQ fast-forwarded while preserving the owner company-profile edit. No shared or
-production migration applied. Sol6.1/high worker reconciled bounded unit tests;
-coordinator verified seals/source and owns final integration. Usage/time per
-worker unknown; existing review ledger retained without reset. Integration focused
-gate PASS:3169tests/103files, architecture/policies/TypeScript/lint; audit and
-shell syntax PASS. Final targeted review/CI remain required.
-
-## 2026-10-20 — Expand the Gradebook student inspector
-
-Removed the inspector X. Gradebook's existing shared divider now permits up to85% details width while retaining240px for names. Below420px actual table width, the left pane renders only both name columns with sorting, active selection and keyboard navigation; widening restores the existing matrix. Reuses TeacherWorkspaceSplit, GradebookTable, useElementRect and the inspector; Pattern Lab demonstrates the real split. Risk: workspace-state. No modal, calculation, student-disclosure, API/schema/dependency change. Semantic tests cover narrow/expanded restoration, selection, Escape, bounds and reset. Playwright deterministic local fixtures cover desktop light/dark default/dragged/keyboard-expanded/restored states; screenshot receipts and final checks/review recorded in PR1635. Local Supabase unavailable, so no database-backed browser run. Student product and teacher mobile composition unaffected. Composite accessibility checklist reviewed; keyboard/semantic coverage yes. Initial modal implementation superseded by owner request; its interrupted independent review is partial, not acceptance. Direct implementation; weekly allowance84% remaining and storage282GB healthy at startup. Task token/active-time attribution unknown.
-
 ## 2026-10-20 — Prepare student inspector PR1635 for merge
 
 Owner authorized merge after green CI. Initial83e85adc build/dark browser/Pattern Lab lanes passed; light browser lane failed exam-navigation timeouts and one connection reset, outside this Gradebook change. Rebased onto main daaf1a64b, retaining the identical source/test implementation and all main receipts; the sole conflict was an archive batch marker around an already-identical entry, resolved with main's marker. Fresh focused checks, independent integration confirmation and exact-head CI required before squash merge. No unrelated runtime/test fix or production promotion.
@@ -727,6 +612,7 @@ local291 and up to three extra reviewer launches explicitly requested and pendin
 Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
 apart from a corrected source-wire assertion awaiting rerun; final focused gate,
 local database/browser evidence and independent review remain. PR1662 stays draft.
+
 ## 2026-10-22 — Material calendar post dates
 
 Added teacher Post date (Toronto) editing for already-posted Classwork materials;
@@ -812,3 +698,33 @@ GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No app
 retry, fixture/post mutation, flag/account/provider/billing change or Docker
 restart. Attributable tokens/active time unknown. Final receipt docs review/CI
 remains; production promotion worktree retired, shared env target preserved.
+
+## 2026-10-22 — Approved four-editor implementation verification
+
+Actual Assignment/Material/Test/Survey now match the approved compact prototype:
+Markdown source, shared mode/close/status header, question navigation and green
+Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
+legacy Material until content edit; source-only changes regenerate readers.
+Source/API checks cover publication timing, legacy submitted-Test access and
+literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
+transactional save attachment, archive/snapshot pins and narrow1h unclaimed
+retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
+Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
+Blueprint private-image portability is unsupported: reject incoming portable
+assets before copying/applying; preserve existing classroom source.
+
+Actual-source browser16teacher+4student matrix and existing8authoring contracts
+PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
+Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
+canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
+UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
+PASS. Audit PASS66changedTSfiles; composite mode,
+menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
+generated types and native ACL/schema/behavior receipts pending exact local
+permission. No Docker restart, shared migration or production action. Owned
+Next3036 stopped; owner prototype9026 retained. Current independent-review
+coverage ends94bd0b389;9historical launches consumed, approval for up to3new
+launches pending. PR1662 stays draft. Bounded implementation workers assisted;
+not independent review. Inherited effective models/tokens unknown; serial local
+verification limits honored after correcting an initial unflagged focused run.
