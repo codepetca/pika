@@ -140,6 +140,16 @@ checks remain. The home API retains exact cohort and current-relationship guards
 around that reader. Existing native/visual artifacts are unchanged; final
 changed-base image tests, focused checks and independent review remain gates.
 
+The editor's final release receipt #1669 merged as
+`24c294b1ebeda1b7cd485caeec7a6e4bc486d54c`; the editor owner confirmed completion
+and released the main-merge interlock. The home branch is rebased onto that
+documentation-only receipt. Application, test, script, dependency, configuration
+and SQL bytes match the independently reviewed pre-receipt home head; journal
+conflicts preserve both histories, with an already-preserved historical duplicate
+removed only after byte equality was checked. This does not release this task's
+production, provider, shared-migration or activation holds. Final documentation
+review and exact-head CI remain required.
+
 Checklist reviewed: yes. Keyboard menu opening/Escape/focus return, checked edit
 semantics, role-labelled sections, joined-only actions and disabled controls have
 focused coverage. Full changed-base independent review, final CI and signed-in
