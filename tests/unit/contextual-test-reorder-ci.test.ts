@@ -12,7 +12,7 @@ describe('isolated reorder CI receipt closure', () => {
     expect(job).toContain('name: Verify contextual Daily Log save atomicity and privileges')
     expect(job).not.toContain('name: Rehearse the production-shaped Test identity migration')
     expect(job).not.toContain('run: pnpm run db:types:check')
-    expect(job).toContain('runs-on: ubuntu-latest')
+    expect(job).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(job).toContain('run: pnpm install --frozen-lockfile')
     expect(job).toContain('run: pnpm run check:managed-storage-lineage')
     expect(job).toContain('node scripts/ci-runner-preflight.mjs --lane database-lifecycle')

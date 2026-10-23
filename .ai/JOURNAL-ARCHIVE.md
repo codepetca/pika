@@ -49501,3 +49501,22 @@ suites pass both labels, exact metadata, nonempty history, wire validation and r
 ownership contention/fresh reads. Independent review and exact-head CI remain
 gates. No production/shared-local migration, provider call,
 publication, account change or rollout is authorized by this source preparation.
+
+<!-- pika-session-log-archive-batch:a2af29a6639ad465fb522919a8e9f5c6658a82a7226f2663f6e65ad89cf30a9c -->
+## 2026-10-21 — Prepare contextual active classroom capture
+
+Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
+checks green; shared local remains243. The next backend group reuses shared
+admission for active owned classroom capture, owned Blueprint reads and existing
+entitled instantiation. Source access is rechecked after loading before private
+copies; atomic commit/source/version/replay and provisional-copy settlement stay
+in place. TDD reproduced the role/pre-copy gaps;116 API/domain checks now pass.
+The existing rollback suite adds current v3 capture and v2 instantiation for both
+account labels, with owner/revision/archive/purge/replay and independent capacity
+denials; authored SQL is not native acceptance. Final focused checks, independent
+review and isolated CI remain required. No general Blueprint authoring, page/UI,
+schema application or activation is included. Owner settled Pal's following
+policy: stop pending delivery upon same-class ownership, preserve earned progress,
+stop new learner activity/token requests, retain existing issued-token expiry.
+That policy is recorded, not implemented here. Production/live-provider/shared-
+local249+/publication/configuration/account/cohort/cutover holds remain unchanged.

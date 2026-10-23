@@ -7,11 +7,13 @@ Only the CLI constructs the real backend; offline tests inject a fake backend.
 import argparse
 import base64
 import json
+import math
 import os
 import pathlib
 import platform
 import re
 import signal
+import shutil
 import stat
 import subprocess
 import sys
@@ -26,6 +28,9 @@ REPOSITORY = 'codepetca/pika'
 LEASE_PATH = pathlib.Path('/private/tmp/hq-books-deep-validation-host.lock')
 RECEIPTS = pathlib.Path('/Users/stew/.codex/artifacts/pika/ci-tart-host')
 ACTIVATION_ACK = 'PIKA_ONE_JOB_RUNNER'
+VM_CPUS = 4
+VM_MEMORY_MIB = 12288
+HOST_RESERVE_BYTES = 6 * 1024 ** 3
 DOCKER_SOCKET = 'unix:///run/user/1002/docker.sock'
 CLIENT = '/home/runner/pika-actions-runner'
 GUEST_ENV = {
@@ -40,6 +45,66 @@ GUEST_GUARDS = {'isolation', 'identity', 'client', 'credentials', 'host-mount', 
 
 class Refusal(Exception):
     """Finite public failure code; child output/exception details stay private."""
+
+
+def parse_vm_stat(source):
+    """Conservative admission estimate; purgeable pages overlap resident counts."""
+    page = re.search(r'page size of ([0-9]+) bytes', source)
+    values = {}
+    for name in ('Pages free', 'Pages inactive', 'Pages speculative', 'Swapouts'):
+        found = re.search(r'^' + name + r':\s+([0-9]+)\.\s*$', source, re.MULTILINE)
+        if not found:
+            raise Refusal('host-capacity-unavailable')
+        values[name] = int(found[1])
+    if not page or int(page[1]) <= 0:
+        raise Refusal('host-capacity-unavailable')
+    return {'available_bytes': sum(values[name] for name in
+            ('Pages free', 'Pages inactive', 'Pages speculative')) * int(page[1]),
+            'swapouts': values['Swapouts']}
+
+
+def validate_host_capacity(sample):
+    fields = ('cpu_count', 'memory_bytes', 'available_bytes', 'load_one', 'pressure_level',
+              'swapouts_before', 'swapouts_after', 'disk_free_bytes')
+    if (not isinstance(sample, dict) or any(type(sample.get(key)) not in (int, float)
+            or not math.isfinite(sample[key]) or sample[key] < 0 for key in fields)
+            or any(type(sample[key]) is not int for key in fields if key != 'load_one')
+            or sample['available_bytes'] > sample['memory_bytes']
+            or sample['swapouts_after'] < sample['swapouts_before']):
+        raise Refusal('host-capacity-unavailable')
+    if sample['cpu_count'] < VM_CPUS * 2:
+        raise Refusal('host-cpu-reserve')
+    if sample['pressure_level'] != 1:
+        raise Refusal('host-memory-pressure')
+    if sample['available_bytes'] < VM_MEMORY_MIB * 1024 ** 2 + HOST_RESERVE_BYTES:
+        raise Refusal('host-memory-reserve')
+    if sample['load_one'] > sample['cpu_count'] / 2:
+        raise Refusal('host-cpu-busy')
+    if sample['swapouts_after'] > sample['swapouts_before']:
+        raise Refusal('host-swap-growing')
+    if sample['disk_free_bytes'] < 80_000_000_000:
+        raise Refusal('host-storage-reserve')
+    return dict(sample, admitted=True, vm_cpus=VM_CPUS, vm_memory_mib=VM_MEMORY_MIB,
+                host_reserve_bytes=HOST_RESERVE_BYTES)
+
+
+def read_host_capacity():
+    def read(args):
+        return subprocess.check_output(args, text=True, timeout=5,
+                                       env=Backend.host_environment())
+    try:
+        before = parse_vm_stat(read(['/usr/bin/vm_stat']))
+        time.sleep(1)
+        after = parse_vm_stat(read(['/usr/bin/vm_stat']))
+        cpu, memory, pressure = map(int, read(['/usr/sbin/sysctl', '-n', 'hw.ncpu',
+                                    'hw.memsize', 'kern.memorystatus_vm_pressure_level']).split())
+        return {'cpu_count': cpu, 'memory_bytes': memory,
+                'available_bytes': after['available_bytes'], 'load_one': os.getloadavg()[0],
+                'pressure_level': pressure, 'swapouts_before': before['swapouts'],
+                'swapouts_after': after['swapouts'],
+                'disk_free_bytes': shutil.disk_usage('/Users/stew').free}
+    except (OSError, ValueError, subprocess.SubprocessError):
+        raise Refusal('host-capacity-unavailable') from None
 
 
 def private_json(path, value):
@@ -438,9 +503,12 @@ class Backend:
             raise Refusal('invalid-vm-inventory')
         return rows
 
+    def capacity(self):
+        return validate_host_capacity(read_host_capacity())
+
     def clone(self, vm):
         self.command([TART, 'clone', TEMPLATE, vm], timeout=120)
-        self.command([TART, 'set', vm, '--cpu', '4', '--memory', '12288', '--random-mac'])
+        self.command([TART, 'set', vm, '--cpu', str(VM_CPUS), '--memory', str(VM_MEMORY_MIB), '--random-mac'])
 
     def start(self, vm):
         self.require_admission()
@@ -590,7 +658,10 @@ class HostDriver:
         if mode == 'plan':
             return {'status': 'plan', 'template': TEMPLATE, 'lease': str(self.lease_path),
                     'repository': REPOSITORY, 'registration': False, 'one_job': True,
-                    'activation_acknowledgement': ACTIVATION_ACK}
+                    'activation_acknowledgement': ACTIVATION_ACK,
+                    'vm_cpus': VM_CPUS, 'vm_memory_mib': VM_MEMORY_MIB,
+                    'host_reserve_bytes': HOST_RESERVE_BYTES,
+                    'capacity_check': '--capacity', 'automatic_service': False}
         if mode == 'serve-one' and acknowledgement != ACTIVATION_ACK:
             raise Refusal('activation-acknowledgement-required')
         vm = 'pika-ci-job-' + uuid.uuid4().hex
@@ -618,6 +689,7 @@ class HostDriver:
                 raise Refusal('unexpected-running-vm')
             if not any(r['Name'] == TEMPLATE for r in rows):
                 raise Refusal('template-unavailable')
+            result['capacity_before_clone'] = self.backend.capacity()
             self.receipt_root.mkdir(parents=True, exist_ok=True, mode=0o700)
             if self.receipt_root.is_symlink() or self.receipt_root.stat().st_uid != os.getuid():
                 raise Refusal('unsafe-receipt-root')
@@ -633,6 +705,7 @@ class HostDriver:
             lease.assert_owned()
             if any(r['Running'] for r in self.backend.inventory()):
                 raise Refusal('unexpected-running-vm')
+            result['capacity_before_boot'] = self.backend.capacity()
             result['stage'] = 'boot'
             self.backend.start(vm)
             self.backend.ready(vm)
@@ -733,6 +806,7 @@ def main(argv=None):
     modes = parser.add_mutually_exclusive_group()
     modes.add_argument('--rehearse', action='store_true')
     modes.add_argument('--serve-one', action='store_true')
+    modes.add_argument('--capacity', action='store_true', help='Read-only host admission assessment')
     parser.add_argument('--ack', default='')
     parser.add_argument('--run-id', type=int)
     parser.add_argument('--idle-seconds', type=int, default=300)
@@ -740,10 +814,19 @@ def main(argv=None):
     args = parser.parse_args(argv)
     if not (30 <= args.idle_seconds <= 600 and args.idle_seconds <= args.lifetime_seconds <= 10800):
         parser.error('bounded idle/lifetime required (idle 30–600, lifetime <=10800)')
-    mode = 'serve-one' if args.serve_one else 'rehearse' if args.rehearse else 'plan'
+    mode = 'capacity' if args.capacity else 'serve-one' if args.serve_one else 'rehearse' if args.rehearse else 'plan'
     if mode != 'plan' and (platform.system() != 'Darwin' or platform.machine() != 'arm64'
                            or pathlib.Path.home() != pathlib.Path('/Users/stew')):
         raise Refusal('fixed-mac-host-required')
+    if mode == 'capacity':
+        sample = read_host_capacity()
+        try:
+            result = validate_host_capacity(sample)
+        except Refusal as error:
+            print(json.dumps({'status': 'deferred', 'failure': str(error), 'sample': sample}, sort_keys=True))
+            return 1
+        print(json.dumps(dict(result, status='admitted'), sort_keys=True))
+        return 0
     if mode == 'serve-one' and (args.ack != ACTIVATION_ACK or not args.run_id or args.run_id < 1):
         raise Refusal('activation-acknowledgement-and-run-id-required')
     def interrupted(signum, frame):
