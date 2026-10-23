@@ -422,6 +422,89 @@ select pg_temp.assert_authoring((select status='ready' from public.managed_stora
  'Compaction maintenance did not defer ownership cleanup');
 set local pika.classroom_archive_compaction='off';
 
+-- Migration085's compaction rehearsal deletes under compaction, then restores
+-- staged source rows with BOTH maintenance GUCs on, before raising PZ001 to roll
+-- the rehearsal back. Migration107's v2 wrapper delegates to that same path.
+-- Exercise its image-bearing assignment/ledger boundary without removing the
+-- parent classroom or touching any nonfixture row. Rehearsal URLs must retain
+-- source identities: unlike a real cold restore, no new objects are reserved.
+do $compaction_image_rehearsal$
+declare
+ source_before jsonb; ledger_before jsonb; objects_before jsonb;
+ staged_source jsonb; staged_ledger jsonb; staged_objects jsonb;
+ fresh_id uuid:=pg_temp.authoring_fixture_id(950);
+begin
+ select to_jsonb(a) into strict source_before from public.assignments a where id=pg_temp.authoring_fixture_id(20);
+ select coalesce(jsonb_agg(to_jsonb(r) order by owner_table,owner_id,managed_object_id),'[]'::jsonb)
+   into ledger_before from public.teacher_authoring_image_references r where classroom_id=pg_temp.authoring_fixture_id(10);
+ select jsonb_agg(to_jsonb(o) order by id) into objects_before from public.managed_storage_objects o where classroom_id=pg_temp.authoring_fixture_id(10);
+ perform pg_temp.assert_authoring(not exists(select 1 from public.managed_storage_objects where id=fresh_id),
+   'Fresh rehearsal identity unexpectedly has a reservation');
+ begin
+  update public.assignments set instructions_markdown='![Rehearsal source](' || pg_temp.authoring_fixture_url(110) || ')'
+    where id=pg_temp.authoring_fixture_id(20);
+  select to_jsonb(a) into strict staged_source from public.assignments a where id=pg_temp.authoring_fixture_id(20);
+  select coalesce(jsonb_agg(to_jsonb(r) order by owner_table,owner_id,managed_object_id),'[]'::jsonb)
+    into staged_ledger from public.teacher_authoring_image_references r where classroom_id=pg_temp.authoring_fixture_id(10);
+  select jsonb_agg(to_jsonb(o) order by id) into staged_objects from public.managed_storage_objects o where classroom_id=pg_temp.authoring_fixture_id(10);
+  begin
+   perform set_config('pika.classroom_archive_compaction','on',true);
+   delete from public.assignments where id=pg_temp.authoring_fixture_id(20);
+   set constraints removed_teacher_authoring_image_cleanup immediate;
+   set constraints removed_teacher_authoring_image_cleanup deferred;
+   perform pg_temp.assert_authoring(not exists(select 1 from public.assignments where id=pg_temp.authoring_fixture_id(20))
+     and not exists(select 1 from public.teacher_authoring_image_references where owner_table='assignments' and owner_id=pg_temp.authoring_fixture_id(20))
+     and (select status='ready' and cleanup_reason_code is null from public.managed_storage_objects where id=pg_temp.authoring_fixture_id(110)),
+     'Compaction rehearsal deletion did not remove the source ledger while preserving its ready image');
+   perform set_config('pika.classroom_archive_restore','on',true);
+   -- A remapped, unreserved restore ID is invalid even with both maintenance
+   -- flags enabled. The rejected INSERT must leave source and ledger absent.
+   begin
+    insert into public.assignments
+      select * from jsonb_populate_recordset(null::public.assignments,jsonb_build_array(
+        jsonb_set(staged_source,'{instructions_markdown}',to_jsonb('![Unreserved](' || pg_temp.authoring_fixture_url(950) || ')'))));
+    raise exception 'Compaction rehearsal accepted a fresh unreserved image identity';
+   exception when check_violation then
+    if sqlerrm<>'authoring_image_reference_not_attachable' then raise;end if;
+   end;
+   perform pg_temp.assert_authoring(not exists(select 1 from public.assignments where id=pg_temp.authoring_fixture_id(20))
+     and not exists(select 1 from public.teacher_authoring_image_references where owner_table='assignments' and owner_id=pg_temp.authoring_fixture_id(20))
+     and not exists(select 1 from public.managed_storage_objects where id=fresh_id),
+     'Rejected unreserved rehearsal identity changed source, ledger, or managed reservations');
+   -- This is the same recordset insertion shape used by085. It deliberately
+   -- preserves the ORIGINAL ready managed ID embedded in the Markdown source.
+   insert into public.assignments
+     select * from jsonb_populate_recordset(null::public.assignments,jsonb_build_array(staged_source));
+   set constraints removed_teacher_authoring_image_cleanup immediate;
+   set constraints removed_teacher_authoring_image_cleanup deferred;
+   perform pg_temp.assert_authoring((select instructions_markdown=staged_source->>'instructions_markdown' from public.assignments where id=pg_temp.authoring_fixture_id(20))
+     and exists(select 1 from public.teacher_authoring_image_references where owner_table='assignments' and owner_id=pg_temp.authoring_fixture_id(20)
+       and managed_object_id=pg_temp.authoring_fixture_id(110))
+     and public.managed_storage_object_is_referenced(pg_temp.authoring_fixture_id(110))
+     and (select jsonb_agg(to_jsonb(o) order by id)=staged_objects from public.managed_storage_objects o where classroom_id=pg_temp.authoring_fixture_id(10)),
+     'Compaction rehearsal did not rebuild the source-ID ledger without changing managed objects');
+   raise exception 'Authoring image compaction rehearsal completed' using errcode='PZ001';
+  exception when sqlstate 'PZ001' then null;
+  end;
+  perform pg_temp.assert_authoring((select to_jsonb(a)=staged_source from public.assignments a where id=pg_temp.authoring_fixture_id(20))
+    and (select coalesce(jsonb_agg(to_jsonb(r) order by owner_table,owner_id,managed_object_id),'[]'::jsonb)=staged_ledger
+      from public.teacher_authoring_image_references r where classroom_id=pg_temp.authoring_fixture_id(10))
+    and (select jsonb_agg(to_jsonb(o) order by id)=staged_objects from public.managed_storage_objects o where classroom_id=pg_temp.authoring_fixture_id(10))
+    and not coalesce(public.is_classroom_archive_maintenance_mode('restore'),false)
+    and not coalesce(public.is_classroom_archive_maintenance_mode('compaction'),false),
+    'Compaction rehearsal rollback did not restore the original image-bearing source, ledger, objects, and maintenance state');
+  raise exception 'Authoring rehearsal fixture completed' using errcode='PZ002';
+ exception when sqlstate 'PZ002' then null;
+ end;
+ perform pg_temp.assert_authoring((select to_jsonb(a)=source_before from public.assignments a where id=pg_temp.authoring_fixture_id(20))
+   and (select coalesce(jsonb_agg(to_jsonb(r) order by owner_table,owner_id,managed_object_id),'[]'::jsonb)=ledger_before
+     from public.teacher_authoring_image_references r where classroom_id=pg_temp.authoring_fixture_id(10))
+   and (select jsonb_agg(to_jsonb(o) order by id)=objects_before from public.managed_storage_objects o where classroom_id=pg_temp.authoring_fixture_id(10))
+   and not exists(select 1 from public.managed_storage_objects where id=fresh_id),
+   'Compaction proof fixture rollback changed original source or storage ownership state');
+end;
+$compaction_image_rehearsal$;
+
 select pg_temp.assert_authoring((select count(*)=22 from storage.objects
  where bucket_id='test-documents' and name like 'teacher-authoring-proof/c2910000-%'),
  'Proof unexpectedly deleted storage metadata');

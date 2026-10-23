@@ -11,6 +11,7 @@ import {
 } from '@/lib/server/classroom-archive-format'
 import {
   buildClassroomArchiveV2RestorePlan,
+  rewriteClassroomArchiveAuthoringImageUrls,
   type ClassroomArchiveV2RestorePlan,
 } from '@/lib/server/classroom-archive-restore'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -468,8 +469,9 @@ async function downloadAndVerifyArchive(args: {
     restorePlan,
     // The database rehearsal is rolled back and never uploads synthetic restore
     // paths. Null preserves the current relational column shape; durable managed
-    // identities are exercised by the real restore flow.
-    compactionResources: compactionRehearsalResources(restorePlan.resources),
+    // identities are exercised by the real restore flow. Image URL references
+    // use existing source identities so source triggers can rebuild their ledger.
+    compactionResources: compactionRehearsalResources(restorePlan),
     cleanupObjects: verified.manifest.storage_objects.map((object): CleanupObject => ({
       storage_bucket: object.bucket,
       storage_path: object.source_path,
@@ -500,8 +502,12 @@ function rowBatches(rows: ClassroomArchiveV2RestorePlan['resources'][string]) {
   return batches
 }
 
-function stripRehearsalManagedStorageIdentities(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stripRehearsalManagedStorageIdentities)
+function stripRehearsalManagedStorageIdentities(
+  value: unknown,
+  sourceImageIds: ReadonlyMap<string, string>,
+): unknown {
+  if (typeof value === 'string') return rewriteClassroomArchiveAuthoringImageUrls(value, sourceImageIds)
+  if (Array.isArray(value)) return value.map(item => stripRehearsalManagedStorageIdentities(item, sourceImageIds))
   if (!value || typeof value !== 'object') return value
   return Object.fromEntries(Object.entries(value as Record<string, unknown>)
     .map(([key, item]) => [
@@ -510,15 +516,22 @@ function stripRehearsalManagedStorageIdentities(value: unknown): unknown {
       'snapshot_managed_object_id',
     ].includes(key)
       ? [key, null]
-      : [key, stripRehearsalManagedStorageIdentities(item)]))
+      : [key, stripRehearsalManagedStorageIdentities(item, sourceImageIds)]))
 }
 
 function compactionRehearsalResources(
-  resources: ClassroomArchiveV2RestorePlan['resources'],
+  plan: ClassroomArchiveV2RestorePlan,
 ): ClassroomArchiveV2RestorePlan['resources'] {
-  return Object.fromEntries(Object.entries(resources).map(([table, rows]) => [
+  // These identities still exist throughout the rollback-only rehearsal. Fresh
+  // restore identities are reserved only by the separate durable restore flow.
+  const sourceImageIds = new Map(plan.storageObjects.flatMap(object =>
+    object.purpose === 'teacher_authoring_image' && object.sourceManagedObjectId
+      ? [[object.managedObjectId.toLowerCase(), object.sourceManagedObjectId] as const]
+      : [],
+  ))
+  return Object.fromEntries(Object.entries(plan.resources).map(([table, rows]) => [
     table,
-    rows.map((row) => stripRehearsalManagedStorageIdentities(row)),
+    rows.map((row) => stripRehearsalManagedStorageIdentities(row, sourceImageIds)),
   ])) as ClassroomArchiveV2RestorePlan['resources']
 }
 

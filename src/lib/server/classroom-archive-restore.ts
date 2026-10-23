@@ -441,6 +441,17 @@ function collectResourceAuthoringImageIds(resources: Record<string, JsonObject[]
   return ids
 }
 
+/** Apply the same protected-image URL grammar in restore and its rollback rehearsal. */
+export function rewriteClassroomArchiveAuthoringImageUrls(
+  value: string,
+  managedIds: ReadonlyMap<string, string>,
+): string {
+  return value.replace(authoringImageUrlPattern, (candidate, sourceId: string) => {
+    const targetId = managedIds.get(sourceId.toLowerCase())
+    return targetId ? `/api/storage/authoring-images?object_id=${targetId}` : candidate
+  })
+}
+
 function rewriteManagedUrls(
   value: string,
   supabaseOrigin: string,
@@ -454,11 +465,7 @@ function rewriteManagedUrls(
     if (!restoredPath) return candidate
     return `${supabaseOrigin}/storage/v1/object/public/${encodeURIComponent(parsed.bucket)}/${encodeStoragePath(restoredPath)}${parsed.suffix}`
   })
-  return rewritten.replace(authoringImageUrlPattern,
-    (candidate, sourceId: string) => {
-      const restoredId = restoredManagedIdsBySourceId.get(sourceId.toLowerCase())
-      return restoredId ? `/api/storage/authoring-images?object_id=${restoredId}` : candidate
-    })
+  return rewriteClassroomArchiveAuthoringImageUrls(rewritten, restoredManagedIdsBySourceId)
 }
 
 function rewriteResourceValue(args: {
