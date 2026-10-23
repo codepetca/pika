@@ -725,3 +725,12 @@ application/schema change or migration. Batch10 and two new independent guard
 reviews retain the existing human budget waiver. Normal reviewed1662main merge
 now explicitly authorized by direct human reply in classroom-home coordinator;
 verified with read_thread. No production/deploy/provider/rollout authority added.
+
+Guard reviews17/18 completed0af438c68. One P2 accepted: collector still read the
+ignored HOME Docker config after admitting the private override. Read the effective
+config instead; real-file tests cover ambient headers/malformed JSON and preserve
+default-config rejection without DOCKER_CONFIG. All207 affected helper/inventory
+cases PASS. The superseded0af full gate was deliberately cancelled before this
+source edit; new exact-source gate and targeted review19 precede CI. No timeout,
+assertion, endpoint, resource or permission control was weakened. Batch11; human
+review-limit waiver remains active.

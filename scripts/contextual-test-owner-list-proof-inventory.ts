@@ -36,7 +36,7 @@ function bounded(output: string) {
 }
 function readConfig(env: NodeJS.ProcessEnv): string | undefined {
   let fd: number
-  try { fd = openSync(join(env.HOME ?? homedir(), '.docker', 'config.json'), constants.O_RDONLY | constants.O_NONBLOCK) }
+  try { fd = openSync(join(env.DOCKER_CONFIG ?? join(env.HOME ?? homedir(), '.docker'), 'config.json'), constants.O_RDONLY | constants.O_NONBLOCK) }
   catch (error) { if (object(error) && error.code === 'ENOENT') return undefined; throw failure() }
   try {
     const stat = fstatSync(fd)

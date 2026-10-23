@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { execFile } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import type { request } from 'node:http'
+import { dirname, join } from 'node:path'
 import { closeSync, constants, fstatSync, openSync, readSync, type statSync } from 'node:fs'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
 import { testOwnerListDockerInventory } from '../../scripts/contextual-test-owner-list-proof-inventory'
@@ -96,7 +97,7 @@ function nativeFixture(size = 129, sizes = { containers: size, volumes: size, ne
 }
 
 describe('Test owner list bulk native transport (offline)', () => {
-  it('retains the owned CI registry config while still binding complete discovery to the local socket', async () => {
+  it.each(['headers', 'malformed'])('validates the effective CI config while ignoring an ambient %s config', async kind => {
     const actual = await vi.importActual<typeof import('node:fs')>('node:fs')
     vi.mocked(openSync).mockImplementation(actual.openSync)
     vi.mocked(fstatSync).mockImplementation(actual.fstatSync)
@@ -104,13 +105,22 @@ describe('Test owner list bulk native transport (offline)', () => {
     vi.mocked(closeSync).mockImplementation(actual.closeSync)
     const registry = createCiRegistryEnvironment()
     try {
+      const home = join(dirname(registry.env.RUNNER_TEMP), 'operator-home')
+      actual.mkdirSync(join(home, '.docker'), { recursive: true })
+      actual.writeFileSync(join(home, '.docker', 'config.json'), kind === 'headers' ? '{"HttpHeaders":{"X-Route":"PRIVATE"}}' : '{malformed')
       const f = nativeFixture(1)
-      f.transport.env = registry.env
-      expect(await testOwnerListDockerInventory(undefined, f.transport)).toEqual(await platform.assignmentListDockerInventory(globalFixture(1).run))
+      f.transport.env = { ...registry.env, HOME: home }
+      const { readConfig: _readConfig, ...seams } = f.transport
+      expect(await testOwnerListDockerInventory(undefined, seams)).toEqual(await platform.assignmentListDockerInventory(globalFixture(1).run))
       expect(f.transport.env.DOCKER_CONFIG).toBe(registry.env.PIKA_CI_REGISTRY_AUTH_DIR)
       expect(f.transport.run.mock.calls[0][1]).toEqual(contextArgs)
       expect(f.requestMock).toHaveBeenCalledOnce()
       expect(JSON.stringify(f.transport.run.mock.calls)).not.toContain('fixture-only-token')
+      // Without the owned override, the home file is active and still rejected.
+      const ordinary = nativeFixture(0)
+      const { readConfig: _ordinaryRead, ...ordinarySeams } = ordinary.transport
+      await expect(testOwnerListDockerInventory(undefined, { ...ordinarySeams, env: { HOME: home } })).rejects.toThrow('Private Test owner list inventory rejected')
+      expect(ordinary.transport.run).not.toHaveBeenCalled()
     } finally { registry.dispose() }
   })
 
