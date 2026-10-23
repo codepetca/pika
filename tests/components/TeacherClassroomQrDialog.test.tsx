@@ -54,6 +54,8 @@ describe('TeacherClassroomQrDialog', () => {
 
     const dialog = await screen.findByRole('dialog', { name: 'Check in for attendance' })
     expect(dialog).toHaveClass('aspect-[2/3]', 'sm:aspect-video')
+    expect(within(dialog).getAllByRole('button', { name: 'Close', exact: true })).toHaveLength(1)
+    expect(within(dialog).getByRole('button', { name: 'Close', exact: true }).closest('[data-dialog-close]')).toHaveClass('absolute', 'right-3', 'top-3')
     const qr = within(dialog).getByLabelText('Physics 11 check in for attendance QR code')
     expect(qr).toBeVisible()
     expect(qr).toHaveClass('max-w-64', 'sm:h-full', 'p-[10%]')

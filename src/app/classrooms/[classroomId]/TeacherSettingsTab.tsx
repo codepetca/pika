@@ -934,6 +934,7 @@ export function TeacherSettingsTab({
               isOpen={displayedShowCreateBlueprintDialog}
               exitMotion={formStateReady ? 'opacity' : 'none'}
               onClose={closeCreateBlueprintDialog}
+              closeDisabled={displayedBlueprintBusy || !formStateReady}
               maxWidth="max-w-xl"
               className="p-6"
               ariaLabelledBy="create-classroom-blueprint-title"

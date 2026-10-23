@@ -1,3 +1,4 @@
+import { COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildCreateBlueprintWritePlan,
@@ -101,6 +102,28 @@ function blueprintDetail() {
 describe('atomic blueprint operation contracts', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+
+  it('rejects incoming Blueprint source before building classroom copies or update plans', () => {
+    const detail = blueprintDetail()
+    detail.materials[0].content_markdown = '![Private](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+    expect(buildInstantiateBlueprintWritePlan({ detail, input: {} as any, themeColor: 'blue', manifestVersion: '6', operationId } as any))
+      .toEqual({ ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR })
+    expect(() => buildClassroomBlueprintUpdateWritePlan({ snapshot: { sections: { overview_markdown: detail.materials[0].content_markdown } } as any,
+      classroomStartDate: '2026-09-01', classDayDates: [],
+    })).toThrow(COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
+  })
+
+  it.each(['capture', 'archived', 'instantiate'])('rejects direct %s atomic writes with unsupported image references before RPC', async kind => {
+    const rpc = vi.fn()
+    const plan = createPlan()
+    plan.blueprint.overview_markdown = '![Private](https://pika.example/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+    const args: any = { supabase: { rpc }, operationId, teacherId: 'owner', plan }
+    const action = kind === 'capture' ? createCourseBlueprintAtomic({ ...args, operationType: 'capture' })
+      : kind === 'archived' ? createArchivedClassroomBlueprintAtomic(args) : instantiateCourseBlueprintAtomic(args)
+    await expect(action).rejects.toThrow(COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
+    expect(rpc).not.toHaveBeenCalled()
   })
 
   it('hashes semantically identical requests independent of object key order', () => {

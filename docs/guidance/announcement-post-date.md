@@ -15,7 +15,9 @@ archived classes and tampered after-row evidence. The API receipt must match
 the requested Toronto day. Existing announcement sorting and teacher/student
 calendar readers prefer publication time. A confirmed edit refreshes the
 already-mounted teacher calendar. Apply289 and290 before deployment; no shared
-local or production migration application is authorized by this feature request.
+local or production migration application was authorized by the feature request.
+The later production rollout is recorded in the
+[October 22 release receipt](./production-release-2026-10-22.md).
 
 UI reference: Material editor Post date and its Pattern Lab example, composed
 with existing announcement card editing. Reuse FormField/Input/SplitButton;
@@ -48,4 +50,6 @@ Four new cases passed with teacher focused/invalid and student saved-date
 captures inspected in `/tmp/pika-announcement-post-date-browser-matrix`.
 Two existing mutation-feedback cases passed at normal/reduced motion in
 `/tmp/pika-announcement-existing-feedback-browser`. No baseline refresh or
-experimental pattern. Final focused check and independent delta review pending.
+experimental pattern. Feature focused5,413/173 and cumulative independent review
+passed; production-base focused12,583/559 and the journal-resolution review also
+passed. See the release receipt for exact-head CI and production verification.

@@ -1,5 +1,7 @@
 'use client'
 
+import { CreationModalContextHeader, CreationModalTitleField } from '@/components/creation/CreationModalShell'
+
 import {
   useCallback,
   useEffect,
@@ -23,10 +25,12 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy, Eye, ListPlus, Plus, RotateCcw, Settings, Trash2, X } from 'lucide-react'
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Code2, Copy, Eye, Plus, RotateCcw, Settings, Trash2, X } from 'lucide-react'
 import { createPortal } from 'react-dom'
+import { QuestionAuthoringHeader } from '@/components/assessment/QuestionAuthoringHeader'
+import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import { EditableAssessmentTitle } from '@/components/assessment/EditableAssessmentTitle'
-import { Button, EmptyState, FormField, IconButton, Input, SaveStatus, SplitButton, Tooltip, cn } from '@/ui'
+import { Button, DialogCloseButton, EmptyState, FormField, IconButton, Input, SaveStatus, SplitButton, Tooltip, cn } from '@/ui'
 import { Spinner } from '@/components/Spinner'
 import { useRefRect } from '@/hooks/use-element-rect'
 import { useWindowSize } from '@/hooks/use-window-size'
@@ -64,6 +68,7 @@ import type {
 interface Props {
   test: TestAssessmentWithStats
   classroomId: string
+  classroomName?: string
   apiBasePath?: string
   onTestUpdate: (update?: AssessmentEditorSummaryUpdate) => void
   onDraftSummaryChange?: (update: AssessmentEditorSummaryUpdate) => void
@@ -79,6 +84,7 @@ interface Props {
   testQuestionLayout?: 'stacked' | 'summary-detail' | 'editor-only' | 'markdown-only' | 'split'
   initialSplitView?: 'edit' | 'markdown'
   onRequestClose?: () => void
+  showCloseButton?: boolean
   onRequestPublish?: () => Promise<boolean | void> | void
   onTestDateSaved?: (test: TestAssessment) => void
   onRequestUnpublish?: () => void
@@ -178,6 +184,7 @@ function summarizeDraftContent(
 export function TestDetailPanel({
   test,
   classroomId,
+  classroomName,
   apiBasePath = '/api/teacher/tests',
   onTestUpdate,
   onDraftSummaryChange,
@@ -191,6 +198,7 @@ export function TestDetailPanel({
   testQuestionLayout = 'stacked',
   initialSplitView = 'edit',
   onRequestClose,
+  showCloseButton = true,
   onRequestPublish,
   onTestDateSaved,
   onRequestUnpublish,
@@ -1894,10 +1902,10 @@ export function TestDetailPanel({
 
   const testsMarkdownPanel = (
     <div className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span data-testid="markdown-helper-status" className="text-xs font-medium text-text-muted">
+      <div className="modal-controls-row flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">{!usesSplitQuestions && <SaveStatus presentation="indicator" status={saveStatus} />}<span data-testid="markdown-helper-status" className="text-xs font-medium text-text-muted">
           {markdownHelperStatus}
-        </span>
+        </span></div>
         <div className="flex flex-wrap items-center gap-2">
           {!usesMarkdownOnlyQuestions && !isMarkdownEditing ? (
             <Button
@@ -2183,6 +2191,7 @@ export function TestDetailPanel({
                   <div className="space-y-3">
                     {questions.map((question, index) => (
                       <TestQuestionEditor
+                        imageUpload={(file, signal) => uploadMarkdownImage(classroomId, file, signal)}
                         key={question.id}
                         question={question}
                         questionNumber={index + 1}
@@ -2278,228 +2287,180 @@ export function TestDetailPanel({
   )
 
   const testsSplitPanel = (
-    <div data-testid="test-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
-      <div data-testid="test-editor-details-pane" className="flex flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
-        <FormField
-          label="Title"
-          required
-          labelAccessory={(
-            <div className="flex items-center gap-1">
-              <SaveStatus status={saveStatus} />
-              <TeacherWorkSurfaceIconMenuButton
-                icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-                ariaLabel="Settings"
-                tooltip="Settings"
-                menuAriaLabel="Test settings"
-                menuPlacement="down"
-                menuAlign="end"
-                disabled={!isEditable}
-                className="h-11 w-11"
-                items={[
-                  {
-                    id: 'show-results',
-                    label: 'Show results after return',
-                    checked: draftShowResults,
-                    checkedRole: 'menuitemradio',
-                    onSelect: () => handleResultsVisibilityChange(true),
-                  },
-                  {
-                    id: 'hide-results',
-                    label: 'Keep results hidden',
-                    checked: !draftShowResults,
-                    checkedRole: 'menuitemradio',
-                    onSelect: () => handleResultsVisibilityChange(false),
-                  },
-                ]}
-              />
-              {onRequestClose ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label="Close test editor"
-                  disabled={isClosing || isPreparingPublish}
-                  onClick={onRequestClose}
-                  className="h-11 w-11 p-0"
-                >
-                  <X className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              ) : null}
-            </div>
-          )}
-        >
-          <Input
-            value={isGeneratedAssessmentTitle(editTitle) ? '' : editTitle}
-            placeholder={titleGeneratedLabel}
-            disabled={!isEditable}
-            onChange={(event) => handleTitleDraftChange(event.target.value)}
-            onBlur={() => { void handleTitleSave(editTitle) }}
-          />
-        </FormField>
-
-        <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
-          <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
-            <p className="truncate text-sm font-medium leading-5 text-text-default">Reference Docs</p>
-            <TeacherWorkSurfaceIconMenuButton
-              icon={<Plus className="h-7 w-7" aria-hidden="true" />}
-              ariaLabel="Add reference"
-              tooltip="Add reference"
-              menuAriaLabel="Reference type"
-              menuPlacement="down"
-              menuAlign="end"
-              variant="ghost"
-              disabled={!isEditable || hasPendingMarkdownImport}
-              className="h-11 w-11 border-0 p-0"
-              items={[
-                { id: 'link', label: 'Link', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'link' }) },
-                { id: 'upload', label: 'Upload PDF or image', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'upload' }) },
-                { id: 'text', label: 'Markdown text', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'text' }) },
-              ]}
-            />
-          </div>
-          <div className={documents.length > 0 ? 'border-t border-border p-2' : 'px-2 pb-2'}>
-            <TestDocumentsEditor
-        key={documentEditorScopeKey}
-              testId={testAssessment.id}
-              documents={documents}
-              apiBasePath={apiBasePath}
-              isEditable={isEditable && !hasPendingMarkdownImport}
-              onDocumentsChange={handleDocumentsChange}
-              addButtonPlacement="none"
-              externalAddRequest={externalDocumentAddRequest}
-              onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
-            />
-          </div>
-        </div>
-
-        <div className="rounded-md border border-border bg-surface px-3 py-2">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-medium text-text-default">Questions</p>
-            <p className="text-xs text-text-muted">{questions.length} total · {totalQuestionPoints} points</p>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant={splitView === 'markdown' ? 'subtle' : 'surface'}
-          size="sm"
-          fullWidth
-          aria-pressed={splitView === 'markdown'}
-          disabled={splitView === 'markdown' && hasPendingMarkdownImport}
-          onClick={toggleSplitMarkdown}
-          className="justify-start"
-        >
-          <Code2 className="h-4 w-4" aria-hidden="true" />
-          Markdown
-        </Button>
-
-        <div className="mt-1 shrink-0 lg:mt-auto">
-          {publicationError ? <p role="alert" className="mb-2 text-sm text-danger">{publicationError}</p> : null}
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              fullWidth
-              disabled={hasPendingMarkdownImport || openingTestPreview || isClosing}
-              onClick={() => { void handleOpenTestPreview() }}
-            >
-              <Eye className="h-4 w-4" aria-hidden="true" />
-              {openingTestPreview ? 'Opening...' : 'Preview'}
-            </Button>
-            {publicationControl}
-          </div>
-          {testAssessment.status !== 'draft' ? (
-            <Button type="button" variant="ghost" size="sm" fullWidth disabled={isClosing} onClick={onRequestClose}>
-              {isClosing ? 'Saving...' : 'Close'}
-            </Button>
-          ) : null}
-        </div>
-      </div>
-
-      <div data-testid="test-editor-content-pane" className="flex min-h-96 min-w-0 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
-        {splitView === 'markdown' ? (
-          <div className="min-h-0 flex-1">{testsMarkdownPanel}</div>
-        ) : (
-          <>
-            <div data-testid="test-question-actionbar" className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-              <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">
-                {selectedQuestion?.question_type === 'multiple_choice' ? 'Multiple choice' : selectedQuestion ? 'Open response' : ''}
-              </p>
-              <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
-                <Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={selectedQuestionIndex <= 0} onClick={() => selectSplitQuestion(selectedQuestionIndex - 1)} className="h-11 w-11 p-0 text-text-muted">
-                  <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-                </Button>
-                <FormField label="Question number" hideLabel collapseHiddenLabel className="w-14">
-                <Input
-                  type="number"
-                  min="1"
-                  max={questions.length}
-                  step="1"
-                  value={questionNumberDraft}
-                  aria-label="Question number"
-                  disabled={questions.length === 0}
-                  onChange={(event) => setQuestionNumberDraft(event.target.value)}
-                  onBlur={applySplitQuestionNumber}
-                  onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitQuestionNumber() } }}
-                  className="px-2 text-center"
-                />
-                </FormField>
-                <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
-                <Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={selectedQuestionIndex >= questions.length - 1} onClick={() => selectSplitQuestion(selectedQuestionIndex + 1)} className="h-11 w-11 p-0 text-text-muted">
-                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </div>
-              <div role="group" aria-label="Question actions" className="col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
-                {selectedQuestion ? (
-                  <div className="relative w-24 shrink-0">
-                    <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</span>
-                    <FormField label="Points" hideLabel collapseHiddenLabel>
-                    <Input
-                      id="test-split-question-points"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={pointsDraft}
-                      disabled={!isStructureEditable}
-                      aria-invalid={Boolean(pointsError)}
-                      aria-describedby={pointsError ? 'test-split-points-error' : undefined}
-                      onChange={(event) => setPointsDraft(event.target.value)}
-                      onBlur={applySplitPoints}
-                      onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitPoints() } }}
-                      className="w-full pl-12 pr-2 text-right"
-                    />
-                    </FormField>
-                  </div>
-                ) : null}
+    <div data-testid="test-split-layout" className="relative grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+      <div data-testid="test-editor-details-pane" className="flex min-w-0 flex-col bg-surface-2 lg:min-h-0 lg:overflow-hidden">
+        <CreationModalContextHeader spacious itemType="Test" classroomName={classroomName} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
+          <CreationModalTitleField
+            actions={(
+              <div className="flex items-center gap-1">
                 <TeacherWorkSurfaceIconMenuButton
-                  key={documentEditorScopeKey}
-                  exitMotion="opacity"
-                  interactionActive={documentsOwnerKey === documentEditorScopeKey && !loading && !isClosing && !isPreparingPublish && !openingTestPreview}
-                  icon={<ListPlus className="h-5 w-5" aria-hidden="true" />}
-                  ariaLabel="Question actions"
-                  tooltip="Question actions"
-                  menuAriaLabel="Question actions"
-                  variant="primary"
+                  icon={<Settings className="h-4 w-4" aria-hidden="true" />}
+                  ariaLabel="Settings"
+                  tooltip="Settings"
+                  menuAriaLabel="Test settings"
                   menuPlacement="down"
                   menuAlign="end"
-                  className="h-11 w-14 shadow-sm"
+                  disabled={!isEditable}
+                  className="h-11 w-11"
                   items={[
-                    { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('multiple_choice') },
-                    { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('open_response') },
-                    ...(selectedQuestion?.question_type === 'open_response' ? [{ id: 'code-response', label: 'Code response', icon: <Code2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, checked: selectedQuestion.response_monospace === true, checkedRole: 'menuitemcheckbox' as const, disabled: !isStructureEditable, onSelect: () => {
-                      if (!flushSplitEditor()) return
-                      const latestQuestion = pendingDraftRef.current?.questions.find((question) => question.id === selectedQuestion.id) ?? selectedQuestion
-                      handleQuestionChange({ ...latestQuestion, response_monospace: !latestQuestion.response_monospace })
-                    } }] : []),
-                    { id: 'duplicate', label: 'Duplicate question', icon: <Copy className="h-4 w-4" aria-hidden="true" />, dividerBefore: selectedQuestion?.question_type !== 'open_response', disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (!selectedQuestion || !flushSplitEditor()) return; handleDuplicateQuestion(selectedQuestion.id); setSelectedQuestionIndex(selectedQuestionIndex + 1) } },
-                    { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (selectedQuestion) handleQuestionDelete(selectedQuestion.id) } },
+                    {
+                      id: 'show-results',
+                      label: 'Show results after return',
+                      checked: draftShowResults,
+                      checkedRole: 'menuitemradio',
+                      onSelect: () => handleResultsVisibilityChange(true),
+                    },
+                    {
+                      id: 'hide-results',
+                      label: 'Keep results hidden',
+                      checked: !draftShowResults,
+                      checkedRole: 'menuitemradio',
+                      onSelect: () => handleResultsVisibilityChange(false),
+                    },
                   ]}
                 />
+
               </div>
+            )}
+          >
+            <Input
+              value={isGeneratedAssessmentTitle(editTitle) ? '' : editTitle}
+              placeholder={titleGeneratedLabel}
+              disabled={!isEditable}
+              onChange={(event) => handleTitleDraftChange(event.target.value)}
+              onBlur={() => { void handleTitleSave(editTitle) }}
+            />
+          </CreationModalTitleField>
+
+          <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
+            <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
+              <p className="truncate text-sm font-medium leading-5 text-text-default">Reference Docs</p>
+              <TeacherWorkSurfaceIconMenuButton
+                icon={<Plus className="h-7 w-7" aria-hidden="true" />}
+                ariaLabel="Add reference"
+                tooltip="Add reference"
+                menuAriaLabel="Reference type"
+                menuPlacement="down"
+                menuAlign="end"
+                variant="ghost"
+                disabled={!isEditable || hasPendingMarkdownImport}
+                className="h-11 w-11 border-0 p-0"
+                items={[
+                  { id: 'link', label: 'Link', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'link' }) },
+                  { id: 'upload', label: 'Upload PDF or image', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'upload' }) },
+                  { id: 'text', label: 'Markdown text', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'text' }) },
+                ]}
+              />
             </div>
+            <div className={documents.length > 0 ? 'border-t border-border p-2' : 'px-2 pb-2'}>
+              <TestDocumentsEditor
+          key={documentEditorScopeKey}
+                testId={testAssessment.id}
+                documents={documents}
+                apiBasePath={apiBasePath}
+                isEditable={isEditable && !hasPendingMarkdownImport}
+                onDocumentsChange={handleDocumentsChange}
+                addButtonPlacement="none"
+                externalAddRequest={externalDocumentAddRequest}
+                onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-surface px-3 py-2">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium text-text-default">Questions</p>
+              <p className="text-xs text-text-muted">{questions.length} total · {totalQuestionPoints} points</p>
+            </div>
+          </div>
+
+          <div className="mt-1 shrink-0 lg:mt-auto">
+            {publicationError ? <p role="alert" className="mb-2 text-sm text-danger">{publicationError}</p> : null}
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                fullWidth
+                disabled={hasPendingMarkdownImport || openingTestPreview || isClosing}
+                onClick={() => { void handleOpenTestPreview() }}
+              >
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                {openingTestPreview ? 'Opening...' : 'Preview'}
+              </Button>
+              {publicationControl}
+            </div>
+            {testAssessment.status !== 'draft' ? (
+              <Button type="button" variant="ghost" size="sm" fullWidth disabled={isClosing} onClick={onRequestClose}>
+                {isClosing ? 'Saving...' : 'Close'}
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+      <div data-testid="test-editor-content-pane" className="flex min-h-96 min-w-0 flex-col lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
+        <QuestionAuthoringHeader
+          testId="test-question-actionbar"
+          questionNumber={selectedQuestionIndex + 1}
+          status={markdownSaving ? 'saving' : hasPendingMarkdownImport ? 'unsaved' : saveStatus}
+          mode={splitView}
+          onModeChange={(mode) => { if (mode !== splitView) toggleSplitMarkdown() }}
+          writeDisabled={hasPendingMarkdownImport || markdownSaving}
+          markdownDisabled={markdownSaving}
+          points={selectedQuestion ? (
+            <div className="relative w-24 shrink-0">
+              <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</span>
+              <FormField label="Points" hideLabel collapseHiddenLabel>
+              <Input
+                id="test-split-question-points"
+                type="number"
+                min="1"
+                step="1"
+                value={pointsDraft}
+                disabled={!isStructureEditable || splitView === 'markdown'}
+                aria-invalid={Boolean(pointsError)}
+                aria-describedby={pointsError ? 'test-split-points-error' : undefined}
+                onChange={(event) => setPointsDraft(event.target.value)}
+                onBlur={applySplitPoints}
+                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitPoints() } }}
+                className="w-full pl-12 pr-2 text-right"
+              />
+              </FormField>
+            </div>
+          ) : null}
+          navigation={<div role="group" aria-label="Question navigation" className="flex items-center gap-1">
+            <Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={selectedQuestionIndex <= 0} onClick={() => selectSplitQuestion(selectedQuestionIndex - 1)} className="h-11 w-11 p-0 text-text-muted">
+              <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            </Button>
+            <FormField label="Question number" hideLabel collapseHiddenLabel className="w-14">
+            <Input
+              type="number"
+              min="1"
+              max={questions.length}
+              step="1"
+              value={questionNumberDraft}
+              aria-label="Question number"
+              disabled={questions.length === 0}
+              onChange={(event) => setQuestionNumberDraft(event.target.value)}
+              onBlur={applySplitQuestionNumber}
+              onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitQuestionNumber() } }}
+              className="px-2 text-center"
+            />
+            </FormField>
+            <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
+            <Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={selectedQuestionIndex >= questions.length - 1} onClick={() => selectSplitQuestion(selectedQuestionIndex + 1)} className="h-11 w-11 p-0 text-text-muted">
+              <ChevronRight className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </div>}
+        />
+        {onRequestClose && showCloseButton ? <DialogCloseButton label="Close test editor" onClose={onRequestClose} disabled={isClosing || isPreparingPublish} className="sm:right-4 sm:top-4" /> : null}
+        {splitView === 'markdown' ? (
+          <div className="min-h-0 flex-1 p-3 sm:p-4">{testsMarkdownPanel}</div>
+        ) : (
+          <>
             {pointsError ? <p id="test-split-points-error" role="alert" className="text-sm text-danger">{pointsError}</p> : null}
-            <div className="min-h-0 flex-1 lg:overflow-y-auto">
+            <div className="min-h-0 flex-1 space-y-3 p-3 pb-24 sm:p-4 sm:pb-24 lg:overflow-y-auto">
               {selectedQuestion ? (
                 <TestQuestionEditor
                   ref={splitQuestionEditorRef}
@@ -2512,6 +2473,7 @@ export function TestDetailPanel({
                   onChange={handleQuestionChange}
                   onDelete={handleQuestionDelete}
                   variant="split"
+                  imageUpload={(file, signal) => uploadMarkdownImage(classroomId, file, signal)}
                 />
               ) : (
                 <EmptyState title="No questions yet" description="Use Question actions to add a multiple-choice or open-response question." />
@@ -2520,6 +2482,33 @@ export function TestDetailPanel({
           </>
         )}
       </div>
+      {splitView === 'edit' && <div className="absolute bottom-4 right-4 z-local-menu">
+        <TeacherWorkSurfaceIconMenuButton
+          key={documentEditorScopeKey}
+          exitMotion="opacity"
+          interactionActive={documentsOwnerKey === documentEditorScopeKey && !loading && !isClosing && !isPreparingPublish && !openingTestPreview}
+          icon={<Plus className="h-6 w-6" aria-hidden="true" />}
+          ariaLabel="Question actions"
+          tooltip="Question actions"
+          disabled={hasPendingMarkdownImport || markdownSaving}
+          menuAriaLabel="Question actions"
+          variant="success"
+          menuPlacement="up"
+          menuAlign="end"
+          className="h-14 w-14 rounded-full shadow-lg"
+          items={[
+            { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('multiple_choice') },
+            { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('open_response') },
+            ...(selectedQuestion?.question_type === 'open_response' ? [{ id: 'code-response', label: 'Code response', icon: <Code2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, checked: selectedQuestion.response_monospace === true, checkedRole: 'menuitemcheckbox' as const, disabled: !isStructureEditable, onSelect: () => {
+              if (!flushSplitEditor()) return
+              const latestQuestion = pendingDraftRef.current?.questions.find((question) => question.id === selectedQuestion.id) ?? selectedQuestion
+              handleQuestionChange({ ...latestQuestion, response_monospace: !latestQuestion.response_monospace })
+            } }] : []),
+            { id: 'duplicate', label: 'Duplicate question', icon: <Copy className="h-4 w-4" aria-hidden="true" />, dividerBefore: selectedQuestion?.question_type !== 'open_response', disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (!selectedQuestion || !flushSplitEditor()) return; handleDuplicateQuestion(selectedQuestion.id); setSelectedQuestionIndex(selectedQuestionIndex + 1) } },
+            { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (selectedQuestion) handleQuestionDelete(selectedQuestion.id) } },
+          ]}
+        />
+      </div>}
     </div>
   )
 
@@ -2672,6 +2661,7 @@ export function TestDetailPanel({
                   >
                     {questions.map((question, index) => (
                       <TestQuestionEditor
+                        imageUpload={(file, signal) => uploadMarkdownImage(classroomId, file, signal)}
                         key={question.id}
                         question={question}
                         questionNumber={index + 1}

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { X } from 'lucide-react'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
@@ -81,32 +80,21 @@ export function AssignmentCreationPattern() {
         title="New Assignment"
         titleId="pattern-assignment-title"
         closeLabel="Close assignment example"
-        showCloseButton={false}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
         contentClassName="!overflow-hidden !p-0"
       >
         <AssignmentForm
+          classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning"
           fillHeight
           desktopSplit
           title={title}
           instructionsMarkdown={instructions}
           dueAt={dueAt}
-          titleAccessory={(
+          saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                aria-label="Close assignment example"
-                title="Close"
-                onClick={() => setOpen(false)}
-                className="h-11 w-11 p-0"
-              >
-                <X className="h-4 w-4" aria-hidden="true" />
-              </Button>
+              <SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
             </div>
           )}
           onTitleChange={(value) => { setTitle(value); setChanged(true); setError('') }}

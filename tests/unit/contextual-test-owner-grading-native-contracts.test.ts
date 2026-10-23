@@ -136,7 +136,7 @@ describe('inert contextual owner grading proof', () => {
   })
   it('ships rollback-only SQL assertions bound to the coordinator source candidate', () => {
     const m=plan(),sql=readFileSync('scripts/check-contextual-test-owner-grading.sql','utf8')
-    expect(m.nativeVerified).toBe(false);expect(m.sourceSha256).toMatch(/^[a-f0-9]{64}$/);expect(m.migrations).toHaveLength(290)
+    expect(m.nativeVerified).toBe(false);expect(m.sourceSha256).toMatch(/^[a-f0-9]{64}$/);expect(m.migrations).toHaveLength(291)
     expect(m.migrations[257]).toEqual({name:'258_student_test_session_status_projection.sql',sha256:'7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f'})
     expect(m.migrations[258]).toEqual({name:'259_contextual_test_owner_grading.sql',sha256:'698948d58fabdceb9df2869dfa99dc3cd22be6640a198da6de31b17fb9fa3540'})
     expect(sql).toContain('rollback;');expect(sql).not.toMatch(/\bcommit\s*;/i)

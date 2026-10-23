@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { format, parseISO } from 'date-fns'
-import { Clock3, Download, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings, X } from 'lucide-react'
+import { Clock3, Download, MoreVertical, Printer, QrCode as QrCodeIcon, RotateCcw, Settings } from 'lucide-react'
 import {
   ATTENDANCE_STATUS_DOT_CLASSES,
   ATTENDANCE_STATUS_LABELS,
@@ -596,16 +596,6 @@ export function DailyMockup({
         className="aspect-[2/3] overflow-hidden sm:aspect-video"
       >
         <h2 id={classroomQrTitleId} className="sr-only">Check in for attendance</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="absolute right-3 top-3 z-local-menu h-11 w-11 p-0"
-          aria-label="Close"
-          onClick={() => setIsClassroomQrOpen(false)}
-        >
-          <X className="h-5 w-5" aria-hidden="true" />
-        </Button>
         <div className="flex h-full min-h-0 flex-col items-stretch justify-center gap-3 sm:flex-row sm:gap-6">
           <div className="flex w-full min-w-0 shrink-0 flex-col items-center justify-center px-3 text-center sm:w-1/3">
             <p className="text-3xl font-semibold leading-tight text-text-default sm:text-5xl">Environmental Science</p>

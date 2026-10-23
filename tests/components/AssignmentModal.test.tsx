@@ -84,9 +84,11 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
       const details = screen.getByTestId('assignment-editor-details-pane')
       const content = screen.getByTestId('assignment-editor-content-pane')
-      expect(details).toContainElement(screen.getByRole('status'))
-      expect(within(details).getByText('Title')).not.toHaveClass('sr-only')
-      expect(within(details).getByRole('button', { name: 'Close assignment modal' })).toBeInTheDocument()
+      expect(content).toContainElement(screen.getByRole('status'))
+      expect(details).not.toContainElement(screen.getByRole('status'))
+      expect(within(details).getByText('Title')).toHaveClass('sr-only')
+      expect(within(details).queryByRole('button', { name: 'Close assignment modal' })).not.toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Close assignment modal' }).closest('[data-dialog-close]')).toBeInTheDocument()
       expect(details).toContainElement(screen.getByLabelText(/Title/))
       expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
       expect(details.lastElementChild).toBe(screen.getByTestId('assignment-editor-primary-actions'))
@@ -94,7 +96,7 @@ describe('AssignmentModal', () => {
       expect(content).not.toContainElement(screen.getByRole('button', { name: 'Preview' }))
     })
 
-    it('renders WYSIWYG instructions with markdown-safe formatting and a preview modal', async () => {
+    it('renders Markdown instructions with compact image formatting and a preview modal', async () => {
       const onClose = vi.fn()
 
       render(
@@ -112,15 +114,13 @@ describe('AssignmentModal', () => {
       expect(screen.queryByText(/Supported markdown:/i)).not.toBeInTheDocument()
       expect(screen.getByText('Instructions')).toBeInTheDocument()
       const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
-      expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-safe')
-      expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Undo' })).toBeDisabled()
-      expect(screen.getByRole('button', { name: 'Redo' })).toBeDisabled()
+      expect(toolbar).toHaveAttribute('data-toolbar-preset', 'markdown-authoring')
+      expect(screen.getByRole('button', { name: 'Format' })).toBeInTheDocument()
+      expect(within(toolbar).getAllByRole('button')).toHaveLength(5)
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Italic' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'List options' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Link' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Inline code' })).toBeInTheDocument()
+      expect(within(toolbar).getByRole('button', { name: 'Insert image' })).toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Underline' })).not.toBeInTheDocument()
       expect(screen.queryByRole('button', { name: 'Block formatting' })).not.toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
@@ -163,7 +163,7 @@ describe('AssignmentModal', () => {
       )
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: 'Format text as heading' })).toBeInTheDocument()
+        expect(screen.getByRole('button', { name: 'Format' })).toBeInTheDocument()
       })
       expect(screen.getByRole('button', { name: 'Bold' })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: 'Preview' })).toBeInTheDocument()
@@ -1054,7 +1054,7 @@ describe('AssignmentModal', () => {
       expect(screen.getByRole('dialog', { name: 'Edit Draft' })).toHaveClass('h-[90dvh]')
       const details = screen.getByTestId('assignment-editor-details-pane')
       const content = screen.getByTestId('assignment-editor-content-pane')
-      expect(details).toContainElement(screen.getByRole('button', { name: 'Close assignment modal' }))
+      expect(details).not.toContainElement(screen.getByRole('button', { name: 'Close assignment modal' }))
       expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
       expect(content).toContainElement(screen.getByRole('textbox', { name: 'Instructions' }))
       expect(screen.queryByDisplayValue('Untitled Assignment')).not.toBeInTheDocument()
@@ -1419,7 +1419,8 @@ describe('AssignmentModal', () => {
         assignment: { ...baseAssignment, instructions_markdown: source },
       }) })
       render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment}
-        instructionsMode="markdown" onClose={vi.fn()} onSuccess={vi.fn()} />)
+        onClose={vi.fn()} onSuccess={vi.fn()} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
       const editor = screen.getByRole('textbox', { name: 'Instructions Markdown' })
       expect(editor).toHaveValue(baseAssignment.instructions_markdown)
       expect(fetchMock).not.toHaveBeenCalled()

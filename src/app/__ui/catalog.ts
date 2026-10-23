@@ -12,6 +12,24 @@ export interface PatternCatalogEntry {
 
 export const PATTERN_CATALOG: readonly PatternCatalogEntry[] = [
   {
+    id: 'modal-close',
+    name: 'Modal close controls',
+    owner: 'src/ui/DialogCloseButton.tsx; src/ui/Dialog.tsx',
+    maturity: 'stable',
+    useWhen: 'A dismissible modal needs its one 44px ghost X at the top-right, outside scrolling content.',
+    avoidWhen: 'Inline panes, remove-item actions, side drawers, or bypassing a pending-operation dismissal guard.',
+    reference: 'docs/guidance/ui/changes/modal-close-consistency.md',
+  },
+  {
+    id: 'markdown-authoring',
+    name: 'Write / Markdown authoring',
+    owner: 'src/components/editor/MarkdownAuthoringEditor.tsx',
+    maturity: 'experimental',
+    useWhen: 'Course Guide and assignment instructions edit a single Markdown draft in Write or source mode.',
+    avoidWhen: 'Rich student documents, image uploads, or broader adoption before human promotion.',
+    reference: 'docs/guidance/ui/changes/markdown-authoring-toolbar.md',
+  },
+  {
     id: 'tab-entry-extension',
     name: 'Quiet tab entry',
     owner: 'src/ui/TabContentTransition.tsx',

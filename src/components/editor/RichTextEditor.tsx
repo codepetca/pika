@@ -4,6 +4,10 @@ import { useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, u
 import { EditorContent, EditorContext, useCurrentEditor, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
 import { isSafeLinkHref } from '@/lib/tiptap-content'
+import { Image as ImageIcon } from 'lucide-react'
+import { Image } from '@tiptap/extension-image'
+import { sanitizeMarkdownImageSrc, type MarkdownImageUpload } from '@/lib/markdown-images'
+import { MarkdownImageDialog } from './MarkdownImageDialog'
 import { getImageValidationError, IMAGE_ACCEPT } from '@/lib/image-upload'
 
 // --- Tiptap Core Extensions ---
@@ -45,6 +49,7 @@ import { ListDropdownMenu } from '@/components/tiptap-ui/list-dropdown-menu'
 import { BlocksDropdownMenu } from '@/components/tiptap-ui/blocks-dropdown-menu'
 import { MarksDropdownMenu } from '@/components/tiptap-ui/marks-dropdown-menu'
 import { AlignmentDropdownMenu } from '@/components/tiptap-ui/alignment-dropdown-menu'
+import { MarkdownFormatMenu } from '@/components/tiptap-ui/markdown-format-menu'
 import { LinkPopover, LinkContent, LinkButton } from '@/components/tiptap-ui/link-popover'
 import { MarkButton } from '@/components/tiptap-ui/mark-button'
 import { ImageUploadButton } from '@/components/tiptap-ui/image-upload-button'
@@ -72,6 +77,16 @@ import '@/components/tiptap-templates/simple/simple-editor.scss'
 // --- UI Primitives ---
 import { Button } from '@/components/tiptap-ui-primitive/button'
 import { Button as AppButton, Input as AppInput } from '@/ui'
+
+const MarkdownImage = Image.extend({
+  addAttributes() {
+    return { ...this.parent?.(), src: {
+      default: null,
+      parseHTML: (element) => sanitizeMarkdownImageSrc(element.getAttribute('src') || ''),
+      renderHTML: (attributes) => ({ src: sanitizeMarkdownImageSrc(attributes.src || '') || '' }),
+    } }
+  },
+}).configure({ inline: true, allowBase64: false, HTMLAttributes: { class: 'max-w-full h-auto rounded' } })
 
 // --- Image Upload ---
 
@@ -213,6 +228,12 @@ export interface RichTextEditorProps {
   className?: string
   /** Enable image upload via button, paste, and drag-drop */
   enableImageUpload?: boolean
+  /** Upload an image for a Markdown-backed field. URLs resolve through its owning scope. */
+  imageUpload?: MarkdownImageUpload
+  /** Retain the legacy rich document schema while using the compact authoring toolbar. */
+  preserveRichContent?: boolean
+  /** Image placement for rich compatibility documents derived from Markdown. */
+  imageInline?: boolean
   /** Assignment document that will atomically adopt uploaded managed images. */
   assignmentDocId?: string
   /** Callback when image upload fails */
@@ -238,9 +259,11 @@ export type RichTextToolbarPreset =
   | 'compact'
   | 'document'
   | 'markdown-safe'
+  | 'markdown-authoring'
 
 const MainToolbarContent = ({
   onLinkClick,
+  onMarkdownImageRequest,
   isMobile,
   enableImageUpload,
   onImageUploadRequest,
@@ -248,6 +271,7 @@ const MainToolbarContent = ({
   preset,
 }: {
   onLinkClick: () => void
+  onMarkdownImageRequest: () => void
   isMobile: boolean
   enableImageUpload: boolean
   onImageUploadRequest: () => void
@@ -256,6 +280,19 @@ const MainToolbarContent = ({
 }) => {
   const isDocument = preset === 'document'
   const isMarkdownSafe = preset === 'markdown-safe'
+
+  if (preset === 'markdown-authoring') {
+    return <ToolbarGroup className="[&_.tiptap-button]:min-h-control [&_.tiptap-button]:min-w-control">
+      <MarkButton type="bold" />
+      <MarkButton type="italic" />
+      {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+      <Button type="button" data-style="ghost" aria-label="Insert image" tooltip="Insert image" tabIndex={-1}
+        onMouseDown={(event) => event.preventDefault()} onClick={onMarkdownImageRequest}>
+        <ImageIcon className="tiptap-button-icon" aria-hidden="true" />
+      </Button>
+      <MarkdownFormatMenu />
+    </ToolbarGroup>
+  }
 
   return (
     <>
@@ -350,6 +387,9 @@ export function RichTextEditor({
   showToolbar = true,
   className = '',
   enableImageUpload = false,
+  imageUpload,
+  preserveRichContent = false,
+  imageInline = false,
   assignmentDocId,
   onImageUploadError,
   onImageUploadPendingChange,
@@ -375,6 +415,9 @@ export function RichTextEditor({
     resolvedToolbarPreset === 'none' || resolvedToolbarPreset === 'brief'
       ? null
       : resolvedToolbarPreset
+  const markdownAuthoring = resolvedToolbarPreset === 'markdown-authoring'
+  const limitedSchema = markdownAuthoring && !preserveRichContent
+  const [imageDialog, setImageDialog] = useState<{ initialFile?: File; from: number; to: number } | null>(null)
   const isMobile = useIsBreakpoint()
   const [mobileView, setMobileView] = useState<'main' | 'link'>('main')
   const toolbarRef = useRef<HTMLDivElement>(null)
@@ -437,6 +480,7 @@ export function RichTextEditor({
   // Build extensions array based on props (memoized to avoid recreating on every render)
   const extensions = useMemo(() => [
     StarterKit.configure({
+      ...(limitedSchema ? { underline: false, strike: false } : {}),
       horizontalRule: false,
       heading: {
         levels: [1, 2, 3],
@@ -460,27 +504,32 @@ export function RichTextEditor({
         },
       },
     }),
-    HorizontalRule,
-    TextAlign.configure({ types: ['heading', 'paragraph'] }),
-    TaskList,
-    TaskItem.configure({ nested: true }),
-    Typography,
-    Superscript,
-    Subscript,
+    ...(!limitedSchema ? [
+      HorizontalRule,
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
+      Typography,
+      Superscript,
+      Subscript,
+    ] : []),
     Selection,
     Placeholder.configure({
       placeholder,
       includeChildren: true,  // Check child nodes for content (fixes placeholder showing after paste)
     }),
     Markdown,  // Enables markdown parsing for setContent/getMarkdown
-    // Image extensions (always included for rendering, upload only when enabled)
-    ManagedImage.configure({
-      HTMLAttributes: {
-        class: 'max-w-full h-auto rounded',
-      },
-    }),
-    ReadOnlyImageUpload,
-  ], [placeholder])
+    // Markdown stores standard image syntax; rich documents retain managed attributes.
+    ...(limitedSchema ? [MarkdownImage] : [
+      ManagedImage.configure({
+        inline: imageInline,
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded',
+        },
+      }),
+      ReadOnlyImageUpload,
+    ]),
+  ], [placeholder, limitedSchema, imageInline])
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -663,6 +712,8 @@ export function RichTextEditor({
     }
   }, [])
 
+  useEffect(() => { if (!canEdit || !interactionActive) setImageDialog(null) }, [canEdit, interactionActive])
+
   // Sync content changes from parent
   useEffect(() => {
     if (editor && JSON.stringify(content) !== JSON.stringify(editor.getJSON())) {
@@ -707,9 +758,31 @@ export function RichTextEditor({
     }
   }, [isMobile, mobileView])
 
+  useEffect(() => {
+    if (!editor || !markdownAuthoring || !canEdit || !interactionActive || !imageUpload) return
+    const openForFile = (event: ClipboardEvent | DragEvent) => {
+      const files = 'clipboardData' in event ? event.clipboardData?.files : event.dataTransfer?.files
+      const file = files && Array.from(files).find((candidate) => candidate.type.startsWith('image/'))
+      if (!file) return
+      event.preventDefault()
+      event.stopPropagation()
+      setImageDialog({ initialFile: file, from: editor.state.selection.from, to: editor.state.selection.to })
+    }
+    const dragOver = (event: DragEvent) => { if (event.dataTransfer?.types.includes('Files')) event.preventDefault() }
+    const element = editor.view.dom
+    element.addEventListener('paste', openForFile)
+    element.addEventListener('drop', openForFile)
+    element.addEventListener('dragover', dragOver)
+    return () => {
+      element.removeEventListener('paste', openForFile)
+      element.removeEventListener('drop', openForFile)
+      element.removeEventListener('dragover', dragOver)
+    }
+  }, [canEdit, editor, imageUpload, interactionActive, markdownAuthoring])
+
   // Handle image paste and drag-drop when enabled
   useEffect(() => {
-    if (!editor || !canEdit || !interactionActive || !enableImageUpload) return
+    if (!editor || !canEdit || !interactionActive || !enableImageUpload || markdownAuthoring) return
 
     const handlePaste = (event: ClipboardEvent) => {
       const files = event.clipboardData?.files
@@ -752,7 +825,7 @@ export function RichTextEditor({
       editorElement.removeEventListener('drop', handleDrop)
       editorElement.removeEventListener('dragover', handleDragOver)
     }
-  }, [canEdit, editor, enableImageUpload, interactionActive, startImageUpload])
+  }, [canEdit, editor, enableImageUpload, interactionActive, startImageUpload, markdownAuthoring])
 
   if (!editor) {
     return null
@@ -772,6 +845,7 @@ export function RichTextEditor({
       <EditorContext.Provider value={{ editor }}>
         {canEdit && visibleToolbarPreset && (interactionActive ? (
           <Toolbar
+            tabIndex={markdownAuthoring ? 0 : undefined}
             ref={toolbarRef}
             aria-label="Formatting options"
             data-toolbar-preset={visibleToolbarPreset}
@@ -779,6 +853,10 @@ export function RichTextEditor({
             {mobileView === 'main' ? (
               <MainToolbarContent
                 onLinkClick={() => setMobileView('link')}
+                onMarkdownImageRequest={() => {
+                  if (!editor.isEditable || !interactionRef.current) return
+                  setImageDialog({ from: editor.state.selection.from, to: editor.state.selection.to })
+                }}
                 isMobile={isMobile}
                 enableImageUpload={enableImageUpload}
                 onImageUploadRequest={requestImageUpload}
@@ -793,6 +871,12 @@ export function RichTextEditor({
           <div className="tiptap-toolbar" data-variant="fixed" aria-hidden="true" />
         ))}
 
+        {imageDialog && canEdit && interactionActive && <MarkdownImageDialog imageUpload={imageUpload}
+          initialFile={imageDialog.initialFile} onClose={() => setImageDialog(null)}
+          onInsert={(image) => {
+            if (!editor.isEditable || !interactionRef.current) return
+            editor.commands.insertContentAt({ from: imageDialog.from, to: imageDialog.to }, { type: 'image', attrs: image })
+          }} />}
         {canEdit && enableImageUpload ? (
           <AppInput
             ref={imageInputRef}

@@ -55,7 +55,7 @@ export type ClassroomArchiveStorageObject = {
   managedOwner?: {
     objectId: string
     purpose: 'student_assignment_artifact' | 'student_inline_image'
-      | 'teacher_test_material' | 'test_execution_snapshot' | 'legacy_classroom_file'
+      | 'teacher_test_material' | 'teacher_authoring_image' | 'test_execution_snapshot' | 'legacy_classroom_file'
     createdByUserId: string | null
     dataSubjectUserId: string | null
     resourceType: string | null

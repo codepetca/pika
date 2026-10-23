@@ -1,9 +1,186 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test'
-import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-student-tables'
+import { expect, test, type Page, type TestInfo, type Locator } from '@playwright/test'
 import { verifyTabSelectionVisibility } from './helpers/tab-selection-visibility'
+import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-student-tables'
 
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
+
+for (const role of ['teacher', 'student'] as const) {
+  test(`modal corner close stays consistent for ${role}`, async ({ page }, info) => {
+    await openPatternLab(page, info, role)
+    await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('modal-close')
+    const fixture = page.getByTestId('modal-close-pattern')
+    await fixture.scrollIntoViewIfNeeded()
+    for (const kind of ['content', 'panel', 'creation', 'confirm', 'alert']) {
+      const opener = fixture.getByRole('button', { name: `Open ${kind} close example`, exact: true })
+      await opener.click()
+      const dialog = page.getByRole(kind === 'alert' ? 'alertdialog' : 'dialog')
+      const close = dialog.locator('[data-dialog-close]').getByRole('button')
+      await expect(close).toBeVisible()
+      await expect(dialog.locator('[data-dialog-close]')).toHaveCount(1)
+      const assertCorner = async () => {
+        const panel = (await dialog.boundingBox())!, button = (await close.boundingBox())!
+        expect(button.width).toBeGreaterThanOrEqual(44)
+        expect(button.height).toBeGreaterThanOrEqual(44)
+        expect(Math.abs(panel.x + panel.width - button.x - button.width - 12)).toBeLessThanOrEqual(1)
+        expect(Math.abs(button.y - panel.y - 12)).toBeLessThanOrEqual(1)
+      }
+      await assertCorner()
+      if (['content', 'panel', 'creation'].includes(kind)) {
+        await dialog.getByRole('button', { name: 'Toggle busy state' }).click()
+        await expect(close).toBeDisabled()
+        await page.keyboard.press('Escape')
+        await expect(dialog).toBeVisible()
+        await dialog.getByRole('button', { name: 'Toggle busy state' }).click()
+        await dialog.getByText('Reading paragraph 12.', { exact: false }).scrollIntoViewIfNeeded()
+        await assertCorner()
+      }
+      await info.attach(`${role}-${kind}-corner-close`, { body: await dialog.screenshot({ path: info.outputPath(`${role}-${kind}-corner-close.png`), animations: 'disabled' }), contentType: 'image/png' })
+      await close.click()
+      await expect(dialog).toHaveCount(0)
+      await expect(opener).toBeFocused()
+    }
+  })
+}
+
+for (const role of ['teacher', 'student'] as const) {
+  test(`Markdown authoring preserves ${role} Course Guide and assignment content`, async ({ page }, info) => {
+    const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+    await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+    await mockTableShellReads(page, role)
+    const source = '# Field observations\n\nExplain **why**.\n\n- First observation\n- Second observation\n\n> Keep your notes.\n'
+    const guide = { classroom: { title: 'Field observations course' },
+      visibility: { overview: true, resources: false, assignments: false, tests: false },
+      overviewMarkdown: source, resourcesContent: null, assignments: [], tests: [] }
+    await page.route('**/api/classrooms/*/course-guide', route => route.fulfill({ json: { guide } }))
+    const saves: unknown[] = []
+    await page.route(`**/api/teacher/classrooms/${TABLE_CLASSROOM_ID}`, async route => {
+      saves.push(route.request().postDataJSON())
+      await route.fulfill({ json: {} })
+    })
+    const capture = async (name: string) => {
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+      await info.attach(name, { body: await page.screenshot({ path: info.outputPath(`${name}.png`), animations: 'disabled' }), contentType: 'image/png' })
+    }
+    await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=resources&guideContinuity=true`)
+    await expect(page.getByRole('heading', { name: 'Field observations course', exact: true })).toBeVisible()
+    if (role === 'student') {
+      await expect(page.getByRole('heading', { name: 'Field observations', exact: true })).toBeVisible()
+      await expect(page.getByRole('group', { name: 'Course guide editing mode' })).toHaveCount(0)
+      await capture('student-course-guide-reading')
+      await openPatternLab(page, info, 'student')
+      await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('markdown-authoring')
+      await page.locator('#markdown-authoring').scrollIntoViewIfNeeded()
+      await expect(page.locator('#markdown-authoring').getByRole('heading', { name: 'Field observations', exact: true })).toBeInViewport()
+      await capture('student-assignment-instructions-reading')
+      return
+    }
+    await page.getByRole('button', { name: 'More actions', exact: true }).click()
+    await page.getByRole('menuitem', { name: 'Edit', exact: true }).click()
+    const modes = page.getByRole('group', { name: 'Course guide editing mode' })
+    await expect(modes.getByRole('button', { name: 'Write' })).toHaveAttribute('aria-pressed', 'true')
+    await modes.getByRole('button', { name: 'Markdown' }).click()
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
+    await page.getByRole('textbox', { name: 'Course guide Markdown', exact: true }).fill(source)
+    await capture('teacher-course-guide-markdown')
+    await modes.getByRole('button', { name: 'Write' }).click()
+    const toolbar = page.getByRole('toolbar', { name: 'Formatting options' })
+    await expect(toolbar.getByRole('button')).toHaveCount(5)
+    await expect(page.getByRole('textbox', { name: 'Course guide', exact: true })).toContainText('First observation')
+    await modes.getByRole('button', { name: 'Write' }).focus()
+    await page.keyboard.press('Tab')
+    await expect(toolbar).toBeFocused()
+    await page.keyboard.press('ArrowRight')
+    await expect(toolbar.getByRole('button', { name: 'Bold' })).toBeFocused()
+    await page.keyboard.press('Tab')
+    await expect(page.getByRole('textbox', { name: 'Course guide', exact: true })).toBeFocused()
+    await toolbar.focus()
+    await page.keyboard.press('Shift+Tab')
+    await expect(modes.getByRole('button', { name: 'Write' })).toBeFocused()
+    await capture('teacher-course-guide-write')
+    const format = toolbar.getByRole('button', { name: 'Format', exact: true })
+    await format.focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('menuitem', { name: 'Heading 2', exact: true })).toBeVisible()
+    await capture('teacher-course-guide-format')
+    await page.keyboard.press('Escape')
+    await expect(format).toBeFocused()
+    for (const button of await toolbar.getByRole('button').all()) {
+      const box = (await button.boundingBox())!
+      expect(box.height).toBeGreaterThanOrEqual(44)
+      expect(box.width).toBeGreaterThanOrEqual(44)
+    }
+    await modes.getByRole('button', { name: 'Markdown' }).click()
+    await expect(page.getByRole('textbox', { name: 'Course guide Markdown', exact: true })).toHaveValue(source)
+    expect(saves).toEqual([])
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
+    await expect.poll(() => saves).toEqual([{ courseOverviewMarkdown: source }])
+    await expect(page.getByRole('heading', { name: 'Field observations', exact: true })).toBeVisible()
+
+    await openPatternLab(page, info, 'teacher')
+    await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('assignment-edit-split')
+    await page.getByRole('button', { name: 'Open assignment edit prototype' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Edit Assignment', exact: true })
+    const cornerClose = dialog.getByRole('button', { name: 'Close assignment edit prototype' })
+    const dialogBounds = (await dialog.boundingBox())!, closeBounds = (await cornerClose.boundingBox())!
+    const inset = info.project.metadata.viewport === 'desktop' ? 16 : 12
+    expect(Math.abs(closeBounds.y - dialogBounds.y - inset)).toBeLessThanOrEqual(1)
+    expect(Math.abs(dialogBounds.x + dialogBounds.width - closeBounds.x - closeBounds.width - inset)).toBeLessThanOrEqual(1)
+    const assignmentModes = dialog.getByRole('group', { name: 'Instructions editing mode' })
+    if (info.project.metadata.viewport === 'desktop') {
+      const modes = (await assignmentModes.boundingBox())!
+      expect(Math.abs(modes.y + modes.height / 2 - closeBounds.y - closeBounds.height / 2)).toBeLessThanOrEqual(2)
+    }
+    await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
+    await dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true }).fill(source)
+    await capture('teacher-assignment-markdown')
+    await assignmentModes.getByRole('button', { name: 'Write' }).click()
+    await expect(dialog.getByRole('textbox', { name: 'Instructions', exact: true })).toContainText('First observation')
+    await expect(dialog.getByRole('toolbar').getByRole('button')).toHaveCount(5)
+    await capture('teacher-assignment-write')
+    await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
+    await expect(dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true })).toHaveValue(source)
+
+    await cornerClose.click()
+    let finishSave!: () => void
+    let saveStarted = false
+    const saveGate = new Promise<void>(resolve => { finishSave = resolve })
+    await page.route('**/api/teacher/assignments/assignment-controller-A', async route => {
+      if (route.request().method() !== 'PATCH') return route.fulfill({ json: {} })
+      saveStarted = true
+      await saveGate
+      await route.fulfill({ json: { assignment: {
+        id: 'assignment-controller-A', classroom_id: 'classroom-controller',
+        title: 'Updated field observations', description: 'Original instructions',
+        instructions_markdown: 'Original instructions', rich_instructions: null,
+        due_at: '2030-10-21T03:59:59.999Z', position: 0, is_draft: true,
+        released_at: null, track_authenticity: true, created_by: 'teacher-controller',
+        submission_requirements: [], created_at: '2026-10-01T00:00:00Z',
+        updated_at: '2026-10-22T12:00:00Z', ...route.request().postDataJSON(),
+      } } })
+    })
+    await page.goto('/pattern-lab?role=teacher&fixture=assignment-controller', { waitUntil: 'domcontentloaded' })
+    await expect(page.locator('[data-pattern-lab-ready=true]')).toBeVisible()
+    await page.getByRole('button', { name: 'Open controlled assignment' }).click()
+    const controlled = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close assignment modal' }) })
+    const controlledTitle = controlled.getByRole('textbox', { name: 'Title', exact: true })
+    const saveIndicator = controlled.getByRole('status').filter({ hasText: /^(Saved|Saving…|Unsaved)$/ })
+    await controlledTitle.fill('')
+    await expect(controlledTitle).toHaveAttribute('placeholder', 'Title')
+    await expect(controlledTitle).toHaveValue('')
+    await controlledTitle.fill('Updated field observations')
+    await controlledTitle.press('Tab')
+    try {
+      await expect.poll(() => saveStarted).toBe(true)
+      await expect(saveIndicator).toHaveText('Saving…')
+      await expect(saveIndicator.locator('svg')).toBeVisible()
+      await expect(saveIndicator.getByText('Saving…', { exact: true })).toHaveClass(/sr-only/)
+      await info.attach('assignment-saving-circle', { body: await controlled.screenshot({ path: info.outputPath('assignment-saving-circle.png'), animations: 'disabled' }), contentType: 'image/png' })
+    } finally { finishSave() }
+    await expect(saveIndicator).toHaveText('Saved')
+    await expect(saveIndicator.locator('svg')).toHaveCount(0)
+  })
+}
 
 for (const role of ['teacher', 'student'] as const) {
   test(`${role} browser tab follows classroom identity and theme`, async ({ page }, testInfo) => {
@@ -123,6 +300,7 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('survey-edit-split')
   await page.getByRole('button', { name: 'Open survey edit prototype' }).click()
   const dialog = page.getByRole('dialog', { name: 'Edit Survey', exact: true })
+  await expectEditorContext(dialog, 'Survey', testInfo)
   const details = dialog.getByTestId('survey-editor-details-pane')
   const content = dialog.getByTestId('survey-editor-content-pane')
   const number = content.getByRole('spinbutton', { name: 'Question number' })
@@ -148,6 +326,9 @@ test('prototypes survey editing with accessible split panes and local authoring 
   if (testInfo.project.metadata.viewport === 'desktop') {
     expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
     expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThanOrEqual(1)
+    const corner = (await dialog.getByRole('button', { name: 'Close survey edit prototype' }).boundingBox())!
+    const questionActions = (await actions.boundingBox())!
+    expect(Math.abs(corner.y + corner.height / 2 - questionActions.y - questionActions.height / 2)).toBeLessThanOrEqual(2)
   } else {
     expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
     expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThanOrEqual(1)
@@ -164,6 +345,13 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await content.getByRole('button', { name: 'Delete option E', exact: true }).click()
   await expect(content.getByRole('textbox', { name: 'Question 1 option E' })).toHaveValue('')
   await expectNoOverflow()
+  if (testInfo.project.metadata.viewport === 'mobile') {
+    const panel = (await dialog.boundingBox())!, context = (await details.locator('.modal-context-row').boundingBox())!
+    expect(context.y).toBeGreaterThanOrEqual(panel.y)
+    const corner = (await dialog.getByRole('button', { name: 'Close survey edit prototype' }).boundingBox())!
+    const classroom = (await details.locator('.modal-context-row [title]').boundingBox())!
+    expect(classroom.x + classroom.width).toBeLessThanOrEqual(corner.x - 4)
+  }
   await capture('survey-edit-multiple-choice')
 
   await content.getByRole('button', { name: 'Next question' }).click()
@@ -252,6 +440,54 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await dialog.getByRole('button', { name: 'Close survey edit prototype' }).click()
   await expect(dialog).toHaveCount(0)
   expect(writes).toEqual([])
+  expect(pageErrors).toEqual([])
+
+  await mockTableShellReads(page, 'teacher')
+  let surveyRecord = {
+    id: 'survey-preview-source', classroom_id: TABLE_CLASSROOM_ID, title: 'Preview saving feedback',
+    status: 'draft', opens_at: null, show_results: true, dynamic_responses: true, position: 0,
+    created_by: '30000000-0000-4000-8000-000000000012',
+    created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z',
+    stats: { total_students: 0, responded: 0, questions_count: 1 },
+  }
+  const previewQuestions = [{ id: 'preview-question', survey_id: surveyRecord.id, question_type: 'multiple_choice',
+    question_text: 'Which activity helped?', options: ['Discussion', 'Fieldwork'], response_max_chars: 1200,
+    position: 0, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' }]
+  let releasePreviewSave!: () => void
+  let previewSaveStarted = false
+  const previewSaveGate = new Promise<void>(resolve => { releasePreviewSave = resolve })
+  await page.route('**/api/teacher/surveys**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (route.request().method() === 'PATCH' && path === `/api/teacher/surveys/${surveyRecord.id}`) {
+      previewSaveStarted = true
+      await previewSaveGate
+      surveyRecord = { ...surveyRecord, ...route.request().postDataJSON() }
+      return route.fulfill({ json: { survey: surveyRecord } })
+    }
+    if (route.request().method() !== 'GET') return route.abort()
+    return route.fulfill({ json: path === '/api/teacher/surveys' ? { surveys: [surveyRecord] }
+      : path.endsWith('/results') ? { results: [], stats: surveyRecord.stats }
+      : { survey: surveyRecord, questions: previewQuestions } })
+  })
+  await page.goto(`/e2e-fixtures/teacher-student-tables?role=teacher&tab=assignments&surveyId=${surveyRecord.id}`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'More survey actions', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
+  const workspace = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close survey editor' }) })
+  await workspace.getByRole('button', { name: 'Preview', exact: true }).click()
+  await expect(workspace.getByText('Student preview', { exact: true })).toBeVisible()
+  const previewTitle = workspace.getByRole('textbox', { name: 'Title', exact: true })
+  await previewTitle.fill('Updated preview title')
+  await previewTitle.press('Tab')
+  const previewSave = workspace.getByRole('status').filter({ hasText: /^(Saved|Saving…|Unsaved)$/ })
+  try {
+    await expect.poll(() => previewSaveStarted).toBe(true)
+    await expect(previewSave).toHaveText('Saving…')
+    await expect(previewSave.locator('svg')).toBeVisible()
+    await testInfo.attach('survey-preview-saving-circle', { body: await workspace.screenshot({ path: testInfo.outputPath('survey-preview-saving-circle.png'), animations: 'disabled' }), contentType: 'image/png' })
+  } finally { releasePreviewSave() }
+  await expect(previewSave).toHaveText('Saved')
+  await expect(workspace.getByRole('heading', { name: 'Updated preview title', exact: true })).toBeVisible()
+  expect(writes.map(url => new URL(url).pathname)).toEqual([`/api/teacher/surveys/${surveyRecord.id}`])
   expect(pageErrors).toEqual([])
 })
 for (const role of ['teacher', 'student'] as const) {
@@ -572,8 +808,36 @@ for (const role of ['teacher', 'student'] as const) {
   })
 }
 
+async function expectEditorContext(dialog: Locator, itemType: string, testInfo: TestInfo) {
+  const context = dialog.locator('.modal-context-row')
+  await expect(context.getByText(itemType, { exact: true })).toBeVisible()
+  const classroom = context.locator('[title]')
+  await expect(classroom).toHaveAttribute('title', 'Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+  await expect(classroom).toHaveText('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+  expect(await classroom.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
+  expect(await classroom.evaluate(element => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+  const contextBounds = (await context.boundingBox())!
+  const titleBounds = (await dialog.getByRole('textbox', { name: 'Title', exact: true }).boundingBox())!
+  expect(titleBounds.y).toBeGreaterThanOrEqual(contextBounds.y + contextBounds.height + 10)
+  const closeBounds = (await dialog.locator('[data-dialog-close]').boundingBox())!
+  const panelBounds = (await dialog.boundingBox())!
+  expect(closeBounds.y - panelBounds.y).toBeLessThanOrEqual(17)
+  if (testInfo.project.metadata.viewport === 'desktop' && ['Assignment', 'Material'].includes(itemType)) {
+    const controls = (await dialog.locator('.modal-controls-row').first().boundingBox())!
+    expect(Math.abs(closeBounds.y + closeBounds.height / 2 - controls.y - controls.height / 2)).toBeLessThanOrEqual(2)
+  }
+  if (testInfo.project.metadata.viewport === 'mobile') {
+    const classroomBounds = (await classroom.boundingBox())!
+    // The classroom fade leaves visual space while its box ends at the close slot.
+    expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual(closeBounds.x)
+    // The second-row input can use the full details width below the corner X.
+    expect(titleBounds.y).toBeGreaterThan(closeBounds.y + closeBounds.height)
+  }
+}
+
 async function openPatternLab(page: Page, testInfo: TestInfo, role: 'teacher' | 'student') {
-  await page.goto(`/pattern-lab?role=${role}`, { waitUntil: 'networkidle' })
+  await page.goto(`/pattern-lab?role=${role}`, { waitUntil: 'domcontentloaded' })
+  await expect(page.locator('[data-pattern-lab-ready=true]')).toBeVisible()
   await page.evaluate(() => document.fonts.ready)
 
   const expectedTheme = testInfo.project.metadata.theme
@@ -749,6 +1013,7 @@ test.describe('teacher Pattern Lab', () => {
     const heading = dialog.getByRole('heading', { name: 'New Assignment' })
     const status = dialog.locator('[role="status"][aria-live="polite"]')
     const close = dialog.getByRole('button', { name: 'Close assignment example' })
+    await expectEditorContext(dialog, 'Assignment', testInfo)
     const detailsPane = dialog.getByTestId('assignment-editor-details-pane')
     const contentPane = dialog.getByTestId('assignment-editor-content-pane')
     const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
@@ -756,7 +1021,7 @@ test.describe('teacher Pattern Lab', () => {
     const titleField = detailsPane.getByRole('textbox', { name: 'Title' })
     await expect(titleField).toHaveValue('Field observations')
     await expect(titleField).toHaveAttribute('placeholder', 'Title')
-    await expect(detailsPane.locator('label').filter({ hasText: /^Title/ })).not.toHaveClass(/sr-only/)
+    await expect(detailsPane.locator('label').filter({ hasText: /^Title/ })).toHaveClass(/sr-only/)
     const attachments = dialog.getByRole('group', { name: 'Submission Requirement' })
     await expect(attachments.getByText('Submission Requirement', { exact: true })).toBeVisible()
     const addRequirement = attachments.getByRole('button', { name: 'Add submission requirement' })
@@ -806,18 +1071,19 @@ test.describe('teacher Pattern Lab', () => {
     expect(previewBounds.width).toBeGreaterThanOrEqual(44)
     expect(previewBounds.height).toBeGreaterThanOrEqual(44)
     await expect(status).toHaveText('Saved')
-    const frame = (await dialog.boundingBox())!
     const detailsBounds = (await detailsPane.boundingBox())!
     const contentBounds = (await contentPane.boundingBox())!
     const save = (await status.boundingBox())!
     const dismiss = (await close.boundingBox())!
-    expect(Math.abs(detailsBounds.y - frame.y)).toBeLessThanOrEqual(2)
-    expect(dismiss.x).toBeGreaterThanOrEqual(save.x + save.width)
+    const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
+    expect(Math.abs(detailsBounds.y - contextBounds.y - contextBounds.height)).toBeLessThanOrEqual(1)
+    expect(dismiss.y + dismiss.height <= save.y || dismiss.x >= save.x + save.width).toBe(true)
     expect(dismiss.width).toBeGreaterThanOrEqual(44)
     expect(dismiss.height).toBeGreaterThanOrEqual(44)
     if (testInfo.project.metadata.viewport === 'desktop') {
       expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
-      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThan(1)
+      const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
+      expect(Math.abs(contentBounds.y - contextBounds.y)).toBeLessThanOrEqual(1)
       expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
       const actionsBounds = (await primaryActions.boundingBox())!
       const detailsPaddingBottom = await detailsPane.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
@@ -898,17 +1164,31 @@ test.describe('teacher Pattern Lab', () => {
     await openPatternLab(page, testInfo, 'teacher')
     await page.getByRole('button', { name: 'Open assignment edit prototype' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit Assignment', exact: true })
+    await expectEditorContext(dialog, 'Assignment', testInfo)
     const detailsPane = dialog.getByTestId('assignment-editor-details-pane')
     const contentPane = dialog.getByTestId('assignment-editor-content-pane')
     const primaryActions = detailsPane.getByTestId('assignment-editor-primary-actions')
     const toolbar = contentPane.getByRole('toolbar', { name: 'Formatting options' })
     const editor = contentPane.getByRole('textbox', { name: 'Instructions' })
-    const close = detailsPane.getByRole('button', { name: 'Close assignment edit prototype' })
+    const close = dialog.getByRole('button', { name: 'Close assignment edit prototype' })
 
+    const modalFrame = (await dialog.boundingBox())!, xBounds = (await close.boundingBox())!
+    if (testInfo.project.metadata.viewport === 'desktop') {
+      const modeBounds = (await contentPane.getByRole('group', { name: 'Instructions editing mode' }).boundingBox())!
+      expect(Math.abs(xBounds.y + xBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
+      const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
+      expect(Math.abs(contextBounds.y + contextBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
+      expect(modeBounds.x + modeBounds.width).toBeLessThanOrEqual(xBounds.x - 4)
+    } else {
+      const classroomBounds = (await dialog.locator('.modal-context-row [title]').boundingBox())!
+      expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual(xBounds.x)
+    }
+    expect(xBounds.y - modalFrame.y).toBeLessThanOrEqual(17)
     await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
-    await expect(detailsPane.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
+    await expect(contentPane.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
     await expect(close).toBeVisible()
-    expect(Math.abs((await detailsPane.boundingBox())!.y - (await dialog.boundingBox())!.y)).toBeLessThanOrEqual(2)
+    const contextHeaderBounds = (await dialog.locator('.modal-context-row').boundingBox())!
+    expect(Math.abs((await detailsPane.boundingBox())!.y - contextHeaderBounds.y - contextHeaderBounds.height)).toBeLessThanOrEqual(1)
     await expect(detailsPane.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
     await expect(detailsPane.getByRole('button', { name: 'Tue Sep 1' })).toBeVisible()
     await expect(detailsPane.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
@@ -920,9 +1200,9 @@ test.describe('teacher Pattern Lab', () => {
     const contentBounds = (await contentPane.boundingBox())!
     const toolbarBounds = (await toolbar.boundingBox())!
     if (testInfo.project.metadata.viewport === 'desktop') {
-      expect((await close.boundingBox())!.x + (await close.boundingBox())!.width).toBeLessThanOrEqual(contentBounds.x)
       expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
-      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThan(1)
+      const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
+      expect(Math.abs(contentBounds.y - contextBounds.y)).toBeLessThanOrEqual(1)
       expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
       expect(toolbarBounds.x).toBeGreaterThanOrEqual(contentBounds.x)
       expect(toolbarBounds.y).toBeGreaterThanOrEqual(contentBounds.y)
@@ -976,6 +1256,7 @@ test.describe('teacher Pattern Lab', () => {
     await openPatternLab(page, testInfo, 'teacher')
     await page.getByRole('button', { name: 'Open test edit prototype' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit Test', exact: true })
+    await expectEditorContext(dialog, 'Test', testInfo)
     const detailsPane = dialog.getByTestId('test-editor-details-pane')
     const contentPane = dialog.getByTestId('test-editor-content-pane')
     const actionbar = contentPane.getByTestId('test-question-actionbar')
@@ -983,16 +1264,15 @@ test.describe('teacher Pattern Lab', () => {
     const toolbar = contentPane.getByRole('toolbar', { name: 'Formatting options' })
     const editor = contentPane.getByRole('textbox', { name: 'Question 1 prompt' })
     const close = dialog.getByRole('button', { name: 'Close test edit prototype' })
-    const status = detailsPane.getByRole('status')
+    const status = contentPane.getByRole('status')
 
     await expect(close).toBeVisible()
     await expect(status).toHaveText('Saved')
-    const dialogTop = (await dialog.boundingBox())!.y
     const detailsTop = (await detailsPane.boundingBox())!.y
-    expect(Math.abs(detailsTop - dialogTop)).toBeLessThanOrEqual(2)
     const closeBounds = (await close.boundingBox())!
+    expect(detailsTop - (await dialog.boundingBox())!.y).toBeLessThanOrEqual(2)
     const settingsBounds = (await detailsPane.getByRole('button', { name: 'Settings', exact: true }).boundingBox())!
-    expect(closeBounds.x >= settingsBounds.x + settingsBounds.width || settingsBounds.x >= closeBounds.x + closeBounds.width).toBe(true)
+    expect(closeBounds.y + closeBounds.height <= settingsBounds.y || closeBounds.x >= settingsBounds.x + settingsBounds.width || settingsBounds.x >= closeBounds.x + closeBounds.width).toBe(true)
 
     await testInfo.attach('test-edit-details-prototype', {
       body: await dialog.screenshot({ path: testInfo.outputPath('test-edit-details-prototype.png'), animations: 'disabled' }),
@@ -1116,6 +1396,10 @@ test.describe('teacher Pattern Lab', () => {
     } else {
       expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
       expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)
+      const contextBounds = (await detailsPane.locator('.modal-context-row').boundingBox())!
+      expect(contextBounds.y).toBeGreaterThanOrEqual((await dialog.boundingBox())!.y)
+      const classroomBounds = (await detailsPane.locator('.modal-context-row [title]').boundingBox())!
+      expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual((await close.boundingBox())!.x - 4)
     }
 
     await testInfo.attach('test-edit-split-prototype', {
@@ -1362,12 +1646,16 @@ test.describe('teacher Pattern Lab', () => {
     const open = page.getByRole('button', { name: 'Open material example' })
     await open.click()
     const dialog = page.getByRole('dialog', { name: 'New Material', exact: true })
+    await expectEditorContext(dialog, 'Material', testInfo)
     const preview = dialog.getByRole('button', { name: 'Preview', exact: true })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByRole('region', { name: 'Material details' })).toBeVisible()
     await expect(dialog.getByRole('region', { name: 'Material editor' })).toBeVisible()
-    await expect(dialog.getByRole('button', { name: /^(Visual|Markdown|Apply Markdown|Discard Markdown)$/ })).toHaveCount(0)
-    await expect(dialog.locator('[data-toolbar-preset="markdown-safe"]')).toBeVisible()
+    const modes = dialog.getByRole('group', { name: 'Material content editing mode' })
+    await expect(modes.getByRole('button', { name: 'Write', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(modes.getByRole('button', { name: 'Markdown', exact: true })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /^(Visual|Apply Markdown|Discard Markdown)$/ })).toHaveCount(0)
+    await expect(dialog.locator('[data-toolbar-preset="markdown-authoring"]')).toBeVisible()
     await expect(dialog.getByText('Ungraded classwork')).toHaveCount(0)
     await expect(preview).toHaveText('Preview')
     const control = (await preview.boundingBox())!
@@ -1375,6 +1663,7 @@ test.describe('teacher Pattern Lab', () => {
     expect(control.height).toBeGreaterThanOrEqual(44)
     const close = (await dialog.getByRole('button', { name: 'Close material modal' }).boundingBox())!
     const post = (await dialog.getByRole('button', { name: 'Post', exact: true }).boundingBox())!
+    const detailsY = (await dialog.getByRole('region', { name: 'Material details' }).boundingBox())!.y
     expect(close.y + close.height).toBeLessThanOrEqual(post.y)
     await expect(dialog.getByRole('textbox', { name: 'Title' })).toBeFocused()
     await testInfo.attach('material-editor', {
@@ -1390,9 +1679,12 @@ test.describe('teacher Pattern Lab', () => {
     await page.keyboard.press('Escape')
     await expect(reading).toBeHidden()
     await expect(preview).toBeFocused()
-    await dialog.getByRole('textbox', { name: 'Content', exact: true }).fill(Array.from({ length: 40 }, (_, i) => `Reading note ${i + 1}: record a question for the next discussion.`).join('\n'))
+    await dialog.getByRole('textbox', { name: 'Material content', exact: true }).fill(Array.from({ length: 40 }, (_, i) => `Reading note ${i + 1}: record a question for the next discussion.`).join('\n'))
     await expect(preview).toBeVisible()
-    expect((await dialog.getByRole('button', { name: 'Post', exact: true }).boundingBox())!.y).toBe(post.y)
+    // Content focus can scroll the stacked mobile dialog; actions retain their layout position.
+    const afterPost = (await dialog.getByRole('button', { name: 'Post', exact: true }).boundingBox())!
+    const afterDetailsY = (await dialog.getByRole('region', { name: 'Material details' }).boundingBox())!.y
+    expect(afterPost.y - afterDetailsY).toBe(post.y - detailsY)
     await dialog.getByRole('button', { name: 'Choose material action' }).click()
     await expect(page.getByRole('menuitem', { name: 'Save draft' })).toBeFocused()
     await testInfo.attach('material-actions', {
@@ -1590,8 +1882,7 @@ test.describe('student Pattern Lab', () => {
 
 
 test('changes a published announcement post date on explicit Save', async ({ page }, testInfo) => {
-  await page.addInitScript(theme => localStorage.setItem('theme', theme), testInfo.project.metadata.theme as string)
-  await page.goto('/pattern-lab?role=teacher')
+  await openPatternLab(page, testInfo, 'teacher')
   await page.getByRole('button', { name: 'Edit posted material example' }).click()
   await page.getByLabel('Post date (Toronto)').focus()
   await page.getByRole('dialog', { name: 'Material', exact: true }).screenshot({ path: testInfo.outputPath('material-reference.png') })

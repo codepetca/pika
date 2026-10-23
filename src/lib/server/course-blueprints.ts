@@ -1,3 +1,4 @@
+import { containsCourseBlueprintAuthoringImage, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { loadClassroomBlueprintSource } from '@/lib/server/classroom-blueprint-source'
 import {
@@ -1068,6 +1069,10 @@ export async function exportCourseBlueprintBundle(teacherId: string, blueprintId
     return { ok: false as const, status: detailResult.status || 500, error: detailResult.error || 'Failed to load blueprint' }
   }
 
+  if (containsCourseBlueprintAuthoringImage(detailResult.detail)) {
+    return { ok: false as const, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
+
   const supabase = getSupabase()
   const versionResult = await saveCourseBlueprintVersion({
     supabase,
@@ -1160,6 +1165,9 @@ export async function importCourseBlueprintPlan(
   parsed: VerifiedCourseBlueprintPackagePlan,
   options: BlueprintOperationOptions = {},
 ) {
+  if (containsCourseBlueprintAuthoringImage(parsed)) {
+    return { ok: false as const, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const operationId = resolveBlueprintOperationId(options.operationId)
   stabilizeLegacyImportArtifactIds(parsed, operationId)
 
@@ -1246,6 +1254,13 @@ export async function createCourseBlueprintFromClassroom(
   if (!sourceResult.ok) return sourceResult
 
   const source = sourceResult.source
+  if (containsCourseBlueprintAuthoringImage({
+    sections: [source.classroom.course_overview_markdown, source.classroom.course_outline_markdown, source.resources_markdown],
+    assignments: source.assignments, assessments: source.tests,
+    lesson_templates: source.lesson_templates, materials: source.materials, surveys: source.surveys,
+  })) {
+    return { ok: false as const, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   if (!options.copyOnly) {
     // Loading content is asynchronous. Recheck before creating private copies;
     // the existing atomic capture still owns commit-time owner/revision fences.
@@ -1377,6 +1392,10 @@ export async function createClassroomFromBlueprint(
   const detailResult = await getCourseBlueprintDetail(teacherId, input.blueprintId)
   if (!detailResult.detail) {
     return { ok: false as const, status: detailResult.status || 500, error: detailResult.error || 'Failed to load blueprint' }
+  }
+
+  if (containsCourseBlueprintAuthoringImage(detailResult.detail)) {
+    return { ok: false as const, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
   }
 
   const supabase = getSupabase()

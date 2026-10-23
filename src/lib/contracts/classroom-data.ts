@@ -244,6 +244,13 @@ export const CLASSROOM_NON_OWNING_REFERENCES = [
     parent_table: 'classrooms',
     child_columns: ['classroom_id'],
   },
+  // Trigger-rebuilt from restored source rows and managed object identities.
+  // Source deletion removes references; classroom deletion cascades the ledger.
+  {
+    child_table: 'teacher_authoring_image_references',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
   {
     child_table: 'managed_storage_json_references',
     parent_table: 'assignment_docs',

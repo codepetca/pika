@@ -1,3 +1,4 @@
+import { COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -746,4 +747,24 @@ describe('course blueprint package', () => {
     expect(analysis.missing).toContain('lesson templates')
     expect(analysis.suggestions.length).toBeGreaterThan(0)
   })
+})
+
+
+describe('authoring images in portable course packages', () => {
+  const image = '![Private](/api/storage/authoring-images?object_id=c2910000-0000-4000-8000-000000000101)'
+  it('rejects export without altering the Blueprint', () => {
+    const detail = structuredClone(DETAIL)
+    detail.assignments[0].instructions_markdown = image
+    const before = structuredClone(detail)
+    expect(() => buildCourseBlueprintExportBundle(detail)).toThrow(COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
+    expect(detail).toEqual(before)
+  })
+  it.each(['assignments.md', 'classwork-materials.md', 'tests.md', 'surveys.md'] as const)(
+    'rejects private image references in imported %s', file => {
+      const bundle = buildCourseBlueprintExportBundle(DETAIL)
+      bundle.files[file] += `\n\n${image}\n`
+      const parsed = parseCourseBlueprintImportBundle(bundle)
+      expect(parsed.errors).toContain(COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
+    },
+  )
 })

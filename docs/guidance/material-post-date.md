@@ -26,8 +26,8 @@ old contract. No column, table, RPC signature, generated type, background job,
 or browser database access is added. Migration application still requires the
 separate exact-target authorization in the schema rollout checklist.
 
-Announcements currently support future scheduling but have no equivalent
-backdating control. This change covers materials only.
+Announcements have the same explicit post-date option; see
+[announcement post dates](./announcement-post-date.md).
 
 ## UI brief and verification
 

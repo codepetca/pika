@@ -1,3 +1,5 @@
+import { ApiError } from '@/lib/api-error'
+import { containsCourseBlueprintAuthoringImage, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR } from '@/lib/course-blueprint-package-storage-policy'
 import { createHash, randomUUID } from 'node:crypto'
 import { addDays, format, isValid, parse } from 'date-fns'
 import { fromZonedTime } from 'date-fns-tz'
@@ -539,6 +541,7 @@ export async function createCourseBlueprintAtomic(args: {
   expectedSourceRevision?: number | null
   plan: CreateBlueprintWritePlan
 }): Promise<BlueprintOperationResult> {
+  if (containsCourseBlueprintAuthoringImage(args.plan)) throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
   const plan = createBlueprintWritePlanSchema.parse(args.plan)
   const expectedSourceRevision = z.number().int().positive().nullable().parse(
     args.expectedSourceRevision ?? null,
@@ -578,6 +581,7 @@ export async function createArchivedClassroomBlueprintAtomic(args: {
   expectedSourceRevision: number
   plan: CreateBlueprintWritePlan
 }): Promise<BlueprintOperationResult> {
+  if (containsCourseBlueprintAuthoringImage(args.plan)) throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
   const plan = createBlueprintWritePlanSchema.parse(args.plan)
   const expectedSourceRevision = z.number().int().positive().parse(
     args.expectedSourceRevision,
@@ -612,6 +616,7 @@ export async function instantiateCourseBlueprintAtomic(args: {
   blueprintVersionId: string
   plan: InstantiateBlueprintWritePlan
 }): Promise<BlueprintOperationResult> {
+  if (containsCourseBlueprintAuthoringImage(args.plan)) throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
   const plan = instantiateBlueprintWritePlanSchema.parse(args.plan)
   const requestSha256 = hashBlueprintOperationRequest({
     blueprint_id: args.blueprintId,
@@ -787,6 +792,7 @@ export function buildCreateBlueprintWritePlan(args: {
   manifestVersion: string
   sourcePackageExportedAt?: string | null
 }): CreateBlueprintWritePlan {
+  if (containsCourseBlueprintAuthoringImage(args)) throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
   return createBlueprintWritePlanSchema.parse({
     blueprint: {
       ...args.blueprint,
@@ -884,6 +890,9 @@ export function buildInstantiateBlueprintWritePlan(args: {
 }):
   | { ok: true; plan: InstantiateBlueprintWritePlan }
   | { ok: false; status: 400; error: string } {
+  if (containsCourseBlueprintAuthoringImage(args.detail)) {
+    return { ok: false, status: 400, error: COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR }
+  }
   const calendar = buildClassroomCalendar(args.input)
   if (!calendar.ok) return calendar
 
@@ -1047,6 +1056,7 @@ export function buildClassroomBlueprintUpdateWritePlan(args: {
   classroomStartDate: string
   classDayDates: string[]
 }): ClassroomBlueprintUpdateWritePlan {
+  if (containsCourseBlueprintAuthoringImage(args.snapshot)) throw new ApiError(400, COURSE_BLUEPRINT_AUTHORING_IMAGE_ERROR)
   const appliedTemplates = args.snapshot.lesson_templates.slice(
     0,
     args.classDayDates.length,

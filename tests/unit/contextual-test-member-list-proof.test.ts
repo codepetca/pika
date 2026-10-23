@@ -164,17 +164,20 @@ describe('actual-source member migration profiles (offline)', () => {
     const decommission = [...prior, 'private.attendance_decommission_delete_capabilities'].sort()
     const membership = [...decommission, 'private.attendance_participant_associations', 'private.attendance_override_event_generations'].sort()
     const adoption = [...membership, 'private.attendance_pointer_mutations'].sort()
-    const currentCatalog = [...adoption, 'private.attendance_override_mutations'].sort()
-    for (const catalog of [local, prior, decommission, membership, currentCatalog]) {
+    const learnerMembership = [...adoption, 'private.attendance_override_mutations'].sort()
+    const currentCatalog = [...learnerMembership, 'public.teacher_authoring_image_references'].sort()
+    for (const catalog of [local, prior, decommission, membership, adoption, learnerMembership, currentCatalog]) {
       expect(testMemberListReviewedIsolatedCatalog(catalog, current)).toEqual(currentCatalog)
     }
     expect(testMemberListReviewedIsolatedCatalog(membership, current.slice(0, 284))).toEqual(membership)
     expect(testMemberListReviewedIsolatedCatalog(adoption, current.slice(0, 285))).toEqual(adoption)
+    expect(testMemberListReviewedIsolatedCatalog(learnerMembership, current.slice(0, 290))).toEqual(learnerMembership)
+    expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 290))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 284))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()
   })
-  it('reproduces the former exact257 rejection of the complete current288 chain', () => {
-    expect(current).toHaveLength(290)
+  it('reproduces the former exact257 rejection of the complete current291 chain', () => {
+    expect(current).toHaveLength(291)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })

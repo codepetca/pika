@@ -293,11 +293,11 @@ describe('AssignmentModal logical close with retained real descendants', () => {
     expect(writes()).toHaveLength(0)
   })
 
-  it('retires an open real mobile Heading menu portal without deferred focus return into the exit', async () => {
+  it('retires an open real mobile Format menu portal without deferred focus return into the exit', async () => {
     mobile = true
     const owner = mount()
     const current = editor()
-    fireEvent.keyDown(screen.getByRole('button', { name: 'Format text as heading' }), { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Format' }), { key: 'ArrowDown' })
     await advance(0)
     expect(screen.getByRole('menuitem', { name: 'Heading 1' })).toBeInTheDocument()
     owner.changeOwner(false, null)

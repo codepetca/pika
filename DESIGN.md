@@ -237,6 +237,17 @@ for new or deliberately modified work.
   owner exists.
 - `ModalLayer` is the canonical current owner for document-level dialogs and
   mobile drawers. Several older fixed overlays remain governed migration debt.
+- Dismissible modal windows use `DialogCloseButton` at the top right with the
+  shared 44px ghost X and `right-3 top-3` inset (creation editors match their
+  responsive form padding). Keep it outside scrolling content and share the
+  existing title/control row; do not add a close-only header band. Reserve
+  horizontal space beside mode switches and title controls. The same close
+  callback and busy guard govern X, Escape and backdrop; X cancels rather than
+  confirms. Side drawers, inline panes and item removal keep their own controls.
+- Compact authoring modals align their title input with the right-pane controls.
+  Keep Title as an accessible label and empty-field placeholder, without a visible
+  label/status row. Show circular saving feedback in existing authoring controls;
+  keep saved/unsaved announcements accessible and failures visible.
 - Portable layer-responsibility and light/dark scrim tokens back the shared
   owners. They do not grant feature code permission to choose a global layer.
 - Overlay containment remains a behavioral boundary: new work reuses an

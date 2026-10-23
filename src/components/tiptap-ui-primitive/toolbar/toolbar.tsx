@@ -40,12 +40,13 @@ const useToolbarNavigation = (
     return () => observer.disconnect()
   }, [collectItems, toolbarRef])
 
-  const { selectedIndex } = useMenuNavigation<HTMLElement>({
+  const { selectedIndex, setSelectedIndex } = useMenuNavigation<HTMLElement>({
     containerRef: toolbarRef,
     items,
     orientation: "horizontal",
     onSelect: (el) => el.click(),
     autoSelectFirstItem: false,
+    nativeKeyboard: true,
   })
 
   useEffect(() => {
@@ -54,8 +55,11 @@ const useToolbarNavigation = (
 
     const handleFocus = (e: FocusEvent) => {
       const target = e.target as HTMLElement
-      if (toolbar.contains(target))
+      if (toolbar.contains(target)) {
         target.setAttribute("data-focus-visible", "true")
+        const index = items.findIndex((item) => item === target)
+        if (index >= 0) setSelectedIndex(index)
+      }
     }
 
     const handleBlur = (e: FocusEvent) => {
@@ -70,7 +74,7 @@ const useToolbarNavigation = (
       toolbar.removeEventListener("focus", handleFocus, true)
       toolbar.removeEventListener("blur", handleBlur, true)
     }
-  }, [toolbarRef])
+  }, [toolbarRef, items, setSelectedIndex])
 
   useEffect(() => {
     if (selectedIndex !== undefined && items[selectedIndex]) {

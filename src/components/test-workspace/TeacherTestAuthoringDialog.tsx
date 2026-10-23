@@ -17,6 +17,7 @@ interface TeacherTestAuthoringDialogProps {
   initialView?: AuthoringView
   test: TestAssessmentWithStats | null
   classroomId: string
+  classroomName?: string
   apiBasePath: string
   hasPendingMarkdownImport: boolean
   publicationError?: string
@@ -38,6 +39,7 @@ export function TeacherTestAuthoringDialog({
   initialView = 'edit',
   test,
   classroomId,
+  classroomName,
   apiBasePath,
   publicationError = '',
   onClose,
@@ -119,7 +121,7 @@ export function TeacherTestAuthoringDialog({
       title="Edit test"
       titleId="test-authoring-dialog-title"
       closeLabel="Close test editor"
-      showCloseButton={false}
+      closeDisabled={isClosing || isPreparingPublish}
       maxWidth="!max-w-6xl"
       panelClassName="!p-0"
       contentClassName="!overflow-hidden !p-0"
@@ -137,6 +139,7 @@ export function TeacherTestAuthoringDialog({
           <TestDetailPanel
             test={test}
             classroomId={classroomId}
+            classroomName={classroomName}
             apiBasePath={apiBasePath}
             onDraftSummaryChange={onDraftSummaryChange}
             onTestUpdate={onTestUpdate}
@@ -152,6 +155,7 @@ export function TeacherTestAuthoringDialog({
             testQuestionLayout="split"
             initialSplitView={initialView}
             onRequestClose={() => { void handleClose() }}
+            showCloseButton={false}
             onRequestPublish={handlePublish}
             onTestDateSaved={onTestDateSaved}
             onRequestUnpublish={onRequestUnpublish ? () => { void handleUnpublish() } : undefined}

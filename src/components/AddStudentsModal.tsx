@@ -3,7 +3,7 @@
 import { useState, useLayoutEffect, useRef } from 'react'
 import { CircleHelp } from 'lucide-react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
-import { IconButton } from '@/ui'
+import { DialogCloseButton, IconButton } from '@/ui'
 
 interface AddStudentsModalProps {
   isOpen: boolean
@@ -142,8 +142,9 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-lg shadow-xl border border-border max-w-2xl w-full p-6 max-h-[90vh] flex flex-col">
-        <h2 className="text-xl font-bold text-text-default mb-4">Add Students</h2>
+      <div className="relative bg-surface rounded-lg shadow-xl border border-border max-w-2xl w-full p-6 max-h-[90vh] flex flex-col">
+        <DialogCloseButton onClose={handleClose} label="Close Add Students" disabled={isSubmitting} />
+        <h2 className="pr-14 text-xl font-bold text-text-default mb-4">Add Students</h2>
 
         <div className="flex-1 overflow-auto">
           {/* Input Textarea */}

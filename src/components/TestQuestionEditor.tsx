@@ -13,6 +13,7 @@ import type { TestAssessmentQuestion, TestQuestionType } from '@/types'
 
 interface Props {
   question: TestAssessmentQuestion
+  imageUpload?: (file: File, signal?: AbortSignal) => Promise<string>
   questionNumber: number
   isEditable: boolean
   structureLocked?: boolean
@@ -78,6 +79,7 @@ function toLocalState(question: TestAssessmentQuestion): LocalQuestionState {
 
 export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(function TestQuestionEditor({
   question,
+  imageUpload,
   questionNumber,
   isEditable,
   structureLocked = false,
@@ -545,12 +547,13 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
       <div className="flex min-h-0 flex-col gap-3">
         {isEditable ? (
           <MarkdownContentEditor
+            imageUpload={imageUpload}
             markdown={state.question_text}
             onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
             onBlur={() => handleSave()}
             aria-label={questionPromptLabel}
             placeholder={questionPlaceholder}
-            toolbarPreset="compact"
+            toolbarPreset="markdown-authoring"
             className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32"
           />
         ) : (
@@ -588,12 +591,13 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
         </div>
 
         <MarkdownContentEditor
+          imageUpload={imageUpload}
           markdown={state.question_text}
           onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
           onBlur={() => handleSave()}
           aria-label={questionPromptLabel}
           placeholder={questionPlaceholder}
-          toolbarPreset="compact"
+          toolbarPreset="markdown-authoring"
           className="overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-[144px]"
         />
 
@@ -745,12 +749,13 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
               <>
                 <div className="bg-surface">
                   <MarkdownContentEditor
+                    imageUpload={imageUpload}
                     markdown={state.question_text}
                     onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
                     onBlur={() => handleSave()}
                     aria-label={questionPromptLabel}
                     placeholder={questionPlaceholder}
-                    toolbarPreset="compact"
+                    toolbarPreset="markdown-authoring"
                     className="[&_.ProseMirror]:!min-h-[112px]"
                   />
                 </div>
@@ -805,12 +810,13 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
           {isEditable ? (
             <>
               <MarkdownContentEditor
+                imageUpload={imageUpload}
                 markdown={state.question_text}
                 onMarkdownChange={(questionText) => updateState({ question_text: questionText })}
                 onBlur={() => handleSave()}
                 aria-label={questionPromptLabel}
                 placeholder={questionPlaceholder}
-                toolbarPreset="compact"
+                toolbarPreset="markdown-authoring"
                 className="overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-[88px]"
               />
               {multipleChoiceEditor}

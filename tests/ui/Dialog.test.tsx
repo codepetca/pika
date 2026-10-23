@@ -72,7 +72,7 @@ describe('AlertDialog', () => {
 
   it('keeps success alerts free of decorative icons', () => {
     render(<AlertDialog {...defaultProps} variant="success" />)
-    expect(screen.getByRole('alertdialog').querySelector('svg')).not.toBeInTheDocument()
+    expect(screen.getByRole('alertdialog').querySelector('svg:not([data-dialog-close] svg)')).not.toBeInTheDocument()
     expect(screen.getByRole('alertdialog')).toHaveAccessibleName('Alert Title')
   })
 

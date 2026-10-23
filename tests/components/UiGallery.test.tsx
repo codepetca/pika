@@ -155,6 +155,8 @@ describe('UiGallery history preview fixture', () => {
     await user.click(opener)
     const dialog = screen.getByRole('dialog', { name: `New ${kind}` })
     expect(dialog).toHaveClass('h-[90dvh]')
+    expect(within(dialog).getByText(kind, { exact: true })).toBeInTheDocument()
+    expect(within(dialog).getByTitle('Health for Life · Period 2 · Community, wellbeing and lifelong learning')).toHaveTextContent('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
     expect(within(dialog).getByRole('textbox', { name: /^Title(?: \*)?$/ })).toHaveValue(title)
     expect(within(dialog).getByRole('button', { name: 'Preview' })).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: closeLabel }))

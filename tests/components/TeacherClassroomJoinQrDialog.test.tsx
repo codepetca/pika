@@ -29,7 +29,8 @@ describe('TeacherClassroomJoinQrDialog', () => {
 
     await user.click(within(dialog).getByRole('button', { name: 'Copy link' }))
     expect(onCopyLink).toHaveBeenCalledOnce()
-    expect(within(dialog).getByRole('button', { name: 'Close' })).toBeVisible()
+    expect(within(dialog).getAllByRole('button', { name: 'Close' })).toHaveLength(1)
+    expect(within(dialog).getByRole('button', { name: 'Close' }).closest('[data-dialog-close]')).toHaveClass('absolute', 'right-3', 'top-3')
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).toHaveBeenCalledOnce()
   })

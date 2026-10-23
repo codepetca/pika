@@ -411,13 +411,16 @@ async function downloadStorageObjects(
   } catch {
     // The settings table is absent before migration 117.
   }
-  if (!settings.error && settings.data?.mode === 'enforced') {
-    const inventory = await (supabase as any)
+  if (!settings.error && settings.data?.mode) {
+    const inventoryQuery = (supabase as any)
       .from('managed_storage_objects')
       .select('id,storage_bucket,storage_path,purpose,status,created_by_user_id,data_subject_user_id,resource_type,resource_id')
       .eq('classroom_id', classroomId)
       .eq('status', 'ready')
       .in('storage_bucket', ['assignment-artifacts', 'submission-images', 'test-documents'])
+    // ID-only Markdown images need the ownership inventory even in compatibility mode.
+    const inventory = await (settings.data.mode === 'enforced'
+      ? inventoryQuery : inventoryQuery.eq('purpose', 'teacher_authoring_image'))
     if (inventory.error) {
       throw new ClassroomArchiveExportError(
         'archive_managed_storage_inventory_failed',
@@ -426,12 +429,12 @@ async function downloadStorageObjects(
         true,
       )
     }
-    references = z.array(z.object({
+    const managedReferences = z.array(z.object({
       id: z.string().uuid(),
       storage_bucket: z.enum(['assignment-artifacts', 'submission-images', 'test-documents']),
       storage_path: z.string().min(1),
       purpose: z.enum([
-        'student_assignment_artifact', 'student_inline_image', 'teacher_test_material',
+        'student_assignment_artifact', 'student_inline_image', 'teacher_test_material', 'teacher_authoring_image',
         'test_execution_snapshot', 'legacy_classroom_file',
       ]),
       status: z.literal('ready'),
@@ -451,6 +454,9 @@ async function downloadStorageObjects(
         resourceId: object.resource_id,
       },
     }))
+    references = settings.data.mode === 'enforced' ? managedReferences : [...new Map(
+      [...references, ...managedReferences].map((reference) => [`${reference.bucket}\0${reference.path}`, reference]),
+    ).values()]
   }
   return mapWithConcurrency(references, 4, async (reference) => {
     const { data, error } = await supabase.storage.from(reference.bucket).download(reference.path)

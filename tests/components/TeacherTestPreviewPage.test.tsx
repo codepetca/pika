@@ -168,7 +168,10 @@ describe('TeacherTestPreviewPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Maximize Window' }))
     await waitFor(() => expect(document.documentElement.requestFullscreen).toHaveBeenCalledOnce())
     expect(screen.getByRole('status')).toHaveTextContent('Loading preview')
-    fireEvent.click(screen.getByRole('button', { name: 'Close Preview' }))
+    const cornerClose = screen.getByRole('button', { name: 'Close Preview' })
+    expect(screen.getAllByRole('button', { name: 'Close Preview' })).toHaveLength(1)
+    expect(cornerClose.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
+    fireEvent.click(cornerClose)
     expect(onClose).toHaveBeenCalledOnce()
   })
 

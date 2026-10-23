@@ -79,3 +79,4 @@ export {
 // Utilities
 export { cn } from './utils'
 export { IconButton, type IconButtonProps } from './IconButton'
+export { DialogCloseButton, type DialogCloseButtonProps } from './DialogCloseButton'

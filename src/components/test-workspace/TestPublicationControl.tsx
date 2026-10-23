@@ -112,9 +112,9 @@ export function TestPublicationControl({ test, classroomId, apiBasePath, onPubli
         ]}
       />
       {error && !pickerOpen ? <p role="alert" className="mt-1 text-sm text-danger">{error}</p> : null}
-      <DialogPanel isOpen={pickerOpen} onClose={cancelPicker} ariaLabelledBy={titleId} maxWidth="max-w-sm">
+      <DialogPanel isOpen={pickerOpen} onClose={cancelPicker} closeDisabled={busy} ariaLabelledBy={titleId} maxWidth="max-w-sm">
         <div className="space-y-4">
-          <h2 id={titleId} className="text-lg font-semibold text-text-default">{draft ? 'Schedule test' : 'Change test date'}</h2>
+          <h2 id={titleId} className="pr-14 text-lg font-semibold text-text-default">{draft ? 'Schedule test' : 'Change test date'}</h2>
           <p className="text-sm text-text-muted">{draft
             ? 'Students will see this test on Calendar now and in Tests on this date. Access stays closed until you open it.'
             : 'Dates use America/Toronto. Student access is controlled separately.'}</p>

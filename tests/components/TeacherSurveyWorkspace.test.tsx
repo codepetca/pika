@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within, type RenderOptions } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
+import { TooltipProvider } from '@/ui'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { Survey, SurveyQuestion } from '@/types'
 
@@ -16,6 +17,14 @@ vi.mock('@/components/editor', () => ({
     markdown: string; onMarkdownChange: (value: string) => void; readOnly?: boolean; disabled?: boolean; 'aria-label'?: string
   }) => <textarea aria-label={props['aria-label']} value={markdown} disabled={readOnly || disabled} onChange={(event) => onMarkdownChange(event.target.value)} />,
 }))
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return <TooltipProvider>{children}</TooltipProvider>
+}
+
+function render(ui: ReactElement, options?: RenderOptions) {
+  return renderWithTestingLibrary(ui, { wrapper: Wrapper, ...options })
+}
 
 function selectQuestion(number: number) {
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Question number' }), { target: { value: String(number) } })
@@ -78,7 +87,7 @@ function createMountedRoot() {
   document.body.appendChild(host)
   const root = createRoot(host)
   return {
-    render: (node: ReactNode) => root.render(node),
+    render: (node: ReactNode) => root.render(<Wrapper>{node}</Wrapper>),
     cleanup: () => {
       root.unmount()
       host.remove()
@@ -118,6 +127,19 @@ describe('TeacherSurveyWorkspace', () => {
     vi.restoreAllMocks()
   })
 
+  it('lets the modal shell own dismissal while loading without rendering a duplicate X', async () => {
+    fetchMock.mockReturnValue(new Promise(() => {}))
+    const onBack = vi.fn(), onCloseReady = vi.fn(), onCloseDisabledChange = vi.fn()
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack}
+      showCloseButton={false} onCloseReady={onCloseReady} onCloseDisabledChange={onCloseDisabledChange}
+      onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    expect(screen.queryByRole('button', { name: 'Close survey editor' })).not.toBeInTheDocument()
+    expect(onCloseReady).toHaveBeenCalledWith(expect.any(Function))
+    expect(onCloseDisabledChange).toHaveBeenCalledWith(false)
+    await act(async () => { await onCloseReady.mock.calls.at(-1)?.[0]() })
+    expect(onBack).toHaveBeenCalledOnce()
+  })
+
   it.each(['loading', 'failed'] as const)('allows the shell and visible close control to dismiss a %s survey', async (state) => {
     fetchMock.mockReturnValue(state === 'loading' ? new Promise(() => {}) : Promise.resolve({ ok: false, json: async () => ({ error: 'Survey unavailable' }) }))
     const onBack = vi.fn()
@@ -143,8 +165,9 @@ describe('TeacherSurveyWorkspace', () => {
 
   it.each(['', 'Incomplete prompt'] as const)('cancels an unwanted staged question with prompt %j without creating it', async (prompt) => {
     fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion(), makeQuestion({ id: 'question-2', question_text: 'Original second question' })] }))
-    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    render(<TeacherSurveyWorkspace classroomName="Health for Life" classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
     await screen.findByLabelText('Prompt')
+    expect(screen.getByTitle('Health for Life')).toHaveTextContent('Health for Life')
     selectQuestion(2)
     await waitFor(() => expect(screen.getByLabelText('Prompt')).toHaveValue('Original second question'))
     questionAction('Add multiple-choice question')
@@ -587,8 +610,43 @@ describe('TeacherSurveyWorkspace', () => {
     expect(screen.queryByLabelText('Poll visibility')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Results visibility')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Settings', exact: true })).toBeInTheDocument()
+    const title = screen.getByLabelText('Survey title')
+    expect(title).toHaveAttribute('placeholder', 'Title')
+    expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
+    expect(screen.getByTestId('survey-editor-content-pane')).toContainElement(screen.getByText('Saved'))
     expect(screen.queryByRole('heading', { name: 'Results' })).not.toBeInTheDocument()
     expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/surveys/survey-1/results')
+  })
+
+  it.each(['title', 'settings'] as const)('keeps circular saving feedback visible for %s edits in Preview', async (field) => {
+    const pending = createDeferred<Response>()
+    const survey = makeSurvey()
+    let patch: Partial<Survey> = {}
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        patch = JSON.parse(String(init.body))
+        return pending.promise
+      }
+      return jsonResponse({ survey, questions: [makeQuestion()] })
+    })
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1"
+      onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview', exact: true }))
+    await screen.findByText('Student preview')
+    if (field === 'title') {
+      const title = screen.getByLabelText('Survey title')
+      fireEvent.change(title, { target: { value: 'Updated preview title' } })
+      fireEvent.blur(title)
+    } else {
+      fireEvent.click(screen.getByRole('button', { name: 'Settings', exact: true }))
+      fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Show class results to students' }))
+    }
+    const pane = screen.getByTestId('survey-editor-content-pane')
+    await waitFor(() => expect(within(pane).getByRole('status')).toHaveTextContent('Saving…'))
+    expect(within(pane).getByRole('status').querySelector('svg')).toBeInTheDocument()
+    await act(async () => { pending.resolve(jsonResponse({ survey: { ...survey, ...patch } })) })
+    await waitFor(() => expect(within(pane).getByRole('status')).toHaveTextContent('Saved'))
+    expect(within(pane).getByRole('status').querySelector('svg')).not.toBeInTheDocument()
   })
 
   it('previews the survey from the authoring workspace without saving preview responses', async () => {
@@ -846,6 +904,46 @@ describe('TeacherSurveyWorkspace', () => {
     expect(countChanged).toHaveBeenLastCalledWith('survey-1', 2)
   })
 
+  it('imports a prompt image through whole-survey Markdown and preserves it in the writing draft', async () => {
+    const image = '![Labeled wetland](https://example.com/wetland.png "Study diagram")'
+    const initialQuestion = makeQuestion()
+    const updatedQuestion = { ...initialQuestion, question_text: initialQuestion.question_text + '\n\n' + image }
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => init?.method === 'PATCH'
+      ? jsonResponse({ question: updatedQuestion })
+      : jsonResponse({ survey: makeSurvey(), questions: [initialQuestion] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Markdown', exact: true }))
+    const source = await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement
+    fireEvent.change(source, { target: { value: source.value.replace(initialQuestion.question_text, updatedQuestion.question_text) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown', exact: true }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeEnabled())
+    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')
+    expect(JSON.parse(String(patch?.[1]?.body)).question_text).toBe(updatedQuestion.question_text)
+    const appliedSource = source.value
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(await screen.findByLabelText('Prompt')).toHaveValue(updatedQuestion.question_text)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect((await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement).value).toContain(image)
+    expect(screen.getByLabelText('Survey markdown editor')).toHaveValue(appliedSource)
+  })
+
+  it('keeps question navigation and source mode in one header and preserves unrecognized source while switching is blocked', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion()] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    const header = await screen.findByTestId('survey-question-actionbar')
+    expect(header).toHaveTextContent('Q1')
+    expect(header).toContainElement(screen.getByRole('group', { name: 'Question navigation' }))
+    expect(header).toContainElement(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    const source = await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement
+    const pending = source.value + '\n<!-- preserve this unrecognized draft syntax -->\n'
+    fireEvent.change(source, { target: { value: pending } })
+    expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(source).toHaveValue(pending)
+    expect(screen.queryByRole('button', { name: 'Question actions', exact: true })).not.toBeInTheDocument()
+  })
+
   it('locks competing metadata changes while Markdown edits are pending and restores them on undo', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion()] }))
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
@@ -858,7 +956,7 @@ describe('TeacherSurveyWorkspace', () => {
     expect(screen.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits' }))
     expect(markdown).toHaveValue(initial)
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
     await waitFor(() => expect(screen.getByLabelText('Survey title')).not.toBeDisabled())
     expect(screen.getByRole('button', { name: 'Settings', exact: true })).not.toBeDisabled()
   })

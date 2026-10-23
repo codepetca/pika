@@ -359,6 +359,7 @@ export function CreateClassroomModal({
     <DialogPanel
       isOpen={isOpen}
       onClose={handleClose}
+      closeDisabled={loading || importingBlueprint}
       maxWidth="max-w-lg"
       className="p-6"
       ariaLabelledBy="create-classroom-title"

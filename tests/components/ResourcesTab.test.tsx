@@ -33,12 +33,7 @@ vi.mock('@/components/CourseGuideView', () => ({
   ),
 }))
 
-vi.mock('@/components/editor', () => ({
-  ContentField: ({ label, hint, children }: {
-    label: string
-    hint?: string
-    children: ReactNode
-  }) => <div><span>{label}</span>{children}{hint ? <span>{hint}</span> : null}</div>,
+vi.mock('@/components/editor/MarkdownContentEditor', () => ({
   MarkdownContentEditor: ({ markdown, onMarkdownChange, 'aria-label': ariaLabel }: {
     markdown: string
     onMarkdownChange: (value: string) => void

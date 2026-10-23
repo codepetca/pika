@@ -180,7 +180,7 @@ export async function verifyAssignmentEditorControls(page: Page, testInfo: TestI
     await expect(owner.getByRole('textbox', { name: 'Title', exact: true })).toBeFocused()
     if (control === 'toolbar') {
       if (mobile) {
-        await owner.getByRole('button', { name: 'Format text as heading' }).press('ArrowDown')
+        await owner.getByRole('button', { name: 'Format', exact: true }).press('ArrowDown')
         await expect(page.getByRole('menuitem', { name: 'Heading 1' })).toBeVisible()
       } else {
         await owner.getByRole('button', { name: 'Link', exact: true }).click()

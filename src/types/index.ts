@@ -192,6 +192,7 @@ export interface SemesterRange {
 // Tiptap rich text editor types
 export interface TiptapContent {
   type: 'doc'
+  attrs?: Record<string, unknown>
   content?: TiptapNode[]
 }
 

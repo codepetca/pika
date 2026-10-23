@@ -3,7 +3,8 @@ import {
   CLASSROOM_ARCHIVE_V2_RESOURCES,
   CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
 } from '@/lib/contracts/classroom-archive-resources'
-import { buildClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
+import { buildClassroomArchiveBundle, verifyClassroomArchiveBundle } from '@/lib/server/classroom-archive-format'
+import { buildClassroomArchiveV2RestorePlan } from '@/lib/server/classroom-archive-restore'
 import {
   CLASSROOM_ARCHIVE_COMPACTION_OBJECT_BATCH_SIZE,
   compactClassroomArchive,
@@ -18,6 +19,8 @@ const OPERATION_ID = '00000000-0000-4000-8000-000000000004'
 const OTHER_ARCHIVE_ID = '00000000-0000-4000-8000-000000000005'
 const OTHER_CLASSROOM_ID = '00000000-0000-4000-8000-000000000006'
 const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v2.tar.gz`
+const AUTHORING_IMAGE_ID = 'abcdef10-0000-4000-8000-000000000007'
+const AUTHORING_IMAGE_URL = `/api/storage/authoring-images?object_id=${AUTHORING_IMAGE_ID}`
 
 function emptyResources() {
   return Object.fromEntries(
@@ -25,15 +28,20 @@ function emptyResources() {
   )
 }
 
-function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
+function fixture(options: { classroomId?: string; objectCount?: number; authoringImage?: boolean } = {}) {
   const classroomId = options.classroomId ?? CLASSROOM_ID
   const storageObjects = Array.from({ length: options.objectCount ?? 1 }, (_, index) => ({
-    bucket: index % 2 === 0
+    bucket: options.authoringImage ? 'test-documents' as const : index % 2 === 0
       ? 'assignment-artifacts' as const
       : 'submission-images' as const,
     sourcePath: `student/assignment/object-${index}.txt`,
-    contentType: 'text/plain',
+    contentType: options.authoringImage ? 'image/png' : 'text/plain',
     bytes: Buffer.from(`object-${index}`),
+    ...(options.authoringImage ? { managedOwner: {
+      objectId: AUTHORING_IMAGE_ID, purpose: 'teacher_authoring_image' as const,
+      createdByUserId: TEACHER_ID, dataSubjectUserId: null,
+      resourceType: 'classroom', resourceId: classroomId,
+    } } : {}),
   }))
   return buildClassroomArchiveBundle({
     version: 2,
@@ -65,6 +73,16 @@ function fixture(options: { classroomId?: string; objectCount?: number } = {}) {
           id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
           storage_path: object.sourcePath,
         })),
+      ...(options.authoringImage ? {
+        assignments: [{ id: OTHER_ARCHIVE_ID, classroom_id: classroomId, created_by: TEACHER_ID,
+          instructions_markdown: `![Field guide](${AUTHORING_IMAGE_URL})`,
+          rich_instructions: { type: 'doc', content: [{ type: 'image', attrs: { src: AUTHORING_IMAGE_URL } }] },
+        }],
+        classwork_materials: [{ id: OTHER_CLASSROOM_ID, classroom_id: classroomId, created_by: TEACHER_ID,
+          content: { type: 'doc', attrs: { authoring_markdown: `![Field guide](https://pika.example${AUTHORING_IMAGE_URL})` },
+            content: [{ type: 'image', attrs: { src: AUTHORING_IMAGE_URL } }] },
+        }],
+      } : {}),
     },
     actors: [{
       id: TEACHER_ID,
@@ -110,6 +128,7 @@ function completionVerification(args: Record<string, unknown>) {
 
 function createSupabaseMock(options: {
   objectCount?: number
+  authoringImage?: boolean
   completedReplay?: boolean
   legacyArchive?: boolean
   beginError?: { code?: string; message?: string }
@@ -131,6 +150,7 @@ function createSupabaseMock(options: {
   const bundle = fixture({
     classroomId: options.wrongManifestIdentity ? OTHER_CLASSROOM_ID : CLASSROOM_ID,
     objectCount: options.objectCount,
+    authoringImage: options.authoringImage,
   })
   const expectedResourceCounts = resourceCounts(bundle)
   const expectedStorageCounts = storageObjectCounts(bundle)
@@ -470,6 +490,35 @@ describe('classroom archive cold-compaction coordinator', () => {
     expect(artifactStage?.[1].p_rows).toEqual([
       expect.objectContaining({ managed_object_id: null }),
     ])
+  })
+
+  it('rehearses image-bearing rows against source identities while real restore keeps fresh identities', async () => {
+    const mock = createSupabaseMock({ authoringImage: true })
+    const verified = verifyClassroomArchiveBundle(mock.bundle.archive)
+    if (!verified.ok) throw new Error(verified.error)
+    const plan = buildClassroomArchiveV2RestorePlan({ verified, artifactChecksumVerified: true,
+      operationId: OPERATION_ID, currentActors: [{ id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher' }],
+      supabaseUrl: 'https://project.supabase.co', deriveLegacyManagedOwnership: false })
+    const restoredId = plan.storageObjects[0].managedObjectId
+    expect(restoredId).not.toBe(AUTHORING_IMAGE_ID)
+    expect(JSON.stringify(plan.resources.assignments)).toContain(restoredId)
+
+    expect(await compactClassroomArchive(operationArgs(mock))).toMatchObject({ ok: true })
+    const staged = Object.fromEntries(mock.rpc.mock.calls
+      .filter(([name]) => name === 'stage_classroom_archive_restore_rows')
+      .map(([, args]) => [args.p_table_name, args.p_rows]))
+    expect(staged.assignments).toEqual([expect.objectContaining({
+      instructions_markdown: `![Field guide](${AUTHORING_IMAGE_URL})`,
+      rich_instructions: { type: 'doc', content: [{ type: 'image', attrs: { src: AUTHORING_IMAGE_URL } }] },
+    })])
+    expect(staged.classwork_materials).toEqual([expect.objectContaining({ content: {
+      type: 'doc', attrs: { authoring_markdown: `![Field guide](${AUTHORING_IMAGE_URL})` },
+      content: [{ type: 'image', attrs: { src: AUTHORING_IMAGE_URL } }],
+    } })])
+    expect(JSON.stringify(staged)).not.toContain(restoredId)
+    // The independent real restore plan retains its fresh managed identity.
+    expect(JSON.stringify(plan.resources.assignments)).toContain(restoredId)
+    expect(mock.rpc.mock.calls.some(([name]) => name === 'begin_managed_storage_upload')).toBe(false)
   })
 
   it('refuses compaction when current actors cannot satisfy a restore preflight', async () => {

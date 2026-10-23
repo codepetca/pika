@@ -12,6 +12,7 @@ export const managedStoragePurposeSchema = z.enum([
   'student_assignment_artifact',
   'student_inline_image',
   'teacher_test_material',
+  'teacher_authoring_image',
   'test_execution_snapshot',
   'legacy_classroom_file',
   'classroom_archive',

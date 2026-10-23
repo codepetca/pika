@@ -157,6 +157,10 @@ describe('TeacherStudentWorkModal history preview', () => {
     fireEvent.keyDown(window, { key: 'Escape' })
     await waitFor(() => expect(viewer).toHaveAttribute('data-mode', 'current'))
     expect(onClose).not.toHaveBeenCalled()
+    const cornerClose = screen.getByRole('button', { name: 'Close', exact: true })
+    expect(cornerClose.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
+    fireEvent.click(cornerClose)
+    expect(onClose).toHaveBeenCalledOnce()
   })
 
   it('renders an upload-only current document instead of the empty state', async () => {

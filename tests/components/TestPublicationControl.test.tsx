@@ -90,6 +90,8 @@ describe('TestPublicationControl', () => {
     fireEvent.change(screen.getByLabelText('Test date'), { target: { value: '2099-11-08' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save date' }))
     expect(await screen.findByText('Date save failed')).toBeInTheDocument()
+    const cornerClose = screen.getByRole('button', { name: 'Close', exact: true })
+    expect(cornerClose.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     fireEvent.click(screen.getByRole('button', { name: 'Cancel', exact: true }))
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
     await flush?.()

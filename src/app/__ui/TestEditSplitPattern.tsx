@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, ListPlus, Plus, Settings, Text, Trash2, X } from 'lucide-react'
-import { CreationModalShell } from '@/components/creation/CreationModalShell'
+import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, ListPlus, Plus, Settings, Text, Trash2 } from 'lucide-react'
+import { CreationModalContextHeader, CreationModalTitleField, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import type { ExamDocumentItem } from '@/components/ExamDocumentWorkspace'
 import { MarkdownContentEditor } from '@/components/editor'
@@ -504,24 +504,21 @@ export function TestEditSplitPattern() {
         title="Edit Test"
         titleId="pattern-test-edit-title"
         closeLabel="Close test edit prototype"
-        showCloseButton={false}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
         contentClassName="!overflow-hidden !p-0"
       >
-        <div className="grid min-h-0 w-full grid-cols-1 overflow-y-auto lg:h-full lg:grid-cols-3 lg:overflow-hidden">
+        <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
           <div
             data-testid="test-editor-details-pane"
-            className="flex min-h-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto"
+            className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto"
           >
-            <FormField
-              label="Title"
-              required
+            <CreationModalContextHeader itemType="Test" classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning" />
+            <CreationModalTitleField
               error={titleError}
-              labelAccessory={(
+              actions={(
                 <div className="flex items-center gap-1">
-                  <SaveStatus status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
                   <TeacherWorkSurfaceIconMenuButton
                     icon={<Settings className="h-4 w-4" aria-hidden="true" />}
                     ariaLabel="Settings"
@@ -553,16 +550,6 @@ export function TestEditSplitPattern() {
                       },
                     ]}
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    aria-label="Close test edit prototype"
-                    onClick={() => setOpen(false)}
-                    className="h-11 w-11 p-0"
-                  >
-                    <X className="h-4 w-4" aria-hidden="true" />
-                  </Button>
                 </div>
               )}
             >
@@ -574,7 +561,7 @@ export function TestEditSplitPattern() {
                   setChanged(true)
                 }}
               />
-            </FormField>
+            </CreationModalTitleField>
 
             <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
               <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
@@ -735,7 +722,7 @@ export function TestEditSplitPattern() {
             className="flex min-h-96 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden"
           >
             {authoringView === 'code' ? (
-              <p className="shrink-0 text-sm font-medium text-text-default">Test Markdown</p>
+              <div className="modal-controls-row flex min-h-control shrink-0 items-center gap-2 text-sm font-medium text-text-default"><SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} /><p>Test Markdown</p></div>
             ) : null}
 
             {authoringView === 'code' ? (
@@ -789,10 +776,10 @@ export function TestEditSplitPattern() {
               </div>
             ) : (
               <>
-                <div data-testid="test-question-actionbar" className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <p className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1">
+                <div data-testid="test-question-actionbar" className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+                  <div className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1 flex items-center gap-2"><SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} /><p>
                     {isMultipleChoice ? 'Multiple choice' : 'Open response'}
-                  </p>
+                  </p></div>
                   <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                     <Button
                       type="button"
@@ -835,7 +822,7 @@ export function TestEditSplitPattern() {
                       <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </Button>
                   </div>
-                  <div role="group" aria-label="Question actions" className="col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
+                  <div role="group" aria-label="Question actions" className="modal-question-controls-tail col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
                     <div className="relative w-24 shrink-0">
                       <label htmlFor="pattern-test-question-points" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</label>
                       <Input
