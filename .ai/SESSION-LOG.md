@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Preserve compact student roster click targets
-
-Final geometry review found the new name-only selectable rows inherited28px text density, below the required44px click target. Added h-11 only to those rows; names, sorting, selection and keyboard behavior remain. Prior35056b5 build/dark lanes passed and the previously failing exam lifecycle also passed on rerun; its light lane was cancelled for this required target correction, without an unrelated exam patch. Browser bounds and fresh exact-head review/CI required before owner-authorized merge.
-
 ## 2026-10-20 — Integrate student inspector with final main grants changes
 
 All exact-head CI lanes and PR Gate passed at8a4b5082 (run39460032658). Main then advanced to e53401520 via1633 and produced archive-only conflicts. Rebased onto that main, retaining its complete continuity and the byte-identical six feature source/test files; regenerated normal session-log trimming. No migration applied or database touched. Targeted integration review, focused checks and fresh exact-head CI precede owner-authorized squash merge; production promotion remains outside scope.
@@ -747,3 +743,20 @@ suites71PASS. No UI delta; existing visual hashes retained. Launch12
 reserved for correction/integration after metadata/native gates; no further
 launch approved beyond12. Requested model/effort recorded; effective config,
 per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
+
+## 2026-10-23 — Local244–291 authorized application and final verification
+
+Owner explicitly authorized exact local244–291, checks/final review and Docker
+shutdown. Fresh target Pika54322/source243,48-file preview and manifest hashes
+matched. Source schema byte-identical to prior native baseline; no main drift.
+One supabase db push --local --yes succeeded; history291rows/max291. No reset,
+seed, history repair, production change or rollout activation. Apply receipt:
+/tmp/pika-authoring244-291-apply.log. Read-only exact291catalog PASS. Official
+db:types:generate/check PASS; only36-line new ledger metadata, byte-identical to
+prior isolated expected output. Final isolated001–291 replay, all4rollback
+proofs, generated-type equality and unchanged shared schema PASS:
+/tmp/pika-material-post-date.r5fxEg. Data API static PASS; historical/absent-default
+ACL proof reused unchanged source. Exact-source archive71tests PASS from prior
+correction; no UI delta, prior16teacher+4student+8existing browser evidence reused.
+Final full one-worker check and reserved cumulative review12 pending. Native
+clones cleaned; Docker will stop again before completion. No merge authorized.

@@ -73,9 +73,14 @@ Historical and absent-default Data API privilege replay also passed. The first
 harness run stopped only at generated-type equality: the exact new291 ledger
 metadata is not generated yet. Shared source schema/history stayed unchanged.
 
-Owner approved local291 and three additional review launches. The exact local
-dryrun found history001–243 and proposed244–291, so application was stopped
-before any non-dry-run command. Expanded exact-set permission is pending.
+Owner approved local291 and three additional review launches. The first local
+dryrun found history001–243, so application stopped. On October23 the owner
+explicitly approved244–291 locally. Fresh preview and48-file manifest matched;
+one supabase db push --local --yes applied exactly244–291. History001–291 and
+read-only exact291catalog PASS. Official db:types:generate/check PASS, adding
+only the new ledger; output exactly matches isolated replay. Final native replay
+/tmp/pika-material-post-date.r5fxEg passes behavior, type equality and unchanged
+shared schema. No reset, seed, production migration or rollout flag change.
 Both initial Sol/high reviews completed on d5bd64337 (launch10/11, prior9
 historical launches; owner-approved maximum12). Two unique P2 archive blockers
 were accepted: stale compatibility nodes must not require removed images, and
@@ -86,5 +91,6 @@ assets and case-normalized UUIDs. Correction canonical gate passed10,168tests/50
 UI/design policy, TypeScript and lint. The final IPv6 URL variant was added during
 that run; a subsequent exact-source archive run passed71tests across5suites.
 No editor UI source changed, so prior visual hashes remain applicable.
-The reserved final review and official metadata generation remain pending. Effective reviewer configurations and per-turn tokens were
+Official metadata generation and native/schema gates are complete. The reserved
+final independent correction/integration review remains pending (launch12). Effective reviewer configurations and per-turn tokens were
 not exposed. PR1662 remains draft until native types and review gates pass.

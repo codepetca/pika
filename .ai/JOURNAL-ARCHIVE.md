@@ -48899,3 +48899,8 @@ Removed the inspector X. Gradebook's existing shared divider now permits up to85
 ## 2026-10-20 — Prepare student inspector PR1635 for merge
 
 Owner authorized merge after green CI. Initial83e85adc build/dark browser/Pattern Lab lanes passed; light browser lane failed exam-navigation timeouts and one connection reset, outside this Gradebook change. Rebased onto main daaf1a64b, retaining the identical source/test implementation and all main receipts; the sole conflict was an archive batch marker around an already-identical entry, resolved with main's marker. Fresh focused checks, independent integration confirmation and exact-head CI required before squash merge. No unrelated runtime/test fix or production promotion.
+
+<!-- pika-session-log-archive-batch:c4e83ee055549136bb045a88b4c5afe909d81297fa1e95670d9a64685459654d -->
+## 2026-10-20 — Preserve compact student roster click targets
+
+Final geometry review found the new name-only selectable rows inherited28px text density, below the required44px click target. Added h-11 only to those rows; names, sorting, selection and keyboard behavior remain. Prior35056b5 build/dark lanes passed and the previously failing exam lifecycle also passed on rerun; its light lane was cancelled for this required target correction, without an unrelated exam patch. Browser bounds and fresh exact-head review/CI required before owner-authorized merge.

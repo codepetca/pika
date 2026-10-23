@@ -8256,6 +8256,42 @@ export type Database = {
           },
         ]
       }
+      teacher_authoring_image_references: {
+        Row: {
+          classroom_id: string
+          managed_object_id: string
+          owner_id: string
+          owner_table: string
+        }
+        Insert: {
+          classroom_id: string
+          managed_object_id: string
+          owner_id: string
+          owner_table: string
+        }
+        Update: {
+          classroom_id?: string
+          managed_object_id?: string
+          owner_id?: string
+          owner_table?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "teacher_authoring_image_references_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "teacher_authoring_image_references_managed_object_id_fkey"
+            columns: ["managed_object_id"]
+            isOneToOne: false
+            referencedRelation: "managed_storage_objects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_ai_grading_run_items: {
         Row: {
           attempt_count: number
