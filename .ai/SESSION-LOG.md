@@ -722,12 +722,16 @@ zero fixture users/objects verified afterward. No SQL migration changed. Docker
 DB-only window is closed after proof; full focused gate and review21 tracked in
 retained receipts. Superseded7bbc gate deliberately terminated before edits.
 
-## 2026-10-23 Editor production rollout preparation
+## 2026-10-23 Editor production migration and release correction
 
-Owner explicitly approved production migration291 and normal editor release.
-Production preflight001–290/healthy, no image objects/ledger. Preview40003769768
-confirms only291 with reviewed editor61d9265/fullCI39995508676. Promotion1667
-retains both production/main journal histories; application/Supabase tree equals
-reviewed main. Two independent release reviews, exact-head CI and read-only
-production semantic verification remain gates. Home292 stays excluded; no flags,
-provider, billing, shared-local or production fixture writes are authorized.
+Owner approved exact production291 and normal editor release. Preview40003769768
+matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
+is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
+and private bucket read-only checks PASS. No production fixtures or flags changed.
+Two cumulative release reviews found one source UUID casing blocker. Correction
+f316bf7da matches UUID identity only, preserving literal route/key/full identity
+and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
+static/audit and independent targeted review PASS. Main1668 and promotion1667
+each require final exact-head CI; no production app release claimed yet.
+Promotion keeps both journal histories and reviewed correction bytes. Home292,
+provider, billing and shared-local schema remain outside this release.
