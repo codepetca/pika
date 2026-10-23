@@ -1,5 +1,7 @@
 'use client'
 
+import type { TiptapContent } from '@/types'
+import { RichTextEditor } from './RichTextEditor'
 import type { ReactNode } from 'react'
 import { FormField, SegmentedControl, cn } from '@/ui'
 import { ContentField } from './ContentField'
@@ -9,25 +11,28 @@ export type MarkdownAuthoringMode = 'visual' | 'markdown'
 
 interface MarkdownAuthoringEditorProps extends Pick<MarkdownContentEditorProps,
   'markdown' | 'onMarkdownChange' | 'onConversionWarningChange' | 'onBlur' |
-  'placeholder' | 'disabled' | 'editable' | 'interactionActive' | 'className'> {
+  'imageUpload' | 'imageInline' | 'placeholder' | 'disabled' | 'editable' | 'interactionActive' | 'className'> {
   label: string
   mode: MarkdownAuthoringMode
   onModeChange: (mode: MarkdownAuthoringMode) => void
   fillHeight?: boolean
   statusContent?: ReactNode
+  controlsClassName?: string
+  visualContent?: TiptapContent
+  onVisualContentChange?: (content: TiptapContent) => void
 }
 
 /** Both views edit the caller's Markdown draft; selecting a mode never serializes it. */
 export function MarkdownAuthoringEditor({
   label, mode, onModeChange, markdown, onMarkdownChange, onConversionWarningChange,
   onBlur, placeholder, disabled = false, editable = true, interactionActive = true,
-  className, fillHeight = false, statusContent,
+  className, fillHeight = false, statusContent, controlsClassName, imageUpload, imageInline, visualContent, onVisualContentChange,
 }: MarkdownAuthoringEditorProps) {
   const inactive = disabled || !editable || !interactionActive
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', fillHeight && 'min-h-0 flex-1')}>
-      <div className="modal-controls-row flex items-center justify-end gap-2">
+      <div className={cn('modal-controls-row flex items-center justify-end gap-2', controlsClassName)}>
         {statusContent}
         <SegmentedControl
           ariaLabel={`${label} editing mode`}
@@ -57,8 +62,15 @@ export function MarkdownAuthoringEditor({
       ) : (
         <ContentField label={label} hideLabel collapseHiddenLabel
           className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : undefined}>
-          <MarkdownContentEditor
+          {visualContent && onVisualContentChange ? <RichTextEditor
+            aria-label={label} content={visualContent} onChange={onVisualContentChange}
+            onBlur={onBlur} placeholder={placeholder} disabled={disabled} editable={editable}
+            interactionActive={interactionActive} imageUpload={imageUpload} imageInline={imageInline} preserveRichContent
+            toolbarPreset="markdown-authoring"
+            className={cn(fillHeight && 'simple-editor-wrapper--fill-height min-h-0 flex-1', className)}
+          /> : <MarkdownContentEditor
             aria-label={label}
+            imageUpload={imageUpload}
             markdown={markdown}
             onMarkdownChange={onMarkdownChange}
             onConversionWarningChange={onConversionWarningChange}
@@ -69,7 +81,7 @@ export function MarkdownAuthoringEditor({
             interactionActive={interactionActive}
             toolbarPreset="markdown-authoring"
             className={cn(fillHeight && 'simple-editor-wrapper--fill-height min-h-0 flex-1', className)}
-          />
+          />}
         </ContentField>
       )}
     </div>

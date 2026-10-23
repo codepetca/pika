@@ -62,6 +62,7 @@ const storageObjectSchema = z.object({
       'student_assignment_artifact',
       'student_inline_image',
       'teacher_test_material',
+      'teacher_authoring_image',
       'test_execution_snapshot',
       'legacy_classroom_file',
     ]),
@@ -170,7 +171,28 @@ function createClassroomArchiveManifestSchema<const Version extends 1 | 2>(
     }
     const storageSources = new Set<string>()
     const storageArchivePaths = new Set<string>()
+    const managedObjectIds = new Set<string>()
     for (const [index, object] of manifest.storage_objects.entries()) {
+      if (object.managed_owner) {
+        if (managedObjectIds.has(object.managed_owner.object_id)) context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Duplicate managed storage identity',
+          path: ['storage_objects', index, 'managed_owner', 'object_id'],
+        })
+        managedObjectIds.add(object.managed_owner.object_id)
+      }
+      if (object.managed_owner?.purpose === 'teacher_authoring_image' && (
+        object.bucket !== 'test-documents'
+        || object.managed_owner.resource_type !== 'classroom'
+        || object.managed_owner.resource_id !== manifest.classroom_id
+        || object.managed_owner.data_subject_user_id !== null
+        || !['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(object.content_type || '')
+        || object.byte_size < 1 || object.byte_size > 2 * 1024 * 1024
+      )) context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Teacher authoring images must belong to the archived classroom and meet image limits',
+        path: ['storage_objects', index, 'managed_owner'],
+      })
       if (!object.archive_path.startsWith(`objects/${object.bucket}/`)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,

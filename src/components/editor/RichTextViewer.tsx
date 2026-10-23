@@ -3,7 +3,9 @@
 import { useEffect } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { TiptapContent } from '@/types'
-import { isSafeLinkHref } from '@/lib/tiptap-content'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { markdownToTiptapContent } from '@/lib/limited-markdown'
+import { extractPlainText, isSafeLinkHref } from '@/lib/tiptap-content'
 import {
   useHistoryPreviewViewport,
   type HistoryPreviewMode,
@@ -46,7 +48,29 @@ export interface RichTextViewerProps {
   historyPreviewChange?: AssignmentHistoryChange | null
 }
 
-export function RichTextViewer({
+/** Source-backed classwork uses the same Markdown reader in preview and student views. */
+export function RichTextViewer(props: RichTextViewerProps) {
+  const markdown = props.content.attrs?.authoring_markdown
+  if (typeof markdown !== 'string') return <RichTextDocumentViewer {...props} />
+
+  if (props.showPlainText) return (
+    <pre className={[
+      'whitespace-pre-wrap font-mono text-sm text-text-default bg-page p-4 rounded-none border border-border',
+      props.fillHeight ? 'h-full overflow-y-auto' : 'overflow-x-auto',
+    ].join(' ')}>{extractPlainText(markdownToTiptapContent(markdown))}</pre>
+  )
+
+  return (
+    <div className={[
+      props.fillHeight ? 'simple-editor-wrapper simple-editor-wrapper--fill-height' : 'simple-viewer-wrapper',
+      props.chrome === 'flush' ? 'bg-transparent border-transparent rounded-none' : 'bg-surface-2 rounded-none border border-border',
+    ].join(' ')}>
+      <LimitedMarkdown content={markdown} className={props.fillHeight ? 'min-h-0 flex-1 overflow-y-auto p-3 sm:p-4' : 'p-3 sm:p-4'} emptyPlaceholder={null} />
+    </div>
+  )
+}
+
+function RichTextDocumentViewer({
   content,
   showPlainText = false,
   fillHeight = false,

@@ -2,43 +2,13 @@
 
 import type { ReactNode } from 'react'
 import { sanitizeLinkHref } from '@/lib/tiptap-content'
-import { parseLimitedMarkdownBlocks } from '@/lib/limited-markdown'
+import { sanitizeMarkdownImageSrc, unescapeMarkdownImageText } from '@/lib/markdown-images'
+import { findNextInlineToken, parseLimitedMarkdownBlocks } from '@/lib/limited-markdown'
 
 interface LimitedMarkdownProps {
   content: string
   className?: string
   emptyPlaceholder?: ReactNode
-}
-
-type InlineTokenType = 'code' | 'link' | 'bold' | 'italic'
-
-type InlineToken = {
-  type: InlineTokenType
-  index: number
-  match: RegExpExecArray
-  rank: number
-}
-
-function findNextInlineToken(text: string): InlineToken | null {
-  const patterns: Array<{ type: InlineTokenType; regex: RegExp }> = [
-    { type: 'code', regex: /`([^`\n]+?)`/ },
-    { type: 'link', regex: /\[([^\]\n]+?)\]\(([^)\n]+?)\)/ },
-    { type: 'bold', regex: /\*\*([^\n]+?)\*\*/ },
-    { type: 'italic', regex: /\*([^*\n]+?)\*/ },
-  ]
-
-  let best: InlineToken | null = null
-
-  patterns.forEach(({ type, regex }, rank) => {
-    const match = regex.exec(text)
-    if (!match || typeof match.index !== 'number') return
-
-    if (!best || match.index < best.index || (match.index === best.index && rank < best.rank)) {
-      best = { type, index: match.index, match, rank }
-    }
-  })
-
-  return best
 }
 
 function parseInline(text: string, keyPrefix: string, depth = 0): ReactNode[] {
@@ -79,6 +49,13 @@ function parseInline(text: string, keyPrefix: string, depth = 0): ReactNode[] {
           {match[1]}
         </code>
       )
+    } else if (type === 'image') {
+      const alt = unescapeMarkdownImageText(match[1] || '')
+      const src = sanitizeMarkdownImageSrc(unescapeMarkdownImageText((match[2] || '').replace(/^<|>$/g, '')))
+      if (src) nodes.push(<img key={key} src={src} alt={alt}
+        title={match[3] !== undefined ? unescapeMarkdownImageText(match[3]) : undefined}
+        loading="lazy" className="inline-block max-w-full h-auto rounded-control" />)
+      else nodes.push(alt)
     } else if (type === 'link') {
       const label = match[1]
       const href = sanitizeLinkHref(match[2])

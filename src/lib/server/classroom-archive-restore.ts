@@ -36,6 +36,7 @@ import type { TestDraftContent } from '@/types'
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
   '134_blueprint_test_question_ordinal_identity' as const
 
+const authoringImageUrlPattern = /(?<![a-z0-9/.:])\/api\/storage\/authoring-images\?object_id=([a-f0-9-]{36})(?![a-f0-9-])/gi
 const managedUrlPattern = /https?:\/\/[^\s<>"'`]+/gi
 const uuidSchema = z.string().uuid()
 const currentActorSchema = z.object({
@@ -55,7 +56,7 @@ export type ClassroomArchiveRestoreStorageObject = {
   managedObjectId: string
   sourceManagedObjectId: string | null
   purpose: 'student_assignment_artifact' | 'student_inline_image'
-    | 'teacher_test_material' | 'test_execution_snapshot' | 'legacy_classroom_file'
+    | 'teacher_test_material' | 'teacher_authoring_image' | 'test_execution_snapshot' | 'legacy_classroom_file'
   createdByUserId: string | null
   dataSubjectUserId: string | null
   resourceType: string | null
@@ -405,18 +406,35 @@ function legacyRestoreManagedOwner(args: {
   }
 }
 
+function collectAuthoringImageIds(value: unknown, ids = new Set<string>()): Set<string> {
+  if (typeof value === 'string') {
+    for (const match of value.matchAll(authoringImageUrlPattern)) ids.add(match[1])
+  } else if (Array.isArray(value)) {
+    value.forEach((item) => collectAuthoringImageIds(item, ids))
+  } else if (isJsonObject(value)) {
+    Object.values(value).forEach((item) => collectAuthoringImageIds(item, ids))
+  }
+  return ids
+}
+
 function rewriteManagedUrls(
   value: string,
   supabaseOrigin: string,
   restoredPaths: Map<string, string>,
+  restoredManagedIdsBySourceId: Map<string, string>,
 ): string {
-  return value.replace(managedUrlPattern, (candidate) => {
+  const rewritten = value.replace(managedUrlPattern, (candidate) => {
     const parsed = parseManagedUrl(candidate, supabaseOrigin)
     if (!parsed) return candidate
     const restoredPath = restoredPaths.get(`${parsed.bucket}\0${parsed.path}`)
     if (!restoredPath) return candidate
     return `${supabaseOrigin}/storage/v1/object/public/${encodeURIComponent(parsed.bucket)}/${encodeStoragePath(restoredPath)}${parsed.suffix}`
   })
+  return rewritten.replace(authoringImageUrlPattern,
+    (candidate, sourceId: string) => {
+      const restoredId = restoredManagedIdsBySourceId.get(sourceId)
+      return restoredId ? candidate.replace(sourceId, restoredId) : candidate
+    })
 }
 
 function rewriteResourceValue(args: {
@@ -443,7 +461,7 @@ function rewriteResourceValue(args: {
     if (table === 'tests' && inTestDocuments && key === 'snapshot_path') {
       return restoredPaths.get(`test-documents\0${value}`) || value
     }
-    return rewriteManagedUrls(value, supabaseOrigin, restoredPaths)
+    return rewriteManagedUrls(value, supabaseOrigin, restoredPaths, restoredManagedIdsBySourceId)
   }
   if (Array.isArray(value)) {
     return value.map((item) => rewriteResourceValue({
@@ -590,12 +608,22 @@ function buildClassroomArchiveRestorePlanForVersion(
   const referencedStorage = discoverClassroomStorageReferences(decoded.resources, args.supabaseUrl)
     .map((reference) => `${reference.bucket}\0${reference.path}`)
     .sort()
+  const classOwnedImagePaths = manifest.storage_objects
+    .filter((object) => object.managed_owner?.purpose === 'teacher_authoring_image')
+    .map((object) => `${object.bucket}\0${object.source_path}`)
+  const archivedAuthoringImageIds = new Set(manifest.storage_objects.flatMap((object) =>
+    object.managed_owner?.purpose === 'teacher_authoring_image' ? [object.managed_owner.object_id] : [],
+  ))
+  if ([...collectAuthoringImageIds(decoded.resources)].some((id) => !archivedAuthoringImageIds.has(id))) {
+    throw new Error('Archive authoring image identities do not exactly match classroom references')
+  }
+  const expectedStorage = [...new Set([...referencedStorage, ...classOwnedImagePaths])].sort()
   const archivedStorage = manifest.storage_objects
     .map((object) => `${object.bucket}\0${object.source_path}`)
     .sort()
   if (
-    referencedStorage.length !== archivedStorage.length ||
-    referencedStorage.some((reference, index) => reference !== archivedStorage[index])
+    expectedStorage.length !== archivedStorage.length ||
+    expectedStorage.some((reference, index) => reference !== archivedStorage[index])
   ) {
     throw new Error('Archive storage objects do not exactly match classroom references')
   }
@@ -626,7 +654,8 @@ function buildClassroomArchiveRestorePlanForVersion(
   )
   const storageObjects = manifest.storage_objects
     .filter((object) =>
-      retainedStorageReferences.has(`${object.bucket}\0${object.source_path}`),
+      retainedStorageReferences.has(`${object.bucket}\0${object.source_path}`)
+      || object.managed_owner?.purpose === 'teacher_authoring_image',
     )
     .map((object) => {
       const bytes = args.verified.files.get(object.archive_path)

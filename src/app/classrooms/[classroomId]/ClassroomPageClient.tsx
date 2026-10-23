@@ -49,6 +49,7 @@ import {
 import { getRouteKeyFromTab } from '@/lib/layout-config'
 import { notifyPikaLocationChange } from '@/lib/browser-navigation'
 import { RichTextViewer } from '@/components/editor'
+import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { Spinner } from '@/components/Spinner'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
@@ -2249,9 +2250,7 @@ function ClassroomPageContent({
               {selectedAssignment ? (
                 selectedAssignment.instructions ? (
                   typeof selectedAssignment.instructions === 'string' ? (
-                    <p className="text-sm text-text-default whitespace-pre-wrap">
-                      {selectedAssignment.instructions}
-                    </p>
+                    <LimitedMarkdown content={selectedAssignment.instructions} />
                   ) : (
                     <RichTextViewer content={selectedAssignment.instructions} />
                   )

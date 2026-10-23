@@ -66,14 +66,14 @@ describe('MarkdownAuthoringEditor', () => {
     expect(onChange).toHaveBeenCalledWith(next)
   })
 
-  it('exposes four toolbar controls and saves formatting from the keyboard-operated Format menu', async () => {
+  it('exposes five toolbar controls and saves formatting from the keyboard-operated Format menu', async () => {
     // Exercise markdown-format-menu through its real editor selection and toolbar.
     const user = userEvent.setup()
     const onChange = vi.fn()
     render(<Harness onChange={onChange} />)
     const editor = await screen.findByRole('textbox', { name: 'Instructions' }) as HTMLElement & { editor: Editor }
     const toolbar = screen.getByRole('toolbar', { name: 'Formatting options' })
-    expect(within(toolbar).getAllByRole('button')).toHaveLength(4)
+    expect(within(toolbar).getAllByRole('button')).toHaveLength(5)
     expect(within(toolbar).getByRole('button', { name: 'Format' })).toBeInTheDocument()
     expect(within(toolbar).queryByRole('button', { name: 'Underline' })).not.toBeInTheDocument()
     act(() => { editor.editor.commands.setTextSelection(1) })

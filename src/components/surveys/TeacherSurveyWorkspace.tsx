@@ -12,8 +12,10 @@ import {
   useState,
   type TextareaHTMLAttributes,
 } from 'react'
-import { Code2, Copy, ExternalLink, Eye, ListPlus, Plus, RotateCcw, Settings, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button, Card, ConfirmDialog, FormField, Input, SaveStatus, Tooltip, type SaveStatusState } from '@/ui'
+import { Copy, ExternalLink, Eye, Plus, RotateCcw, Settings, Trash2, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Button, Card, DialogCloseButton, ConfirmDialog, FormField, Input, Tooltip, type SaveStatusState } from '@/ui'
+import { QuestionAuthoringHeader } from '@/components/assessment/QuestionAuthoringHeader'
+import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import { MarkdownContentEditor } from '@/components/editor'
 import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { SurveyQuestionOptions } from '@/components/surveys/SurveyQuestionOptions'
@@ -100,7 +102,8 @@ type QuestionEditorHandle = {
   getDraft: () => ReturnType<typeof buildQuestionSavePayload>
 }
 
-function SurveyQuestionFields({ questionType, questionText, optionsText, responseMaxChars, disabled, promptLabel, onTextChange, onOptionsChange, onLimitChange, onBlur }: {
+function SurveyQuestionFields({ classroomId, questionType, questionText, optionsText, responseMaxChars, disabled, promptLabel, onTextChange, onOptionsChange, onLimitChange, onBlur }: {
+  classroomId: string
   questionType: SurveyQuestionType
   questionText: string
   optionsText: string
@@ -114,7 +117,7 @@ function SurveyQuestionFields({ questionType, questionText, optionsText, respons
 }) {
   return (
     <>
-      <MarkdownContentEditor markdown={questionText} onMarkdownChange={onTextChange} aria-label={promptLabel} placeholder="Ask students a question" toolbarPreset="compact" disabled={disabled} onBlur={onBlur} className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32" />
+      <MarkdownContentEditor imageUpload={(file, signal) => uploadMarkdownImage(classroomId, file, signal)} markdown={questionText} onMarkdownChange={onTextChange} aria-label={promptLabel} placeholder="Ask students a question" toolbarPreset="compact" disabled={disabled} onBlur={onBlur} className="shrink-0 overflow-hidden rounded-md border border-border bg-surface [&_.ProseMirror]:!min-h-32" />
       {questionType === 'multiple_choice' ? (
         <SurveyQuestionOptions options={optionsText.split('\n')} disabled={disabled} onChange={(options) => onOptionsChange(options.join('\n'))} onBlur={onBlur} />
       ) : (
@@ -130,6 +133,7 @@ function SurveyQuestionFields({ questionType, questionText, optionsText, respons
 
 const QuestionEditor = forwardRef<QuestionEditorHandle, {
   question: SurveyQuestion
+  classroomId: string
   disabled: boolean
   interactionDisabled?: boolean
   onSaved: (question: SurveyQuestion) => void
@@ -138,6 +142,7 @@ const QuestionEditor = forwardRef<QuestionEditorHandle, {
   onTypeChange: (type: SurveyQuestionType) => void
 }>(function QuestionEditor({
   question,
+  classroomId,
   disabled,
   interactionDisabled = false,
   onSaved,
@@ -272,7 +277,7 @@ const QuestionEditor = forwardRef<QuestionEditorHandle, {
   return (
     <>
       {error ? <p className="text-sm text-danger" role="alert">{error}</p> : null}
-      <SurveyQuestionFields questionType={questionType} questionText={questionText} optionsText={optionsText} responseMaxChars={responseMaxChars} disabled={disabled || interactionDisabled || saving} promptLabel="Prompt" onTextChange={setQuestionText} onOptionsChange={setOptionsText} onLimitChange={setResponseMaxChars} />
+      <SurveyQuestionFields classroomId={classroomId} questionType={questionType} questionText={questionText} optionsText={optionsText} responseMaxChars={responseMaxChars} disabled={disabled || interactionDisabled || saving} promptLabel="Prompt" onTextChange={setQuestionText} onOptionsChange={setOptionsText} onLimitChange={setResponseMaxChars} />
     </>
   )
 })
@@ -348,11 +353,9 @@ export function TeacherSurveyResultsView({ payload }: { payload: SurveyResultsPa
 function TeacherSurveyPreview({
   survey,
   questions,
-  saveStatus,
 }: {
   survey: Survey
   questions: SurveyQuestion[]
-  saveStatus: SaveStatusState
 }) {
   const [responses, setResponses] = useState<Record<string, SurveyPreviewResponse>>({})
 
@@ -365,7 +368,6 @@ function TeacherSurveyPreview({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <SaveStatus presentation="indicator" status={saveStatus} />
             <h2 className="min-w-0 text-xl font-semibold text-text-default">{survey.title}</h2>
           </div>
           <p className="mt-1 text-sm text-text-muted">Survey</p>
@@ -473,6 +475,7 @@ function TeacherSurveyPreview({
 }
 
 export function TeacherSurveyWorkspace({
+  classroomId,
   classroomName,
   surveyId,
   isReadOnly = false,
@@ -980,137 +983,150 @@ export function TeacherSurveyWorkspace({
   ]
 
   return (
-    <div data-testid="survey-split-layout" className="grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
-      <div data-testid="survey-editor-details-pane" className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto">
-        <CreationModalContextHeader itemType="Survey" classroomName={classroomName} />
-        <CreationModalTitleField error={titleError} actions={(
-          <div className="flex items-center gap-1">
-            <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[
-              { id: 'results', label: 'Show class results to students', checked: survey.show_results, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('show_results', !survey.show_results) } },
-              { id: 'dynamic', label: 'Allow students to update responses', checked: survey.dynamic_responses, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('dynamic_responses', !survey.dynamic_responses) } },
-              { id: 'delete', label: 'Delete survey', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, destructive: true, onSelect: () => setDeleteConfirmOpen(true) },
-            ]} />
-            {showCloseButton && <Tooltip content="Close"><Button type="button" variant="ghost" size="sm" aria-label="Close survey editor" disabled={busy} onClick={() => { void closeEditor() }} className="h-11 w-11 p-0"><X className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>}
-          </div>
-        )}>
-          <Input ref={titleInputRef} aria-label="Survey title" value={titleDraft} placeholder="Title" disabled={metadataDisabled || titleSaving} onChange={(event) => { setTitleDraft(event.target.value); setTitleError('') }} onBlur={() => { if (!metadataDisabled) void flushTitle() }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void flushTitle() } }} />
-        </CreationModalTitleField>
-        <div className="rounded-md border border-border bg-surface px-3 py-2"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Questions</p><p className="text-xs text-text-muted">{questions.length} total</p></div></div>
-        <Button type="button" variant={surveyEditMode === 'markdown' ? 'subtle' : 'surface'} size="sm" fullWidth aria-pressed={surveyEditMode === 'markdown'} disabled={busy} onClick={() => { void navigate(() => { setSurveyEditMode((current) => current === 'markdown' ? 'edit' : 'markdown'); setSurveyMarkdownError(''); setSurveyMarkdownInfo('') }) }} className="justify-start"><Code2 className="h-4 w-4" aria-hidden="true" />Markdown</Button>
-        {error ? <p className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p> : null}
-        {surveyMarkdownDirty ? <p className="text-xs text-warning">Markdown edits not applied</p> : null}
-        <div className="mt-1 shrink-0 lg:mt-auto">
-          <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'} size="sm" fullWidth disabled={busy || surveyEditMode === 'markdown'} aria-pressed={surveyEditMode === 'preview'} onClick={() => { void navigate(() => setSurveyEditMode((current) => current === 'preview' ? 'edit' : 'preview')) }}><Eye className="h-4 w-4" aria-hidden="true" />{surveyEditMode === 'preview' ? 'Back to editor' : 'Preview'}</Button>
-            <Button type="button" size="sm" fullWidth disabled={metadataDisabled || survey.status !== 'draft' || questions.length === 0} onClick={() => { void publishSurvey() }}>{survey.status === 'draft' ? 'Publish' : getSurveyStatusLabel(survey.status)}</Button>
+    <div data-testid="survey-split-layout" className="relative grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+      <div data-testid="survey-editor-details-pane" className="flex min-h-0 min-w-0 flex-col bg-surface-2 lg:overflow-hidden">
+        <CreationModalContextHeader spacious itemType="Survey" classroomName={classroomName} />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
+          <CreationModalTitleField error={titleError} actions={(
+            <div className="flex items-center gap-1">
+              <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[
+                { id: 'results', label: 'Show class results to students', checked: survey.show_results, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('show_results', !survey.show_results) } },
+                { id: 'dynamic', label: 'Allow students to update responses', checked: survey.dynamic_responses, checkedRole: 'menuitemcheckbox', onSelect: () => { void saveSetting('dynamic_responses', !survey.dynamic_responses) } },
+                { id: 'delete', label: 'Delete survey', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, destructive: true, onSelect: () => setDeleteConfirmOpen(true) },
+              ]} />
+
+            </div>
+          )}>
+            <Input ref={titleInputRef} aria-label="Survey title" value={titleDraft} placeholder="Title" disabled={metadataDisabled || titleSaving} onChange={(event) => { setTitleDraft(event.target.value); setTitleError('') }} onBlur={() => { if (!metadataDisabled) void flushTitle() }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void flushTitle() } }} />
+          </CreationModalTitleField>
+          <div className="rounded-md border border-border bg-surface px-3 py-2"><div className="flex items-center justify-between gap-3"><p className="text-sm font-medium">Questions</p><p className="text-xs text-text-muted">{questions.length} total</p></div></div>
+
+          {error ? <p className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p> : null}
+          {surveyMarkdownDirty ? <p className="text-xs text-warning">Markdown edits not applied</p> : null}
+          <div className="mt-1 shrink-0 lg:mt-auto">
+            <div className="grid grid-cols-2 gap-2">
+              <Button type="button" variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'} size="sm" fullWidth disabled={busy || surveyEditMode === 'markdown'} aria-pressed={surveyEditMode === 'preview'} onClick={() => { void navigate(() => setSurveyEditMode((current) => current === 'preview' ? 'edit' : 'preview')) }}><Eye className="h-4 w-4" aria-hidden="true" />{surveyEditMode === 'preview' ? 'Back to editor' : 'Preview'}</Button>
+              <Button type="button" size="sm" fullWidth disabled={metadataDisabled || survey.status !== 'draft' || questions.length === 0} onClick={() => { void publishSurvey() }}>{survey.status === 'draft' ? 'Publish' : getSurveyStatusLabel(survey.status)}</Button>
+            </div>
           </div>
         </div>
       </div>
-      <div data-testid="survey-editor-content-pane" className="flex min-h-96 min-w-0 flex-col gap-3 p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-y-auto">
-        {surveyEditMode === 'markdown' ? (
-          <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
-            <div className="modal-controls-row flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <SaveStatus presentation="indicator" status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} />
-                <div><h3 className="text-base font-semibold text-text-default">Survey Markdown</h3>
-                <p className="text-sm text-text-muted">{questions.length} question{questions.length === 1 ? '' : 's'}</p>
+      <div data-testid="survey-editor-content-pane" className="flex min-h-96 min-w-0 flex-col lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
+        <QuestionAuthoringHeader
+          testId="survey-question-actionbar"
+          questionNumber={selectedIndex >= 0 ? selectedIndex + 1 : questions.length + 1}
+          status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty || surveyMarkdownDirty ? 'unsaved' : questionStatus}
+          mode={surveyEditMode === 'markdown' ? 'markdown' : 'edit'}
+          onModeChange={(mode) => { if (mode !== surveyEditMode) void navigate(() => { setSurveyEditMode(mode); setSurveyMarkdownError(''); setSurveyMarkdownInfo('') }) }}
+          writeDisabled={busy || surveyMarkdownDirty}
+          markdownDisabled={busy}
+          navigation={<div role="group" aria-label="Question navigation" className="flex items-center gap-1">
+            <Tooltip content="Previous question"><Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={busy || selectedIndex <= 0} onClick={() => selectQuestion(questions[selectedIndex - 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+            {selectedQuestion ? <Input type="number" min="1" max={questions.length} value={numberDraft} aria-label="Question number" disabled={busy} onChange={(event) => setNumberDraft(event.target.value)} onBlur={() => {
+              const requested = Number.parseInt(numberDraft, 10)
+              const index = Math.max(0, Math.min(questions.length - 1, Number.isFinite(requested) ? requested - 1 : selectedIndex))
+              if (index !== selectedIndex) selectQuestion(questions[index].id)
+              else setNumberDraft(String(selectedIndex + 1))
+            }} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} className="w-14 px-2 text-center" /> : <span className="px-2 text-sm font-medium">New question</span>}
+            <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
+            <Tooltip content="Next question"><Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={busy || selectedIndex < 0 || selectedIndex === questions.length - 1} onClick={() => selectQuestion(questions[selectedIndex + 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
+          </div>}
+        />
+        {showCloseButton && <DialogCloseButton label="Close survey editor" disabled={busy} onClose={() => { void closeEditor() }} className="sm:right-4 sm:top-4" />}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 pb-24 sm:p-4 sm:pb-24 lg:overflow-y-auto">
+          {surveyEditMode === 'markdown' ? (
+            <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
+              <div className="modal-controls-row flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <div><h3 className="text-base font-semibold text-text-default">Survey Markdown</h3>
+                  <p className="text-sm text-text-muted">{questions.length} question{questions.length === 1 ? '' : 's'}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {surveyMarkdownDirty ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {surveyMarkdownDirty ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Undo markdown edits"
+                      title="Undo markdown edits"
+                      onClick={handleUndoSurveyMarkdownChanges}
+                      disabled={surveyMarkdownSaving}
+                      className="h-11 w-11 p-0"
+                    >
+                      <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  ) : null}
                   <Button
                     type="button"
-                    variant="ghost"
                     size="sm"
-                    aria-label="Undo markdown edits"
-                    title="Undo markdown edits"
-                    onClick={handleUndoSurveyMarkdownChanges}
-                    disabled={surveyMarkdownSaving}
-                    className="h-11 w-11 p-0"
+                    onClick={() => {
+                      void applySurveyMarkdown()
+                    }}
+                    disabled={isReadOnly || surveyMarkdownSaving || !surveyMarkdownDirty}
                   >
-                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    {surveyMarkdownSaving ? 'Applying...' : 'Apply Markdown'}
                   </Button>
-                ) : null}
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => {
+                </div>
+              </div>
+
+              {surveyMarkdownInfo ? (
+                <div className="rounded-md border border-success bg-success-bg px-3 py-2 text-sm text-success">
+                  {surveyMarkdownInfo}
+                </div>
+              ) : null}
+              {surveyMarkdownError ? (
+                <div className="whitespace-pre-wrap rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+                  {surveyMarkdownError}
+                </div>
+              ) : null}
+
+              <textarea
+                data-testid="survey-markdown-editor"
+                aria-label="Survey markdown editor"
+                value={surveyMarkdown}
+                onChange={(event) => handleSurveyMarkdownChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && surveyMarkdownDirty) {
+                    event.preventDefault()
                     void applySurveyMarkdown()
-                  }}
-                  disabled={isReadOnly || surveyMarkdownSaving || !surveyMarkdownDirty}
-                >
-                  {surveyMarkdownSaving ? 'Applying...' : 'Apply Markdown'}
-                </Button>
-              </div>
-            </div>
+                  }
+                }}
+                readOnly={isReadOnly || surveyMarkdownSaving}
+                className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
+                spellCheck={false}
+              />
+            </Card>
+          ) : surveyEditMode === 'preview' ? (
+            <TeacherSurveyPreview survey={survey} questions={questions} />
 
-            {surveyMarkdownInfo ? (
-              <div className="rounded-md border border-success bg-success-bg px-3 py-2 text-sm text-success">
-                {surveyMarkdownInfo}
-              </div>
-            ) : null}
-            {surveyMarkdownError ? (
-              <div className="whitespace-pre-wrap rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-                {surveyMarkdownError}
-              </div>
-            ) : null}
-
-            <textarea
-              data-testid="survey-markdown-editor"
-              aria-label="Survey markdown editor"
-              value={surveyMarkdown}
-              onChange={(event) => handleSurveyMarkdownChange(event.target.value)}
-              onKeyDown={(event) => {
-                if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's' && surveyMarkdownDirty) {
-                  event.preventDefault()
-                  void applySurveyMarkdown()
-                }
-              }}
-              readOnly={isReadOnly || surveyMarkdownSaving}
-              className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-surface-2"
-              spellCheck={false}
-            />
-          </Card>
-        ) : surveyEditMode === 'preview' ? (
-          <TeacherSurveyPreview survey={survey} questions={questions} saveStatus={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} />
-
-        ) : (
-          <>
-            <div className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-              <div className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1 flex items-center gap-2"><SaveStatus presentation="indicator" status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty ? 'unsaved' : questionStatus} /><p>{currentType === 'multiple_choice' ? 'Multiple choice' : currentType === 'short_text' ? 'Open response' : 'Link response'}</p></div>
-              <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
-                <Tooltip content="Previous question"><Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={busy || selectedIndex <= 0} onClick={() => selectQuestion(questions[selectedIndex - 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
-                {selectedQuestion ? <Input type="number" min="1" max={questions.length} value={numberDraft} aria-label="Question number" disabled={busy} onChange={(event) => setNumberDraft(event.target.value)} onBlur={() => {
-                  const requested = Number.parseInt(numberDraft, 10)
-                  const index = Math.max(0, Math.min(questions.length - 1, Number.isFinite(requested) ? requested - 1 : selectedIndex))
-                  if (index !== selectedIndex) selectQuestion(questions[index].id)
-                  else setNumberDraft(String(selectedIndex + 1))
-                }} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur() }} className="w-14 px-2 text-center" /> : <span className="px-2 text-sm font-medium">New question</span>}
-                <span className="whitespace-nowrap text-xs text-text-muted">/ {questions.length}</span>
-                <Tooltip content="Next question"><Button type="button" variant="ghost" size="sm" aria-label="Next question" disabled={busy || selectedIndex < 0 || selectedIndex === questions.length - 1} onClick={() => selectQuestion(questions[selectedIndex + 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronRight className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
-              </div>
-              <div className="col-start-2 row-start-2 justify-self-end lg:col-start-3 lg:row-start-1"><TeacherWorkSurfaceIconMenuButton icon={<ListPlus className="h-5 w-5" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="primary" menuPlacement="down" menuAlign="end" disabled={isReadOnly || busy || questionStatus === 'saving'} className="h-11 w-14 shadow-sm" items={actionItems} /></div>
-            </div>
-            {selectedQuestion ? (
-              <QuestionEditor key={selectedQuestion.id} ref={questionEditorRef} question={selectedQuestion} disabled={isReadOnly} interactionDisabled={navigationPending} onStatusChange={setQuestionStatus} onTypeChange={setEditingQuestionType} onSaved={(updatedQuestion) => {
-                setDetail((current) => current?.survey.id === updatedQuestion.survey_id ? { ...current, questions: current.questions.map((item) => item.id === updatedQuestion.id ? updatedQuestion : item) } : current)
-              }} onDeleted={(questionId) => {
-                const remaining = questions.filter((question) => question.id !== questionId)
-                setDetail((current) => current ? { ...current, questions: remaining } : current)
-                setSelectedQuestionId(remaining[Math.min(selectedIndex, remaining.length - 1)]?.id ?? null)
-                setQuestionStatus('saved')
-                setEditingQuestionType(null)
-                onQuestionCountChanged?.(surveyId, remaining.length)
-              }} />
-            ) : (
-              <>
-                <SurveyQuestionFields questionType={newQuestionType} questionText={newQuestionText} optionsText={newOptionsText} responseMaxChars={newResponseMaxChars} disabled={isReadOnly || busy} promptLabel="New question" onTextChange={setNewQuestionText} onOptionsChange={setNewOptionsText} onLimitChange={setNewResponseMaxChars} />
-                <div className="flex justify-end gap-2">{questions.length > 0 || newQuestionDirty ? <Button type="button" variant="secondary" size="sm" aria-label="Cancel new question" disabled={busy} onClick={cancelNewQuestion}>Cancel</Button> : null}<Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
-              </>
-            )}
-          </>
-        )}
+          ) : (
+            <>
+              {selectedQuestion ? (
+                <QuestionEditor classroomId={classroomId} key={selectedQuestion.id} ref={questionEditorRef} question={selectedQuestion} disabled={isReadOnly} interactionDisabled={navigationPending} onStatusChange={setQuestionStatus} onTypeChange={setEditingQuestionType} onSaved={(updatedQuestion) => {
+                  setDetail((current) => current?.survey.id === updatedQuestion.survey_id ? { ...current, questions: current.questions.map((item) => item.id === updatedQuestion.id ? updatedQuestion : item) } : current)
+                }} onDeleted={(questionId) => {
+                  const remaining = questions.filter((question) => question.id !== questionId)
+                  setDetail((current) => current ? { ...current, questions: remaining } : current)
+                  setSelectedQuestionId(remaining[Math.min(selectedIndex, remaining.length - 1)]?.id ?? null)
+                  setQuestionStatus('saved')
+                  setEditingQuestionType(null)
+                  onQuestionCountChanged?.(surveyId, remaining.length)
+                }} />
+              ) : (
+                <>
+                  <SurveyQuestionFields classroomId={classroomId} questionType={newQuestionType} questionText={newQuestionText} optionsText={newOptionsText} responseMaxChars={newResponseMaxChars} disabled={isReadOnly || busy} promptLabel="New question" onTextChange={setNewQuestionText} onOptionsChange={setNewOptionsText} onLimitChange={setNewResponseMaxChars} />
+                  <div className="flex justify-end gap-2">{questions.length > 0 || newQuestionDirty ? <Button type="button" variant="secondary" size="sm" aria-label="Cancel new question" disabled={busy} onClick={cancelNewQuestion}>Cancel</Button> : null}<Button type="button" size="sm" onClick={() => { void addQuestion() }} disabled={isReadOnly || busy || !newQuestionValid}><Plus className="h-4 w-4" aria-hidden="true" />{addingQuestion ? 'Adding...' : 'Add question'}</Button></div>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
+      {surveyEditMode === 'edit' && <div className="absolute bottom-4 right-4 z-local-menu">
+        <TeacherWorkSurfaceIconMenuButton icon={<Plus className="h-6 w-6" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="success" menuPlacement="up" menuAlign="end" disabled={isReadOnly || busy || surveyMarkdownDirty || questionStatus === 'saving'} className="h-14 w-14 rounded-full shadow-lg" items={actionItems} />
+      </div>}
+
       <ConfirmDialog isOpen={deleteConfirmOpen} title="Delete survey?" description={`${survey.title}\n\nThis cannot be undone.`} confirmLabel={statusChanging ? 'Deleting...' : 'Delete'} cancelLabel="Cancel" confirmVariant="danger" isConfirmDisabled={statusChanging} isCancelDisabled={statusChanging} onCancel={() => (statusChanging ? null : setDeleteConfirmOpen(false))} onConfirm={() => { void deleteSurvey() }} />
     </div>
   )

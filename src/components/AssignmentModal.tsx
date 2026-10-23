@@ -48,6 +48,7 @@ function AssignmentEditorBody({
   return (
     <AssignmentForm
       {...formProps}
+      classroomId={sourceClassroomId}
       interactionActive={active}
       extraFields={(
         <div className="space-y-3">

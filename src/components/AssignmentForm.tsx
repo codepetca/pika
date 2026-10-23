@@ -6,10 +6,12 @@ import { Button, FormField, IconButton, Input } from '@/ui'
 import { MarkdownAuthoringEditor } from '@/components/editor'
 import { CreationModalContextHeader, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
+import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import type { ClassDay } from '@/types'
 
 interface AssignmentFormProps {
+  classroomId?: string
   classroomName?: string
   title: string
   instructionsMarkdown: string
@@ -37,6 +39,7 @@ interface AssignmentFormProps {
 }
 
 export function AssignmentForm({
+  classroomId,
   classroomName,
   title,
   instructionsMarkdown,
@@ -89,6 +92,7 @@ export function AssignmentForm({
         interactionActive={interactionActive}
         fillHeight={fillHeight}
         statusContent={saveStatusContent}
+        imageUpload={classroomId ? (file, signal) => uploadMarkdownImage(classroomId, file, signal) : undefined}
         className="rounded-control border border-border-strong"
       />
     </>
@@ -98,13 +102,13 @@ export function AssignmentForm({
     return (
       <div
         data-testid="assignment-editor-split"
-        className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden"
+        className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden"
       >
+        <CreationModalContextHeader itemType="Assignment" classroomName={classroomName} spacious />
         <div
           data-testid="assignment-editor-details-pane"
-          className="flex min-w-0 flex-col gap-4 bg-surface border-b border-border p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto lg:border-b-0"
+          className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto"
         >
-          <CreationModalContextHeader itemType="Assignment" classroomName={classroomName} />
           <FormField
             className="modal-title-field"
             label="Title"
@@ -166,7 +170,7 @@ export function AssignmentForm({
 
         <div
           data-testid="assignment-editor-content-pane"
-          className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden"
+          className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden"
         >
           {editor}
         </div>

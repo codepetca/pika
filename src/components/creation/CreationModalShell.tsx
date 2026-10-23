@@ -88,8 +88,7 @@ export function CreationModalShell({
     ? cn(
       '[&_.modal-context-row]:sticky [&_.modal-context-row]:top-3 sm:[&_.modal-context-row]:top-4 lg:[&_.modal-context-row]:top-0 [&_.modal-context-row]:z-sticky-table [&_.modal-context-row]:bg-inherit [&_.modal-context-row]:pr-14 lg:[&_.modal-context-row]:pr-0',
       '[&_.modal-controls-row]:sticky [&_.modal-controls-row]:top-0 [&_.modal-controls-row]:z-sticky-table [&_.modal-controls-row]:min-h-control [&_.modal-controls-row]:bg-surface [&_.modal-controls-row]:pr-14',
-      '[&_.modal-question-controls-row]:sticky [&_.modal-question-controls-row]:top-0 [&_.modal-question-controls-row]:z-sticky-table [&_.modal-question-controls-row]:bg-surface lg:[&_.modal-question-controls-row>div:last-child]:pr-14',
-      'lg:[&_.modal-toolbar-row_[role=toolbar]]:pr-14',
+      '[&_.modal-question-controls-row]:sticky [&_.modal-question-controls-row]:top-0 [&_.modal-question-controls-row]:z-sticky-table [&_.modal-question-controls-row]:bg-surface [&_.modal-question-controls-tail]:pr-14',
       '[&_.simple-editor-wrapper]:isolate',
     )
     : undefined
@@ -135,13 +134,16 @@ export function CreationModalShell({
 }
 
 /** Identifies the classwork without expanding the right pane's control row. */
-export function CreationModalContextHeader({ itemType, classroomName }: {
+export function CreationModalContextHeader({ itemType, classroomName, spacious = false }: {
   itemType: 'Assignment' | 'Material' | 'Test' | 'Survey'
   classroomName?: string
+  /** Separate context row above a muted details body in split authoring dialogs. */
+  spacious?: boolean
 }) {
   return (
-    <div className="modal-context-row flex min-h-control min-w-0 shrink-0 items-center gap-2 text-sm">
-      <span className="shrink-0 font-semibold text-text-default">{itemType}</span>
+    <header className={cn('modal-context-row flex min-w-0 shrink-0 items-center text-sm',
+      spacious ? '!top-0 min-h-[76px] gap-3 !bg-surface px-3 sm:px-4' : 'min-h-control gap-2')}>
+      <span className={cn('shrink-0 font-semibold text-text-default', spacious && 'text-2xl leading-8')}>{itemType}</span>
       {classroomName && (
         <span title={classroomName} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-text-muted"
           style={{
@@ -151,7 +153,7 @@ export function CreationModalContextHeader({ itemType, classroomName }: {
           {classroomName}
         </span>
       )}
-    </div>
+    </header>
   )
 }
 

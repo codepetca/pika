@@ -48756,3 +48756,21 @@ archive guarantee is claimed. Sol6.1/high source mapping and bounded implementat
 delivered; attributable usage/time unknown. Final checks, independent review,
 parent-main integration and CI remain. All production/shared-local249+,
 provider/account/plan/billing/AI and activation holds remain unchanged.
+
+<!-- pika-session-log-archive-batch:d24c8fe42daf2cfb2e02bb1dfefccb062671f6673200e870d3d862ed2409882c -->
+## 2026-10-20 — Dormant contextual cold recovery
+
+PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
+including strict warning lint, replay and PRGate passed. Canonical main synced;
+no production or shared-local migration/activation. Reuse PR1630 is separately
+reviewed and in CI. Prepared the existing cold-restore route's shared-admission
+dispatch with current-owner preflight, strict operation/archive/ledger binding,
+final archived-hot revision confirmation and completed same-key replay. Existing
+coordinator, immutable bytes, actor reconciliation, canary/budget gates and
+cleanup remain; uncertain outcomes503 without automatic retry/deletion.
+Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
+The existing guarded isolated recovery drill covers both owner labels with actual
+row/byte/teardown assertions; authored SDK/source checks are not native evidence.
+Independent review, final-head CI and that real drill remain gates. Current-
+membership-only learner attendance remains separate; owners retain old records.
+All production, account/provider/billing and cutover holds remain unchanged.

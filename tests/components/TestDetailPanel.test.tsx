@@ -1,7 +1,9 @@
+// Integration tests mount the real TestQuestionEditor, including header Points
+// synchronization and image Markdown imports into its prompt editor.
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { act, render, screen, fireEvent, waitFor, within } from '@testing-library/react'
+import { act, render as renderWithTestingLibrary, screen, fireEvent, waitFor, within, type RenderOptions } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
 import { createMockTest, createMockTestQuestion } from '../helpers/mocks'
@@ -10,6 +12,10 @@ import type { TestAssessmentWithStats, TestAssessmentQuestion, TestResultsAggreg
 
 function Wrapper({ children }: { children: ReactNode }) {
   return <TooltipProvider>{children}</TooltipProvider>
+}
+
+function render(ui: ReactElement, options?: RenderOptions) {
+  return renderWithTestingLibrary(ui, { wrapper: Wrapper, ...options })
 }
 
 function makeTestWithStats(overrides: Partial<TestAssessmentWithStats> = {}): TestAssessmentWithStats {
@@ -472,7 +478,8 @@ describe('TestDetailPanel', () => {
     expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
     expect(screen.getByTestId('test-editor-content-pane')).toContainElement(screen.getByText('Saved'))
     expect(screen.getByTestId('test-editor-details-pane')).toHaveTextContent('Reference Docs')
-    expect(screen.getByTestId('test-editor-content-pane')).toHaveTextContent('Multiple choice')
+    expect(screen.getByTestId('test-question-actionbar')).toHaveTextContent('Q1')
+    expect(within(screen.getByTestId('test-question-actionbar')).getByRole('button', { name: 'Write' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Question 2 prompt' })).not.toBeInTheDocument()
     expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
@@ -530,6 +537,67 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true')
     fireEvent.click(screen.getByRole('button', { name: 'Close test editor' }))
     expect(onRequestClose).toHaveBeenCalledOnce()
+  })
+
+  it('flushes header points into the same draft before question navigation and Markdown view', async () => {
+    holdAutosaveDebounce()
+    mockFetchForTest(sampleQuestions)
+    render(<TestDetailPanel test={makeTestWithStats({ status: 'draft' })} classroomId="classroom-1" onTestUpdate={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
+    await screen.findByRole('textbox', { name: 'Question 1 prompt' })
+    const points = within(screen.getByTestId('test-question-actionbar')).getByRole('spinbutton', { name: 'Points' })
+    fireEvent.change(points, { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
+    expect(screen.getByRole('alert')).toHaveTextContent('Points must be greater than 0')
+    fireEvent.change(points, { target: { value: '8' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous question' }))
+    expect(screen.getByRole('spinbutton', { name: 'Points' })).toHaveValue(8)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect((screen.getByLabelText('Test markdown editor') as HTMLTextAreaElement).value).toContain('Points: 8')
+  })
+
+  it('imports prompt image references through whole-test Markdown without dropping them on mode changes', async () => {
+    holdAutosaveDebounce()
+    const initialQuestion = { ...sampleQuestions[0], id: markdownQuestionId1 }
+    const imagePrompt = 'Inspect the diagram.\n\n![Labeled wetland](https://example.com/wetland.png "Study diagram")'
+    const updatedQuestion = { ...initialQuestion, question_text: imagePrompt }
+    const test = makeTestWithStats({ status: 'draft' })
+    const fetchMock = mockFetchForTest([initialQuestion])
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ draft: { version: 2, content: { title: test.title, show_results: test.show_results, questions: [updatedQuestion] } } }) })
+    render(<TestDetailPanel test={test} classroomId="classroom-1" onTestUpdate={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
+    await screen.findByRole('textbox', { name: 'Question 1 prompt' })
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    fireEvent.change(screen.getByLabelText('Test markdown editor'), { target: { value: testToMarkdown({ title: test.title, show_results: test.show_results, questions: [updatedQuestion] }) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown', exact: true }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeEnabled())
+    const patch = fetchMock.mock.calls.find((call: unknown[]) => (call[1] as RequestInit | undefined)?.method === 'PATCH')
+    expect(JSON.parse(String((patch?.[1] as RequestInit).body)).content.questions[0].question_text).toBe(imagePrompt)
+    const appliedSource = (screen.getByLabelText('Test markdown editor') as HTMLTextAreaElement).value
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(await screen.findByRole('img', { name: 'Labeled wetland' })).toHaveAttribute('src', 'https://example.com/wetland.png')
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect((screen.getByLabelText('Test markdown editor') as HTMLTextAreaElement).value).toContain('![Labeled wetland](https://example.com/wetland.png "Study diagram")')
+    expect(screen.getByLabelText('Test markdown editor')).toHaveValue(appliedSource)
+  })
+
+  it('keeps pending Markdown verbatim until explicitly applied or undone', async () => {
+    holdAutosaveDebounce()
+    mockFetchForTest(sampleQuestions)
+    render(<TestDetailPanel test={makeTestWithStats({ status: 'draft' })} classroomId="classroom-1" onTestUpdate={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
+    await screen.findByRole('textbox', { name: 'Question 1 prompt' })
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    const source = screen.getByLabelText('Test markdown editor') as HTMLTextAreaElement
+    const pending = source.value + '\n<!-- preserve this unrecognized draft syntax -->\n'
+    fireEvent.change(source, { target: { value: pending } })
+    expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(source).toHaveValue(pending)
+    expect(screen.getByRole('button', { name: 'Question actions', exact: true })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
   })
 
   it('ignores stale draft responses after selected assessment changes', async () => {

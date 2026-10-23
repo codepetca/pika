@@ -404,6 +404,7 @@ function TeacherMaterialDialog({
   return (
     <MaterialCreationDialog
       materialKey={`${classroom.id}:${material?.id ?? 'new'}`}
+      classroomId={classroom.id}
       classroomName={classroom.title}
       isOpen={isOpen}
       isExisting={!!material}

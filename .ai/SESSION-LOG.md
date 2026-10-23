@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Dormant contextual cold recovery
-
-PR1629 merged normally asccc7c4310 after all ten exact-head39410319150 checks,
-including strict warning lint, replay and PRGate passed. Canonical main synced;
-no production or shared-local migration/activation. Reuse PR1630 is separately
-reviewed and in CI. Prepared the existing cold-restore route's shared-admission
-dispatch with current-owner preflight, strict operation/archive/ledger binding,
-final archived-hot revision confirmation and completed same-key replay. Existing
-coordinator, immutable bytes, actor reconciliation, canary/budget gates and
-cleanup remain; uncertain outcomes503 without automatic retry/deletion.
-Cold restoration is not active-classroom creation; hot unarchive keeps181 limits.
-The existing guarded isolated recovery drill covers both owner labels with actual
-row/byte/teardown assertions; authored SDK/source checks are not native evidence.
-Independent review, final-head CI and that real drill remain gates. Current-
-membership-only learner attendance remains separate; owners retain old records.
-All production, account/provider/billing and cutover holds remain unchanged.
-
 ## 2026-10-20 — Dormant contextual purge workflows
 
 Prepared the eight existing hot/cold impact/start/status/tick methods behind the
@@ -730,3 +713,17 @@ Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
 unjoined rows remain empty. Reuse original roster status icon; same teacher-only
 roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
 No component or widget contract change. PR1661 draft during validation/review.
+
+## 2026-10-22 — Approved four-editor Markdown/image implementation
+
+Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
+separate type/classroom header, one question control bar, icon modes and green
+Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
+Markdown images round-trip and Material stores exact source beside compatibility
+nodes. Student readers use the same Markdown source. Prepared protected teacher
+image uploads, publication-aware reads, archive remapping and migration291 for
+transactional reference tracking/deferred cleanup. No migration applied yet;
+local291 and up to three extra reviewer launches explicitly requested and pending.
+Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
+apart from a corrected source-wire assertion awaiting rerun; final focused gate,
+local database/browser evidence and independent review remain. PR1662 stays draft.

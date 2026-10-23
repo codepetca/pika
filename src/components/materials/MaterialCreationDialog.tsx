@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Eye } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { Button, ContentDialog, DialogPanel, FormField, Input, SplitButton } from '@/ui'
+import { Button, ContentDialog, DialogPanel, FormField, Input, SaveStatus, SplitButton } from '@/ui'
 import { CreationModalContextHeader, CreationModalShell } from '@/components/creation/CreationModalShell'
-import { ContentField, RichTextEditor, RichTextViewer } from '@/components/editor'
+import { MarkdownAuthoringEditor, RichTextViewer } from '@/components/editor'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { combineScheduleDateTimeToIso, DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, isScheduleIsoInFuture, parseScheduleIsoToParts } from '@/lib/scheduling'
+import { createMaterialMarkdownContent, getMaterialMarkdownDraft, getMaterialVisualContent } from '@/lib/material-markdown'
+import { tiptapToMarkdown } from '@/lib/limited-markdown'
+import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import type { TiptapContent } from '@/types'
 
 interface MaterialCreationDialogProps {
+  classroomId?: string
   classroomName?: string
   materialKey?: string
   isOpen: boolean
@@ -36,8 +40,36 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 
 function MaterialEditor({
   isOpen, isExisting = false, isDraft = true, releasedAt, readOnly = false, saving = false,
-  classroomName, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
+  classroomId, classroomName, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
 }: MaterialCreationDialogProps) {
+  const [mode, setMode] = useState<'visual' | 'markdown'>('visual')
+  const [markdown, setMarkdown] = useState(() => getMaterialMarkdownDraft(content).markdown)
+  const [conversionWarning, setConversionWarning] = useState<string | null>(null)
+  const sourceDraft = getMaterialMarkdownDraft(content)
+  const [visualContent, setVisualContent] = useState(() => getMaterialVisualContent(content))
+  const emittedContent = useRef<TiptapContent | null>(null)
+  useEffect(() => {
+    setMarkdown(getMaterialMarkdownDraft(content).markdown)
+    if (content !== emittedContent.current) setVisualContent(getMaterialVisualContent(content))
+  }, [content])
+
+  function changeMarkdown(next: string, fromVisual = false) {
+    setMarkdown(next)
+    const document = createMaterialMarkdownContent(next)
+    emittedContent.current = document
+    if (!fromVisual) setVisualContent(getMaterialVisualContent(document))
+    onContentChange(document)
+  }
+
+  function changeLegacyContent(next: TiptapContent) {
+    // Keep the live document (cursor, undo, and a just-typed space) local while
+    // saving Markdown and derived compatibility nodes in the parent draft.
+    setVisualContent(next)
+    const converted = tiptapToMarkdown(next)
+    setConversionWarning(converted.hasLossyConversion ? converted.warnings.join(' ') : null)
+    changeMarkdown(converted.markdown, true)
+  }
+
   const [previewOpen, setPreviewOpen] = useState(false)
   const isScheduled = !isDraft && !!releasedAt && isScheduleIsoInFuture(releasedAt)
   const [action, setAction] = useState<'post' | 'draft' | 'schedule'>(isScheduled ? 'schedule' : 'post')
@@ -74,9 +106,9 @@ function MaterialEditor({
         contentClassName="!overflow-hidden !p-0"
         tall
       >
-        <div className="grid h-full min-h-0 w-full grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:overflow-hidden">
-          <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface p-3 sm:p-4 lg:min-h-0 lg:overflow-y-auto">
-            <CreationModalContextHeader itemType="Material" classroomName={classroomName} />
+        <div className="grid h-full min-h-0 w-full grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+          <CreationModalContextHeader itemType="Material" classroomName={classroomName} spacious />
+          <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
             <FormField label="Title" required hideLabel collapseHiddenLabel className="modal-title-field">
               <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
             </FormField>
@@ -109,19 +141,31 @@ function MaterialEditor({
               />
             </div>
           </section>
-          <section aria-label="Material editor" className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:min-h-0 lg:overflow-hidden">
-            <ContentField label="Content" hideLabel collapseHiddenLabel className="modal-toolbar-row flex min-h-0 flex-1 flex-col">
-              <RichTextEditor
-                content={content}
-                onChange={onContentChange}
-                editable={!disabled}
-                interactionActive={!previewOpen && !scheduleOpen}
-                placeholder="Add links, notes, readings, or instructions…"
-                toolbarPreset="markdown-safe"
-                aria-label="Material content"
-                className="simple-editor-wrapper--fill-height min-h-0 flex-1 overflow-hidden rounded-lg border border-border-strong"
-              />
-            </ContentField>
+          <section aria-label="Material editor" className="flex min-h-96 min-w-0 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden">
+            {(conversionWarning || (mode === 'markdown' && sourceDraft.hasLossyConversion)) && (
+              <p role="status" className="mb-2 rounded-control bg-warning-bg px-3 py-2 text-sm text-warning">
+                {conversionWarning || `Editing this Markdown simplifies existing rich formatting. ${sourceDraft.warnings.join(' ')}`}
+              </p>
+            )}
+            <MarkdownAuthoringEditor
+              label="Material content"
+              mode={mode}
+              onModeChange={setMode}
+              markdown={markdown}
+              onMarkdownChange={changeMarkdown}
+              onConversionWarningChange={setConversionWarning}
+              visualContent={visualContent}
+              imageInline
+              onVisualContentChange={changeLegacyContent}
+              disabled={disabled}
+              editable={!disabled}
+              interactionActive={!previewOpen && !scheduleOpen}
+              placeholder="Add links, notes, readings, or instructions…"
+              fillHeight
+              statusContent={<SaveStatus presentation="indicator" status={saving ? 'saving' : 'unsaved'} />}
+              imageUpload={classroomId ? (file, signal) => uploadMarkdownImage(classroomId, file, signal) : undefined}
+              className="rounded-control border border-border-strong"
+            />
           </section>
         </div>
       </CreationModalShell>

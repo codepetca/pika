@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within, type RenderOptions } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
-import { useState, type ReactNode } from 'react'
+import { useState, type ReactElement, type ReactNode } from 'react'
+import { TooltipProvider } from '@/ui'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { Survey, SurveyQuestion } from '@/types'
 
@@ -16,6 +17,14 @@ vi.mock('@/components/editor', () => ({
     markdown: string; onMarkdownChange: (value: string) => void; readOnly?: boolean; disabled?: boolean; 'aria-label'?: string
   }) => <textarea aria-label={props['aria-label']} value={markdown} disabled={readOnly || disabled} onChange={(event) => onMarkdownChange(event.target.value)} />,
 }))
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return <TooltipProvider>{children}</TooltipProvider>
+}
+
+function render(ui: ReactElement, options?: RenderOptions) {
+  return renderWithTestingLibrary(ui, { wrapper: Wrapper, ...options })
+}
 
 function selectQuestion(number: number) {
   fireEvent.change(screen.getByRole('spinbutton', { name: 'Question number' }), { target: { value: String(number) } })
@@ -78,7 +87,7 @@ function createMountedRoot() {
   document.body.appendChild(host)
   const root = createRoot(host)
   return {
-    render: (node: ReactNode) => root.render(node),
+    render: (node: ReactNode) => root.render(<Wrapper>{node}</Wrapper>),
     cleanup: () => {
       root.unmount()
       host.remove()
@@ -895,6 +904,46 @@ describe('TeacherSurveyWorkspace', () => {
     expect(countChanged).toHaveBeenLastCalledWith('survey-1', 2)
   })
 
+  it('imports a prompt image through whole-survey Markdown and preserves it in the writing draft', async () => {
+    const image = '![Labeled wetland](https://example.com/wetland.png "Study diagram")'
+    const initialQuestion = makeQuestion()
+    const updatedQuestion = { ...initialQuestion, question_text: initialQuestion.question_text + '\n\n' + image }
+    fetchMock.mockImplementation(async (_url: string | URL, init?: RequestInit) => init?.method === 'PATCH'
+      ? jsonResponse({ question: updatedQuestion })
+      : jsonResponse({ survey: makeSurvey(), questions: [initialQuestion] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Markdown', exact: true }))
+    const source = await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement
+    fireEvent.change(source, { target: { value: source.value.replace(initialQuestion.question_text, updatedQuestion.question_text) } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown', exact: true }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeEnabled())
+    const patch = fetchMock.mock.calls.find((call) => call[1]?.method === 'PATCH')
+    expect(JSON.parse(String(patch?.[1]?.body)).question_text).toBe(updatedQuestion.question_text)
+    const appliedSource = source.value
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(await screen.findByLabelText('Prompt')).toHaveValue(updatedQuestion.question_text)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect((await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement).value).toContain(image)
+    expect(screen.getByLabelText('Survey markdown editor')).toHaveValue(appliedSource)
+  })
+
+  it('keeps question navigation and source mode in one header and preserves unrecognized source while switching is blocked', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion()] }))
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    const header = await screen.findByTestId('survey-question-actionbar')
+    expect(header).toHaveTextContent('Q1')
+    expect(header).toContainElement(screen.getByRole('group', { name: 'Question navigation' }))
+    expect(header).toContainElement(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    const source = await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement
+    const pending = source.value + '\n<!-- preserve this unrecognized draft syntax -->\n'
+    fireEvent.change(source, { target: { value: pending } })
+    expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
+    expect(source).toHaveValue(pending)
+    expect(screen.queryByRole('button', { name: 'Question actions', exact: true })).not.toBeInTheDocument()
+  })
+
   it('locks competing metadata changes while Markdown edits are pending and restores them on undo', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion()] }))
     render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
@@ -907,7 +956,7 @@ describe('TeacherSurveyWorkspace', () => {
     expect(screen.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits' }))
     expect(markdown).toHaveValue(initial)
-    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
     await waitFor(() => expect(screen.getByLabelText('Survey title')).not.toBeDisabled())
     expect(screen.getByRole('button', { name: 'Settings', exact: true })).not.toBeDisabled()
   })

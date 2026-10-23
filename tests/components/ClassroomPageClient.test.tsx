@@ -5,6 +5,11 @@ import { describe, expect, it } from 'vitest'
 // Viewport containment is exercised through the real ClassroomPageClient by the
 // Daily and Teacher student-table scroll containment cases in e2e/experience-matrix.spec.ts.
 describe('ClassroomPageClient titlebar navigation', () => {
+  it('renders assignment sidebar instructions through the shared Markdown image reader', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
+    expect(source).toContain('<LimitedMarkdown content={selectedAssignment.instructions} />')
+  })
+
   it('scopes student Daily Log recovery to the signed-in student', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/app/classrooms/[classroomId]/ClassroomPageClient.tsx'), 'utf8')
     expect(source).toMatch(/<StudentTodayWorkspace[\s\S]*?studentId=\{user\.id\}/)

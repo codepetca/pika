@@ -33,10 +33,12 @@ export async function uploadFileDirectly<T>(input: {
   file: File
   metadata: Record<string, unknown>
   onProgress?: (event: { progress: number }) => void
+  signal?: AbortSignal
 }): Promise<T> {
   input.onProgress?.({ progress: 10 })
   const reserveResponse = await fetch(input.endpoint, {
     method: 'POST',
+    signal: input.signal,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...input.metadata,
@@ -57,6 +59,7 @@ export async function uploadFileDirectly<T>(input: {
   uploadBody.append('', input.file)
   const uploadResponse = await fetch(reservation.upload_url, {
     method: 'PUT',
+    signal: input.signal,
     headers: { 'x-upsert': 'false' },
     body: uploadBody,
   })
@@ -72,6 +75,7 @@ export async function uploadFileDirectly<T>(input: {
   input.onProgress?.({ progress: 85 })
   const finalizeResponse = await fetch(input.endpoint, {
     method: 'PATCH',
+    signal: input.signal,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...input.metadata,

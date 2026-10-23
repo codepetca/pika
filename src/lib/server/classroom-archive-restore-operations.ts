@@ -575,7 +575,8 @@ export async function restoreClassroomArchive(args: {
         resourceId: object.resourceId || args.operationId,
         contentType: object.contentType,
         byteSize: object.bytes.byteLength,
-        allowLegacyCompatibility: true,
+        // Protected authoring-image URLs require restored managed identities.
+        allowLegacyCompatibility: !plan.storageObjects.some((item) => item.purpose === 'teacher_authoring_image'),
       })
       if (!reservation) {
         managedStorageEnabled = false

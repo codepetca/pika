@@ -4,6 +4,8 @@ import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { SaveStatus, TooltipProvider } from '@/ui'
 
+// AssignmentModal composes this form and retires controls through interactionActive;
+// these focused modal/mode and keyboard checks cover that inherited contract.
 describe('AssignmentForm', () => {
   it('keeps mode selection and panel dismissal separate in a compact modal', () => {
     const onClose = vi.fn(), onChange = vi.fn()
@@ -118,7 +120,11 @@ describe('AssignmentForm', () => {
     const toolbar = await within(content).findByRole('toolbar', { name: 'Formatting options' })
     const actions = screen.getByTestId('assignment-editor-primary-actions')
 
-    expect(within(details).getByTitle('Health for Life')).toHaveTextContent('Health for Life')
+    const header = screen.getByTitle('Health for Life').closest('.modal-context-row')!
+    expect(header).toHaveTextContent('Assignment')
+    expect(header.parentElement).toBe(details.parentElement)
+    expect(details).not.toContainElement(header)
+    expect(header.nextElementSibling).toBe(details)
     expect(details).toContainElement(screen.getByRole('textbox', { name: 'Title' }))
     expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
     expect(details).toContainElement(screen.getByRole('button', { name: 'Configure required submissions' }))
