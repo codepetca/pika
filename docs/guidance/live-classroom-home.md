@@ -163,6 +163,14 @@ missing/changed fingerprints across create/publication/discard restoration.
 The full member-list SDK/cleanup proof and final CI remain required; the partial
 CI run is not merge acceptance. No application, SQL, quota or rollout control changes.
 
+The broader local gate caught20 failures in two stale synthetic reorder graphs
+after that catalog expansion. Review433 confirmed the central inclusion and
+identified those missing fixture fingerprints as the sole blocker. The graphs
+now include the sealed home table while all deadline, corruption, restoration
+and unknown-catalog assertions remain; explicit missing-home rejection is covered.
+The affected387 checks pass. Final focused checks, targeted fixture re-review and
+fresh exact-head CI still precede readiness and merge.
+
 Checklist reviewed: yes. Keyboard menu opening/Escape/focus return, checked edit
 semantics, role-labelled sections, joined-only actions and disabled controls have
 focused coverage. Full changed-base independent review, final CI and signed-in

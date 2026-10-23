@@ -49480,3 +49480,24 @@ never permission for allocation or a legacy fallback.
 - Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
 - Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
 - Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
+
+<!-- pika-session-log-archive-batch:383d9a63a87a733a78f7ccee4f96c387adfdc40f258ae24d342cea00ff813f32 -->
+## 2026-10-21 — Durable Pal owner-transition queue preparation
+
+Owner chose to stop queued learner delivery on same-class ownership, preserving
+earned progress and issued-token expiry. Forward287 stamps the existing private
+event binding at actual ownership changes, terminates pending rows and preserves
+processing leases for known acknowledgements. Current-owner membership activity
+is denied; stopped events stay stopped after demotion, while later fresh learner
+facts use current membership. Global account Pal and activation gates are unchanged.
+The existing authorizer/worker retains exact generation, provenance, lease and
+closed-generation fences, separating future-send denial from a known HTTP2xx.
+Current287 profile seals extend the existing proofs without weakening history.
+Full focused10086 checks plus static/audit gates pass; isolated nonempty backfill
+preserves earned/other-subject facts and initialized-OFF settings. Two failed
+fixture/output-format attempts remain preserved, with positive owned cleanup and
+unchanged shared243 schema. Fresh complete287 replay/backfill and old/current Pal
+suites pass both labels, exact metadata, nonempty history, wire validation and real
+ownership contention/fresh reads. Independent review and exact-head CI remain
+gates. No production/shared-local migration, provider call,
+publication, account change or rollout is authorized by this source preparation.

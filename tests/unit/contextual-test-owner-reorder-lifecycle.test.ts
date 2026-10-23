@@ -29,7 +29,7 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
-    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references'].sort()
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments'].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
@@ -507,6 +507,9 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
 describe('reorder snapshot/completion admission', () => {
   it('uses the privately issued canonical complete catalog, retaining unrelated future tables', () => {
     expect(validateTestOwnerReorderSnapshotCatalog(graph(), catalog)).toEqual(graph())
+    const missingHome = graph()
+    missingHome.__nontarget_fingerprints = missingHome.__nontarget_fingerprints.filter(row => row.table !== 'private.classroom_home_hidden_enrollments')
+    expect(() => validateTestOwnerReorderSnapshotCatalog(missingHome, catalog)).toThrow()
     const missing = graph(); missing.__nontarget_fingerprints.pop(); expect(() => validateTestOwnerReorderSnapshotCatalog(missing, catalog)).toThrow()
     const duplicate = graph(); duplicate.__nontarget_fingerprints.push(duplicate.__nontarget_fingerprints[0]); expect(() => validateTestOwnerReorderSnapshotCatalog(duplicate, catalog)).toThrow()
     expect(() => validateTestOwnerReorderSnapshotCatalog({ ...graph(), extra: [] }, catalog)).toThrow()

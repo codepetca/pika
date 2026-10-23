@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Durable Pal owner-transition queue preparation
-
-Owner chose to stop queued learner delivery on same-class ownership, preserving
-earned progress and issued-token expiry. Forward287 stamps the existing private
-event binding at actual ownership changes, terminates pending rows and preserves
-processing leases for known acknowledgements. Current-owner membership activity
-is denied; stopped events stay stopped after demotion, while later fresh learner
-facts use current membership. Global account Pal and activation gates are unchanged.
-The existing authorizer/worker retains exact generation, provenance, lease and
-closed-generation fences, separating future-send denial from a known HTTP2xx.
-Current287 profile seals extend the existing proofs without weakening history.
-Full focused10086 checks plus static/audit gates pass; isolated nonempty backfill
-preserves earned/other-subject facts and initialized-OFF settings. Two failed
-fixture/output-format attempts remain preserved, with positive owned cleanup and
-unchanged shared243 schema. Fresh complete287 replay/backfill and old/current Pal
-suites pass both labels, exact metadata, nonempty history, wire validation and real
-ownership contention/fresh reads. Independent review and exact-head CI remain
-gates. No production/shared-local migration, provider call,
-publication, account change or rollout is authorized by this source preparation.
-
 ## 2026-10-21 — Prepare contextual active classroom capture
 
 Attendance1651 merged9a9cb02ca with exact reviewed-tree equality and all10 CI
@@ -688,3 +668,14 @@ provider behavior changed. Unchanged accepted native/UI evidence reused; full
 focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
 Prior failed CI is not acceptance. All deployment/provider/shared-application/
 account/activation holds remain unchanged.
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.
