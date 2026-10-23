@@ -150,6 +150,19 @@ removed only after byte equality was checked. This does not release this task's
 production, provider, shared-migration or activation holds. Final documentation
 review and exact-head CI remain required.
 
+CI `40015415856` passed the home proof on the pinned CI image: complete001–292
+replay, rollback visibility contracts, actual two-session contention, canonical
+source preservation and generated-type equality. A later, older Test member-list
+proof then rejected its canonical table catalog before allocating a fixture:
+the shared Test catalog omitted292's `private.classroom_home_hidden_enrollments`.
+The correction includes that table's whole fingerprint and explicitly retains
+the sealed291 source profile; it does not exclude the table from preservation.
+Offline regressions reproduce the failure and check complete292 catalogs,
+historical291 compatibility, unknown-table refusal, source-byte tampering and
+missing/changed fingerprints across create/publication/discard restoration.
+The full member-list SDK/cleanup proof and final CI remain required; the partial
+CI run is not merge acceptance. No application, SQL, quota or rollout control changes.
+
 Checklist reviewed: yes. Keyboard menu opening/Escape/focus return, checked edit
 semantics, role-labelled sections, joined-only actions and disabled controls have
 focused coverage. Full changed-base independent review, final CI and signed-in

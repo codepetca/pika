@@ -159,6 +159,19 @@ describe('finite member Test list fixture', () => {
 describe('actual-source member migration profiles (offline)', () => {
   const current = loadAssignmentListReviewedMigrations(process.cwd())
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
+  it('reproduces actual canonical-before292 keys while preserving the installed291 source profile', () => {
+    const before = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 291))
+    const complete = [...before, 'private.classroom_home_hidden_enrollments'].sort()
+    for (const source of [before, complete]) {
+      const captured = testMemberListCanonicalCatalog({ rowDigests: JSON.stringify(Object.fromEntries(source.map(name => [name, 'whole-row-digest']))) })
+      expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual(complete)
+    }
+    for (const source of [complete.filter(name => name !== 'public.users'),
+      [...complete, 'private.unreviewed']]) {
+      expect(() => testMemberListReviewedIsolatedCatalog(source, current)).toThrow()
+    }
+    expect(() => testMemberListReviewedIsolatedCatalog(complete, current.slice(0, 291))).toThrow()
+  })
   it('preserves both historical catalogs and the exact281 capability-table fingerprint', () => {
     const local = TEST_MEMBER_LIST_CANONICAL_TABLES_248
     const prior = [...local, 'private.classroom_test_quota_settings'].sort()
@@ -166,13 +179,16 @@ describe('actual-source member migration profiles (offline)', () => {
     const membership = [...decommission, 'private.attendance_participant_associations', 'private.attendance_override_event_generations'].sort()
     const adoption = [...membership, 'private.attendance_pointer_mutations'].sort()
     const learnerMembership = [...adoption, 'private.attendance_override_mutations'].sort()
-    const currentCatalog = [...learnerMembership, 'public.teacher_authoring_image_references'].sort()
-    for (const catalog of [local, prior, decommission, membership, adoption, learnerMembership, currentCatalog]) {
+    const authoringImages = [...learnerMembership, 'public.teacher_authoring_image_references'].sort()
+    const currentCatalog = [...authoringImages, 'private.classroom_home_hidden_enrollments'].sort()
+    for (const catalog of [local, prior, decommission, membership, adoption, learnerMembership, authoringImages, currentCatalog]) {
       expect(testMemberListReviewedIsolatedCatalog(catalog, current)).toEqual(currentCatalog)
     }
     expect(testMemberListReviewedIsolatedCatalog(membership, current.slice(0, 284))).toEqual(membership)
     expect(testMemberListReviewedIsolatedCatalog(adoption, current.slice(0, 285))).toEqual(adoption)
     expect(testMemberListReviewedIsolatedCatalog(learnerMembership, current.slice(0, 290))).toEqual(learnerMembership)
+    expect(testMemberListReviewedIsolatedCatalog(authoringImages, current.slice(0, 291))).toEqual(authoringImages)
+    expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 291))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 290))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 284))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()

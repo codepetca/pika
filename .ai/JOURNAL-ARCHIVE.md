@@ -49473,3 +49473,10 @@ without check-in dispatch. The added76 focused regression checks pass; corrected
 native proof, targeted review and final-head gates remain necessary before merge.
 Owner-sync/mixed-cohort readiness is explicitly held before learner activation,
 never permission for allocation or a legacy fallback.
+
+<!-- pika-session-log-archive-batch:dad2511027012176b84559b629a98bce04be4ab4c4ec72d21aa8f084ed5ea911 -->
+## 2026-10-21 — Formatted Tooltip transition consistency
+
+- Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
+- Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
+- Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.

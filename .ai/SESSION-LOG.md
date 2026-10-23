@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Formatted Tooltip transition consistency
-
-- Extended the existing safe decorative Tooltip exit to LimitedMarkdown headings/blockquote after real Calendar plain-versus-formatted baseline and failing AnnouncementContent regression. Preserves fast opacity, stationary text and immediate semantic retirement; widgets/media/custom tags still close immediately.
-- Added actual collapsed NavItems and LessonDayCell announcement fixtures outside the stable catalog, with immediate local callbacks and both-role gallery coverage. Owner/gallery69 and TypeScript/targeted lint/audit PASS; native matrix and final gates recorded in PR evidence.
-- Reproduced the separate mobile first-focus artifact scroll issue4/4. Read-only proposal rejected a one-frame Content gate because pending Escape/scroll lacks a supported provider-accounted close path. Issue remains open; no focus/dismissal workaround, dependency, schema or production change.
-
 ## 2026-10-21 — Durable Pal owner-transition queue preparation
 
 Owner chose to stop queued learner delivery on same-class ownership, preserving
@@ -680,3 +674,17 @@ migration/provider/activation action. Reused4557/145+static/source review431 and
 accepted native/UI evidence; final docs verification/review432 and exact-head CI
 precede normal1666mainmerge. This task's production/provider/account/plan/cohort
 holds remain; tool goal and DeepSeek stay paused.
+
+## 2026-10-23 — Include home preference in closed Test proof catalogs
+
+CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
+contention/types/source-preservation, then an older member-list canonical-before
+check rejected292's unlisted private home table before fixture allocation. Return
+1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
+include the sealed292 table centrally and preserve exact291 source compatibility.
+Test missing/drifted fingerprints for create/publication/discard restoration,
+tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
+provider behavior changed. Unchanged accepted native/UI evidence reused; full
+focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
+Prior failed CI is not acceptance. All deployment/provider/shared-application/
+account/activation holds remain unchanged.
