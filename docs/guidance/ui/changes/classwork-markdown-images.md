@@ -67,5 +67,24 @@ output/playwright/approved-editors with provenance. Component/source checks are
 recorded in PR 1662: canonical one-worker gate passed 10,162 tests across500
 files (8 tests skipped), architecture, UI/design policies, TypeScript and lint.
 The explicit Data API migration policy and Pika audit also pass.
-Migration replay, generated metadata and independent review
-remain pending; the PR must remain draft until those gates pass.
+Isolated replay001–291 and all four rollback behavior proofs passed, including
+image attachment, sequential question move/swap/Undo and ACL/default-deny checks.
+Historical and absent-default Data API privilege replay also passed. The first
+harness run stopped only at generated-type equality: the exact new291 ledger
+metadata is not generated yet. Shared source schema/history stayed unchanged.
+
+Owner approved local291 and three additional review launches. The exact local
+dryrun found history001–243 and proposed244–291, so application was stopped
+before any non-dry-run command. Expanded exact-set permission is pending.
+Both initial Sol/high reviews completed on d5bd64337 (launch10/11, prior9
+historical launches; owner-approved maximum12). Two unique P2 archive blockers
+were accepted: stale compatibility nodes must not require removed images, and
+absolute protected URLs must be remapped to the restored app/identity. One
+correction batch fixes both, with canonical Material/Assignment/snapshot source
+discovery and relative restored links; archive regressions include missing active
+assets and case-normalized UUIDs. Correction canonical gate passed10,168tests/500files (8skipped), architecture,
+UI/design policy, TypeScript and lint. The final IPv6 URL variant was added during
+that run; a subsequent exact-source archive run passed71tests across5suites.
+No editor UI source changed, so prior visual hashes remain applicable.
+The reserved final review and official metadata generation remain pending. Effective reviewer configurations and per-turn tokens were
+not exposed. PR1662 remains draft until native types and review gates pass.

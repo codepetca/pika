@@ -36,7 +36,9 @@ import type { TestDraftContent } from '@/types'
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
   '134_blueprint_test_question_ordinal_identity' as const
 
-const authoringImageUrlPattern = /(?<![a-z0-9/.:])\/api\/storage\/authoring-images\?object_id=([a-f0-9-]{36})(?![a-f0-9-])/gi
+// Match the protected route in the same relative/absolute forms accepted by
+// source attachment. Restored links become relative to the restored app.
+const authoringImageUrlPattern = /(?:https?:\/\/[^/\s<>"'`()]+)?\/api\/storage\/authoring-images\?object_id=([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})(?![a-f0-9-])/gi
 const managedUrlPattern = /https?:\/\/[^\s<>"'`]+/gi
 const uuidSchema = z.string().uuid()
 const currentActorSchema = z.object({
@@ -408,11 +410,33 @@ function legacyRestoreManagedOwner(args: {
 
 function collectAuthoringImageIds(value: unknown, ids = new Set<string>()): Set<string> {
   if (typeof value === 'string') {
-    for (const match of value.matchAll(authoringImageUrlPattern)) ids.add(match[1])
+    for (const match of value.matchAll(authoringImageUrlPattern)) ids.add(match[1].toLowerCase())
   } else if (Array.isArray(value)) {
     value.forEach((item) => collectAuthoringImageIds(item, ids))
   } else if (isJsonObject(value)) {
     Object.values(value).forEach((item) => collectAuthoringImageIds(item, ids))
+  }
+  return ids
+}
+
+function collectResourceAuthoringImageIds(resources: Record<string, JsonObject[]>): Set<string> {
+  const ids = new Set<string>()
+  for (const [table, rows] of Object.entries(resources)) {
+    for (const row of rows) {
+      // Mirror migration291's source precedence. Compatibility JSON can retain
+      // old images after an AI/source-only edit; those assets are no longer live.
+      const content = row.content
+      if (table === 'classwork_materials' && isJsonObject(content)
+        && isJsonObject(content.attrs) && typeof content.attrs.authoring_markdown === 'string') {
+        collectAuthoringImageIds(content.attrs.authoring_markdown, ids)
+      } else if (table === 'assignments' && typeof row.instructions_markdown === 'string') {
+        collectAuthoringImageIds(row.instructions_markdown, ids)
+      } else if (table === 'test_ai_grading_run_items') {
+        collectAuthoringImageIds(row.question_grading_snapshot, ids)
+      } else {
+        collectAuthoringImageIds(row, ids)
+      }
+    }
   }
   return ids
 }
@@ -432,8 +456,8 @@ function rewriteManagedUrls(
   })
   return rewritten.replace(authoringImageUrlPattern,
     (candidate, sourceId: string) => {
-      const restoredId = restoredManagedIdsBySourceId.get(sourceId)
-      return restoredId ? candidate.replace(sourceId, restoredId) : candidate
+      const restoredId = restoredManagedIdsBySourceId.get(sourceId.toLowerCase())
+      return restoredId ? `/api/storage/authoring-images?object_id=${restoredId}` : candidate
     })
 }
 
@@ -612,9 +636,9 @@ function buildClassroomArchiveRestorePlanForVersion(
     .filter((object) => object.managed_owner?.purpose === 'teacher_authoring_image')
     .map((object) => `${object.bucket}\0${object.source_path}`)
   const archivedAuthoringImageIds = new Set(manifest.storage_objects.flatMap((object) =>
-    object.managed_owner?.purpose === 'teacher_authoring_image' ? [object.managed_owner.object_id] : [],
+    object.managed_owner?.purpose === 'teacher_authoring_image' ? [object.managed_owner.object_id.toLowerCase()] : [],
   ))
-  if ([...collectAuthoringImageIds(decoded.resources)].some((id) => !archivedAuthoringImageIds.has(id))) {
+  if ([...collectResourceAuthoringImageIds(schemaAdaptedResources)].some((id) => !archivedAuthoringImageIds.has(id))) {
     throw new Error('Archive authoring image identities do not exactly match classroom references')
   }
   const expectedStorage = [...new Set([...referencedStorage, ...classOwnedImagePaths])].sort()
@@ -724,7 +748,7 @@ function buildClassroomArchiveRestorePlanForVersion(
   )
   const restoredManagedIdsBySourceId = new Map(
     storageObjects.flatMap((object) => object.sourceManagedObjectId
-      ? [[object.sourceManagedObjectId, object.managedObjectId] as const]
+      ? [[object.sourceManagedObjectId.toLowerCase(), object.managedObjectId] as const]
       : []),
   )
   const rewrittenSourceResources = Object.fromEntries(
