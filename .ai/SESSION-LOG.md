@@ -11,58 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 Material authoring and calendar
-
-Branch codex/material-authoring-parity. Material creation/edit now follows the
-assignment desktop details/content split and mobile stack, preserving Visual /
-Markdown review/apply and preview. Post / Schedule / Save draft uses Toronto time;
-no due date. Calendar publication chips open the exact material for both roles,
-with independently fenced loading/retry and scoped material refresh events.
-Migration283 extends owner publication RPCs atomically and keeps student future
-releases hidden on legacy/contextual/shared reads. Shared local and production
-migration application remain unapproved/unattempted; local243 lacks tests.test_date,
-so browser student Calendar correctly showed its independent Retry tests alert.
-Material reads/chips and exact teacher/student destinations passed real Playwright
-checks; temporary posted fixture deleted200. Editor and both-role Calendar captured
-1440x900 /390x844, light/dark under output/playwright (ignored); matrix reviewed.
-Reference: AssignmentForm.desktopSplit and Pattern Lab assignment creation. Reuse
-CreationModalShell/controls/ScheduleDateTimePicker; extend material editor and
-calendar chip owners. No new stable pattern or shared mega-form; composite keyboard
-and focus tests pass. TypeScript, UI/design policy and audit pass; focused gate,
-disposable DB proof and independent review recorded in PR before readiness.
-Orchestration: Sol6.1/high calendar worker accepted after source/tests verification
-(131 focused tests), backend worker owns isolated rollback DB proof and metadata.
-No file conflicts. Weekly remaining71% at start; storage healthy275GB. Effective
-worker config, attributable tokens/time unknown; one interrupted default-wide
-focused run due contention, replaced with bounded2-worker final run. DeepSeek
-owner pause through2026-12-31 respected. No hosted rollout or migration claim.
-
-PR1639 initial independent Sol6.1/high reviews accepted4 findings. Batch1 adds
-exact283 source seal and closed-profile extensions (historical prefixes retained,
-unknown284 rejected), retires URL-owned material dialogs on Back/selection/class
-changes and fences late save callbacks, corrects native material-read proof/docs
-for hidden future releases and separate release/cursor filters, and restricts
-privilege-free clone baselines to234–282. Native shared fixture proof intentionally
-not run; disposable proof rerun PASS/clean containers. Profiles968 tests and
-teacher authoring/TestDetail150 tests PASS, plus late-save regression. Real browser
-Back closes and Forward reopens exact material for teacher; both-role destinations
-PASS, fixture delete200. Existing preview test now awaits async navigation to avoid
-its broad-run race. Initial focused3563pass/13fail drove this batch; final focused
-and targeted rereview recorded in PR. Review ledger /tmp/pika-material-review-ledger.txt;
-worker/proof receipts private /tmp; tokens/time attribution unknown. No rollout.
-
-Final broad source-related run exposed8 more legacy current282 test-count
-assertions (4974passed/8failed); batch2 updates only those8 tests to current283
-and changes unknown-future cases to284. All701tests across those8 suites PASS.
-No product/proof runtime change; targeted rereview and final gate tracked in PR.
-
-Owner requested PR/merge. CI39524309194 exposed old material Preview icon-only
-browser assertions; batch3 updates only that contract to the approved labeled
-assignment-style Preview and verifies both panes. Existing keyboard/preview/focus,
-pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
-light/dark local Playwright contracts PASS. PR returned to draft before changes;
-prior run cancelled by draft transition. No product/runtime/SQL change.
-
 ## 2026-10-20 — Calendar cell text stability
 
 - Kept Month selection at the existing compact typography, padding and event density. Preview and editor share scoped heading/list/code/quote metrics; an inert preview bridges the editor's initial null render. Full-interior height measurement preserves the shell transition without moving lesson text.
@@ -750,3 +698,18 @@ credential/parser reviews precede final stable-SHA CI. Existing human review-lim
 waiver covers this repair; prior13review receipts and7fix batches retained.
 No local Docker operation, migration, dependency or application/UI change in this
 batch. Another chat's bounded local verification hold remains active.
+
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).

@@ -48965,3 +48965,56 @@ tokens not fully attributable; bounded delegation outcomes verified.
 Final integrated focused gate PASS:1212tests/86files, architecture, UI/design
 policies, TypeScript and lint. Audit/diff/archive-cap checks PASS. Test sources
 unchanged after these checks; final independent review/CI recorded in PR1638.
+
+<!-- pika-session-log-archive-batch:e13830ba4edd1339291d552583a79b85974162bbc88c867268ca7cba55936198 -->
+## 2026-10-20 Material authoring and calendar
+
+Branch codex/material-authoring-parity. Material creation/edit now follows the
+assignment desktop details/content split and mobile stack, preserving Visual /
+Markdown review/apply and preview. Post / Schedule / Save draft uses Toronto time;
+no due date. Calendar publication chips open the exact material for both roles,
+with independently fenced loading/retry and scoped material refresh events.
+Migration283 extends owner publication RPCs atomically and keeps student future
+releases hidden on legacy/contextual/shared reads. Shared local and production
+migration application remain unapproved/unattempted; local243 lacks tests.test_date,
+so browser student Calendar correctly showed its independent Retry tests alert.
+Material reads/chips and exact teacher/student destinations passed real Playwright
+checks; temporary posted fixture deleted200. Editor and both-role Calendar captured
+1440x900 /390x844, light/dark under output/playwright (ignored); matrix reviewed.
+Reference: AssignmentForm.desktopSplit and Pattern Lab assignment creation. Reuse
+CreationModalShell/controls/ScheduleDateTimePicker; extend material editor and
+calendar chip owners. No new stable pattern or shared mega-form; composite keyboard
+and focus tests pass. TypeScript, UI/design policy and audit pass; focused gate,
+disposable DB proof and independent review recorded in PR before readiness.
+Orchestration: Sol6.1/high calendar worker accepted after source/tests verification
+(131 focused tests), backend worker owns isolated rollback DB proof and metadata.
+No file conflicts. Weekly remaining71% at start; storage healthy275GB. Effective
+worker config, attributable tokens/time unknown; one interrupted default-wide
+focused run due contention, replaced with bounded2-worker final run. DeepSeek
+owner pause through2026-12-31 respected. No hosted rollout or migration claim.
+
+PR1639 initial independent Sol6.1/high reviews accepted4 findings. Batch1 adds
+exact283 source seal and closed-profile extensions (historical prefixes retained,
+unknown284 rejected), retires URL-owned material dialogs on Back/selection/class
+changes and fences late save callbacks, corrects native material-read proof/docs
+for hidden future releases and separate release/cursor filters, and restricts
+privilege-free clone baselines to234–282. Native shared fixture proof intentionally
+not run; disposable proof rerun PASS/clean containers. Profiles968 tests and
+teacher authoring/TestDetail150 tests PASS, plus late-save regression. Real browser
+Back closes and Forward reopens exact material for teacher; both-role destinations
+PASS, fixture delete200. Existing preview test now awaits async navigation to avoid
+its broad-run race. Initial focused3563pass/13fail drove this batch; final focused
+and targeted rereview recorded in PR. Review ledger /tmp/pika-material-review-ledger.txt;
+worker/proof receipts private /tmp; tokens/time attribution unknown. No rollout.
+
+Final broad source-related run exposed8 more legacy current282 test-count
+assertions (4974passed/8failed); batch2 updates only those8 tests to current283
+and changes unknown-future cases to284. All701tests across those8 suites PASS.
+No product/proof runtime change; targeted rereview and final gate tracked in PR.
+
+Owner requested PR/merge. CI39524309194 exposed old material Preview icon-only
+browser assertions; batch3 updates only that contract to the approved labeled
+assignment-style Preview and verifies both panes. Existing keyboard/preview/focus,
+pinned actions, validation and explicit draft checks remain;4desktop/mobile ×
+light/dark local Playwright contracts PASS. PR returned to draft before changes;
+prior run cancelled by draft transition. No product/runtime/SQL change.

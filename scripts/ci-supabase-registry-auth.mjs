@@ -94,7 +94,9 @@ export function loginRegistryAuth({ env = process.env, runDocker = spawnSync } =
     directory = mkdtempSync(join(root, DIRECTORY_PREFIX))
     chmodSync(directory, 0o700)
     writeFileSync(join(directory, OWNER_FILE), OWNER_CONTENT, { flag: 'wx', mode: 0o600 })
-    writeFileSync(join(directory, 'config.json'), '{"auths":{}}\n', { flag: 'wx', mode: 0o600 })
+    // A nonempty auth map prevents Docker from auto-selecting a host credential
+    // helper, which could persist this job's token outside the owned directory.
+    writeFileSync(join(directory, 'config.json'), '{"auths":{"ghcr.io":{}}}\n', { flag: 'wx', mode: 0o600 })
 
     // Publish cleanup ownership BEFORE the interruptible login. This contains
     // paths only; neither the token nor Docker diagnostics enter runner output.

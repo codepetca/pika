@@ -65,6 +65,9 @@ describe('job-owned Supabase CI registry authentication', () => {
       expect(options.env.SUPABASE_CI_GHCR_TOKEN).toBeUndefined()
       expect(options.env.DOCKER_CONFIG).not.toBe(operatorConfig)
       expect(options.env.PATH).toBe('/fake-ci/bin')
+      // A populated fixed-host entry disables Docker's platform helper discovery.
+      // Otherwise an installed helper can persist the token outside this config.
+      expect(JSON.parse(readFileSync(join(options.env.DOCKER_CONFIG!, 'config.json'), 'utf8'))).toEqual({ auths: { 'ghcr.io': {} } })
       expect(options).toMatchObject({ timeout: 30_000, killSignal: 'SIGKILL', maxBuffer: 64 * 1024, stdio: ['pipe', 'pipe', 'pipe'] })
       expect(JSON.stringify({ binary, args, env: options.env })).not.toContain(secret)
       expect(process.umask()).toBe(0o077)
