@@ -49286,6 +49286,7 @@ before any separately approved resume/deploy/migration. Historical backfill and
 Storage preservation limits remain. No SQL, runtime, provider or permission
 change in this documentation update.
 
+<!-- pika-session-log-archive-batch:8d4ebeb222b5bf8168e34141d77ab547c4e6a0a092dac82e199d5ff3966c5a85 -->
 ## 2026-10-20 — Account menu transition consistency
 
 Aligned the existing teacher/student account menu with Pattern Lab action-menu motion: semantic fast opacity at a fixed position, retaining immediate inert/hidden close and shared keyboard/focus ownership. Native baseline covered 16 contexts and reproduced the prior 4px slide/200ms timing; the new motion regression fails against that baseline. Existing owner/hook tests pass (9). Expanded browser coverage checks natural motion, rapid reopen, theme, Feedback focus and dismissal without submitting Feedback or Logout. Final visual/focused checks, independent review and exact-head CI follow before main merge.

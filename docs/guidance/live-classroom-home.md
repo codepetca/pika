@@ -78,6 +78,12 @@ Prepared source, not yet changed-base review or release acceptance:
   with all active, Archived/Hidden and wizard combinations visually inspected.
 - Archiving or unarchiving refreshes server-resolved creation capabilities;
   freeing a slot must not leave the creation action unavailable until a reload.
+- Under the same home plus complete-experience intersection, protected authoring
+  images use current classroom relationships rather than the global account role.
+  Reserve/finalize keep actual active ownership and creator/object binding;
+  delivery gives owners precedence while current members still need a ready
+  image disclosed by their learner surface. Retained previews remain owner-only.
+  Outside that intersection, the existing image authorization is unchanged.
 
 Private database evidence: `pika-home-visibility.bF4U96` (type artifact generation)
 and `pika-home-visibility.rghCmv` (portable runner + exact generated-type check).

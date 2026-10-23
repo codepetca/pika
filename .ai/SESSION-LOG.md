@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-20 — Account menu transition consistency
-
-Aligned the existing teacher/student account menu with Pattern Lab action-menu motion: semantic fast opacity at a fixed position, retaining immediate inert/hidden close and shared keyboard/focus ownership. Native baseline covered 16 contexts and reproduced the prior 4px slide/200ms timing; the new motion regression fails against that baseline. Existing owner/hook tests pass (9). Expanded browser coverage checks natural motion, rapid reopen, theme, Feedback focus and dismissal without submitting Feedback or Logout. Final visual/focused checks, independent review and exact-head CI follow before main merge.
-
-CI exposed an existing production-history documentation assertion after main's readiness update. Main now carries the corrected Prod DB history format; retained it during integration, preserving the readiness facts and unchanged assertion.
-
 ## 2026-10-21 — Calendar category themes and Classwork icons
 
 Owner approved shared amber for due dates/tests, quiet light green for materials/surveys, and existing orange for announcements. Added semantic light/dark calendar tokens and reused them across agenda/grid/weekend/day chips. ClassworkTypeIcon keeps ClipboardList/FileText/ListChecks consistent in teacher creation menus, teacher/student lists and prototypes. Saved the convention in stable UI guidance and a scoped brief; Pattern Lab calendar-identity renders the real cell and shared icons. No new survey scheduling, statuses, dependencies or migrations.
@@ -796,3 +790,15 @@ match prior bytes. Native/browser resources settled, envlink restored, Dockerwin
 released; editor stopped exactsourceDB/Desktop preserving volumes. Final focused
 4486/143PASS; static completion and cumulative review428 tracked privately before
 ready/CI. No shared migration, production/provider/account/cohort/goal action.
+
+## 2026-10-23 — Reconcile authoring-image role boundaries
+
+Cumulative review428 accepted the rebase/native/visual evidence but found new
+upstream image endpoints still globally role-bound. Batch42 adapts existing
+reserve/finalize/cancel and delivery only within exact home/shared admission;
+actual owner/creator/object checks, current-member publication, archived denial,
+retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
+regressions reproduced the mismatch before the fix;79 focused checks then passed.
+No SQL, UI, provider execution or shared database change. Native292/16-case UI
+evidence remains unchanged; final focused checks and targeted review429 required.
+All deployment/provider/account/cohort/cutover holds stay in place.
