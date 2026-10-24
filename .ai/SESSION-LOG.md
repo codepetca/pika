@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Prepare classroom safeguards production release
-
-Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
-
 ## 2026-10-22 — Compact modal close refinement (PR #1662)
 
 Owner requested the X inline with Write/Markdown instead of a close-only band.
@@ -669,3 +665,7 @@ root200 expectation was a smoke-assumption error, not an app change. Five
 activation settings absent;24provider/controlmetadata records unchanged. No
 retry/reset/seed/production fixture/provider/account/plan/billing/activation
 change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
+
+## 2026-10-24 — Assignment image submission recovery
+
+Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.

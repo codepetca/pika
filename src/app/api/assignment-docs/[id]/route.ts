@@ -3,6 +3,7 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { requireAuth, requireRole } from '@/lib/auth'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { parseContentField } from '@/lib/tiptap-content'
+import { normalizeAssignmentDocImageReferences } from '@/lib/server/assignment-doc-image-references'
 import { sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { saveAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
@@ -506,6 +507,10 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
     }
 
     const saveSessionId = isLegacySave ? crypto.randomUUID() : body.save_session_id
+    const normalizedContent = await normalizeAssignmentDocImageReferences({
+      supabase, content, assignmentDocId: existingDoc?.id ?? null,
+      studentId: user.id, origin: request.nextUrl.origin,
+    })
     const saveResult = await saveContextualAssignmentDoc({
       supabase,
       assignmentId,
@@ -513,7 +518,7 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
       previousContent: existingDoc
         ? existingDoc.content
         : { type: 'doc', content: [] },
-      content,
+      content: normalizedContent,
       expectedUpdatedAt: isLegacySave ? existingDoc?.updated_at ?? null : body.expected_updated_at,
       trigger: trigger ?? 'autosave',
       pasteWordCount: paste_word_count,
@@ -590,6 +595,10 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
   }
 
   const saveSessionId = isLegacySave ? crypto.randomUUID() : body.save_session_id
+  const normalizedContent = await normalizeAssignmentDocImageReferences({
+    supabase, content, assignmentDocId: existingDoc?.id ?? null,
+    studentId: user.id, classroomId: assignment.classroom_id, origin: request.nextUrl.origin,
+  })
   const saveResult = await saveAssignmentDocAtomic({
     supabase,
     assignmentId,
@@ -597,7 +606,7 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
     previousContent: existingDoc
       ? parseContentField(existingDoc.content)
       : { type: 'doc', content: [] },
-    content,
+    content: normalizedContent,
     expectedUpdatedAt: isLegacySave ? existingDoc?.updated_at ?? null : body.expected_updated_at,
     trigger: trigger ?? 'autosave',
     pasteWordCount: paste_word_count,
