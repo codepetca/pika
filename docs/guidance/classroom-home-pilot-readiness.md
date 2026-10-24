@@ -51,7 +51,7 @@ the source recovers, fresh reads recover without changing admission or roles.
 | Evidence | What it establishes | What it does not establish |
 | --- | --- | --- |
 | Accepted isolated real-cookie Home rehearsal, frozen `28fc6de8960946dcc18fbe5b6c2b2efc02b97693`, schema292 | Real signed-in mixed-role create/replay, code join, Teaching/Joined navigation, persisted hide/unhide, removal/privacy and screenshots | Production activation, a later changed app, live providers or a capability-source outage |
-| Recovery SQL contract in the existing offline owned-clone verifier | **Pending execution:** installed atomic creation, managed disable/new-operation denial/completed replay, real service-role42501, exact ACL restoration, relationships/work preservation and rollback equality | HTTP/PostgREST connection-pool/cache behavior, browser outage behavior or deployed recovery |
+| Recovery SQL contract in the existing offline owned-clone verifier | **Passed2026-10-24:** installed atomic creation, managed disable/new-operation denial/completed replay, real service-role42501, exact ACL restoration, relationships/work preservation and rollback equality | HTTP/PostgREST connection-pool/cache behavior, browser outage behavior or deployed recovery |
 | Focused route/adapter/server-page recovery tests | Actual application mapping of capability42501 to503 with no writer/legacy fallback, retained independent reads and subsequent recovery for both global-role labels | Real transport/database provenance; their database responses are synthetic |
 | Inactive production release receipt | Exact released payload, schema292, public unauthenticated smoke checks and activation-off metadata at that observation | Signed-in production canaries or future configuration stability |
 
@@ -60,6 +60,31 @@ proof**, not one operational PostgREST→SDK outage journey. Preserve this
 distinction in release decisions. Reuse accepted domain/lifecycle/privacy and
 rollback evidence only where the application/schema bytes and interactions are
 unchanged; close specific gaps rather than restart broad architecture work.
+
+### Isolated recovery receipt
+
+The fresh run used reviewed source
+`a3ae3d947ee41fb2b4e40506b2b62c257792aea9` on2026-10-24 from11:38:21.730Z
+to11:38:38.945Z, completing in17.2seconds. Private case
+`offline-home-recovery-T3iA7N` retains the launcher receipt and complete native
+logs. Recovery SQL SHA256:
+`43e86561be7323dc7613671c212d28712239874f4238169f09daa053398145a2`.
+
+The existing verifier replayed001–292 into its owned offline clone, accepted the
+exact post-rollback recovery verdict, passed unchanged real lock-contention
+checks and generated-type equality, and verified canonical source ID/version/
+normalized schema plus exact migration/proof manifest preservation. Root also
+compared retained before/after schema/manifests/types and observed no remaining
+container with the exact owned-run label. Evidence is under20MiB; no timeout or
+output overflow occurred. Only the owned clone was removed; shared Docker and
+the canonical database were not stopped, reset, migrated or seeded.
+
+The earlier case `offline-home-recovery-zFaOZt` remains failed, not acceptance:
+its submitted-work fixture used legacy plain text in a JSONB column. The corrected
+fixture and actual-SQL JSON regression received independent review before the
+fresh attempt. Its failure/cleanup/source-preservation evidence is retained.
+No Pika runtime or schema fix was needed. Neither case proves a deployed or
+real-HTTP outage/recovery journey.
 
 ## Pilot decision sheet — not yet authorized
 
