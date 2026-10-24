@@ -49522,6 +49522,7 @@ That policy is recorded, not implemented here. Production/live-provider/shared-
 local249+/publication/configuration/account/cohort/cutover holds remain unchanged.
 
 <!-- pika-session-log-archive-batch:7586fa5657983b97fd52038001c10069a3a7896bdd7bb774371d082174214dad -->
+<!-- pika-session-log-archive-batch:37c5d1a0bab69fb71d0374245469e7b22b2546a0c6fbd725e9d9251092e8a76a -->
 ## 2026-10-21 — Prepare contextual removed-membership cleanup
 
 Forward288 removes only legacy account-label prerequisites from the existing live
@@ -49544,3 +49545,22 @@ and exact owned clone cleanup is independently verified. Focused checks against
 the prepared parent pass3562 tests/104files plus all static gates; independent
 review and exact-head CI remain pending. No grouped writer/index change, shared-local migration,
 production/provider action, publication or activation is included.
+
+<!-- pika-session-log-archive-batch:5a703d26a0442c2cb0c1159f92e7a3e90fdd792fc797a2e1539a99610d2c90e5 -->
+## 2026-10-21 — Apply production285–288 and deploy classroom safeguards
+
+Owner approved exact production285–288 with permanent Pal queue and expanded
+cleanup/provider-erasure effects acknowledged. Preview39699999718 and single
+apply39705435520 use merged source86633c561, CI39668023820 and digestd3d96ac8;
+applied-verified with complete001–288 history. All18 read-only query groups pass,
+including39 exact function body/metadata/ACL rows, RLS/keys/capabilities, new
+column/index/trigger, unchanged controls/cutoff/public ACLs and delivered history.
+No eligible owner queue or teacher-labelled removed cleanup backlog at verification.
+Existing provider/live/automatic/academic remain ON; Pal membership/signals, quota
+and billing OFF; admission absent. Approval consumed; no retry/fixtures/activation.
+Release1658 reviewed at79eca9c18 by two GPT6.1Sol/high reviewers, complete0 findings;
+focused892 tests/70files and all10 CI39700764872 lanes PASS. Normal protected merge
+produced81a675a41 at01:25:46UTC; exact-SHA Vercel READY/production success01:28:53UTC,
+with public /200,/login200,/api/auth/me401,/pattern-lab404 PASS. Receipt
+records separate historical source proofs and current production state without
+claiming provider canaries, batch3 exit or shared-local application.

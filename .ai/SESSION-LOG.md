@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Apply production285–288 and deploy classroom safeguards
-
-Owner approved exact production285–288 with permanent Pal queue and expanded
-cleanup/provider-erasure effects acknowledged. Preview39699999718 and single
-apply39705435520 use merged source86633c561, CI39668023820 and digestd3d96ac8;
-applied-verified with complete001–288 history. All18 read-only query groups pass,
-including39 exact function body/metadata/ACL rows, RLS/keys/capabilities, new
-column/index/trigger, unchanged controls/cutoff/public ACLs and delivered history.
-No eligible owner queue or teacher-labelled removed cleanup backlog at verification.
-Existing provider/live/automatic/academic remain ON; Pal membership/signals, quota
-and billing OFF; admission absent. Approval consumed; no retry/fixtures/activation.
-Release1658 reviewed at79eca9c18 by two GPT6.1Sol/high reviewers, complete0 findings;
-focused892 tests/70files and all10 CI39700764872 lanes PASS. Normal protected merge
-produced81a675a41 at01:25:46UTC; exact-SHA Vercel READY/production success01:28:53UTC,
-with public /200,/login200,/api/auth/me401,/pattern-lab404 PASS. Receipt
-records separate historical source proofs and current production state without
-claiming provider canaries, batch3 exit or shared-local application.
-
 ## 2026-10-21 — Artifact first-focus scroll recovery
 
 - Native keyboard focus used to open artifact help before the table reveal scroll, which immediately dismissed it. Private forwarded button/link adapters now invoke the latest committed Radix focus handler after one frame; intent, blur, hiding and unmount cancel pending acquisition. Shared Tooltip/provider/fade, native commands and chooser unchanged.
@@ -669,3 +651,28 @@ browser matrix, targeted review and exact-head CI evidence is recorded in PR1670
 - Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
 - Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
 - The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
+## 2026-10-23 — Contextual owner manual-attendance authorization
+
+Signed-in home verification identified the Daily manual-attendance fallback still
+requiring a global teacher role before classroom ownership. Owner approved the
+narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
+shared attendance actor admission; unmatched accounts retain the original teacher
+gate. Actual classroom ownership, archived read/mutation distinction and unchanged
+SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
+26 failures before the fix; affected API/store/hook/migration tests pass afterward.
+Full local checks, independent auth/compatibility review and exact-head CI precede
+main merge. No schema, cohort, provider, account or production changes; existing
+failed rehearsal evidence is retained and does not establish workflow acceptance.
+
+## 2026-10-23 — Contextual member notification reads
+
+Owner approved the signed-in mixed-role notification gap after an actual route
+regression reproduced403. Admitted current nonowner members now use compact,
+bounded classroom-root reads for the unchanged four notification counters;
+every payload and terminal page binds active class, actor, owner and enrollment
+generation. Publication/own-resource checks, repeated snapshot validation and a
+final relationship guard reject observed drift without claiming a transaction
+snapshot. Absent/unadmitted behavior retains the original student-role path.
+Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
+pass; final independent review/full focused checks remain coordinator-owned.
+No migration, dependency, account, cohort, provider or production changes.
