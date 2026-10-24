@@ -110,7 +110,7 @@ insert into public.classroom_enrollments(id,classroom_id,student_id) values
 insert into public.assignments(id,classroom_id,title,description,due_at,created_by) values
   ('e2920000-0000-4000-8000-000000000031','e2920000-0000-4000-8000-000000000012','Recovery work sentinel','Keep exact work','2099-01-01','e2920000-0000-4000-8000-000000000002');
 insert into public.assignment_docs(id,assignment_id,student_id,content,is_submitted,submitted_at) values
-  ('e2920000-0000-4000-8000-000000000032','e2920000-0000-4000-8000-000000000031','e2920000-0000-4000-8000-000000000001','Recovery submitted-work sentinel',true,'2020-01-01');
+  ('e2920000-0000-4000-8000-000000000032','e2920000-0000-4000-8000-000000000031','e2920000-0000-4000-8000-000000000001','{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Recovery submitted-work sentinel"}]}]}'::jsonb,true,'2020-01-01');
 set local role service_role;
 do $hidden$ begin
   perform public.set_classroom_home_visibility_v1('e2920000-0000-4000-8000-000000000001',

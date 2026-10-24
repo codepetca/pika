@@ -646,3 +646,7 @@ TypeScript; native execution and independent review remain pending. Bounded
 Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
 (351s), effective model/tokens unknown. No runtime, migration, dependency,
 production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.

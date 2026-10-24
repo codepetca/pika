@@ -99,7 +99,15 @@ ${guard}`], {
     }
     expect(recovery).not.toMatch(/^commit\s*;/im)
     expect(recovery.indexOf('rollback;')).toBeLessThan(recovery.indexOf('do $rolled_back$'))
-    expect(recovery).toContain("'Recovery submitted-work sentinel'")
+    expect(recovery).toContain('Recovery submitted-work sentinel')
+  })
+
+  it('seeds submitted work as the current assignment_docs JSONB document, not legacy plain text', () => {
+    const content = recovery.match(/insert into public\.assignment_docs[\s\S]*?values\s*\n\s*\('[^']+','[^']+','[^']+','((?:''|[^'])*)'(?:\s*::jsonb)?,true,/)?.[1]
+    expect(content).toBeDefined()
+    expect(JSON.parse(content!.replaceAll("''", "'"))).toEqual({ type: 'doc', content: [
+      { type: 'paragraph', content: [{ type: 'text', text: 'Recovery submitted-work sentinel' }] },
+    ] })
   })
 
   it('preserves source schemas/version/image and removes only owned exact clone identities on success and failure', () => {
