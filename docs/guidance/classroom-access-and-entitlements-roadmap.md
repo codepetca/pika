@@ -1,5 +1,10 @@
 # Classroom access and entitlements
 
+2026-10-23 Batch4 implementation checkpoint: [live relationship home](live-classroom-home.md)
+prepares the real gated home, persisted joined visibility and capability-based
+create/code-join. Independent review, upstream migration-number reconciliation,
+fresh CI and signed-in activation evidence remain; no rollout or epic exit.
+
 Status: approved direction; phase 0 merged in PR #1170. The owner approved main-only
 landing of observation #1172, [classroom-core #1174](classroom-core-contextual-access.md)
 and [calendar writes #1175](contextual-calendar-writes.md), in that order after

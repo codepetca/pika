@@ -206,6 +206,7 @@ export async function joinClassroomByCodeAtomic(args: {
   lastName: string | null
   studentNumber: string | null
   occurredAt?: Date
+  membershipOnly?: boolean
   supabase?: ContextualClassroomJoinRpcClient
 }): Promise<ContextualClassroomJoinResult> {
   const expectedClassroomIdResult = canonicalUuidSchema.safeParse(args.expectedClassroomId)
@@ -215,7 +216,7 @@ export async function joinClassroomByCodeAtomic(args: {
   const expectedClassroomId = expectedClassroomIdResult.data
   const classCode = normalizeClassroomJoinCode(args.classCode)
   const keys = buildClassroomJoinRateLimitKeys(args.actorId, classCode)
-  const palEvent = isPalEnabled() && !isClassroomPalRequested()
+  const palEvent = !args.membershipOnly && isPalEnabled() && !isClassroomPalRequested()
     ? buildClassroomJoinedEvent({
         learnerId: args.actorId,
         classroomId: expectedClassroomId,

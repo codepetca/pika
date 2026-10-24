@@ -1,61 +1,35 @@
 # Pika CI on your hardware
 
-Heavy CI can run on a dedicated Linux runner while GitHub runs change
-classification, the hosted database lifecycle, Test owner SDK and dark-browser
-shards, and the required `PR Gate`. All existing checks and risk selectors
-remain required. A successful local run does not replace the PR gate.
+All eight heavy CI jobs and the final `PR Gate` can use the selected isolated
+Linux runner. Change classification remains hosted. Existing risk selectors,
+proofs, cleanup and required checks remain unchanged. Classification failure,
+skip or missing runner output sends the gate to hosted compute, where its
+unchanged validation refuses incomplete evidence. An unavailable selected runner
+queues the required jobs; it never makes them optional.
 
 ## Delivery plan and acceptance
 
-1. Preserve job IDs, names and commands; add same-repository compute routing
-   and an explicit hosted fallback.
-2. Provide `pnpm ci:local` to execute canonical workflow commands in a clean
-   checkout of a named commit with private logs and disposable stack isolation.
-3. Test routing/refusal behavior, dry-run all lanes, run local checks, independently
-   review a fixed SHA, and obtain its required PR CI result.
-4. Choose and prepare the Linux host, register and rehearse its runner, then
-   enable it for public or private Pika. Verify an eligible PR run uses the
-   runner and passes `PR Gate` before claiming operational completion.
+1. Preserve job IDs, names and commands; keep same-repository opt-in routing and
+   an explicit hosted fallback. Fork PRs use hosted compute.
+2. Keep `pnpm ci:local` as the canonical full local workflow executor, with
+   private logs and disposable-stack isolation.
+3. Complete focused checks, independent review and exact-head native PR CI.
+4. Provision and validate sufficient isolated Linux capacity, verify actual
+   runner identities, every selected result, final gate and teardown, then enable
+   automatic routing. Code delivery is separate from operational acceptance.
 
-Preparation does not change visibility, register a runner, or enable the setting.
-Hardware activation remains pending until a host is chosen and a real self-hosted
-run passes.
+The owner directed Pika to remain public on 2026-10-23. No separate Linux machine
+is available yet. The Mac has insufficient safe memory reserve and insufficient
+serial throughput for routine CI. Do not enable automatic routing merely because
+this source is merged. See the [capacity and rollout plan](./ci-runner-capacity-and-rollout.md)
+for hardware requirements, Tailscale management, measured demand and the public hold.
 
-The `Contextual Test Owner SDK` and `Contextual Test Owner SDK Lifecycle` jobs
-always use `ubuntu-latest`, selected by the existing database flag. The first runs
-detail, list, draft-save and create; the second runs draft-get, pristine-discard
-and publication. Each has a separate hosted VM/daemon and independent canonical
-stack. Every normal and forced proof still uses its own fresh disposable project
-and complete migration replay. Proofs run serially within each job. Database-selected
-PRs require both database-contract jobs and both SDK jobs to pass. The original
-database, test/build and browser jobs continue to follow the configured routing;
-`runner=self-hosted` therefore means mixed compute with hosted shards. This
-does not activate a local runner. See the [proof optimization plan](../plans/ci-proof-setup-optimization.md)
-for observed timings and the comparative acceptance gate.
-
-`Architecture Database Contracts` retains its original routing and the first
-51 proof blocks through Test member-list. `Architecture Database Contracts
-Lifecycle` runs the remaining 85 blocks, starting with owner reorder, on
-`ubuntu-latest`. Both use the same database selector, independent complete
-migration replay, pinned setup, empty-daemon/port preflight and guarded stop.
-Proof blocks stay unchanged and serial within each job. The migration rehearsal
-and generated types check remain in the original job; the lifecycle job requires
-no fixture or receipt from it. The hosted lifecycle job adds no local runner
-registration or activation.
-
-Browser-selected runs require both browser jobs. The original job runs the
-light desktop/mobile and light Pattern Lab projects using configured routing;
-`Browser Experience Matrix Dark` runs the corresponding four dark projects on
-`ubuntu-latest`. Both use the complete canonical `e2e:ci` spec list with explicit
-project filters and their own fresh startup, fixture seed, auth setup, artifacts
-and cleanup. Playwright serial-file behavior, two workers, retries and snapshots
-remain unchanged. The hosted dark shard never shares a database with the
-routable browser job or activates a local runner.
-
-The initial host choice is the existing Mac shared with HQ, using separate Linux
-templates and a cooperative exclusive lease. Pika's host driver below admits one
-job on demand. Automatic queue discovery and fairness between repositories remain
-unimplemented.
+The database and SDK partitions retain independent fresh stacks and serial proofs.
+All browser partitions retain their canonical spec lists, selected projects,
+workers, retry behavior, snapshot checks and guarded teardown. Routing chooses
+compute only; no lane is removed or combined. The ephemeral final gate adds one
+small runner job. Success runs upload no artifacts; bounded failure evidence is
+described in the capacity plan.
 
 ## Runner requirements
 
@@ -248,8 +222,7 @@ reviewed commits retain their complete combined SDK job or original database job
 each explicit lifecycle lane rejects a historical layout that lacks that job.
 `--lane browser` runs light, dark Experience and dark Pattern Lab sequentially.
 `--lane browser-dark` runs both dark jobs; `--lane browser-pattern-dark` selects
-only dark Pattern Lab. Both dark jobs use hosted Ubuntu, including when the
-primary lanes route to self-hosted compute. Each retains its own guarded fresh
+only dark Pattern Lab. Both dark jobs follow the same selected compute location as the primary lanes. Each retains its own guarded fresh
 Supabase replay, seed, Chromium verification and diagnostic artifact. Splitting
 by family removes the Pattern Lab phase barrier before dark Experience without
 changing Playwright workers, retries, timeouts or test selection.
@@ -257,9 +230,10 @@ Older reviewed commits retain their complete combined browser lane or original
 two-job light/dark layout. The explicit Pattern Lab lane rejects historical
 layouts that lack that job.
 `--lane all` includes every job exactly once. Local jobs run sequentially with
-separate start/preflight/cleanup cycles. The host admission rehearsal still
-checks the three routable local lanes; it does not register or serve the hosted
-database lifecycle, SDK or dark-browser shards.
+separate start/preflight/cleanup cycles. The host admission rehearsal checks representative database, browser and test/build
+resource preflights without registration or SQL replay. Live one-job admission can
+serve any queued job with the required labels, including the final gate; a single
+rehearsal does not establish throughput or complete all-lane operational acceptance.
 
 The temporary checkout retains `.git` for commit-bound rehearsals, excludes
 environment files and uses a restricted child environment. Commands come from
@@ -269,7 +243,7 @@ Intentional proof additions, renames or repartitioning must update that reviewed
 inventory contract and preserve supported historical layouts; ordinary command
 changes do not require new inventory digests.
 Setup actions become local tool verification; cache/artifact actions use local
-storage. Logs and browser artifacts remain in the reported private directory.
+storage. Logs and bounded failure diagnostics remain in the reported private directory.
 `check:focused` remains the faster iteration command, not the full suite.
 
 ## Measurement
@@ -279,15 +253,14 @@ VM saves hosted minutes but serializes heavy work. Artifact/cache storage has
 separate billing. Verify [current billing terms](https://docs.github.com/en/billing/concepts/product-billing/github-actions)
 before activation; self-hosted execution is currently listed as free.
 
-The fixed usage cohort captured from 2026-09-29 13:12:43 UTC through
-2026-10-06 13:12:43 UTC contained at least 11,588 projected private job-rounded
-minutes: 11,090 in heavy jobs and 498 in classification/PR Gate. Moving the heavy
-jobs would remove 95.7% of that known projection. These are projected minutes for
-that public-repository cohort, not an actual private bill or a future forecast;
-three unfinished jobs were excluded.
+The current October 16–23 cohort contains 15,035 rounded hosted minutes, including
+238.12 actual hours in the eight heavy lanes. Moving all heavy jobs and the final
+gate leaves approximately 132 hosted classification minutes/week, or 566 per
+30-day month at unchanged frequency. These are projections from a public cohort,
+not accepted private usage or a bill. The capacity plan records unfinished-job,
+retry, VM overhead and burst limitations and the post-activation acceptance gate.
 
-The same cohort contained 179.58 heavy-job hours. A single serial host offers at
-most 168 hours per week before startup and HQ use. The shared Mac pilot therefore
-does not satisfy the measured demand at that run frequency. Measure queue age
-and throughput during the pilot before deciding whether to reduce redundant CI
-requests or add capacity. Retain all selected checks and the required PR gate.
+The earlier September 29–October 6 cohort already exceeded one serial host's
+weekly capacity. The Mac pilot has never established that it can keep up. Keep
+Pika public while dedicated capacity and a full representative usage window are
+verified; preserve every selected check and required PR gate.

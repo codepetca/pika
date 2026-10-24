@@ -1499,10 +1499,13 @@ test.describe('teacher Pattern Lab', () => {
     await expect(preview).toBeFocused()
     await expect.poll(() => page.evaluate(() => Boolean(document.fullscreenElement))).toBe(false)
 
-    // Closing the full preview remounts the editor. Wait for its restored
-    // document and then the parent validation state before navigating away.
+    // Closing the full preview remounts the editor. Clear through normal editing
+    // keys so TipTap processes the deletion before checking parent validation.
     await expect(editor).toContainText('Updated wetland question.')
-    await editor.fill('')
+    await editor.click()
+    await editor.press('ControlOrMeta+A')
+    await editor.press('Backspace')
+    await expect(editor).toHaveText('')
     await expect(detailsPane.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
     await expect(detailsPane.getByText('Check question 1.')).toBeVisible()
     await questionNumber.fill('2')

@@ -10,6 +10,7 @@ import { newTestOwnerReorderFixture, TEST_OWNER_REORDER_SNAPSHOT_TABLES, testOwn
 import { assignmentListExpectedResources, assignmentListRestorationPolicy, loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 import {
   parseTestOwnerReorderLifecycleArgs, testOwnerReorderForcedReceipt, validateTestOwnerReorderGeneratedTypes,
   testOwnerReorderUnionManifest, testOwnerReorderMatrixCompletion, validateTestOwnerReorderSnapshotCatalog,
@@ -28,7 +29,7 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
-    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references'].sort()
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments'].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
@@ -79,8 +80,9 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current291 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(291)
+  it('binds the complete current292 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(292)
+    expect(current.at(-1)).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))
@@ -505,6 +507,9 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
 describe('reorder snapshot/completion admission', () => {
   it('uses the privately issued canonical complete catalog, retaining unrelated future tables', () => {
     expect(validateTestOwnerReorderSnapshotCatalog(graph(), catalog)).toEqual(graph())
+    const missingHome = graph()
+    missingHome.__nontarget_fingerprints = missingHome.__nontarget_fingerprints.filter(row => row.table !== 'private.classroom_home_hidden_enrollments')
+    expect(() => validateTestOwnerReorderSnapshotCatalog(missingHome, catalog)).toThrow()
     const missing = graph(); missing.__nontarget_fingerprints.pop(); expect(() => validateTestOwnerReorderSnapshotCatalog(missing, catalog)).toThrow()
     const duplicate = graph(); duplicate.__nontarget_fingerprints.push(duplicate.__nontarget_fingerprints[0]); expect(() => validateTestOwnerReorderSnapshotCatalog(duplicate, catalog)).toThrow()
     expect(() => validateTestOwnerReorderSnapshotCatalog({ ...graph(), extra: [] }, catalog)).toThrow()

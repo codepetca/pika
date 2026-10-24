@@ -36,7 +36,7 @@ describe('required Test lifecycle verification', () => {
   it('requires rollback, observed concurrency, and forced-failure exact teardown after schema replay', () => {
     expect(databaseJob).toBeDefined()
     const lane = databaseJob!
-    expect(lane).toContain('runs-on: ubuntu-latest')
+    expect(lane).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
     expect(lane).toContain('node scripts/ci-runner-preflight.mjs --lane database-lifecycle')
     expect(lane).toContain("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'")
     expect(lane).toContain('name: Start ephemeral Supabase and replay migrations')

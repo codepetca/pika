@@ -4,6 +4,8 @@ import { canAccessClassroom, type ClassroomAccessContext } from '@/lib/access/cl
 import { resolveClassroomAccess } from '@/lib/server/classroom-access'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { AuthenticatedUser } from '@/types'
+import { isContextualClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
+import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -39,11 +41,16 @@ export async function resolveClassroomPagePilotAccess(
   classroomId: string,
   options: { supabase?: SupabaseClient } = {},
 ): Promise<ClassroomPagePilotAccess> {
-  if (process.env.PIKA_CLASSROOM_PAGE_ACCESS_ENABLED !== 'true') {
+  // The complete live-home cohort must open new classrooms whose IDs did not
+  // exist when configuration was written. Admission selects the resolver, never
+  // a relationship: the same trusted ownership/membership proof still follows.
+  const liveHome = isContextualClassroomHomeAdmitted(user)
+    && resolveClassroomExperienceAdmission(user).status === 'admitted'
+  if (!liveHome && process.env.PIKA_CLASSROOM_PAGE_ACCESS_ENABLED !== 'true') {
     return { mode: 'legacy' }
   }
 
-  const pairs = configuredClassroomPagePairs()
+  const pairs = liveHome ? [] : configuredClassroomPagePairs()
   const identity = canonicalUuid.safeParse(user.id)
   if (pairs === null || !identity.success) {
     throw new ApiError(503, 'Classroom page access configuration is unavailable')
@@ -51,7 +58,7 @@ export async function resolveClassroomPagePilotAccess(
 
   const requestedId = canonicalUuid.safeParse(classroomId)
   if (!requestedId.success) throw new ApiError(400, 'Invalid classroom identifier')
-  if (!pairs.some((pair) => (
+  if (!liveHome && !pairs.some((pair) => (
     pair.userId === identity.data && pair.classroomId === requestedId.data
   ))) {
     return { mode: 'legacy' }

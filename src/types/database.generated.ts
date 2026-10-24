@@ -12716,6 +12716,10 @@ export type Database = {
         }
         Returns: Json
       }
+      read_classroom_home_visibility_v1: {
+        Args: { p_actor_id: string }
+        Returns: Json
+      }
       read_gradebook_maximum_state: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -13686,6 +13690,15 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      set_classroom_home_visibility_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_expected_enrollment_id: string
+          p_hidden: boolean
+        }
+        Returns: Json
       }
       set_classroom_hot_archive_for_owner_v1: {
         Args: {

@@ -94,6 +94,22 @@ describe('CreateClassroomModal', () => {
     return screen.getByRole('textbox', { name: /classroom name/i })
   }
 
+  it('keeps owned blueprints available while omitting package import without the capability', async () => {
+    renderModal({ canImportBlueprint: false })
+    fireEvent.change(getClassroomNameInput(), { target: { value: 'Field studies' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Choose classroom creation path' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'From Course Blueprint' }))
+    const source = screen.getByRole('combobox', { name: /course blueprint/i })
+    expect(await screen.findByRole('option', { name: mockBlueprint.title })).toBeInTheDocument()
+    expect(source).toHaveFocus()
+    expect(screen.queryByRole('option', { name: /Import course package/ })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Import course package file')).not.toBeInTheDocument()
+    fireEvent.change(source, { target: { value: mockBlueprint.id } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }))
+    expect(screen.getByRole('group', { name: 'Choose class dates' })).toBeInTheDocument()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('retires the path commands immediately while Escape keeps only inert closing presentation', async () => {
     renderModal()
     await waitFor(() => expect(fetchTeacherBlueprints).toHaveBeenCalledOnce())

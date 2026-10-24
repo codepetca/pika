@@ -3,11 +3,20 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import JoinPage from '@/app/join/page'
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }))
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }))
-beforeEach(() => push.mockClear())
+const { push, navigation } = vi.hoisted(() => ({ push: vi.fn(), navigation: { mode: null as string | null } }))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push }), useSearchParams: () => ({ get: (key: string) => key === 'mode' ? navigation.mode : null }) }))
+beforeEach(() => { push.mockClear(); navigation.mode = null })
 
 describe('public join code entry', () => {
+  it('preserves explicit code intent for a UUID-shaped code', async () => {
+    navigation.mode = 'code'
+    const user = userEvent.setup()
+    render(<JoinPage />)
+    await user.type(screen.getByRole('textbox', { name: 'Join code' }), '33333333-3333-4333-8333-333333333333')
+    await user.keyboard('{Enter}')
+    expect(push).toHaveBeenCalledExactlyOnceWith('/join/33333333-3333-4333-8333-333333333333?mode=code')
+  })
+
   it('labels the code field and guards empty and whitespace-only submissions', async () => {
     const user = userEvent.setup()
     render(<JoinPage />)

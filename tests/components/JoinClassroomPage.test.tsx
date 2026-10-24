@@ -5,13 +5,14 @@ import JoinClassroomPage from '@/app/join/[code]/page'
 import { invalidateStudentClassrooms } from '@/lib/student-classrooms-client'
 
 const push = vi.hoisted(() => vi.fn())
-const navigation = vi.hoisted(() => ({ code: 'ABC123', profileRequired: false }))
+const navigation = vi.hoisted(() => ({ code: 'ABC123', profileRequired: false, codeOnly: false }))
 
 vi.mock('next/navigation', () => ({
   useParams: () => ({ code: navigation.code }),
   useRouter: () => ({ push }),
   useSearchParams: () => ({
-    get: (name: string) => name === 'profile' && navigation.profileRequired ? 'required' : null,
+    get: (name: string) => name === 'mode' && navigation.codeOnly ? 'code'
+      : name === 'profile' && navigation.profileRequired ? 'required' : null,
   }),
 }))
 
@@ -35,6 +36,7 @@ describe('JoinClassroomPage', () => {
   beforeEach(() => {
     navigation.code = 'ABC123'
     navigation.profileRequired = false
+    navigation.codeOnly = false
     push.mockClear()
     vi.mocked(invalidateStudentClassrooms).mockClear()
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(
@@ -248,6 +250,45 @@ describe('JoinClassroomPage', () => {
 
     expect(await screen.findByRole('heading', { name: 'You’re already in this classroom' })).toBeVisible()
     expect(JSON.parse(fetcher.mock.calls[0][1]?.body as string)).toEqual({ classroomId })
+  })
+
+  it('sends an explicit UUID-shaped code as classCode instead of a legacy classroom ID', async () => {
+    navigation.code = '33333333-3333-4333-8333-333333333333'
+    navigation.codeOnly = true
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({ classroom: { id: 'classroom-1', title: 'Biology' } }))
+    vi.stubGlobal('fetch', fetcher)
+    render(<JoinClassroomPage />)
+    expect(await screen.findByRole('heading', { name: 'You joined this classroom' })).toBeVisible()
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ classCode: navigation.code })
+  })
+
+  it('retains explicit code intent when submitting a required profile', async () => {
+    navigation.code = '33333333-3333-4333-8333-333333333333'
+    navigation.codeOnly = true
+    navigation.profileRequired = true
+    const fetcher = vi.fn().mockResolvedValue(jsonResponse({ classroom: { id: 'classroom-1', title: 'Biology' } }))
+    vi.stubGlobal('fetch', fetcher)
+    render(<JoinClassroomPage />)
+    expect(fetcher).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+    await waitFor(() => expect(fetcher).toHaveBeenCalledOnce())
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({ classCode: navigation.code, firstName: 'Ada', lastName: 'Lovelace' })
+  })
+
+  it.each([false, true])('keeps explicit code intent through login (profile hint %s)', async profileRequired => {
+    navigation.codeOnly = true
+    navigation.profileRequired = profileRequired
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: 'Unauthorized' }, false, 401)))
+    render(<JoinClassroomPage />)
+    if (profileRequired) {
+      fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } })
+      fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } })
+      fireEvent.click(screen.getByRole('button', { name: 'Join classroom' }))
+    }
+    const target = `/join/ABC123?mode=code${profileRequired ? '&profile=required' : ''}`
+    await waitFor(() => expect(push).toHaveBeenCalledWith(`/login?next=${encodeURIComponent(target)}`))
   })
 
   it('submits an open-join profile through an already-issued classroom UUID link', async () => {

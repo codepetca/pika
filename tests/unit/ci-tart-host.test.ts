@@ -15,6 +15,7 @@ class Fake:
     def repository_allowed(self): self.calls.append('repository'); return self.repository_ok
     def demand(self, hint): self.calls.append('demand'); return True
     def inventory(self): self.calls.append('inventory'); return self.vms.copy()
+    def capacity(self): self.calls.append('capacity'); return {'admitted':True}
     def clone(self, vm):
         self.calls.append('clone'); assert self.lease.exists()
         self.vms.append({'Name':vm,'Running':False})
@@ -58,6 +59,71 @@ function offline(code: string) {
 
 // The Python harness has its own 10s watchdog; Vitest must allow it to report failures.
 describe('serial Tart host admission (offline)', { timeout: 15_000 }, () => {
+  it('admits only bounded, normal-pressure host capacity without counting historical swap usage', () => {
+    offline(String.raw`
+    sample={'cpu_count':8,'memory_bytes':24*1024**3,'available_bytes':19*1024**3,
+            'load_one':2.0,'pressure_level':1,'swapouts_before':100,'swapouts_after':100,
+            'disk_free_bytes':100_000_000_000}
+    assert h.validate_host_capacity(sample)['admitted'] is True
+    for key,value,code in [('cpu_count',4,'host-cpu-reserve'),
+                           ('available_bytes',17*1024**3,'host-memory-reserve'),
+                           ('load_one',4.1,'host-cpu-busy'),
+                           ('pressure_level',2,'host-memory-pressure'),
+                           ('swapouts_after',101,'host-swap-growing'),
+                           ('disk_free_bytes',79_999_999_999,'host-storage-reserve')]:
+        changed=dict(sample);changed[key]=value
+        try: h.validate_host_capacity(changed)
+        except h.Refusal as e: assert str(e)==code, (key,str(e))
+        else: raise AssertionError('unsafe capacity accepted: '+key)
+    for key in sample:
+        changed=dict(sample);changed.pop(key)
+        try: h.validate_host_capacity(changed)
+        except h.Refusal as e: assert str(e)=='host-capacity-unavailable'
+        else: raise AssertionError('missing telemetry admitted: '+key)
+    for value in [float('nan'),float('inf'),-1,True,'2']:
+        changed=dict(sample);changed['load_one']=value
+        try: h.validate_host_capacity(changed)
+        except h.Refusal: pass
+        else: raise AssertionError('invalid telemetry admitted')
+`)
+  })
+
+  it('parses host memory without double counting purgeable or compressed pages', () => {
+    offline(String.raw`
+    source='Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 10.\nPages inactive: 20.\nPages speculative: 3.\nPages purgeable: 99.\nPages occupied by compressor: 999.\nSwapouts: 100.\n'
+    assert h.parse_vm_stat(source)=={'available_bytes':33*16384,'swapouts':100}
+    for bad in ['',source.replace('Pages inactive: 20.\n',''),source.replace('Swapouts: 100.','Swapouts: bad.')]:
+        try: h.parse_vm_stat(bad)
+        except h.Refusal as e: assert str(e)=='host-capacity-unavailable'
+        else: raise AssertionError('missing memory telemetry admitted')
+`)
+  })
+
+  it('defers unsafe host capacity before clone, registration or boot and releases the lease', () => {
+    offline(String.raw`
+    fake.capacity=lambda: (_ for _ in ()).throw(h.Refusal('host-memory-reserve'))
+    result=serve()
+    assert result['status']=='refused' and result['failure']=='host-memory-reserve'
+    assert not any(c in fake.calls for c in ['clone','start','token','register'])
+    assert not lease.exists()
+`)
+  })
+
+  it('rechecks capacity after cloning and safely removes an unstarted clone if the Mac becomes busy', () => {
+    offline(String.raw`
+    calls=[]
+    def capacity():
+        calls.append(1)
+        if len(calls)==2: raise h.Refusal('host-cpu-busy')
+        return {'admitted':True}
+    fake.capacity=capacity
+    result=serve()
+    assert result['status']=='failed' and result['failure']=='host-cpu-busy'
+    assert 'clone' in fake.calls and 'delete' in fake.calls and 'start' not in fake.calls
+    assert not lease.exists() and fake.vms==[{'Name':h.TEMPLATE,'Running':False}]
+`)
+  })
+
   it.each(['lease', 'child', 'stop', 'delete', 'inventory'])('independently revokes registration after %s cleanup failure', fault => {
     offline(String.raw`
     original=fake.run_one

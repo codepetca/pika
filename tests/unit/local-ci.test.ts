@@ -3,10 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { collectCiDiagnostics } from '../../scripts/ci-diagnostics.mjs'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutMembershipAdoptionProof = (source: string) => source.replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutHomeVisibilityProof = (source: string) => source.replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutMembershipAdoptionProof = (source: string) => withoutHomeVisibilityProof(source).replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutDataApiProof = (source: string) => withoutMembershipAdoptionProof(source).replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
 const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutGuidancePreviewProof = (source: string) => withoutGuidanceAdoptionProof(source).replace(/^      - name: Verify contextual dual-owner classroom guidance preview and privileges\n[\s\S]*?(?=^      - name:)/m, '')
@@ -79,7 +81,7 @@ describe('explicit Data API grant proof inventory', () => {
 
 describe('attendance membership proof inventory', () => {
   it('adds only the complete isolated proof while retaining the exact historical inventory', () => {
-    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const current = selectPlan(extractWorkflow(withoutHomeVisibilityProof(workflow())), 'database')[0]
     const historical = selectPlan(extractWorkflow(withoutMembershipAdoptionProof(workflow())), 'database')[0]
     const command = 'bash scripts/check-attendance-membership-adoption-database.sh'
     expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
@@ -92,6 +94,25 @@ describe('attendance membership proof inventory', () => {
       : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
       : defect === 'renamed' ? block.replace('allocation and retained delivery', 'renamed proof')
       : block.replace('adoption-database.sh', 'adoption-database.sh --skip')
+    expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
+
+describe('personal joined-home visibility proof inventory', () => {
+  it('adds the isolated visibility proof while preserving the historical inventory', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const historical = selectPlan(extractWorkflow(withoutHomeVisibilityProof(workflow())), 'database')[0]
+    const command = 'bash scripts/check-classroom-home-visibility-database.sh'
+    expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
+    expect(current.steps.filter(step => step.run !== command)).toEqual(historical.steps)
+  })
+  it.each(['changed-command', 'conditional', 'duplicate', 'renamed'])('rejects %s visibility proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : defect === 'renamed' ? block.replace('visibility and concurrency', 'renamed proof')
+      : block.replace('visibility-database.sh', 'visibility-database.sh --skip')
     expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
   })
 })
@@ -171,7 +192,7 @@ function legacyWorkflow(input = workflow(), browserSplit = false) {
   return source.replace(shard, '')
     .replace('      - name: Verify isolated contextual Test member-list SDK reads\n', () => reads + '      - name: Verify isolated contextual Test member-list SDK reads\n')
     .replace('      - name: Verify isolated contextual Test owner reorder transactions\n', () => writes + '      - name: Verify isolated contextual Test owner reorder transactions\n')
-    .replace('  test-and-build:\n', () => blocks.get('Upload sanitized Test proof timings')! + '  test-and-build:\n')
+    .replace('  test-and-build:\n', () => blocks.get('Summarize sanitized Test proof timings')! + '  test-and-build:\n')
     .replace('      - contextual-test-owner-sdk\n', '')
     .replace('          TEST_OWNER_SDK_RESULT: ${{ needs.contextual-test-owner-sdk.result }}\n', '')
     .replace(/          if \[\[ "\$DATABASE_REQUIRED" == "true" && "\$TEST_OWNER_SDK_RESULT" != "success" \]\]; then\n[\s\S]*?          fi\n/, '')
@@ -226,6 +247,10 @@ describe('local canonical CI', () => {
       }
       if (script.startsWith('supabase start ')) { expect(active).toBeNull(); active = script; starts.push(script) }
       if (script === 'supabase stop --no-backup') { expect(active).not.toBeNull(); active = null; stops.push(script) }
+      if (script === 'node scripts/ci-diagnostics.mjs collect') {
+        if (lane === failureLane && mode === 'diagnostic-failure') return 1
+        collectCiDiagnostics(checkout)
+      }
       if (env.GITHUB_ENV) writeFileSync(env.GITHUB_ENV, script.startsWith('supabase start ') ? 'NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321\n' : '')
       return 0
     }
@@ -259,7 +284,7 @@ describe('local canonical CI', () => {
     ['wrong owner and order', (s: string) => { const a = s.match(/^      - name: Verify isolated contextual Test member-list SDK reads\n[\s\S]*?(?=^      - name:)/m)![0]; const b = s.match(/^      - name: Verify isolated contextual Test owner reorder transactions\n[\s\S]*?(?=^      - name:)/m)![0]; return s.replace(a, '__PROOF__').replace(b, a).replace('__PROOF__', b) }],
     ['conditional proof', (s: string) => s.replace('      - name: Verify contextual Daily Log save atomicity and privileges\n', '      - name: Verify contextual Daily Log save atomicity and privileges\n        if: success()\n')],
     ['proof outside start', (s: string) => { const block = s.match(/^      - name: Verify isolated contextual Test owner reorder transactions\n[\s\S]*?(?=^      - name:)/m)![0]; const start = s.indexOf('  architecture-database-contracts-lifecycle:'); return s.slice(0, start) + s.slice(start).replace(block, '').replace('      - name: Start ephemeral Supabase and replay migrations\n', block + '      - name: Start ephemeral Supabase and replay migrations\n') }],
-    ['suffix routing drift', (s: string) => s.replace('    # Independent hosted VM/daemon, including self-hosted dispatches.\n    runs-on: ubuntu-latest', '    runs-on: unknown')],
+    ['suffix routing drift', (s: string) => s.replace(/(architecture-database-contracts-lifecycle:[\s\S]*?)runs-on: [^\n]+/, '$1runs-on: unknown')],
     ['missing result gate mapping', (s: string) => s.replace('          DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}\n', '')],
     ['preflight drift', (s: string) => s.replace('--lane database-lifecycle', '--lane database')],
     ['startup drift', (s: string) => s.replace('supabase start -x analytics,', 'supabase start -x ')],
@@ -503,7 +528,7 @@ describe('local canonical CI', () => {
       expect(job.steps.filter(step => step.id === 'supabase-start')).toHaveLength(1)
       expect(job.steps.filter(step => step.run === 'supabase stop --no-backup')).toHaveLength(1)
     }
-    expect(sdk[0].steps.find(step => step.name === 'Upload sanitized Test proof timings')?.uses).toBe('actions/upload-artifact@v7')
+    expect(sdk[0].steps.find(step => step.name === 'Summarize sanitized Test proof timings')?.run).toBe('node scripts/ci-diagnostics.mjs proof-summary')
     expect(sdk[0].steps.find(step => step.name === 'Summarize dependency setup evidence')?.run).not.toContain('${{')
   })
 
@@ -635,7 +660,7 @@ describe('local canonical CI', () => {
     ['conditional coverage', (s: string) => mutatePattern(s, body => body.replace('        run: pnpm e2e:ci', '        if: success()\n        run: pnpm e2e:ci'))],
     ['Pattern Lab selector drift', (s: string) => mutatePattern(s, body => body.replace('outputs.run_browser', 'outputs.run_database'))],
     ['Pattern Lab dependency drift', (s: string) => mutatePattern(s, body => body.replace('needs: classify-changes', 'needs: browser-experience-dark'))],
-    ['Pattern Lab runner drift', (s: string) => mutatePattern(s, body => body.replace('runs-on: ubuntu-latest', 'runs-on: self-hosted'))],
+    ['Pattern Lab runner drift', (s: string) => mutatePattern(s, body => body.replace('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}', 'runs-on: self-hosted'))],
     ['Pattern Lab preflight drift', (s: string) => mutatePattern(s, body => body.replace('--lane browser-pattern-dark', '--lane browser-dark'))],
     ['Pattern Lab cleanup guard drift', (s: string) => mutatePattern(s, body => body.replace("if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'", 'if: always()'))],
     ['missing gate dependency', (s: string) => s.replace('      - browser-pattern-lab-dark\n', '')],
@@ -669,7 +694,7 @@ describe('local canonical CI', () => {
     expect(() => extractWorkflow(mutate(workflow()))).toThrow()
   })
 
-  it.each(['browser-dark', 'browser-pattern-dark'].flatMap(lane => ['success', 'setup-failure', 'browser-failure'].map(mode => [lane, mode])))('retains private separate %s diagnostics without stale previous-lane reports during %s', async (failureLane, mode) => {
+  it.each(['browser-dark', 'browser-pattern-dark'].flatMap(lane => ['success', 'setup-failure', 'browser-failure', 'diagnostic-failure'].map(mode => [lane, mode])))('retains private separate %s diagnostics without stale previous-lane reports during %s', async (failureLane, mode) => {
     const temp = mkdtempSync(join(tmpdir(), 'pika-ci-diagnostics-test-'))
     const checkout = join(temp, 'source')
     mkdirSync(checkout)
@@ -689,12 +714,16 @@ describe('local canonical CI', () => {
         for (const directory of ['playwright-report', 'test-results']) {
           rmSync(join(checkout, directory), { recursive: true, force: true })
           mkdirSync(join(checkout, directory))
-          writeFileSync(join(checkout, directory, 'result.txt'), script)
+          writeFileSync(join(checkout, directory, 'error-context.md'), script)
         }
         mkdirSync(join(checkout, '.auth'), { recursive: true })
         writeFileSync(join(checkout, '.auth', 'teacher.json'), 'private fixture auth')
         symlinkSync(join(checkout, '.auth', 'teacher.json'), join(checkout, 'playwright-report', 'auth-link'))
-        if (lane === failureLane && mode === 'browser-failure') return 1
+        if (lane === failureLane && ['browser-failure', 'diagnostic-failure'].includes(mode)) return 1
+      }
+      if (script === 'node scripts/ci-diagnostics.mjs collect') {
+        if (lane === failureLane && mode === 'diagnostic-failure') return 1
+        collectCiDiagnostics(checkout)
       }
       if (env.GITHUB_ENV) writeFileSync(env.GITHUB_ENV, '')
       return 0
@@ -704,15 +733,17 @@ describe('local canonical CI', () => {
       for (const job of jobs) expect(await runLane(job, checkout, temp, {}, { execute })).toBe(job.lane === failureLane && mode !== 'success')
       expect(active).toBeNull()
       for (const job of jobs) {
-        expect(statSync(join(temp, `${job.lane}-diagnostics`)).mode & 0o777).toBe(0o700)
-        expect(existsSync(join(temp, `${job.lane}-diagnostics`, '.auth'))).toBe(false)
-        const command = job.steps.find(step => step.run?.startsWith('pnpm e2e:ci'))!.run
-        for (const directory of ['playwright-report', 'test-results']) {
-          const report = join(temp, `${job.lane}-diagnostics`, directory, 'result.txt')
-          if (job.lane === failureLane && mode === 'setup-failure') expect(existsSync(report)).toBe(false)
-          else expect(readFileSync(report, 'utf8')).toBe(command)
-        }
-        expect(existsSync(join(temp, `${job.lane}-diagnostics`, 'playwright-report', 'auth-link'))).toBe(false)
+        const destination = join(temp, `${job.lane}-diagnostics`)
+        const failed = job.lane === failureLane && mode !== 'success'
+        expect(existsSync(destination)).toBe(failed && mode !== 'diagnostic-failure')
+        if (!failed || mode === 'diagnostic-failure') continue
+        expect(statSync(destination).mode & 0o777).toBe(0o700)
+        expect(existsSync(join(destination, '.auth'))).toBe(false)
+        const report = join(destination, 'error-context-001.md')
+        if (mode === 'setup-failure') expect(existsSync(report)).toBe(false)
+        else expect(readFileSync(report, 'utf8')).toBe(job.steps.find(step => step.run?.startsWith('pnpm e2e:ci'))!.run)
+        expect(existsSync(join(destination, 'manifest.json'))).toBe(true)
+        expect(existsSync(join(destination, 'playwright-report'))).toBe(false)
       }
       expect(() => readFileSync(join(temp, 'browser-diagnostics', '.auth', 'teacher.json'))).toThrow()
     } finally { rmSync(temp, { recursive: true, force: true }) }

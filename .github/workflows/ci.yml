@@ -308,6 +308,9 @@ jobs:
       - name: Require warning-free database functions
         run: supabase db lint --local --level warning --fail-on warning
 
+      - name: Verify personal joined classroom home visibility and concurrency
+        run: bash scripts/check-classroom-home-visibility-database.sh
+
       - name: Verify Course Guide import shared lease and rate window
         run: bash scripts/check-course-guide-import-rate-limit-database.sh
 
@@ -488,8 +491,7 @@ jobs:
       packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
-    # Independent hosted VM/daemon, including self-hosted dispatches.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
     steps:
@@ -1158,8 +1160,7 @@ jobs:
       packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
-    # A hosted job gets its own VM and Docker daemon, even for self-hosted dispatches.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
     steps:
@@ -1308,13 +1309,9 @@ jobs:
         if: always()
         run: node scripts/ci-supabase-registry-auth.mjs cleanup
 
-      - name: Upload sanitized Test proof timings
+      - name: Summarize sanitized Test proof timings
         if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: test-proof-timings
-          path: ${{ runner.temp }}/pika-proof-timings/*.json
-          retention-days: 7
+        run: node scripts/ci-diagnostics.mjs proof-summary
 
   contextual-test-owner-sdk-lifecycle:
     name: Contextual Test Owner SDK Lifecycle
@@ -1323,8 +1320,7 @@ jobs:
       packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_database == 'true'
-    # A hosted job gets its own VM and Docker daemon, even for self-hosted dispatches.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
     steps:
@@ -1562,13 +1558,19 @@ jobs:
           SUPABASE_SECRET_KEY: placeholder-secret-key
           SESSION_SECRET: placeholder-session-secret-at-least-32-chars-long
 
-      - name: Upload coverage reports
+      - name: Prepare bounded failure diagnostics
+        id: failure-diagnostics
         if: failure() && needs.classify-changes.outputs.run_test_build == 'true'
+        run: node scripts/ci-diagnostics.mjs collect
+
+      - name: Upload bounded failure diagnostics
+        if: failure() && steps.failure-diagnostics.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-report
-          path: coverage/
-          retention-days: 7
+          name: test-and-build-failure
+          path: ci-failure-diagnostics/
+          retention-days: 1
+          if-no-files-found: ignore
 
   browser-experience-matrix:
     name: Browser Experience Matrix
@@ -1681,15 +1683,19 @@ jobs:
       - name: Run combined browser contracts
         run: pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light
 
-      - name: Upload browser diagnostics
-        if: always()
+      - name: Prepare bounded failure diagnostics
+        id: failure-diagnostics
+        if: failure()
+        run: node scripts/ci-diagnostics.mjs collect
+
+      - name: Upload bounded failure diagnostics
+        if: failure() && steps.failure-diagnostics.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: browser-experience-matrix
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
+          name: browser-experience-matrix-failure
+          path: ci-failure-diagnostics/
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
@@ -1707,8 +1713,7 @@ jobs:
       packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
-    # This partition needs its own VM and Docker daemon, including self-hosted dispatches.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
       E2E_BASE_URL: http://localhost:3000
@@ -1812,15 +1817,19 @@ jobs:
       - name: Run combined browser contracts
         run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark
 
-      - name: Upload browser diagnostics
-        if: always()
+      - name: Prepare bounded failure diagnostics
+        id: failure-diagnostics
+        if: failure()
+        run: node scripts/ci-diagnostics.mjs collect
+
+      - name: Upload bounded failure diagnostics
+        if: failure() && steps.failure-diagnostics.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: browser-experience-dark
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
+          name: browser-experience-dark-failure
+          path: ci-failure-diagnostics/
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
@@ -1838,8 +1847,7 @@ jobs:
       packages: read
     needs: classify-changes
     if: needs.classify-changes.outputs.run_browser == 'true'
-    # This partition needs its own VM and Docker daemon, including self-hosted dispatches.
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
       E2E_BASE_URL: http://localhost:3000
@@ -1943,15 +1951,19 @@ jobs:
       - name: Run combined browser contracts
         run: pnpm e2e:ci --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark
 
-      - name: Upload browser diagnostics
-        if: always()
+      - name: Prepare bounded failure diagnostics
+        id: failure-diagnostics
+        if: failure()
+        run: node scripts/ci-diagnostics.mjs collect
+
+      - name: Upload bounded failure diagnostics
+        if: failure() && steps.failure-diagnostics.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: browser-pattern-lab-dark
-          path: |
-            playwright-report/
-            test-results/
-          retention-days: 7
+          name: browser-pattern-lab-dark-failure
+          path: ci-failure-diagnostics/
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Stop ephemeral database
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
@@ -1977,7 +1989,7 @@ jobs:
       - browser-experience-matrix
       - browser-experience-dark
       - browser-pattern-lab-dark
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON(needs.classify-changes.result == 'success' && needs.classify-changes.outputs.heavy_runner || '["ubuntu-latest"]') }}
 
     steps:
       - name: Verify every selected check passed

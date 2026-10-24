@@ -8,6 +8,7 @@ import { testOwnerRecoveryNativePlan, validateTestOwnerRecoveryNativePlanSql, ru
 import { buildTestOwnerRecoveryNativeContractsManifest } from '../../scripts/contextual-test-draft-save-native-contracts'
 import type { DraftSaveDriver, DraftSaveTarget } from '../../scripts/check-contextual-test-draft-save-db-contracts'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
+import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
 
 // A synthetic source seal exercises inert framing. It does not accept candidate260
 // for native execution or change its coordinator-owned pending seal.
@@ -32,7 +33,8 @@ const target = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency'):
 describe('fixed recovery260 profile reuses the closed native engine', () => {
   it('binds complete260 inventory, real observed identities and fixed finite SQL', () => {
     const m = plan()
-    expect(m.migrations).toHaveLength(291); expect(m.nativeVerified).toBe(false)
+    expect(m.migrations).toHaveLength(292); expect(m.nativeVerified).toBe(false)
+    expect(m.migrations.at(-1)).toEqual(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.contracts.checks).toHaveLength(13); expect(m.concurrency.schedules).toHaveLength(10)
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)
     expect(m.preparation).toContain(`draft_revision=${observed[0].revision}`)

@@ -13,6 +13,8 @@ import {
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
 import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
+import { authorizeSharedNotificationsActor, readContextualStudentNotifications } from '@/lib/server/contextual-student-notifications'
+import { studentNotificationsQuerySchema } from '@/lib/validations/student-notifications'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -300,6 +302,13 @@ async function loadAnnouncementReadsForAnnouncements(
  * - unviewedAssignmentsCount: count of assignments not yet viewed
  */
 export const GET = withErrorHandler('GetStudentNotifications', async (request, context) => {
+  const admission = await authorizeSharedNotificationsActor()
+  if (admission.mode === 'shared') {
+    const input = studentNotificationsQuerySchema.parse([...new URL(request.url).searchParams])
+    return NextResponse.json(await readContextualStudentNotifications({
+      supabase: getServiceRoleClient(), actorId: admission.user.id, classroomId: input.classroom_id,
+    }))
+  }
   const user = await requireRole('student')
   const { searchParams } = new URL(request.url)
   const classroomId = searchParams.get('classroom_id')

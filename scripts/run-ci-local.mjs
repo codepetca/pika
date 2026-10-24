@@ -44,14 +44,15 @@ const registryCleanupCommand = 'node scripts/ci-supabase-registry-auth.mjs clean
 const selector = "needs.classify-changes.outputs.run_test_build == 'true'"
 const cleanupCondition = "always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'"
 const startCommand = 'supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector'
-const conditions = new Set([selector, 'always()', 'success()', `failure() && ${selector}`, cleanupCondition])
+const diagnosticUploadCondition = "failure() && steps.failure-diagnostics.outcome == 'success'"
+const conditions = new Set([selector, 'always()', 'success()', 'failure()', diagnosticUploadCondition, `failure() && ${selector}`, cleanupCondition])
 const actionOptions = {
   'actions/checkout@v7': ['fetch-depth'],
   'actions/setup-node@v6': ['node-version'],
   'pnpm/action-setup@v6': ['version'],
   'supabase/setup-cli@v1': ['version'],
   'actions/cache@v6': ['path', 'key', 'restore-keys'],
-  'actions/upload-artifact@v7': ['name', 'path', 'retention-days'],
+  'actions/upload-artifact@v7': ['name', 'path', 'retention-days', 'if-no-files-found'],
 }
 
 export function parseArguments(argv) {
@@ -173,6 +174,7 @@ const databaseProofInventories = {
     [61, 'aa87e79d84589a8e1b5ded37393558652f95d9fdec3c59a1dfeab12e82db5e45'],
     [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
     [63, 'af0b5bfaf89b750d29ef409d9b1c4a053bdbf231dd514ab8627bf53d1b25f54c'],
+    [64, 'd8e8fdbd037f7cb20440875c07f655e40e92a47da68ad1c137b8d9dae7eb88af'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -205,6 +207,15 @@ function validateDatabaseInventory(jobs) {
     throw new Error('Canonical attendance membership proof is duplicated or changed.')
   }
   const secondary = jobs[jobsByLane['database-lifecycle']]
+  const homeVisibilityName = 'Verify personal joined classroom home visibility and concurrency'
+  const homeVisibilityCommand = 'bash scripts/check-classroom-home-visibility-database.sh'
+  const homeVisibilitySteps = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === homeVisibilityName || step.run?.includes(homeVisibilityCommand)).map(step => ({ job, step })))
+  if (homeVisibilitySteps.length && (homeVisibilitySteps.length !== 1 || homeVisibilitySteps.some(({ job, step }) =>
+    job !== primary || step.if || step.name !== homeVisibilityName || step.run !== homeVisibilityCommand
+    || !databaseProofs(primary).includes(step)))) {
+    throw new Error('Canonical personal home visibility proof is duplicated or changed.')
+  }
   if (secondary) {
     for (const lane of ['database', 'database-lifecycle']) {
       const job = jobs[jobsByLane[lane]], proofs = databaseProofs(job)
@@ -316,6 +327,7 @@ function validateDatabaseInventory(jobs) {
 }
 
 export function extractWorkflow(source) {
+  const boundedEvidence = source.includes('ci-diagnostics.mjs')
   const lines = source.split(/\r?\n/)
   const environmentHeaders = lines.map((line, index) => /^env:/.test(line) ? index : -1).filter(index => index !== -1)
   let workflowEnv = {}
@@ -377,15 +389,16 @@ export function extractWorkflow(source) {
     if (databaseSplit && ['database', 'database-lifecycle'].includes(lane)) {
       const header = body.slice(0, stepsIndex)
       const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_database == 'true'", '    timeout-minutes: 90',
-        lane === 'database-lifecycle' ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
+        lane === 'database-lifecycle' && !boundedEvidence ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
       if (required.some(line => header.filter(value => value === line).length !== 1) || header.includes('    env:')) throw new Error(`Canonical ${lane} database job topology changed.`)
     }
     if (isBrowserLane(lane)) {
       const header = body.slice(0, stepsIndex)
       const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_browser == 'true'", '    timeout-minutes: 90',
-        lane === 'browser' ? '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}' : '    runs-on: ubuntu-latest']
+        lane === 'browser' || boundedEvidence ? '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}' : '    runs-on: ubuntu-latest']
       if (required.some(line => header.filter(value => value === line).length !== 1)) throw new Error(`Canonical ${lane} browser job topology changed.`)
     }
+    if (boundedEvidence && header.filter(line => line === '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}').length !== 1) throw new Error(`Canonical ${lane} heavy compute routing changed.`)
     const envIndex = body.slice(0, stepsIndex).findIndex(line => line === '    env:')
     const jobEnv = envIndex === -1 ? {} : literalEnvironment(body.slice(envIndex + 1, stepsIndex), 6)
     if (Object.hasOwn(jobEnv, 'SUPABASE_INTERNAL_IMAGE_REGISTRY')) throw new Error('Job cannot override the shared Supabase image registry.')
@@ -403,6 +416,7 @@ export function extractWorkflow(source) {
     if (!steps.length) throw new Error(`No steps in ${id}.`)
     if (steps.some(step => Object.hasOwn(step.env, 'SUPABASE_INTERNAL_IMAGE_REGISTRY'))) throw new Error('Step cannot override the shared Supabase image registry.')
     jobs[id] = { id, lane, env, permissions, steps }
+    if (boundedEvidence) validateDiagnosticPolicy(jobs[id], true)
     validateLaneSafety(jobs[id])
   }
   validateDatabaseInventory(jobs)
@@ -456,7 +470,7 @@ export function extractWorkflow(source) {
   // Every supported browser generation retains its exact selected-evidence gate.
   const gate = source.split('  pr-gate:\n')[1] ?? ''
   for (const line of ['    name: PR Gate', '    if: >-', '      always() &&',
-    "      (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)", '    runs-on: ubuntu-latest']) {
+    "      (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)", boundedEvidence ? `    runs-on: \${{ fromJSON(needs.classify-changes.result == 'success' && needs.classify-changes.outputs.heavy_runner || '["ubuntu-latest"]') }}` : '    runs-on: ubuntu-latest']) {
     if (gate.split('\n').filter(value => value === line).length !== 1) throw new Error('Canonical browser PR gate routing changed.')
   }
   for (const lane of browserLanes) {
@@ -499,7 +513,31 @@ export function selectPlan(jobs, lane) {
   return plan
 }
 
+function validateDiagnosticPolicy(job, required = false) {
+  const bounded = job.steps.filter(step => step.run?.includes('ci-diagnostics.mjs') || step.id === 'failure-diagnostics' || step.name?.includes('bounded failure diagnostics'))
+  if (!required && !bounded.length) return // Reviewed historical workflows keep their original local storage behavior.
+  const expected = job.lane === 'test-build' || isBrowserLane(job.lane)
+  const prepare = bounded.find(step => step.name === 'Prepare bounded failure diagnostics')
+  const uploads = job.steps.filter(step => step.uses === 'actions/upload-artifact@v7')
+  if (expected) {
+    const upload = uploads[0]
+    const condition = job.lane === 'test-build' ? `failure() && ${selector}` : 'failure()'
+    if (!prepare || prepare.id !== 'failure-diagnostics' || prepare.if !== condition || prepare.run !== 'node scripts/ci-diagnostics.mjs collect'
+      || prepare.shell || Object.keys(prepare.env).length || Object.keys(prepare.with).length
+      || uploads.length !== 1 || upload.name !== 'Upload bounded failure diagnostics' || upload.if !== diagnosticUploadCondition
+      || upload.shell || upload.id || Object.keys(upload.env).length || job.steps.indexOf(upload) !== job.steps.indexOf(prepare) + 1
+      || JSON.stringify(upload.with) !== JSON.stringify({ name: `${job.id}-failure`, path: 'ci-failure-diagnostics/', 'retention-days': '1', 'if-no-files-found': 'ignore' })) {
+      throw new Error(`Canonical ${job.lane} bounded failure diagnostics changed.`)
+    }
+  } else if (uploads.length || prepare) throw new Error('Database proof jobs must not upload artifacts.')
+  for (const step of bounded.filter(step => step !== prepare && step.uses !== 'actions/upload-artifact@v7')) {
+    if (step.name !== 'Summarize sanitized Test proof timings' || step.run !== 'node scripts/ci-diagnostics.mjs proof-summary' || step.if !== 'always()'
+      || !['database', 'test-owner-sdk'].includes(job.lane) || step.id || step.shell || Object.keys(step.env).length || Object.keys(step.with).length) throw new Error('Canonical bounded proof summary changed.')
+  }
+}
+
 export function validateLaneSafety(job) {
+  validateDiagnosticPolicy(job)
   const preflight = job.steps.filter(step => step.id === 'ci-isolation' || step.name === 'Verify isolated CI runner')
   if (preflight.length !== 1 || preflight[0].id !== 'ci-isolation' || preflight[0].if || preflight[0].run !== `node scripts/ci-runner-preflight.mjs --lane ${job.lane}`) throw new Error(`Canonical ${job.lane} preflight is missing or changed.`)
   const registrySteps = job.steps.filter(step => step.githubOnlyRegistry || step.name === registryLoginName || step.name === registryCleanupName
@@ -520,14 +558,15 @@ export function validateLaneSafety(job) {
     || Object.keys(login.env).length || Object.keys(cleanup.env).length || Object.keys(login.with).length || Object.keys(cleanup.with).length
     || job.steps.indexOf(login) <= job.steps.indexOf(preflight[0]) || job.steps.indexOf(login) !== job.steps.indexOf(starts[0]) - 1
     || job.steps.indexOf(cleanup) !== job.steps.indexOf(stops[0]) + 1)) throw new Error(`Canonical ${job.lane} registry authentication/cleanup changed.`)
-  if (job.steps.indexOf(preflight[0]) >= job.steps.indexOf(starts[0]) || job.steps.indexOf(starts[0]) >= job.steps.indexOf(stops[0]) || job.steps.some((step, index) => index > job.steps.indexOf(stops[0]) && step.run && step !== cleanup)) throw new Error(`Canonical ${job.lane} preflight/start/cleanup order changed.`)
+  if (job.steps.indexOf(preflight[0]) >= job.steps.indexOf(starts[0]) || job.steps.indexOf(starts[0]) >= job.steps.indexOf(stops[0]) || job.steps.some((step, index) => index > job.steps.indexOf(stops[0]) && step.run && step !== cleanup && step.name !== 'Summarize sanitized Test proof timings')) throw new Error(`Canonical ${job.lane} preflight/start/cleanup order changed.`)
 }
 
 export function shouldRun(condition, failed, outcomes = {}) {
   if (condition && !conditions.has(condition)) throw new Error(`Unsupported condition: ${condition}`)
   if (condition === 'always()') return true
   if (condition === cleanupCondition) return outcomes['ci-isolation'] === 'success' && ['success', 'failure'].includes(outcomes['supabase-start'])
-  if (condition === `failure() && ${selector}`) return failed
+  if (condition === diagnosticUploadCondition) return failed && outcomes['failure-diagnostics'] === 'success'
+  if (condition === 'failure()' || condition === `failure() && ${selector}`) return failed
   return !failed
 }
 
@@ -645,6 +684,7 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
       console.error(`Local CI preflight refused ${job.lane}. Log: ${earlyLog}\n${readFileSync(earlyLog, 'utf8')}`)
       return true
     }
+    rmSync(join(checkout, 'ci-failure-diagnostics'), { recursive: true, force: true })
     if (isBrowserLane(job.lane)) {
       // A setup failure must not label the preceding lane's reports as its own.
       // The runner uses a private disposable checkout; remove only browser output.
@@ -660,7 +700,7 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
       }
       if (step.uses) {
         console.log(`Local setup override: ${step.name}`)
-        if (step.uses === 'actions/upload-artifact@v7' && isBrowserLane(job.lane)) {
+        if (step.uses === 'actions/upload-artifact@v7' && isBrowserLane(job.lane) && step.with.path !== 'ci-failure-diagnostics/') {
           // The next serial partition overwrites Playwright's output directories.
           // Retain only the canonical diagnostics; never copy .auth or symlinks.
           const destination = join(temp, `${job.lane}-diagnostics`)
@@ -672,6 +712,11 @@ export async function runLane(job, checkout, temp, env, { execute = executeStep,
             })
           }
           console.log(`Local browser diagnostics: ${destination}`)
+        }
+        if (step.with.path === 'ci-failure-diagnostics/' && existsSync(join(checkout, 'ci-failure-diagnostics'))) {
+          const destination = join(temp, `${job.lane}-diagnostics`)
+          cpSync(join(checkout, 'ci-failure-diagnostics'), destination, { recursive: true, filter: path => !lstatSync(path).isSymbolicLink() })
+          console.log(`Local bounded failure diagnostics: ${destination}`)
         }
         if (step.id) outcomes[step.id] = 'success'
         continue

@@ -26,7 +26,7 @@ resolve_attendance_meta_image`], {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -41,14 +41,15 @@ describe('isolated attendance membership database proof', () => {
     }
   })
 
-  it('executes the actual sealed replay-target preflight against the current migration chain', () => {
-    const command = runner().match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
-    expect(command, 'exercise the same preflight that runs before cloning').toBeDefined()
-    const result = spawnSync('pnpm', ['exec', 'tsx', '-e', command!], {
-      encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' },
+  it.each(['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh'])(
+    'executes %s sealed replay-target preflight against the complete current chain', path => {
+      const command = runner(path).match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
+      expect(command, 'exercise the same preflight that runs before cloning').toBeDefined()
+      const result = spawnSync('pnpm', ['exec', 'tsx', '-e', command!], {
+        encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' },
+      })
+      expect(result.status, result.stderr).toBe(0)
     })
-    expect(result.status, result.stderr).toBe(0)
-  })
 
   it('makes every top-level conditional safety gate explicit for macOS Bash3.2', () => {
     // Bash3.2 does not apply errexit to a standalone failed [[...]]/((...)).
@@ -115,7 +116,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,291")
+    expect(source).toContain("assert.equal(migrations.length,292")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
@@ -143,7 +144,7 @@ describe('isolated attendance membership database proof', () => {
 describe('isolated material and announcement post-date proof target', () => {
   it('requires scheduling, post-date and image rollback proofs before exact metadata comparison', () => {
     const source = runner('scripts/check-material-post-date-database.sh')
-    expect(source).toContain('assert.equal(migrations.length,291')
+    expect(source).toContain('assert.equal(migrations.length,292')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations(migrations)')
     const proof = source.indexOf('check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-teacher-authoring-images-database.sql; do')
     expect(proof).toBeGreaterThan(-1)
