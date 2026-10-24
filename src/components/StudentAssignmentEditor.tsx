@@ -530,7 +530,10 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   ) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }
     const localContentToPreserve = preservedRecoveryContentRef.current ?? latestLocalContent
-    const hasNewerLocalContent = !areSubmittedAssignmentContentsEqual(localContentToPreserve, serverContent)
+    const hasNewerLocalContent = !areSubmittedAssignmentContentsEqual(localContentToPreserve, serverContent, {
+      origin: window.location.origin,
+      publicStorageOrigin: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    })
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)

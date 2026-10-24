@@ -67,10 +67,11 @@ export async function normalizeAssignmentDocImageReferences(input: {
     } else {
       id = source.id
     }
+    if (source.path && attrs.storage_path !== undefined && attrs.storage_path !== source.path) throw unavailableImage()
     if (id && attrs.storage_bucket && attrs.storage_path && attrs.managed_object_id) continue
     const path = typeof attrs.storage_path === 'string' && attrs.storage_bucket === 'submission-images'
       ? attrs.storage_path : source.path
-    if (id || path) pending.push({ attrs, ...(id ? { id } : { path }) })
+    if (id || path) pending.push({ attrs, ...(id ? { id } : {}), ...(path ? { path } : {}) })
   }
   if (pending.length === 0) return content
   if (!input.assignmentDocId) throw unavailableImage()
@@ -108,6 +109,7 @@ export async function normalizeAssignmentDocImageReferences(input: {
   for (const reference of pending) {
     const object = objects.get(reference.id ?? reference.path!)
     if (!object
+      || (reference.path !== undefined && reference.path !== object.storage_path)
       || (reference.attrs.storage_bucket !== undefined && reference.attrs.storage_bucket !== object.storage_bucket)
       || (reference.attrs.storage_path !== undefined && reference.attrs.storage_path !== object.storage_path)) throw unavailableImage()
     Object.assign(reference.attrs, {

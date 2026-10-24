@@ -107,4 +107,24 @@ describe('assignment document image recovery', () => {
   it('rejects a conflicting protected URL identity', async () => {
     await expect(normalizeAssignmentDocImageReferences({ ...context, supabase: client() as any, content: document({ managed_object_id: id, src: '/api/storage/submission-images?object_id=10000000-0000-4000-8000-000000000002' }) })).rejects.toMatchObject({ statusCode: 400 })
   })
+
+  it.each([
+    '/api/storage/submission-images?path=owned%2Fother.png',
+    'https://legacy.supabase.co/storage/v1/object/public/submission-images/owned/other.png',
+  ])('rejects a conflicting URL storage path %s with either partial or complete attributes', async (src) => {
+    for (const fields of [{}, { storage_bucket: object.storage_bucket, storage_path: object.storage_path }]) {
+      const content = document({ managed_object_id: id, src, ...fields })
+      const before = structuredClone(content)
+      await expect(normalizeAssignmentDocImageReferences({ ...context, supabase: client() as any, content })).rejects.toMatchObject({ statusCode: 400 })
+      expect(content).toEqual(before)
+    }
+  })
+
+  it.each([
+    '/api/storage/submission-images?path=owned%2Fimage.png',
+    'https://legacy.supabase.co/storage/v1/object/public/submission-images/owned/image.png',
+  ])('accepts matching URL path evidence alongside a managed ID: %s', async (src) => {
+    const normalized = await normalizeAssignmentDocImageReferences({ ...context, supabase: client() as any, content: document({ managed_object_id: id, src }) })
+    expect(imageAttrs(normalized)).toMatchObject({ managed_object_id: id, storage_path: object.storage_path })
+  })
 })

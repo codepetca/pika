@@ -6,6 +6,9 @@ const id = '11111111-1111-4111-8111-111111111111'
 const otherId = '22222222-2222-4222-8222-222222222222'
 const source = `/api/storage/submission-images?object_id=${id}`
 const attrs = { managed_object_id: id, src: source, alt: 'Evidence', title: 'My photo', width: 480 }
+const path = 'student/assignment/photo.png'
+const origins = { origin: 'https://pika.example', publicStorageOrigin: 'https://project.supabase.co' }
+const completeAttrs = { ...attrs, storage_bucket: 'submission-images', storage_path: path }
 
 function documentWithImage(imageAttrs: Record<string, unknown>, text = 'Latest unsaved work'): TiptapContent {
   return { type: 'doc', content: [{ type: 'blockquote', content: [
@@ -15,6 +18,37 @@ function documentWithImage(imageAttrs: Record<string, unknown>, text = 'Latest u
 }
 
 describe('submitted assignment content comparison', () => {
+  it.each([
+    `https://pika.example${source}`,
+    `/api/storage/submission-images?path=${encodeURIComponent(path)}`,
+    `https://project.supabase.co/storage/v1/object/public/submission-images/${path}`,
+  ])('recognizes an acknowledged repair of %s', (src) => {
+    const { managed_object_id: _id, ...displayAttrs } = attrs
+    expect(areSubmittedAssignmentContentsEqual(
+      documentWithImage({ ...displayAttrs, src }), documentWithImage(completeAttrs), origins,
+    )).toBe(true)
+  })
+
+  it.each([
+    { ...attrs, src: `/api/storage/submission-images?path=other/photo.png` },
+    { ...attrs, storage_bucket: 'submission-images', storage_path: 'other/photo.png' },
+    { ...attrs, src: 'https://project.supabase.co/storage/v1/object/public/submission-images/other/photo.png' },
+    { ...completeAttrs, storage_bucket: 'test-documents' },
+    { src: `https://foreign.example${source}`, alt: attrs.alt, title: attrs.title, width: attrs.width },
+    { src: `https://foreign.example/api/storage/submission-images?path=${encodeURIComponent(path)}`, alt: attrs.alt, title: attrs.title, width: attrs.width },
+    { src: `https://foreign.example/storage/v1/object/public/submission-images/${path}`, alt: attrs.alt, title: attrs.title, width: attrs.width },
+  ])('rejects conflicting paths or unknown source hosts: %j', (imageAttrs) => {
+    expect(areSubmittedAssignmentContentsEqual(documentWithImage(imageAttrs), documentWithImage(completeAttrs), origins)).toBe(false)
+  })
+
+  it('does not derive a path alias when acknowledged images disagree about its identity', () => {
+    const left = documentWithImage({ src: `/api/storage/submission-images?path=${encodeURIComponent(path)}`, alt: attrs.alt, title: attrs.title, width: attrs.width })
+    const right = documentWithImage(completeAttrs)
+    right.content![0].content!.push({ type: 'image', attrs: { ...completeAttrs, managed_object_id: otherId, src: `/api/storage/submission-images?object_id=${otherId}` } })
+    left.content![0].content!.push({ type: 'image', attrs: { ...completeAttrs, managed_object_id: otherId, src: `/api/storage/submission-images?object_id=${otherId}` } })
+    expect(areSubmittedAssignmentContentsEqual(left, right, origins)).toBe(false)
+  })
+
   it('ignores repaired managed storage bookkeeping without mutating either document', () => {
     const before = documentWithImage(attrs)
     const repaired = documentWithImage({ ...attrs, storage_bucket: 'submission-images', storage_path: 'student/assignment/photo.png' })

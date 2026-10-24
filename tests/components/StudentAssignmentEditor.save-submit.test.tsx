@@ -506,14 +506,21 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
   })
 
-  it.each(['managed metadata recovery', 'external null defaults'])('accepts submitted %s without preserving a duplicate local draft', async (repair) => {
+  it.each(['managed metadata recovery', 'external null defaults', 'same-origin absolute ID URL', 'protected path URL', 'legacy public Storage URL'])('accepts submitted %s without preserving a duplicate local draft', async (repair) => {
     const imageId = '11111111-1111-4111-8111-111111111111'
-    const imageAttrs = repair === 'managed metadata recovery'
-      ? { src: `/api/storage/submission-images?object_id=${imageId}`, managed_object_id: imageId, alt: 'Evidence' }
-      : { src: 'https://example.com/evidence.png', managed_object_id: null, storage_bucket: null, storage_path: null, alt: 'Evidence' }
-    const repairedAttrs = repair === 'managed metadata recovery'
-      ? { ...imageAttrs, storage_bucket: 'submission-images', storage_path: 'student-1/assignment-1/evidence.png' }
-      : { src: imageAttrs.src, alt: imageAttrs.alt }
+    const storagePath = 'student-1/assignment-1/evidence.png'
+    const protectedSrc = `/api/storage/submission-images?object_id=${imageId}`
+    const sources: Record<string, string> = {
+      'same-origin absolute ID URL': `${window.location.origin}${protectedSrc}`,
+      'protected path URL': `/api/storage/submission-images?path=${encodeURIComponent(storagePath)}`,
+      'legacy public Storage URL': `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/submission-images/${storagePath}`,
+    }
+    const imageAttrs = repair === 'external null defaults'
+      ? { src: 'https://example.com/evidence.png', managed_object_id: null, storage_bucket: null, storage_path: null, alt: 'Evidence' }
+      : { src: sources[repair] ?? protectedSrc, ...(repair === 'managed metadata recovery' ? { managed_object_id: imageId } : {}), alt: 'Evidence' }
+    const repairedAttrs = repair === 'external null defaults'
+      ? { src: imageAttrs.src, alt: imageAttrs.alt }
+      : { src: protectedSrc, managed_object_id: imageId, alt: 'Evidence', storage_bucket: 'submission-images', storage_path: storagePath }
     const localContent = { ...latestDraft, content: [...latestDraft.content, { type: 'image', attrs: imageAttrs }] }
     const submittedContent = { ...latestDraft, content: [...latestDraft.content, { type: 'image', attrs: repairedAttrs }] }
     const fetchMock = global.fetch as ReturnType<typeof vi.fn>

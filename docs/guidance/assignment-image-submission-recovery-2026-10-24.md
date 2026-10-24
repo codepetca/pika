@@ -52,10 +52,13 @@ save/submit, latest text and both images, and no false newer-edit warning.
 
 ## Validation evidence
 
-- `pnpm check:focused -- --base origin/main`: 138 files passed, 2 skipped;
+- Initial `pnpm check:focused -- --base origin/main`: 138 files passed, 2 skipped;
   2,463 tests passed, 8 skipped; architecture/UI/design/type/lint passed.
-  Four additional legacy-path/ownership unit regressions then passed in the
-  affected 20-test helper suite. No runtime changes after the focused run.
+  Four additional legacy-path/ownership unit regressions then passed. The batched
+  review corrections passed167 targeted tests. A final unbounded run hit4
+  timeouts in unchanged UI tests during concurrent capture; all244 tests in those
+  three files passed when rerun with2workers and capture stopped. A final required
+  focused run with2workers is in progress; its receipt belongs on the PR.
 - Added 24 endpoint regressions across both authorization modes and both writes;
   rejected lookup evidence never invokes an atomic writer. Added real Tiptap
   clipboard regressions, submission comparison regressions and component tests
@@ -89,8 +92,16 @@ Independent review planned: one initial full-diff wave, two high-reasoning
 reviewers (security/correctness and compatibility/state preservation), separate
 fixed detached checkout; no edits/publication by reviewers. Budget: at most7
 launches,4 remediation batches,60minutes elapsed; single reviewer30minutes.
-Current launches0, remediation0. Draft-first PR; final stable-SHA CI required.
-Release and live preservation checks remain pending.
+Initial complete reviews at29b4a5449: GPT-6 Astra/high security/correctness and
+GPT-6.1 Sol/high compatibility. Both reported one accepted P2 each. Batched
+remediation1 retains URL-path evidence and rejects conflicts before writer calls,
+and recognizes same-origin absolute IDs plus unambiguous acknowledged legacy
+paths during submission comparison. Foreign source hosts, ambiguous aliases and
+real edits remain unequal. New regressions failed before fixes and pass after.
+Current launches2, remediation1; one targeted review planned against the new fixed
+SHA. Initial review began10:17:22Z; limits remain unchanged. PR1675 is draft.
+Final review, exact-SHA CI, promotion and live-preservation receipts will be
+recorded on the PR and in the task; no pending step is implied complete here.
 
 Production preservation baseline was read privately for the three reported A4
 drafts: existing content hashes/statuses and saved references intact; additional

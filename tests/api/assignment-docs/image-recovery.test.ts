@@ -214,6 +214,20 @@ describe.each([
   })
 
   it.each([
+    '/api/storage/submission-images?path=conflicting%2Fimage.png',
+    'https://legacy.supabase.co/storage/v1/object/public/submission-images/conflicting/image.png',
+  ])('does not invoke any writer for conflicting URL path evidence %s', async (src) => {
+    for (const fields of [{}, { storage_bucket: ownedImage.storage_bucket, storage_path: storagePath }]) {
+      clientWithRegistry()
+      const content = draftWithImage({ managed_object_id: imageId, src, ...fields })
+      const original = structuredClone(content)
+      expect((await invoke(content)).status).toBe(400)
+      for (const write of writes) expect(write).not.toHaveBeenCalled()
+      expect(content).toEqual(original)
+    }
+  })
+
+  it.each([
     { label: 'foreign owner', records: [{ ...ownedImage, data_subject_user_id: assignmentId }], error: null, status: 400 },
     { label: 'foreign document', records: [{ ...ownedImage, resource_id: assignmentId }], error: null, status: 400 },
     { label: 'unknown object', records: [], error: null, status: 400 },
