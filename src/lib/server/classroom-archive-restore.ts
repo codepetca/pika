@@ -31,6 +31,7 @@ import {
   type PersistedTestQuestionIdentity,
 } from '@/lib/test-question-identity'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { detachRepoLightArchiveResources } from '@/lib/server/repolight-archive'
 import type { TestDraftContent } from '@/types'
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
@@ -110,6 +111,12 @@ const RESTORE_ADAPTERS: RestoreAdapter[] = [
   {
     id: 'classroom-archive-schema-107-to-134',
     source: '107_classroom_archive_v2_direct_source',
+    target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+    adapt: normalizeArchivedTestQuestionIdentities,
+  },
+  {
+    id: 'classroom-archive-schema-293-to-134-repolight-detached',
+    source: '293_repolight_report_service',
     target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
     adapt: normalizeArchivedTestQuestionIdentities,
   },
@@ -601,7 +608,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     manifest.source.schema_migration,
     targetSchemaMigration,
   )
-  const schemaAdaptedResources = adapters.adapt(decoded.resources)
+  const schemaAdaptedResources = detachRepoLightArchiveResources(adapters.adapt(decoded.resources))
   const classroomRows = schemaAdaptedResources.classrooms || []
   if (
     classroomRows.length !== 1 ||

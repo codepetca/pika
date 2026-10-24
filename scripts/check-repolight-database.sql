@@ -13,13 +13,16 @@ insert into public.users(id,email,role) values
 insert into public.classrooms(id,teacher_id,title,class_code) values('f2930000-0000-4000-8000-000000000010','f2930000-0000-4000-8000-000000000001','Synthetic RepoLight','R293FX');
 insert into public.classroom_enrollments(id,classroom_id,student_id) values('f2930000-0000-4000-8000-000000000011','f2930000-0000-4000-8000-000000000010','f2930000-0000-4000-8000-000000000002');
 insert into public.assignments(id,classroom_id,title,description,due_at,created_by,is_draft,released_at) values('f2930000-0000-4000-8000-000000000020','f2930000-0000-4000-8000-000000000010','Synthetic analysis','','2026-10-25T04:00:00Z','f2930000-0000-4000-8000-000000000001',false,'2026-09-01T04:00:00Z');
-insert into public.assignment_docs(id,assignment_id,student_id,repo_url,github_username,score_completion,score_thinking,score_workflow,teacher_feedback_draft) values('f2930000-0000-4000-8000-000000000030','f2930000-0000-4000-8000-000000000020','f2930000-0000-4000-8000-000000000002','https://github.com/example/project',null,7,8,9,'Teacher original');
+insert into public.assignment_docs(id,assignment_id,student_id,repo_url,github_username,score_completion,score_thinking,score_workflow,teacher_feedback_draft) values('f2930000-0000-4000-8000-000000000030','f2930000-0000-4000-8000-000000000020','f2930000-0000-4000-8000-000000000002','https://github.com/example/project.git',null,7,8,9,'Teacher original');
+insert into public.assignment_submission_requirements(id,assignment_id,type,label) values('f2930000-0000-4000-8000-000000000080','f2930000-0000-4000-8000-000000000020','link','Non-repository attachment');
+insert into public.assignment_submission_artifacts(assignment_doc_id,requirement_id,student_id,type,url) values('f2930000-0000-4000-8000-000000000030','f2930000-0000-4000-8000-000000000080','f2930000-0000-4000-8000-000000000002','link','https://example.invalid/worksheet');
 update private.repolight_settings set enabled=true where singleton;
 set local role service_role;
 do $behavior$
 declare actor constant uuid:='f2930000-0000-4000-8000-000000000001'; assignment constant uuid:='f2930000-0000-4000-8000-000000000020'; learner constant uuid:='f2930000-0000-4000-8000-000000000002'; source jsonb; r jsonb; replay jsonb; held jsonb; binding uuid; token uuid; generation integer; report jsonb; receipt jsonb; doc_before jsonb; doc_after jsonb;
 begin
  source:=public.get_assignment_repolight_source_v1(actor,assignment,learner);
+ if jsonb_array_length(source#>'{source,artifacts}')<>0 then raise exception 'Non-repository artifact entered analysis source';end if;
  perform public.get_assignment_repolight_source_v1(actor,assignment,'f2930000-0000-4000-8000-000000000003');
  begin perform public.begin_assignment_repolight_run_v1(actor,assignment,'f2930000-0000-4000-8000-000000000003',gen_random_uuid(),'{}','{}','{}');raise exception 'Unenrolled write accepted';exception when insufficient_privilege then null;end;
  r:=public.begin_assignment_repolight_run_v1(actor,assignment,learner,'f2930000-0000-4000-8000-000000000040','{"connectionRef":"fixture","workspaceRef":"fixture_workspace","installationRef":"pika_fixture"}','{"repositoryUrl":"https://github.com/example/project","period":{"startAt":"2026-09-01T04:00:00Z","endAt":"2026-10-25T04:00:00Z","timezone":"America/Toronto"},"scheduledProjectDates":null,"baselineReviewed":false,"exclusions":{"commitShas":[],"pathPrefixes":[],"botLogins":[]}}',source->'source');
@@ -48,7 +51,9 @@ begin
  held:=public.begin_repolight_subject_erasure_v1(actor,binding,'f2930000-0000-4000-8000-000000000070');
  receipt:=jsonb_build_object('schemaVersion','1.0','operationRef','f2930000-0000-4000-8000-000000000070','installationRef','pika_fixture','subjectRef',held->>'subject_ref','status','erased','absenceVerified',true);
  perform public.record_repolight_subject_erasure_v1(actor,binding,'f2930000-0000-4000-8000-000000000070',receipt);
- if exists(select 1 from public.assignment_repolight_runs where id=(r->>'id')::uuid) then raise exception 'Erased local result remains';end if;
+ if not exists(select 1 from public.assignment_repolight_runs where id=(r->>'id')::uuid) or not exists(select 1 from public.assignment_repolight_reports where run_id=(r->>'id')::uuid) then raise exception 'Remote erasure destroyed portable local facts';end if;
+ perform public.read_assignment_repolight_run_v1(actor,assignment,learner,(r->>'id')::uuid,true);
+ begin perform public.advance_assignment_repolight_run_v1(actor,assignment,learner,(r->>'id')::uuid,'claim','{}');raise exception 'Closed provider binding resumed';exception when sqlstate '55000' then null;end;
 end $behavior$;
 reset role;
 rollback;

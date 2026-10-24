@@ -138,6 +138,9 @@ export const CLASSROOM_ARCHIVE_V2_RESOURCES = [
   ),
   archiveResource('classroom_retired_assessment_records'),
   archiveResource('classroom_retired_assessment_record_actors', ['actor_id']),
+  archiveResource('assignment_repolight_runs', ['actor_id', 'student_id']),
+  archiveResource('assignment_repolight_reports', ['student_id'], ['run_id']),
+  archiveResource('assignment_repolight_feedback_imports', ['actor_id', 'student_id']),
 ] as const satisfies readonly ClassroomArchiveResourceDefinition[]
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
@@ -155,6 +158,9 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
   'classroom_retired_assessment_records',
   'classroom_retired_assessment_record_actors',
   'classroom_guided_draft_provenance',
+  'assignment_repolight_runs',
+  'assignment_repolight_reports',
+  'assignment_repolight_feedback_imports',
 ] as const
 
 // Additive migrations may be absent on older deployed schemas. Historical archive
@@ -162,12 +168,15 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
 export const ADDITIVE_CLASSROOM_ARCHIVE_TABLES: readonly string[] = [
   'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores',
   'classroom_guided_draft_provenance',
+  'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports',
 ]
 export function resolveClassroomArchiveV2Resources(tableNames: readonly string[]) {
   const actual = new Set(tableNames)
   if (actual.has('gradebook_items') !== actual.has('gradebook_item_scores')) {
     throw new Error('Classroom archive resource contract is invalid')
   }
+  const reportFamily=['assignment_repolight_runs','assignment_repolight_reports','assignment_repolight_feedback_imports']
+  if (reportFamily.some(table=>actual.has(table)) && !reportFamily.every(table=>actual.has(table))) throw new Error('Classroom archive report resource family is incomplete')
   const selected = CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) =>
     !ADDITIVE_CLASSROOM_ARCHIVE_TABLES.includes(resource.table) || actual.has(resource.table),
   )

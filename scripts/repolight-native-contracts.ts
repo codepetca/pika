@@ -13,7 +13,10 @@ export function repoLightNativeRacePlans(input: {
   source: Json; connection: Json; request: Json;
   leaseToken: string; leaseGeneration: number; subjectBindingId: string; operationId: string;
 }) {
-  for (const value of [input.actorId,input.assignmentId,input.studentId,input.runId,input.subjectBindingId,input.operationId]) assert.match(value,/^f29[3-9][a-f0-9]{4}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/,'Synthetic RepoLight fixture UUID required')
+  for (const value of [input.actorId,input.assignmentId,input.studentId,input.runId,input.operationId]) assert.match(value,/^f29[3-9][a-f0-9]{4}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/,'Synthetic RepoLight fixture UUID required')
+  // The binding UUID is allocated by PostgreSQL. The owning driver must prove it
+  // belongs to the supplied synthetic run; it cannot carry the fixture prefix.
+  assert.match(input.subjectBindingId,/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/)
   assert.match(input.leaseToken,/^[a-f0-9-]{36}$/)
   assert(Number.isInteger(input.leaseGeneration)&&input.leaseGeneration>0)
   const actor=`${quoted(input.actorId)}::uuid`,assignment=`${quoted(input.assignmentId)}::uuid`,student=`${quoted(input.studentId)}::uuid`,run=`${quoted(input.runId)}::uuid`
