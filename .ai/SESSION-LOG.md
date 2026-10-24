@@ -11,27 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Settings switch motion consistency
-
-- Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
-- Native baseline confirmed 150ms track/thumb transitions persisted under reduced motion. Shared fast duration/standard easing and transition-none now cover both decorative spans, preserving immediate native state/callbacks and fixed labels.
-- Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
-- Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
-- No dependency, database, grade policy or production change; broader experience epic remains incomplete.
-
-## 2026-10-22 — Course Guide and assignment Markdown authoring
-
-Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
-opt-in Bold/Italic/Link/Format toolbar and unchanged Markdown persistence.
-Mode changes emit no content writes; source blur still uses assignment autosave.
-Focused 121 files/2,093 tests and all static policies passed; browser role,
-desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
-Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
-Independent stable-SHA review/PR completion follows; no production promotion.
-Initial independent review found toolbar Tab trapping; one batch fixes native
-Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
-and corrected teacher browser matrix4/4 passed. Targeted review pending.
-
 ## 2026-10-22 — Roster join dates
 
 Teacher roster Joined cells now pair the existing Lucide check with a compact
@@ -588,6 +567,21 @@ Focused legacy/contextual/route-standard tests, TSC, lint and architecture check
 pass; final independent review/full focused checks remain coordinator-owned.
 No migration, dependency, account, cohort, provider or production changes.
 
+## 2026-10-23 — Prepare activation-off Home foundation release
+
+Owner explicitly approved292 locally and in production, then reviewed-main
+release with activation off. Local sole292 push and production apply40059138246
+both verified contiguous001–292; production preview40059060682 matched only292.
+Read-only checks match both installed function bodies, private RLS/ACLs and
+validated enrollment PK/FKcascade. No reset, seed, retry or production fixtures.
+Release1673 batches reviewed main3c1be2d39; full focused4738tests/151suites and
+static gates pass. Independent security464/compatibility465 complete clean.
+Reconciled only journal merge history with productioncd7179, retaining both
+parents and unchanged application/SQL/config/dependency bytes. Final delta
+review and exact-head CI precede merge. Home/admission/page settings remain
+absent; existing provider/control metadata unchanged. Live-provider, activation,
+account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
+
 ## 2026-10-24 — Release inactive classroom Home foundation
 
 Owner explicitly approved sole292 locally/production and reviewed-main release
@@ -653,3 +647,7 @@ helper still emitting document trees; compatibility review found no regressions.
 One remediation batch replaces both patch-helper logs with browser-safe fixed
 warnings and strengthens aggregate reconstruction diagnostics tests/guard.
 Targeted review and exact-head CI remain required before readiness/merge.
+
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
