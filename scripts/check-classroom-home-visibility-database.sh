@@ -90,7 +90,7 @@ const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
 assert.equal(paths.length, 292, 'Expected exactly292 migrations')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
-for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs']) {
+for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
 NODE
@@ -125,6 +125,15 @@ if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then tail -25 "$s
 echo 'PASS isolated replay001–292.'
 if ! sql < "$root/scripts/check-classroom-home-visibility-database.sql" > "$scratch/behavior.log" 2>&1; then tail -25 "$scratch/behavior.log" >&2; exit 1; fi
 echo 'PASS rollback-only home visibility contracts.'
+if ! sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1; then tail -25 "$scratch/recovery.log" >&2; exit 1; fi
+node - "$scratch/recovery.log" <<'NODE'
+const assert = require('node:assert/strict')
+const { readFileSync } = require('node:fs')
+const output = readFileSync(process.argv[2])
+assert(output.length <= 1024, 'Recovery verdict exceeded its bound')
+assert.equal(output.toString('utf8').trim(), 'ok\n{"version":1,"scope":"classroom-home-recovery-v1","outcome":"passed","stage":"rolled-back","nativeVerified":false}')
+NODE
+echo 'PASS rollback-only classroom creation freeze and capability recovery contracts.'
 if ! node "$root/scripts/check-classroom-home-visibility-contention.mjs" --container-id "$clone_id" --owner "$owner" > "$scratch/contention.log" 2>&1; then tail -25 "$scratch/contention.log" >&2; exit 1; fi
 echo 'PASS actual two-session visibility membership/owner/archive contention.'
 meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.home-visibility.owner=$owner" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-home-visibility -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true "$meta_image")"

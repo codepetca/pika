@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { requireAuth } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { GET } from '@/app/api/classrooms/home/route'
+import { loadClassroomHomeCreationAccess } from '@/lib/server/classroom-home-creation'
 import type { AuthenticatedUser } from '@/types'
 
 vi.mock('@/lib/auth', async (importOriginal) => ({
@@ -49,6 +50,7 @@ let ownedResult: JoinedResult
 let joinedResult: JoinedResult
 let ownedQuery: ReturnType<typeof query>
 let joinedQuery: ReturnType<typeof query>
+const creationRpc = vi.fn()
 
 function query(result: (range: [number, number] | null) => JoinedResult) {
   const filters: unknown[][] = []
@@ -89,6 +91,7 @@ function enrollment(
 describe('contextual classroom home backend pilot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    creationRpc.mockReset()
     vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
     vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', JSON.stringify([actorId]))
     vi.mocked(requireAuth).mockResolvedValue({
@@ -101,6 +104,7 @@ describe('contextual classroom home backend pilot', () => {
     ownedQuery = query(() => ownedResult)
     joinedQuery = query(() => joinedResult)
     vi.mocked(getServiceRoleClient).mockReturnValue({
+      rpc: creationRpc,
       from: vi.fn((table: string) => {
         if (table === 'classrooms') return ownedQuery
         if (table === 'classroom_enrollments') return joinedQuery
@@ -230,6 +234,28 @@ describe('contextual classroom home backend pilot', () => {
     expect(body.owned).toHaveLength(1)
     expect(body.joined).toHaveLength(1)
     expect(body.joined[0].id).toBe(joinedId)
+  })
+
+  it('keeps actual Home relationship reads independent of creation-source failure and recovery', async () => {
+    const client = getServiceRoleClient()
+    creationRpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'PRIVATE permission detail' } })
+      .mockResolvedValueOnce({ data: {
+        subject_user_id: actorId, feature_key: 'classrooms.create', managed: true,
+        allowed: false, reason: 'disabled', source: 'manual',
+        starts_at: '2026-01-01T00:00:00+00:00', expires_at: null,
+        quota_limit: 2, active_count: 1, revision: 2,
+      }, error: null })
+    await expect(loadClassroomHomeCreationAccess(actorId, client)).rejects.toMatchObject({ statusCode: 503 })
+    const response = await GET()
+    expect(response.status).toBe(200)
+    const home = await response.json()
+    expect(home.owned.map((row: { id: string }) => row.id)).toEqual([ownedId])
+    expect(home.joined.map((row: { id: string }) => row.id)).toEqual([joinedId])
+    expect(creationRpc).toHaveBeenCalledExactlyOnceWith('get_classroom_creation_access_v1', { p_subject_user_id: actorId })
+    await expect(loadClassroomHomeCreationAccess(actorId, client)).resolves.toEqual({ canCreate: false })
+    expect(creationRpc).toHaveBeenCalledTimes(2)
+    expect(ownedQuery.eq).toHaveBeenCalledWith('teacher_id', actorId)
+    expect(joinedQuery.eq).toHaveBeenCalledWith('student_id', actorId)
   })
 
   it('retrieves 1001 joined and owned relationships beyond the REST ceiling without losing Hidden candidates', async () => {

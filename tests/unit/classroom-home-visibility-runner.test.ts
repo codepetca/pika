@@ -1,9 +1,12 @@
 import { readFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import assert from 'node:assert/strict'
+import { runInNewContext } from 'node:vm'
 import { describe, expect, it } from 'vitest'
 
 const runner = readFileSync('scripts/check-classroom-home-visibility-database.sh', 'utf8')
 const contention = readFileSync('scripts/check-classroom-home-visibility-contention.mjs', 'utf8')
+const recovery = readFileSync('scripts/check-classroom-home-recovery-database.sql', 'utf8')
 
 describe('isolated home visibility proof runner source contracts', () => {
   it.each([
@@ -49,10 +52,54 @@ ${guard}`], {
   })
 
   it('validates a contiguous full292 inventory and seals SQL/proof bytes before and after execution', () => {
-    for (const token of ["assert.equal(paths.length, 292", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
+    for (const token of ["assert.equal(paths.length, 292", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
       expect(runner).toContain(token)
     }
     expect(runner).not.toContain('validateLifecycleServicesReviewedMigrations')
+  })
+
+  it('runs recovery contracts only through the same owned offline clone and retained evidence', () => {
+    expect(runner).toContain('sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1')
+    expect(runner.indexOf("echo 'PASS isolated replay001–292.'")).toBeLessThan(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"'))
+    expect(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"')).toBeLessThan(runner.lastIndexOf('verify_source ||'))
+    expect(runner).not.toMatch(/recovery.*(?:source_id|supabase_db_pika).*psql/)
+  })
+
+  it.each([
+    ['ok\n{"version":1,"scope":"classroom-home-recovery-v1","outcome":"passed","stage":"rolled-back","nativeVerified":false}\n', true],
+    ['', false],
+    ['ok\n{}', false],
+    ['ok\n{"version":1,"scope":"classroom-home-recovery-v1","outcome":"passed","stage":"rolled-back","nativeVerified":true}', false],
+    ['WARNING unexpected\nok\n{}', false],
+    ['x'.repeat(1025), false],
+  ])('executes the closed recovery verdict parser: case %# accepted=%s', (output, accepted) => {
+    const parser = runner.match(/node - "\$scratch\/recovery.log" <<'NODE'\n([\s\S]*?)\nNODE/)?.[1]
+    expect(parser).toBeDefined()
+    const execute = () => runInNewContext(parser!, {
+      require: (name: string) => {
+        if (name === 'node:assert/strict') return assert
+        if (name === 'node:fs') return { readFileSync: () => Buffer.from(output) }
+        throw new Error('Unexpected verdict parser dependency')
+      }, process: { argv: ['node', '-', 'inert-fixture'] },
+    })
+    if (accepted) expect(execute).not.toThrow()
+    else expect(execute).toThrow()
+  })
+
+  it('retains explicit real-role failure/restoration and complete graph rollback assertions', () => {
+    // Source contracts only. Native execution, not these string checks, proves
+    // PostgreSQL semantics and complete rollback behavior.
+    for (const token of ["n.nspname in ('public','private')", "c.relkind in ('r','p')", 'pg_get_functiondef',
+      'p.proacl::text', 'create_classroom_atomic_v1', 'set_effective_feature_entitlement_v1',
+      'classroom_creation_entitlement_disabled', 'permission denied for function get_classroom_creation_access_v1',
+      'revoke execute on function public.get_classroom_creation_access_v1(uuid,timestamptz) from service_role;',
+      'grant execute on function public.get_classroom_creation_access_v1(uuid,timestamptz) to service_role;',
+      'read_classroom_home_visibility_v1', 'Recovery fixture rollback did not restore original graph/catalog']) {
+      expect(recovery).toContain(token)
+    }
+    expect(recovery).not.toMatch(/^commit\s*;/im)
+    expect(recovery.indexOf('rollback;')).toBeLessThan(recovery.indexOf('do $rolled_back$'))
+    expect(recovery).toContain("'Recovery submitted-work sentinel'")
   })
 
   it('preserves source schemas/version/image and removes only owned exact clone identities on success and failure', () => {

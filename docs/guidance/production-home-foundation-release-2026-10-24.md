@@ -99,3 +99,7 @@ readiness remains separate: SQL, SDK and mocked seams do not prove live provider
 compatibility. Readmission policy changes are deferred; existing final-removal
 behavior remains unchanged. Account, plan, billing, provider and activation
 holds remain in force. The overall cutover goal is not complete.
+
+Recovery preparation and the unactivated pilot decision sheet are tracked in
+[Home pilot readiness](classroom-home-pilot-readiness.md); its evidence labels
+distinguish isolated SQL, synthetic adapter tests and actual production canaries.
