@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/route'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -29,6 +30,7 @@ describe('GET /api/student/tests', () => {
   })
 
   it('returns 500 instead of a partial list when reading closed tests fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table !== 'tests') throw new Error(`Unexpected table: ${table}`)
 
@@ -45,7 +47,7 @@ describe('GET /api/student/tests', () => {
             resolve({ data: [{ id: 'test-active', status: 'active' }], error: null })
             return
           }
-          resolve({ data: null, error: { message: 'Database error' } })
+          resolve({ data: null, error: privateDiagnosticError })
         }),
       }
       return builder
@@ -58,6 +60,8 @@ describe('GET /api/student/tests', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to fetch tests')
+    expectContentFreeDiagnostic(log.mock.calls, 'test.student_list_closed')
+    log.mockRestore()
   })
 
   it('returns 500 when reading submitted test responses fails', async () => {

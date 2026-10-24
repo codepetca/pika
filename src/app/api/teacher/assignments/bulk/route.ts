@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
@@ -202,7 +203,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       .in('id', idsToUpdate)
 
     if (error) {
-      console.error('Error fetching existing assignments:', error)
+      logServerError('assignment.bulk_existing', error)
       return NextResponse.json(
         { error: 'Failed to fetch existing assignments' },
         { status: 500 }
@@ -250,7 +251,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     materialPositionsResult.error &&
     !isMissingClassworkMaterialPositionError(materialPositionsResult.error)
   ) {
-    console.error('Error fetching classwork material positions:', materialPositionsResult.error)
+    logServerError('assignment.bulk_material_positions', materialPositionsResult.error)
     return NextResponse.json(
       { error: 'Failed to save assignments' },
       { status: 500 }
@@ -261,7 +262,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     surveyPositionsResult.error &&
     !isMissingSurveysTableError(surveyPositionsResult.error)
   ) {
-    console.error('Error fetching survey positions:', surveyPositionsResult.error)
+    logServerError('assignment.bulk_survey_positions', surveyPositionsResult.error)
     return NextResponse.json(
       { error: 'Failed to save assignments' },
       { status: 500 }
@@ -318,7 +319,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       .select()
 
     if (error) {
-      console.error('Error creating assignments:', error)
+      logServerError('assignment.bulk_create', error)
       return NextResponse.json(
         { error: 'Failed to create assignments' },
         { status: 500 }
@@ -365,7 +366,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       .select()
 
     if (error) {
-      console.error('Error updating assignment:', error)
+      logServerError('assignment.bulk_update', error)
       return NextResponse.json(
         { error: 'Failed to update assignments' },
         { status: 500 }

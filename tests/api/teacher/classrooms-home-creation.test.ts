@@ -111,4 +111,68 @@ describe('exact-home admitted classroom creation and refresh', () => {
     expect(response.status).toBe(409)
     expect(await response.json()).toMatchObject({ error_code: 'classroom_creation_active_limit_reached', retryable: false })
   })
+
+  // CPU composition: actual route/adapters, synthetic database responses. The
+  // separate rollback-only SQL contract proves the real writer/ACL behavior.
+  it.each(['teacher', 'student'] as const)('retains %s access through creation freeze, source failure and recovery', async role => {
+    const user = { id: actorId, email: 'actor@example.invalid', role }
+    vi.mocked(requireAuth).mockResolvedValue(user)
+    const home = { owned: [{ id: classroomId, title: 'Owned', relationship: 'owner' }], joined: [] }
+    vi.mocked(loadContextualClassroomHome).mockResolvedValue(home as never)
+    const disabled = { ...snapshot, allowed: false, reason: 'disabled', revision: 2, active_count: 1 }
+    const freshOperationId = '55555555-5555-4555-8555-555555555555'
+    const state = { phase: 'allowed' as 'allowed' | 'disabled' | 'unavailable' }
+    database.rpc.mockImplementation(async (name, args) => {
+      if (name === 'get_classroom_creation_access_v1') {
+        expect(args).toEqual({ p_subject_user_id: actorId })
+        return state.phase === 'unavailable'
+          ? { data: null, error: { code: '42501', message: 'PRIVATE permission detail' } }
+          : { data: state.phase === 'allowed' ? snapshot : disabled, error: null }
+      }
+      expect(name).toBe('create_classroom_atomic_v1')
+      expect(state.phase).not.toBe('unavailable')
+      expect(args.p_subject_user_id).toBe(actorId)
+      if (args.p_operation_id === freshOperationId) {
+        expect(state.phase).toBe('disabled')
+        return { data: null, error: { code: '42501', message: 'classroom_creation_entitlement_disabled' } }
+      }
+      expect(args.p_operation_id).toBe(operationId)
+      return { data: { ...atomicResult, replayed: state.phase === 'disabled' }, error: null }
+    })
+    expect((await POST(createRequest())).status).toBe(201)
+    state.phase = 'disabled'
+    const fresh = new NextRequest('http://localhost/api/teacher/classrooms', {
+      method: 'POST', headers: { 'Idempotency-Key': freshOperationId },
+      body: JSON.stringify({ title: 'Field studies', themeColor: 'blue' }),
+    })
+    const denied = await POST(fresh)
+    expect(denied.status).toBe(403)
+    expect(await denied.json()).toMatchObject({ error_code: 'classroom_creation_entitlement_disabled', retryable: false })
+    expect(await (await POST(createRequest())).json()).toMatchObject({ replayed: true, classroom: { id: classroomId } })
+
+    state.phase = 'unavailable'
+    const beforeFailure = database.rpc.mock.calls.length
+    const unavailable = await POST(createRequest())
+    expect(unavailable.status).toBe(503)
+    expect(JSON.stringify(await unavailable.json())).not.toContain('PRIVATE')
+    expect(database.rpc.mock.calls.slice(beforeFailure)).toEqual([
+      ['get_classroom_creation_access_v1', { p_subject_user_id: actorId }],
+    ])
+    const beforeRead = database.rpc.mock.calls.length
+    const existing = await GET(new NextRequest('http://localhost/api/teacher/classrooms'))
+    expect(existing.status).toBe(200)
+    expect((await existing.json()).classrooms.map((row: { id: string }) => row.id)).toEqual([classroomId])
+    expect(database.rpc).toHaveBeenCalledTimes(beforeRead)
+
+    state.phase = 'disabled'
+    const recovered = await POST(createRequest())
+    expect(recovered.status).toBe(201)
+    expect(await recovered.json()).toMatchObject({ replayed: true, classroom: { id: classroomId } })
+    expect(user).toEqual({ id: actorId, email: 'actor@example.invalid', role })
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(listActiveTeacherClassrooms).not.toHaveBeenCalled()
+    expect(database.from).not.toHaveBeenCalled()
+    expect(JSON.parse(process.env.PIKA_CLASSROOM_EXPERIENCE_ADMISSION!)).toEqual({ version: 1, admittedUserIds: [actorId] })
+    expect(JSON.parse(process.env.PIKA_CLASSROOM_HOME_ACCESS_USER_IDS!)).toEqual([actorId])
+  })
 })

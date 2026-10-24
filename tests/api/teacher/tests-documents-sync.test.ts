@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/documents/[docId]/sync/route'
 import { ApiError } from '@/lib/api-handler'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import {
   syncExternalLinkTestDocument,
 } from '@/lib/server/test-document-snapshots'
@@ -130,6 +131,65 @@ describe('POST /api/teacher/tests/[id]/documents/[docId]/sync', () => {
     )
     expect(data.doc.snapshot_content_type).toBe('text/html')
     expect(data.doc.synced_at).toBeTruthy()
+  })
+
+  it('logs a private atomic write failure while preserving snapshot rollback and response', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValueOnce({ data: null, error: privateDiagnosticError })
+    const response = await POST(
+      new NextRequest('http://localhost/api/teacher/tests/test-1/documents/doc-1/sync', { method: 'POST' }),
+      { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) },
+    )
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'Failed to save synced document' })
+    expect(removeQueuedTestDocumentSnapshotPath).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      storagePath: 'link-docs/teacher-1/test-1/doc-1/snapshots/new',
+    })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.document_sync_write')
+    log.mockRestore()
+  })
+
+  it('keeps conflict rollback failure private and preserves the conflict response', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValueOnce({ data: null, error: { message: 'document_conflict' } })
+    vi.mocked(removeQueuedTestDocumentSnapshotPath).mockRejectedValueOnce(privateDiagnosticError)
+    const response = await POST(
+      new NextRequest('http://localhost/api/teacher/tests/test-1/documents/doc-1/sync', { method: 'POST' }),
+      { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) },
+    )
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'The document changed while it was syncing. Try again.' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.document_sync_rollback')
+    log.mockRestore()
+  })
+
+  it('keeps superseded snapshot cleanup best effort and private after a successful sync', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockRpc.mockResolvedValueOnce({
+      data: {
+        previous_snapshot_path: 'PRIVATE_PREVIOUS_SNAPSHOT_PATH',
+        test: {
+          id: 'test-1',
+          documents: [{ id: 'doc-1', title: 'Node.js API', source: 'link', url: 'https://nodejs.org/api/fs.html',
+            snapshot_path: 'link-docs/teacher-1/test-1/doc-1/snapshots/new', snapshot_content_type: 'text/html' }],
+        },
+      },
+      error: null,
+    })
+    vi.mocked(removeQueuedTestDocumentSnapshotPath).mockRejectedValueOnce(privateDiagnosticError)
+    const response = await POST(
+      new NextRequest('http://localhost/api/teacher/tests/test-1/documents/doc-1/sync', { method: 'POST' }),
+      { params: Promise.resolve({ id: 'test-1', docId: 'doc-1' }) },
+    )
+    expect(response.status).toBe(200)
+    expect((await response.json()).doc.snapshot_path).toBe('link-docs/teacher-1/test-1/doc-1/snapshots/new')
+    expect(removeQueuedTestDocumentSnapshotPath).toHaveBeenCalledWith({
+      supabase: mockSupabase,
+      storagePath: 'PRIVATE_PREVIOUS_SNAPSHOT_PATH',
+    })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.document_sync_cleanup')
+    log.mockRestore()
   })
 
   it('returns 400 for unsupported source types', async () => {

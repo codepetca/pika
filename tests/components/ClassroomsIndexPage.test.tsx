@@ -139,4 +139,30 @@ describe('classroom index required server reads', () => {
     expect(await indexProps()).toMatchObject({ initialClassrooms: [], initialReadError: true, contextualHome: { joined: [], hidden: [], canCreate: false } })
     expect(mocks.from).not.toHaveBeenCalled()
   })
+
+  it.each(['teacher', 'student'])('fails closed then recovers %s Home without replacing retained admission', async role => {
+    mocks.user.mockResolvedValue({ id: 'actor', role })
+    mocks.homeAdmission.mockReturnValue(true)
+    mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
+    mocks.home.mockResolvedValue({ owned: [{ id: 'owned' }], joined: [
+      { id: 'joined', enrollment_id: 'membership-a' },
+      { id: 'hidden', enrollment_id: 'membership-b' },
+    ] })
+    mocks.visibility.mockResolvedValue({ actor_id: 'actor', hidden_enrollment_ids: ['membership-b'] })
+    mocks.creation.mockResolvedValue({ canCreate: false })
+    const disabled = await indexProps()
+    expect(disabled).toMatchObject({ initialClassrooms: [{ id: 'owned' }], initialReadError: false,
+      contextualHome: { joined: [{ id: 'joined', enrollment_id: 'membership-a' }],
+        hidden: [{ id: 'hidden', enrollment_id: 'membership-b' }], canCreate: false } })
+    mocks.creation.mockRejectedValueOnce(new Error('PRIVATE capability source failure'))
+    const unavailable = await indexProps()
+    expect(unavailable).toMatchObject({ initialClassrooms: [], initialReadError: true,
+      contextualHome: { joined: [], hidden: [], canCreate: false } })
+    expect(JSON.stringify(unavailable)).not.toContain('PRIVATE')
+    expect(await indexProps()).toEqual(disabled)
+    expect(mocks.homeAdmission).toHaveBeenCalledTimes(3)
+    expect(mocks.experienceAdmission).toHaveBeenCalledTimes(3)
+    expect(mocks.teacher).not.toHaveBeenCalled()
+    expect(mocks.from).not.toHaveBeenCalled()
+  })
 })

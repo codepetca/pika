@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { logServerError } from '@/lib/server/diagnostics'
 
 const TEST_DOCUMENTS_BUCKET = 'test-documents'
 const PROVISIONAL_CLEANUP_DELAY_SECONDS = 15 * 60
@@ -39,15 +40,9 @@ export async function createProvisionalTestDocumentSnapshotCleanup(input: {
     const parsed = provisionalCleanupSchema.safeParse(result.data)
     if (!result.error && parsed.success) return parsed.data
 
-    console.error('Failed to create provisional test snapshot cleanup:', {
-      path: input.storagePath,
-      error: result.error ?? parsed.error,
-    })
+    logServerError('test_snapshot_cleanup.provision', result.error ?? parsed.error)
   } catch (error) {
-    console.error('Failed to create provisional test snapshot cleanup:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('test_snapshot_cleanup.provision', error)
   }
   return null
 }
@@ -62,15 +57,9 @@ async function snapshotPathIsReferenced(input: {
       { p_storage_path: input.storagePath },
     )
     if (!result.error && typeof result.data === 'boolean') return result.data
-    console.error('Failed to check test snapshot references:', {
-      path: input.storagePath,
-      error: result.error,
-    })
+    logServerError('test_snapshot_cleanup.reference', result.error)
   } catch (error) {
-    console.error('Failed to check test snapshot references:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('test_snapshot_cleanup.reference', error)
   }
   return null
 }
@@ -91,10 +80,7 @@ async function failCleanup(input: {
       },
     )
   } catch (error) {
-    console.error('Failed to release test snapshot cleanup claim:', {
-      cleanupId: input.cleanupId,
-      error,
-    })
+    logServerError('test_snapshot_cleanup.release', error)
   }
 }
 
@@ -124,10 +110,8 @@ async function processClaim(input: {
         .from(TEST_DOCUMENTS_BUCKET)
         .remove([cleanup.storage_path])
       storageError = result.error
-    } catch (error) {
-      storageError = error instanceof Error
-        ? { message: error.message }
-        : { message: 'Storage request failed' }
+    } catch {
+      storageError = { message: 'Storage request failed' }
     }
 
     if (storageError) {
@@ -135,7 +119,7 @@ async function processClaim(input: {
         supabase,
         cleanupId: cleanup.id,
         leaseToken: cleanup.lease_token,
-        error: storageError.message ?? 'Storage request failed',
+        error: 'Storage request failed',
       })
       return false
     }
@@ -151,10 +135,7 @@ async function processClaim(input: {
     )
     if (!completion.error && completion.data === true) return true
   } catch (error) {
-    console.error('Failed to complete test snapshot cleanup:', {
-      cleanupId: cleanup.id,
-      error,
-    })
+    logServerError('test_snapshot_cleanup.complete', error)
   }
 
   await failCleanup({
@@ -182,20 +163,14 @@ export async function removeQueuedTestDocumentSnapshotPath(input: {
       },
     )
   } catch (error) {
-    console.error('Failed to claim queued test snapshot path:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('test_snapshot_cleanup.claim_path', error)
     return { completed: false }
   }
 
   const parsed = z.array(cleanupRowSchema).max(1).safeParse(claim.data ?? [])
   if (claim.error || !parsed.success || parsed.data.length !== 1) {
     if (claim.error || !parsed.success) {
-      console.error('Failed to claim queued test snapshot path:', {
-        path: input.storagePath,
-        error: claim.error ?? parsed.error,
-      })
+      logServerError('test_snapshot_cleanup.claim_path', claim.error ?? parsed.error)
     }
     return { completed: false }
   }
@@ -240,7 +215,7 @@ export async function runTestDocumentSnapshotStorageCleanup(input: {
         },
       )
     } catch (error) {
-      console.error('Failed to claim test snapshot cleanup:', error)
+      logServerError('test_snapshot_cleanup.claim', error)
       claimFailures += 1
       failed += 1
       continue
@@ -248,9 +223,7 @@ export async function runTestDocumentSnapshotStorageCleanup(input: {
 
     const parsed = z.array(cleanupRowSchema).max(1).safeParse(claim.data ?? [])
     if (claim.error || !parsed.success) {
-      console.error('Failed to claim test snapshot cleanup:', {
-        error: claim.error ?? parsed.error,
-      })
+      logServerError('test_snapshot_cleanup.claim', claim.error ?? parsed.error)
       claimFailures += 1
       failed += 1
       continue

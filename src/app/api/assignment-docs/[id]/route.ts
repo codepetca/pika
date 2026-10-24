@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { requireAuth, requireRole } from '@/lib/auth'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
@@ -329,7 +330,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
             supabase,
           })
         } catch (error) {
-          console.error('Error creating assignment doc with Pal outbox:', error)
+          logServerError('assignment.document_create_outbox', error)
           return NextResponse.json(
             { error: 'Failed to create assignment doc' },
             { status: 500 }
@@ -379,7 +380,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
             })
           }
 
-          console.error('Error creating assignment doc:', createError)
+          logServerError('assignment.document_create', createError)
           return NextResponse.json(
             { error: 'Failed to create assignment doc' },
             { status: 500 }
@@ -407,7 +408,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
         pal_delivery: palDelivery,
       })
     }
-    console.error('Error fetching assignment doc:', docError)
+    logServerError('assignment.document_read', docError)
     return NextResponse.json(
       { error: 'Failed to fetch assignment doc' },
       { status: 500 }
@@ -445,7 +446,7 @@ export const GET = withErrorHandler('GetAssignmentDoc', async (request, context)
       .single()
 
     if (viewedError) {
-      console.error('Error updating assignment viewed_at:', viewedError)
+      logServerError('assignment.document_viewed', viewedError)
       // Non-fatal: continue with response, but don't clear local notification count.
     } else {
       existingDoc.viewed_at = viewedAt
@@ -580,7 +581,7 @@ export const PATCH = withErrorHandler('PatchAssignmentDoc', async (request, cont
     .single()
 
   if (docFetchError && docFetchError.code !== 'PGRST116') {
-    console.error('Error fetching assignment doc:', docFetchError)
+    logServerError('assignment.document_save_read', docFetchError)
     return NextResponse.json(
       { error: 'Failed to fetch assignment doc' },
       { status: 500 }

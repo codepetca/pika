@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/[id]/route'
 import { assertStudentCanAccessTest } from '@/lib/server/tests'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -48,6 +49,7 @@ describe('GET /api/student/tests/[id]', () => {
   })
 
   it('returns 500 when checking submitted test responses fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
@@ -63,7 +65,7 @@ describe('GET /api/student/tests/[id]', () => {
             eq: vi.fn().mockReturnThis(),
             then: vi.fn((resolve: any) => resolve({
               data: null,
-              error: { message: 'Database error' },
+              error: privateDiagnosticError,
             })),
           })),
         }
@@ -79,6 +81,8 @@ describe('GET /api/student/tests/[id]', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to fetch test progress')
+    expectContentFreeDiagnostic(log.mock.calls, 'test.student_detail_responses')
+    log.mockRestore()
   })
 
   it('returns 500 when loading submitted response details fails', async () => {

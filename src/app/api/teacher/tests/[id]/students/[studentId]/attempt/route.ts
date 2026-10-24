@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { handleContextualTestOwnerRecoveryRequest } from '@/lib/server/contextual-test-owner-recovery'
 
 export const dynamic = 'force-dynamic'
@@ -47,7 +48,7 @@ export const DELETE = withErrorHandler('DeleteTeacherTestStudentAttempt', async 
     .maybeSingle()
 
   if (enrollmentError) {
-    console.error('Error validating enrollment for student test deletion:', enrollmentError)
+    logServerError('test.delete_attempt_enrollment', enrollmentError)
     return NextResponse.json({ error: 'Failed to validate student enrollment' }, { status: 500 })
   }
   if (!enrollment) {
@@ -69,7 +70,7 @@ export const DELETE = withErrorHandler('DeleteTeacherTestStudentAttempt', async 
         { status: 400 }
       )
     }
-    console.error('Error deleting test attempt data for student:', deleteError)
+    logServerError('test.delete_attempt_write', deleteError)
     return NextResponse.json({ error: 'Failed to delete student test work' }, { status: 500 })
   }
 

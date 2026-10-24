@@ -11,95 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Prepare classroom safeguards production release
-
-Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
-
-## 2026-10-22 — Compact modal close refinement (PR #1662)
-
-Owner requested the X inline with Write/Markdown instead of a close-only band.
-CreationModalShell now omits empty heading rows and reserves horizontal corner
-space in existing desktop controls/mobile title fields. Applied to assignment,
-material, test and survey editors; shared dismissal callbacks/guards unchanged.
-Stable guidance and Pattern Lab examples reflect the compact contract.
-Desktop assignment browser check confirms mode/X alignment and regained56px.
-Full focused gate3777/3777 plus architecture, UI/design policy, types and lint pass.
-Browser verification exposed rich-text toolbars covering question menus after
-sticky rows were introduced; compact shells now isolate editor stacking.
-Final role/theme/viewport matrix, delta checks and review tracked in PR.
-Owner then requested title/status cleanup: hidden accessible Title labels, retained
-empty placeholders, aligned title/settings inputs, and circular saving feedback
-in existing right-pane mode/question controls. Reused CircularProgress and kept
-SaveStatus text presentation as its default; save failures remain visible.
-Shared title-field composition retains naming/error/keyboard behavior. Targeted
-140component checks passed;24accepted browser cases cover desktop/mobile and
-light/dark, including a held production autosave and empty-title placeholders.
-Assignment/test fixture scroll sizing was aligned with the existing survey/test
-production pattern. Independent review accepted one P2: Preview metadata saves
-had no indicator. Its existing title row now carries the same feedback;37survey
-component cases (including held title/settings requests) and4full-classroom
-Preview browser cases pass. Owner-approved eighth targeted review was clean;
-final6c4ea6cc1 focused gate passed3786/3786 and all static checks.
-Owner then requested type/classroom context above the title in the left pane.
-Shared CreationModalContextHeader identifies Assignment/Material/Test/Survey,
-reuses the AppHeader name fade and preserves the full text/native tooltip.
-Production classroom titles are passed from their existing owners; right-pane
-controls and top-right X retain their positions. Title/settings and remaining
-details follow below; mobile context owns corner clearance. Pattern Lab, stable
-guidance and focused semantic/geometry checks updated. Component156/156 and
-24browser cases pass across desktop/mobile and light/dark, including held
-production saves, empty titles, long names, scrolling and menus. Explicit mobile
-grid columns prevent long-name width expansion. Docker/owned preview stopped
-after screenshots; final canonical gate and delta review remain tracked in PR.
-
-## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
-
-Owner expanded Markdown authoring scope to put modal X controls consistently in
-the top-right. Shared 44px ghost DialogCloseButton now owns the 12px corner
-position across shared dialogs, creation/edit shells, QR/submission/add-student,
-reward and test previews. Removed left-title/duplicate controls; retained existing
-close callbacks, save-flush behavior, busy guards, Escape/backdrop and focus return.
-Stable guidance promoted by explicit owner request; Pattern Lab modal-close added.
-Teacher/student desktop/mobile light/dark screenshots inspected; long-title
-shrink overlap corrected. Existing keyboard layout tests updated for corner close.
-Bounded native inventory/caller worker used GPT-6.1 Sol medium; coordinator verified
-all delivery. DeepSeek remains explicitly paused. Review and final gate recorded
-in PR #1662 lifecycle; no schema, dependency or production changes.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-## 2026-10-22 — Settings switch motion consistency
-
-- Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
-- Native baseline confirmed 150ms track/thumb transitions persisted under reduced motion. Shared fast duration/standard easing and transition-none now cover both decorative spans, preserving immediate native state/callbacks and fixed labels.
-- Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
-- Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
-- No dependency, database, grade policy or production change; broader experience epic remains incomplete.
-
-## 2026-10-22 — Course Guide and assignment Markdown authoring
-
-Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
-opt-in Bold/Italic/Link/Format toolbar and unchanged Markdown persistence.
-Mode changes emit no content writes; source blur still uses assignment autosave.
-Focused 121 files/2,093 tests and all static policies passed; browser role,
-desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
-Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
-Independent stable-SHA review/PR completion follows; no production promotion.
-Initial independent review found toolbar Tab trapping; one batch fixes native
-Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
-and corrected teacher browser matrix4/4 passed. Targeted review pending.
-
 ## 2026-10-22 — Roster join dates
 
 Teacher roster Joined cells now pair the existing Lucide check with a compact
@@ -688,6 +599,54 @@ change. Detailed receipt records recovery/pilot/canary gaps; cutover not complet
 ## 2026-10-24 — Assignment image submission recovery
 
 Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+## 2026-10-24 — Prepare classroom Home recovery and pilot
+
+Prepared a rollback-only creation freeze/getter-permission fault/restoration
+contract in the existing sealed offline owned-clone verifier, plus actual-route,
+adapter and server-page CPU composition tests for both account-role labels.
+The layered evidence intentionally does not claim real PostgREST/browser outage
+or deployed recovery. Pilot packet records compatible477/schema292 floor,
+retained-admission growth stop, canaries, zero-tolerance stop conditions and
+unset operator/cohort/activation authority. Root verified84focused cases and
+TypeScript. Reviews468–470 cover source and corrections; bounded
+Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
+(351s), effective model/tokens unknown. No runtime, migration, dependency,
+production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.
+Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
+fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
+unchanged lock contention, generated types and canonical schema/source equality.
+Exact owned resources absent; full failure/success evidence retained privately.
+Final receipt review/CI/main merge pending; production477 and activation/provider
+holds unchanged. Pilot still requires selected operator/cohort and authorization.
+
+## 2026-10-24 — Assessment diagnostic privacy cleanup
+
+Owner approved orchestration; journal-derived product feedback stays unchanged.
+Three disjoint GPT-6.1 Sol/high implementation workers migrated Assignment/Test
+API and document/helper diagnostics; coordinator owns shared allowlist, guard,
+integration and review. Replaced140 raw server error logs plus one fixed Test
+publication log; browser history warning no longer carries an entry ID. Cleanup
+retry records use fixed stage descriptions instead of provider/database messages.
+Synthetic red/green coverage:35 Assignment boundaries,26 Test assertions and47
+helper cases. Scoped regressions pass242/288/127 tests respectively. Source
+comparison finds no unexpected logic deltas; durable diagnostic changes and
+literal operation branches reviewed separately. No UI/schema/dependency/query/
+authorization changes, production actions or historical log deletion. Remaining
+logging inventory/vendor controls stay open. Focused gate, independent review and
+stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
+Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
+Worker token/effective-model and coordinator active-time telemetry unavailable.
+PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
+TypeScript and lint. Independent privacy review found an immediate JSON-patch
+helper still emitting document trees; compatibility review found no regressions.
+One remediation batch replaces both patch-helper logs with browser-safe fixed
+warnings and strengthens aggregate reconstruction diagnostics tests/guard.
+Targeted review and exact-head CI remain required before readiness/merge.
 
 ## 2026-10-24 — Promote assignment image recovery with production ancestry
 

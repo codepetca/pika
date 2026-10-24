@@ -53,7 +53,7 @@ export function reconstructAssignmentDocContent(
       const result = tryApplyJsonPatch(content, entry.patch)
       if (!result.success) {
         // Patch failed - return null to indicate reconstruction failure
-        console.error('Failed to reconstruct history at entry:', entry.id)
+        console.warn('Failed to reconstruct assignment history')
         return null
       }
       content = result.content

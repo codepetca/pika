@@ -8,6 +8,7 @@ import {
   publishTestFromDraftAtomic,
 } from '@/lib/server/assessment-drafts'
 import { updateTestDocumentsAtomic } from '@/lib/server/test-document-authoring'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -96,6 +97,23 @@ describe('PATCH /api/teacher/tests/[id]', () => {
         documents: input.proposedDocuments,
       },
     }))
+  })
+
+  it.each(['questions', 'draft'] as const)('keeps detail %s failures private and preserves best-effort draft loading', async stage => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = vi.fn(() => ({ select: () => ({ eq: vi.fn().mockReturnThis(), order: async () => ({
+      data: stage === 'questions' ? null : [],
+      error: stage === 'questions' ? privateDiagnosticError : null,
+    }) }) }))
+    if (stage === 'draft') vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({ draft: null, error: privateDiagnosticError } as any)
+    const response = await GET(new NextRequest('http://localhost/api/teacher/tests/test-1'), {
+      params: Promise.resolve({ id: 'test-1' }),
+    })
+    expect(response.status).toBe(stage === 'questions' ? 500 : 200)
+    if (stage === 'questions') expect(await response.json()).toEqual({ error: 'Failed to fetch questions' })
+    else expect(await response.json()).toMatchObject({ test: { id: 'test-1', title: 'Unit Test' }, questions: [] })
+    expectContentFreeDiagnostic(log.mock.calls, `test.detail_${stage}`)
+    log.mockRestore()
   })
 
   it('returns canonical questions for closed tests even when a draft overlay exists', async () => {
@@ -441,6 +459,7 @@ describe('PATCH /api/teacher/tests/[id]', () => {
   })
 
   it('fails closed when the publication RPC returns a non-closed Test', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     vi.mocked(getAssessmentDraftByType).mockResolvedValueOnce({
       draft: {
         id: 'draft-1',
@@ -489,6 +508,8 @@ describe('PATCH /api/teacher/tests/[id]', () => {
     expect(response.status).toBe(500)
     expect(await response.json()).toEqual({ error: 'Failed to publish test' })
     expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    expectContentFreeDiagnostic(log.mock.calls, 'test.publish_result', 'unexpected')
+    log.mockRestore()
   })
 
   it('updates test documents when payload is valid', async () => {

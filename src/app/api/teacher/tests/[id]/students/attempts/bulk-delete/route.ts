@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { handleContextualTestOwnerRecoveryRequest } from '@/lib/server/contextual-test-owner-recovery'
 import {
   deleteStudentTestAttemptsAtomic,
@@ -50,7 +51,7 @@ export const POST = withErrorHandler('BulkDeleteTeacherTestStudentAttempts', asy
     .in('student_id', studentIds)
 
   if (enrollmentError) {
-    console.error('Error validating enrollment for selected test work deletion:', enrollmentError)
+    logServerError('test.bulk_delete_attempts_enrollment', enrollmentError)
     return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
   }
 
@@ -75,7 +76,7 @@ export const POST = withErrorHandler('BulkDeleteTeacherTestStudentAttempts', asy
       return NextResponse.json({ error: knownError.message }, { status: knownError.status })
     }
 
-    console.error('Error bulk deleting selected student test work:', error)
+    logServerError('test.bulk_delete_attempts_write', error)
     return NextResponse.json({ error: 'Failed to delete selected student test work' }, { status: 500 })
   }
 

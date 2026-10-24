@@ -67,20 +67,27 @@ describe('json-patch utilities', () => {
     const content: TiptapContent = {
       type: 'doc',
       content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'PRIVATE_STUDENT_DOCUMENT' }] },
       ],
     }
 
     const invalidPatch: JsonPatchOperation[] = [
-      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
+      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'PRIVATE_PATCH_VALUE' }] },
     ]
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
-      expect(applyJsonPatch(content, invalidPatch)).toEqual(content)
-      expect(consoleErrorSpy).toHaveBeenCalledOnce()
+      const result = applyJsonPatch(content, invalidPatch)
+      expect(result).toEqual(content)
+      expect(result).not.toBe(content)
+      expect(content.content?.[0]?.content?.[0]?.text).toBe('PRIVATE_STUDENT_DOCUMENT')
+      expect({ error: consoleErrorSpy.mock.calls, warn: warning.mock.calls }).toEqual({
+        error: [], warn: [['Failed to apply JSON patch']],
+      })
     } finally {
       consoleErrorSpy.mockRestore()
+      warning.mockRestore()
     }
   })
 
@@ -109,23 +116,29 @@ describe('json-patch utilities', () => {
     const content: TiptapContent = {
       type: 'doc',
       content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'PRIVATE_STUDENT_DOCUMENT' }] },
       ],
     }
 
     const invalidPatch: JsonPatchOperation[] = [
-      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
+      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'PRIVATE_PATCH_VALUE' }] },
     ]
 
     const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     try {
       const result = tryApplyJsonPatch(content, invalidPatch)
 
       expect(result.success).toBe(false)
       expect(result.content).toEqual(content)
-      expect(consoleErrorSpy).toHaveBeenCalledOnce()
+      expect(result.content).not.toBe(content)
+      expect(content.content?.[0]?.content?.[0]?.text).toBe('PRIVATE_STUDENT_DOCUMENT')
+      expect({ error: consoleErrorSpy.mock.calls, warn: warning.mock.calls }).toEqual({
+        error: [], warn: [['Failed to apply JSON patch']],
+      })
     } finally {
       consoleErrorSpy.mockRestore()
+      warning.mockRestore()
     }
   })
 })

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { DELETE } from '@/app/api/teacher/tests/[id]/students/[studentId]/attempt/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
@@ -76,6 +77,23 @@ describe('DELETE /api/teacher/tests/[id]/students/[studentId]/attempt', () => {
     const response = await DELETE(makeRequest(), makeContext())
     expect(response.status).toBe(400)
     expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+  })
+
+  it.each(['enrollment', 'write'] as const)('keeps %s failure diagnostics private without changing deletion behavior', async stage => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = vi.fn(() => ({
+      select: () => ({ eq: vi.fn().mockReturnThis(), maybeSingle: async () => ({
+        data: stage === 'enrollment' ? null : { student_id: 'student-1' },
+        error: stage === 'enrollment' ? privateDiagnosticError : null,
+      }) }),
+    }))
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: privateDiagnosticError })
+    const response = await DELETE(makeRequest(), makeContext())
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: stage === 'enrollment' ? 'Failed to validate student enrollment' : 'Failed to delete student test work' })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(stage === 'enrollment' ? 0 : 1)
+    expectContentFreeDiagnostic(log.mock.calls, `test.delete_attempt_${stage}`)
+    log.mockRestore()
   })
 
   it('deletes one student attempt data without changing access overrides', async () => {
