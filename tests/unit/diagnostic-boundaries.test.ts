@@ -36,6 +36,7 @@ const coveredFiles = [
   'src/lib/server/assignment-submission-artifacts.ts',
   'src/lib/server/assignment-artifact-storage-cleanup.ts',
   'src/lib/assignment-doc-history.ts',
+  'src/lib/json-patch.ts',
   'src/lib/server/daily-log-pal.ts',
   'src/lib/api-handler.ts',
   'src/lib/auth.ts',

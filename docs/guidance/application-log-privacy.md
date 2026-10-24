@@ -50,6 +50,8 @@ unsubmit/history/restore routes, document synchronization, assessment draft
 creation/repair, document authoring, and assignment-artifact/Test-snapshot Storage
 cleanup. The browser-reachable assignment-history reconstruction helper uses a
 fixed warning without its former entry ID; it does not import the server logger.
+Its immediate JSON-patch helper also uses fixed browser-safe warnings: invalid
+patch errors must not expose their embedded document tree or patch payload.
 Cleanup retry records use fixed stage descriptions, not database or Storage
 messages. Their leases, counters, claim limits and retry outcomes are unchanged;
 this does not erase previously saved failure text.

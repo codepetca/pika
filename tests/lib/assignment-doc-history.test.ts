@@ -62,14 +62,15 @@ describe('assignment-doc-history reconstruction', () => {
 
   it('returns null when a patch fails to apply', () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     const base: TiptapContent = {
       type: 'doc',
-      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'First' }] }],
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'PRIVATE_STUDENT_DOCUMENT' }] }],
     }
 
     // Invalid patch that references a non-existent path
     const invalidPatch: JsonPatchOperation[] = [
-      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'Oops' }] },
+      { op: 'add', path: '/content/5/content', value: [{ type: 'text', text: 'PRIVATE_PATCH_VALUE' }] },
     ]
 
     const entries: AssignmentDocHistoryEntry[] = [
@@ -84,7 +85,7 @@ describe('assignment-doc-history reconstruction', () => {
         created_at: '2026-01-05T00:00:00Z',
       },
       {
-        id: 'bad-patch',
+        id: 'PRIVATE_HISTORY_ID',
         assignment_doc_id: 'doc-1',
         snapshot: null,
         patch: invalidPatch,
@@ -95,10 +96,18 @@ describe('assignment-doc-history reconstruction', () => {
       },
     ]
 
-    const result = reconstructAssignmentDocContent(entries, 'bad-patch')
-    expect(result).toBeNull()
-    expect(warning.mock.calls).toEqual([['Failed to reconstruct assignment history']])
-    warning.mockRestore()
+    try {
+      const result = reconstructAssignmentDocContent(entries, 'PRIVATE_HISTORY_ID')
+      expect(result).toBeNull()
+      expect(base.content?.[0]?.content?.[0]?.text).toBe('PRIVATE_STUDENT_DOCUMENT')
+      expect({ error: error.mock.calls, warn: warning.mock.calls }).toEqual({
+        error: [],
+        warn: [['Failed to apply JSON patch'], ['Failed to reconstruct assignment history']],
+      })
+    } finally {
+      warning.mockRestore()
+      error.mockRestore()
+    }
   })
 
   it('returns null when target entry is not found', () => {

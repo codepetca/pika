@@ -647,3 +647,9 @@ logging inventory/vendor controls stay open. Focused gate, independent review an
 stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
 Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
 Worker token/effective-model and coordinator active-time telemetry unavailable.
+PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
+TypeScript and lint. Independent privacy review found an immediate JSON-patch
+helper still emitting document trees; compatibility review found no regressions.
+One remediation batch replaces both patch-helper logs with browser-safe fixed
+warnings and strengthens aggregate reconstruction diagnostics tests/guard.
+Targeted review and exact-head CI remain required before readiness/merge.
