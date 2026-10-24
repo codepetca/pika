@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/[id]/results/route'
 
@@ -199,6 +200,7 @@ describe('GET /api/student/tests/[id]/results', () => {
   })
 
   it('returns 500 when student response summary loading fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_attempts') {
         return {
@@ -220,7 +222,7 @@ describe('GET /api/student/tests/[id]/results', () => {
         return {
           select: vi.fn((columns: string) => {
             if (columns === 'id, selected_option, response_text') {
-              return mockPagedTable([], { error: { message: 'boom' } }).select(columns)
+              return mockPagedTable([], { error: privateDiagnosticError }).select(columns)
             }
 
             throw new Error(`Unexpected test_responses columns: ${columns}`)
@@ -238,6 +240,8 @@ describe('GET /api/student/tests/[id]/results', () => {
 
     expect(response.status).toBe(500)
     await expect(response.json()).resolves.toEqual({ error: 'Failed to fetch responses' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.student_results_responses')
+    log.mockRestore()
   })
 
   it('returns results when test work has been returned', async () => {

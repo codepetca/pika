@@ -1,6 +1,7 @@
 import { handleContextualTestOwnerGradingRequest } from '@/lib/server/contextual-test-owner-grading'
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import { aggregateTestResults, summarizeTestFocusEvents } from '@/lib/tests'
 import {
@@ -310,13 +311,13 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     .order('position', { ascending: true })
 
   if (questionsError) {
-    console.error('Error fetching test questions:', questionsError)
+    logServerError('test.results_questions', questionsError)
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
   const classroomStudentsResult = await getClassroomStudentIds(supabase, test.classroom_id)
   if (classroomStudentsResult.error) {
-    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    logServerError('test.results_enrollments', classroomStudentsResult.error)
     return NextResponse.json({ error: 'Failed to fetch enrollments' }, { status: 500 })
   }
 
@@ -328,7 +329,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
       : { rows: [], error: null }
 
   if (responsesError) {
-    console.error('Error fetching test responses:', responsesError)
+    logServerError('test.results_responses', responsesError)
     return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 })
   }
 
@@ -337,7 +338,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   ).sort((a, b) => a.id.localeCompare(b.id))
   const availabilityResult = await loadStudentAvailabilityMap(supabase, testId, classroomStudentIds)
   if (availabilityResult.error && !availabilityResult.missingTable) {
-    console.error('Error fetching test student availability:', availabilityResult.error)
+    logServerError('test.results_access', availabilityResult.error)
     return NextResponse.json({ error: 'Failed to fetch student access' }, { status: 500 })
   }
   const availabilityByStudent = availabilityResult.stateByStudentId
@@ -416,7 +417,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
     const { rows: attempts, error: attemptsError } = await loadTestAttempts(supabase, testId, classroomStudentIds)
 
     if (attemptsError && attemptsError.code !== 'PGRST205') {
-      console.error('Error fetching test attempts:', attemptsError)
+      logServerError('test.results_attempts', attemptsError)
       return NextResponse.json({ error: 'Failed to fetch attempts' }, { status: 500 })
     }
 
@@ -441,13 +442,13 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   if (classroomStudentIds.length > 0) {
     const { rows: users, error: usersError } = await loadUsers(supabase, classroomStudentIds)
     if (usersError) {
-      console.error('Error fetching test result users:', usersError)
+      logServerError('test.results_users', usersError)
       return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 })
     }
 
     const { rows: profiles, error: profilesError } = await loadStudentProfiles(supabase, classroomStudentIds)
     if (profilesError) {
-      console.error('Error fetching test result student profiles:', profilesError)
+      logServerError('test.results_profiles', profilesError)
       return NextResponse.json({ error: 'Failed to fetch student profiles' }, { status: 500 })
     }
 
@@ -471,7 +472,7 @@ export const GET = withErrorHandler('GetTeacherTestResults', async (request, con
   if (classroomStudentIds.length > 0) {
     const { rows: focusEvents, error: focusEventsError } = await loadFocusEvents(supabase, testId, classroomStudentIds)
     if (focusEventsError) {
-      console.error('Error fetching test focus events:', focusEventsError)
+      logServerError('test.results_focus', focusEventsError)
       return NextResponse.json({ error: 'Failed to fetch focus events' }, { status: 500 })
     }
 

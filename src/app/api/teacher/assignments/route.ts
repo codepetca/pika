@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   assertTeacherCanMutateClassroom,
@@ -171,7 +172,7 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
       .order('due_at', { ascending: true })
 
     if (fallback.error) {
-      console.error('Error fetching assignments:', fallback.error)
+      logServerError('assignment.list', fallback.error)
       return NextResponse.json({ error: 'Failed to fetch assignments' }, { status: 500 })
     }
 
@@ -188,7 +189,7 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
     ? { ...await loadContextualClassroomStudentIds(supabase, classroomId), error: null }
     : await getClassroomStudentIds(supabase, classroomId)
   if (classroomStudentsResult.error) {
-    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    logServerError('assignment.list_enrollments', classroomStudentsResult.error)
     return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
   }
 
@@ -207,7 +208,7 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
     if (assignmentAccess.mode === 'contextual') {
       throw new ApiError(503, 'Unable to verify assignment statistics')
     }
-    console.error('Error fetching assignment doc stats:', assignmentDocsError)
+    logServerError('assignment.list_documents', assignmentDocsError)
     return NextResponse.json({ error: 'Failed to fetch assignment stats' }, { status: 500 })
   }
 
@@ -389,17 +390,17 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
       : -1
 
   if (lastAssignmentResult.error) {
-    console.error('Error fetching last assignment position:', lastAssignmentResult.error)
+    logServerError('assignment.create_assignment_position', lastAssignmentResult.error)
     return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
   }
 
   if (lastMaterialResult.error && !isMissingClassworkMaterialPositionError(lastMaterialResult.error)) {
-    console.error('Error fetching last material position:', lastMaterialResult.error)
+    logServerError('assignment.create_material_position', lastMaterialResult.error)
     return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
   }
 
   if (lastSurveyResult.error && !isMissingSurveysTableError(lastSurveyResult.error)) {
-    console.error('Error fetching last survey position:', lastSurveyResult.error)
+    logServerError('assignment.create_survey_position', lastSurveyResult.error)
     return NextResponse.json({ error: 'Failed to create assignment' }, { status: 500 })
   }
 
@@ -429,7 +430,7 @@ export const POST = withErrorHandler('PostTeacherAssignments', async (request, c
     .single()
 
   if (error || !assignment) {
-    console.error('Error creating assignment:', error)
+    logServerError('assignment.create', error)
     return NextResponse.json(
       { error: 'Failed to create assignment' },
       { status: 500 }

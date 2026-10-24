@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseContentField } from '@/lib/tiptap-content'
 import { normalizeAssignmentDocImageReferences } from '@/lib/server/assignment-doc-image-references'
@@ -263,7 +264,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   }
 
   if (docError) {
-    console.error('Error fetching assignment doc:', docError)
+    logServerError('assignment.document_submit_read', docError)
     return NextResponse.json(
       { error: 'Failed to fetch assignment doc' },
       { status: 500 }
@@ -436,7 +437,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
       }
     }
   } catch (authError) {
-    console.error('Error computing authenticity score:', authError)
+    logServerError('assignment.document_authenticity', authError)
   }
 
   return NextResponse.json({

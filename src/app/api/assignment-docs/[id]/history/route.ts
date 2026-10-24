@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
@@ -129,7 +130,7 @@ export const GET = withErrorHandler('GetAssignmentDocHistory', async (request, c
     .order('created_at', { ascending: false })
 
   if (historyError) {
-    console.error('Error fetching assignment doc history:', historyError)
+    logServerError('assignment.history_read', historyError)
     return NextResponse.json(
       { error: 'Failed to fetch history' },
       { status: 500 }

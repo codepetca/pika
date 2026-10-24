@@ -8,6 +8,7 @@ import {
   getTestStudentAvailabilityState,
 } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { hasAnyMeaningfulTestResponse } from '@/lib/test-responses'
 import { withErrorHandler } from '@/lib/api-handler'
 import { postTestFocusEventSchema } from '@/lib/validations/test-focus-events'
@@ -41,7 +42,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     .maybeSingle()
 
   if (existingAttemptError && existingAttemptError.code !== 'PGRST205') {
-    console.error('Error checking existing test attempt:', existingAttemptError)
+    logServerError('test.focus_attempt', existingAttemptError)
     return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
   }
 
@@ -54,7 +55,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
 
   const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
   if (availabilityResult.error && !availabilityResult.missingTable) {
-    console.error('Error fetching student test access for focus event:', availabilityResult.error)
+    logServerError('test.focus_access', availabilityResult.error)
     return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
   }
   const accessState = getEffectiveStudentTestAccess({
@@ -84,7 +85,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     .eq('student_id', user.id)
 
   if (existingResponsesError) {
-    console.error('Error checking existing test responses:', existingResponsesError)
+    logServerError('test.focus_responses', existingResponsesError)
     return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
   }
 
@@ -118,7 +119,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     if (inserted.error.code === 'PT400') {
       return NextResponse.json({ error: 'Invalid focus event' }, { status: 400 })
     }
-    console.error('Error inserting test focus event:', inserted.error)
+    logServerError('test.focus_insert', inserted.error)
     return NextResponse.json({ error: 'Failed to save focus event' }, { status: 500 })
   }
   if ((inserted.status !== undefined && (inserted.status < 200 || inserted.status >= 300))
@@ -134,7 +135,7 @@ export const POST = withErrorHandler('PostStudentTestFocusEvent', async (request
     .order('occurred_at', { ascending: true })
 
   if (eventsError) {
-    console.error('Error reading test focus events:', eventsError)
+    logServerError('test.focus_read', eventsError)
     return NextResponse.json({ success: true })
   }
 

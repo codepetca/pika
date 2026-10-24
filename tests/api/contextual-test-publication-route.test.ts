@@ -91,10 +91,11 @@ describe('prepared owner publication route', () => {
     expect(vi.mocked(publishContextualTest).mock.calls[0][0].deadline).toBe(Date.parse('2026-10-06T12:05:20Z'))
   })
   it.each([
-    ['src/app/api/teacher/tests/[id]/route.ts', 'd9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e'],
+    ['src/app/api/teacher/tests/[id]/route.ts', 'ed128670ecbc4d551cab6f004986905095016dc2f9893492c1c2ed03c1af3bf3'],
   ])('retains reviewed legacy source bytes: %s', (path, hash) => {
     // Remove only the attested dormant metadata and deletion dispatchers/imports.
-    // The complete remaining legacy API file retains its original attested hash.
+    // The remaining legacy API seal includes the content-free diagnostic adoption;
+    // its only source changes are the logger import and five logging calls.
     // The historical whole-UI seal is explicitly superseded by the screen adopter;
     // direct existing/shared request tests now guard the intentional UI integration.
     // See docs/guidance/contextual-test-screen-adoption.md, Compatibility evidence.

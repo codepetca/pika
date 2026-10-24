@@ -43,22 +43,44 @@ The second batch covers direct logging in:
 Cache/history failures remain best-effort: they must not turn committed student
 work or a valid grading result into a failed operation. Query authorization,
 canonical work, provider egress payloads, and returned scores remain unchanged.
+
+The third batch extends adoption to the remaining directly logged failures in
+student/teacher Assignment and Test APIs, assignment-document read/save/submit/
+unsubmit/history/restore routes, document synchronization, assessment draft
+creation/repair, document authoring, and assignment-artifact/Test-snapshot Storage
+cleanup. The browser-reachable assignment-history reconstruction helper uses a
+fixed warning without its former entry ID; it does not import the server logger.
+Its immediate JSON-patch helper also uses fixed browser-safe warnings: invalid
+patch errors must not expose their embedded document tree or patch payload.
+Cleanup retry records use fixed stage descriptions, not database or Storage
+messages. Their leases, counters, claim limits and retry outcomes are unchanged;
+this does not erase previously saved failure text.
+
+Legacy Test source seals intentionally include this diagnostic adoption. The
+publication route refresh is recorded in `contextual-test-screen-adoption.md`.
+The recovery seal test also refreshes unsubmit, single-attempt deletion and bulk
+attempt deletion for one logger import per route and respectively three, two
+and two logging substitutions. Its original dormant-dispatcher normalization is
+unchanged; no logging code is stripped from the sealed bytes. Existing route
+tests and exact-shape synthetic failures cover response and authorization
+compatibility. CI's complete suite caught these three additional seals omitted
+from the initial local focused selection; their refresh changes no runtime code.
+
 These changes add no network calls, service dependencies, migrations, scheduled
 jobs, or teacher/student interface changes. Local classification and one UUID
 per existing logged failure add small CPU work; no quantitative latency/cost
 benchmark has been performed. Smaller log entries may reduce log volume.
 
-## Remaining audit inventory (2026-09-15)
+## Remaining audit inventory (2026-10-24)
 
 The scan still found direct error logging outside these adopted files. These
 are follow-up inspection targets, not proof that every call leaks student data:
 
-- Assignment/test list, detail, results, access, return/unsubmit and CRUD routes.
-- Document synchronization, assessment draft creation/repair, and test document
-  snapshot cleanup (raw errors and contextual record/path identifiers).
 - Archive compaction, managed-deletion health and Pal configuration diagnostics;
   inspect existing structured allowlists before changing them. Coordinate with
   the separate removed-student cleanup work rather than duplicating its edits.
+- Other API families, application helpers and integrations outside the explicit
+  adoption list; do not infer whole-program coverage from the assessment batch.
 - Transitive helper logs and other browser, integration, SDK and platform sinks
   beyond the explicit adoption list.
 
@@ -70,3 +92,25 @@ synthetic regression tests.
 
 Journal-derived product-feedback purpose/consent remains a separate decision:
 sanitizing diagnostic logs does not stop deliberate journal content egress.
+
+## Assessment and document cleanup — 2026-10-24
+
+The owner approved orchestrating the remaining diagnostic cleanup, beginning
+with assignment/Test routes and document processing. Journal-derived product
+feedback is explicitly left unchanged. This package does not authorize vendor
+setting changes, historical data deletion, migrations or production rollout.
+
+Execution is split into three non-overlapping implementation slices: assignment
+and assignment-document routes; Test routes; shared document/history and Storage
+cleanup helpers. The coordinator owns the diagnostic event allowlist, adoption
+guard, cumulative checks and PR. Each slice must preserve authorization, query,
+response, grading and retry semantics. Raw errors and record/path identifiers
+must not enter console diagnostics. Existing cleanup retry records must use
+fixed content-free failure descriptions rather than provider/database messages.
+
+Acceptance requires synthetic failures through the real logger, exact output
+shape assertions, preserved best-effort/history/cleanup behaviour, static
+adoption guards, the focused repository gate, independent stable-SHA review and
+required CI. Existing browser-reachable history helpers must remain browser-safe;
+they must not import the server logger. The remaining vendor/platform logging
+inventory and the broader security goal are not certified by this package.

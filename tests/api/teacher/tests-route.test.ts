@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET, POST } from '@/app/api/teacher/tests/route'
 
@@ -257,11 +258,12 @@ describe('GET /api/teacher/tests', () => {
   })
 
   it('returns 500 when reading classroom enrollments fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockGetClassroomStudentIds.mockResolvedValueOnce({
       studentIds: [],
       studentIdSet: new Set(),
       totalStudents: 0,
-      error: { message: 'enrollment read failed' },
+      error: privateDiagnosticError,
     })
 
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
@@ -290,6 +292,8 @@ describe('GET /api/teacher/tests', () => {
 
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to fetch classroom enrollments')
+    expectContentFreeDiagnostic(log.mock.calls, 'test.list_enrollments')
+    log.mockRestore()
   })
 
   it('does not count placeholder graded rows as respondents', async () => {
@@ -848,6 +852,7 @@ describe('POST /api/teacher/tests', () => {
   })
 
   it('rolls back the new test when the assessment drafts table is unavailable', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     const deleteEqSpy = vi.fn().mockResolvedValue({ error: null })
     const deleteSpy = vi.fn(() => ({
       eq: deleteEqSpy,
@@ -892,8 +897,9 @@ describe('POST /api/teacher/tests', () => {
               single: vi.fn().mockResolvedValue({
                 data: null,
                 error: {
+                  ...privateDiagnosticError,
                   code: 'PGRST205',
-                  message: 'relation "assessment_drafts" does not exist',
+                  message: `relation "assessment_drafts" does not exist ${privateDiagnosticError.message}`,
                 },
               }),
             })),
@@ -916,5 +922,7 @@ describe('POST /api/teacher/tests', () => {
     expect(data.error).toBe('Assessment drafts require migration 045 to be applied')
     expect(deleteSpy).toHaveBeenCalledTimes(1)
     expect(deleteEqSpy).toHaveBeenCalledWith('id', 'test-1')
+    expectContentFreeDiagnostic(log.mock.calls, 'test.create_draft')
+    log.mockRestore()
   })
 })

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { handleContextualTestLearnerRequest } from '@/lib/server/contextual-test-learner-workflow'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import { getStudentTestStatus, summarizeTestFocusEvents } from '@/lib/tests'
 import {
@@ -82,7 +83,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   }
 
   if (attemptError && attemptError.code !== 'PGRST205') {
-    console.error('Error fetching student test attempt:', attemptError)
+    logServerError('test.student_detail_attempt', attemptError)
     return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
   }
 
@@ -99,7 +100,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     .eq('student_id', user.id)
 
   if (responsesError) {
-    console.error('Error checking submitted test responses:', responsesError)
+    logServerError('test.student_detail_responses', responsesError)
     return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
   }
 
@@ -107,7 +108,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
   const hasSubmitted = Boolean(attempt?.is_submitted) || (!isLockedForGrading && hasAnyMeaningfulTestResponse(responses))
   const availabilityResult = await getTestStudentAvailabilityState(supabase, testId, user.id)
   if (availabilityResult.error && !availabilityResult.missingTable) {
-    console.error('Error fetching student test access:', availabilityResult.error)
+    logServerError('test.student_detail_access', availabilityResult.error)
     return NextResponse.json({ error: 'Failed to fetch test access' }, { status: 500 })
   }
   const accessState = getEffectiveStudentTestAccess({
@@ -132,7 +133,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
     .order('position', { ascending: true })
 
   if (questionsError) {
-    console.error('Error fetching test questions:', questionsError)
+    logServerError('test.student_detail_questions', questionsError)
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
@@ -152,7 +153,7 @@ export const GET = withErrorHandler('GetStudentTest', async (request, context) =
       .eq('student_id', user.id)
 
     if (allResponsesError) {
-      console.error('Error fetching submitted test responses:', allResponsesError)
+      logServerError('test.student_detail_submitted_responses', allResponsesError)
       return NextResponse.json({ error: 'Failed to fetch test progress' }, { status: 500 })
     }
 

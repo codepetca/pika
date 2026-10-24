@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/students/attempts/bulk-delete/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
@@ -156,10 +157,11 @@ describe('POST /api/teacher/tests/[id]/students/attempts/bulk-delete', () => {
   })
 
   it('does not fall back to partial route-code deletion when the atomic RPC fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockEnrollmentRows(['student-1', 'student-2'])
     mockSupabaseClient.rpc = vi.fn(async () => ({
       data: null,
-      error: { message: 'transaction aborted' },
+      error: privateDiagnosticError,
     }))
 
     const response = await POST(makeRequest({ student_ids: ['student-1', 'student-2'] }), params)
@@ -170,6 +172,8 @@ describe('POST /api/teacher/tests/[id]/students/attempts/bulk-delete', () => {
     })
     expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(1)
     expect(mockSupabaseClient.from).toHaveBeenCalledTimes(1)
+    expectContentFreeDiagnostic(log.mock.calls, 'test.bulk_delete_attempts_write')
+    log.mockRestore()
   })
 
   it('rejects archived classrooms through the ownership check', async () => {

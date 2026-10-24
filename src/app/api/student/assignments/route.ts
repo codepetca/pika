@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { calculateStudentAssignmentStatus, sanitizeDocForStudent } from '@/lib/assignments'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
@@ -62,7 +63,7 @@ export const GET = withErrorHandler('GetStudentAssignments', async (request, con
     .order('due_at', { ascending: true })
 
   if (error) {
-    console.error('Error fetching assignments:', error)
+    logServerError('assignment.student_list', error)
     return NextResponse.json(
       { error: 'Failed to fetch assignments' },
       { status: 500 }

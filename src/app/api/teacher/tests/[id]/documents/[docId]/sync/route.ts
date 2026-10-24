@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
 import { normalizeTestDocuments } from '@/lib/test-documents'
 import {
@@ -35,7 +36,7 @@ async function removeSnapshotAfterConflict(
     }
     await removeQueuedTestDocumentSnapshotPath({ supabase, storagePath: snapshotPath })
   } catch (error) {
-    console.error('Failed to remove uncommitted test document snapshot:', error)
+    logServerError('test.document_sync_rollback', error)
   }
 }
 
@@ -115,7 +116,7 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
         { status: 503 },
       )
     }
-    console.error('Error updating synced test document:', error)
+    logServerError('test.document_sync_write', error)
     return NextResponse.json({ error: 'Failed to save synced document' }, { status: 500 })
   }
 
@@ -141,7 +142,7 @@ export const POST = withErrorHandler('SyncTeacherTestDocument', async (_request,
         storagePath: previousSnapshotPath,
       })
     } catch (cleanupError) {
-      console.error('Failed to remove superseded test document snapshot:', cleanupError)
+      logServerError('test.document_sync_cleanup', cleanupError)
     }
   }
   const syncedDoc = normalizeTestDocuments((test as { documents?: unknown }).documents).find(

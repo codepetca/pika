@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -40,7 +41,7 @@ export const POST = withErrorHandler('PostTeacherTestsReorder', async (request) 
     .in('id', uniqueIds)
 
   if (testsError) {
-    console.error('Error verifying tests:', testsError)
+    logServerError('test.reorder_verify', testsError)
     return NextResponse.json({ error: 'Failed to verify tests' }, { status: 500 })
   }
 
@@ -57,7 +58,7 @@ export const POST = withErrorHandler('PostTeacherTestsReorder', async (request) 
   const updateError = results.find((result) => result.error)?.error ?? null
 
   if (updateError) {
-    console.error('Error reordering tests:', updateError)
+    logServerError('test.reorder_write', updateError)
     return NextResponse.json({ error: 'Failed to reorder tests' }, { status: 500 })
   }
 

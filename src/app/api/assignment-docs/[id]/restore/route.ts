@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { randomUUID } from 'node:crypto'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { reconstructAssignmentDocContent } from '@/lib/assignment-doc-history'
@@ -143,7 +144,7 @@ export const POST = withErrorHandler('PostRestoreAssignmentDoc', async (request,
     .order('created_at', { ascending: true })
 
   if (historyError) {
-    console.error('Error fetching assignment doc history:', historyError)
+    logServerError('assignment.history_restore_read', historyError)
     return NextResponse.json(
       { error: 'Failed to fetch history' },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
   calculateAssignmentStatus,
@@ -246,7 +247,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     if (assignmentAccess.mode === 'contextual') {
       throw new ApiError(503, 'Unable to verify assignment detail roster')
     }
-    console.error('Error fetching enrollments:', enrollmentError)
+    logServerError('assignment.detail_enrollments', enrollmentError)
     return NextResponse.json(
       { error: 'Failed to fetch students' },
       { status: 500 }
@@ -268,7 +269,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     if (assignmentAccess.mode === 'contextual') {
       throw new ApiError(503, 'Unable to verify assignment detail profiles')
     }
-    console.error('Error fetching student profiles:', profilesError)
+    logServerError('assignment.detail_profiles', profilesError)
     return NextResponse.json(
       { error: 'Failed to fetch student profiles' },
       { status: 500 }
@@ -301,7 +302,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     if (assignmentAccess.mode === 'contextual') {
       throw new ApiError(503, 'Unable to verify assignment detail documents')
     }
-    console.error('Error fetching assignment docs:', docsError)
+    logServerError('assignment.detail_documents', docsError)
     return NextResponse.json(
       { error: 'Failed to fetch assignment docs' },
       { status: 500 }
@@ -341,7 +342,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     if (assignmentAccess.mode === 'contextual') {
       throw new ApiError(503, 'Unable to verify assignment detail artifacts')
     }
-    console.error('Error fetching assignment submission artifacts:', error)
+    logServerError('assignment.detail_artifacts', error)
     return NextResponse.json(
       { error: 'Failed to fetch assignment submission artifacts' },
       { status: 500 }
@@ -369,7 +370,7 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
       if (assignmentAccess.mode === 'contextual') {
         throw new ApiError(503, 'Unable to verify assignment detail history')
       }
-      console.error('Error fetching assignment doc history:', historyError)
+      logServerError('assignment.detail_history', historyError)
       return NextResponse.json(
         { error: 'Failed to fetch assignment doc history' },
         { status: 500 }
@@ -647,7 +648,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
       .maybeSingle()
 
     if (submittedDocError) {
-      console.error('Error checking submitted assignment documents:', submittedDocError)
+      logServerError('assignment.update_submitted_documents', submittedDocError)
       return NextResponse.json(
         { error: 'Failed to verify assignment submissions' },
         { status: 500 }
@@ -710,7 +711,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
           { status: 409 }
         )
       }
-      console.error('Error updating assignment:', error)
+      logServerError('assignment.update', error)
       return NextResponse.json(
         { error: 'Failed to update assignment' },
         { status: 500 }
@@ -726,7 +727,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
     try {
       await runAssignmentArtifactStorageCleanup({ supabase, limit: 50 })
     } catch (cleanupError) {
-      console.error('Failed to process queued assignment artifact cleanup:', cleanupError)
+      logServerError('assignment.update_cleanup', cleanupError)
     }
   }
 
@@ -793,7 +794,7 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
       .eq('id', id)
 
     if (error) {
-      console.error('Error deleting assignment:', error)
+      logServerError('assignment.delete', error)
       return NextResponse.json(
         { error: 'Failed to delete assignment' },
         { status: 500 }
@@ -804,7 +805,7 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
   try {
     await runAssignmentArtifactStorageCleanup({ supabase, limit: 50 })
   } catch (cleanupError) {
-    console.error('Failed to process queued assignment artifact cleanup:', cleanupError)
+    logServerError('assignment.delete_cleanup', cleanupError)
   }
 
   return NextResponse.json({ success: true })

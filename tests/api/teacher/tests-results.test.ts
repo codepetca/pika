@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/teacher/tests/[id]/results/route'
 
@@ -973,6 +974,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
   })
 
   it('returns 500 when availability loading fails for a non-migration reason', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         return {
@@ -994,7 +996,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       }
       if (table === 'test_responses') return mockTestResponsesQuery([])
       if (table === 'test_student_availability') {
-        return mockChunkedTable([], { errorForSelect: () => ({ code: '500', message: 'availability failed' }) })
+        return mockChunkedTable([], { errorForSelect: () => privateDiagnosticError })
       }
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -1007,9 +1009,12 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
     expect(response.status).toBe(500)
     expect(data).toEqual({ error: 'Failed to fetch student access' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.results_access')
+    log.mockRestore()
   })
 
   it('returns 500 when user hydration fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         return {
@@ -1031,7 +1036,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       }
       if (table === 'test_responses') return mockTestResponsesQuery([])
       if (table === 'test_attempts') return mockChunkedTable([])
-      if (table === 'users') return mockChunkedTable([], { errorForSelect: () => ({ message: 'users failed' }) })
+      if (table === 'users') return mockChunkedTable([], { errorForSelect: () => privateDiagnosticError })
       throw new Error(`Unexpected table: ${table}`)
     })
 
@@ -1043,9 +1048,12 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
     expect(response.status).toBe(500)
     expect(data).toEqual({ error: 'Failed to fetch users' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.results_users')
+    log.mockRestore()
   })
 
   it('returns 500 when profile hydration fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         return {
@@ -1069,7 +1077,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
       if (table === 'test_attempts') return mockChunkedTable([])
       if (table === 'users') return mockUsersQuery([{ id: 'student-1', email: 'student1@example.com' }])
       if (table === 'student_profiles') {
-        return mockChunkedTable([], { errorForSelect: () => ({ message: 'profiles failed' }) })
+        return mockChunkedTable([], { errorForSelect: () => privateDiagnosticError })
       }
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -1082,9 +1090,12 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
     expect(response.status).toBe(500)
     expect(data).toEqual({ error: 'Failed to fetch student profiles' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.results_profiles')
+    log.mockRestore()
   })
 
   it('returns 500 when focus event loading fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       if (table === 'test_questions') {
         return {
@@ -1111,7 +1122,7 @@ describe('GET /api/teacher/tests/[id]/results', () => {
         return mockProfilesQuery([{ id: 'profile-1', user_id: 'student-1', first_name: 'Student', last_name: 'One' }])
       }
       if (table === 'test_focus_events') {
-        return mockChunkedTable([], { errorForSelect: () => ({ message: 'focus failed' }) })
+        return mockChunkedTable([], { errorForSelect: () => privateDiagnosticError })
       }
       throw new Error(`Unexpected table: ${table}`)
     })
@@ -1124,6 +1135,8 @@ describe('GET /api/teacher/tests/[id]/results', () => {
 
     expect(response.status).toBe(500)
     expect(data).toEqual({ error: 'Failed to fetch focus events' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.results_focus')
+    log.mockRestore()
   })
 
   it('includes in-progress draft answers from test_attempts for teacher monitoring', async () => {

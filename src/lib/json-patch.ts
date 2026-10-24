@@ -29,8 +29,8 @@ export function applyJsonPatch<TContent extends JsonObject>(
   try {
     const result = applyPatch(cloned, patch, true, false)
     return result.newDocument as TContent
-  } catch (error) {
-    console.error('Error applying JSON patch:', error)
+  } catch {
+    console.warn('Failed to apply JSON patch')
     return cloned
   }
 }
@@ -43,8 +43,8 @@ export function tryApplyJsonPatch<TContent extends JsonObject>(
   try {
     const result = applyPatch(cloned, patch, true, false)
     return { success: true, content: result.newDocument as TContent }
-  } catch (error) {
-    console.error('Error applying JSON patch:', error)
+  } catch {
+    console.warn('Failed to apply JSON patch')
     return { success: false, content: cloned }
   }
 }

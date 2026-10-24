@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -84,7 +85,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsReorder', async (req
     if (knownError) {
       return NextResponse.json({ error: knownError.message }, { status: knownError.status })
     }
-    console.error('Error reordering assignments:', error)
+    logServerError('assignment.reorder', error)
     return NextResponse.json({ error: 'Failed to reorder assignments' }, { status: 500 })
   }
 

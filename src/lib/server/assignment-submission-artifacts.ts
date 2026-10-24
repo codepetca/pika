@@ -10,6 +10,7 @@ import { loadChunkedRows } from '@/lib/server/query-chunks'
 import type { TableRow } from '@/types/database'
 import { z } from 'zod'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
+import { logServerError } from '@/lib/server/diagnostics'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const SIGNED_IMAGE_URL_EXPIRES_SECONDS = 60 * 60
@@ -294,7 +295,7 @@ export async function collectRemovedImageArtifactStoragePaths(
     const removedImageRequirementIds = getRemovedImageSubmissionRequirementIds(existingRequirements, drafts)
     return loadImageArtifactStoragePathsForRequirements(supabase, removedImageRequirementIds)
   } catch (error) {
-    console.error('Failed to collect removed assignment image artifact storage paths:', error)
+    logServerError('assignment_artifact.collect_removed', error)
     return []
   }
 }
@@ -311,7 +312,7 @@ export async function collectAssignmentImageArtifactStoragePaths(
 
     return loadImageArtifactStoragePathsForRequirements(supabase, imageRequirementIds)
   } catch (error) {
-    console.error('Failed to collect assignment image artifact storage paths:', error)
+    logServerError('assignment_artifact.collect', error)
     return []
   }
 }
@@ -319,7 +320,7 @@ export async function collectAssignmentImageArtifactStoragePaths(
 export async function removeAssignmentArtifactStorageObjects(
   supabase: SupabaseClientLike,
   storagePaths: string[],
-  context: string
+  _context: string
 ): Promise<void> {
   const paths = uniqueStoragePaths(storagePaths)
   if (paths.length === 0) return
@@ -331,20 +332,10 @@ export async function removeAssignmentArtifactStorageObjects(
         .remove(chunk)
 
       if (error) {
-        console.error('Failed to remove assignment artifact storage objects:', {
-          context,
-          bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
-          paths: chunk,
-          error,
-        })
+        logServerError('assignment_artifact.remove', error)
       }
     } catch (error) {
-      console.error('Failed to remove assignment artifact storage objects:', {
-        context,
-        bucket: ASSIGNMENT_ARTIFACTS_BUCKET,
-        paths: chunk,
-        error,
-      })
+      logServerError('assignment_artifact.remove', error)
     }
   }
 }
@@ -412,7 +403,7 @@ export async function updateAssignmentWithSubmissionRequirementsAtomic(input: {
         error: 'Submission requirements cannot be changed after a student submits.',
       }
     }
-    console.error('Error updating assignment and submission requirements atomically:', error)
+    logServerError('assignment_artifact.requirements_update', error)
     return { ok: false, status: 500, error: 'Failed to update assignment' }
   }
 
@@ -427,7 +418,7 @@ export async function updateAssignmentWithSubmissionRequirementsAtomic(input: {
 
   const parsed = assignmentRequirementsAtomicSuccessSchema.safeParse(data)
   if (!parsed.success) {
-    console.error('Invalid assignment requirements atomic RPC result:', parsed.error)
+    logServerError('assignment_artifact.requirements_result', parsed.error)
     return { ok: false, status: 500, error: 'Failed to update assignment' }
   }
 
@@ -459,13 +450,13 @@ export async function deleteAssignmentSubmissionArtifactAtomic(input: {
     if (error.code === 'PGRST202' || error.code === '42883') {
       return { ok: false, status: 503, error: 'Assignment submission migration is required' }
     }
-    console.error('Failed to delete assignment submission artifact atomically:', error)
+    logServerError('assignment_artifact.delete', error)
     return { ok: false, status: 500, error: 'Failed to delete submission artifact' }
   }
 
   const parsed = assignmentArtifactDeleteResultSchema.safeParse(data)
   if (!parsed.success) {
-    console.error('Invalid assignment artifact deletion RPC result:', parsed.error)
+    logServerError('assignment_artifact.delete_result', parsed.error)
     return { ok: false, status: 500, error: 'Failed to delete submission artifact' }
   }
   if (!parsed.data.ok) {

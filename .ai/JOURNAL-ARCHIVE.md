@@ -49630,3 +49630,31 @@ guidance and focused semantic/geometry checks updated. Component156/156 and
 production saves, empty titles, long names, scrolling and menus. Explicit mobile
 grid columns prevent long-name width expansion. Docker/owned preview stopped
 after screenshots; final canonical gate and delta review remain tracked in PR.
+
+<!-- pika-session-log-archive-batch:2928d5149ff10d5b49c825b620563943268660a63ac27ad36f65205fbe4e9125 -->
+## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
+
+Owner expanded Markdown authoring scope to put modal X controls consistently in
+the top-right. Shared 44px ghost DialogCloseButton now owns the 12px corner
+position across shared dialogs, creation/edit shells, QR/submission/add-student,
+reward and test previews. Removed left-title/duplicate controls; retained existing
+close callbacks, save-flush behavior, busy guards, Escape/backdrop and focus return.
+Stable guidance promoted by explicit owner request; Pattern Lab modal-close added.
+Teacher/student desktop/mobile light/dark screenshots inspected; long-title
+shrink overlap corrected. Existing keyboard layout tests updated for corner close.
+Bounded native inventory/caller worker used GPT-6.1 Sol medium; coordinator verified
+all delivery. DeepSeek remains explicitly paused. Review and final gate recorded
+in PR #1662 lifecycle; no schema, dependency or production changes.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.

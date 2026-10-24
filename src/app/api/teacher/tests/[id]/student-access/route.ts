@@ -7,6 +7,7 @@ import {
   isMissingTestStudentAvailabilityError,
 } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import type { TestStudentAvailabilityState } from '@/types'
 import { authorizeSharedTestDetailReadActor } from '@/lib/server/contextual-test-detail-read'
 import { updateContextualTestOwnerStudentAccess } from '@/lib/server/contextual-test-owner-materials'
@@ -90,7 +91,7 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
     .in('student_id', studentIds)
 
   if (enrollmentError) {
-    console.error('Error validating student access enrollment:', enrollmentError)
+    logServerError('test.access_enrollment', enrollmentError)
     return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
   }
 
@@ -133,7 +134,7 @@ export const POST = withErrorHandler('UpdateTeacherTestStudentAccess', async (re
         { status: 400 }
       )
     }
-    console.error('Error updating selected student test access:', mutationError)
+    logServerError('test.access_write', mutationError)
     return NextResponse.json({ error: 'Failed to update selected student access' }, { status: 500 })
   }
 
