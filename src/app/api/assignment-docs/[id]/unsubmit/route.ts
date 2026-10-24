@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { canUnsubmitAssignmentDoc, isAssignmentVisibleToStudents, sanitizeDocForStudent } from '@/lib/assignments'
@@ -85,7 +86,7 @@ export const POST = withErrorHandler('PostAssignmentDocUnsubmit', async (request
   }
 
   if (docError) {
-    console.error('Error fetching assignment doc:', docError)
+    logServerError('assignment.document_unsubmit_read', docError)
     return NextResponse.json(
       { error: 'Failed to fetch assignment doc' },
       { status: 500 }

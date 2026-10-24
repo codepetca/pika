@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import {
@@ -58,14 +59,14 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     if (activeError.code === 'PGRST205') {
       return NextResponse.json({ tests: [], migration_required: true })
     }
-    console.error('Error fetching active tests:', activeError)
+    logServerError('test.student_list_active', activeError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
   const { data: closedTests, error: closedError } = await fetchByStatus('closed')
 
   if (closedError) {
-    console.error('Error fetching closed tests:', closedError)
+    logServerError('test.student_list_closed', closedError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
@@ -135,7 +136,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     }
 
     if (attemptsError && attemptsError.code !== 'PGRST205') {
-      console.error('Error fetching submitted test attempts:', attemptsError)
+      logServerError('test.student_list_attempts', attemptsError)
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
@@ -163,7 +164,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
         .in('test_id', remainingTestIds)
 
       if (allResponsesError) {
-        console.error('Error fetching submitted test responses:', allResponsesError)
+        logServerError('test.student_list_responses', allResponsesError)
         return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
       }
 
@@ -192,7 +193,7 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     const mockMissingAvailability =
       `${availabilityError?.message || availabilityError || ''}`.includes('Unexpected table: test_student_availability')
     if (availabilityError && !isMissingTestStudentAvailabilityError(availabilityError) && !mockMissingAvailability) {
-      console.error('Error fetching selected student test access:', availabilityError)
+      logServerError('test.student_list_access', availabilityError)
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 

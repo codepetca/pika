@@ -80,8 +80,13 @@ or stripping arbitrary new UI code. `TeacherTestsTab.test.tsx` directly verifies
 existing publication PATCH with the original closed-status/version payload and
 existing reorder transport, alongside the dedicated shared publication and atomic
 reorder contracts, acknowledgement checks, conflicts and late-response isolation.
-The legacy API source seal `d9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e`
-and its exact dormant-dispatcher normalization remain unchanged. This successor
+The legacy API source seal was initially `d9947ed07251b95be672c0947f21d0b625cca695798a151ae3155940f761700e`.
+The October24 assessment diagnostic privacy package intentionally refreshes it to
+`ed128670ecbc4d551cab6f004986905095016dc2f9893492c1c2ed03c1af3bf3`:
+the sole route changes are one logger import and five content-free logging calls.
+Its exact dormant-dispatcher normalization remains unchanged; no additional
+normalization hides the diagnostic changes. Existing publication/error response
+tests and synthetic privacy assertions cover this adoption. This successor
 requires independent review with the full screen diff; it is not proof of live
 rollout or persistence.
 

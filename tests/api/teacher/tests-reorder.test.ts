@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -102,10 +103,11 @@ describe('POST /api/teacher/tests/reorder', () => {
   })
 
   it('returns 500 when verifying or updating tests fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockSupabaseClient.from.mockReturnValueOnce({
       select: vi.fn(() => ({
         eq: vi.fn(() => ({
-          in: vi.fn(async () => ({ data: null, error: { message: 'verify failed' } })),
+          in: vi.fn(async () => ({ data: null, error: privateDiagnosticError })),
         })),
       })),
     })
@@ -115,6 +117,9 @@ describe('POST /api/teacher/tests/reorder', () => {
       body: JSON.stringify({ classroom_id: 'classroom-1', test_ids: ['test-1'] }),
     }))
     expect(verifyFailure.status).toBe(500)
+    expect(await verifyFailure.json()).toEqual({ error: 'Failed to verify tests' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.reorder_verify')
+    log.mockClear()
 
     mockSupabaseClient.from.mockReturnValue({
       select: vi.fn(() => ({
@@ -123,7 +128,7 @@ describe('POST /api/teacher/tests/reorder', () => {
         })),
       })),
       update: vi.fn(() => ({
-        eq: vi.fn(async () => ({ error: { message: 'update failed' } })),
+        eq: vi.fn(async () => ({ error: privateDiagnosticError })),
       })),
     })
 
@@ -132,5 +137,8 @@ describe('POST /api/teacher/tests/reorder', () => {
       body: JSON.stringify({ classroom_id: 'classroom-1', test_ids: ['test-1'] }),
     }))
     expect(updateFailure.status).toBe(500)
+    expect(await updateFailure.json()).toEqual({ error: 'Failed to reorder tests' })
+    expectContentFreeDiagnostic(log.mock.calls, 'test.reorder_write')
+    log.mockRestore()
   })
 })

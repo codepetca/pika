@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import {
   assertTeacherCanMutateClassroom,
@@ -145,13 +146,13 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     if (testsError.code === 'PGRST205') {
       return NextResponse.json({ tests: [], migration_required: true })
     }
-    console.error('Error fetching tests:', testsError)
+    logServerError('test.list_tests', testsError)
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
   const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)
   if (classroomStudentsResult.error) {
-    console.error('Error fetching classroom enrollments:', classroomStudentsResult.error)
+    logServerError('test.list_enrollments', classroomStudentsResult.error)
     return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
   }
 
@@ -163,7 +164,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     const { rows: questionRows, error: questionRowsError } = await loadTestQuestionRows(supabase, testIds)
 
     if (questionRowsError) {
-      console.error('Error fetching test question stats:', questionRowsError)
+      logServerError('test.list_questions', questionRowsError)
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
@@ -189,7 +190,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     })
 
     if (attemptRowsError && attemptRowsError.code !== 'PGRST205') {
-      console.error('Error fetching test attempts:', attemptRowsError)
+      logServerError('test.list_attempts', attemptRowsError)
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
@@ -213,7 +214,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     })
 
     if (responseRowsError) {
-      console.error('Error fetching test responses:', responseRowsError)
+      logServerError('test.list_responses', responseRowsError)
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
@@ -243,7 +244,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
       `${availabilityError?.message || availabilityError || ''}`.includes('Unexpected table: test_student_availability')
 
     if (availabilityError && !isMissingAvailabilityTable) {
-      console.error('Error fetching test student availability:', availabilityError)
+      logServerError('test.list_access', availabilityError)
       return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
     }
 
@@ -266,7 +267,7 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
           .in('assessment_id', testIdChunk)
 
         if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-          console.error('Error fetching test draft overlays:', draftError)
+          logServerError('test.list_drafts', draftError)
         }
 
         for (const row of draftRows || []) {
@@ -383,7 +384,7 @@ export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
         { status: 400 }
       )
     }
-    console.error('Error creating test:', error)
+    logServerError('test.create', error)
     return NextResponse.json({ error: 'Failed to create test' }, { status: 500 })
   }
 
@@ -407,11 +408,11 @@ export const POST = withErrorHandler('CreateTeacherTest', async (request) => {
   )
 
   if (draftError || !createdDraft) {
-    console.error('Error creating initial test draft:', draftError)
+    logServerError('test.create_draft', draftError)
 
     const { error: cleanupError } = await supabase.from('tests').delete().eq('id', test.id)
     if (cleanupError) {
-      console.error('Error cleaning up test after draft creation failure:', cleanupError)
+      logServerError('test.create_cleanup', cleanupError)
     }
 
     if (isMissingAssessmentDraftsError(draftError)) {

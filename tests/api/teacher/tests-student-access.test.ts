@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/student-access/route'
 import { assertTeacherOwnsTest } from '@/lib/server/tests'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({
   getServiceRoleClient: vi.fn(() => mockSupabaseClient),
@@ -53,6 +54,28 @@ describe('POST /api/teacher/tests/[id]/student-access', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe("state must be 'open' or 'closed'")
+  })
+
+  it.each(['enrollment', 'write'] as const)('keeps %s failures private without changing the access mutation response', async stage => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from.mockReturnValue({
+      select: () => ({ eq: vi.fn().mockReturnThis(), in: async () => ({
+        data: stage === 'enrollment' ? null : [{ student_id: 'student-1' }],
+        error: stage === 'enrollment' ? privateDiagnosticError : null,
+      }) }),
+    })
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: null, error: privateDiagnosticError })
+    const response = await POST(
+      new NextRequest('http://localhost/api/teacher/tests/test-1/student-access', {
+        method: 'POST', body: JSON.stringify({ state: 'closed', student_ids: ['student-1'] }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: stage === 'enrollment' ? 'Failed to validate selected students' : 'Failed to update selected student access' })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(stage === 'enrollment' ? 0 : 1)
+    expectContentFreeDiagnostic(log.mock.calls, `test.access_${stage}`)
+    log.mockRestore()
   })
 
   it('rejects draft tests', async () => {

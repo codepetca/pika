@@ -1,4 +1,5 @@
 import { tryApplyJsonPatch } from '@/lib/json-patch'
+import { logServerError } from '@/lib/server/diagnostics'
 import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
 import { removeQueuedTestDocumentSnapshotPath } from '@/lib/server/test-document-snapshot-storage-cleanup'
 import {
@@ -623,10 +624,7 @@ export async function saveTestDraftAtomic(
     try {
       await removeQueuedTestDocumentSnapshotPath({ supabase, storagePath })
     } catch (cleanupError) {
-      console.error('Failed to run immediate test snapshot cleanup:', {
-        storagePath,
-        cleanupError,
-      })
+      logServerError('assessment_draft.cleanup', cleanupError)
     }
   }
 
@@ -772,7 +770,7 @@ export async function ensureAssessmentDraft<TContent>(
   }
 
   if (error) {
-    console.error(`Error fetching ${assessmentType} draft:`, error)
+    logServerError('assessment_draft.fetch', error)
     return { ok: false, status: 500, error: 'Failed to fetch draft' }
   }
 
@@ -790,7 +788,7 @@ export async function ensureAssessmentDraft<TContent>(
     .order('position', { ascending: true })
 
   if (questionsError) {
-    console.error(`Error building baseline ${assessmentType} draft:`, questionsError)
+    logServerError('assessment_draft.baseline', questionsError)
     return { ok: false, status: 500, error: 'Failed to build draft' }
   }
 
@@ -819,7 +817,7 @@ export async function ensureAssessmentDraft<TContent>(
       supabase, draft.id, draft.version, userId, content
     )
     if (updateError || !updatedDraft) {
-      console.error(`Error repairing ${assessmentType} draft:`, updateError)
+      logServerError('assessment_draft.repair', updateError)
       return { ok: false, status: 500, error: 'Failed to update draft' }
     }
     return { ok: true, draft: updatedDraft }
@@ -839,7 +837,7 @@ export async function ensureAssessmentDraft<TContent>(
   }
 
   if (createError || !createdDraft) {
-    console.error(`Error creating ${assessmentType} draft:`, createError)
+    logServerError('assessment_draft.create', createError)
     return { ok: false, status: 500, error: 'Failed to create draft' }
   }
 

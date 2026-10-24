@@ -5,6 +5,7 @@ import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-
 import type { AssignmentDoc, AssignmentDocHistoryEntry, TiptapContent } from '@/types'
 import type { v1 } from '@/vendor/pal-contract'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
+import { logServerError } from '@/lib/server/diagnostics'
 
 type SupabaseLike = any
 
@@ -103,7 +104,7 @@ type AssignmentDocMutationResult =
   | { ok: false; status: number; error: string; errorCode: string }
 
 function invalidResult(error: z.ZodError): AssignmentDocMutationResult {
-  console.error('Invalid assignment document atomic RPC result:', error)
+  logServerError('assignment_document.result', error)
   return { ok: false, status: 500, error: 'Assignment document operation failed', errorCode: 'invalid_rpc_result' }
 }
 
@@ -144,7 +145,9 @@ function mapRpcError(error: any, operation: 'save' | 'submit' | 'unsubmit'): Ass
       errorCode: 'assignment_submission_migration_required',
     }
   }
-  console.error(`Error during atomic assignment document ${operation}:`, error)
+  if (operation === 'save') logServerError('assignment_document.save', error)
+  else if (operation === 'submit') logServerError('assignment_document.submit', error)
+  else logServerError('assignment_document.unsubmit', error)
   return {
     ok: false,
     status: 500,

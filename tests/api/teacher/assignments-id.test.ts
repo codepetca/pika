@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, PATCH, DELETE } from '@/app/api/teacher/assignments/[id]/route'
 import { NextRequest } from 'next/server'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -1172,7 +1173,7 @@ describe('DELETE /api/teacher/assignments/[id]', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const remove = vi.fn(async () => ({ error: null }))
     const deleteEq = vi.fn(async () => ({ error: null }))
-    mockRunAssignmentArtifactStorageCleanup.mockRejectedValueOnce(new Error('storage unavailable'))
+    mockRunAssignmentArtifactStorageCleanup.mockRejectedValueOnce(privateDiagnosticError)
     ;(mockSupabaseClient.storage as any) = {
       from: vi.fn(() => ({ remove })),
     }
@@ -1209,10 +1210,7 @@ describe('DELETE /api/teacher/assignments/[id]', () => {
 
     expect(response.status).toBe(200)
     expect(remove).not.toHaveBeenCalled()
-    expect(consoleError).toHaveBeenCalledWith(
-      'Failed to process queued assignment artifact cleanup:',
-      expect.any(Error)
-    )
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'assignment.delete_cleanup')
     consoleError.mockRestore()
   })
 })

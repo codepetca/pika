@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/tests/[id]/unsubmit/route'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 let testStatus: 'draft' | 'active' | 'closed' = 'active'
@@ -52,6 +53,38 @@ describe('POST /api/teacher/tests/[id]/unsubmit', () => {
 
     expect(response.status).toBe(400)
     expect(data.error).toBe('student_ids array is required')
+  })
+
+  it.each(['enrollment', 'write', 'history'] as const)('keeps %s failures private and preserves unsubmit semantics', async stage => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      if (table === 'classroom_enrollments') return {
+        select: () => ({ eq: vi.fn().mockReturnThis(), in: async () => ({
+          data: stage === 'enrollment' ? null : [{ student_id: 'student-1' }],
+          error: stage === 'enrollment' ? privateDiagnosticError : null,
+        }) }),
+      }
+      if (table === 'test_attempt_history') return {
+        insert: () => ({ select: () => ({ single: async () => ({ data: null, error: privateDiagnosticError }) }) }),
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    mockSupabaseClient.rpc = vi.fn(async () => ({
+      data: stage === 'write' ? null : { unsubmitted_count: 1, attempts: [{ id: 'attempt-1', student_id: 'student-1', responses: {} }] },
+      error: stage === 'write' ? privateDiagnosticError : null,
+    }))
+    const response = await POST(
+      new NextRequest('http://localhost/api/teacher/tests/test-1/unsubmit', {
+        method: 'POST', body: JSON.stringify({ student_ids: ['student-1'] }),
+      }),
+      { params: Promise.resolve({ id: 'test-1' }) },
+    )
+    expect(response.status).toBe(stage === 'history' ? 200 : 500)
+    if (stage === 'history') expect(await response.json()).toMatchObject({ unsubmitted_count: 1, skipped_count: 0 })
+    else expect(await response.json()).toEqual({ error: stage === 'enrollment' ? 'Failed to validate selected students' : 'Failed to unsubmit selected students' })
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledTimes(stage === 'enrollment' ? 0 : 1)
+    expectContentFreeDiagnostic(log.mock.calls, `test.unsubmit_${stage}`)
+    log.mockRestore()
   })
 
   it('rejects draft tests', async () => {

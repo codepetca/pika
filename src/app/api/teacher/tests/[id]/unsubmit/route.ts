@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
 import { assertTeacherOwnsTest, isMissingTestAttemptClosureColumnsError } from '@/lib/server/tests'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { buildTestAttemptHistoryMetrics, normalizeTestResponses } from '@/lib/test-attempts'
 import { insertVersionedBaselineHistory } from '@/lib/server/versioned-history'
 import { handleContextualTestOwnerRecoveryRequest } from '@/lib/server/contextual-test-owner-recovery'
@@ -82,7 +83,7 @@ export const POST = withErrorHandler('UnsubmitTeacherTestAttempts', async (reque
     .in('student_id', studentIds)
 
   if (enrollmentError) {
-    console.error('Error validating unsubmit enrollment:', enrollmentError)
+    logServerError('test.unsubmit_enrollment', enrollmentError)
     return NextResponse.json({ error: 'Failed to validate selected students' }, { status: 500 })
   }
 
@@ -110,7 +111,7 @@ export const POST = withErrorHandler('UnsubmitTeacherTestAttempts', async (reque
         { status: 400 }
       )
     }
-    console.error('Error unsubmitting test attempts:', unsubmitError)
+    logServerError('test.unsubmit_write', unsubmitError)
     return NextResponse.json({ error: 'Failed to unsubmit selected students' }, { status: 500 })
   }
 
@@ -134,7 +135,7 @@ export const POST = withErrorHandler('UnsubmitTeacherTestAttempts', async (reque
           buildMetrics: buildTestAttemptHistoryMetrics,
         })
       } catch (historyError) {
-        console.error('Error writing test unsubmit history:', historyError)
+        logServerError('test.unsubmit_history', historyError)
       }
     }
   }

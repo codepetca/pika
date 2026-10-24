@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { logServerError } from '@/lib/server/diagnostics'
 import { requireRole } from '@/lib/auth'
 import { testCalendarDatePatchSchema } from '@/lib/validations/test-calendar-date'
 import { canActivateTest } from '@/lib/tests'
@@ -112,7 +113,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
     .order('position', { ascending: true })
 
   if (questionsError) {
-    console.error('Error fetching test questions:', questionsError)
+    logServerError('test.detail_questions', questionsError)
     return NextResponse.json({ error: 'Failed to fetch questions' }, { status: 500 })
   }
 
@@ -127,7 +128,7 @@ export const GET = withErrorHandler('GetTestById', async (_request, context) => 
   )
 
   if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-    console.error('Error fetching test draft overlay:', draftError)
+    logServerError('test.detail_draft', draftError)
   }
 
   if (draft && test.status === 'draft') {
@@ -269,7 +270,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
     )
 
     if (draftError && !isMissingAssessmentDraftsError(draftError)) {
-      console.error('Error loading test draft for publication:', draftError)
+      logServerError('test.publish_draft', draftError)
       return NextResponse.json({ error: 'Failed to load draft for publication' }, { status: 500 })
     }
 
@@ -328,7 +329,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
       )
     }
     if (publicationResult.test.status !== 'closed') {
-      console.error('Atomic Test publication returned a non-closed Test')
+      logServerError('test.publish_result')
       return NextResponse.json({ error: 'Failed to publish test' }, { status: 500 })
     }
     publishedTest = publicationResult.test as Record<string, any>
@@ -404,7 +405,7 @@ export const PATCH = withErrorHandler('PatchUpdateTest', async (request, context
         .single()
 
       if (error) {
-        console.error('Error updating test:', error)
+        logServerError('test.update', error)
         return NextResponse.json({ error: 'Failed to update test' }, { status: 500 })
       }
 

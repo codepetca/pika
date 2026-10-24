@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { logServerError } from '@/lib/server/diagnostics'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
 const PROVISIONAL_CLEANUP_DELAY_MS = 15 * 60 * 1000
@@ -28,18 +29,12 @@ export async function assignmentArtifactStoragePathIsReferenced(input: {
       .eq('storage_path', input.storagePath)
       .maybeSingle()
     if (reference.error) {
-      console.error('Failed to check assignment artifact Storage references:', {
-        path: input.storagePath,
-        error: reference.error,
-      })
+      logServerError('assignment_artifact_cleanup.reference', reference.error)
       return null
     }
     return Boolean(reference.data)
   } catch (error) {
-    console.error('Failed to check assignment artifact Storage references:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.reference', error)
     return null
   }
 }
@@ -66,15 +61,9 @@ export async function createProvisionalAssignmentArtifactStorageCleanup(input: {
     const parsed = provisionalCleanupSchema.safeParse(result.data)
     if (!result.error && parsed.success) return parsed.data
 
-    console.error('Failed to create provisional assignment artifact Storage cleanup:', {
-      path: input.storagePath,
-      error: result.error ?? parsed.error,
-    })
+    logServerError('assignment_artifact_cleanup.provision', result.error ?? parsed.error)
   } catch (error) {
-    console.error('Failed to create provisional assignment artifact Storage cleanup:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.provision', error)
   }
   return null
 }
@@ -94,15 +83,9 @@ export async function adoptProvisionalAssignmentArtifactStorageCleanup(input: {
       .maybeSingle()
     if (!result.error && result.data?.id === input.cleanup.id) return true
 
-    console.error('Failed to adopt provisional assignment artifact Storage cleanup:', {
-      cleanupId: input.cleanup.id,
-      error: result.error,
-    })
+    logServerError('assignment_artifact_cleanup.adopt', result.error)
   } catch (error) {
-    console.error('Failed to adopt provisional assignment artifact Storage cleanup:', {
-      cleanupId: input.cleanup.id,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.adopt', error)
   }
   return false
 }
@@ -120,10 +103,7 @@ async function releaseAssignmentArtifactStorageCleanupClaim(input: {
       p_error: input.error,
     })
   } catch (error) {
-    console.error('Failed to release assignment artifact Storage cleanup claim:', {
-      cleanupId: input.cleanupId,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.release', error)
   }
 }
 
@@ -143,19 +123,13 @@ export async function removeQueuedAssignmentArtifactStoragePath(input: {
       }
     )
   } catch (error) {
-    console.error('Failed to claim queued assignment artifact Storage path:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.claim_path', error)
     return { completed: false }
   }
   const parsedClaim = z.array(cleanupRowSchema).max(1).safeParse(claim.data ?? [])
   if (claim.error || !parsedClaim.success || parsedClaim.data.length !== 1) {
     if (claim.error || !parsedClaim.success) {
-      console.error('Failed to claim queued assignment artifact Storage path:', {
-        path: input.storagePath,
-        error: claim.error ?? parsedClaim.error,
-      })
+      logServerError('assignment_artifact_cleanup.claim_path', claim.error ?? parsedClaim.error)
     }
     return { completed: false }
   }
@@ -179,21 +153,18 @@ export async function removeQueuedAssignmentArtifactStoragePath(input: {
         .from(ASSIGNMENT_ARTIFACTS_BUCKET)
         .remove([input.storagePath])
       storageError = result.error
-    } catch (error) {
-      storageError = error instanceof Error ? { message: error.message } : { message: 'Storage request failed' }
+    } catch {
+      storageError = { message: 'Storage request failed' }
     }
   }
 
   if (storageError) {
-    console.error('Failed to remove queued assignment artifact Storage object:', {
-      path: input.storagePath,
-      error: storageError,
-    })
+    logServerError('assignment_artifact_cleanup.remove', storageError)
     await releaseAssignmentArtifactStorageCleanupClaim({
       supabase: input.supabase,
       cleanupId: cleanup.id,
       leaseToken: cleanup.lease_token,
-      error: storageError.message ?? 'Storage request failed',
+      error: 'Storage request failed',
     })
     return { completed: false }
   }
@@ -211,10 +182,7 @@ export async function removeQueuedAssignmentArtifactStoragePath(input: {
     error = completionError
   }
   if (error || data !== true) {
-    console.error('Failed to complete assignment artifact Storage cleanup evidence:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.complete', error)
     await releaseAssignmentArtifactStorageCleanupClaim({
       supabase: input.supabase,
       cleanupId: cleanup.id,
@@ -237,15 +205,9 @@ export async function enqueueAssignmentArtifactStorageCleanupPath(input: {
       { p_storage_path: input.storagePath }
     )
     if (!result.error && result.data === true) return true
-    console.error('Failed to enqueue assignment artifact Storage cleanup:', {
-      path: input.storagePath,
-      error: result.error,
-    })
+    logServerError('assignment_artifact_cleanup.enqueue', result.error)
   } catch (error) {
-    console.error('Failed to enqueue assignment artifact Storage cleanup:', {
-      path: input.storagePath,
-      error,
-    })
+    logServerError('assignment_artifact_cleanup.enqueue', error)
   }
   return false
 }
@@ -281,13 +243,13 @@ export async function runAssignmentArtifactStorageCleanup(input: {
         }
       )
     } catch (error) {
-      console.error('Failed to claim assignment artifact Storage cleanup:', error)
+      logServerError('assignment_artifact_cleanup.claim', error)
       claimFailures += 1
       failed += 1
       continue
     }
     if (claimResult.error) {
-      console.error('Failed to claim assignment artifact Storage cleanup:', claimResult.error)
+      logServerError('assignment_artifact_cleanup.claim', claimResult.error)
       claimFailures += 1
       failed += 1
       continue
@@ -295,7 +257,7 @@ export async function runAssignmentArtifactStorageCleanup(input: {
 
     const parsed = z.array(cleanupRowSchema).max(1).safeParse(claimResult.data ?? [])
     if (!parsed.success) {
-      console.error('Invalid assignment artifact cleanup claim result:', parsed.error)
+      logServerError('assignment_artifact_cleanup.claim_result', parsed.error)
       claimFailures += 1
       failed += 1
       continue
@@ -305,6 +267,7 @@ export async function runAssignmentArtifactStorageCleanup(input: {
     claimed += 1
 
     let storageError: { message?: string } | null = null
+    let storageFailureMessage = 'Storage request failed'
     let completionErrorMessage: string | null = null
     let referencedArtifact: unknown = null
     try {
@@ -314,14 +277,14 @@ export async function runAssignmentArtifactStorageCleanup(input: {
         .eq('storage_path', cleanup.storage_path)
         .maybeSingle()
       if (reference.error) {
-        storageError = { message: reference.error.message ?? 'Artifact reference lookup failed' }
+        storageError = { message: 'Artifact reference lookup failed' }
+        storageFailureMessage = 'Artifact reference lookup failed'
       } else {
         referencedArtifact = reference.data
       }
-    } catch (error) {
-      storageError = error instanceof Error
-        ? { message: error.message }
-        : { message: 'Artifact reference lookup failed' }
+    } catch {
+      storageError = { message: 'Artifact reference lookup failed' }
+      storageFailureMessage = 'Artifact reference lookup failed'
     }
 
     if (!storageError && !referencedArtifact) {
@@ -330,8 +293,8 @@ export async function runAssignmentArtifactStorageCleanup(input: {
           .from(ASSIGNMENT_ARTIFACTS_BUCKET)
           .remove([cleanup.storage_path])
         storageError = result.error
-      } catch (error) {
-        storageError = error instanceof Error ? { message: error.message } : { message: 'Storage request failed' }
+      } catch {
+        storageError = { message: 'Storage request failed' }
       }
     }
 
@@ -350,20 +313,15 @@ export async function runAssignmentArtifactStorageCleanup(input: {
         continue
       }
       if (completion?.error) {
-        completionErrorMessage = completion.error instanceof Error
-          ? completion.error.message
-          : completion.error.message ?? 'Completion RPC failed'
-        console.error('Failed to record assignment artifact Storage cleanup completion:', {
-          cleanupId: cleanup.id,
-          error: completion.error,
-        })
+        completionErrorMessage = 'Completion RPC failed'
+        logServerError('assignment_artifact_cleanup.complete', completion.error)
       }
     }
 
     failed += 1
-    const failureMessage = storageError?.message
-      || completionErrorMessage
-      || 'Failed to record Storage cleanup completion'
+    const failureMessage = storageError
+      ? storageFailureMessage
+      : completionErrorMessage || 'Failed to record Storage cleanup completion'
     let failure: any
     try {
       failure = await input.supabase.rpc(
@@ -378,10 +336,7 @@ export async function runAssignmentArtifactStorageCleanup(input: {
       failure = { data: false, error }
     }
     if (failure?.error || failure?.data !== true) {
-      console.error('Failed to release assignment artifact cleanup lease:', {
-        cleanupId: cleanup.id,
-        error: failure?.error,
-      })
+      logServerError('assignment_artifact_cleanup.release', failure?.error)
     }
   }
 

@@ -113,7 +113,7 @@ describe('test document snapshot Storage cleanup', () => {
       'fail_test_document_snapshot_storage_cleanup',
       expect.objectContaining({
         p_cleanup_id: cleanup.id,
-        p_error: 'unavailable',
+        p_error: 'Storage request failed',
       }),
     )
   })

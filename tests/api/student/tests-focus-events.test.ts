@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/student/tests/[id]/focus-events/route'
 import { mockAuthenticationError } from '../setup'
@@ -269,11 +270,12 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
   })
 
   it('returns 500 when selected-student access validation fails', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
     const tables: string[] = []
     serverTestsMocks.getTestStudentAvailabilityState.mockResolvedValueOnce({
       state: null,
       missingTable: false,
-      error: { message: 'availability lookup failed' },
+      error: privateDiagnosticError,
     })
     ;(mockSupabaseClient.from as any) = vi.fn((table: string) => {
       tables.push(table)
@@ -299,6 +301,8 @@ describe('POST /api/student/tests/[id]/focus-events', () => {
     expect(response.status).toBe(500)
     expect(data.error).toBe('Failed to save focus event')
     expect(tables).toEqual(['test_attempts'])
+    expectContentFreeDiagnostic(log.mock.calls, 'test.focus_access')
+    log.mockRestore()
   })
 
   it('continues logging when the selected-student access table is missing', async () => {

@@ -61,6 +61,7 @@ describe('assignment-doc-history reconstruction', () => {
   })
 
   it('returns null when a patch fails to apply', () => {
+    const warning = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const base: TiptapContent = {
       type: 'doc',
       content: [{ type: 'paragraph', content: [{ type: 'text', text: 'First' }] }],
@@ -96,6 +97,8 @@ describe('assignment-doc-history reconstruction', () => {
 
     const result = reconstructAssignmentDocContent(entries, 'bad-patch')
     expect(result).toBeNull()
+    expect(warning.mock.calls).toEqual([['Failed to reconstruct assignment history']])
+    warning.mockRestore()
   })
 
   it('returns null when target entry is not found', () => {

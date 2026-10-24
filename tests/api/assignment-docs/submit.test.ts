@@ -6,6 +6,7 @@ import { afterEach, describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/assignment-docs/[id]/submit/route'
 import { NextRequest } from 'next/server'
 import { submitAssignmentDocAtomic } from '@/lib/server/assignment-doc-submissions'
+import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 const { mockAttemptImmediatePalEventDelivery } = vi.hoisted(() => ({
   mockAttemptImmediatePalEventDelivery: vi.fn(async () => 'delivered'),
@@ -978,7 +979,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
           select: vi.fn(() => ({
             eq: vi.fn(() => ({
               order: vi.fn(async () => {
-                throw new Error('auth history failed')
+                throw privateDiagnosticError
               }),
             })),
           })),
@@ -1007,7 +1008,7 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
       content: submittedContent,
       expectedUpdatedAt: '2026-04-25T11:59:00.000Z',
     }))
-    expect(consoleError).toHaveBeenCalledWith('Error computing authenticity score:', expect.any(Error))
+    expectContentFreeDiagnostic(consoleError.mock.calls, 'assignment.document_authenticity')
     consoleError.mockRestore()
   })
 

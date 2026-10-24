@@ -1,4 +1,5 @@
 import { preserveCurrentTestDocumentSnapshots } from '@/lib/test-documents'
+import { logServerError } from '@/lib/server/diagnostics'
 import {
   removeQueuedTestDocumentSnapshotPath,
 } from '@/lib/server/test-document-snapshot-storage-cleanup'
@@ -86,7 +87,7 @@ export async function updateTestDocumentsAtomic(
         error: 'Atomic test document updates require migration 110 to be applied',
       }
     }
-    console.error('Error updating test documents atomically:', error)
+    logServerError('test_document.update', error)
     return { ok: false, status: 500, error: 'Failed to update test' }
   }
 
@@ -106,10 +107,7 @@ export async function updateTestDocumentsAtomic(
         storagePath,
       })
     } catch (cleanupError) {
-      console.error('Failed to run immediate test snapshot cleanup:', {
-        storagePath,
-        cleanupError,
-      })
+      logServerError('test_document.cleanup', cleanupError)
     }
   }
 
