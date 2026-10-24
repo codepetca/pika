@@ -24,6 +24,7 @@ import {
 } from '@/lib/assignment-doc-history'
 import { isValidTiptapContent } from '@/lib/tiptap-content'
 import { areJsonDocumentsEqual } from '@/lib/json-patch'
+import { areSubmittedAssignmentContentsEqual } from '@/lib/assignment-doc-content'
 import { fetchJSONWithCache } from '@/lib/request-cache'
 import { ApiError } from '@/lib/api-error'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
@@ -529,7 +530,7 @@ export const StudentAssignmentEditor = forwardRef<StudentAssignmentEditorHandle,
   ) => {
     const serverContent = nextDoc.content || { type: 'doc', content: [] }
     const localContentToPreserve = preservedRecoveryContentRef.current ?? latestLocalContent
-    const hasNewerLocalContent = !areJsonDocumentsEqual(localContentToPreserve, serverContent)
+    const hasNewerLocalContent = !areSubmittedAssignmentContentsEqual(localContentToPreserve, serverContent)
 
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)

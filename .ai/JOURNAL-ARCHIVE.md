@@ -49587,3 +49587,8 @@ merge. No environment, cohort, provider, account or migration mutation is part
 of this app release. Startup/verify-env passes; weekly35% remaining and storage
 healthy. Risk runtime-platform/workspace-state; bounded two-reviewer initial wave
 using GPT6.1Sol/high, per-review tokens and active time unknown.
+
+<!-- pika-session-log-archive-batch:7a2b400b9361e3594fdb923fe9c4b8a42c4f28156c0bc113094f9a739e21709b -->
+## 2026-10-21 — Prepare classroom safeguards production release
+
+Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.

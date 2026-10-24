@@ -15,11 +15,17 @@ export const ManagedImage = Image.extend({
       },
       storage_bucket: {
         default: null,
-        rendered: false,
+        parseHTML: (element) => element.getAttribute('data-storage-bucket'),
+        renderHTML: (attributes) => attributes.storage_bucket
+          ? { 'data-storage-bucket': attributes.storage_bucket }
+          : {},
       },
       storage_path: {
         default: null,
-        rendered: false,
+        parseHTML: (element) => element.getAttribute('data-storage-path'),
+        renderHTML: (attributes) => attributes.storage_path
+          ? { 'data-storage-path': attributes.storage_path }
+          : {},
       },
     }
   },
