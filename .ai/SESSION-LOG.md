@@ -11,29 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-21 — Prepare contextual removed-membership cleanup
-
-Forward288 removes only legacy account-label prerequisites from the existing live
-removed-membership reservation and active-enrollment email fallback resource fence.
-Actual ownership, removed generation/scope, current enrollment exclusion, receipt,
-academic cleanup, replay and rejoin rules remain unchanged. GET progress adopts
-strict shared admission without provider advancement; teacher-directed POST stays
-retired. Both-label singleton removal/job/completion/rejoin and a genuine unbound
-teacher-member roster fence are added to the existing rollback suite, preserving
-other teaching data, accounts and delivered Pal history. TDD reproduced8 API gaps;
-39 API/source checks now pass. First isolated001–288 replay and strict-v1 regression
-passed; the new fixture stopped because wall-clock activation was later than the
-transaction's now(). Only fixture setup was corrected to the existing transaction-
-time convention. A fixture column ambiguity and omitted replay-history metadata
-were also corrected without changing migration SQL. Failed attempts stay retained.
-Fresh isolated001–288 replay and all five existing cleanup suites now pass,
-including both-label lifecycle/rejoin and actual unbound teacher-member fencing.
-All six input hashes match; shared243 schema and source identity are unchanged,
-and exact owned clone cleanup is independently verified. Focused checks against
-the prepared parent pass3562 tests/104files plus all static gates; independent
-review and exact-head CI remain pending. No grouped writer/index change, shared-local migration,
-production/provider action, publication or activation is included.
-
 ## 2026-10-21 — Apply production285–288 and deploy classroom safeguards
 
 Owner approved exact production285–288 with permanent Pal queue and expanded
@@ -685,3 +662,10 @@ Owner approved one bounded correction/review continuation. Rebased onto reviewed
 main45fd19251, preserving its new classroom-home database proof and local aliases.
 Application source, visibility and runner opt-in remain unchanged. Final focused,
 browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
+
+## 2026-10-23 — Editor overlay motion consistency
+
+- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
+- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
+- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
+- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
