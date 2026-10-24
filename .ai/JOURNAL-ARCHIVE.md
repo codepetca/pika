@@ -49592,3 +49592,41 @@ using GPT6.1Sol/high, per-review tokens and active time unknown.
 ## 2026-10-21 — Prepare classroom safeguards production release
 
 Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
+
+<!-- pika-session-log-archive-batch:b22b7d282d93b08d3bbfe53f057f7b9d23d3860bd80f0f171c2cfa269a4bade2 -->
+## 2026-10-22 — Compact modal close refinement (PR #1662)
+
+Owner requested the X inline with Write/Markdown instead of a close-only band.
+CreationModalShell now omits empty heading rows and reserves horizontal corner
+space in existing desktop controls/mobile title fields. Applied to assignment,
+material, test and survey editors; shared dismissal callbacks/guards unchanged.
+Stable guidance and Pattern Lab examples reflect the compact contract.
+Desktop assignment browser check confirms mode/X alignment and regained56px.
+Full focused gate3777/3777 plus architecture, UI/design policy, types and lint pass.
+Browser verification exposed rich-text toolbars covering question menus after
+sticky rows were introduced; compact shells now isolate editor stacking.
+Final role/theme/viewport matrix, delta checks and review tracked in PR.
+Owner then requested title/status cleanup: hidden accessible Title labels, retained
+empty placeholders, aligned title/settings inputs, and circular saving feedback
+in existing right-pane mode/question controls. Reused CircularProgress and kept
+SaveStatus text presentation as its default; save failures remain visible.
+Shared title-field composition retains naming/error/keyboard behavior. Targeted
+140component checks passed;24accepted browser cases cover desktop/mobile and
+light/dark, including a held production autosave and empty-title placeholders.
+Assignment/test fixture scroll sizing was aligned with the existing survey/test
+production pattern. Independent review accepted one P2: Preview metadata saves
+had no indicator. Its existing title row now carries the same feedback;37survey
+component cases (including held title/settings requests) and4full-classroom
+Preview browser cases pass. Owner-approved eighth targeted review was clean;
+final6c4ea6cc1 focused gate passed3786/3786 and all static checks.
+Owner then requested type/classroom context above the title in the left pane.
+Shared CreationModalContextHeader identifies Assignment/Material/Test/Survey,
+reuses the AppHeader name fade and preserves the full text/native tooltip.
+Production classroom titles are passed from their existing owners; right-pane
+controls and top-right X retain their positions. Title/settings and remaining
+details follow below; mobile context owns corner clearance. Pattern Lab, stable
+guidance and focused semantic/geometry checks updated. Component156/156 and
+24browser cases pass across desktop/mobile and light/dark, including held
+production saves, empty titles, long names, scrolling and menus. Explicit mobile
+grid columns prevent long-name width expansion. Docker/owned preview stopped
+after screenshots; final canonical gate and delta review remain tracked in PR.

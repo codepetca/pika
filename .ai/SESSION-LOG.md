@@ -11,43 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Compact modal close refinement (PR #1662)
-
-Owner requested the X inline with Write/Markdown instead of a close-only band.
-CreationModalShell now omits empty heading rows and reserves horizontal corner
-space in existing desktop controls/mobile title fields. Applied to assignment,
-material, test and survey editors; shared dismissal callbacks/guards unchanged.
-Stable guidance and Pattern Lab examples reflect the compact contract.
-Desktop assignment browser check confirms mode/X alignment and regained56px.
-Full focused gate3777/3777 plus architecture, UI/design policy, types and lint pass.
-Browser verification exposed rich-text toolbars covering question menus after
-sticky rows were introduced; compact shells now isolate editor stacking.
-Final role/theme/viewport matrix, delta checks and review tracked in PR.
-Owner then requested title/status cleanup: hidden accessible Title labels, retained
-empty placeholders, aligned title/settings inputs, and circular saving feedback
-in existing right-pane mode/question controls. Reused CircularProgress and kept
-SaveStatus text presentation as its default; save failures remain visible.
-Shared title-field composition retains naming/error/keyboard behavior. Targeted
-140component checks passed;24accepted browser cases cover desktop/mobile and
-light/dark, including a held production autosave and empty-title placeholders.
-Assignment/test fixture scroll sizing was aligned with the existing survey/test
-production pattern. Independent review accepted one P2: Preview metadata saves
-had no indicator. Its existing title row now carries the same feedback;37survey
-component cases (including held title/settings requests) and4full-classroom
-Preview browser cases pass. Owner-approved eighth targeted review was clean;
-final6c4ea6cc1 focused gate passed3786/3786 and all static checks.
-Owner then requested type/classroom context above the title in the left pane.
-Shared CreationModalContextHeader identifies Assignment/Material/Test/Survey,
-reuses the AppHeader name fade and preserves the full text/native tooltip.
-Production classroom titles are passed from their existing owners; right-pane
-controls and top-right X retain their positions. Title/settings and remaining
-details follow below; mobile context owns corner clearance. Pattern Lab, stable
-guidance and focused semantic/geometry checks updated. Component156/156 and
-24browser cases pass across desktop/mobile and light/dark, including held
-production saves, empty titles, long names, scrolling and menus. Explicit mobile
-grid columns prevent long-name width expansion. Docker/owned preview stopped
-after screenshots; final canonical gate and delta review remain tracked in PR.
-
 ## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
 
 Owner expanded Markdown authoring scope to put modal X controls consistently in
@@ -669,3 +632,27 @@ change. Detailed receipt records recovery/pilot/canary gaps; cutover not complet
 ## 2026-10-24 — Assignment image submission recovery
 
 Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+## 2026-10-24 — Prepare classroom Home recovery and pilot
+
+Prepared a rollback-only creation freeze/getter-permission fault/restoration
+contract in the existing sealed offline owned-clone verifier, plus actual-route,
+adapter and server-page CPU composition tests for both account-role labels.
+The layered evidence intentionally does not claim real PostgREST/browser outage
+or deployed recovery. Pilot packet records compatible477/schema292 floor,
+retained-admission growth stop, canaries, zero-tolerance stop conditions and
+unset operator/cohort/activation authority. Root verified84focused cases and
+TypeScript. Reviews468–470 cover source and corrections; bounded
+Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
+(351s), effective model/tokens unknown. No runtime, migration, dependency,
+production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.
+Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
+fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
+unchanged lock contention, generated types and canonical schema/source equality.
+Exact owned resources absent; full failure/success evidence retained privately.
+Final receipt review/CI/main merge pending; production477 and activation/provider
+holds unchanged. Pilot still requires selected operator/cohort and authorization.
