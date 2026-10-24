@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { parseContentField } from '@/lib/tiptap-content'
+import { normalizeAssignmentDocImageReferences } from '@/lib/server/assignment-doc-image-references'
 import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { isAssignmentVisibleToStudents } from '@/lib/server/assignments'
 import { analyzeAuthenticity } from '@/lib/authenticity'
@@ -40,6 +41,7 @@ async function submitContextualMemberAssignment(input: {
   assignmentId: string
   submitRequest: AssignmentDocSubmitRequest
   supabase: ReturnType<typeof getServiceRoleClient>
+  origin: string
 }) {
   const { userId, assignmentId, submitRequest, supabase } = input
   const preflight = await prepareContextualAssignmentDocSubmission({
@@ -89,7 +91,10 @@ async function submitContextualMemberAssignment(input: {
     }, { status: 400 })
   }
 
-  const submissionContent = submitRequest.content
+  const submissionContent = await normalizeAssignmentDocImageReferences({
+    supabase, content: submitRequest.content, assignmentDocId: existingDoc.id,
+    studentId: userId, classroomId: assignment.classroom_id, origin: input.origin,
+  })
   const hasStructuredArtifacts = submissionArtifacts.some(isSubmissionArtifactPresent)
   const hasAcknowledgedMissingAttachments =
     attachmentGate.ok && attachmentGate.acknowledgedMissingAttachments
@@ -209,6 +214,7 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
       assignmentId,
       submitRequest,
       supabase,
+      origin: request.nextUrl.origin,
     })
   }
 
@@ -268,7 +274,10 @@ export const POST = withErrorHandler('PostAssignmentDocSubmit', async (request, 
   if (existingDoc) {
     existingDoc.content = parseContentField(existingDoc.content)
   }
-  const requestedContent = submitRequest.content
+  const requestedContent = await normalizeAssignmentDocImageReferences({
+    supabase, content: submitRequest.content, assignmentDocId: existingDoc?.id ?? null,
+    studentId: user.id, classroomId: assignment.classroom_id, origin: request.nextUrl.origin,
+  })
   const submissionContent = requestedContent
 
   const submissionRequirements = existingDoc

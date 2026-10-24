@@ -670,3 +670,25 @@ parents and unchanged application/SQL/config/dependency bytes. Final delta
 review and exact-head CI precede merge. Home/admission/page settings remain
 absent; existing provider/control metadata unchanged. Live-provider, activation,
 account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
+
+## 2026-10-24 — Release inactive classroom Home foundation
+
+Owner explicitly approved sole292 locally/production and reviewed-main release
+with activation off. Local pinned CLI and production apply40059138246 both
+verified001–292; read-only bodies/grants/RLS/PK/FK checks pass. Release1673
+independently reviewed464–466, local4738/151+1022/73 and exact-head CI40059627420
+all10jobs/PRGate PASS. Protected merge4778514b0 has exact reviewed tree; Vercel
+dpl_DHbxckpbMDrojHGw6uD5ZePPpS54 and public alias READY00:28Toronto. Six public
+unauthenticated GET checks pass, including exact root307→login200; initial
+root200 expectation was a smoke-assumption error, not an app change. Five
+activation settings absent;24provider/controlmetadata records unchanged. No
+retry/reset/seed/production fixture/provider/account/plan/billing/activation
+change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
+
+## 2026-10-24 — Assignment image submission recovery
+
+Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.

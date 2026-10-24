@@ -506,6 +506,54 @@ describe('StudentAssignmentEditor save-before-submit integrity', () => {
     expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
   })
 
+  it.each(['managed metadata recovery', 'external null defaults', 'same-origin absolute ID URL', 'protected path URL', 'legacy public Storage URL'])('accepts submitted %s without preserving a duplicate local draft', async (repair) => {
+    const imageId = '11111111-1111-4111-8111-111111111111'
+    const storagePath = 'student-1/assignment-1/evidence.png'
+    const protectedSrc = `/api/storage/submission-images?object_id=${imageId}`
+    const sources: Record<string, string> = {
+      'same-origin absolute ID URL': `${window.location.origin}${protectedSrc}`,
+      'protected path URL': `/api/storage/submission-images?path=${encodeURIComponent(storagePath)}`,
+      'legacy public Storage URL': `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/submission-images/${storagePath}`,
+    }
+    const imageAttrs = repair === 'external null defaults'
+      ? { src: 'https://example.com/evidence.png', managed_object_id: null, storage_bucket: null, storage_path: null, alt: 'Evidence' }
+      : { src: sources[repair] ?? protectedSrc, ...(repair === 'managed metadata recovery' ? { managed_object_id: imageId } : {}), alt: 'Evidence' }
+    const repairedAttrs = repair === 'external null defaults'
+      ? { src: imageAttrs.src, alt: imageAttrs.alt }
+      : { src: protectedSrc, managed_object_id: imageId, alt: 'Evidence', storage_bucket: 'submission-images', storage_path: storagePath }
+    const localContent = { ...latestDraft, content: [...latestDraft.content, { type: 'image', attrs: imageAttrs }] }
+    const submittedContent = { ...latestDraft, content: [...latestDraft.content, { type: 'image', attrs: repairedAttrs }] }
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/history')) return { ok: true, json: async () => ({ history: [] }) }
+      if (url.endsWith('/submit')) {
+        expect(JSON.parse(String(init?.body)).content).toEqual(localContent)
+        return { ok: true, json: async () => ({ doc: {
+          ...makeDoc(), content: submittedContent, is_submitted: true,
+          submitted_at: '2026-07-01T12:02:00.000Z', updated_at: '2026-07-01T12:02:00.000Z',
+        } }) }
+      }
+      if (url.endsWith('/assignment-docs/assignment-1')) {
+        if (init?.method === 'PATCH') {
+          return { ok: true, json: async () => ({ doc: { ...makeDoc(), content: localContent }, historyEntry: null }) }
+        }
+        return { ok: true, json: async () => ({ assignment: makeAssignment(), doc: { ...makeDoc(), content: localContent } }) }
+      }
+      throw new Error(`Unexpected request: ${init?.method ?? 'GET'} ${url}`)
+    })
+    const ref = createRef<StudentAssignmentEditorHandle>()
+    render(<StudentAssignmentEditor ref={ref} classroomId="classroom-1" assignmentId="assignment-1" variant="embedded" />)
+    await screen.findByText('Assignment Title')
+
+    await act(async () => { await ref.current?.submit() })
+
+    expect(ref.current?.isSubmitted).toBe(true)
+    expect(screen.queryByText(/newer local edits|local draft is preserved/i)).not.toBeInTheDocument()
+    expect(window.localStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
+    expect(window.sessionStorage.getItem('assignment-draft:student-1:assignment-1')).toBeNull()
+  })
+
   it('preserves an edit made while submit reconciliation is in flight', async () => {
     let docReads = 0
     let rejectSubmit: ((error: Error) => void) | undefined

@@ -1,12 +1,12 @@
-# Checkpoint — 2026-10-23 (America/Toronto)
+# Checkpoint — 2026-10-24 (America/Toronto)
 
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Prod `cd7179e64` LIVE Oct23 15:31Toronto; #1667 CI40006108276 PASS.
+Prod `4778514b0` LIVE Oct24 00:28Toronto; #1673 CI40059627420 PASS.
 Login200/me401/pattern-lab404/image401 PASS; Markdown editors/2MB images live.
-Prod DB001–291 verified;291 approval used Oct23;Oct30 READY.
-[Release/database receipt](../docs/guidance/production-release-2026-10-23.md).
+Prod DB001–292 verified;292 approval used Oct23;Oct30 READY.
+[Release](../docs/guidance/production-home-foundation-release-2026-10-24.md).
 282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
 Poll5→1; fresh auth.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
@@ -18,7 +18,7 @@ Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Owner259–262 installed/dormant; Tests adopter1580 prepared.
 251/252 native/review/CI PASS.
-LegacyPATCH; local001–291 applied Oct23; flags unchanged.
+LegacyPATCH; local001–292 applied Oct23; flags unchanged.
 No exit; `docs/guidance/contextual-test-publication.md`.
 
 253#1524 OFF (CI37715526569 PASS).
