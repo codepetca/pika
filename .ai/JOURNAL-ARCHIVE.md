@@ -49522,6 +49522,7 @@ That policy is recorded, not implemented here. Production/live-provider/shared-
 local249+/publication/configuration/account/cohort/cutover holds remain unchanged.
 
 <!-- pika-session-log-archive-batch:7586fa5657983b97fd52038001c10069a3a7896bdd7bb774371d082174214dad -->
+<!-- pika-session-log-archive-batch:37c5d1a0bab69fb71d0374245469e7b22b2546a0c6fbd725e9d9251092e8a76a -->
 ## 2026-10-21 — Prepare contextual removed-membership cleanup
 
 Forward288 removes only legacy account-label prerequisites from the existing live

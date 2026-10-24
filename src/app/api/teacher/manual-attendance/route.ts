@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
+import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
 import {
   loadManualAttendanceView,
   ManualAttendanceStoreError,
@@ -38,7 +39,8 @@ function mapStoreError(error: unknown): never {
 }
 
 export const GET = withErrorHandler('GetTeacherManualAttendance', async (request) => {
-  const user = await requireRole('teacher')
+  const admission = await authorizeSharedAttendancePolicyActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
   const input = manualAttendanceViewQuerySchema.parse(
     Object.fromEntries(new URL(request.url).searchParams),
   )
@@ -58,7 +60,8 @@ export const GET = withErrorHandler('GetTeacherManualAttendance', async (request
 })
 
 export const PUT = withErrorHandler('PutTeacherManualAttendanceSettings', async (request) => {
-  const user = await requireRole('teacher')
+  const admission = await authorizeSharedAttendancePolicyActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
   const input = manualAttendanceSettingsSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherCanMutateClassroom(user.id, input.classroom_id, { supabase })
@@ -81,7 +84,8 @@ export const PUT = withErrorHandler('PutTeacherManualAttendanceSettings', async 
 })
 
 export const POST = withErrorHandler('PostTeacherManualAttendanceMarks', async (request) => {
-  const user = await requireRole('teacher')
+  const admission = await authorizeSharedAttendancePolicyActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
   const input = manualAttendanceMarksSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherCanMutateClassroom(user.id, input.classroom_id, { supabase })

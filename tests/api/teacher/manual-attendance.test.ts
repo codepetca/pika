@@ -1,10 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, POST, PUT } from '@/app/api/teacher/manual-attendance/route'
 import { ManualAttendanceStoreError } from '@/lib/server/manual-attendance'
 
 const {
   requireRole,
+  requireAuth,
   assertTeacherOwnsClassroom,
   assertTeacherCanMutateClassroom,
   loadManualAttendanceView,
@@ -13,6 +14,7 @@ const {
   supabase,
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
+  requireAuth: vi.fn(),
   assertTeacherOwnsClassroom: vi.fn(),
   assertTeacherCanMutateClassroom: vi.fn(),
   loadManualAttendanceView: vi.fn(),
@@ -23,6 +25,7 @@ const {
 
 vi.mock('@/lib/auth', () => ({
   requireRole,
+  requireAuth,
   AuthenticationError: class AuthenticationError extends Error {
     constructor() { super('Unauthorized'); this.name = 'AuthenticationError' }
   },
@@ -47,6 +50,7 @@ vi.mock('@/lib/server/manual-attendance', async (importOriginal) => {
 
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const studentId = '30000000-0000-4000-8000-000000000003'
+const ownerId = '10000000-0000-4000-8000-000000000001'
 const view = {
   classroomId,
   classDate: '2026-05-06',
@@ -62,6 +66,7 @@ const view = {
 describe('/api/teacher/manual-attendance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', role: 'teacher' })
     assertTeacherOwnsClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
     assertTeacherCanMutateClassroom.mockResolvedValue({ ok: true, classroom: { id: classroomId } })
@@ -69,6 +74,121 @@ describe('/api/teacher/manual-attendance', () => {
     saveManualAttendanceSettings.mockResolvedValue(view.settings)
     saveManualAttendanceMarks.mockResolvedValue(undefined)
   })
+  afterEach(() => vi.unstubAllEnvs())
+
+  const operations = [
+    { method: 'GET', handler: GET, store: loadManualAttendanceView },
+    { method: 'PUT', handler: PUT, store: saveManualAttendanceSettings },
+    { method: 'POST', handler: POST, store: saveManualAttendanceMarks },
+  ] as const
+  function request(method: 'GET' | 'PUT' | 'POST', invalid = false) {
+    const url = 'http://localhost/api/teacher/manual-attendance'
+    if (method === 'GET') return new NextRequest(invalid ? url
+      : `${url}?classroom_id=${classroomId}&date=2026-05-06`)
+    return new NextRequest(url, { method, body: JSON.stringify(invalid ? {} : method === 'PUT'
+      ? { classroom_id: classroomId, expected_revision: 3, source_mode: 'manual',
+        session_starts_local: null, session_ends_local: null }
+      : { classroom_id: classroomId, date: '2026-05-06', student_ids: [studentId], status: 'present' }) })
+  }
+  function admit(role: 'teacher' | 'student') {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [ownerId] }))
+    requireAuth.mockResolvedValue({ id: ownerId, role, email: 'owner@example.com' })
+    requireRole.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+  }
+
+  describe.each(operations)('$method contextual ownership', ({ method, handler, store }) => {
+    it.each(['student', 'teacher'] as const)('allows an admitted %s owner without changing identity', async role => {
+      admit(role)
+      expect((await handler(request(method))).status).toBe(200)
+      expect(requireAuth).toHaveBeenCalledOnce()
+      expect(requireRole).not.toHaveBeenCalled()
+      expect(method === 'GET' ? assertTeacherOwnsClassroom : assertTeacherCanMutateClassroom)
+        .toHaveBeenCalledWith(ownerId, classroomId, { supabase })
+      expect(store).toHaveBeenCalledOnce()
+      if (method !== 'GET') expect(store).toHaveBeenCalledWith(expect.objectContaining({ teacherId: ownerId }))
+    })
+
+    it.each([403, 404, 503])('stops before storage on ownership failure %s', async status => {
+      admit('student')
+      const guard = method === 'GET' ? assertTeacherOwnsClassroom : assertTeacherCanMutateClassroom
+      guard.mockResolvedValue({ ok: false, status, error: 'Classroom access unavailable' })
+      const response = await handler(request(method))
+      expect(response.status).toBe(status)
+      expect(await response.json()).toEqual({ error: 'Classroom access unavailable' })
+      expect(store).not.toHaveBeenCalled()
+    })
+
+    it.each([undefined, JSON.stringify({ version: 1, admittedUserIds: [] })])(
+      'retains the legacy teacher gate when not admitted (%s)', async config => {
+        vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', config)
+        requireAuth.mockResolvedValue({ id: ownerId, role: 'student' })
+        requireRole.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+        expect((await handler(request(method, true))).status).toBe(403)
+        expect(requireRole).toHaveBeenCalledWith('teacher')
+        expect(store).not.toHaveBeenCalled()
+      },
+    )
+
+    it('fails closed on invalid admission before request validation or storage', async () => {
+      admit('student')
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{')
+      expect((await handler(request(method, true))).status).toBe(503)
+      expect(requireAuth).toHaveBeenCalledOnce()
+      expect(requireRole).not.toHaveBeenCalled()
+      expect(store).not.toHaveBeenCalled()
+    })
+
+    it('authenticates before interpreting malformed admission', async () => {
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{')
+      requireAuth.mockRejectedValue(Object.assign(new Error('Unauthorized'), { name: 'AuthenticationError' }))
+      expect((await handler(request(method, true))).status).toBe(401)
+      expect(store).not.toHaveBeenCalled()
+    })
+
+    it('keeps request validation for admitted owners', async () => {
+      admit('student')
+      expect((await handler(request(method, true))).status).toBe(400)
+      expect(store).not.toHaveBeenCalled()
+    })
+
+    it('retains the existing teacher path when a configured cohort does not include the actor', async () => {
+      vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [] }))
+      requireAuth.mockResolvedValue({ id: ownerId, role: 'teacher' })
+      expect((await handler(request(method))).status).toBe(200)
+      expect(requireRole).toHaveBeenCalledWith('teacher')
+      expect(method === 'GET' ? assertTeacherOwnsClassroom : assertTeacherCanMutateClassroom)
+        .toHaveBeenCalledWith('teacher-1', classroomId, { supabase })
+    })
+  })
+
+  it('retains archived owner reads without allowing archived mutations', async () => {
+    admit('student')
+    assertTeacherOwnsClassroom.mockResolvedValue({ ok: true,
+      classroom: { id: classroomId, teacher_id: ownerId, archived_at: '2026-05-06T12:00:00Z' } })
+    expect((await GET(request('GET'))).status).toBe(200)
+    expect(assertTeacherCanMutateClassroom).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { method: 'PUT' as const, handler: PUT, store: saveManualAttendanceSettings, code: 'stale_revision' as const },
+    { method: 'POST' as const, handler: POST, store: saveManualAttendanceMarks, code: 'roster_changed' as const },
+    { method: 'POST' as const, handler: POST, store: saveManualAttendanceMarks, code: 'class_day_changed' as const },
+  ])('preserves $code conflict handling for admitted owners', async ({ method, handler, store, code }) => {
+    admit('student')
+    store.mockRejectedValue(new ManualAttendanceStoreError(code))
+    expect((await handler(request(method))).status).toBe(409)
+  })
+
+  it.each(operations.filter(operation => operation.method !== 'GET'))(
+    '$method denies archived classroom mutations for admitted owners', async ({ method, handler, store }) => {
+      admit('student')
+      assertTeacherCanMutateClassroom.mockResolvedValue({ ok: false, status: 403, error: 'Classroom is archived' })
+      const response = await handler(request(method))
+      expect(response.status).toBe(403)
+      expect(await response.json()).toEqual({ error: 'Classroom is archived' })
+      expect(store).not.toHaveBeenCalled()
+    },
+  )
 
   it('returns the Pika-owned view only after teacher ownership', async () => {
     const response = await GET(new NextRequest(
