@@ -664,3 +664,6 @@ Reconciled actual #1683 production receipt/source6eacd7540 and manual canary wit
 normal reload recovery; this automatic-refresh fix still requires review/CI/main
 merge and separately authorized compatible release. Same3cohort/schema/plans and
 provider holds remain, with no production action or live-provider call.
+## 2026-10-24 — RepoLight integration foundation (in progress)
+
+Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.

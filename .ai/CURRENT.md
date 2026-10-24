@@ -1,5 +1,11 @@
 # Checkpoint — 2026-10-25 (America/Toronto)
 
+RepoLight integration in progress on codex/repolight-integration (task01a15c49).
+Source-only293 and canonical client prepared; native replay/types, fullarchive/provider
+lifecycle adoption and UI/API verification pending. Analyze OFF. No293 applied to
+sharedlocal/production; existing rollout controls below unchanged.
+[Contract](../docs/integrations/repolight.md).
+
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 

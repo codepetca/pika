@@ -188,6 +188,20 @@ export const ATTENDANCE_PROVIDER_OWNED_REFERENCES = [
 // its own documented contract.
 export const CLASSROOM_NON_OWNING_REFERENCES = [
   ...ATTENDANCE_PROVIDER_OWNED_REFERENCES,
+  // RepoLight293 foundation: provider-bound report state. Source deletion and
+  // compaction are fenced until subject erasure; portable archive adoption is
+  // a separate acceptance gate, never an implicit cascade/export assumption.
+  { child_table: 'assignment_repolight_runs', parent_table: 'classrooms', child_columns: ['classroom_id'] },
+  { child_table: 'assignment_repolight_runs', parent_table: 'assignments', child_columns: ['assignment_id'] },
+  { child_table: 'assignment_repolight_runs', parent_table: 'users', child_columns: ['student_id'] },
+  { child_table: 'assignment_repolight_runs', parent_table: 'users', child_columns: ['actor_id'] },
+  { child_table: 'assignment_repolight_reports', parent_table: 'assignment_repolight_runs', child_columns: ['run_id'] },
+  { child_table: 'assignment_repolight_reports', parent_table: 'assignments', child_columns: ['assignment_id'] },
+  { child_table: 'assignment_repolight_reports', parent_table: 'users', child_columns: ['student_id'] },
+  { child_table: 'assignment_repolight_feedback_imports', parent_table: 'assignment_repolight_runs', child_columns: ['run_id'] },
+  { child_table: 'assignment_repolight_feedback_imports', parent_table: 'assignments', child_columns: ['assignment_id'] },
+  { child_table: 'assignment_repolight_feedback_imports', parent_table: 'users', child_columns: ['student_id'] },
+  { child_table: 'assignment_repolight_feedback_imports', parent_table: 'users', child_columns: ['actor_id'] },
   // Pika locator state, not portable teaching/student data. Soft archive retains
   // it but resolution rejects archived classrooms. Authorized classroom deletion
   // cascades the handle; restore/import must create a fresh poster, never revive it.

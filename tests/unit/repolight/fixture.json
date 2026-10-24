@@ -1,0 +1,1235 @@
+{
+  "synthetic": true,
+  "sourceRevision": "1e3b5de321f90680f507161340faef1a095d7db2",
+  "envelope": {
+    "schemaVersion": "1.0",
+    "request": {
+      "repositoryUrl": "https://github.com/sample-student/sky-hop",
+      "period": {
+        "startAt": "2026-10-05T00:00:00-04:00",
+        "endAt": "2026-10-17T00:00:00-04:00",
+        "timezone": "America/Toronto"
+      },
+      "scheduledProjectDates": [
+        "2026-10-05",
+        "2026-10-06",
+        "2026-10-07",
+        "2026-10-08",
+        "2026-10-09",
+        "2026-10-13",
+        "2026-10-14",
+        "2026-10-15",
+        "2026-10-16"
+      ],
+      "exclusions": {
+        "commitShas": [],
+        "pathPrefixes": [],
+        "botLogins": []
+      },
+      "baselineReviewed": true
+    },
+    "clientBinding": {
+      "installationRef": "pika-installation",
+      "subjectRef": "opaque-subject",
+      "sourceRevisionRef": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "encodedBody": "{\"clientBinding\":{\"installationRef\":\"pika-installation\",\"sourceRevisionRef\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"subjectRef\":\"opaque-subject\"},\"request\":{\"baselineReviewed\":true,\"exclusions\":{\"botLogins\":[],\"commitShas\":[],\"pathPrefixes\":[]},\"period\":{\"endAt\":\"2026-10-17T00:00:00-04:00\",\"startAt\":\"2026-10-05T00:00:00-04:00\",\"timezone\":\"America/Toronto\"},\"repositoryUrl\":\"https://github.com/sample-student/sky-hop\",\"scheduledProjectDates\":[\"2026-10-05\",\"2026-10-06\",\"2026-10-07\",\"2026-10-08\",\"2026-10-09\",\"2026-10-13\",\"2026-10-14\",\"2026-10-15\",\"2026-10-16\"]},\"schemaVersion\":\"1.0\"}",
+  "requestFingerprint": "b23fe8520e1d3fd51dae659334a991a653c01f0c8e84c5a0af65c18f13ac6913",
+  "reportDigest": "0e65d68db58fdc8af4e181ecbdba04540d65baad3647e1822608fdcca9338024",
+  "bundle": {
+    "schemaVersion": "1.0",
+    "bundleRef": "33333333-3333-4333-8333-333333333333",
+    "context": {
+      "metricsVersion": "2.0.0",
+      "repository": {
+        "url": "https://github.com/sample-student/sky-hop",
+        "branch": "main",
+        "visibility": "public"
+      },
+      "snapshot": {
+        "sha": "000000000000000000000000000000000000000c",
+        "capturedAt": "2026-10-16T14:05:00Z",
+        "kind": "analysis_time"
+      },
+      "period": {
+        "startAt": "2026-10-05T00:00:00-04:00",
+        "endAt": "2026-10-17T00:00:00-04:00",
+        "timezone": "America/Toronto"
+      },
+      "scheduledProjectDates": [
+        "2026-10-05",
+        "2026-10-06",
+        "2026-10-07",
+        "2026-10-08",
+        "2026-10-09",
+        "2026-10-13",
+        "2026-10-14",
+        "2026-10-15",
+        "2026-10-16"
+      ],
+      "baseline": {
+        "status": "applied",
+        "reference": "teacher-reviewed-exclusions"
+      },
+      "exclusions": {
+        "commitShas": [],
+        "pathPrefixes": [],
+        "botLogins": []
+      }
+    },
+    "collectionCoverage": {
+      "history": "complete",
+      "files": "complete",
+      "notes": []
+    },
+    "selection": {
+      "requestedGithubLogin": null,
+      "status": "not_requested",
+      "contributorId": null,
+      "notice": "No username supplied. Showing the repository overview and all contributors."
+    },
+    "overview": {
+      "scope": {
+        "kind": "repository"
+      },
+      "facts": {
+        "coverage": {
+          "history": "complete",
+          "files": "complete",
+          "notes": []
+        },
+        "activity": {
+          "undatedCommitCount": 0,
+          "outsideScheduleCommitCount": 0
+        },
+        "commits": [
+          {
+            "sha": "0000000000000000000000000000000000000001",
+            "message": "Create game window and start screen",
+            "authoredAt": "2026-10-05T13:22:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000001",
+            "additions": 24,
+            "deletions": 0,
+            "files": [
+              {
+                "path": "Main.java",
+                "status": "modified",
+                "additions": 24,
+                "deletions": 0
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000002",
+            "message": "Add player with gravity",
+            "authoredAt": "2026-10-05T14:01:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000002",
+            "additions": 45,
+            "deletions": 0,
+            "files": [
+              {
+                "path": "Player.java",
+                "status": "modified",
+                "additions": 45,
+                "deletions": 0
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000003",
+            "message": "Add spacebar jump control",
+            "authoredAt": "2026-10-06T13:45:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000003",
+            "additions": 41,
+            "deletions": 5,
+            "files": [
+              {
+                "path": "Player.java",
+                "status": "modified",
+                "additions": 29,
+                "deletions": 3
+              },
+              {
+                "path": "Main.java",
+                "status": "modified",
+                "additions": 12,
+                "deletions": 2
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000004",
+            "message": "update",
+            "authoredAt": "2026-10-08T13:26:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000004",
+            "additions": 220,
+            "deletions": 0,
+            "files": [
+              {
+                "path": "Pipe.java",
+                "status": "modified",
+                "additions": 130,
+                "deletions": 0
+              },
+              {
+                "path": "Collision.java",
+                "status": "modified",
+                "additions": 60,
+                "deletions": 0
+              },
+              {
+                "path": "Main.java",
+                "status": "modified",
+                "additions": 30,
+                "deletions": 0
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000005",
+            "message": "Prevent repeat collision after game over",
+            "authoredAt": "2026-10-08T14:03:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000005",
+            "additions": 18,
+            "deletions": 7,
+            "files": [
+              {
+                "path": "Collision.java",
+                "status": "modified",
+                "additions": 18,
+                "deletions": 7
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000006",
+            "message": "Add score when player passes a pipe",
+            "authoredAt": "2026-10-13T13:18:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000006",
+            "additions": 41,
+            "deletions": 1,
+            "files": [
+              {
+                "path": "Score.java",
+                "status": "modified",
+                "additions": 35,
+                "deletions": 0
+              },
+              {
+                "path": "Main.java",
+                "status": "modified",
+                "additions": 6,
+                "deletions": 1
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000007",
+            "message": "update",
+            "authoredAt": "2026-10-13T13:40:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000007",
+            "additions": 30,
+            "deletions": 17,
+            "files": [
+              {
+                "path": "Pipe.java",
+                "status": "modified",
+                "additions": 20,
+                "deletions": 12
+              },
+              {
+                "path": "Collision.java",
+                "status": "modified",
+                "additions": 10,
+                "deletions": 5
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000008",
+            "message": "Reset player and score on restart",
+            "authoredAt": "2026-10-15T13:24:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000008",
+            "additions": 28,
+            "deletions": 8,
+            "files": [
+              {
+                "path": "Main.java",
+                "status": "modified",
+                "additions": 20,
+                "deletions": 5
+              },
+              {
+                "path": "Player.java",
+                "status": "modified",
+                "additions": 8,
+                "deletions": 3
+              }
+            ]
+          },
+          {
+            "sha": "0000000000000000000000000000000000000009",
+            "message": "fix",
+            "authoredAt": "2026-10-15T13:53:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000009",
+            "additions": 6,
+            "deletions": 4,
+            "files": [
+              {
+                "path": "Collision.java",
+                "status": "modified",
+                "additions": 6,
+                "deletions": 4
+              }
+            ]
+          },
+          {
+            "sha": "000000000000000000000000000000000000000a",
+            "message": "Check collision at pipe edges",
+            "authoredAt": "2026-10-16T13:12:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/000000000000000000000000000000000000000a",
+            "additions": 42,
+            "deletions": 2,
+            "files": [
+              {
+                "path": "CollisionChecks.java",
+                "status": "modified",
+                "additions": 40,
+                "deletions": 0
+              },
+              {
+                "path": "Collision.java",
+                "status": "modified",
+                "additions": 2,
+                "deletions": 2
+              }
+            ]
+          },
+          {
+            "sha": "000000000000000000000000000000000000000b",
+            "message": "Document controls and borrowed assets",
+            "authoredAt": "2026-10-16T13:39:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/000000000000000000000000000000000000000b",
+            "additions": 28,
+            "deletions": 0,
+            "files": [
+              {
+                "path": "README.md",
+                "status": "modified",
+                "additions": 28,
+                "deletions": 0
+              }
+            ]
+          },
+          {
+            "sha": "000000000000000000000000000000000000000c",
+            "message": "polish",
+            "authoredAt": "2026-10-16T13:56:00.000Z",
+            "githubLogin": "sample-student",
+            "url": "https://github.com/sample-student/sky-hop/commit/000000000000000000000000000000000000000c",
+            "additions": 12,
+            "deletions": 6,
+            "files": [
+              {
+                "path": "Main.java",
+                "status": "modified",
+                "additions": 8,
+                "deletions": 4
+              },
+              {
+                "path": "Player.java",
+                "status": "modified",
+                "additions": 4,
+                "deletions": 2
+              }
+            ]
+          }
+        ],
+        "timeline": [
+          {
+            "date": "2026-10-05",
+            "commitShas": [
+              "0000000000000000000000000000000000000001",
+              "0000000000000000000000000000000000000002"
+            ],
+            "commitCount": 2
+          },
+          {
+            "date": "2026-10-06",
+            "commitShas": [
+              "0000000000000000000000000000000000000003"
+            ],
+            "commitCount": 1
+          },
+          {
+            "date": "2026-10-08",
+            "commitShas": [
+              "0000000000000000000000000000000000000004",
+              "0000000000000000000000000000000000000005"
+            ],
+            "commitCount": 2
+          },
+          {
+            "date": "2026-10-13",
+            "commitShas": [
+              "0000000000000000000000000000000000000006",
+              "0000000000000000000000000000000000000007"
+            ],
+            "commitCount": 2
+          },
+          {
+            "date": "2026-10-15",
+            "commitShas": [
+              "0000000000000000000000000000000000000008",
+              "0000000000000000000000000000000000000009"
+            ],
+            "commitCount": 2
+          },
+          {
+            "date": "2026-10-16",
+            "commitShas": [
+              "000000000000000000000000000000000000000a",
+              "000000000000000000000000000000000000000b",
+              "000000000000000000000000000000000000000c"
+            ],
+            "commitCount": 3
+          }
+        ],
+        "heatmap": {
+          "status": "available",
+          "files": [
+            "Collision.java",
+            "CollisionChecks.java",
+            "Main.java",
+            "Pipe.java",
+            "Player.java",
+            "README.md",
+            "Score.java"
+          ],
+          "cells": [
+            {
+              "commitSha": "0000000000000000000000000000000000000001",
+              "path": "Main.java",
+              "additions": 24,
+              "deletions": 0
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000002",
+              "path": "Player.java",
+              "additions": 45,
+              "deletions": 0
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000003",
+              "path": "Player.java",
+              "additions": 29,
+              "deletions": 3
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000003",
+              "path": "Main.java",
+              "additions": 12,
+              "deletions": 2
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000004",
+              "path": "Pipe.java",
+              "additions": 130,
+              "deletions": 0
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000004",
+              "path": "Collision.java",
+              "additions": 60,
+              "deletions": 0
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000004",
+              "path": "Main.java",
+              "additions": 30,
+              "deletions": 0
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000005",
+              "path": "Collision.java",
+              "additions": 18,
+              "deletions": 7
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000006",
+              "path": "Score.java",
+              "additions": 35,
+              "deletions": 0
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000006",
+              "path": "Main.java",
+              "additions": 6,
+              "deletions": 1
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000007",
+              "path": "Pipe.java",
+              "additions": 20,
+              "deletions": 12
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000007",
+              "path": "Collision.java",
+              "additions": 10,
+              "deletions": 5
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000008",
+              "path": "Main.java",
+              "additions": 20,
+              "deletions": 5
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000008",
+              "path": "Player.java",
+              "additions": 8,
+              "deletions": 3
+            },
+            {
+              "commitSha": "0000000000000000000000000000000000000009",
+              "path": "Collision.java",
+              "additions": 6,
+              "deletions": 4
+            },
+            {
+              "commitSha": "000000000000000000000000000000000000000a",
+              "path": "CollisionChecks.java",
+              "additions": 40,
+              "deletions": 0
+            },
+            {
+              "commitSha": "000000000000000000000000000000000000000a",
+              "path": "Collision.java",
+              "additions": 2,
+              "deletions": 2
+            },
+            {
+              "commitSha": "000000000000000000000000000000000000000b",
+              "path": "README.md",
+              "additions": 28,
+              "deletions": 0
+            },
+            {
+              "commitSha": "000000000000000000000000000000000000000c",
+              "path": "Main.java",
+              "additions": 8,
+              "deletions": 4
+            },
+            {
+              "commitSha": "000000000000000000000000000000000000000c",
+              "path": "Player.java",
+              "additions": 4,
+              "deletions": 2
+            }
+          ]
+        },
+        "pushActivity": {
+          "status": "unavailable",
+          "reason": "push_events_not_collected"
+        },
+        "interpretation": {
+          "status": "not_requested",
+          "generator": null,
+          "observations": [],
+          "feedbackDraft": null
+        },
+        "metrics": {
+          "commits": {
+            "status": "available",
+            "value": 12,
+            "numerator": 12,
+            "denominator": null,
+            "reason": null
+          },
+          "commitDensity": {
+            "status": "available",
+            "value": 1.3333,
+            "numerator": 12,
+            "denominator": 9,
+            "reason": null
+          },
+          "scheduledDayCoverage": {
+            "status": "available",
+            "value": 0.6667,
+            "numerator": 6,
+            "denominator": 9,
+            "reason": null
+          },
+          "busiestDayShare": {
+            "status": "available",
+            "value": 0.25,
+            "numerator": 3,
+            "denominator": 12,
+            "reason": null
+          }
+        }
+      },
+      "ruleFeedback": {
+        "rulesVersion": "1.1.0",
+        "observations": [
+          {
+            "id": "rule-activity",
+            "ruleId": "activity",
+            "kind": "strength",
+            "text": "The collected history contains 12 included commits across 6 dated days. This records checkpoints, not time spent.",
+            "evidence": [
+              {
+                "commitSha": "0000000000000000000000000000000000000001",
+                "path": null
+              },
+              {
+                "commitSha": "0000000000000000000000000000000000000002",
+                "path": null
+              },
+              {
+                "commitSha": "0000000000000000000000000000000000000003",
+                "path": null
+              },
+              {
+                "commitSha": "0000000000000000000000000000000000000004",
+                "path": null
+              },
+              {
+                "commitSha": "0000000000000000000000000000000000000005",
+                "path": null
+              }
+            ]
+          },
+          {
+            "id": "rule-generic-messages",
+            "ruleId": "generic-messages",
+            "kind": "improvement",
+            "text": "4 of 12 messages use a generic label such as “update” or “fix” (rule: at least 25%). Name the specific behavior or problem changed so the history is easier to follow.",
+            "evidence": [
+              {
+                "commitSha": "0000000000000000000000000000000000000004",
+                "path": null
+              },
+              {
+                "commitSha": "0000000000000000000000000000000000000007",
+                "path": null
+              },
+              {
+                "commitSha": "0000000000000000000000000000000000000009",
+                "path": null
+              },
+              {
+                "commitSha": "000000000000000000000000000000000000000c",
+                "path": null
+              }
+            ]
+          },
+          {
+            "id": "rule-push-timing",
+            "ruleId": "push-timing",
+            "kind": "limitation",
+            "text": "This history shows commit author dates, not when commits were pushed. Regular pushing and work duration cannot be verified from this report.",
+            "evidence": []
+          }
+        ],
+        "summary": {
+          "activeDays": 6,
+          "genericMessageCount": 4,
+          "messageCount": 12,
+          "longestScheduledGap": 1
+        },
+        "feedbackDraft": "The collected history contains 12 included commits across 6 dated days. This records checkpoints, not time spent.\n\n4 of 12 messages use a generic label such as “update” or “fix” (rule: at least 25%). Name the specific behavior or problem changed so the history is easier to follow."
+      }
+    },
+    "contributors": [
+      {
+        "contributor": {
+          "id": "github-sample-student",
+          "kind": "github_account",
+          "githubLogin": "sample-student",
+          "label": "@sample-student",
+          "accountType": "unknown"
+        },
+        "analysis": {
+          "scope": {
+            "kind": "contributor",
+            "contributorId": "github-sample-student"
+          },
+          "facts": {
+            "coverage": {
+              "history": "complete",
+              "files": "complete",
+              "notes": []
+            },
+            "activity": {
+              "undatedCommitCount": 0,
+              "outsideScheduleCommitCount": 0
+            },
+            "commits": [
+              {
+                "sha": "0000000000000000000000000000000000000001",
+                "message": "Create game window and start screen",
+                "authoredAt": "2026-10-05T13:22:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000001",
+                "additions": 24,
+                "deletions": 0,
+                "files": [
+                  {
+                    "path": "Main.java",
+                    "status": "modified",
+                    "additions": 24,
+                    "deletions": 0
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000002",
+                "message": "Add player with gravity",
+                "authoredAt": "2026-10-05T14:01:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000002",
+                "additions": 45,
+                "deletions": 0,
+                "files": [
+                  {
+                    "path": "Player.java",
+                    "status": "modified",
+                    "additions": 45,
+                    "deletions": 0
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000003",
+                "message": "Add spacebar jump control",
+                "authoredAt": "2026-10-06T13:45:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000003",
+                "additions": 41,
+                "deletions": 5,
+                "files": [
+                  {
+                    "path": "Player.java",
+                    "status": "modified",
+                    "additions": 29,
+                    "deletions": 3
+                  },
+                  {
+                    "path": "Main.java",
+                    "status": "modified",
+                    "additions": 12,
+                    "deletions": 2
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000004",
+                "message": "update",
+                "authoredAt": "2026-10-08T13:26:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000004",
+                "additions": 220,
+                "deletions": 0,
+                "files": [
+                  {
+                    "path": "Pipe.java",
+                    "status": "modified",
+                    "additions": 130,
+                    "deletions": 0
+                  },
+                  {
+                    "path": "Collision.java",
+                    "status": "modified",
+                    "additions": 60,
+                    "deletions": 0
+                  },
+                  {
+                    "path": "Main.java",
+                    "status": "modified",
+                    "additions": 30,
+                    "deletions": 0
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000005",
+                "message": "Prevent repeat collision after game over",
+                "authoredAt": "2026-10-08T14:03:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000005",
+                "additions": 18,
+                "deletions": 7,
+                "files": [
+                  {
+                    "path": "Collision.java",
+                    "status": "modified",
+                    "additions": 18,
+                    "deletions": 7
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000006",
+                "message": "Add score when player passes a pipe",
+                "authoredAt": "2026-10-13T13:18:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000006",
+                "additions": 41,
+                "deletions": 1,
+                "files": [
+                  {
+                    "path": "Score.java",
+                    "status": "modified",
+                    "additions": 35,
+                    "deletions": 0
+                  },
+                  {
+                    "path": "Main.java",
+                    "status": "modified",
+                    "additions": 6,
+                    "deletions": 1
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000007",
+                "message": "update",
+                "authoredAt": "2026-10-13T13:40:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000007",
+                "additions": 30,
+                "deletions": 17,
+                "files": [
+                  {
+                    "path": "Pipe.java",
+                    "status": "modified",
+                    "additions": 20,
+                    "deletions": 12
+                  },
+                  {
+                    "path": "Collision.java",
+                    "status": "modified",
+                    "additions": 10,
+                    "deletions": 5
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000008",
+                "message": "Reset player and score on restart",
+                "authoredAt": "2026-10-15T13:24:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000008",
+                "additions": 28,
+                "deletions": 8,
+                "files": [
+                  {
+                    "path": "Main.java",
+                    "status": "modified",
+                    "additions": 20,
+                    "deletions": 5
+                  },
+                  {
+                    "path": "Player.java",
+                    "status": "modified",
+                    "additions": 8,
+                    "deletions": 3
+                  }
+                ]
+              },
+              {
+                "sha": "0000000000000000000000000000000000000009",
+                "message": "fix",
+                "authoredAt": "2026-10-15T13:53:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/0000000000000000000000000000000000000009",
+                "additions": 6,
+                "deletions": 4,
+                "files": [
+                  {
+                    "path": "Collision.java",
+                    "status": "modified",
+                    "additions": 6,
+                    "deletions": 4
+                  }
+                ]
+              },
+              {
+                "sha": "000000000000000000000000000000000000000a",
+                "message": "Check collision at pipe edges",
+                "authoredAt": "2026-10-16T13:12:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/000000000000000000000000000000000000000a",
+                "additions": 42,
+                "deletions": 2,
+                "files": [
+                  {
+                    "path": "CollisionChecks.java",
+                    "status": "modified",
+                    "additions": 40,
+                    "deletions": 0
+                  },
+                  {
+                    "path": "Collision.java",
+                    "status": "modified",
+                    "additions": 2,
+                    "deletions": 2
+                  }
+                ]
+              },
+              {
+                "sha": "000000000000000000000000000000000000000b",
+                "message": "Document controls and borrowed assets",
+                "authoredAt": "2026-10-16T13:39:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/000000000000000000000000000000000000000b",
+                "additions": 28,
+                "deletions": 0,
+                "files": [
+                  {
+                    "path": "README.md",
+                    "status": "modified",
+                    "additions": 28,
+                    "deletions": 0
+                  }
+                ]
+              },
+              {
+                "sha": "000000000000000000000000000000000000000c",
+                "message": "polish",
+                "authoredAt": "2026-10-16T13:56:00.000Z",
+                "githubLogin": "sample-student",
+                "url": "https://github.com/sample-student/sky-hop/commit/000000000000000000000000000000000000000c",
+                "additions": 12,
+                "deletions": 6,
+                "files": [
+                  {
+                    "path": "Main.java",
+                    "status": "modified",
+                    "additions": 8,
+                    "deletions": 4
+                  },
+                  {
+                    "path": "Player.java",
+                    "status": "modified",
+                    "additions": 4,
+                    "deletions": 2
+                  }
+                ]
+              }
+            ],
+            "timeline": [
+              {
+                "date": "2026-10-05",
+                "commitShas": [
+                  "0000000000000000000000000000000000000001",
+                  "0000000000000000000000000000000000000002"
+                ],
+                "commitCount": 2
+              },
+              {
+                "date": "2026-10-06",
+                "commitShas": [
+                  "0000000000000000000000000000000000000003"
+                ],
+                "commitCount": 1
+              },
+              {
+                "date": "2026-10-08",
+                "commitShas": [
+                  "0000000000000000000000000000000000000004",
+                  "0000000000000000000000000000000000000005"
+                ],
+                "commitCount": 2
+              },
+              {
+                "date": "2026-10-13",
+                "commitShas": [
+                  "0000000000000000000000000000000000000006",
+                  "0000000000000000000000000000000000000007"
+                ],
+                "commitCount": 2
+              },
+              {
+                "date": "2026-10-15",
+                "commitShas": [
+                  "0000000000000000000000000000000000000008",
+                  "0000000000000000000000000000000000000009"
+                ],
+                "commitCount": 2
+              },
+              {
+                "date": "2026-10-16",
+                "commitShas": [
+                  "000000000000000000000000000000000000000a",
+                  "000000000000000000000000000000000000000b",
+                  "000000000000000000000000000000000000000c"
+                ],
+                "commitCount": 3
+              }
+            ],
+            "heatmap": {
+              "status": "available",
+              "files": [
+                "Collision.java",
+                "CollisionChecks.java",
+                "Main.java",
+                "Pipe.java",
+                "Player.java",
+                "README.md",
+                "Score.java"
+              ],
+              "cells": [
+                {
+                  "commitSha": "0000000000000000000000000000000000000001",
+                  "path": "Main.java",
+                  "additions": 24,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000002",
+                  "path": "Player.java",
+                  "additions": 45,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000003",
+                  "path": "Player.java",
+                  "additions": 29,
+                  "deletions": 3
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000003",
+                  "path": "Main.java",
+                  "additions": 12,
+                  "deletions": 2
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000004",
+                  "path": "Pipe.java",
+                  "additions": 130,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000004",
+                  "path": "Collision.java",
+                  "additions": 60,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000004",
+                  "path": "Main.java",
+                  "additions": 30,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000005",
+                  "path": "Collision.java",
+                  "additions": 18,
+                  "deletions": 7
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000006",
+                  "path": "Score.java",
+                  "additions": 35,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000006",
+                  "path": "Main.java",
+                  "additions": 6,
+                  "deletions": 1
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000007",
+                  "path": "Pipe.java",
+                  "additions": 20,
+                  "deletions": 12
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000007",
+                  "path": "Collision.java",
+                  "additions": 10,
+                  "deletions": 5
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000008",
+                  "path": "Main.java",
+                  "additions": 20,
+                  "deletions": 5
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000008",
+                  "path": "Player.java",
+                  "additions": 8,
+                  "deletions": 3
+                },
+                {
+                  "commitSha": "0000000000000000000000000000000000000009",
+                  "path": "Collision.java",
+                  "additions": 6,
+                  "deletions": 4
+                },
+                {
+                  "commitSha": "000000000000000000000000000000000000000a",
+                  "path": "CollisionChecks.java",
+                  "additions": 40,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "000000000000000000000000000000000000000a",
+                  "path": "Collision.java",
+                  "additions": 2,
+                  "deletions": 2
+                },
+                {
+                  "commitSha": "000000000000000000000000000000000000000b",
+                  "path": "README.md",
+                  "additions": 28,
+                  "deletions": 0
+                },
+                {
+                  "commitSha": "000000000000000000000000000000000000000c",
+                  "path": "Main.java",
+                  "additions": 8,
+                  "deletions": 4
+                },
+                {
+                  "commitSha": "000000000000000000000000000000000000000c",
+                  "path": "Player.java",
+                  "additions": 4,
+                  "deletions": 2
+                }
+              ]
+            },
+            "pushActivity": {
+              "status": "unavailable",
+              "reason": "push_events_not_collected"
+            },
+            "interpretation": {
+              "status": "not_requested",
+              "generator": null,
+              "observations": [],
+              "feedbackDraft": null
+            },
+            "metrics": {
+              "commits": {
+                "status": "available",
+                "value": 12,
+                "numerator": 12,
+                "denominator": null,
+                "reason": null
+              },
+              "commitDensity": {
+                "status": "available",
+                "value": 1.3333,
+                "numerator": 12,
+                "denominator": 9,
+                "reason": null
+              },
+              "scheduledDayCoverage": {
+                "status": "available",
+                "value": 0.6667,
+                "numerator": 6,
+                "denominator": 9,
+                "reason": null
+              },
+              "busiestDayShare": {
+                "status": "available",
+                "value": 0.25,
+                "numerator": 3,
+                "denominator": 12,
+                "reason": null
+              }
+            }
+          },
+          "ruleFeedback": {
+            "rulesVersion": "1.1.0",
+            "observations": [
+              {
+                "id": "rule-activity",
+                "ruleId": "activity",
+                "kind": "strength",
+                "text": "The collected history contains 12 included commits across 6 dated days. This records checkpoints, not time spent.",
+                "evidence": [
+                  {
+                    "commitSha": "0000000000000000000000000000000000000001",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "0000000000000000000000000000000000000002",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "0000000000000000000000000000000000000003",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "0000000000000000000000000000000000000004",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "0000000000000000000000000000000000000005",
+                    "path": null
+                  }
+                ]
+              },
+              {
+                "id": "rule-generic-messages",
+                "ruleId": "generic-messages",
+                "kind": "improvement",
+                "text": "4 of 12 messages use a generic label such as “update” or “fix” (rule: at least 25%). Name the specific behavior or problem changed so the history is easier to follow.",
+                "evidence": [
+                  {
+                    "commitSha": "0000000000000000000000000000000000000004",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "0000000000000000000000000000000000000007",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "0000000000000000000000000000000000000009",
+                    "path": null
+                  },
+                  {
+                    "commitSha": "000000000000000000000000000000000000000c",
+                    "path": null
+                  }
+                ]
+              },
+              {
+                "id": "rule-push-timing",
+                "ruleId": "push-timing",
+                "kind": "limitation",
+                "text": "This history shows commit author dates, not when commits were pushed. Regular pushing and work duration cannot be verified from this report.",
+                "evidence": []
+              }
+            ],
+            "summary": {
+              "activeDays": 6,
+              "genericMessageCount": 4,
+              "messageCount": 12,
+              "longestScheduledGap": 1
+            },
+            "feedbackDraft": "The collected history contains 12 included commits across 6 dated days. This records checkpoints, not time spent.\n\n4 of 12 messages use a generic label such as “update” or “fix” (rule: at least 25%). Name the specific behavior or problem changed so the history is easier to follow."
+          }
+        }
+      }
+    ]
+  }
+}
