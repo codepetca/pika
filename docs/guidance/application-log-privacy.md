@@ -56,6 +56,16 @@ Cleanup retry records use fixed stage descriptions, not database or Storage
 messages. Their leases, counters, claim limits and retry outcomes are unchanged;
 this does not erase previously saved failure text.
 
+Legacy Test source seals intentionally include this diagnostic adoption. The
+publication route refresh is recorded in `contextual-test-screen-adoption.md`.
+The recovery seal test also refreshes unsubmit, single-attempt deletion and bulk
+attempt deletion for one logger import per route and respectively three, two
+and two logging substitutions. Its original dormant-dispatcher normalization is
+unchanged; no logging code is stripped from the sealed bytes. Existing route
+tests and exact-shape synthetic failures cover response and authorization
+compatibility. CI's complete suite caught these three additional seals omitted
+from the initial local focused selection; their refresh changes no runtime code.
+
 These changes add no network calls, service dependencies, migrations, scheduled
 jobs, or teacher/student interface changes. Local classification and one UUID
 per existing logged failure add small CPU work; no quantitative latency/cost
