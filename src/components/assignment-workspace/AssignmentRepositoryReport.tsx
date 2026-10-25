@@ -28,6 +28,7 @@ function RepositoryReportView({bundle,canImport,onImportFeedback,importing = fal
   const [evidence,setEvidence] = useState(false)
   const [drafts,setDrafts] = useState<Record<string,string>>({})
   const [pending,setPending] = useState(false)
+  const [importedPreviews,setImportedPreviews] = useState<Record<string,string[]>>({})
   const [messages,setMessages] = useState<Record<string,{text:string;error:boolean;importedText?:string}>>({})
   const selected = bundle.contributors.find(entry => `contributor:${entry.contributor.id}` === scope)
   const analysis = selected?.analysis || bundle.overview
@@ -38,18 +39,20 @@ function RepositoryReportView({bundle,canImport,onImportFeedback,importing = fal
   const status = messages[scope]
   const message = status?.importedText === undefined || status.importedText === feedback ? status : undefined
   const busy = pending || importing
+  const alreadyImported = importedPreviews[scope]?.includes(feedback) ?? false
 
   function editFeedback(value: string) {
     setDrafts(current => ({...current,[scope]:value}))
     setMessages(current => ({...current,[scope]:{text:'',error:false}}))
   }
   async function importFeedback() {
-    if (!canImport || busy || !feedback.trim()) return
+    if (!canImport || busy || alreadyImported || !feedback.trim()) return
     const activeScope = scope
     setPending(true)
     setMessages(current => ({...current,[activeScope]:{text:'',error:false}}))
     try {
       await onImportFeedback(activeScope,feedback)
+      setImportedPreviews(current => ({...current,[activeScope]:[...(current[activeScope] || []),feedback]}))
       setMessages(current => ({...current,[activeScope]:{text:'Added to the comment draft. Review it in Pika before sending.',error:false,importedText:feedback}}))
     } catch (caught) {
       setMessages(current => ({...current,[activeScope]:{text:caught instanceof Error ? caught.message : 'Could not add feedback. Your reviewed text is kept here.',error:true}}))
@@ -81,7 +84,7 @@ function RepositoryReportView({bundle,canImport,onImportFeedback,importing = fal
         <FormField label="Report feedback" hint={`Preview for ${label}. Appends this preview to the Pika comment draft, preserving its existing text. Nothing is sent to the student.`}>
           <textarea value={feedback} onChange={event => editFeedback(event.target.value)} rows={7} maxLength={20000} className="min-h-control w-full resize-y rounded-control border border-border bg-surface px-3 py-2 text-text-default focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus" />
         </FormField>
-        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => {void importFeedback()}} disabled={!canImport || busy || !feedback.trim()}>{busy ? 'Adding to comment draft…' : 'Add to comment draft'}</Button><Button type="button" size="sm" variant="ghost" onClick={() => editFeedback(analysis.ruleFeedback.feedbackDraft)}>Restore rule draft</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => {void importFeedback()}} disabled={!canImport || busy || alreadyImported || !feedback.trim()}>{busy ? 'Adding to comment draft…' : alreadyImported ? 'Added to comment draft' : 'Add to comment draft'}</Button><Button type="button" size="sm" variant="ghost" onClick={() => editFeedback(analysis.ruleFeedback.feedbackDraft)}>Restore rule draft</Button></div>
         {!canImport && !importError && <p className="text-text-muted">Feedback import is unavailable for this report or submission.</p>}
         {importError ? <p role="alert" className="text-danger">{importError}</p> : message?.text ? <p role={message.error ? 'alert' : 'status'} className={message.error ? 'text-danger' : 'text-text-muted'}>{message.text}</p> : null}
       </section>

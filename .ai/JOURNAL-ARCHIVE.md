@@ -50038,3 +50038,16 @@ suites71PASS. No UI delta; existing visual hashes retained. Launch12
 reserved for correction/integration after metadata/native gates; no further
 launch approved beyond12. Requested model/effort recorded; effective config,
 per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
+
+<!-- pika-session-log-archive-batch:1376f6e64701c36ad148acc833b6b952c813da4c5e8a3c85197af9b4f6a503d8 -->
+## 2026-10-22 — Production post-date promotion preparation
+
+Owner authorized one production application of289/290 followed by main promotion.
+Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
+CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
+service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
+checks PASS. Two Sol/high cumulative production→main reviews passed with no
+findings. PR1664 encountered only journal conflict; union preserves both parent
+histories and trim restores chronology. Application/Supabase trees stay identical
+to main. One journal-resolution batch and targeted review/final CI pending; no
+production retry, fixture write, flag, account or provider change.
