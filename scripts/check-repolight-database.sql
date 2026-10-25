@@ -2,7 +2,7 @@
 begin;
 set local lock_timeout='2s'; set local statement_timeout='20s';
 do $acl$ declare n text; begin
- foreach n in array array['get_assignment_repolight_source_v1','begin_assignment_repolight_run_v1','advance_assignment_repolight_run_v1','read_assignment_repolight_run_v1','import_assignment_repolight_feedback_v1','begin_repolight_subject_erasure_v1','record_repolight_subject_erasure_v1'] loop
+ foreach n in array array['get_assignment_repolight_source_v1','begin_assignment_repolight_run_v1','advance_assignment_repolight_run_v1','read_assignment_repolight_run_v1','import_assignment_repolight_feedback_v1','begin_repolight_subject_erasure_v1','record_repolight_subject_erasure_v1','reserve_repolight_hot_classroom_purge_v1','read_repolight_purge_cleanup_subjects_v1','reserve_repolight_removed_student_cleanup_v1','get_repolight_assignment_delete_context_v1','reserve_repolight_assignment_delete_v1','read_repolight_decommission_subjects_v1','finalize_repolight_assignment_delete_v1'] loop
  if not exists(select 1 from pg_proc p join pg_namespace ns on ns.oid=p.pronamespace where ns.nspname='public' and p.proname=n and p.prosecdef and p.proconfig @> array['search_path=""'] and not has_function_privilege('anon',p.oid,'EXECUTE') and not has_function_privilege('authenticated',p.oid,'EXECUTE') and has_function_privilege('service_role',p.oid,'EXECUTE')) then raise exception 'RepoLight RPC ACL differs'; end if; end loop;
  if private.repolight_canonical_json_v1('{"z":1,"aa":[true,null,"q"],"a":{"b":2,"a":1}}') <> '{"a":{"a":1,"b":2},"aa":[true,null,"q"],"z":1}' then raise exception 'Canonical JSON differs from JS fixture'; end if;
 end $acl$;
@@ -13,13 +13,19 @@ insert into public.users(id,email,role) values
 insert into public.classrooms(id,teacher_id,title,class_code) values('f2930000-0000-4000-8000-000000000010','f2930000-0000-4000-8000-000000000001','Synthetic RepoLight','R293FX');
 insert into public.classroom_enrollments(id,classroom_id,student_id) values('f2930000-0000-4000-8000-000000000011','f2930000-0000-4000-8000-000000000010','f2930000-0000-4000-8000-000000000002');
 insert into public.assignments(id,classroom_id,title,description,due_at,created_by,is_draft,released_at) values('f2930000-0000-4000-8000-000000000020','f2930000-0000-4000-8000-000000000010','Synthetic analysis','','2026-10-25T04:00:00Z','f2930000-0000-4000-8000-000000000001',false,'2026-09-01T04:00:00Z');
+insert into public.assignments(id,classroom_id,title,description,created_by,is_draft) values('f2930000-0000-4000-8000-000000000099','f2930000-0000-4000-8000-000000000010','Other teacher-owned assignment','','f2930000-0000-4000-8000-000000000001',true);
 insert into public.assignment_docs(id,assignment_id,student_id,repo_url,github_username,score_completion,score_thinking,score_workflow,teacher_feedback_draft) values('f2930000-0000-4000-8000-000000000030','f2930000-0000-4000-8000-000000000020','f2930000-0000-4000-8000-000000000002','https://github.com/example/project.git',null,7,8,9,'Teacher original');
 insert into public.assignment_submission_requirements(id,assignment_id,type,label) values('f2930000-0000-4000-8000-000000000080','f2930000-0000-4000-8000-000000000020','link','Non-repository attachment');
 insert into public.assignment_submission_artifacts(assignment_doc_id,requirement_id,student_id,type,url) values('f2930000-0000-4000-8000-000000000030','f2930000-0000-4000-8000-000000000080','f2930000-0000-4000-8000-000000000002','link','https://example.invalid/worksheet');
+insert into public.classroom_roster(id,classroom_id,email) values('f2930000-0000-4000-8000-000000000082','f2930000-0000-4000-8000-000000000010','repolight-student@example.invalid');
+update private.student_provider_cleanup_settings set live_enabled=true,eligible_after='2026-01-01T00:00:00Z' where singleton;
 update private.repolight_settings set enabled=true where singleton;
+update public.managed_storage_settings set mode='enforced',activated_at=clock_timestamp(),readiness_verified_at=clock_timestamp(),readiness_digest=repeat('e',64) where singleton;
+update public.student_purge_settings set rollout_mode='enabled',canary_teacher_id=null,canary_classroom_id=null,canary_student_id=null where singleton;
+update public.classroom_purge_settings set rollout_mode='enabled',canary_teacher_id=null,canary_classroom_id=null where singleton;
 set local role service_role;
 do $behavior$
-declare actor constant uuid:='f2930000-0000-4000-8000-000000000001'; assignment constant uuid:='f2930000-0000-4000-8000-000000000020'; learner constant uuid:='f2930000-0000-4000-8000-000000000002'; source jsonb; r jsonb; replay jsonb; held jsonb; binding uuid; token uuid; generation integer; report jsonb; receipt jsonb; doc_before jsonb; doc_after jsonb;
+declare actor constant uuid:='f2930000-0000-4000-8000-000000000001'; assignment constant uuid:='f2930000-0000-4000-8000-000000000020'; learner constant uuid:='f2930000-0000-4000-8000-000000000002'; source jsonb; r jsonb; replay jsonb; held jsonb; binding uuid; token uuid; generation integer; report jsonb; receipt jsonb; doc_before jsonb; doc_after jsonb; impact jsonb; reserved jsonb; children jsonb; replay_children jsonb; purge_id constant uuid:='f2930000-0000-4000-8000-000000000095';
 begin
  source:=public.get_assignment_repolight_source_v1(actor,assignment,learner);
  if jsonb_array_length(source#>'{source,artifacts}')<>0 then raise exception 'Non-repository artifact entered analysis source';end if;
@@ -44,10 +50,76 @@ begin
  if doc_after->>'teacher_feedback_draft' <> E'Teacher original\n\nGenerated review' or (doc_after-array['teacher_feedback_draft','teacher_feedback_draft_updated_at','updated_at']) is distinct from (doc_before-array['teacher_feedback_draft','teacher_feedback_draft_updated_at','updated_at']) then raise exception 'Import changed non-draft fields';end if;
  perform public.import_assignment_repolight_feedback_v1(actor,assignment,learner,(r->>'id')::uuid,'f2930000-0000-4000-8000-000000000060','repository',(doc_before->>'updated_at')::timestamptz,report->>'reportDigest',null);
  if public.classroom_purge_conflict('f2930000-0000-4000-8000-000000000010') is distinct from 'repolight_erasure_required' then raise exception 'Purge blocker missing';end if;
+ -- Removed-generation intent proves exact retained enrollment without Pal setup.
+ begin
+  perform public.remove_classroom_students_preserving_data(actor,'f2930000-0000-4000-8000-000000000010',array['f2930000-0000-4000-8000-000000000082'::uuid]);
+  begin perform public.reserve_repolight_removed_student_cleanup_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,gen_random_uuid());raise exception 'Wrong removed generation accepted';exception when sqlstate '55000' then null;end;
+  reserved:=public.reserve_repolight_removed_student_cleanup_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,'f2930000-0000-4000-8000-000000000011');
+  children:=public.read_repolight_decommission_subjects_v1(actor,purge_id);
+  if reserved->>'status'<>'cleanup_pending' or jsonb_array_length(children)<>1 or children#>>'{0,enrollment_id}'<>'f2930000-0000-4000-8000-000000000011' or children#>>'{0,operation_id}' is null then raise exception 'Removed generation snapshot differs';end if;
+  perform public.record_repolight_subject_erasure_v1(actor,(children#>>'{0,id}')::uuid,(children#>>'{0,operation_id}')::uuid,jsonb_build_object('schemaVersion','1.0','operationRef',children#>>'{0,operation_id}','installationRef',children#>>'{0,installation_ref}','subjectRef',children#>>'{0,subject_ref}','status','erased','absenceVerified',true));
+  if jsonb_array_length(public.read_repolight_decommission_subjects_v1(actor,purge_id))<>0 or public.reserve_repolight_removed_student_cleanup_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,'f2930000-0000-4000-8000-000000000011')->>'status'<>'completed' then raise exception 'Removed completion did not preserve exact receipt';end if;
+  raise exception using errcode='P2931',message='rollback synthetic admission';
+ exception when sqlstate 'P2931' then null;
+ end;
+ -- Both legacy and contextual Delete stay fenced through the same durable intent.
+ begin
+  impact:=public.get_repolight_assignment_delete_context_v1(actor,assignment);
+  begin perform public.reserve_repolight_assignment_delete_v1(purge_id,actor,assignment,(impact->>'assignment_updated_at')::timestamptz,repeat('0',64));raise exception 'Stale Delete source reserved';exception when sqlstate '40001' then null;end;
+  reserved:=public.reserve_repolight_assignment_delete_v1(purge_id,actor,assignment,(impact->>'assignment_updated_at')::timestamptz,impact->>'source_fingerprint');
+  children:=public.read_repolight_decommission_subjects_v1(actor,purge_id);
+  if reserved->>'status'<>'cleanup_pending' or jsonb_array_length(children)<>1 then raise exception 'Assignment subject snapshot missing';end if;
+  begin update public.assignment_docs set teacher_feedback_draft='Concurrent change' where id='f2930000-0000-4000-8000-000000000030';raise exception 'Pending Delete allowed source writes';exception when sqlstate '55000' then null;end;
+  begin perform public.delete_assignment_for_owner_v1(actor,assignment);raise exception 'Contextual Delete bypassed pending intent';exception when sqlstate '55000' then null;end;
+  begin delete from public.assignments where id=assignment;raise exception 'Legacy Delete bypassed pending intent';exception when sqlstate '55000' then null;end;
+  begin perform public.finalize_repolight_assignment_delete_v1(actor,purge_id,'f2930000-0000-4000-8000-000000000099');raise exception 'Wrong assignment route accepted pending intent';exception when insufficient_privilege then null;end;
+  begin perform public.finalize_repolight_assignment_delete_v1(actor,purge_id,assignment);raise exception 'Delete finalized without receipts';exception when sqlstate '55000' then null;end;
+  perform public.record_repolight_subject_erasure_v1(actor,(children#>>'{0,id}')::uuid,(children#>>'{0,operation_id}')::uuid,jsonb_build_object('schemaVersion','1.0','operationRef',children#>>'{0,operation_id}','installationRef',children#>>'{0,installation_ref}','subjectRef',children#>>'{0,subject_ref}','status','erased','absenceVerified',true));
+  reserved:=public.finalize_repolight_assignment_delete_v1(actor,purge_id,assignment);
+  begin perform public.finalize_repolight_assignment_delete_v1(actor,purge_id,'f2930000-0000-4000-8000-000000000099');raise exception 'Wrong assignment route accepted completed receipt';exception when insufficient_privilege then null;end;
+  if not coalesce((reserved->>'deleted')::boolean,false) or exists(select 1 from public.assignments where id=assignment) or public.finalize_repolight_assignment_delete_v1(actor,purge_id,assignment)->>'classroom_id' is distinct from reserved->>'classroom_id' then raise exception 'Assignment finalization/replay differs';end if;
+  raise exception using errcode='P2931',message='rollback synthetic admission';
+ exception when sqlstate 'P2931' then null;
+ end;
+ -- Admission tests roll back their successful destructive intent without egress.
+ begin
+  impact:=public.get_student_purge_inventory(actor,'f2930000-0000-4000-8000-000000000010',learner);
+  if (impact->>'deletion_available')::boolean or not coalesce((impact->>'can_reserve_cleanup')::boolean,false) then raise exception 'Student cleanup eligibility projection differs';end if;
+  reserved:=public.begin_student_purge(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,'WRONG',(impact->>'source_revision')::bigint,impact->>'storage_inventory_sha256',impact->>'relational_inventory_sha256');
+  if coalesce((reserved->>'ok')::boolean,false) or exists(select 1 from public.student_purge_operations where id=purge_id) then raise exception 'Wrong confirmation reserved cleanup';end if;
+  reserved:=public.begin_student_purge(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,'repolight-student@example.invalid',(impact->>'source_revision')::bigint,repeat('0',64),impact->>'relational_inventory_sha256');
+  if coalesce((reserved->>'ok')::boolean,false) or exists(select 1 from public.student_purge_operations where id=purge_id) then raise exception 'Wrong hashes reserved cleanup';end if;
+  reserved:=public.begin_student_purge(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,'repolight-student@example.invalid',(impact->>'source_revision')::bigint,impact->>'storage_inventory_sha256',impact->>'relational_inventory_sha256');
+  if not coalesce((reserved->>'ok')::boolean,false) then raise exception 'Confirmed student cleanup admission failed: %',reserved;end if;
+  children:=public.read_repolight_purge_cleanup_subjects_v1(actor,purge_id);
+  if jsonb_array_length(children)<>1 or children#>>'{0,operation_id}' is null then raise exception 'Student immutable subject snapshot missing';end if;
+  reserved:=public.begin_student_purge(purge_id,actor,'f2930000-0000-4000-8000-000000000010',learner,'repolight-student@example.invalid',(impact->>'source_revision')::bigint,impact->>'storage_inventory_sha256',impact->>'relational_inventory_sha256');
+  replay_children:=public.read_repolight_purge_cleanup_subjects_v1(actor,purge_id);
+  if not coalesce((reserved->>'replayed')::boolean,false) or children is distinct from replay_children then raise exception 'Student replay recaptured subjects';end if;
+  if not coalesce((public.claim_student_purge_object(purge_id,actor)->>'waiting_for_repolight')::boolean,false) or public.finalize_student_purge(purge_id,actor)->>'error_code'<>'repolight_erasure_required' then raise exception 'Student receipt fence missing';end if;
+  raise exception using errcode='P2931',message='rollback synthetic admission';
+ exception when sqlstate 'P2931' then null;
+ end;
  update public.classrooms set archived_at=clock_timestamp() where id='f2930000-0000-4000-8000-000000000010';
  if public.get_assignment_repolight_source_v1(actor,assignment,learner)#>>'{latest_run,id}' is distinct from r->>'id' then raise exception 'Archived cached context missing';end if;
  perform public.read_assignment_repolight_run_v1(actor,assignment,learner,(r->>'id')::uuid,true);
  begin perform public.advance_assignment_repolight_run_v1(actor,assignment,learner,(r->>'id')::uuid,'claim','{}');raise exception 'Archived write accepted';exception when sqlstate '55000' then null;end;
+ begin
+  impact:=public.get_hot_archived_classroom_purge_inventory(actor,'f2930000-0000-4000-8000-000000000010');
+  if (impact->>'deletion_available')::boolean or not coalesce((impact->>'can_reserve_cleanup')::boolean,false) then raise exception 'Hot cleanup eligibility projection differs';end if;
+  reserved:=public.reserve_repolight_hot_classroom_purge_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010','WRONG',(impact->>'source_revision')::bigint,impact->>'storage_inventory_sha256',impact->>'operational_inventory_sha256');
+  if coalesce((reserved->>'ok')::boolean,false) or exists(select 1 from public.classroom_purge_operations where id=purge_id) then raise exception 'Wrong hot confirmation reserved cleanup';end if;
+  reserved:=public.reserve_repolight_hot_classroom_purge_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010','DELETE',(impact->>'source_revision')::bigint,repeat('0',64),impact->>'operational_inventory_sha256');
+  if coalesce((reserved->>'ok')::boolean,false) or exists(select 1 from public.classroom_purge_operations where id=purge_id) then raise exception 'Wrong hot hashes reserved cleanup';end if;
+  reserved:=public.reserve_repolight_hot_classroom_purge_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010','DELETE',(impact->>'source_revision')::bigint,impact->>'storage_inventory_sha256',impact->>'operational_inventory_sha256');
+  if not coalesce((reserved->>'ok')::boolean,false) then raise exception 'Confirmed hot cleanup admission failed: %',reserved;end if;
+  children:=public.read_repolight_purge_cleanup_subjects_v1(actor,purge_id);
+  reserved:=public.reserve_repolight_hot_classroom_purge_v1(purge_id,actor,'f2930000-0000-4000-8000-000000000010','DELETE',(impact->>'source_revision')::bigint,impact->>'storage_inventory_sha256',impact->>'operational_inventory_sha256');
+  if jsonb_array_length(children)<>1 or children#>>'{0,operation_id}' is null or children is distinct from public.read_repolight_purge_cleanup_subjects_v1(actor,purge_id) or not coalesce((reserved->>'replayed')::boolean,false) then raise exception 'Hot replay changed subject snapshot';end if;
+  if exists(select 1 from public.claim_classroom_purge_object(purge_id,actor,gen_random_uuid(),60)) or public.finalize_hot_archived_classroom_purge(purge_id,actor)->>'error_code'<>'repolight_erasure_required' then raise exception 'Hot receipt fence missing';end if;
+  raise exception using errcode='P2931',message='rollback synthetic admission';
+ exception when sqlstate 'P2931' then null;
+ end;
  held:=public.begin_repolight_subject_erasure_v1(actor,binding,'f2930000-0000-4000-8000-000000000070');
  receipt:=jsonb_build_object('schemaVersion','1.0','operationRef','f2930000-0000-4000-8000-000000000070','installationRef','pika_fixture','subjectRef',held->>'subject_ref','status','erased','absenceVerified',true);
  perform public.record_repolight_subject_erasure_v1(actor,binding,'f2930000-0000-4000-8000-000000000070',receipt);

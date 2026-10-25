@@ -78,6 +78,7 @@ begin
  if actual is distinct from p_actor then raise exception using errcode='42501',message='Forbidden';end if;
  if p_write and (archived is not null or retired is not null) then raise exception using errcode='55000',message='repolight_archived';end if;
  if p_write then
+  if exists(select 1 from private.repolight_decommission_intents where assignment_id=p_assignment and kind='assignment_delete' and status='cleanup_pending') then raise exception using errcode='55000',message='repolight_assignment_delete_pending';end if;
   perform 1 from public.classroom_enrollments where classroom_id=cid and student_id=p_student for share;
   if not found then raise exception using errcode='42501',message='Enrollment required';end if;
   if exists(select 1 from public.student_purge_fences where classroom_id=cid and student_id=p_student) then raise exception using errcode='55000',message='student_purge_active';end if;
@@ -227,6 +228,7 @@ begin
  select * into b from private.repolight_subject_bindings where id=p_binding_id for update;
  if p_receipt is distinct from jsonb_build_object('schemaVersion','1.0','operationRef',p_operation_id,'installationRef',b.installation_ref,'subjectRef',b.subject_ref,'status','erased','absenceVerified',true) then raise exception using errcode='22023',message='repolight_erasure_receipt_invalid';end if;
  update private.repolight_subject_bindings set state='erased',receipt=p_receipt,erased_at=clock_timestamp(),classroom_id=null,assignment_id=null,student_id=null,enrollment_id=null where id=b.id;
+ perform private.complete_repolight_removed_intent_v1(s.operation_id) from private.repolight_purge_subjects s where s.binding_id=b.id;
  -- Retain immutable local facts; authorized classroom/student lifecycle owns local deletion.
  select * into b from private.repolight_subject_bindings where id=b.id;
  return to_jsonb(b);
@@ -390,8 +392,8 @@ create function public.read_repolight_cleanup_subjects_v1(p_actor_id uuid,p_clas
 declare value jsonb;
 begin
  if p_actor_id is null or (p_classroom_id is not null and not exists(select 1 from public.classrooms where id=p_classroom_id and teacher_id=p_actor_id)) then raise exception using errcode='42501',message='Forbidden';end if;
- select coalesce(jsonb_agg(to_jsonb(b) order by b.created_at,b.id),'[]'::jsonb) into value from private.repolight_subject_bindings b join public.classrooms c on c.id=b.classroom_id
- where b.teacher_id=p_actor_id and c.teacher_id=p_actor_id and b.state<>'erased' and (p_classroom_id is null or b.classroom_id=p_classroom_id) and (p_student_id is null or b.student_id=p_student_id) and (p_assignment_id is null or b.assignment_id=p_assignment_id);
+ select coalesce(jsonb_agg(to_jsonb(q) order by q.created_at,q.id),'[]'::jsonb) into value from (select b.* from private.repolight_subject_bindings b join public.classrooms c on c.id=b.classroom_id
+ where b.teacher_id=p_actor_id and c.teacher_id=p_actor_id and b.state<>'erased' and (p_classroom_id is null or b.classroom_id=p_classroom_id) and (p_student_id is null or b.student_id=p_student_id) and (p_assignment_id is null or b.assignment_id=p_assignment_id) order by b.created_at,b.id limit 100)q;
  return value;
 end $$;
 revoke all on function public.student_purge_inventory_before_repolight_293(uuid,uuid),private.removed_academic_row_hash_before_repolight_293(text,uuid),private.removed_academic_row_hash(text,uuid),private.repolight_student_fence_v1() from public,anon,authenticated,service_role;
@@ -441,4 +443,338 @@ create trigger repolight_run_parent before insert or update on public.assignment
 create trigger repolight_report_parent before insert or update on public.assignment_repolight_reports for each row execute function private.repolight_parent_guard_v1();
 create trigger repolight_import_parent before insert or update on public.assignment_repolight_feedback_imports for each row execute function private.repolight_parent_guard_v1();
 revoke all on function private.repolight_parent_guard_v1() from public,anon,authenticated,service_role;
+-- Confirmed purge admission is distinct from remote erasure and local deletion.
+-- The private capability exists only while the original admission chain runs in
+-- this transaction. It suppresses this integration's conflict, never older ones.
+create table private.repolight_purge_admissions(
+ transaction_id bigint primary key,kind text not null check(kind in('student','hot_classroom')),
+ classroom_id uuid not null,student_id uuid,check((kind='student')=(student_id is not null))
+);
+create table private.repolight_purge_reservations(
+ operation_id uuid primary key,kind text not null check(kind in('student','hot_classroom')),
+ request_fingerprint text not null check(request_fingerprint ~ '^[a-f0-9]{64}$'),created_at timestamptz not null default clock_timestamp()
+);
+create table private.repolight_purge_subjects(
+ operation_id uuid not null references private.repolight_purge_reservations(operation_id),
+ binding_id uuid not null references private.repolight_subject_bindings(id),
+ erasure_operation_id uuid not null,connection_ref text not null,workspace_ref text not null,
+ installation_ref text not null,subject_ref text not null,primary key(operation_id,binding_id)
+);
+alter table private.repolight_purge_admissions enable row level security;
+alter table private.repolight_purge_reservations enable row level security;
+alter table private.repolight_purge_subjects enable row level security;
+revoke all on private.repolight_purge_admissions,private.repolight_purge_reservations,private.repolight_purge_subjects from public,anon,authenticated,service_role;
+create function private.repolight_purge_snapshot_immutable_v1() returns trigger language plpgsql set search_path='' as $$
+begin raise exception using errcode='55000',message='repolight_purge_snapshot_immutable';end $$;
+create trigger repolight_purge_reservation_immutable before update or delete on private.repolight_purge_reservations for each row execute function private.repolight_purge_snapshot_immutable_v1();
+create trigger repolight_purge_subject_immutable before update or delete on private.repolight_purge_subjects for each row execute function private.repolight_purge_snapshot_immutable_v1();
+
+create or replace function public.classroom_purge_conflict(p_classroom_id uuid) returns text language plpgsql security definer set search_path='' as $$
+begin
+ if not exists(select 1 from private.repolight_purge_admissions where transaction_id=txid_current() and classroom_id=p_classroom_id)
+ and exists(select 1 from private.repolight_subject_bindings where classroom_id=p_classroom_id and state<>'erased') then return 'repolight_erasure_required';end if;
+ return public.classroom_purge_conflict_before_repolight_293(p_classroom_id);
+end $$;
+create or replace function public.student_purge_conflict(p_classroom_id uuid,p_student_id uuid) returns text language plpgsql security definer set search_path='' as $$
+begin
+ if not exists(select 1 from private.repolight_purge_admissions where transaction_id=txid_current() and kind='student' and classroom_id=p_classroom_id and student_id=p_student_id)
+ and exists(select 1 from private.repolight_subject_bindings where classroom_id=p_classroom_id and student_id=p_student_id and state<>'erased') then return 'repolight_erasure_required';end if;
+ return public.student_purge_conflict_before_repolight_293(p_classroom_id,p_student_id);
+end $$;
+create function private.capture_repolight_purge_subjects_v1(p_operation_id uuid,p_kind text,p_fingerprint text,p_classroom_id uuid,p_student_id uuid) returns void language plpgsql security definer set search_path='' as $$
+begin
+ insert into private.repolight_purge_reservations(operation_id,kind,request_fingerprint) values(p_operation_id,p_kind,p_fingerprint);
+ update private.repolight_subject_bindings set state='erasing',operation_id=coalesce(operation_id,gen_random_uuid())
+ where classroom_id=p_classroom_id and (p_student_id is null or student_id=p_student_id) and state<>'erased';
+ insert into private.repolight_purge_subjects(operation_id,binding_id,erasure_operation_id,connection_ref,workspace_ref,installation_ref,subject_ref)
+ select p_operation_id,id,operation_id,connection_ref,workspace_ref,installation_ref,subject_ref from private.repolight_subject_bindings
+ where classroom_id=p_classroom_id and (p_student_id is null or student_id=p_student_id) and state<>'erased';
+end $$;
+
+alter function public.begin_student_purge(uuid,uuid,uuid,uuid,text,bigint,text,text) rename to begin_student_purge_before_repolight_293;
+create function public.begin_student_purge(p_operation_id uuid,p_teacher_id uuid,p_classroom_id uuid,p_student_id uuid,p_confirmation text,p_expected_source_revision bigint,p_expected_storage_inventory_sha256 text,p_expected_relational_inventory_sha256 text) returns jsonb language plpgsql security definer set search_path='' as $$
+declare result jsonb; fingerprint text; reservation private.repolight_purge_reservations;
+begin
+ perform public.student_purge_lock(p_classroom_id,p_student_id);
+ fingerprint:=private.repolight_digest_v1(jsonb_build_array(p_teacher_id,p_classroom_id,p_student_id,p_confirmation,p_expected_source_revision,p_expected_storage_inventory_sha256,p_expected_relational_inventory_sha256));
+ select * into reservation from private.repolight_purge_reservations where operation_id=p_operation_id;
+ if found and (reservation.kind<>'student' or reservation.request_fingerprint<>fingerprint) then return jsonb_build_object('ok',false,'status',409,'error_code','idempotency_conflict','error','Deletion request does not match its reservation');end if;
+ begin
+  insert into private.repolight_purge_admissions values(txid_current(),'student',p_classroom_id,p_student_id);
+  result:=public.begin_student_purge_before_repolight_293(p_operation_id,p_teacher_id,p_classroom_id,p_student_id,p_confirmation,p_expected_source_revision,p_expected_storage_inventory_sha256,p_expected_relational_inventory_sha256);
+  if not coalesce((result->>'ok')::boolean,false) then raise exception using errcode='P2930',message='repolight_admission_rejected';end if;
+  delete from private.repolight_purge_admissions where transaction_id=txid_current();
+  if reservation.operation_id is null and not coalesce((result->>'replayed')::boolean,false) then perform private.capture_repolight_purge_subjects_v1(p_operation_id,'student',fingerprint,p_classroom_id,p_student_id);end if;
+ exception when sqlstate 'P2930' then return result;
+ end;
+ return result;
+end $$;
+
+-- Unlike the historical raw hot admission, this RPC validates typed confirmation
+-- in SQL before granting the short-lived integration-only exemption.
+create function public.reserve_repolight_hot_classroom_purge_v1(p_operation_id uuid,p_teacher_id uuid,p_classroom_id uuid,p_confirmation text,p_expected_source_revision bigint,p_expected_storage_inventory_sha256 text,p_expected_operational_inventory_sha256 text) returns jsonb language plpgsql security definer set search_path='' as $$
+declare result jsonb; impact jsonb; fingerprint text; request_sha text; title text; reservation private.repolight_purge_reservations;
+begin
+ perform public.classroom_purge_lock(p_classroom_id);
+ select c.title into title from public.classrooms c where c.id=p_classroom_id and c.teacher_id=p_teacher_id for update;
+ if not found then return jsonb_build_object('ok',false,'status',404,'error_code','classroom_not_found','error','Classroom not found');end if;
+ if p_confirmation is distinct from 'DELETE' and p_confirmation is distinct from title then return jsonb_build_object('ok',false,'status',400,'error_code','confirmation_mismatch','error','Type the classroom name exactly, or type DELETE');end if;
+ fingerprint:=private.repolight_digest_v1(jsonb_build_array(p_teacher_id,p_classroom_id,p_confirmation,p_expected_source_revision,p_expected_storage_inventory_sha256,p_expected_operational_inventory_sha256));
+ select * into reservation from private.repolight_purge_reservations where operation_id=p_operation_id;
+ if found and (reservation.kind<>'hot_classroom' or reservation.request_fingerprint<>fingerprint) then return jsonb_build_object('ok',false,'status',409,'error_code','idempotency_conflict','error','Deletion request does not match its reservation');end if;
+ begin
+  insert into private.repolight_purge_admissions values(txid_current(),'hot_classroom',p_classroom_id,null);
+  impact:=public.get_hot_archived_classroom_purge_inventory(p_teacher_id,p_classroom_id);
+  impact:=impact||jsonb_build_object('source_revision',p_expected_source_revision,'storage_inventory_sha256',p_expected_storage_inventory_sha256,'operational_inventory_sha256',p_expected_operational_inventory_sha256);
+  request_sha:=private.repolight_digest_v1(jsonb_build_object('classroom_id',p_classroom_id,'teacher_id',p_teacher_id,'source_revision',p_expected_source_revision,'storage_inventory_sha256',p_expected_storage_inventory_sha256,'operational_inventory_sha256',p_expected_operational_inventory_sha256,'intent','delete_permanently'));
+  result:=public.begin_hot_archived_classroom_purge(p_operation_id,p_teacher_id,p_classroom_id,request_sha,impact);
+  if not coalesce((result->>'ok')::boolean,false) then raise exception using errcode='P2930',message='repolight_admission_rejected';end if;
+  delete from private.repolight_purge_admissions where transaction_id=txid_current();
+  if reservation.operation_id is null and not coalesce((result->>'replayed')::boolean,false) then perform private.capture_repolight_purge_subjects_v1(p_operation_id,'hot_classroom',fingerprint,p_classroom_id,null);end if;
+ exception when sqlstate 'P2930' then return result;
+ end;
+ return result;
+end $$;
+
+create function private.repolight_purge_pending_v1(p_operation_id uuid,p_teacher_id uuid) returns boolean language sql stable security definer set search_path='' as $$
+ select exists(select 1 from private.repolight_purge_subjects s join private.repolight_subject_bindings b on b.id=s.binding_id where s.operation_id=p_operation_id and b.state<>'erased' and (exists(select 1 from public.student_purge_operations op where op.id=s.operation_id and op.teacher_id=p_teacher_id) or exists(select 1 from public.classroom_purge_operations op where op.id=s.operation_id and op.teacher_id=p_teacher_id and op.purge_scope='hot_classroom')))
+ or exists(select 1 from public.student_purge_operations op join private.repolight_subject_bindings b on b.classroom_id=op.classroom_id and b.student_id=op.student_id where op.id=p_operation_id and op.teacher_id=p_teacher_id and b.state<>'erased')
+ or exists(select 1 from public.classroom_purge_operations op join private.repolight_subject_bindings b on b.classroom_id=op.classroom_id where op.id=p_operation_id and op.teacher_id=p_teacher_id and op.purge_scope='hot_classroom' and b.state<>'erased')
+$$;
+create function public.read_repolight_purge_cleanup_subjects_v1(p_actor_id uuid,p_operation_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+ if not exists(select 1 from public.student_purge_operations op where op.id=p_operation_id and op.teacher_id=p_actor_id) and not exists(select 1 from public.classroom_purge_operations op where op.id=p_operation_id and op.teacher_id=p_actor_id and op.purge_scope='hot_classroom') then raise exception using errcode='42501',message='Forbidden';end if;
+ if not exists(select 1 from private.repolight_purge_reservations where operation_id=p_operation_id and kind in('student','hot_classroom')) then
+  if private.repolight_purge_pending_v1(p_operation_id,p_actor_id) then raise exception using errcode='55000',message='repolight_legacy_adoption_required';end if;
+  return '[]'::jsonb;
+ end if;
+ return coalesce((select jsonb_agg(to_jsonb(q) order by q.created_at,q.id) from (select b.* from private.repolight_purge_subjects s join private.repolight_subject_bindings b on b.id=s.binding_id where s.operation_id=p_operation_id and b.state<>'erased' order by b.created_at,b.id limit 100)q),'[]'::jsonb);
+end $$;
+
+alter function public.claim_student_purge_object(uuid,uuid,integer) rename to claim_student_purge_object_before_repolight_293;
+create function public.claim_student_purge_object(p_operation_id uuid,p_teacher_id uuid,p_lease_seconds integer default 60) returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+ if private.repolight_purge_pending_v1(p_operation_id,p_teacher_id) then return jsonb_build_object('ok',true,'status',202,'operation_id',p_operation_id,'operation_status',(select status from public.student_purge_operations where id=p_operation_id and teacher_id=p_teacher_id),'waiting_for_repolight',true);end if;
+ return public.claim_student_purge_object_before_repolight_293(p_operation_id,p_teacher_id,p_lease_seconds);
+end $$;
+alter function public.finalize_student_purge(uuid,uuid) rename to finalize_student_purge_before_repolight_293;
+create function public.finalize_student_purge(p_operation_id uuid,p_teacher_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+ if private.repolight_purge_pending_v1(p_operation_id,p_teacher_id) then return jsonb_build_object('ok',false,'status',409,'error_code','repolight_erasure_required','error','RepoLight cleanup is incomplete','retryable',true);end if;
+ return public.finalize_student_purge_before_repolight_293(p_operation_id,p_teacher_id);
+end $$;
+alter function public.claim_classroom_purge_object(uuid,uuid,uuid,integer) rename to claim_classroom_purge_object_before_repolight_293;
+create function public.claim_classroom_purge_object(p_operation_id uuid,p_teacher_id uuid,p_lease_token uuid,p_lease_seconds integer default 60) returns setof public.classroom_purge_objects language plpgsql security definer set search_path='' as $$
+begin
+ if private.repolight_purge_pending_v1(p_operation_id,p_teacher_id) then return;end if;
+ return query select * from public.claim_classroom_purge_object_before_repolight_293(p_operation_id,p_teacher_id,p_lease_token,p_lease_seconds);
+end $$;
+alter function public.finalize_hot_archived_classroom_purge(uuid,uuid) rename to finalize_hot_archived_classroom_purge_before_repolight_293;
+create function public.finalize_hot_archived_classroom_purge(p_operation_id uuid,p_teacher_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+ if private.repolight_purge_pending_v1(p_operation_id,p_teacher_id) then return jsonb_build_object('ok',false,'status',409,'error_code','repolight_erasure_required','error','RepoLight cleanup is incomplete','retryable',true);end if;
+ return public.finalize_hot_archived_classroom_purge_before_repolight_293(p_operation_id,p_teacher_id);
+end $$;
+revoke all on function private.repolight_purge_snapshot_immutable_v1(),private.capture_repolight_purge_subjects_v1(uuid,text,text,uuid,uuid),private.repolight_purge_pending_v1(uuid,uuid),public.begin_student_purge_before_repolight_293(uuid,uuid,uuid,uuid,text,bigint,text,text),public.claim_student_purge_object_before_repolight_293(uuid,uuid,integer),public.finalize_student_purge_before_repolight_293(uuid,uuid),public.claim_classroom_purge_object_before_repolight_293(uuid,uuid,uuid,integer),public.finalize_hot_archived_classroom_purge_before_repolight_293(uuid,uuid) from public,anon,authenticated,service_role;
+revoke all on function public.begin_student_purge(uuid,uuid,uuid,uuid,text,bigint,text,text),public.reserve_repolight_hot_classroom_purge_v1(uuid,uuid,uuid,text,bigint,text,text),public.read_repolight_purge_cleanup_subjects_v1(uuid,uuid),public.claim_student_purge_object(uuid,uuid,integer),public.finalize_student_purge(uuid,uuid),public.claim_classroom_purge_object(uuid,uuid,uuid,integer),public.finalize_hot_archived_classroom_purge(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.begin_student_purge(uuid,uuid,uuid,uuid,text,bigint,text,text),public.reserve_repolight_hot_classroom_purge_v1(uuid,uuid,uuid,text,bigint,text,text),public.read_repolight_purge_cleanup_subjects_v1(uuid,uuid),public.claim_student_purge_object(uuid,uuid,integer),public.finalize_student_purge(uuid,uuid),public.claim_classroom_purge_object(uuid,uuid,uuid,integer),public.finalize_hot_archived_classroom_purge(uuid,uuid) to service_role;
+
+-- Eligibility is only a read projection. The original deletion_available remains
+-- false until erasure. The exact-xid probe is removed before returning to callers.
+alter function public.get_student_purge_inventory(uuid,uuid,uuid) rename to get_student_purge_inventory_before_repolight_293;
+create function public.get_student_purge_inventory(p_teacher_id uuid,p_classroom_id uuid,p_student_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare original jsonb; candidate jsonb;
+begin
+ original:=public.get_student_purge_inventory_before_repolight_293(p_teacher_id,p_classroom_id,p_student_id);
+ if not exists(select 1 from private.repolight_purge_admissions where transaction_id=txid_current()) and original->>'conflicting_operation'='repolight_erasure_required' then
+  insert into private.repolight_purge_admissions values(txid_current(),'student',p_classroom_id,p_student_id);
+  candidate:=public.get_student_purge_inventory_before_repolight_293(p_teacher_id,p_classroom_id,p_student_id);
+  delete from private.repolight_purge_admissions where transaction_id=txid_current();
+  return original||jsonb_build_object('can_reserve_cleanup',coalesce((candidate->>'deletion_available')::boolean,false) and not public.attendance_student_has_state_v1(p_classroom_id,p_student_id),'cleanup_unavailable_reason',case when public.attendance_student_has_state_v1(p_classroom_id,p_student_id) then 'attendance_student_decommission_required' else candidate->>'unavailable_reason' end);
+ end if;
+ return original||jsonb_build_object('can_reserve_cleanup',false);
+end $$;
+alter function public.get_hot_archived_classroom_purge_inventory(uuid,uuid) rename to get_hot_archived_classroom_purge_inventory_before_repolight_293;
+create function public.get_hot_archived_classroom_purge_inventory(p_teacher_id uuid,p_classroom_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare original jsonb; candidate jsonb;
+begin
+ original:=public.get_hot_archived_classroom_purge_inventory_before_repolight_293(p_teacher_id,p_classroom_id);
+ if not exists(select 1 from private.repolight_purge_admissions where transaction_id=txid_current()) and original->>'conflicting_operation'='repolight_erasure_required' then
+  insert into private.repolight_purge_admissions values(txid_current(),'hot_classroom',p_classroom_id,null);
+  candidate:=public.get_hot_archived_classroom_purge_inventory_before_repolight_293(p_teacher_id,p_classroom_id);
+  delete from private.repolight_purge_admissions where transaction_id=txid_current();
+  return original||jsonb_build_object('can_reserve_cleanup',coalesce((candidate->>'deletion_available')::boolean,false),'cleanup_unavailable_reason',candidate->>'unavailable_reason');
+ end if;
+ return original||jsonb_build_object('can_reserve_cleanup',false);
+end $$;
+revoke all on function public.get_student_purge_inventory_before_repolight_293(uuid,uuid,uuid),public.get_hot_archived_classroom_purge_inventory_before_repolight_293(uuid,uuid) from public,anon,authenticated,service_role;
+revoke all on function public.get_student_purge_inventory(uuid,uuid,uuid),public.get_hot_archived_classroom_purge_inventory(uuid,uuid) from public,anon,authenticated;
+grant execute on function public.get_student_purge_inventory(uuid,uuid,uuid),public.get_hot_archived_classroom_purge_inventory(uuid,uuid) to service_role;
+-- Explicit removed-member cleanup and assignment Delete intents. These are
+-- provider-copy prerequisites, not Pal/Bara operations or generic reset actions.
+alter table private.repolight_purge_reservations drop constraint repolight_purge_reservations_kind_check;
+alter table private.repolight_purge_reservations add constraint repolight_purge_reservations_kind_check check(kind in('student','hot_classroom','removed_student','assignment_delete'));
+create table private.repolight_decommission_intents(
+ operation_id uuid primary key references private.repolight_purge_reservations(operation_id),
+ teacher_id uuid references public.users(id) on delete set null,
+ kind text not null check(kind in('removed_student','assignment_delete')),
+ target_digest text not null check(target_digest ~ '^[a-f0-9]{64}$'),
+ classroom_id uuid,student_id uuid,generation_id uuid,assignment_id uuid,
+ assignment_updated_at timestamptz,source_fingerprint text,
+ status text not null default 'cleanup_pending' check(status in('cleanup_pending','completed')),completion_ack jsonb,
+ created_at timestamptz not null default clock_timestamp(),completed_at timestamptz,
+ check(status='completed' or (teacher_id is not null and classroom_id is not null)),
+ check(status='completed' or (kind='removed_student' and student_id is not null and generation_id is not null) or (kind='assignment_delete' and assignment_id is not null and assignment_updated_at is not null and source_fingerprint ~ '^[a-f0-9]{64}$')),
+ check((status='completed')=(completed_at is not null))
+);
+create unique index repolight_assignment_delete_pending on private.repolight_decommission_intents(assignment_id) where kind='assignment_delete' and status='cleanup_pending';
+alter table private.repolight_decommission_intents enable row level security;
+revoke all on private.repolight_decommission_intents from public,anon,authenticated,service_role;
+create table private.repolight_assignment_delete_capabilities(transaction_id bigint primary key,operation_id uuid not null references private.repolight_decommission_intents(operation_id),assignment_id uuid not null);
+alter table private.repolight_assignment_delete_capabilities enable row level security;
+revoke all on private.repolight_assignment_delete_capabilities from public,anon,authenticated,service_role;
+create function private.repolight_decommission_intent_guard_v1() returns trigger language plpgsql set search_path='' as $$
+begin
+ if tg_op='DELETE' or (to_jsonb(new)-array['status','completed_at','classroom_id','student_id','generation_id','assignment_id','teacher_id','completion_ack']) is distinct from (to_jsonb(old)-array['status','completed_at','classroom_id','student_id','generation_id','assignment_id','teacher_id','completion_ack'])
+ or (old.status='completed' and (new.status<>'completed' or new.completion_ack is distinct from old.completion_ack))
+ or (new.teacher_id is distinct from old.teacher_id and not(new.teacher_id is null and new.status='completed' and not exists(select 1 from public.users where id=old.teacher_id)))
+ or ((new.classroom_id,new.student_id,new.generation_id,new.assignment_id) is distinct from (old.classroom_id,old.student_id,old.generation_id,old.assignment_id) and not(new.status='completed' and new.classroom_id is null and new.student_id is null and new.generation_id is null and new.assignment_id is null)) then raise exception using errcode='55000',message='repolight_decommission_intent_immutable';end if;
+ return new;
+end $$;
+create trigger repolight_decommission_intent_immutable before update or delete on private.repolight_decommission_intents for each row execute function private.repolight_decommission_intent_guard_v1();
+create function private.repolight_decommission_status_v1(p_operation_id uuid) returns jsonb language sql stable security definer set search_path='' as $$
+ select jsonb_build_object('operation_id',i.operation_id,'kind',i.kind,'status',i.status,'pending_subject_count',(select count(*) from private.repolight_purge_subjects s join private.repolight_subject_bindings b on b.id=s.binding_id where s.operation_id=i.operation_id and b.state<>'erased')) from private.repolight_decommission_intents i where i.operation_id=p_operation_id
+$$;
+create function private.capture_repolight_decommission_subjects_v1(p_operation_id uuid,p_classroom_id uuid,p_student_id uuid,p_generation_id uuid,p_assignment_id uuid) returns void language plpgsql security definer set search_path='' as $$
+begin
+ update private.repolight_subject_bindings set state='erasing',operation_id=coalesce(operation_id,gen_random_uuid())
+ where classroom_id=p_classroom_id and (p_student_id is null or student_id=p_student_id) and (p_generation_id is null or enrollment_id=p_generation_id) and (p_assignment_id is null or assignment_id=p_assignment_id) and state<>'erased';
+ insert into private.repolight_purge_subjects(operation_id,binding_id,erasure_operation_id,connection_ref,workspace_ref,installation_ref,subject_ref)
+ select p_operation_id,id,operation_id,connection_ref,workspace_ref,installation_ref,subject_ref from private.repolight_subject_bindings
+ where classroom_id=p_classroom_id and (p_student_id is null or student_id=p_student_id) and (p_generation_id is null or enrollment_id=p_generation_id) and (p_assignment_id is null or assignment_id=p_assignment_id) and state<>'erased';
+end $$;
+create function public.reserve_repolight_removed_student_cleanup_v1(p_operation_id uuid,p_actor_id uuid,p_classroom_id uuid,p_student_id uuid,p_generation_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare fingerprint text; previous private.repolight_purge_reservations; first_row public.classroom_roster; roster_ids uuid[]; eligible timestamptz;
+begin
+ if p_operation_id is null or p_actor_id is null or p_classroom_id is null or p_student_id is null or p_generation_id is null then raise exception using errcode='22023',message='repolight_cleanup_binding_invalid';end if;
+ perform private.try_lock_classroom_membership_change(p_classroom_id,p_student_id);
+ perform pg_advisory_xact_lock(hashtextextended('pika-classroom-operation:'||p_classroom_id::text,0));
+ if not exists(select 1 from public.classrooms where id=p_classroom_id and teacher_id=p_actor_id) then raise exception using errcode='42501',message='Forbidden';end if;
+ fingerprint:=private.repolight_digest_v1(jsonb_build_array(p_actor_id,p_classroom_id,p_student_id,p_generation_id));
+ select * into previous from private.repolight_purge_reservations where operation_id=p_operation_id;
+ if found then
+  if previous.kind<>'removed_student' or previous.request_fingerprint<>fingerprint or not exists(select 1 from private.repolight_decommission_intents where operation_id=p_operation_id and teacher_id=p_actor_id) then raise exception using errcode='40001',message='repolight_cleanup_binding_invalid';end if;
+  return private.repolight_decommission_status_v1(p_operation_id);
+ end if;
+ select eligible_after into eligible from private.student_provider_cleanup_settings where singleton and live_enabled for share;
+ if eligible is null then raise exception using errcode='55000',message='student_live_cleanup_disabled';end if;
+ if p_actor_id=p_student_id or exists(select 1 from public.classroom_enrollments where classroom_id=p_classroom_id and student_id=p_student_id) then raise exception using errcode='55000',message='retained_roster_cleanup_group_invalid';end if;
+ perform 1 from public.classroom_roster where classroom_id=p_classroom_id and removed_student_id=p_student_id order by id for update;
+ select array_agg(id order by id) into roster_ids from public.classroom_roster where classroom_id=p_classroom_id and removed_student_id=p_student_id;
+ if coalesce(cardinality(roster_ids),0)=0 then raise exception using errcode='55000',message='retained_roster_cleanup_group_invalid';end if;
+ select * into strict first_row from public.classroom_roster where id=roster_ids[1];
+ if exists(select 1 from public.classroom_roster r left join public.classroom_roster_student_bindings b on b.roster_id=r.id where r.id=any(roster_ids) and (r.removed_enrollment_id is distinct from p_generation_id or r.removed_at is null or r.removed_at<eligible or r.removed_enrolled_at is null or r.retained_manual_attendance_marks is null or (r.removed_enrolled_at,r.removed_at,r.retained_attendance_participant_active) is distinct from (first_row.removed_enrolled_at,first_row.removed_at,first_row.retained_attendance_participant_active) or r.retained_manual_attendance_marks is distinct from first_row.retained_manual_attendance_marks or b.classroom_id is distinct from p_classroom_id or b.student_id is distinct from p_student_id))
+ or exists(select 1 from public.classroom_roster_student_bindings b where b.classroom_id=p_classroom_id and b.student_id=p_student_id and not(b.roster_id=any(roster_ids)))
+ or exists(select 1 from private.repolight_subject_bindings where classroom_id=p_classroom_id and student_id=p_student_id and state<>'erased' and enrollment_id is distinct from p_generation_id) then raise exception using errcode='55000',message='retained_roster_cleanup_group_invalid';end if;
+ perform public.guard_classroom_purge_lifecycle(p_classroom_id);
+ if public.classroom_purge_conflict_before_repolight_293(p_classroom_id) is not null or exists(select 1 from public.classroom_cold_tombstones where classroom_id=p_classroom_id) or exists(select 1 from public.student_purge_fences where classroom_id=p_classroom_id) then raise exception using errcode='55000',message='student_provider_operation_conflict';end if;
+ insert into private.repolight_purge_reservations(operation_id,kind,request_fingerprint) values(p_operation_id,'removed_student',fingerprint);
+ insert into private.repolight_decommission_intents(operation_id,teacher_id,kind,target_digest,classroom_id,student_id,generation_id) values(p_operation_id,p_actor_id,'removed_student',private.repolight_digest_v1(jsonb_build_array('removed_student',p_actor_id,p_classroom_id,p_student_id,p_generation_id)),p_classroom_id,p_student_id,p_generation_id);
+ perform private.capture_repolight_decommission_subjects_v1(p_operation_id,p_classroom_id,p_student_id,p_generation_id,null);
+ perform private.complete_repolight_removed_intent_v1(p_operation_id);
+ return private.repolight_decommission_status_v1(p_operation_id);
+end $$;
+
+create function private.repolight_assignment_delete_source_v1(p_assignment_id uuid) returns jsonb language sql stable set search_path='' as $$
+ select jsonb_build_object('assignment',to_jsonb(a),'docs',coalesce((select jsonb_agg(to_jsonb(d) order by d.id) from public.assignment_docs d where d.assignment_id=a.id),'[]'::jsonb),'requirements',coalesce((select jsonb_agg(to_jsonb(r) order by r.id) from public.assignment_submission_requirements r where r.assignment_id=a.id),'[]'::jsonb),'artifacts',coalesce((select jsonb_agg(to_jsonb(s) order by s.id) from public.assignment_submission_artifacts s join public.assignment_docs d on d.id=s.assignment_doc_id where d.assignment_id=a.id),'[]'::jsonb),'targets',coalesce((select jsonb_agg(to_jsonb(t) order by t.id) from public.assignment_repo_targets t where t.assignment_id=a.id),'[]'::jsonb)) from public.assignments a where a.id=p_assignment_id
+$$;
+create function public.get_repolight_assignment_delete_context_v1(p_actor_id uuid,p_assignment_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare a public.assignments; pending private.repolight_decommission_intents;
+begin
+ a:=private.lock_assignment_owner_mutation_context_v1(p_actor_id,p_assignment_id);
+ select * into pending from private.repolight_decommission_intents where assignment_id=a.id and teacher_id=p_actor_id and kind='assignment_delete' and status='cleanup_pending';
+ return jsonb_build_object('assignment_id',a.id,'classroom_id',a.classroom_id,'assignment_updated_at',coalesce(pending.assignment_updated_at,a.updated_at),'source_fingerprint',coalesce(pending.source_fingerprint,private.repolight_digest_v1(private.repolight_assignment_delete_source_v1(a.id))),'pending_operation_id',pending.operation_id,'subject_count',(select count(*) from private.repolight_subject_bindings where assignment_id=a.id and state<>'erased'));
+end $$;
+create function public.reserve_repolight_assignment_delete_v1(p_operation_id uuid,p_actor_id uuid,p_assignment_id uuid,p_expected_updated_at timestamptz,p_expected_source_fingerprint text) returns jsonb language plpgsql security definer set search_path='' as $$
+declare a public.assignments; fingerprint text; previous private.repolight_purge_reservations; pending private.repolight_decommission_intents;
+begin
+ fingerprint:=private.repolight_digest_v1(jsonb_build_array(p_actor_id,p_assignment_id,p_expected_updated_at,p_expected_source_fingerprint));
+ select * into previous from private.repolight_purge_reservations where operation_id=p_operation_id;
+ if found then
+  if previous.kind<>'assignment_delete' or previous.request_fingerprint<>fingerprint or not exists(select 1 from private.repolight_decommission_intents where operation_id=p_operation_id and teacher_id=p_actor_id) then raise exception using errcode='40001',message='repolight_cleanup_binding_invalid';end if;
+  if exists(select 1 from private.repolight_decommission_intents where operation_id=p_operation_id and status='cleanup_pending') then perform private.lock_assignment_owner_mutation_context_v1(p_actor_id,p_assignment_id);end if;
+  return private.repolight_decommission_status_v1(p_operation_id);
+ end if;
+ a:=private.lock_assignment_owner_mutation_context_v1(p_actor_id,p_assignment_id);
+ select * into pending from private.repolight_decommission_intents where assignment_id=a.id and teacher_id=p_actor_id and kind='assignment_delete' and status='cleanup_pending';
+ if found then
+  if pending.assignment_updated_at is distinct from p_expected_updated_at or pending.source_fingerprint is distinct from p_expected_source_fingerprint then raise exception using errcode='40001',message='repolight_source_changed';end if;
+  return private.repolight_decommission_status_v1(pending.operation_id);
+ end if;
+ if p_operation_id is null or p_expected_updated_at is null or p_expected_source_fingerprint is null or a.updated_at is distinct from p_expected_updated_at or private.repolight_digest_v1(private.repolight_assignment_delete_source_v1(a.id)) is distinct from p_expected_source_fingerprint then raise exception using errcode='40001',message='repolight_source_changed';end if;
+ perform public.guard_classroom_purge_lifecycle(a.classroom_id);
+ if public.classroom_purge_conflict_before_repolight_293(a.classroom_id) is not null or exists(select 1 from public.student_purge_fences where classroom_id=a.classroom_id) then raise exception using errcode='55000',message='repolight_cleanup_operation_conflict';end if;
+ insert into private.repolight_purge_reservations(operation_id,kind,request_fingerprint) values(p_operation_id,'assignment_delete',fingerprint);
+ insert into private.repolight_decommission_intents(operation_id,teacher_id,kind,target_digest,classroom_id,assignment_id,assignment_updated_at,source_fingerprint) values(p_operation_id,p_actor_id,'assignment_delete',private.repolight_digest_v1(jsonb_build_array('assignment_delete',p_actor_id,a.id)),a.classroom_id,a.id,a.updated_at,p_expected_source_fingerprint);
+ perform private.capture_repolight_decommission_subjects_v1(p_operation_id,a.classroom_id,null,null,a.id);
+ return private.repolight_decommission_status_v1(p_operation_id);
+end $$;
+create function public.read_repolight_decommission_subjects_v1(p_actor_id uuid,p_operation_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare i private.repolight_decommission_intents;
+begin
+ select * into i from private.repolight_decommission_intents where operation_id=p_operation_id and teacher_id=p_actor_id;
+ if not found or (i.status<>'completed' and not exists(select 1 from public.classrooms where id=i.classroom_id and teacher_id=p_actor_id)) then raise exception using errcode='42501',message='Forbidden';end if;
+ if i.status='completed' then return '[]'::jsonb;end if;
+ return coalesce((select jsonb_agg(to_jsonb(q) order by q.created_at,q.id) from (select b.* from private.repolight_purge_subjects s join private.repolight_subject_bindings b on b.id=s.binding_id where s.operation_id=p_operation_id and b.state<>'erased' order by b.created_at,b.id limit 100)q),'[]'::jsonb);
+end $$;
+
+create function private.repolight_assignment_delete_fence_v1() returns trigger language plpgsql security definer set search_path='' as $$
+declare row_value jsonb; aid uuid; rows jsonb[];
+begin
+ rows:=case when tg_op='INSERT' then array[to_jsonb(new)] when tg_op='DELETE' then array[to_jsonb(old)] else array[to_jsonb(old),to_jsonb(new)] end;
+ foreach row_value in array rows loop
+  aid:=case when tg_table_name='assignments' then (row_value->>'id')::uuid else (row_value->>'assignment_id')::uuid end;
+  if tg_table_name='assignment_submission_artifacts' then select assignment_id into aid from public.assignment_docs where id=(row_value->>'assignment_doc_id')::uuid;end if;
+  if exists(select 1 from private.repolight_decommission_intents where assignment_id=aid and kind='assignment_delete' and status='cleanup_pending') and not exists(select 1 from private.repolight_assignment_delete_capabilities where transaction_id=txid_current() and assignment_id=aid) then raise exception using errcode='55000',message='repolight_assignment_delete_pending';end if;
+ end loop;
+ return case when tg_op='DELETE' then old else new end;
+end $$;
+create trigger repolight_assignment_delete_fence before update or delete on public.assignments for each row execute function private.repolight_assignment_delete_fence_v1();
+create trigger repolight_assignment_doc_delete_fence before insert or update or delete on public.assignment_docs for each row execute function private.repolight_assignment_delete_fence_v1();
+create trigger repolight_assignment_requirement_delete_fence before insert or update or delete on public.assignment_submission_requirements for each row execute function private.repolight_assignment_delete_fence_v1();
+create trigger repolight_assignment_artifact_delete_fence before insert or update or delete on public.assignment_submission_artifacts for each row execute function private.repolight_assignment_delete_fence_v1();
+create trigger repolight_assignment_target_delete_fence before insert or update or delete on public.assignment_repo_targets for each row execute function private.repolight_assignment_delete_fence_v1();
+create function public.finalize_repolight_assignment_delete_v1(p_actor_id uuid,p_operation_id uuid,p_assignment_id uuid) returns jsonb language plpgsql security definer set search_path='' as $$
+declare i private.repolight_decommission_intents; a public.assignments; result jsonb;
+begin
+ select * into i from private.repolight_decommission_intents where operation_id=p_operation_id and teacher_id=p_actor_id and kind='assignment_delete' for update;
+ if not found or i.target_digest is distinct from private.repolight_digest_v1(jsonb_build_array('assignment_delete',p_actor_id,p_assignment_id)) then raise exception using errcode='42501',message='Forbidden';end if;
+ if i.status='completed' then return i.completion_ack||jsonb_build_object('replayed',true);end if;
+ a:=private.lock_assignment_owner_mutation_context_v1(p_actor_id,i.assignment_id);
+ if exists(select 1 from private.repolight_purge_subjects s join private.repolight_subject_bindings b on b.id=s.binding_id where s.operation_id=p_operation_id and b.state<>'erased') then raise exception using errcode='55000',message='repolight_erasure_required';end if;
+ if a.updated_at is distinct from i.assignment_updated_at or private.repolight_digest_v1(private.repolight_assignment_delete_source_v1(a.id)) is distinct from i.source_fingerprint then raise exception using errcode='40001',message='repolight_source_changed';end if;
+ insert into private.repolight_assignment_delete_capabilities values(txid_current(),p_operation_id,a.id);
+ result:=public.delete_assignment_for_owner_v1(p_actor_id,a.id);
+ delete from private.repolight_assignment_delete_capabilities where transaction_id=txid_current();
+ update private.repolight_decommission_intents set status='completed',completed_at=clock_timestamp(),completion_ack=result,classroom_id=null,student_id=null,generation_id=null,assignment_id=null where operation_id=p_operation_id;
+ return result;
+end $$;
+revoke all on function private.repolight_decommission_intent_guard_v1(),private.repolight_decommission_status_v1(uuid),private.capture_repolight_decommission_subjects_v1(uuid,uuid,uuid,uuid,uuid),private.repolight_assignment_delete_source_v1(uuid),private.repolight_assignment_delete_fence_v1() from public,anon,authenticated,service_role;
+revoke all on function public.reserve_repolight_removed_student_cleanup_v1(uuid,uuid,uuid,uuid,uuid),public.get_repolight_assignment_delete_context_v1(uuid,uuid),public.reserve_repolight_assignment_delete_v1(uuid,uuid,uuid,timestamptz,text),public.read_repolight_decommission_subjects_v1(uuid,uuid),public.finalize_repolight_assignment_delete_v1(uuid,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.reserve_repolight_removed_student_cleanup_v1(uuid,uuid,uuid,uuid,uuid),public.get_repolight_assignment_delete_context_v1(uuid,uuid),public.reserve_repolight_assignment_delete_v1(uuid,uuid,uuid,timestamptz,text),public.read_repolight_decommission_subjects_v1(uuid,uuid),public.finalize_repolight_assignment_delete_v1(uuid,uuid,uuid) to service_role;
+
+create function private.complete_repolight_removed_intent_v1(p_operation_id uuid) returns void language sql security definer set search_path='' as $$
+ update private.repolight_decommission_intents i set status='completed',completed_at=clock_timestamp(),classroom_id=null,student_id=null,generation_id=null,assignment_id=null
+ where i.kind='removed_student' and i.status='cleanup_pending' and (p_operation_id is null or i.operation_id=p_operation_id) and not exists(select 1 from private.repolight_purge_subjects s join private.repolight_subject_bindings b on b.id=s.binding_id where s.operation_id=i.operation_id and b.state<>'erased')
+$$;
+revoke all on function private.complete_repolight_removed_intent_v1(uuid) from public,anon,authenticated,service_role;
+
+create function private.repolight_decommission_parent_guard_v1() returns trigger language plpgsql security definer set search_path='' as $$
+begin
+ if exists(select 1 from private.repolight_decommission_intents where classroom_id=old.id and status='cleanup_pending') then raise exception using errcode='55000',message='repolight_decommission_pending';end if;
+ return case when tg_op='DELETE' then old else new end;
+end $$;
+create trigger repolight_decommission_classroom_guard before delete or update of teacher_id on public.classrooms for each row execute function private.repolight_decommission_parent_guard_v1();
+revoke all on function private.repolight_decommission_parent_guard_v1() from public,anon,authenticated,service_role;
+
 commit;
