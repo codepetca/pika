@@ -131,6 +131,130 @@ begin
  begin perform public.advance_assignment_repolight_run_v1(actor,assignment,learner,(r->>'id')::uuid,'claim','{}');raise exception 'Closed provider binding resumed';exception when sqlstate '55000' then null;end;
 end $behavior$;
 reset role;
+-- Review batch1: only authorized POST begin retires obsolete control rows.
+-- Timer acceleration below changes synthetic retry eligibility, never real time,
+-- source input, counters, leases, immutable facts or provider state.
+do $run_state_regressions$
+declare actor constant uuid:='f2930000-0000-4000-8000-000000000001'; learner constant uuid:='f2930000-0000-4000-8000-000000000002'; aid constant uuid:='f2930000-0000-4000-8000-000000000020'; cid constant uuid:='f2930000-0000-4000-8000-000000000010';
+ base_id constant uuid:='f2960000-0000-4000-8000-000000000040'; replacement_id constant uuid:='f2960000-0000-4000-8000-000000000041'; analysis_id constant uuid:='f2960000-0000-4000-8000-000000000050';
+ source jsonb; base jsonb; held jsonb; next_run jsonb; replay jsonb; changed_request jsonb; binding jsonb; receipt jsonb; report jsonb; bundle jsonb; scenario text; token uuid; generation integer; step integer;
+begin
+ update public.classrooms set archived_at=null where id=cid;
+ source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
+ base:=public.begin_assignment_repolight_run_v1(actor,aid,learner,base_id,'{"connectionRef":"fixture","workspaceRef":"fixture_workspace","installationRef":"pika_fixture"}','{"repositoryUrl":"https://github.com/example/project","period":{"startAt":"2026-09-01T04:00:00Z","endAt":"2026-10-25T04:00:00Z","timezone":"America/Toronto"},"scheduledProjectDates":null,"baselineReviewed":false,"exclusions":{"commitShas":[],"pathPrefixes":[],"botLogins":[]}}',source->'source');
+ foreach scenario in array array['repository','login','period','class_day','connection'] loop
+  begin
+   held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');token:=(held->>'lease_token')::uuid;generation:=(held->>'lease_generation')::integer;changed_request:=base->'request_json';
+   replay:=public.begin_assignment_repolight_run_v1(actor,aid,learner,base_id,base->'connection_json',changed_request,source->'source');
+   if replay->>'id'<>base_id::text or replay->>'lease_generation'<>generation::text then raise exception 'Exact active replay changed the intent';end if;
+   if scenario='repository' then
+    update public.assignment_docs set repo_url='https://github.com/example/replacement' where assignment_id=aid and student_id=learner;
+    changed_request:=jsonb_set(changed_request,'{repositoryUrl}','"https://github.com/example/replacement"');
+   elsif scenario='login' then
+    update public.assignment_docs set github_username='synthetic-login' where assignment_id=aid and student_id=learner;
+    changed_request:=changed_request||'{"githubUsername":"synthetic-login"}'::jsonb;
+   elsif scenario='period' then changed_request:=jsonb_set(changed_request,'{period,endAt}','"2026-10-26T04:00:00Z"');
+   elsif scenario='class_day' then insert into public.class_days(classroom_id,date,is_class_day) values(cid,'2026-10-20',true);
+   end if;
+   source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
+   if (select status from public.assignment_repolight_runs where id=base_id)<>'submitting' then raise exception 'GET retired an active run';end if;
+   begin perform public.begin_assignment_repolight_run_v1('f2930000-0000-4000-8000-000000000003',aid,learner,replacement_id,base->'connection_json',changed_request,source->'source');raise exception 'Foreign teacher superseded a target';exception when insufficient_privilege then null;end;
+   if (select status from public.assignment_repolight_runs where id=base_id)<>'submitting' then raise exception 'Unauthorized begin retired the run';end if;
+   if scenario<>'connection' then
+    begin perform public.begin_assignment_repolight_run_v1(actor,aid,learner,base_id,base->'connection_json',changed_request,source->'source');raise exception 'Changed intent ID replay accepted new input';exception when sqlstate '40001' then null;end;
+   end if;
+   next_run:=public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,case when scenario='connection' then (base->'connection_json')||'{"connectionRef":"rotated_fixture"}'::jsonb else base->'connection_json' end,changed_request,source->'source');
+   if next_run->>'id'<>replacement_id::text or (select status from public.assignment_repolight_runs where id=base_id)<>'stale' or exists(select 1 from public.assignment_repolight_runs where id=base_id and (lease_token is not null or lease_expires_at is not null or next_retry_at is not null or lease_generation<=generation)) then raise exception 'Authorized replacement did not revoke superseded lease: %',scenario;end if;
+   if not exists(select 1 from private.repolight_subject_bindings where id=(base->>'subject_binding_id')::uuid and state='active') then raise exception 'Superseding lost an uncertain provider cleanup binding';end if;
+   begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'authorize',jsonb_build_object('leaseToken',token,'leaseGeneration',generation));raise exception 'Superseded lease authorized';exception when sqlstate '40001' then null;end;
+   begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'complete',jsonb_build_object('leaseToken',token,'leaseGeneration',generation,'result','{}'::jsonb));raise exception 'Superseded lease completed';exception when sqlstate '40001' then null;end;
+   raise exception using errcode='P2931',message='rollback replacement scenario';
+  exception when sqlstate 'P2931' then null;
+  end;
+  source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
+ end loop;
+ -- An identical new UUID cannot duplicate an existing current active analysis.
+ begin perform public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,base->'connection_json',base->'request_json',source->'source');raise exception 'Duplicate same-input active target accepted';exception when sqlstate '40001' then if sqlerrm<>'repolight_run_active' then raise;end if;end;
+ -- Removal closes the old subject; erasure and a genuine new membership permit
+ -- a replacement while retaining the old immutable intent and cleanup receipt.
+ begin
+  held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');token:=(held->>'lease_token')::uuid;generation:=(held->>'lease_generation')::integer;
+  perform public.remove_classroom_students_preserving_data(actor,cid,array['f2930000-0000-4000-8000-000000000082'::uuid]);
+  select to_jsonb(b) into binding from private.repolight_subject_bindings b where id=(base->>'subject_binding_id')::uuid;
+  receipt:=jsonb_build_object('schemaVersion','1.0','operationRef',binding->>'operation_id','installationRef',binding->>'installation_ref','subjectRef',binding->>'subject_ref','status','erased','absenceVerified',true);
+  perform public.record_repolight_subject_erasure_v1(actor,(binding->>'id')::uuid,(binding->>'operation_id')::uuid,receipt);
+  perform public.restore_removed_classroom_students(actor,cid,array['repolight-student@example.invalid']);
+  source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
+  next_run:=public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,base->'connection_json',base->'request_json',source->'source');
+  if next_run->>'id'<>replacement_id::text or (select status from public.assignment_repolight_runs where id=base_id)<>'stale' or not exists(select 1 from private.repolight_subject_bindings old_binding where old_binding.id=(base->>'subject_binding_id')::uuid and old_binding.state='erased' and old_binding.receipt is not null) then raise exception 'Rejoined membership could not replace closed active intent';end if;
+  begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'authorize',jsonb_build_object('leaseToken',token,'leaseGeneration',generation));raise exception 'Old membership lease authorized after rejoin';exception when sqlstate '40001' then null;end;
+  raise exception using errcode='P2931',message='rollback rejoin scenario';
+ exception when sqlstate 'P2931' then null;
+ end;
+ -- Closing an otherwise-current subject makes exact intent replay stale, not
+ -- a fresh subject or an apparently live run.
+ begin
+  binding:=public.begin_repolight_subject_erasure_v1(actor,(base->>'subject_binding_id')::uuid,'f2960000-0000-4000-8000-000000000070');
+  perform public.record_repolight_subject_erasure_v1(actor,(binding->>'id')::uuid,(binding->>'operation_id')::uuid,jsonb_build_object('schemaVersion','1.0','operationRef',binding->>'operation_id','installationRef',binding->>'installation_ref','subjectRef',binding->>'subject_ref','status','erased','absenceVerified',true));
+  source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
+  replay:=public.begin_assignment_repolight_run_v1(actor,aid,learner,base_id,base->'connection_json',base->'request_json',source->'source');
+  if replay->>'id'<>base_id::text or replay->>'status'<>'stale' or (select count(*) from private.repolight_subject_bindings where intent_id=base_id)<>1 then raise exception 'Closed exact replay invented new work or returned active outcome';end if;
+  raise exception using errcode='P2931',message='rollback closed replay';
+ exception when sqlstate 'P2931' then null;
+ end;
+ -- Both independent budgets still stop at three failures in their own phase.
+ begin
+  for step in 1..3 loop
+   held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');
+   replay:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'retry',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','errorCode','synthetic_unknown_create','retryable',true));
+   update public.assignment_repolight_runs set next_retry_at=clock_timestamp()-interval '1 second' where id=base_id;
+  end loop;
+  if replay->>'status'<>'failed' or replay->>'attempt_count'<>'3' or replay->>'poll_failure_count'<>'0' then raise exception 'Missing-ID submit cap changed';end if;
+  begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'authorize',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation'));raise exception 'Failed old lease authorized egress';exception when sqlstate '40001' then null;end;
+  if public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}')->>'status'<>'failed' then raise exception 'Terminal claim projection missing';end if;
+  raise exception using errcode='P2931',message='rollback submit cap';
+ exception when sqlstate 'P2931' then null;
+ end;
+ begin
+  held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');
+  perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'record_remote',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','analysisId',analysis_id));
+  for step in 1..3 loop
+   if step>1 then held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');end if;
+   replay:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'retry',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','errorCode','synthetic_poll_failure','retryable',true));
+   update public.assignment_repolight_runs set next_retry_at=clock_timestamp()-interval '1 second' where id=base_id;
+  end loop;
+  if replay->>'status'<>'failed' or replay->>'attempt_count'<>'1' or replay->>'poll_failure_count'<>'3' then raise exception 'Known-ID poll failure cap changed';end if;
+  raise exception using errcode='P2931',message='rollback poll cap';
+ exception when sqlstate 'P2931' then null;
+ end;
+ -- Two uncertain create responses consume two submit attempts. The third saves
+ -- its remote ID; pending and transient polling now use a separate failure budget.
+ for step in 1..2 loop
+  held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');
+  perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'retry',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','errorCode','synthetic_unknown_create','retryable',true));
+  update public.assignment_repolight_runs set next_retry_at=clock_timestamp()-interval '1 second' where id=base_id;
+ end loop;
+ held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');
+ if held->>'attempt_count'<>'3' or held->>'poll_failure_count'<>'0' then raise exception 'Submit history/counter differs';end if;
+ token:=(held->>'lease_token')::uuid;generation:=(held->>'lease_generation')::integer;
+ perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'record_remote',jsonb_build_object('leaseToken',token,'leaseGeneration',generation,'analysisId',analysis_id));
+ perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'poll_pending',jsonb_build_object('leaseToken',token,'leaseGeneration',generation));
+ update public.assignment_repolight_runs set next_retry_at=clock_timestamp()-interval '1 second' where id=base_id;
+ held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');
+ if held->>'status'<>'running' or held->>'attempt_count'<>'3' or held->>'poll_failure_count'<>'0' or (held->>'lease_generation')::integer<=generation then raise exception 'Third successful submit could not be polled';end if;
+ perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'retry',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','errorCode','synthetic_poll_failure','retryable',true));
+ update public.assignment_repolight_runs set next_retry_at=clock_timestamp()-interval '1 second' where id=base_id;
+ held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');
+ if held->>'status'<>'running' or held->>'attempt_count'<>'3' or held->>'poll_failure_count'<>'1' then raise exception 'Poll failure consumed submit history or exhausted independent budget';end if;
+ bundle:=jsonb_build_object('schemaVersion','1.0','bundleRef',analysis_id,'overview',jsonb_build_object('ruleFeedback',jsonb_build_object('feedbackDraft','Polled review')),'contributors','[]'::jsonb);
+ report:=jsonb_build_object('schemaVersion','1.0','analysisId',analysis_id,'reportRef',analysis_id,'requestFingerprint',base->>'request_fingerprint','clientBinding',base#>'{create_envelope,clientBinding}','reportDigest',private.repolight_digest_v1(bundle),'bundle',bundle);
+ perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'complete',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','result',report));
+ if (select status from public.assignment_repolight_runs where id=base_id)<>'completed' or (select attempt_count from public.assignment_repolight_runs where id=base_id)<>3 or (select poll_failure_count from public.assignment_repolight_runs where id=base_id)<>1 then raise exception 'Polled completion lost independent attempt budgets';end if;
+ begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'authorize',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation'));raise exception 'Completed old lease authorized egress';exception when sqlstate '40001' then null;end;
+ begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'complete',jsonb_build_object('leaseToken',held->>'lease_token','leaseGeneration',held->'lease_generation','result',report));raise exception 'Completed old lease rewrote result';exception when sqlstate '40001' then null;end;
+ if public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}')->>'status'<>'completed' then raise exception 'Completed claim projection missing';end if;
+end $run_state_regressions$;
+
 -- Real original175/288 provider admission with synthetic configuration only.
 -- No provider HTTP is called. Both orderings must preserve the old provider and
 -- academic authorities; a queued RepoLight subject grants no automatic power.

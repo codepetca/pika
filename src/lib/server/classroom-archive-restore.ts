@@ -31,7 +31,7 @@ import {
   type PersistedTestQuestionIdentity,
 } from '@/lib/test-question-identity'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
-import { detachRepoLightArchiveResources } from '@/lib/server/repolight-archive'
+import { detachRepoLightArchiveResources, isImmutableRepoLightArchiveResource } from '@/lib/server/repolight-archive'
 import type { TestDraftContent } from '@/types'
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
@@ -429,6 +429,7 @@ function collectAuthoringImageIds(value: unknown, ids = new Set<string>()): Set<
 function collectResourceAuthoringImageIds(resources: Record<string, JsonObject[]>): Set<string> {
   const ids = new Set<string>()
   for (const [table, rows] of Object.entries(resources)) {
+    if (isImmutableRepoLightArchiveResource(table)) continue
     for (const row of rows) {
       // Mirror migration291's source precedence. Compatibility JSON can retain
       // old images after an AI/source-only edit; those assets are no longer live.
@@ -489,6 +490,7 @@ function rewriteResourceValue(args: {
     value, table, key, inTestDocuments, supabaseOrigin, restoredPaths,
     restoredManagedIds, restoredManagedIdsBySourceId,
   } = args
+  if (isImmutableRepoLightArchiveResource(table)) return value
   if (typeof value === 'string') {
     if (key === 'managed_object_id' || key === 'snapshot_managed_object_id') {
       return restoredManagedIdsBySourceId.get(value) || value

@@ -1,3 +1,4 @@
+import { isImmutableRepoLightArchiveResource } from '@/lib/server/repolight-archive'
 import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
@@ -781,6 +782,7 @@ export function discoverClassroomStorageReferences(
     if (path) push({ bucket: 'assignment-artifacts', path })
   }
   for (const [table, rows] of Object.entries(resources)) {
+    if (isImmutableRepoLightArchiveResource(table)) continue
     for (const row of rows) {
       if (table === 'tests' && isJsonObject(row)) {
         const { documents: _documents, ...testWithoutDocuments } = row

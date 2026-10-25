@@ -23,6 +23,13 @@ describe('portable RepoLight reports', () => {
   it('keeps completed reports complete while detaching all control authority', () => {
     expect(detachRepoLightArchiveResources({assignment_repolight_runs:[{status:'completed'}]}).assignment_repolight_runs[0]).toMatchObject({status:'completed',detached:true,subject_binding_id:null})
   })
+  it('defaults only a missing legacy poll failure counter before typed restore staging', () => {
+    const result = detachRepoLightArchiveResources({ assignment_repolight_runs: [
+      { id: 'legacy', status: 'completed' }, { id: 'current', status: 'failed', poll_failure_count: 2 },
+      { id: 'invalid', status: 'failed', poll_failure_count: null },
+    ] })
+    expect(result.assignment_repolight_runs.map(row => row.poll_failure_count)).toEqual([0, 2, null])
+  })
   it('requires an entire additive report resource family, retaining strict manifest inventory', () => {
     const all=CLASSROOM_ARCHIVE_V2_RESOURCES.map(row=>row.table)
     expect(resolveClassroomArchiveV2Resources(all)).toHaveLength(all.length)

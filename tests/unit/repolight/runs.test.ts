@@ -3,7 +3,7 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => { throw new
 import wire from './fixture.json'
 import { sourceFixture } from './adapter-fixtures'
 import { digestRepoLightJson, prepareRepoLightCreate, RepoLightClientError, type RepoLightClient } from '@/lib/server/repolight-client'
-import { beginAssignmentRepoLightRun, advanceAssignmentRepoLightRun, getAssignmentRepoLightContext, getAssignmentRepoLightReport, getAssignmentRepoLightRun, readRepoLightRequestJson, type RepoLightDependencies } from '@/lib/server/assignment-repolight-runs'
+import { beginAssignmentRepoLightRun, advanceAssignmentRepoLightRun, getAssignmentRepoLightContext, getAssignmentRepoLightReport, getAssignmentRepoLightRun, readRepoLightRequestJson, parseRepoLightRun, type RepoLightDependencies } from '@/lib/server/assignment-repolight-runs'
 import { importAssignmentRepoLightFeedback } from '@/lib/server/assignment-repolight-import'
 const uuid = (n: number) => `${String(n).padStart(8, '0')}-1111-4111-8111-111111111111`
 function setup() {
@@ -131,6 +131,15 @@ describe('report-only durable orchestration', () => {
     f.row.actor_id = f.actor; f.row.source_fingerprint = 'f'.repeat(64)
     await expect(getAssignmentRepoLightReport(f.actor, f.target, f.row.id, f.deps)).rejects.toMatchObject({ statusCode: 503 })
     expect(f.factory).not.toHaveBeenCalled()
+  })
+  it('accepts missing legacy poll history as zero and rejects out-of-budget internal counters without exposing them', async () => {
+    const f = setup()
+    expect(parseRepoLightRun(f.row, f.actor, f.target, f.row.id).poll_failure_count).toBe(0)
+    for (const count of [-1, 4, 1.5, null]) {
+      expect(() => parseRepoLightRun({ ...f.row, poll_failure_count: count }, f.actor, f.target, f.row.id))
+        .toThrow('repolight_invalid_storage')
+    }
+    expect(await getAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)).not.toHaveProperty('poll_failure_count')
   })
   it('rejects a missing private binding on an ordinary live run', async () => {
     const f = setup(); f.row.subject_binding_id = null

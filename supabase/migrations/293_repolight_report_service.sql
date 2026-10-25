@@ -26,7 +26,7 @@ create table public.assignment_repolight_runs(
  classroom_id uuid not null references public.classrooms(id) on delete cascade,assignment_id uuid not null references public.assignments(id) on delete cascade,student_id uuid not null references public.users(id),actor_id uuid not null references public.users(id),
  source_json jsonb not null,source_fingerprint text not null,connection_json jsonb not null,request_json jsonb not null,create_envelope jsonb not null,request_fingerprint text not null,idempotency_key text not null unique,
  analysis_id uuid,status text not null default 'queued' check(status in('queued','submitting','running','completed','failed','stale')),
- attempt_count integer not null default 0 check(attempt_count between 0 and 3),next_retry_at timestamptz,
+ attempt_count integer not null default 0 check(attempt_count between 0 and 3),poll_failure_count integer not null default 0 check(poll_failure_count between 0 and 3),next_retry_at timestamptz,
  lease_token uuid,lease_generation integer not null default 0,lease_expires_at timestamptz,
  error_code text check(error_code is null or error_code ~ '^[a-z_]{1,64}$'),created_at timestamptz not null default clock_timestamp(),completed_at timestamptz,
  check(source_fingerprint ~ '^[a-f0-9]{64}$' and request_fingerprint ~ '^[a-f0-9]{64}$'),check(octet_length(create_envelope::text)<=65536)
@@ -110,9 +110,19 @@ begin
  if found then
   if r.detached then raise exception using errcode='55000',message='repolight_detached_report';end if;
   if r.assignment_id<>p_assignment_id or r.student_id<>p_student_id or r.actor_id<>p_actor_id or r.request_json<>p_request or r.connection_json<>p_connection or r.source_json<>source then raise exception using errcode='40001',message='repolight_intent_conflict';end if;
+  -- Exact replay never creates another subject, including after cleanup closes
+  -- this intent. Retire only its operational authority and return that outcome.
+  if r.status in('queued','submitting','running') and not exists(select 1 from private.repolight_subject_bindings where id=r.subject_binding_id and state='active') then
+   update public.assignment_repolight_runs set status='stale',error_code='repolight_subject_closed',next_retry_at=null,lease_token=null,lease_generation=lease_generation+1,lease_expires_at=null,completed_at=clock_timestamp() where id=r.id returning * into r;
+  end if;
   return to_jsonb(r);
  end if;
  if exists(select 1 from private.repolight_subject_bindings where intent_id=p_request_id) then raise exception using errcode='55000',message='repolight_subject_closed';end if;
+ -- Only an authorized POST with validated current input may supersede an active
+ -- target. Preserve inputs, remote IDs, facts and every uncertain cleanup intent.
+ update public.assignment_repolight_runs old_run set status='stale',error_code='repolight_superseded',next_retry_at=null,lease_token=null,lease_generation=old_run.lease_generation+1,lease_expires_at=null,completed_at=clock_timestamp()
+ where old_run.assignment_id=p_assignment_id and old_run.student_id=p_student_id and old_run.status in('queued','submitting','running') and
+ (old_run.source_json is distinct from source or old_run.request_json is distinct from p_request or old_run.connection_json is distinct from p_connection or not exists(select 1 from private.repolight_subject_bindings where id=old_run.subject_binding_id and state='active'));
  if exists(select 1 from public.assignment_repolight_runs where assignment_id=p_assignment_id and student_id=p_student_id and status in('queued','submitting','running')) then raise exception using errcode='40001',message='repolight_run_active';end if;
  fingerprint:=private.repolight_digest_v1(source);
  insert into private.repolight_subject_bindings(intent_id,teacher_id,classroom_id,assignment_id,student_id,enrollment_id,scope_digest,connection_ref,workspace_ref,installation_ref)
@@ -140,13 +150,17 @@ begin
  if not found then raise exception using errcode='P0002',message='Analysis not found';end if;
  if r.actor_id<>p_actor_id then raise exception using errcode='42501',message='Forbidden';end if;
  if r.detached then raise exception using errcode='55000',message='repolight_detached_report';end if;
+ if r.status='stale' then raise exception using errcode='40001',message='repolight_lease_lost';end if;
  select * into b from private.repolight_subject_bindings where id=r.subject_binding_id for update;
  if b.state<>'active' then raise exception using errcode='55000',message='repolight_subject_closed';end if;
  if r.source_json is distinct from private.repolight_source_v1(p_assignment_id,p_student_id) then raise exception using errcode='40001',message='repolight_source_changed';end if;
- if r.status in('completed','failed','stale') then return to_jsonb(r);end if;
+ if r.status in('completed','failed') then
+  if p_action is distinct from 'claim' then raise exception using errcode='40001',message='repolight_lease_lost';end if;
+  return to_jsonb(r);
+ end if;
  if p_action='claim' then
   if r.lease_expires_at>clock_timestamp() or r.next_retry_at>clock_timestamp() then return to_jsonb(r)-'lease_token';end if;
-  if r.attempt_count>=3 or r.created_at<clock_timestamp()-interval '24 hours' then
+  if (r.analysis_id is null and r.attempt_count>=3) or (r.analysis_id is not null and r.poll_failure_count>=3) or r.created_at<clock_timestamp()-interval '24 hours' then
    update public.assignment_repolight_runs set status='failed',error_code='attempts_exhausted',completed_at=clock_timestamp(),lease_token=null,lease_expires_at=null where id=r.id returning * into r;return to_jsonb(r);
   end if;
   update public.assignment_repolight_runs set status=case when analysis_id is null then 'submitting' else 'running' end,lease_token=gen_random_uuid(),lease_generation=lease_generation+1,lease_expires_at=clock_timestamp()+interval '90 seconds',attempt_count=attempt_count+case when analysis_id is null then 1 else 0 end,next_retry_at=null where id=r.id returning * into r;
@@ -166,8 +180,8 @@ begin
   update public.assignment_repolight_runs set status='completed',completed_at=clock_timestamp(),lease_token=null,lease_expires_at=null,error_code=null where id=r.id returning * into r;
  elsif p_action='retry' then
   if p_payload->>'errorCode' !~ '^[a-z_]{1,64}$' then raise exception using errcode='22023',message='Invalid safe error';end if;
-  can_retry:=coalesce((p_payload->>'retryable')::boolean,false) and r.attempt_count<3;
-  if r.analysis_id is not null then update public.assignment_repolight_runs set attempt_count=least(3,attempt_count+1) where id=r.id;end if;
+  can_retry:=coalesce((p_payload->>'retryable')::boolean,false) and case when r.analysis_id is null then r.attempt_count<3 else r.poll_failure_count+1<3 end;
+  if r.analysis_id is not null then update public.assignment_repolight_runs set poll_failure_count=least(3,poll_failure_count+1) where id=r.id;end if;
   update public.assignment_repolight_runs set status=case when can_retry then 'queued' else 'failed' end,error_code=p_payload->>'errorCode',next_retry_at=case when can_retry then clock_timestamp()+interval '15 seconds' else null end,completed_at=case when can_retry then null else clock_timestamp() end,lease_token=null,lease_expires_at=null where id=r.id returning * into r;
  else raise exception using errcode='22023',message='Invalid RepoLight transition';end if;
  return to_jsonb(r);
@@ -272,7 +286,7 @@ create function private.repolight_record_guard_v1() returns trigger language plp
 declare binding uuid;
 begin
  if tg_table_name='assignment_repolight_runs' then
-  if tg_op='UPDATE' and (to_jsonb(new)-array['analysis_id','status','attempt_count','next_retry_at','lease_token','lease_generation','lease_expires_at','error_code','completed_at']) is distinct from (to_jsonb(old)-array['analysis_id','status','attempt_count','next_retry_at','lease_token','lease_generation','lease_expires_at','error_code','completed_at']) then raise exception using errcode='55000',message='repolight_input_immutable';end if;
+  if tg_op='UPDATE' and (to_jsonb(new)-array['analysis_id','status','attempt_count','poll_failure_count','next_retry_at','lease_token','lease_generation','lease_expires_at','error_code','completed_at']) is distinct from (to_jsonb(old)-array['analysis_id','status','attempt_count','poll_failure_count','next_retry_at','lease_token','lease_generation','lease_expires_at','error_code','completed_at']) then raise exception using errcode='55000',message='repolight_input_immutable';end if;
   binding:=old.subject_binding_id;
  else
   if tg_op='UPDATE' then raise exception using errcode='55000',message='repolight_report_immutable';end if;
