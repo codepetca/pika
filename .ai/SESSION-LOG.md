@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Material calendar post dates
-
-Added teacher Post date (Toronto) editing for already-posted Classwork materials;
-explicit Save moves the existing release date, with future release still owned
-by Schedule. Owner PATCH/receipt validation and migration289 retain locked
-ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
-saved release date. Guidance: docs/guidance/material-post-date.md.
-UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
-extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
-focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
-boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
-state covered, no manual follow-up. Student date editor n/a; both calendar modes
-covered by date-movement regression. Risk profile none; standard independent
-review required. Branch codex/material-post-date owned by this chat. Sol/high DB
-worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
-Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
-coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
-proofs, generated-type equality and unchanged shared schema PASS; evidence
-/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
-overlapping profile tests under host load140+. Focused gate rerunning with one
-worker before ready. Initial independent review PASS at de56dbceb; focused run
-4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
-598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
-heavy-tests-released under the owner-authorized serial test plan before rerun;
-targeted review required for this test-only correction. No shared local/production
-migration applied and no production promotion.
-
-CI follow-up: owner approved one additional compatibility batch and targeted
-review within a45-minute extension. Attendance clone harness still required288;
-advance its exact-count/source upper bound to sealed289, preserving rejection of
-unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
-preflight in its runner regression. Application and migration bytes unchanged.
-Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
-focused rerun waits for toolbar's local test slot; targeted delta review pending.
-
 ## 2026-10-22 — Announcement calendar post dates
 
 Owner expanded post-date editing to published announcements in PR1663. Reuse
@@ -687,3 +652,16 @@ two-session contention and generated types pass; shared fingerprints unchanged.
 Audit of159direct scripts,20package aliases,282reachable files and120shell
 scripts found no remaining current-chain cutoffs. NoSQL/app/flag changes.
 Final targeted review and exact-head CI remain required; Analyze OFF.
+
+## 2026-10-24 — RepoLight warning-level SQL lint correction
+
+User approved one further fix batch and eighth independent review (30-minute
+extension) before rerunning CI and conditional main merge. Cleanup discovery
+initializes its empty array with an explicit JSONB cast; both current migration293
+seals refreshed to b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052.
+An owned offline001–293 replay reproduces SQLSTATE42804 with the original initializer;
+the corrected schema is warning-free across569public/private PL/pgSQL functions
+using CLI2.103.0's query. Home rollback/recovery and real two-session contention
+pass; generated types and canonical-preservation checks retained. Required local
+focused checks, targeted review and exact-head PR Gate remain merge prerequisites.
+No shared/prod migration or provider activation; Analyze OFF.

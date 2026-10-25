@@ -49895,3 +49895,39 @@ local291 and up to three extra reviewer launches explicitly requested and pendin
 Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
 apart from a corrected source-wire assertion awaiting rerun; final focused gate,
 local database/browser evidence and independent review remain. PR1662 stays draft.
+
+<!-- pika-session-log-archive-batch:8c049d829b4115f10591fe90dc7c18f63c92fdf4b8677dfa9f33fab19bceab97 -->
+## 2026-10-22 — Material calendar post dates
+
+Added teacher Post date (Toronto) editing for already-posted Classwork materials;
+explicit Save moves the existing release date, with future release still owned
+by Schedule. Owner PATCH/receipt validation and migration289 retain locked
+ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
+saved release date. Guidance: docs/guidance/material-post-date.md.
+UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
+extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
+focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
+boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
+state covered, no manual follow-up. Student date editor n/a; both calendar modes
+covered by date-movement regression. Risk profile none; standard independent
+review required. Branch codex/material-post-date owned by this chat. Sol/high DB
+worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
+Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
+coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
+proofs, generated-type equality and unchanged shared schema PASS; evidence
+/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
+overlapping profile tests under host load140+. Focused gate rerunning with one
+worker before ready. Initial independent review PASS at de56dbceb; focused run
+4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
+598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
+heavy-tests-released under the owner-authorized serial test plan before rerun;
+targeted review required for this test-only correction. No shared local/production
+migration applied and no production promotion.
+
+CI follow-up: owner approved one additional compatibility batch and targeted
+review within a45-minute extension. Attendance clone harness still required288;
+advance its exact-count/source upper bound to sealed289, preserving rejection of
+unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
+preflight in its runner regression. Application and migration bytes unchanged.
+Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
+focused rerun waits for toolbar's local test slot; targeted delta review pending.

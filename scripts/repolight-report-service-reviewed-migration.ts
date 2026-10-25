@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 
 export const REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION = Object.freeze({
   name: '293_repolight_report_service.sql',
-  sha256: '79cfbdd6222859111dbd41f07065a801d9e1c2b6df1b39d6ba2fb45b205aefe7',
+  sha256: 'b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052',
 })
 export function validateRepoLightReportServiceReviewedMigration(migration: { name: string; sql: string; sha256: string }) {
   const seal = REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION

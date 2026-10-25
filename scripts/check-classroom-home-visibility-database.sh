@@ -93,7 +93,7 @@ paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], Strin
 // Preserve historical dirty-tree manifests; only the new 293 extension is sealed.
 const reviewed293 = '293_repolight_report_service.sql'
 assert.equal(paths[292], reviewed293, 'Unreviewed migration 293 filename')
-assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', reviewed293))).digest('hex'), '79cfbdd6222859111dbd41f07065a801d9e1c2b6df1b39d6ba2fb45b205aefe7', 'Unreviewed migration 293 source')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', reviewed293))).digest('hex'), 'b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052', 'Unreviewed migration 293 source')
 for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }

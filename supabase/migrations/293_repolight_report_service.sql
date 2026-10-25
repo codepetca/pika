@@ -842,7 +842,7 @@ begin
  return jsonb_build_object('schema_version',1,'classroom_id',p_classroom_id,'student_id',p_student_id,'generation_id',generation,'email',first_row.email,'name',coalesce(nullif(btrim(concat_ws(' ',first_row.first_name,first_row.last_name)),''),first_row.email),'scope','repolight_only','other_providers','out_of_scope','provider_bound',bound,'operation_id',saved.operation_id,'status',coalesce(saved.status,'not_reserved'),'pending_subject_count',pending_count,'total_subject_count',total_count,'academic_preserved',true);
 end $$;
 create function public.discover_repolight_removed_student_cleanup_groups_v1(p_actor_id uuid,p_classroom_id uuid,p_after_student_id uuid default null) returns jsonb language plpgsql security definer set search_path='' as $$
-declare item record; context jsonb; targets jsonb:='[]'; next_id uuid; seen integer:=0; last_id uuid;
+declare item record; context jsonb; targets jsonb:='[]'::jsonb; next_id uuid; seen integer:=0; last_id uuid;
 begin
  if p_actor_id is null or not exists(select 1 from public.classrooms where id=p_classroom_id and teacher_id=p_actor_id) then raise exception using errcode='42501',message='Forbidden';end if;
  for item in select distinct r.removed_student_id student_id from public.classroom_roster r where r.classroom_id=p_classroom_id and r.removed_student_id is not null and (p_after_student_id is null or r.removed_student_id>p_after_student_id) and
