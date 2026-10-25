@@ -13,7 +13,7 @@ Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
 Broader cutover/billing held.
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Provider controls unchanged; Pal membership/signals OFF; live calls held.
+Controls unchanged: Pal membership/signals OFF; live calls held.
 Access incomplete; deployed classwork/API/replay and expansion remain.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Owner259–262 installed/dormant; Tests adopter1580 prepared.
