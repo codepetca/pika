@@ -50064,3 +50064,21 @@ experimental prototype controls). Fix nested catalog p-alias shadowing without
 changing capability checks or migration291. READ ONLY nested catalog passes.
 Native isolated publication verification follows on a clean committed checkpoint;
 final receipts/CI/review status live on PR1662. No merge or production authority.
+
+<!-- pika-session-log-archive-batch:b0a20ee2dc3db42107085722b17c329a9a22932f807d4ce96663160f066f8d77 -->
+## 2026-10-23 — Local244–291 authorized application and final verification
+
+Owner explicitly authorized exact local244–291, checks/final review and Docker
+shutdown. Fresh target Pika54322/source243,48-file preview and manifest hashes
+matched. Source schema byte-identical to prior native baseline; no main drift.
+One supabase db push --local --yes succeeded; history291rows/max291. No reset,
+seed, history repair, production change or rollout activation. Apply receipt:
+/tmp/pika-authoring244-291-apply.log. Read-only exact291catalog PASS. Official
+db:types:generate/check PASS; only36-line new ledger metadata, byte-identical to
+prior isolated expected output. Final isolated001–291 replay, all4rollback
+proofs, generated-type equality and unchanged shared schema PASS:
+/tmp/pika-material-post-date.r5fxEg. Data API static PASS; historical/absent-default
+ACL proof reused unchanged source. Exact-source archive71tests PASS from prior
+correction; no UI delta, prior16teacher+4student+8existing browser evidence reused.
+Final full one-worker check and reserved cumulative review12 pending. Native
+clones cleaned; Docker will stop again before completion. No merge authorized.

@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Local244–291 authorized application and final verification
-
-Owner explicitly authorized exact local244–291, checks/final review and Docker
-shutdown. Fresh target Pika54322/source243,48-file preview and manifest hashes
-matched. Source schema byte-identical to prior native baseline; no main drift.
-One supabase db push --local --yes succeeded; history291rows/max291. No reset,
-seed, history repair, production change or rollout activation. Apply receipt:
-/tmp/pika-authoring244-291-apply.log. Read-only exact291catalog PASS. Official
-db:types:generate/check PASS; only36-line new ledger metadata, byte-identical to
-prior isolated expected output. Final isolated001–291 replay, all4rollback
-proofs, generated-type equality and unchanged shared schema PASS:
-/tmp/pika-material-post-date.r5fxEg. Data API static PASS; historical/absent-default
-ACL proof reused unchanged source. Exact-source archive71tests PASS from prior
-correction; no UI delta, prior16teacher+4student+8existing browser evidence reused.
-Final full one-worker check and reserved cumulative review12 pending. Native
-clones cleaned; Docker will stop again before completion. No merge authorized.
-
 ## 2026-10-23 — Final editor/image review candidate
 
 Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
@@ -603,3 +586,15 @@ configuration, production or provider action. Remaining work is candidate-specif
 evidence applicability and separately authorized observed expansion; isolated
 domain proofs and layered recovery are not all-domain/deployed outage evidence.
 Main-only docs review/CI follow; no overall-goal completion or production authority.
+
+## 2026-10-25 — RepoLight production migration and release
+
+Human approved production293 once plus reviewed1687 and the coordinated lifecycle
+window. Apply40226843818 verified only293/history001–293 and the approved digest.
+Catalog/RLS/ACL/body/trigger/archive checks pass;13renamed originals preserved.
+PR1687 merged dbd1f62c1; Vercel dpl_tCawB6aLRNnQN6FBxw35QinNZtx8 READY on that SHA.
+All10 CI40222687057 jobs and public HTTP boundaries passed. Cohort/provider
+metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
+released to both coordinated Pika tasks. Connection provisioning and hosted
+integration acceptance remain pending. Standalone inventory diagnostic limitation
+is tracked in the integration guide/PR; no passing claim for that command.
