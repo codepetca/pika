@@ -7,9 +7,21 @@ do $acl$ declare n text; begin
  if private.repolight_canonical_json_v1('{"z":1,"aa":[true,null,"q"],"a":{"b":2,"a":1}}') <> '{"a":{"a":1,"b":2},"aa":[true,null,"q"],"z":1}' then raise exception 'Canonical JSON differs from JS fixture'; end if;
 end $acl$;
 insert into public.users(id,email,role) values
- ('f2930000-0000-4000-8000-000000000001','repolight-owner@example.invalid','teacher'),
+ ('f2930000-0000-4000-8000-000000000001','repolight-owner@example.invalid','student'),
  ('f2930000-0000-4000-8000-000000000002','repolight-student@example.invalid','student'),
  ('f2930000-0000-4000-8000-000000000003','repolight-outsider@example.invalid','teacher');
+-- Exercise current ownership independently of the owner's global role. This
+-- synthetic creation grant exists only inside this rollback-only fixture.
+set local role service_role;
+select public.set_effective_feature_entitlement_v1(
+ gen_random_uuid(),'f2930000-0000-4000-8000-000000000001',
+ 'classrooms.create','manual',true,clock_timestamp(),null,2,
+ 'test:migration-293','repolight_contextual_owner_fixture',
+ coalesce((select revision from public.effective_feature_entitlements
+  where subject_user_id='f2930000-0000-4000-8000-000000000001'
+   and feature_key='classrooms.create'),0)
+);
+reset role;
 insert into public.classrooms(id,teacher_id,title,class_code) values('f2930000-0000-4000-8000-000000000010','f2930000-0000-4000-8000-000000000001','Synthetic RepoLight','R293FX');
 insert into public.classroom_enrollments(id,classroom_id,student_id) values('f2930000-0000-4000-8000-000000000011','f2930000-0000-4000-8000-000000000010','f2930000-0000-4000-8000-000000000002');
 insert into public.assignments(id,classroom_id,title,description,due_at,created_by,is_draft,released_at) values('f2930000-0000-4000-8000-000000000020','f2930000-0000-4000-8000-000000000010','Synthetic analysis','','2026-10-25T04:00:00Z','f2930000-0000-4000-8000-000000000001',false,'2026-09-01T04:00:00Z');

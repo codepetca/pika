@@ -28,9 +28,19 @@ The controlled student joined and submitted a public repository through the norm
 UI. A blank optional GitHub login exposed an assignment-overview serialization
 failure: the repository mapper emitted an own `undefined` property, which the strict
 bounded JSON validator rejected. The fix omits absent optional metadata while
-preserving supplied strings and strict raw-artifact checks. Its source/tests are
-under review; production report creation and feedback import remain unverified.
-The epic remains incomplete until the hosted pilot finishes.
+preserving supplied strings and strict raw-artifact checks. [PR#1690](https://github.com/codepetca/pika/pull/1690)
+merged; [promotion#1691](https://github.com/codepetca/pika/pull/1691) passed all ten
+checks and deployed production `45a604275c70b81d3cf83b120d52757d0b409248`, READY as
+`dpl_12vbuC69sEjQFGHUsb8UXgkAX6XF`. The controlled assignment overview now loads.
+
+The next pilot step stopped before Analyze: the controlled owner has global role
+Student, and the report routes still required global Teacher. No report or import
+was requested. Preparing the existing comment draft in Final mode briefly saved
+zero marks; normal Draft mode restored all score, graded and returned fields to
+null, verified against the synthetic document. The saved pilot note remains private.
+AI is OFF. The production window was handed back to the coordinating Pika tasks;
+the authorization correction is source-only until separately reviewed and approved.
+The epic remains incomplete until hosted report creation and edited feedback import pass.
 
 The standalone `scripts/inventory-classroom-archives.ts` diagnostic still compares
 the current registry against a V1-derived expectation and rejects the additive
@@ -236,10 +246,15 @@ Route family:
 `runs/[runId]/report` (GET), and `runs/[runId]/import` (POST). `GET` on `runs` also returns the authorized
 configuration/source summary and latest run so reload can reconnect without
 browser-persisted identity or a guessed remote analysis ID.
-Use `withErrorHandler`, named Zod request schemas, current-session teacher and
-exact assignment/classroom ownership, enrollment and lifecycle checks. Initial
-admission does not widen dormant contextual owner gates or rely on a role label
-alone. Missing/mismatched relationships return unavailable/forbidden without
+Use `withErrorHandler`, named Zod request schemas and `requireRepoLightActor`.
+An authenticated actor admitted by the existing classroom-experience cohort may
+reach the feature's exact assignment/classroom ownership, enrollment and lifecycle
+checks with either global role. Absent or unmatched admission retains the legacy
+Teacher guard; malformed present admission fails closed. This helper grants no
+classroom relationship and consumes no dormant owner/read/mutation pair flags.
+Removed-generation discovery and report-only cleanup already use the same shared
+admission contract and retain their exact owner, generation, operation and erasure
+receipt checks. Missing/mismatched relationships return unavailable/forbidden without
 triggering external work. Every returned run is rebound to the requested target.
 
 The UI writer receives a feature-local controller contract, not provider
