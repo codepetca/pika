@@ -95,19 +95,56 @@ Scoped read-only SQL confirmed exactly one returned teacher-comment entry,
 empty draft and no AI provenance/review. Both existing sessions stayed signed in.
 Actual UI captures were displayed and inspected; no filesystem PNG was retained.
 
-The remaining seamless-path defect is the missing selected-inspector refresh
-after Return. The bounded source fix uses the existing refresh key only for a
-learner acknowledged as returned/already returned; pending-read and optimistic
-revision guards remain. Controlled browser verification is distinct from a
-deployed canary of that fix. Its production release and cohort expansion remain
-held; do not call the seamless path or overall goal complete from these results.
+That release exposed a missing selected-inspector refresh after Return. The
+subsequent separately authorized release and deployed check below resolve that
+defect; the earlier reload-dependent result remains historical evidence.
+
+### October25 seamless Return and direct API acceptance
+
+The owner-approved inspector refresh landed through #1684, main
+`19b5abab9d4c6ecd87a5e070adb576fed854036a`. Protected promotion #1685 passed
+independent review478 and all ten checks including PR Gate in CI40193720551.
+Production merged `9a845b2688060b78908e2c4103e5674bf0255324`; the canonical domain
+was verified READY at `dpl_FWEsktshkEPjzfJvfoyFkiTAfqk8`.
+
+The actual deployed A/B check resubmitted the existing synthetic text, returned
+it, then autosaved and sent one owner comment without reloading the owner page.
+B's returned rubric,80% and both comments persisted across two fresh loads;
+A's final reload agreed. Read-only SQL confirmed the expected returned entries,
+empty draft and no AI provenance. The accepted isolated visual matrix remains
+separate from this owner screenshot/learner rendered-readback and SQL evidence.
+
+At October25 14:41–14:43 America/Toronto, the reviewed bounded API client passed
+all34 requests: normal production email-code sign-in and accepted session
+identity for A/B/Control; reciprocal owner/member positive reads; member-as-owner,
+owner-as-learner and nonmember denials; substituted student-target denials; and
+a member's forbidden owner update. Free Control's direct creation returned403
+with the expected entitlement-disabled code. One A creation and its exact
+body/operation replay both returned201 with the same classroom; the second
+response explicitly identified the replay. No duplicate was created.
+
+Final Home reads retained the original relationships and added only that one
+empty A classroom. Independent read-only SQL matched all five protected
+fingerprints: original classrooms, assignment, work, returned feedback and the
+three plan rows. A now owns two and joins one; B owns one and joins one;
+Control owns and joins none. Basic revision2/Basic revision2/Free revision1
+remained unchanged. Exactly one A creation operation exists, the denied Control
+operation does not, and the new classroom has no enrollments or assignments.
+Keep that classroom and the original work; no cleanup or deletion was performed.
+
+Preflight18:41:12.982Z and postflight18:43:12.487Z verified the exact READY
+source/deployment above, unchanged three-account configuration and original24
+provider/control metadata records, and absent independent page flags. Earlier
+failed operator attempts remain failed/spent, not acceptance. These fingerprints
+cover the selected records, not the entire production database. This receipt
+does not attest a subsequently prepared release, live providers or expansion.
 
 | Area | Evidence retained | Remaining boundary |
 | --- | --- | --- |
 | Core Home | Actual production results above plus the accepted isolated real-cookie Home rehearsal | No new Home implementation/rehearsal needed solely for a newer timestamp. |
-| Creation replay / managed disable / source recovery | Accepted isolated same-operation replay and layered SQL/application recovery in the readiness packet | Actual production replay and direct Free create-API rejection remain unverified. No deliberate production grant/ACL outage is authorized. |
-| Assignment / Test / Survey / Gradebook | Accepted isolated [Assignment lifecycle](contextual-assignment-lifecycle-rehearsal.md), [Test](contextual-test-screen-adoption.md), [Survey](contextual-surveys.md) and [Gradebook](contextual-gradebook.md) evidence; actual deployed synthetic Assignment submission → inspection → manual grade → Return → learner rubric/comment persistence above | The Assignment path required normal reload recovery after Return; automatic inspector refresh still needs its own release/readback. Other deployed domain canaries remain distinct from this Assignment evidence. |
-| Relationship and resource denials | Accepted isolated owner-as-learner, member-as-owner, nonmember and substituted-resource checks | Production direct API/resource-substitution negatives remain unverified. UI redirects alone do not prove those API contracts. |
+| Creation replay / managed disable / source recovery | Actual production one-create/exact-replay and direct Free403 above; accepted isolated managed-disable and layered recovery proof | No deliberate production grant/ACL outage is authorized. Accepted layered recovery is distinct from a deployed outage drill. |
+| Assignment / Test / Survey / Gradebook | Accepted isolated [Assignment lifecycle](contextual-assignment-lifecycle-rehearsal.md), [Test](contextual-test-screen-adoption.md), [Survey](contextual-surveys.md) and [Gradebook](contextual-gradebook.md) evidence; actual deployed seamless Assignment Return/comment/persistence above | Assignment acceptance does not establish deployed Test, Survey or Gradebook journeys. Qualify applicable source/schema interactions for the proposed expansion before deciding whether any additional deployed domain canary is needed. |
+| Relationship and resource denials | Actual production owner/member/nonmember read/write and student-target negatives above; accepted isolated foreign-resource binding checks | Student-target checks are representative identity binding, not a new foreign-material production mutation proof. Reuse isolated resource-binding evidence only after qualifying later source interactions. |
 | Removal / rejoin | Accepted isolated retained-removal, absent-membership, hidden-preference cleanup and blocked-rejoin evidence | Immediate readmission remains a deferred policy change, not a required successful-rejoin canary. |
 | Lifecycle / compatible recovery | Accepted paired owner-label archive/purge HTTP proofs and committed-unarchive/export-postflight503 preservation, plus schema292-compatible recovery evidence | Do not reopen superseded lifecycle gaps. Layered SQL/application proofs are not a deployed browser/PostgREST outage drill. |
 | Attached services | Existing relationship/generation/queue tests and exclusion controls | Bara/Pal/AI transport mocks and disabled pilot paths do not establish live-provider readiness. Live calls/configuration remain held. |
@@ -120,8 +157,17 @@ Reuse isolated evidence only at its accepted runtime revision and after qualifyi
 later source interactions; a later docs commit or privacy-only release is not a
 claim that its exact runtime was executed by an earlier rehearsal.
 
-Next, close or explicitly resolve the concrete deployed acceptance gaps using
-the existing three accounts, preserved evidence and established test clients.
-Any applicable provider canary requires its separate readiness/authority. Expand
-only after applicable canaries pass and a separate cohort decision is recorded.
-Billing, broad global-role cleanup and long-term retention are separate work.
+The representative deployed canary groups in the readiness packet now have
+actual Home, creation/replay, Assignment and contextual-denial evidence. Do not
+schedule three additional full production Test/Survey/Gradebook rehearsals solely
+because older checkpoint text called production API checks unverified. This is
+not an all-domain acceptance waiver: before expansion, record the candidate's
+applicable workflows, accepted isolated proof revisions, later source/schema
+interactions and any remaining uncovered deployed interaction. Run an additional
+canary when that assessment identifies a concrete gap.
+
+Next prepare the exact proposed cohort/class, provider applicability, compatible
+release and stop conditions. Any applicable provider canary requires separate
+readiness/authority. Expansion and its observation remain unperformed and require
+the separate cohort decision; retain the current three accounts and all provider
+holds meanwhile. Billing, broad global-role cleanup and retention remain separate.
