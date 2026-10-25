@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Roster dates without checkmarks
-
-Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
-Extend the existing roster Joined cell; same roster/Pattern Lab reference and
-teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
-without a timestamp show the text Joined; unjoined cells stay empty. No new
-component, pattern, or widget behavior. PR1661 returned to draft for this delta;
-focused checks, screenshot refresh and targeted independent review required.
-
-## 2026-10-22 — Joined fallback checkmark
-
-Owner refinement: joined records without a saved date use the original simple
-Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
-unjoined rows remain empty. Reuse original roster status icon; same teacher-only
-roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
-No component or widget contract change. PR1661 draft during validation/review.
-
 ## 2026-10-22 — Approved four-editor Markdown/image implementation
 
 Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
@@ -696,3 +679,14 @@ remains reviewed36ca8cd70; only continuity evidence refreshed. Local5892tests,
 native/HTTP/archive/browser and final reviews pass. Analyze OFF;293 unapplied
 shared/prod. Publish draft, mark stable head ready, require PR Gate; no deployment
 or production promotion. Optional AI stays RepoLight-owner-only and disabled.
+
+## 2026-10-24 — RepoLight CI compatibility remediation
+
+PR1681 held as draft after40154111852: full coverage found two stale292
+proof-target assertions and CURRENT receipt-label drift;22,346tests passed.
+Both isolated runners now admit only the sealed293 target through the existing
+closed validators, retain historical sources and reject changed/renamed293/294.
+CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
+and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
+offline native replays and targeted independent review tracked in PR evidence.
+Shared/prod293 remains unapplied; Analyze OFF. No provider activation.
