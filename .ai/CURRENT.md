@@ -3,18 +3,18 @@
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Prod `4778514b0` LIVE Oct24 00:28Toronto; #1673 CI40059627420 PASS.
-Login200/me401/pattern-lab404/image401 PASS; Markdown editors/2MB images live.
-Prod DB001–292 verified;292 approval used Oct23;Oct30 READY.
-[Release](../docs/guidance/production-home-foundation-release-2026-10-24.md).
+Prod `1da699fdc`; #1679 CI40128782362 PASS (Oct24).
+Home/admission ON: 3 test accounts; page flags absent; expansion held.
+Signed-in create/join/Teaching/Joined/hide/outsider UI PASS.
+DB001–292; [receipt/gates](../docs/guidance/classroom-home-pilot-receipt-2026-10-24.md).
 282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
 Poll5→1; fresh auth.
 Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
 
-admission/home/page/cutover/billing OFF;
+Broader cutover/billing held.
 entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
-Controls unchanged: quota/Pal membership/signals OFF; admission absent Oct21.
-Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
+Controls unchanged: Pal membership/signals OFF; live calls held.
+Access incomplete; deployed classwork/API/replay and expansion remain.
 Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
 Owner259–262 installed/dormant; Tests adopter1580 prepared.
 251/252 native/review/CI PASS.

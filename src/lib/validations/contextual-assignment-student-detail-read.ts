@@ -31,7 +31,8 @@ export const contextualAssignmentStudentDetailDocSchema = contextualAssignmentSt
   score_completion: number.nullable(), score_thinking: number.nullable(), score_workflow: number.nullable(), feedback: z.string().nullable(),
   teacher_feedback_draft: z.string().nullable(), teacher_feedback_draft_updated_at: timestamp.nullable(), feedback_returned_at: timestamp.nullable(),
   ai_feedback_suggestion: z.string().nullable(), ai_feedback_suggested_at: timestamp.nullable(), ai_feedback_model: z.string().nullable(), ai_grading_provenance: json.nullable(),
-  ai_grading_review: json.nullable(), teacher_cleared_at: timestamp.nullable(), graded_at: timestamp.nullable(), graded_by: uuid.nullable(), returned_at: timestamp.nullable(),
+  // Grader metadata stores text labels (manual writes use "teacher"), not actor identity.
+  ai_grading_review: json.nullable(), teacher_cleared_at: timestamp.nullable(), graded_at: timestamp.nullable(), graded_by: z.string().nullable(), returned_at: timestamp.nullable(),
   authenticity_score: number.nullable(), authenticity_flags: json.nullable(),
 }).strict()
 export const contextualAssignmentStudentDetailFeedbackSchema = z.object({

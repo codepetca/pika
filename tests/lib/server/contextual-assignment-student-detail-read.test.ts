@@ -19,7 +19,7 @@ const doc = { id: uuid(50000), assignment_id: assignmentId, student_id: studentI
   is_submitted: true, submitted_at: stamp, created_at: stamp, updated_at: stamp, viewed_at: stamp, save_sequence: 3, save_session_id: uuid(9), repo_url: 'https://github.com/legacy/repo', github_username: 'legacy',
   score_completion: 0, score_thinking: 1, score_workflow: 2, feedback: 'returned', teacher_feedback_draft: 'private teacher draft', teacher_feedback_draft_updated_at: stamp,
   feedback_returned_at: stamp, ai_feedback_suggestion: 'private AI draft', ai_feedback_suggested_at: stamp, ai_feedback_model: 'model', ai_grading_provenance: { private: 'provenance' },
-  ai_grading_review: { private: 'review' }, teacher_cleared_at: null, graded_at: stamp, graded_by: actorId, returned_at: stamp, authenticity_score: 70, authenticity_flags: [{ private: 'flag' }] }
+  ai_grading_review: { private: 'review' }, teacher_cleared_at: null, graded_at: stamp, graded_by: 'teacher', returned_at: stamp, authenticity_score: 70, authenticity_flags: [{ private: 'flag' }] }
 const feedback = (n: number) => ({ id: uuid(60000 + n), assignment_id: assignmentId, student_id: studentId, author_type: 'teacher', entry_kind: 'teacher_feedback', body: `Feedback ${n}`,
   created_at: stamp, returned_at: stamp, created_by: actorId })
 const target = { id: uuid(70000), assignment_id: assignmentId, student_id: studentId, selected_repo_url: 'https://github.com/override/repo', override_github_username: 'override',
@@ -71,6 +71,18 @@ function fixture(options: { doc?: any; profiles?: any[]; targets?: any[]; review
 }
 
 describe('exact student detail with installed SDK', () => {
+  it('reads the manual grader label written by the installed grading primitive before Return', async () => {
+    const manualDoc = { ...doc, score_completion: 8, score_thinking: 7, score_workflow: 9, returned_at: null, graded_by: 'teacher' }
+    const result = await fixture({ doc: manualDoc }).read()
+    expect(result.doc).toMatchObject({ score_completion: 8, score_thinking: 7, score_workflow: 9, graded_at: stamp, graded_by: 'teacher', returned_at: null })
+  })
+  it.each(['ai', 'model-label', actorId, null])('preserves existing text/null grader metadata %s', async gradedBy => {
+    const result = await fixture({ doc: { ...doc, graded_by: gradedBy } }).read()
+    expect(result.doc?.graded_by).toBe(gradedBy)
+  })
+  it.each([123, {}, [], undefined])('rejects malformed or missing grader metadata %#', async gradedBy => {
+    await expect(fixture({ doc: { ...doc, graded_by: gradedBy } }).read()).rejects.toMatchObject({ statusCode: 503 })
+  })
   it('binds every payload, supplement, empty terminal and final statement to owner and exact enrollment', async () => {
     const f = fixture(); const result = await f.read()
     expect(result).toMatchObject({ assignment: { id: assignmentId, instructions_markdown: 'Write' }, classroom: { title: 'Class' }, student: { id: studentId, email: 'student@example.test', name: 'First Last' }, doc: null })

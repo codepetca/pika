@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Roster join dates
-
-Teacher roster Joined cells now pair the existing Lucide check with a compact
-Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
-and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
-surface reference; extend: joined-cell composition and shared timezone utility.
-No shared component or new pattern; no adjacent refactor needed. Risk: none.
-Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
-joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
-captures in ignored output/playwright/, synthetic roster responses on local stack,
-compared with roster-before and Pattern Lab teacher-patterns. No overflow.
-Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
-from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
-Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
-checks and independent review receipts tracked in PR lifecycle. No migration.
-Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
-Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
-
-## 2026-10-22 — Roster dates without checkmarks
-
-Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
-Extend the existing roster Joined cell; same roster/Pattern Lab reference and
-teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
-without a timestamp show the text Joined; unjoined cells stay empty. No new
-component, pattern, or widget behavior. PR1661 returned to draft for this delta;
-focused checks, screenshot refresh and targeted independent review required.
-
-## 2026-10-22 — Joined fallback checkmark
-
-Owner refinement: joined records without a saved date use the original simple
-Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
-unjoined rows remain empty. Reuse original roster status icon; same teacher-only
-roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
-No component or widget contract change. PR1661 draft during validation/review.
-
 ## 2026-10-22 — Approved four-editor Markdown/image implementation
 
 Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
@@ -648,6 +613,49 @@ One remediation batch replaces both patch-helper logs with browser-safe fixed
 warnings and strengthens aggregate reconstruction diagnostics tests/guard.
 Targeted review and exact-head CI remain required before readiness/merge.
 
+## 2026-10-24 — Three-account Home pilot acceptance reconciliation
+
+Recorded exact production1da699/schema292 and the retained dedicated three-account
+Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
+code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
+scoped state matched one owned/one joined per reciprocal account, no Control
+membership and unchanged plans/providers. Corrected stale current-state and
+preparation-only wording; private identities/codes/content stay outside Git.
+Kept production replay, classwork/manual-return and direct API negatives distinct
+from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
+provider/cohort change or epic exit; live-provider/expansion holds remain.
+Docs-only focused checks and independent review precede normal main merge.
+
+## 2026-10-24 — Manual grader label owner-read regression
+
+The dedicated pilot saved manual scores, then owner readback failed503 because
+the strict detail schema treated graded_by as an actor UUID. Installed manual
+writer223 stores teacher text; existing grading/list contracts already accept
+text. Align only this metadata field, retaining owner/member UUID checks and
+strict shape/size guards. No migration, stored-data repair or authorization change.
+An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
+AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
+focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
+independent review and exact-head CI follow. Both pilot sessions remain signed
+in; Return/learner feedback remain pending compatible release and readback.
+No production, cohort, provider, plan or schema change; growth stays frozen.
+First CI caught the prior pilot summary's changed controls marker; restored
+the accurate established Controls unchanged prefix without reverting admission
+or provider state. Runtime grader fix unchanged; targeted docs regression and
+independent delta review precede the next stable-SHA CI.
+
 ## 2026-10-24 — Promote assignment image recovery with production ancestry
 
 Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
+
+## 2026-10-25 — Prepare manual-grader reader compatible release
+
+Owner approved this exact grader-label fix after review and CI, retaining only
+the existing three-account cohort, plans, schema and provider holds. PR1682
+merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
+1683 reconciles only journal ancestry with production1da699fdc, preserving both
+histories and all non-history bytes from reviewed main. Independent cumulative
+compatibility review and exact-head CI precede protected production merge. No
+new provider call, migration, cohort expansion or account change is authorized.
+Both owner and learner sessions remain signed in; Return/feedback wait for the
+compatible READY deployment and fresh readback.

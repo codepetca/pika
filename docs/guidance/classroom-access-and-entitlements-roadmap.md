@@ -1,9 +1,13 @@
 # Classroom access and entitlements
 
-2026-10-23 Batch4 implementation checkpoint: [live relationship home](live-classroom-home.md)
-prepares the real gated home, persisted joined visibility and capability-based
-create/code-join. Independent review, upstream migration-number reconciliation,
-fresh CI and signed-in activation evidence remain; no rollout or epic exit.
+2026-10-24 current checkpoint: the [three-account production Home pilot](classroom-home-pilot-receipt-2026-10-24.md)
+has actual signed-in create, reciprocal owner/member Teaching/Joined, persisted
+hide/unhide and outsider UI denial evidence on schema292. Admission stays limited
+to those three accounts. Production classwork/replay/API acceptance and separately
+authorized expansion remain; live-provider holds and the incomplete epic remain.
+Older implementation and activation-off statements below are historical receipts,
+not the current pilot configuration. The [live relationship home](live-classroom-home.md)
+records the implementation contract.
 
 Status: approved direction; phase 0 merged in PR #1170. The owner approved main-only
 landing of observation #1172, [classroom-core #1174](classroom-core-contextual-access.md)

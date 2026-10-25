@@ -20,7 +20,7 @@ const admission = (ids = [actorId]) => vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADM
 beforeEach(() => {
   vi.unstubAllEnvs(); vi.clearAllMocks()
   mocks.auth.mockResolvedValue({ id: actorId, role: 'student' }); mocks.client.mockReturnValue({})
-  mocks.read.mockResolvedValue({ assignment: { id: assignmentId }, student: { id: studentId } })
+  mocks.read.mockResolvedValue({ assignment: { id: assignmentId }, student: { id: studentId }, doc: { graded_by: 'teacher', score_completion: 8, score_thinking: 7, score_workflow: 9 } })
   mocks.legacy.mockRejectedValue(new ApiError(404, 'Legacy sentinel'))
 })
 describe('shared exact student detail admission', () => {
@@ -28,6 +28,7 @@ describe('shared exact student detail admission', () => {
     admission(); mocks.auth.mockResolvedValue({ id: actorId, role })
     const response = await GET(request(), { params: Promise.resolve({ id: assignmentId.toUpperCase(), studentId: studentId.toUpperCase() }) })
     expect(response.status).toBe(200)
+    expect((await response.json()).doc).toEqual({ graded_by: 'teacher', score_completion: 8, score_thinking: 7, score_workflow: 9 })
     expect(mocks.read).toHaveBeenCalledWith({ supabase: {}, actorId, assignmentId, studentId })
     expect(mocks.legacy).not.toHaveBeenCalled()
   })

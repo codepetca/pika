@@ -49659,75 +49659,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-<!-- pika-session-log-archive-batch:22feca1a6730ac5d5f75177ea6eb5419616c1a5fd02f23dc1a6022c663bcb52f -->
-## 2026-10-21 — Prepare classroom safeguards production release
-
-Owner requests deployment of merged classroom safeguards PR1654 and migrations. Draft1658 promotes main86633c561 over production869e0e18d; reconciled only production journal ancestry, with all other bytes exact main. Manual preview39699999718 passes against reviewed CI39668023820 and confirms production001–284 with complete pending285–288. Digest d3d96ac8495afe027f78d44af16c55a4260745b7bf8f6e69fe1980bcf0fd4523. Exact production apply approval and explicit irreversible queue-stop acknowledgement remain required before one apply attempt. No migration, provider, cohort or environment change yet. Startup passes; storage292GB healthy and weekly32% remaining. High-risk cumulative security/SQL and compatibility review use two GPT6.1Sol/high reviewers, one initial wave, seven-launch/four-fix default budget; tokens/active time unknown. Stable-head CI and production health verification precede completion.
-
-## 2026-10-22 — Compact modal close refinement (PR #1662)
-
-Owner requested the X inline with Write/Markdown instead of a close-only band.
-CreationModalShell now omits empty heading rows and reserves horizontal corner
-space in existing desktop controls/mobile title fields. Applied to assignment,
-material, test and survey editors; shared dismissal callbacks/guards unchanged.
-Stable guidance and Pattern Lab examples reflect the compact contract.
-Desktop assignment browser check confirms mode/X alignment and regained56px.
-Full focused gate3777/3777 plus architecture, UI/design policy, types and lint pass.
-Browser verification exposed rich-text toolbars covering question menus after
-sticky rows were introduced; compact shells now isolate editor stacking.
-Final role/theme/viewport matrix, delta checks and review tracked in PR.
-Owner then requested title/status cleanup: hidden accessible Title labels, retained
-empty placeholders, aligned title/settings inputs, and circular saving feedback
-in existing right-pane mode/question controls. Reused CircularProgress and kept
-SaveStatus text presentation as its default; save failures remain visible.
-Shared title-field composition retains naming/error/keyboard behavior. Targeted
-140component checks passed;24accepted browser cases cover desktop/mobile and
-light/dark, including a held production autosave and empty-title placeholders.
-Assignment/test fixture scroll sizing was aligned with the existing survey/test
-production pattern. Independent review accepted one P2: Preview metadata saves
-had no indicator. Its existing title row now carries the same feedback;37survey
-component cases (including held title/settings requests) and4full-classroom
-Preview browser cases pass. Owner-approved eighth targeted review was clean;
-final6c4ea6cc1 focused gate passed3786/3786 and all static checks.
-Owner then requested type/classroom context above the title in the left pane.
-Shared CreationModalContextHeader identifies Assignment/Material/Test/Survey,
-reuses the AppHeader name fade and preserves the full text/native tooltip.
-Production classroom titles are passed from their existing owners; right-pane
-controls and top-right X retain their positions. Title/settings and remaining
-details follow below; mobile context owns corner clearance. Pattern Lab, stable
-guidance and focused semantic/geometry checks updated. Component156/156 and
-24browser cases pass across desktop/mobile and light/dark, including held
-production saves, empty titles, long names, scrolling and menus. Explicit mobile
-grid columns prevent long-name width expansion. Docker/owned preview stopped
-after screenshots; final canonical gate and delta review remain tracked in PR.
-
-## 2026-10-22 — Consistent modal close controls (PR #1662 follow-up)
-
-Owner expanded Markdown authoring scope to put modal X controls consistently in
-the top-right. Shared 44px ghost DialogCloseButton now owns the 12px corner
-position across shared dialogs, creation/edit shells, QR/submission/add-student,
-reward and test previews. Removed left-title/duplicate controls; retained existing
-close callbacks, save-flush behavior, busy guards, Escape/backdrop and focus return.
-Stable guidance promoted by explicit owner request; Pattern Lab modal-close added.
-Teacher/student desktop/mobile light/dark screenshots inspected; long-title
-shrink overlap corrected. Existing keyboard layout tests updated for corner close.
-Bounded native inventory/caller worker used GPT-6.1 Sol medium; coordinator verified
-all delivery. DeepSeek remains explicitly paused. Review and final gate recorded
-in PR #1662 lifecycle; no schema, dependency or production changes.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
+<!-- pika-session-log-archive-batch:4acf05012edc7dafd30dda8b5a570fc8afd14bca91833dee9239b28222a04eb2 -->
 ## 2026-10-22 — Settings switch motion consistency
 
 - Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
@@ -49736,6 +49668,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
 - No dependency, database, grade policy or production change; broader experience epic remains incomplete.
 
+<!-- pika-session-log-archive-batch:0be2ddb7fb9759516a38cabc799dd3ac824f5f04a13682f20968028129decbb2 -->
 ## 2026-10-22 — Course Guide and assignment Markdown authoring
 
 Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
@@ -49748,3 +49681,39 @@ Independent stable-SHA review/PR completion follows; no production promotion.
 Initial independent review found toolbar Tab trapping; one batch fixes native
 Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
 and corrected teacher browser matrix4/4 passed. Targeted review pending.
+
+<!-- pika-session-log-archive-batch:34710322bae3587353facad69947d01470354592546ef40133a18b0ae7e684ac -->
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
+
+## 2026-10-22 — Roster dates without checkmarks
+
+Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
+Extend the existing roster Joined cell; same roster/Pattern Lab reference and
+teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
+without a timestamp show the text Joined; unjoined cells stay empty. No new
+component, pattern, or widget behavior. PR1661 returned to draft for this delta;
+focused checks, screenshot refresh and targeted independent review required.
+
+## 2026-10-22 — Joined fallback checkmark
+
+Owner refinement: joined records without a saved date use the original simple
+Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
+unjoined rows remain empty. Reuse original roster status icon; same teacher-only
+roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
+No component or widget contract change. PR1661 draft during validation/review.
