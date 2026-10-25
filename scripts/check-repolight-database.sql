@@ -175,30 +175,36 @@ begin
  end loop;
  -- An identical new UUID cannot duplicate an existing current active analysis.
  begin perform public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,base->'connection_json',base->'request_json',source->'source');raise exception 'Duplicate same-input active target accepted';exception when sqlstate '40001' then if sqlerrm<>'repolight_run_active' then raise;end if;end;
- -- Removal closes the old subject; erasure and a genuine new membership permit
- -- a replacement while retaining the old immutable intent and cleanup receipt.
+ -- Report-only erasure grants NO rejoin authority. Assert the existing product
+ -- restore denial; replacement after a closed subject is tested separately below
+ -- while the legitimate original membership still exists (after rollback).
  begin
   held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');token:=(held->>'lease_token')::uuid;generation:=(held->>'lease_generation')::integer;
   perform public.remove_classroom_students_preserving_data(actor,cid,array['f2930000-0000-4000-8000-000000000082'::uuid]);
   select to_jsonb(b) into binding from private.repolight_subject_bindings b where id=(base->>'subject_binding_id')::uuid;
   receipt:=jsonb_build_object('schemaVersion','1.0','operationRef',binding->>'operation_id','installationRef',binding->>'installation_ref','subjectRef',binding->>'subject_ref','status','erased','absenceVerified',true);
   perform public.record_repolight_subject_erasure_v1(actor,(binding->>'id')::uuid,(binding->>'operation_id')::uuid,receipt);
-  perform public.restore_removed_classroom_students(actor,cid,array['repolight-student@example.invalid']);
+  begin perform public.restore_removed_classroom_students(actor,cid,array['repolight-student@example.invalid']);raise exception 'Report-only erasure granted rejoin';exception when sqlstate '55000' then if sqlerrm<>'student_class_data_pending_purge' then raise;end if;end;
+  if exists(select 1 from public.classroom_enrollments where classroom_id=cid and student_id=learner) or not exists(select 1 from private.repolight_subject_bindings old_binding where old_binding.id=(base->>'subject_binding_id')::uuid and old_binding.state='erased' and old_binding.receipt is not null) then raise exception 'Report-only erasure changed membership authority or lost its receipt';end if;
   source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
-  next_run:=public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,base->'connection_json',base->'request_json',source->'source');
-  if next_run->>'id'<>replacement_id::text or (select status from public.assignment_repolight_runs where id=base_id)<>'stale' or not exists(select 1 from private.repolight_subject_bindings old_binding where old_binding.id=(base->>'subject_binding_id')::uuid and old_binding.state='erased' and old_binding.receipt is not null) then raise exception 'Rejoined membership could not replace closed active intent';end if;
-  begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'authorize',jsonb_build_object('leaseToken',token,'leaseGeneration',generation));raise exception 'Old membership lease authorized after rejoin';exception when sqlstate '40001' then null;end;
-  raise exception using errcode='P2931',message='rollback rejoin scenario';
+  begin perform public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,base->'connection_json',base->'request_json',source->'source');raise exception 'Unenrolled report replacement accepted';exception when insufficient_privilege then null;end;
+  raise exception using errcode='P2931',message='rollback denied rejoin scenario';
  exception when sqlstate 'P2931' then null;
  end;
  -- Closing an otherwise-current subject makes exact intent replay stale, not
- -- a fresh subject or an apparently live run.
+ -- a fresh subject or an apparently live run. This case keeps the legitimate
+ -- current membership; it is not a simulated or authorized product rejoin.
  begin
+  held:=public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'claim','{}');token:=(held->>'lease_token')::uuid;generation:=(held->>'lease_generation')::integer;
   binding:=public.begin_repolight_subject_erasure_v1(actor,(base->>'subject_binding_id')::uuid,'f2960000-0000-4000-8000-000000000070');
   perform public.record_repolight_subject_erasure_v1(actor,(binding->>'id')::uuid,(binding->>'operation_id')::uuid,jsonb_build_object('schemaVersion','1.0','operationRef',binding->>'operation_id','installationRef',binding->>'installation_ref','subjectRef',binding->>'subject_ref','status','erased','absenceVerified',true));
   source:=public.get_assignment_repolight_source_v1(actor,aid,learner);
   replay:=public.begin_assignment_repolight_run_v1(actor,aid,learner,base_id,base->'connection_json',base->'request_json',source->'source');
   if replay->>'id'<>base_id::text or replay->>'status'<>'stale' or (select count(*) from private.repolight_subject_bindings where intent_id=base_id)<>1 then raise exception 'Closed exact replay invented new work or returned active outcome';end if;
+  next_run:=public.begin_assignment_repolight_run_v1(actor,aid,learner,replacement_id,base->'connection_json',base->'request_json',source->'source');
+  if next_run->>'id'<>replacement_id::text or not exists(select 1 from private.repolight_subject_bindings old_binding where old_binding.id=(base->>'subject_binding_id')::uuid and old_binding.state='erased' and old_binding.receipt is not null) then raise exception 'Closed subject prevented authorized current-member replacement';end if;
+  begin perform public.advance_assignment_repolight_run_v1(actor,aid,learner,base_id,'authorize',jsonb_build_object('leaseToken',token,'leaseGeneration',generation));raise exception 'Closed subject old lease authorized';exception when sqlstate '40001' then null;end;
+
   raise exception using errcode='P2931',message='rollback closed replay';
  exception when sqlstate 'P2931' then null;
  end;

@@ -1146,6 +1146,7 @@ export type Database = {
           lease_generation: number
           lease_token: string | null
           next_retry_at: string | null
+          poll_failure_count: number
           request_fingerprint: string
           request_json: Json
           source_fingerprint: string
@@ -1172,6 +1173,7 @@ export type Database = {
           lease_generation?: number
           lease_token?: string | null
           next_retry_at?: string | null
+          poll_failure_count?: number
           request_fingerprint: string
           request_json: Json
           source_fingerprint: string
@@ -1198,6 +1200,7 @@ export type Database = {
           lease_generation?: number
           lease_token?: string | null
           next_retry_at?: string | null
+          poll_failure_count?: number
           request_fingerprint?: string
           request_json?: Json
           source_fingerprint?: string
