@@ -28,6 +28,19 @@ describe('explicit live membership purge', () => {
     expect(f.providers.advance).not.toHaveBeenCalled()
     expect(f.academic.inventory).not.toHaveBeenCalled()
   })
+  it('waits for the saved RepoLight snapshot before provider or academic progress and preserves unknown blockers', async () => {
+    const f = fixture()
+    f.providers.read.mockResolvedValue({ ...f.pending, blockers: ['repolight_erasure_required', 'unknown_copy'] })
+    const repolight = vi.fn().mockResolvedValue(false)
+    const coordinator = createLiveStudentCleanup({ providers: f.providers, academic: f.academic, repolight })
+    await expect(coordinator.advance(scope)).resolves.toMatchObject({
+      cleanup_completed: false, repolight_cleanup_pending: true, blockers: ['unknown_copy'],
+    })
+    expect(repolight).toHaveBeenCalledWith(scope)
+    expect(f.providers.advance).not.toHaveBeenCalled()
+    expect(f.academic.inventory).not.toHaveBeenCalled()
+  })
+
   it('gives Bara progress even when Pal fails and never mistakes partial success for completion', async () => {
     const f = fixture()
     f.providers.advance.mockImplementation(async (_scope, provider) => {

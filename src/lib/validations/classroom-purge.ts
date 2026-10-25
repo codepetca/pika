@@ -26,6 +26,8 @@ export const classroomPurgeImpactSchema = z.object({
   storage_counts: z.record(z.string(), z.number().int().nonnegative()),
   conflicting_operation: z.string().min(1).nullable(),
   deletion_available: z.boolean(),
+  can_reserve_cleanup: z.boolean().optional(),
+  cleanup_unavailable_reason: z.string().nullable().optional(),
   unavailable_reason: z.string().min(1).nullable(),
 }).strict()
 
@@ -47,6 +49,7 @@ export const classroomPurgeStatusSchema = z.object({
   resource_counts: z.record(z.string(), z.number().int().nonnegative()),
   storage_object_counts: z.record(z.string(), z.number().int().nonnegative()),
   completed_at: z.string().datetime({ offset: true }).nullable(),
+  repolight_cleanup_pending: z.boolean().optional(),
 }).strict()
 
 export type ClassroomPurgeImpact = z.infer<typeof classroomPurgeImpactSchema>

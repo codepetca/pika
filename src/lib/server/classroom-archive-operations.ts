@@ -26,7 +26,7 @@ import {
 
 export const CLASSROOM_ARCHIVE_BUCKET = 'classroom-archives' as const
 export const CLASSROOM_ARCHIVE_V2_SOURCE_MIGRATION =
-  '107_classroom_archive_v2_direct_source' as const
+  '293_repolight_report_service' as const
 export const CLASSROOM_ARCHIVE_MAX_BYTES = 50 * 1024 * 1024
 
 const uuidSchema = z.string().uuid()

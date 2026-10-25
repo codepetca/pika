@@ -38,7 +38,7 @@ const coldImpact = () => ({ classroom_id: classroom, archive_id: archive, classr
 function transport(cold: boolean, patch: Record<string, unknown> = {}, options: {
   loss?: boolean; missing?: boolean; spoof?: boolean; fresh?: boolean; owner?: boolean; active?: boolean; tombstone?: boolean;
   inventory?: Record<string, unknown>; begin?: unknown; beginLoss?: boolean; claim?: unknown; beginDenied?: boolean;
-  root?: Record<string, unknown>; progress?: unknown; claimLease?: 'exact' | 'wrong'; beginDecommission?: boolean
+  root?: Record<string, unknown>; progress?: unknown; cleanup?: unknown; cleanupUnavailable?: boolean; claimLease?: 'exact' | 'wrong'; beginDecommission?: boolean
 } = {}) {
   let exists = !options.fresh
   const fetch = vi.fn(async (raw: RequestInfo | URL, init?: RequestInit) => {
@@ -60,6 +60,33 @@ function transport(cold: boolean, patch: Record<string, unknown> = {}, options: 
         gradex_extract_count: 0, interrupted_upload_count: 0, storage_counts: {}, operational_counts: {},
         conflicting_operation: null, deletion_available: true, unavailable_reason: null,
       }), ...options.inventory })
+    }
+    if (url.pathname.endsWith('/rpc/read_repolight_purge_cleanup_subjects_v1')) {
+      expect(body).toEqual({ p_actor_id: actor, p_operation_id: operation })
+      if (options.cleanupUnavailable) return Response.json({ code: 'XX000', message: 'private/path uncertain cleanup' }, { status: 500 })
+      return Response.json(options.cleanup === undefined ? [] : options.cleanup)
+    }
+    if (url.pathname.endsWith('/rpc/reserve_repolight_hot_classroom_purge_v1')) {
+      // Model the guarded SQL boundary, including its exact confirmation/CAS
+      // inputs. The canonical SQL hash is intentionally not synthesized in TS.
+      expect(Object.keys(body).sort()).toEqual(['p_operation_id', 'p_teacher_id', 'p_classroom_id', 'p_confirmation',
+        'p_expected_source_revision', 'p_expected_storage_inventory_sha256', 'p_expected_operational_inventory_sha256'].sort())
+      expect(body).toMatchObject({ p_operation_id: operation, p_teacher_id: actor, p_classroom_id: classroom })
+      if (options.owner === false) return Response.json({ ok: false, status: 404, error: 'Classroom not found' })
+      if (options.root && (options.root.id && options.root.id !== classroom || options.root.teacher_id && options.root.teacher_id !== actor))
+        return Response.json({ ok: false, status: 503, error: 'Unverified owner context' })
+      if (options.active || options.tombstone || options.inventory?.deletion_available === false)
+        return Response.json({ ok: false, status: 409, error: 'Lifecycle prerequisite required' })
+      if (options.inventory?.classroom_id && options.inventory.classroom_id !== classroom || options.inventory?.status === 500)
+        return Response.json({ ok: false, status: 503, error: 'Unverified inventory' })
+      if (!['DELETE', 'Archived Class'].includes(body.p_confirmation)) return Response.json({ ok: false, status: 400, error: 'Confirmation mismatch' })
+      if (body.p_expected_source_revision !== 1 || body.p_expected_storage_inventory_sha256 !== digest || body.p_expected_operational_inventory_sha256 !== digest)
+        return Response.json({ ok: false, status: 409, error: 'Inventory changed' })
+      if (options.beginDecommission) return Response.json({ code: '55000', message: 'attendance_classroom_decommission_required', details: null, hint: null }, { status: 400 })
+      exists = true
+      if (options.beginLoss) throw new Error('private/path acknowledgment lost')
+      if (options.beginDenied) return Response.json({ ok: false, status: 409, error: 'private/path attendance_decommission_active' })
+      return Response.json(options.begin === undefined ? { ok: true, status: 202, operation_id: operation, operation_status: 'deleting_objects' } : options.begin)
     }
     if (url.pathname.includes('/rpc/begin_')) {
       if (options.beginDecommission) return Response.json({
@@ -172,7 +199,7 @@ describe('admitted classroom purge routes with native coordinators and isolated 
       mocks.auth.mockResolvedValue({ id: actor, role }); transport(cold, {}, { fresh: true })
       const response = await start(req('POST', startBody(cold)), context)
       expect(response.status).toBe(200)
-      const begun = requests.find(r => r.url.pathname.includes('/rpc/begin_'))!
+      const begun = requests.find(r => (r.url.pathname.includes('/rpc/begin_') || r.url.pathname.endsWith('/rpc/reserve_repolight_hot_classroom_purge_v1')))!
       expect(begun.body).toMatchObject({ p_teacher_id: actor, p_classroom_id: classroom, p_operation_id: operation })
       if (cold) expect(begun.body).toHaveProperty('p_archive_id', archive)
       expect(requests.filter(r => r.url.pathname.includes('/rpc/claim_'))).toHaveLength(1)
@@ -184,20 +211,22 @@ describe('admitted classroom purge routes with native coordinators and isolated 
     ])(`${cold ? 'cold' : 'hot'} preserves typed confirmation and all digests %#`, async patch => {
       transport(cold, {}, { fresh: true })
       expect([400, 409]).toContain((await start(req('POST', { ...startBody(cold), ...patch }), context)).status)
-      expect(requests.every(r => !r.url.pathname.includes('/rpc/begin_') && !r.url.pathname.includes('/rpc/claim_'))).toBe(true)
+      expect(requests.every(r => !r.url.pathname.includes('/rpc/claim_') && !r.url.pathname.includes('/rpc/finalize_') && !r.url.pathname.includes('/storage/'))).toBe(true)
+      if (cold) expect(requests.every(r => !r.url.pathname.includes('/rpc/begin_'))).toBe(true)
     })
     it.each([{ owner: false }, { inventory: { deletion_available: false } }, { inventory: { classroom_id: other } }, { inventory: { status: 500 } },
       ...(cold ? [{ inventory: { archive_id: other } }] : [{ active: true }, { tombstone: true }]),
     ])(`${cold ? 'cold' : 'hot'} preserves current ownership/lifecycle/gate and inventory identity denial %#`, async options => {
       transport(cold, {}, { fresh: true, ...options })
       expect([404, 409, 503]).toContain((await start(req('POST', startBody(cold)), context)).status)
-      expect(requests.every(r => !r.url.pathname.includes('/rpc/begin_') && !r.url.pathname.includes('/rpc/claim_'))).toBe(true)
+      expect(requests.every(r => !r.url.pathname.includes('/rpc/claim_') && !r.url.pathname.includes('/rpc/finalize_') && !r.url.pathname.includes('/storage/'))).toBe(true)
+      if (cold) expect(requests.every(r => !r.url.pathname.includes('/rpc/begin_'))).toBe(true)
     })
     it.each([null, {}, { ok: true, status: 202 }, { ok: true, status: 202, operation_id: other }, { ok: true, status: 500, operation_id: operation }, { ok: true, status: 202, operation_id: operation, operation_status: 'unknown' }])(
       `${cold ? 'cold' : 'hot'} does not advance after an unverified begin acknowledgment %#`, async begin => {
         transport(cold, {}, { fresh: true, begin })
         expect((await start(req('POST', startBody(cold)), context)).status).toBe(503)
-        expect(requests.filter(r => r.url.pathname.includes('/rpc/begin_'))).toHaveLength(1)
+        expect(requests.filter(r => (r.url.pathname.includes('/rpc/begin_') || r.url.pathname.endsWith('/rpc/reserve_repolight_hot_classroom_purge_v1')))).toHaveLength(1)
         expect(requests.every(r => !r.url.pathname.includes('/rpc/claim_') && !r.url.pathname.includes('/rpc/finalize_'))).toBe(true)
       },
     )
@@ -206,7 +235,7 @@ describe('admitted classroom purge routes with native coordinators and isolated 
       const response = await start(req('POST', startBody(cold)), context)
       expect(response.status).toBe(503)
       expect(JSON.stringify(await response.json())).not.toContain('private/path')
-      expect(requests.filter(r => r.url.pathname.includes('/rpc/begin_'))).toHaveLength(1)
+      expect(requests.filter(r => (r.url.pathname.includes('/rpc/begin_') || r.url.pathname.endsWith('/rpc/reserve_repolight_hot_classroom_purge_v1')))).toHaveLength(1)
       expect(requests.every(r => !r.url.pathname.includes('/rpc/claim_') && !r.url.pathname.includes('/rpc/finalize_'))).toBe(true)
     })
     it(`${cold ? 'cold' : 'hot'} retains the fixed attendance prerequisite signal from an actual PostgREST error envelope`, async () => {
@@ -214,7 +243,7 @@ describe('admitted classroom purge routes with native coordinators and isolated 
       const response = await start(req('POST', startBody(cold)), context)
       expect(response.status).toBe(409)
       expect((await response.json()).error).toBe(ATTENDANCE_CLASSROOM_DECOMMISSION_REQUIRED_MESSAGE)
-      expect(requests.filter(r => r.url.pathname.includes('/rpc/begin_'))).toHaveLength(1)
+      expect(requests.filter(r => (r.url.pathname.includes('/rpc/begin_') || r.url.pathname.endsWith('/rpc/reserve_repolight_hot_classroom_purge_v1')))).toHaveLength(1)
       expect(requests.every(r => !/\/(claim|finalize|complete|fail)_/.test(r.url.pathname) && !r.url.pathname.includes('/storage/'))).toBe(true)
     })
     it(`${cold ? 'cold' : 'hot'} preserves native decommission/ownership race denial at begin`, async () => {
@@ -281,10 +310,30 @@ describe('admitted classroom purge routes with native coordinators and isolated 
       expect(fetch).not.toHaveBeenCalled(); expect(mocks.role).not.toHaveBeenCalled()
     })
   }
+  it('leaves an uncertain saved cleanup pending before any object claim, storage or provider request', async () => {
+    transport(false, { status: 'deleting_objects', completed_at: null }, { fresh: true, cleanupUnavailable: true })
+    const response = await hotStart(req('POST', startBody(false)), context)
+    expect(response.status).toBe(202)
+    expect(await response.json()).toMatchObject({ operation: { status: 'deleting_objects', repolight_cleanup_pending: true } })
+    expect(requests.some(r => r.url.pathname.endsWith('/rpc/read_repolight_purge_cleanup_subjects_v1'))).toBe(true)
+    expect(requests.every(r => !/\/(claim|finalize|complete|fail)_/.test(r.url.pathname) && !r.url.pathname.includes('/storage/'))).toBe(true)
+  })
+  it('preserves the pending cleanup hint across a tick status rebind without reserving or progressing storage', async () => {
+    transport(false, { status: 'deleting_objects', completed_at: null }, { cleanupUnavailable: true })
+    const response = await hotTick(req('POST'), context)
+    expect(response.status).toBe(202)
+    expect(await response.json()).toMatchObject({ operation: { status: 'deleting_objects', repolight_cleanup_pending: true } })
+    expect(requests.every(r => !/\/(claim|finalize|complete|fail|reserve)_/.test(r.url.pathname) && !r.url.pathname.includes('/storage/'))).toBe(true)
+  })
+  it.each([null, {}, [{ teacher_id: other }]])('refuses malformed or foreign cleanup snapshots before worker egress %#', async cleanup => {
+    transport(false, { status: 'deleting_objects', completed_at: null }, { fresh: true, cleanup })
+    expect((await hotStart(req('POST', startBody(false)), context)).status).toBe(503)
+    expect(requests.every(r => !/\/(claim|finalize|complete|fail)_/.test(r.url.pathname) && !r.url.pathname.includes('/storage/'))).toBe(true)
+  })
   it.each([{ id: other }, { teacher_id: other }])('rejects substituted hot current-owner root %#', async root => {
     transport(false, {}, { fresh: true, root })
     expect((await hotStart(req('POST', startBody(false)), context)).status).toBe(503)
-    expect(requests.every(r => !r.url.pathname.includes('/rpc/begin_'))).toBe(true)
+    expect(requests.every(r => !r.url.pathname.includes('/rpc/claim_') && !r.url.pathname.includes('/storage/'))).toBe(true)
   })
   it.each([{ id: 'bad' }, { id: other }, { teacher_id: other }, { purge_scope: 'hot_classroom' }])(
     'never treats malformed/substituted cold replay identity as permission to begin %#', async patch => {

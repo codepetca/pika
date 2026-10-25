@@ -1,5 +1,9 @@
+import { advanceReservedRepoLightCleanup } from '@/lib/server/repolight-decommission-database'
+vi.mock('@/lib/server/repolight-decommission-database', () => ({ advanceReservedRepoLightCleanup: vi.fn().mockResolvedValue(true) }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  advanceClassroomPurge,
+  startClassroomPurge,
   countClassroomStudents,
   deleteClassroomPurgeStorageObject,
   isMissingClassroomPurgeSchemaError,
@@ -69,6 +73,32 @@ function operationListQuery(
 
 describe('classroom purge helpers', () => {
   beforeEach(() => vi.clearAllMocks())
+  it('never claims a file or finalizes while the reserved cleanup is pending', async () => {
+    vi.mocked(advanceReservedRepoLightCleanup).mockResolvedValueOnce(false)
+    const owner = 'b1800000-0000-4000-8000-000000000001'
+    const query = { eq: vi.fn(() => query), maybeSingle: vi.fn().mockResolvedValue({ data: {
+      id: operation.operation_id, classroom_id: operation.classroom_id, teacher_id: owner,
+      status: operation.status, retryable: null, error_code: null, resource_counts: {},
+      attempt_count: 1, completed_at: null, purge_scope: 'hot_classroom',
+    }, error: null }) }
+    serviceClient.from.mockImplementation((table: string) => table === 'classroom_purge_operations'
+      ? { select: vi.fn(() => query) }
+      : { select: vi.fn(() => ({ eq: vi.fn().mockResolvedValue({ data: [], error: null }) })) })
+    await expect(advanceClassroomPurge(owner, operation.operation_id)).resolves.toMatchObject({ advanced: false, operation: { repolight_cleanup_pending: true } })
+    expect(serviceClient.rpc).not.toHaveBeenCalled()
+  })
+
+  it('delegates confirmed hot admission and replay hashing to the same guarded SQL RPC', async () => {
+    const replay = { eq: vi.fn(() => replay), maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }) }
+    serviceClient.from.mockReturnValue({ select: vi.fn(() => replay) })
+    serviceClient.rpc.mockResolvedValueOnce({ data: { ok: false, status: 400, error_code: 'confirmation_mismatch' }, error: null })
+    await expect(startClassroomPurge({ teacherId: 'teacher', classroomId: operation.classroom_id,
+      operationId: operation.operation_id, confirmation: 'bad confirmation', expectedSourceRevision: 7,
+      expectedStorageInventorySha256: 'a'.repeat(64), expectedOperationalInventorySha256: 'b'.repeat(64),
+    })).rejects.toMatchObject({ code: 'confirmation_mismatch' })
+    expect(serviceClient.rpc).toHaveBeenCalledWith('reserve_repolight_hot_classroom_purge_v1', expect.objectContaining({ p_confirmation: 'bad confirmation', p_expected_source_revision: 7 }))
+  })
+
   it('preserves valid uppercase UUIDs on the legacy operation read', async () => {
     const owner = 'b1800000-0000-4000-8000-000000000001'
     const query = { eq: vi.fn(() => query), maybeSingle: vi.fn().mockResolvedValue({ data: {

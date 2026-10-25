@@ -31,6 +31,7 @@ import {
   type PersistedTestQuestionIdentity,
 } from '@/lib/test-question-identity'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
+import { detachRepoLightArchiveResources, isImmutableRepoLightArchiveResource } from '@/lib/server/repolight-archive'
 import type { TestDraftContent } from '@/types'
 
 export const CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION =
@@ -110,6 +111,12 @@ const RESTORE_ADAPTERS: RestoreAdapter[] = [
   {
     id: 'classroom-archive-schema-107-to-134',
     source: '107_classroom_archive_v2_direct_source',
+    target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
+    adapt: normalizeArchivedTestQuestionIdentities,
+  },
+  {
+    id: 'classroom-archive-schema-293-to-134-repolight-detached',
+    source: '293_repolight_report_service',
     target: CLASSROOM_ARCHIVE_V2_RESTORE_TARGET_MIGRATION,
     adapt: normalizeArchivedTestQuestionIdentities,
   },
@@ -422,6 +429,7 @@ function collectAuthoringImageIds(value: unknown, ids = new Set<string>()): Set<
 function collectResourceAuthoringImageIds(resources: Record<string, JsonObject[]>): Set<string> {
   const ids = new Set<string>()
   for (const [table, rows] of Object.entries(resources)) {
+    if (isImmutableRepoLightArchiveResource(table)) continue
     for (const row of rows) {
       // Mirror migration291's source precedence. Compatibility JSON can retain
       // old images after an AI/source-only edit; those assets are no longer live.
@@ -482,6 +490,7 @@ function rewriteResourceValue(args: {
     value, table, key, inTestDocuments, supabaseOrigin, restoredPaths,
     restoredManagedIds, restoredManagedIdsBySourceId,
   } = args
+  if (isImmutableRepoLightArchiveResource(table)) return value
   if (typeof value === 'string') {
     if (key === 'managed_object_id' || key === 'snapshot_managed_object_id') {
       return restoredManagedIdsBySourceId.get(value) || value
@@ -601,7 +610,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     manifest.source.schema_migration,
     targetSchemaMigration,
   )
-  const schemaAdaptedResources = adapters.adapt(decoded.resources)
+  const schemaAdaptedResources = detachRepoLightArchiveResources(adapters.adapt(decoded.resources))
   const classroomRows = schemaAdaptedResources.classrooms || []
   if (
     classroomRows.length !== 1 ||

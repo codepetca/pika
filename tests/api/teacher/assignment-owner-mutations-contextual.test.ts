@@ -1,3 +1,5 @@
+import { deleteAssignmentWithRepoLightCleanup } from '@/lib/server/repolight-assignment-delete'
+vi.mock('@/lib/server/repolight-assignment-delete', async original => ({ ...await original<typeof import('@/lib/server/repolight-assignment-delete')>(), deleteAssignmentWithRepoLightCleanup: vi.fn() }))
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
@@ -6,7 +8,6 @@ import { POST as releaseAssignment } from '@/app/api/teacher/assignments/[id]/re
 import { POST as discardAssignment } from '@/app/api/teacher/assignments/[id]/discard-pristine/route'
 import { authorizeContextualAssignmentOwnerMutationRequest } from '@/lib/server/contextual-assignment-owner-mutation-access'
 import {
-  deleteAssignmentForOwner,
   discardPristineAssignmentDraftForOwner,
   releaseAssignmentForOwner,
   updateAssignmentForOwner,
@@ -96,15 +97,25 @@ describe('contextual existing-assignment owner mutation routes', () => {
   })
 
   it('routes contextual deletion through the actor-bound RPC and retains queued cleanup', async () => {
-    vi.mocked(deleteAssignmentForOwner).mockResolvedValue({ ok: true, classroomId })
+    vi.mocked(deleteAssignmentWithRepoLightCleanup).mockResolvedValue({ complete: true, operationId: assignmentId })
     const response = await DELETE(new NextRequest(
       `http://localhost/api/teacher/assignments/${assignmentId}`,
       { method: 'DELETE' },
     ), { params: Promise.resolve({ id: assignmentId }) })
 
     expect(response.status).toBe(200)
-    expect(deleteAssignmentForOwner).toHaveBeenCalledWith(expect.objectContaining({ actorId, assignmentId }))
+    expect(deleteAssignmentWithRepoLightCleanup).toHaveBeenCalledWith(expect.objectContaining({ actorId, assignmentId }))
     expect(mockRunCleanup).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps pending cleanup a non-success response and retains its operation ID', async () => {
+    vi.mocked(deleteAssignmentWithRepoLightCleanup).mockResolvedValue({ complete: false, operationId: assignmentId })
+    const response = await DELETE(new NextRequest(`http://localhost/api/teacher/assignments/${assignmentId}`, {
+      method: 'DELETE', body: JSON.stringify({ operationId: assignmentId }),
+    }), { params: Promise.resolve({ id: assignmentId }) })
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ errorCode: 'repolight_cleanup_pending', operationId: assignmentId })
+    expect(mockRunCleanup).not.toHaveBeenCalled()
   })
 
   it('routes contextual release through the actor-bound RPC', async () => {

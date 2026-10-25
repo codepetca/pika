@@ -36,7 +36,7 @@ const revision = '2026-10-03T12:00:00.000Z'
 const content = { type: 'doc', content: [] }
 const cases = [
   { name: 'edit', handler: edit, method: 'PATCH', body: { title: 'Updated' }, rpc: 'update_assignment_for_owner_v1' },
-  { name: 'delete', handler: remove, method: 'DELETE', rpc: 'delete_assignment_for_owner_v1' },
+  { name: 'delete', handler: remove, method: 'DELETE', rpc: 'get_repolight_assignment_delete_context_v1' },
   { name: 'release', handler: release, method: 'POST', body: {}, rpc: 'release_assignment_for_owner_v1' },
   { name: 'discard', handler: discard, method: 'POST', body: { expected_updated_at: revision }, rpc: 'discard_pristine_assignment_draft_for_owner_v1' },
   { name: 'grade', handler: grade, method: 'POST', body: { student_id: studentId, score_completion: 0, score_thinking: 0, score_workflow: 0, feedback: '', expected_doc_updated_at: revision }, rpc: 'save_assignment_grades_for_owner_v1' },

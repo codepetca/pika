@@ -1004,6 +1004,242 @@ export type Database = {
           },
         ]
       }
+      assignment_repolight_feedback_imports: {
+        Row: {
+          actor_id: string
+          assignment_id: string
+          created_at: string
+          doc_ack: Json
+          feedback_digest: string
+          id: string
+          report_digest: string
+          run_id: string
+          scope_key: string
+          student_id: string
+        }
+        Insert: {
+          actor_id: string
+          assignment_id: string
+          created_at?: string
+          doc_ack: Json
+          feedback_digest: string
+          id: string
+          report_digest: string
+          run_id: string
+          scope_key: string
+          student_id: string
+        }
+        Update: {
+          actor_id?: string
+          assignment_id?: string
+          created_at?: string
+          doc_ack?: Json
+          feedback_digest?: string
+          id?: string
+          report_digest?: string
+          run_id?: string
+          scope_key?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_repolight_feedback_imports_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_feedback_imports_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_feedback_imports_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "assignment_repolight_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_feedback_imports_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_repolight_reports: {
+        Row: {
+          assignment_id: string
+          created_at: string
+          id: string
+          report_digest: string
+          report_ref: string
+          result_json: Json
+          run_id: string
+          student_id: string
+        }
+        Insert: {
+          assignment_id: string
+          created_at?: string
+          id?: string
+          report_digest: string
+          report_ref: string
+          result_json: Json
+          run_id: string
+          student_id: string
+        }
+        Update: {
+          assignment_id?: string
+          created_at?: string
+          id?: string
+          report_digest?: string
+          report_ref?: string
+          result_json?: Json
+          run_id?: string
+          student_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_repolight_reports_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_reports_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: true
+            referencedRelation: "assignment_repolight_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_reports_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assignment_repolight_runs: {
+        Row: {
+          actor_id: string
+          analysis_id: string | null
+          assignment_id: string
+          attempt_count: number
+          classroom_id: string
+          completed_at: string | null
+          connection_json: Json
+          create_envelope: Json
+          created_at: string
+          detached: boolean
+          error_code: string | null
+          id: string
+          idempotency_key: string
+          lease_expires_at: string | null
+          lease_generation: number
+          lease_token: string | null
+          next_retry_at: string | null
+          poll_failure_count: number
+          request_fingerprint: string
+          request_json: Json
+          source_fingerprint: string
+          source_json: Json
+          status: string
+          student_id: string
+          subject_binding_id: string | null
+        }
+        Insert: {
+          actor_id: string
+          analysis_id?: string | null
+          assignment_id: string
+          attempt_count?: number
+          classroom_id: string
+          completed_at?: string | null
+          connection_json: Json
+          create_envelope: Json
+          created_at?: string
+          detached?: boolean
+          error_code?: string | null
+          id: string
+          idempotency_key: string
+          lease_expires_at?: string | null
+          lease_generation?: number
+          lease_token?: string | null
+          next_retry_at?: string | null
+          poll_failure_count?: number
+          request_fingerprint: string
+          request_json: Json
+          source_fingerprint: string
+          source_json: Json
+          status?: string
+          student_id: string
+          subject_binding_id?: string | null
+        }
+        Update: {
+          actor_id?: string
+          analysis_id?: string | null
+          assignment_id?: string
+          attempt_count?: number
+          classroom_id?: string
+          completed_at?: string | null
+          connection_json?: Json
+          create_envelope?: Json
+          created_at?: string
+          detached?: boolean
+          error_code?: string | null
+          id?: string
+          idempotency_key?: string
+          lease_expires_at?: string | null
+          lease_generation?: number
+          lease_token?: string | null
+          next_retry_at?: string | null
+          poll_failure_count?: number
+          request_fingerprint?: string
+          request_json?: Json
+          source_fingerprint?: string
+          source_json?: Json
+          status?: string
+          student_id?: string
+          subject_binding_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assignment_repolight_runs_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_runs_assignment_id_fkey"
+            columns: ["assignment_id"]
+            isOneToOne: false
+            referencedRelation: "assignments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_runs_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assignment_repolight_runs_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assignment_submission_artifacts: {
         Row: {
           assignment_doc_id: string
@@ -9221,6 +9457,17 @@ export type Database = {
         }
         Returns: Json
       }
+      advance_assignment_repolight_run_v1: {
+        Args: {
+          p_action: string
+          p_actor_id: string
+          p_assignment_id: string
+          p_payload: Json
+          p_run_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       advance_removed_student_academic_cleanup: {
         Args: {
           p_action: string
@@ -9557,6 +9804,18 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_assignment_repolight_run_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_connection: Json
+          p_expected_source: Json
+          p_request: Json
+          p_request_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       begin_attendance_decommission: {
         Args: {
           p_classroom_id: string
@@ -9781,7 +10040,28 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      begin_repolight_subject_erasure_v1: {
+        Args: {
+          p_actor_id: string
+          p_binding_id: string
+          p_operation_id: string
+        }
+        Returns: Json
+      }
       begin_student_purge: {
+        Args: {
+          p_classroom_id: string
+          p_confirmation: string
+          p_expected_relational_inventory_sha256: string
+          p_expected_source_revision: number
+          p_expected_storage_inventory_sha256: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      begin_student_purge_before_repolight_293: {
         Args: {
           p_classroom_id: string
           p_confirmation: string
@@ -10176,6 +10456,39 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_classroom_purge_object_before_repolight_293: {
+        Args: {
+          p_lease_seconds?: number
+          p_lease_token: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: {
+          attempt_count: number
+          created_at: string
+          delete_priority: number
+          deleted_at: string | null
+          disposition: string
+          id: string
+          last_error_code: string | null
+          lease_expires_at: string | null
+          lease_token: string | null
+          managed_storage_object_id: string | null
+          next_attempt_at: string
+          operation_id: string
+          status: string
+          storage_bucket: string
+          storage_path: string | null
+          storage_path_sha256: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "classroom_purge_objects"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       claim_classroom_purge_object_v118: {
         Args: {
           p_lease_seconds?: number
@@ -10428,6 +10741,14 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_student_purge_object_before_repolight_293: {
+        Args: {
+          p_lease_seconds?: number
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       claim_test_ai_grading_run: {
         Args: {
           p_lease_seconds?: number
@@ -10523,6 +10844,10 @@ export type Database = {
         Returns: string
       }
       classroom_purge_conflict: {
+        Args: { p_classroom_id: string }
+        Returns: string
+      }
+      classroom_purge_conflict_before_repolight_293: {
         Args: { p_classroom_id: string }
         Returns: string
       }
@@ -11445,6 +11770,14 @@ export type Database = {
         }
         Returns: Json
       }
+      discover_repolight_removed_student_cleanup_groups_v1: {
+        Args: {
+          p_actor_id: string
+          p_after_student_id?: string
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       discover_retained_student_cleanup_groups: {
         Args: {
           p_after_student_id?: string
@@ -11891,11 +12224,27 @@ export type Database = {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      finalize_hot_archived_classroom_purge_before_repolight_293: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       finalize_hot_archived_classroom_purge_v118: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
+      finalize_repolight_assignment_delete_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_operation_id: string
+        }
+        Returns: Json
+      }
       finalize_student_purge: {
+        Args: { p_operation_id: string; p_teacher_id: string }
+        Returns: Json
+      }
+      finalize_student_purge_before_repolight_293: {
         Args: { p_operation_id: string; p_teacher_id: string }
         Returns: Json
       }
@@ -11992,6 +12341,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_assignment_repolight_source_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       get_attendance_classroom_access_v1: {
         Args: { p_at?: string; p_classroom_id: string; p_teacher_id: string }
         Returns: Json
@@ -12066,6 +12423,10 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: Json
       }
+      get_hot_archived_classroom_purge_inventory_before_repolight_293: {
+        Args: { p_classroom_id: string; p_teacher_id: string }
+        Returns: Json
+      }
       get_latest_auth_verification_code_v1: {
         Args: { p_purpose: string; p_user_id: string }
         Returns: Json
@@ -12083,6 +12444,19 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_repolight_assignment_delete_context_v1: {
+        Args: { p_actor_id: string; p_assignment_id: string }
+        Returns: Json
+      }
+      get_repolight_removed_student_cleanup_context_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_generation_id?: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       get_student_provider_cleanup: {
         Args: {
           p_classroom_id: string
@@ -12098,6 +12472,14 @@ export type Database = {
         Returns: Json
       }
       get_student_purge_inventory: {
+        Args: {
+          p_classroom_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      get_student_purge_inventory_before_repolight_293: {
         Args: {
           p_classroom_id: string
           p_student_id: string
@@ -12170,6 +12552,20 @@ export type Database = {
           p_source_course_blueprint_id: string
         }
         Returns: boolean
+      }
+      import_assignment_repolight_feedback_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_doc_updated_at: string
+          p_expected_report_digest: string
+          p_feedback_text?: string
+          p_request_id: string
+          p_run_id: string
+          p_scope_key: string
+          p_student_id: string
+        }
+        Returns: Json
       }
       inspect_latest_auth_handoff_v1: {
         Args: { p_handoff_token_hash: string; p_purpose: string }
@@ -12641,6 +13037,16 @@ export type Database = {
         }
         Returns: Json
       }
+      read_assignment_repolight_run_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_include_report?: boolean
+          p_run_id: string
+          p_student_id: string
+        }
+        Returns: Json
+      }
       read_attendance_membership_session_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -12724,6 +13130,23 @@ export type Database = {
         Args: { p_classroom_id: string }
         Returns: Json
       }
+      read_repolight_cleanup_subjects_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id?: string
+          p_classroom_id?: string
+          p_student_id?: string
+        }
+        Returns: Json
+      }
+      read_repolight_decommission_subjects_v1: {
+        Args: { p_actor_id: string; p_operation_id: string }
+        Returns: Json
+      }
+      read_repolight_purge_cleanup_subjects_v1: {
+        Args: { p_actor_id: string; p_operation_id: string }
+        Returns: Json
+      }
       reconcile_managed_storage_json_references: {
         Args: never
         Returns: number
@@ -12804,6 +13227,15 @@ export type Database = {
           p_period_key: string
           p_period_status: string
           p_student_id: string
+        }
+        Returns: Json
+      }
+      record_repolight_subject_erasure_v1: {
+        Args: {
+          p_actor_id: string
+          p_binding_id: string
+          p_operation_id: string
+          p_receipt: Json
         }
         Returns: Json
       }
@@ -13104,6 +13536,16 @@ export type Database = {
         }
         Returns: Json
       }
+      reserve_automatic_live_student_cleanup_v1: {
+        Args: {
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       reserve_feature_usage_v1: {
         Args: {
           p_feature_key: string
@@ -13113,6 +13555,38 @@ export type Database = {
           p_ttl_seconds?: number
           p_units: number
           p_usage_ref: string
+        }
+        Returns: Json
+      }
+      reserve_repolight_assignment_delete_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_source_fingerprint: string
+          p_expected_updated_at: string
+          p_operation_id: string
+        }
+        Returns: Json
+      }
+      reserve_repolight_hot_classroom_purge_v1: {
+        Args: {
+          p_classroom_id: string
+          p_confirmation: string
+          p_expected_operational_inventory_sha256: string
+          p_expected_source_revision: number
+          p_expected_storage_inventory_sha256: string
+          p_operation_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
+      reserve_repolight_removed_student_cleanup_v1: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_generation_id: string
+          p_operation_id: string
+          p_student_id: string
         }
         Returns: Json
       }
@@ -13976,6 +14450,18 @@ export type Database = {
       student_purge_conflict: {
         Args: { p_classroom_id: string; p_student_id: string }
         Returns: string
+      }
+      student_purge_conflict_before_repolight_293: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: string
+      }
+      student_purge_inventory_before_repolight_293: {
+        Args: { p_classroom_id: string; p_student_id: string }
+        Returns: {
+          disposition: string
+          row_id: string
+          table_name: string
+        }[]
       }
       student_purge_inventory_resources: {
         Args: { p_classroom_id: string; p_student_id: string }

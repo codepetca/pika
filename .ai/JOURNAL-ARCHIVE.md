@@ -49660,6 +49660,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 <!-- pika-session-log-archive-batch:4acf05012edc7dafd30dda8b5a570fc8afd14bca91833dee9239b28222a04eb2 -->
+<!-- pika-session-log-archive-batch:3d40fda62b47ad77443b9fc833964b92dd37a17072c6f52122fe9e3f147a1536 -->
 ## 2026-10-22 — Settings switch motion consistency
 
 - Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
@@ -49669,6 +49670,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - No dependency, database, grade policy or production change; broader experience epic remains incomplete.
 
 <!-- pika-session-log-archive-batch:0be2ddb7fb9759516a38cabc799dd3ac824f5f04a13682f20968028129decbb2 -->
+<!-- pika-session-log-archive-batch:83b20e94200875efb7f596e527ed78c9587954d619e3bb47b80273ed328a1798 -->
 ## 2026-10-22 — Course Guide and assignment Markdown authoring
 
 Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
@@ -49700,3 +49702,339 @@ Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focuse
 checks and independent review receipts tracked in PR lifecycle. No migration.
 Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
 Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
+
+## 2026-10-24 — Pre-RepoLight CURRENT source checkpoint
+
+Source: main c7ff0f1f0, retained verbatim before startup-budget compaction.
+
+> # Checkpoint — 2026-10-24 (America/Toronto)
+>
+> Audit27 `3b7ae978e` accepted.
+> [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
+>
+> Prod `4778514b0` LIVE Oct24 00:28Toronto; #1673 CI40059627420 PASS.
+> Login200/me401/pattern-lab404/image401 PASS; Markdown editors/2MB images live.
+> Prod DB001–292 verified;292 approval used Oct23;Oct30 READY.
+> [Release](../docs/guidance/production-home-foundation-release-2026-10-24.md).
+> 282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
+> Poll5→1; fresh auth.
+> Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
+>
+> admission/home/page/cutover/billing OFF;
+> entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
+> Controls unchanged: quota/Pal membership/signals OFF; admission absent Oct21.
+> Access 1 exit recorded; 2/3 active; 4/5 dormant; writers 164/236 closed.
+> Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
+> Owner259–262 installed/dormant; Tests adopter1580 prepared.
+> 251/252 native/review/CI PASS.
+> LegacyPATCH; local001–292 applied Oct23; flags unchanged.
+> No exit; `docs/guidance/contextual-test-publication.md`.
+>
+> 253#1524 OFF (CI37715526569 PASS).
+> Quota notices: upgrade/tier only; creation-error deferred.
+> Batch2 open.
+>
+> Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
+> Env: $HOME/Repos/.env/pika/.env.local; .env.example.
+> Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
+> individual-student/removed cleanup ON (provider/live/automatic/academic); Pal OFF.
+
+
+## 2026-10-24 — Pre-RepoLight CURRENT at main f00d723f
+
+```text
+# Checkpoint — 2026-10-24 (America/Toronto)
+
+Audit27 `3b7ae978e` accepted.
+[Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
+
+Prod `1da699fdc`; #1679 CI40128782362 PASS (Oct24).
+Home/admission ON: 3 test accounts; page flags absent; expansion held.
+Signed-in create/join/Teaching/Joined/hide/outsider UI PASS.
+DB001–292; [receipt/gates](../docs/guidance/classroom-home-pilot-receipt-2026-10-24.md).
+282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
+Poll5→1; fresh auth.
+Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
+
+Broader cutover/billing held.
+entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
+Provider controls unchanged; Pal membership/signals OFF; live calls held.
+Access incomplete; deployed classwork/API/replay and expansion remain.
+Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
+Owner259–262 installed/dormant; Tests adopter1580 prepared.
+251/252 native/review/CI PASS.
+LegacyPATCH; local001–292 applied Oct23; flags unchanged.
+No exit; `docs/guidance/contextual-test-publication.md`.
+
+253#1524 OFF (CI37715526569 PASS).
+Quota notices: upgrade/tier only; creation-error deferred.
+Batch2 open.
+
+Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
+Env: $HOME/Repos/.env/pika/.env.local; .env.example.
+Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
+individual-student/removed cleanup ON (provider/live/automatic/academic); Pal OFF.
+```
+
+## 2026-10-25 — Full upstream CURRENT7c275690 retained during RepoLight sync
+
+# Checkpoint — 2026-10-24 (America/Toronto)
+
+Audit27 `3b7ae978e` accepted.
+[Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
+
+Prod `1da699fdc`; #1679 CI40128782362 PASS (Oct24).
+Home/admission ON: 3 test accounts; page flags absent; expansion held.
+Signed-in create/join/Teaching/Joined/hide/outsider UI PASS.
+DB001–292; [receipt/gates](../docs/guidance/classroom-home-pilot-receipt-2026-10-24.md).
+282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
+Poll5→1; fresh auth.
+Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
+
+Broader cutover/billing held.
+entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
+Controls unchanged: Pal membership/signals OFF; live calls held.
+Access incomplete; deployed classwork/API/replay and expansion remain.
+Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
+Owner259–262 installed/dormant; Tests adopter1580 prepared.
+251/252 native/review/CI PASS.
+LegacyPATCH; local001–292 applied Oct23; flags unchanged.
+No exit; `docs/guidance/contextual-test-publication.md`.
+
+253#1524 OFF (CI37715526569 PASS).
+Quota notices: upgrade/tier only; creation-error deferred.
+Batch2 open.
+
+Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
+Env: $HOME/Repos/.env/pika/.env.local; .env.example.
+Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
+individual-student/removed cleanup ON (provider/live/automatic/academic); Pal OFF.
+<!-- pika-session-log-archive-batch:5b714cfb69fd26f2b13e17a938753af570f6096d11a3758375c65e1d7ed46095 -->
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
+
+
+## 2026-10-25 — Full upstream CURRENT19b5abab retained during RepoLight sync
+
+# Checkpoint — 2026-10-25 (America/Toronto)
+
+Audit27 `3b7ae978e` accepted.
+[Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
+
+Prod `6eacd7540`; #1683 CI40160892306 PASS (Oct25).
+Home/admission ON: 3 test accounts; page flags absent; expansion held.
+Signed-in create/join/Teaching/Joined/hide/outsider UI PASS.
+DB001–292; [receipt/gates](../docs/guidance/classroom-home-pilot-receipt-2026-10-24.md).
+282 audit:47 bodies/ACLs,775 grants,281 RLS/constraints PASS;decommission DB ON.
+Poll5→1; fresh auth.
+Braces: [roadmap](../docs/core/roadmap.md#deferred-maintenance).
+
+Broader cutover/billing held.
+entitlement 181/plan 206 and automatic Free ON; 182–205/image 213 OFF.
+Controls unchanged: Pal membership/signals OFF; live calls held.
+Access incomplete; deployed classwork/API/replay and expansion remain.
+Exits: `docs/guidance/classroom-access-and-entitlements-roadmap.md`.
+Owner259–262 installed/dormant; Tests adopter1580 prepared.
+251/252 native/review/CI PASS.
+LegacyPATCH; local001–292 applied Oct23; flags unchanged.
+No exit; `docs/guidance/contextual-test-publication.md`.
+
+253#1524 OFF (CI37715526569 PASS).
+Quota notices: upgrade/tier only; creation-error deferred.
+Batch2 open.
+
+Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
+Env: $HOME/Repos/.env/pika/.env.local; .env.example.
+Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
+individual-student/removed cleanup ON (provider/live/automatic/academic); Pal OFF.
+
+<!-- pika-session-log-archive-batch:e0ac36a8ea5a4afabde636e5a0bb55145048da4145abd255f3185a684e187cd5 -->
+## 2026-10-22 — Roster dates without checkmarks
+
+Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
+Extend the existing roster Joined cell; same roster/Pattern Lab reference and
+teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
+without a timestamp show the text Joined; unjoined cells stay empty. No new
+component, pattern, or widget behavior. PR1661 returned to draft for this delta;
+focused checks, screenshot refresh and targeted independent review required.
+
+## 2026-10-22 — Joined fallback checkmark
+
+Owner refinement: joined records without a saved date use the original simple
+Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
+unjoined rows remain empty. Reuse original roster status icon; same teacher-only
+roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
+No component or widget contract change. PR1661 draft during validation/review.
+
+<!-- pika-session-log-archive-batch:5a56aa1dc47364ab897b28445724ad6f215a5c623dfcb8d19f9a3bc0bbcdf49d -->
+## 2026-10-22 — Approved four-editor Markdown/image implementation
+
+Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
+separate type/classroom header, one question control bar, icon modes and green
+Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
+Markdown images round-trip and Material stores exact source beside compatibility
+nodes. Student readers use the same Markdown source. Prepared protected teacher
+image uploads, publication-aware reads, archive remapping and migration291 for
+transactional reference tracking/deferred cleanup. No migration applied yet;
+local291 and up to three extra reviewer launches explicitly requested and pending.
+Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
+apart from a corrected source-wire assertion awaiting rerun; final focused gate,
+local database/browser evidence and independent review remain. PR1662 stays draft.
+
+<!-- pika-session-log-archive-batch:8c049d829b4115f10591fe90dc7c18f63c92fdf4b8677dfa9f33fab19bceab97 -->
+## 2026-10-22 — Material calendar post dates
+
+Added teacher Post date (Toronto) editing for already-posted Classwork materials;
+explicit Save moves the existing release date, with future release still owned
+by Schedule. Owner PATCH/receipt validation and migration289 retain locked
+ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
+saved release date. Guidance: docs/guidance/material-post-date.md.
+UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
+extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
+focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
+boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
+state covered, no manual follow-up. Student date editor n/a; both calendar modes
+covered by date-movement regression. Risk profile none; standard independent
+review required. Branch codex/material-post-date owned by this chat. Sol/high DB
+worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
+Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
+coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
+proofs, generated-type equality and unchanged shared schema PASS; evidence
+/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
+overlapping profile tests under host load140+. Focused gate rerunning with one
+worker before ready. Initial independent review PASS at de56dbceb; focused run
+4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
+598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
+heavy-tests-released under the owner-authorized serial test plan before rerun;
+targeted review required for this test-only correction. No shared local/production
+migration applied and no production promotion.
+
+CI follow-up: owner approved one additional compatibility batch and targeted
+review within a45-minute extension. Attendance clone harness still required288;
+advance its exact-count/source upper bound to sealed289, preserving rejection of
+unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
+preflight in its runner regression. Application and migration bytes unchanged.
+Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
+focused rerun waits for toolbar's local test slot; targeted delta review pending.
+
+<!-- pika-session-log-archive-batch:2cde7243a34359192ec3506e5b0fc0a8f9e543060d1b7b8131887ac275e32e5c -->
+## 2026-10-22 — Announcement calendar post dates
+
+Owner expanded post-date editing to published announcements in PR1663. Reuse
+material native date field and shared civil-date schema; extend announcement
+card/locked owner patch, refresh mounted teacher calendar, reuse publication
+calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
+Risk none; no new dependency/shared UI pattern. Student editing n/a; student
+saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
+feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
+keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
+Effective model, tokens and active time unknown; weekly99% remaining at start.
+Owner approved brief Docker restart only for disposable verification:001–290
+material/announcement and attendance proofs plus Data API normal/absent-default
+ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
+stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
+/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
+release. Final focused gate and new-scope independent delta review pending.
+
+<!-- pika-session-log-archive-batch:d89d606ad2e7f1e6da855ff0a0ebf08bd23173de13f4fa2908d13536bed00f2a -->
+## 2026-10-22 — PR1663 CI registry repair
+
+Owner authorized fixing CI and merging1663 after all checks pass. Announcement
+469773050 focused5406 and complete independent delta review passed; CI Test &
+Build passed but all seven Supabase setups and an isolated retry hit GHCR
+toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
+action preserves the override and both pinned Postgres/metadata OCI indexes are
+byte-identical across registries. Bounded Sol/high read-only worker verified
+upstream behavior/manifests; coordinator owns all edits. Local runner now imports
+only the literal reviewed workflow registry, refuses job/step overrides, retains
+historical no-env plans and all existing isolation/inventory/cleanup guards.
+Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
+risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
+dependencies, image contents, shared database or production changes. Docker stays
+stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
+prior feature review coverage reused, no extra full review wave.
+
+## 2026-10-22 — Production post-date release completed
+
+Owner authorized production289/290, then main promotion after checks. Single
+apply39862570602 returned applied-verified001–290, matching preview39862341945
+and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
+metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
+midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
+parent entries; two cumulative Sol/high reviews and one targeted pass found no
+blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
+ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
+dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
+GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
+retry, fixture/post mutation, flag/account/provider/billing change or Docker
+restart. Attributable tokens/active time unknown. Final receipt docs review/CI
+remains; production promotion worktree retired, shared env target preserved.
+
+<!-- pika-session-log-archive-batch:8a1ae8c633b04dbaabf33db1660e7c5d2446988e64d22e1bffb6e33b9af939e2 -->
+## 2026-10-22 — Approved four-editor implementation verification
+
+Actual Assignment/Material/Test/Survey now match the approved compact prototype:
+Markdown source, shared mode/close/status header, question navigation and green
+Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
+legacy Material until content edit; source-only changes regenerate readers.
+Source/API checks cover publication timing, legacy submitted-Test access and
+literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
+transactional save attachment, archive/snapshot pins and narrow1h unclaimed
+retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
+Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
+Blueprint private-image portability is unsupported: reject incoming portable
+assets before copying/applying; preserve existing classroom source.
+
+Actual-source browser16teacher+4student matrix and existing8authoring contracts
+PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
+Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
+canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
+UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
+PASS. Audit PASS66changedTSfiles; composite mode,
+menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
+generated types and native ACL/schema/behavior receipts pending exact local
+permission. No Docker restart, shared migration or production action. Owned
+Next3036 stopped; owner prototype9026 retained. Current independent-review
+coverage ends94bd0b389;9historical launches consumed, approval for up to3new
+launches pending. PR1662 stays draft. Bounded implementation workers assisted;
+not independent review. Inherited effective models/tokens unknown; serial local
+verification limits honored after correcting an initial unflagged focused run.
+
+## 2026-10-22 — Local291 preflight and independent review
+
+Owner approved local291 and3additional reviews. Supabase local target verified
+Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
+application attempted; asked expanded exact244–291 authority, pending. Existing
+244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
+proofs PASS; shared schema unchanged. Harness final type equality differs only
+new2914-column ledger/2FKs; generated metadata pending official local generation.
+Data API historical/absent-default ACL replay PASS. Native receipts:
+/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
+Owned clones removed, local DB and Docker stopped again.
+
+Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
+and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
+(stale compatibility images and absolute URLs). One correction batch uses SQL's
+canonical source precedence and remaps protected URLs to new relative identity.
+Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
+PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
+suites71PASS. No UI delta; existing visual hashes retained. Launch12
+reserved for correction/integration after metadata/native gates; no further
+launch approved beyond12. Requested model/effort recorded; effective config,
+per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.

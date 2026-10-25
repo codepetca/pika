@@ -48,7 +48,10 @@ function statements(sql, depth = 0) {
     } else if (sql[i] === '"') {
       const end = sql.indexOf('"', i + 1)
       const name = sql.slice(i + 1, end)
-      if (end < 0 || !/^[a-z_][a-z0-9_]*$/.test(name)) throw new Error('Use simple lowercase SQL identifiers for migration policy checks')
+      // Canonical wire JSON needs PostgreSQL's built-in byte-order collation.
+      // Admit only this exact collation operand, not arbitrary quoted DDL names.
+      const canonicalCollation = name === 'C' && /\bcollate\s*$/i.test(statement)
+      if (end < 0 || (!/^[a-z_][a-z0-9_]*$/.test(name) && !canonicalCollation)) throw new Error('Use simple lowercase SQL identifiers for migration policy checks')
       statement += name
       i = end + 1
     } else if (sql[i] === '$' && /^\$(?:[a-z_][a-z0-9_]*)?\$/i.test(sql.slice(i))) {

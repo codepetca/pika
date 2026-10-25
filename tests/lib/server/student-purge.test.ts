@@ -1,3 +1,4 @@
+vi.mock('@/lib/server/repolight-decommission-database', () => ({ advanceReservedRepoLightCleanup: vi.fn().mockResolvedValue(true) }))
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   assertStudentPurgeOperationTarget,

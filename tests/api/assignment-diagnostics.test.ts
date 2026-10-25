@@ -15,7 +15,7 @@ import { expectContentFreeDiagnostic, privateDiagnosticError } from '../helpers/
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => client) }))
 vi.mock('@/lib/auth', () => ({
-  requireRole: vi.fn(async (role: string) => ({ id: `${role}-1`, role })),
+  requireRole: vi.fn(async (role: string) => ({ id: role === 'teacher' ? currentTeacherId : `${role}-1`, role })),
   requireAuth: vi.fn(async () => ({ id: 'student-1', role: 'student' })),
 }))
 vi.mock('@/lib/server/classrooms', () => ({
@@ -64,6 +64,7 @@ vi.mock('@/lib/authenticity', () => ({
 
 type Reply = { data: any; error: unknown }
 const replies = new Map<string, Reply[]>()
+let currentTeacherId = 'teacher-1'
 let artifactFailure = false
 let cleanupFailure = false
 let palEnabled = false
@@ -74,7 +75,7 @@ function assignment() {
     id: 'assignment-1', classroom_id: 'classroom-1', title: 'Synthetic assignment',
     is_draft: false, released_at: '2026-01-01T00:00:00.000Z',
     due_at: '2099-01-01T00:00:00.000Z',
-    classrooms: { id: 'classroom-1', teacher_id: 'teacher-1', archived_at: null },
+    classrooms: { id: 'classroom-1', teacher_id: currentTeacherId, archived_at: null },
   }
 }
 const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Synthetic work' }] }] }
@@ -103,7 +104,7 @@ const client = {
   from: vi.fn((table: string) => query(replies.get(table)?.shift() ?? ok(
     table === 'assignments' ? assignment() : table === 'assignment_docs' ? document() : [],
   ))),
-  rpc: vi.fn(async () => failed()),
+  rpc: vi.fn(async (_name?: string, _args?: Record<string, unknown>) => failed()),
 }
 const context = { params: { id: 'assignment-1' } }
 function request(method = 'GET', body?: unknown) {
@@ -124,6 +125,8 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.spyOn(console, 'error').mockImplementation(() => {})
   replies.clear()
+  currentTeacherId = 'teacher-1'
+  client.rpc.mockImplementation(async () => failed())
   artifactFailure = cleanupFailure = palEnabled = false
   rosterResult = { studentIds: ['student-1'], studentIdSet: new Set(['student-1']), error: null }
 })
@@ -205,14 +208,61 @@ describe('assignment route diagnostic privacy', () => {
     expectContentFreeDiagnostic(vi.mocked(console.error).mock.calls, 'assignment.update_cleanup')
   })
 
-  it('keeps assignment deletion failures content-free', async () => {
-    queue('assignments', ok(assignment()), failed())
-    await expectFailure(await remove(request('DELETE'), context), 'Failed to delete assignment', 'assignment.delete')
+  function deletionTransport(failFinalize = false) {
+    currentTeacherId = '11111111-1111-4111-8111-111111111111'
+    const assignmentId = '22222222-2222-4222-8222-222222222222'
+    const classroomId = '33333333-3333-4333-8333-333333333333'
+    const operationId = '44444444-4444-4444-8444-444444444444'
+    queue('assignments', ok({ ...assignment(), id: assignmentId, classroom_id: classroomId }))
+    client.rpc.mockImplementation(async (name, inputArgs) => {
+      const args = inputArgs!
+      expect(args.p_actor_id).toBe(currentTeacherId)
+      if (name === 'get_repolight_assignment_delete_context_v1') {
+        expect(args.p_assignment_id).toBe(assignmentId)
+        return ok({ assignment_id: assignmentId, classroom_id: classroomId,
+          assignment_updated_at: '2026-01-01T00:00:00.000Z', source_fingerprint: 'a'.repeat(64), pending_operation_id: null, subject_count: 0 })
+      }
+      expect(args.p_operation_id).toBe(operationId)
+      if (name === 'reserve_repolight_assignment_delete_v1') {
+        expect(args).toMatchObject({ p_assignment_id: assignmentId, p_expected_updated_at: '2026-01-01T00:00:00.000Z', p_expected_source_fingerprint: 'a'.repeat(64) })
+        return ok({ operation_id: operationId, kind: 'assignment_delete', status: 'cleanup_pending', pending_subject_count: 0 })
+      }
+      if (name === 'read_repolight_decommission_subjects_v1') return ok([])
+      if (name === 'finalize_repolight_assignment_delete_v1') {
+        expect(args.p_assignment_id).toBe(assignmentId)
+        return failFinalize ? failed() : ok({ ok: true, deleted: true })
+      }
+      throw new Error('Unexpected deletion RPC')
+    })
+    return { params: Promise.resolve({ id: assignmentId }), request: request('DELETE', { operationId }) }
+  }
+
+  it('keeps guarded assignment deletion failures content-free and never claims success', async () => {
+    const input = deletionTransport(true)
+    const response = await remove(input.request, input)
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Assignment deletion could not continue. Retry the confirmed operation.' })
+    expectContentFreeDiagnostic(vi.mocked(console.error).mock.calls, 'assignment.delete')
+    expect(client.rpc.mock.calls.map(call => call[0])).toEqual(['get_repolight_assignment_delete_context_v1',
+      'reserve_repolight_assignment_delete_v1', 'read_repolight_decommission_subjects_v1', 'read_repolight_decommission_subjects_v1',
+      'finalize_repolight_assignment_delete_v1'])
   })
 
-  it('preserves successful assignment deletions when queued cleanup fails', async () => {
+  it('fails closed when the guarded deletion RPC is absent, without falling back to table deletion', async () => {
+    const input = deletionTransport()
+    client.rpc.mockResolvedValueOnce({ data: null, error: { code: 'PGRST202', message: 'PRIVATE_MISSING_FUNCTION_DETAIL' } })
+    const response = await remove(input.request, input)
+    expect(response.status).toBe(503)
+    expect(JSON.stringify(await response.json())).not.toContain('PRIVATE_MISSING_FUNCTION_DETAIL')
+    expect(client.rpc).toHaveBeenCalledOnce()
+    for (const call of client.from.mock.results) expect(call.value.delete).not.toHaveBeenCalled()
+    expectContentFreeDiagnostic(vi.mocked(console.error).mock.calls, 'assignment.delete', 'unexpected')
+  })
+
+  it('preserves verified assignment deletions when queued cleanup fails', async () => {
+    const input = deletionTransport()
     cleanupFailure = true
-    const response = await remove(request('DELETE'), context)
+    const response = await remove(input.request, input)
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ success: true })
     expectContentFreeDiagnostic(vi.mocked(console.error).mock.calls, 'assignment.delete_cleanup')

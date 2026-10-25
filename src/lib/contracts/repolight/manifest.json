@@ -1,0 +1,72 @@
+{
+  "sourceRepository": "codepetca/repolight",
+  "sourceRevision": "776d795c92e4d86f994a80e846996b5924e60906",
+  "sourceState": "committed",
+  "transformVersion": 1,
+  "files": [
+    {
+      "sourcePath": "src/lib/report/bundle-contract.ts",
+      "targetPath": "report/bundle-contract.ts",
+      "sourceSha256": "80dc3cfc4af750cb538ff44aa0083fd08e35c2620fafb5922de69ad266f298e4",
+      "parentSourceSha256": "80dc3cfc4af750cb538ff44aa0083fd08e35c2620fafb5922de69ad266f298e4",
+      "modifiedFromParent": false,
+      "transformedSha256": "b506ae367b66478d9eda8ebfbc3fd9b8e1abba70a17bfb82ffee6461cd94b0d0"
+    },
+    {
+      "sourcePath": "src/lib/report/contract.ts",
+      "targetPath": "report/contract.ts",
+      "sourceSha256": "85a3dc93e20d23fca6baa9aa0e100ca8ba4b0b719bb8a6c1198a4eacc9bfe35a",
+      "parentSourceSha256": "85a3dc93e20d23fca6baa9aa0e100ca8ba4b0b719bb8a6c1198a4eacc9bfe35a",
+      "modifiedFromParent": false,
+      "transformedSha256": "5ed2be48ae90bdc030251ea2503e4b08b3d7e5180bb5efa13035d3b09f9d5b21"
+    },
+    {
+      "sourcePath": "src/lib/report/calculations.ts",
+      "targetPath": "report/calculations.ts",
+      "sourceSha256": "10c935469c8928d2af11aa22b788992a8cab6f93c6bd97ee7e2825708b25d3c0",
+      "parentSourceSha256": "10c935469c8928d2af11aa22b788992a8cab6f93c6bd97ee7e2825708b25d3c0",
+      "modifiedFromParent": false,
+      "transformedSha256": "bab869948c285aee58b853d6fc276f0c52a7e4394df51e6bd3ec072e9a0c2f4a"
+    },
+    {
+      "sourcePath": "src/lib/report/public.ts",
+      "targetPath": "report/public.ts",
+      "sourceSha256": "046555fc813c7c9f788ff82ed50e5b01074f8ed36e58990773ed3b93ce89662b",
+      "parentSourceSha256": "046555fc813c7c9f788ff82ed50e5b01074f8ed36e58990773ed3b93ce89662b",
+      "modifiedFromParent": false,
+      "transformedSha256": "05a55a7cad480441d8ddc10972c735be3df27eea6a2d2e2948ce5abe1c5606bd"
+    },
+    {
+      "sourcePath": "src/lib/engine/repo.ts",
+      "targetPath": "engine/repo.ts",
+      "sourceSha256": "4769256abcad4c76ac2a755d48cbaca0f9c04aec47f505a9cc9d94d1c46b5a2a",
+      "parentSourceSha256": "4769256abcad4c76ac2a755d48cbaca0f9c04aec47f505a9cc9d94d1c46b5a2a",
+      "modifiedFromParent": false,
+      "transformedSha256": "be0a7be16cf82bc269253a9933d36bdb8fad5053ee8e7345bede1eeb4c02149f"
+    },
+    {
+      "sourcePath": "src/lib/engine/time.ts",
+      "targetPath": "engine/time.ts",
+      "sourceSha256": "e0cdbbab2041a86cbfc600e7beb355f4d46592b24aa5fd2eeea899ba1d792b99",
+      "parentSourceSha256": "e0cdbbab2041a86cbfc600e7beb355f4d46592b24aa5fd2eeea899ba1d792b99",
+      "modifiedFromParent": false,
+      "transformedSha256": "e0cdbbab2041a86cbfc600e7beb355f4d46592b24aa5fd2eeea899ba1d792b99"
+    },
+    {
+      "sourcePath": "src/lib/engine/types.ts",
+      "targetPath": "engine/types.ts",
+      "sourceSha256": "9ed583400920be2db9c6c3076917f5c0d511d421159e177bd16e39ed3c8ff217",
+      "parentSourceSha256": "9ed583400920be2db9c6c3076917f5c0d511d421159e177bd16e39ed3c8ff217",
+      "modifiedFromParent": false,
+      "transformedSha256": "9ed583400920be2db9c6c3076917f5c0d511d421159e177bd16e39ed3c8ff217"
+    },
+    {
+      "sourcePath": "src/lib/service/contract.ts",
+      "targetPath": "service/contract.ts",
+      "sourceSha256": "c3bb7f58e4b4fe4af2e94880ed6489d3fdd33200b6f27820c6e1ee240baf2357",
+      "parentSourceSha256": "c3bb7f58e4b4fe4af2e94880ed6489d3fdd33200b6f27820c6e1ee240baf2357",
+      "modifiedFromParent": false,
+      "transformedSha256": "87c0468b986598927340e6b04a5cb7dfef31599e49e20a9266c66b0736d5a040"
+    }
+  ]
+}

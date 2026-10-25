@@ -29,6 +29,16 @@ describe('generated RPC provider cleanup bridge', () => {
     expect(rpc).toHaveBeenCalledWith('reserve_student_provider_cleanup', args)
     expect(pal).not.toHaveBeenCalled()
   })
+  it('uses the atomic automatic admission RPC and never sends after its manual-only guard', async () => {
+    const coordinator = createStudentProviderCleanupDatabaseCoordinator(undefined, { live: true, automatic: true })
+    rpc.mockResolvedValueOnce({ data: { ...binding, pal_schema_version: 2, pal_policy: 'pika-live-v1' }, error: null })
+    await coordinator.reserve(scope)
+    expect(rpc).toHaveBeenCalledWith('reserve_automatic_live_student_cleanup_v1', args)
+    rpc.mockResolvedValueOnce({ data: null, error: { code: '55000', message: 'repolight_manual_cleanup_required' } })
+    await expect(coordinator.reserve(scope)).rejects.toMatchObject({ code: 'manual_confirmation_required' })
+    expect(pal).not.toHaveBeenCalled()
+  })
+
   it('keeps status readable while the application gate is paused', async () => {
     vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
     const coordinator = createStudentProviderCleanupDatabaseCoordinator()

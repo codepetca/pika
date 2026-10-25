@@ -11,176 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Roster dates without checkmarks
-
-Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
-Extend the existing roster Joined cell; same roster/Pattern Lab reference and
-teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
-without a timestamp show the text Joined; unjoined cells stay empty. No new
-component, pattern, or widget behavior. PR1661 returned to draft for this delta;
-focused checks, screenshot refresh and targeted independent review required.
-
-## 2026-10-22 — Joined fallback checkmark
-
-Owner refinement: joined records without a saved date use the original simple
-Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
-unjoined rows remain empty. Reuse original roster status icon; same teacher-only
-roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
-No component or widget contract change. PR1661 draft during validation/review.
-
-## 2026-10-22 — Approved four-editor Markdown/image implementation
-
-Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
-separate type/classroom header, one question control bar, icon modes and green
-Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
-Markdown images round-trip and Material stores exact source beside compatibility
-nodes. Student readers use the same Markdown source. Prepared protected teacher
-image uploads, publication-aware reads, archive remapping and migration291 for
-transactional reference tracking/deferred cleanup. No migration applied yet;
-local291 and up to three extra reviewer launches explicitly requested and pending.
-Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
-apart from a corrected source-wire assertion awaiting rerun; final focused gate,
-local database/browser evidence and independent review remain. PR1662 stays draft.
-
-## 2026-10-22 — Material calendar post dates
-
-Added teacher Post date (Toronto) editing for already-posted Classwork materials;
-explicit Save moves the existing release date, with future release still owned
-by Schedule. Owner PATCH/receipt validation and migration289 retain locked
-ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
-saved release date. Guidance: docs/guidance/material-post-date.md.
-UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
-extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
-focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
-boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
-state covered, no manual follow-up. Student date editor n/a; both calendar modes
-covered by date-movement regression. Risk profile none; standard independent
-review required. Branch codex/material-post-date owned by this chat. Sol/high DB
-worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
-Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
-coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
-proofs, generated-type equality and unchanged shared schema PASS; evidence
-/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
-overlapping profile tests under host load140+. Focused gate rerunning with one
-worker before ready. Initial independent review PASS at de56dbceb; focused run
-4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
-598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
-heavy-tests-released under the owner-authorized serial test plan before rerun;
-targeted review required for this test-only correction. No shared local/production
-migration applied and no production promotion.
-
-CI follow-up: owner approved one additional compatibility batch and targeted
-review within a45-minute extension. Attendance clone harness still required288;
-advance its exact-count/source upper bound to sealed289, preserving rejection of
-unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
-preflight in its runner regression. Application and migration bytes unchanged.
-Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
-focused rerun waits for toolbar's local test slot; targeted delta review pending.
-
-## 2026-10-22 — Announcement calendar post dates
-
-Owner expanded post-date editing to published announcements in PR1663. Reuse
-material native date field and shared civil-date schema; extend announcement
-card/locked owner patch, refresh mounted teacher calendar, reuse publication
-calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
-Risk none; no new dependency/shared UI pattern. Student editing n/a; student
-saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
-feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
-keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
-Effective model, tokens and active time unknown; weekly99% remaining at start.
-Owner approved brief Docker restart only for disposable verification:001–290
-material/announcement and attendance proofs plus Data API normal/absent-default
-ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
-stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
-/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
-release. Final focused gate and new-scope independent delta review pending.
-
-## 2026-10-22 — PR1663 CI registry repair
-
-Owner authorized fixing CI and merging1663 after all checks pass. Announcement
-469773050 focused5406 and complete independent delta review passed; CI Test &
-Build passed but all seven Supabase setups and an isolated retry hit GHCR
-toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
-action preserves the override and both pinned Postgres/metadata OCI indexes are
-byte-identical across registries. Bounded Sol/high read-only worker verified
-upstream behavior/manifests; coordinator owns all edits. Local runner now imports
-only the literal reviewed workflow registry, refuses job/step overrides, retains
-historical no-env plans and all existing isolation/inventory/cleanup guards.
-Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
-risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
-dependencies, image contents, shared database or production changes. Docker stays
-stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
-prior feature review coverage reused, no extra full review wave.
-
-## 2026-10-22 — Production post-date release completed
-
-Owner authorized production289/290, then main promotion after checks. Single
-apply39862570602 returned applied-verified001–290, matching preview39862341945
-and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
-metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
-midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
-parent entries; two cumulative Sol/high reviews and one targeted pass found no
-blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
-ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
-dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
-GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
-retry, fixture/post mutation, flag/account/provider/billing change or Docker
-restart. Attributable tokens/active time unknown. Final receipt docs review/CI
-remains; production promotion worktree retired, shared env target preserved.
-
-## 2026-10-22 — Approved four-editor implementation verification
-
-Actual Assignment/Material/Test/Survey now match the approved compact prototype:
-Markdown source, shared mode/close/status header, question navigation and green
-Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
-legacy Material until content edit; source-only changes regenerate readers.
-Source/API checks cover publication timing, legacy submitted-Test access and
-literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
-transactional save attachment, archive/snapshot pins and narrow1h unclaimed
-retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
-Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
-Blueprint private-image portability is unsupported: reject incoming portable
-assets before copying/applying; preserve existing classroom source.
-
-Actual-source browser16teacher+4student matrix and existing8authoring contracts
-PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
-/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
-Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
-canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
-UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
-PASS. Audit PASS66changedTSfiles; composite mode,
-menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
-generated types and native ACL/schema/behavior receipts pending exact local
-permission. No Docker restart, shared migration or production action. Owned
-Next3036 stopped; owner prototype9026 retained. Current independent-review
-coverage ends94bd0b389;9historical launches consumed, approval for up to3new
-launches pending. PR1662 stays draft. Bounded implementation workers assisted;
-not independent review. Inherited effective models/tokens unknown; serial local
-verification limits honored after correcting an initial unflagged focused run.
-
-## 2026-10-22 — Local291 preflight and independent review
-
-Owner approved local291 and3additional reviews. Supabase local target verified
-Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
-application attempted; asked expanded exact244–291 authority, pending. Existing
-244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
-proofs PASS; shared schema unchanged. Harness final type equality differs only
-new2914-column ledger/2FKs; generated metadata pending official local generation.
-Data API historical/absent-default ACL replay PASS. Native receipts:
-/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
-Owned clones removed, local DB and Docker stopped again.
-
-Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
-and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
-(stale compatibility images and absolute URLs). One correction batch uses SQL's
-canonical source precedence and remaps protected URLs to new relative identity.
-Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
-PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
-suites71PASS. No UI delta; existing visual hashes retained. Launch12
-reserved for correction/integration after metadata/native gates; no further
-launch approved beyond12. Requested model/effort recorded; effective config,
-per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
-
 ## 2026-10-22 — Production post-date promotion preparation
 
 Owner authorized one production application of289/290 followed by main promotion.
@@ -549,6 +379,27 @@ Focused legacy/contextual/route-standard tests, TSC, lint and architecture check
 pass; final independent review/full focused checks remain coordinator-owned.
 No migration, dependency, account, cohort, provider or production changes.
 
+## 2026-10-24 — RepoLight report integration local verification
+
+- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
+- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
+- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
+- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
+- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
 ## 2026-10-24 — Release inactive classroom Home foundation
 
 Owner explicitly approved sole292 locally/production and reviewed-main release
@@ -646,6 +497,67 @@ the accurate established Controls unchanged prefix without reverting admission
 or provider state. Runtime grader fix unchanged; targeted docs regression and
 independent delta review precede the next stable-SHA CI.
 
+## 2026-10-24 — RepoLight integration foundation (in progress)
+
+Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
+
+## 2026-10-24 — RepoLight publication approved
+
+Owner approved branch publication and main merge after required CI. Product code
+remains reviewed36ca8cd70; only continuity evidence refreshed. Local5892tests,
+native/HTTP/archive/browser and final reviews pass. Analyze OFF;293 unapplied
+shared/prod. Publish draft, mark stable head ready, require PR Gate; no deployment
+or production promotion. Optional AI stays RepoLight-owner-only and disabled.
+
+## 2026-10-24 — RepoLight CI compatibility remediation
+
+PR1681 held as draft after40154111852: full coverage found two stale292
+proof-target assertions and CURRENT receipt-label drift;22,346tests passed.
+Both isolated runners now admit only the sealed293 target through the existing
+closed validators, retain historical sources and reject changed/renamed293/294.
+CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
+and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
+offline native replays and targeted independent review tracked in PR evidence.
+Shared/prod293 remains unapplied; Analyze OFF. No provider activation.
+
+## 2026-10-24 — Complete current-chain native proof audit
+
+Caught the remaining Home visibility292 cutoff before merge; PR1681 held as
+draft and40155285541 cancelled. Home manifest now requires the exact293 seal
+while retaining historical dirty-tree manifests and all clone/source guards.
+76unit tests/types/lint/syntax pass. Real293Home replay, rollback/recovery,
+two-session contention and generated types pass; shared fingerprints unchanged.
+Audit of159direct scripts,20package aliases,282reachable files and120shell
+scripts found no remaining current-chain cutoffs. NoSQL/app/flag changes.
+Final targeted review and exact-head CI remain required; Analyze OFF.
+
+## 2026-10-24 — RepoLight warning-level SQL lint correction
+
+User approved one further fix batch and eighth independent review (30-minute
+extension) before rerunning CI and conditional main merge. Cleanup discovery
+initializes its empty array with an explicit JSONB cast; both current migration293
+seals refreshed to b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052.
+An owned offline001–293 replay reproduces SQLSTATE42804 with the original initializer;
+the corrected schema is warning-free across569public/private PL/pgSQL functions
+using CLI2.103.0's query. Home rollback/recovery and real two-session contention
+pass; generated types and canonical-preservation checks retained. Required local
+focused checks, targeted review and exact-head PR Gate remain merge prerequisites.
+No shared/prod migration or provider activation; Analyze OFF.
+
+## 2026-10-24 — RepoLight legacy archive inventory correction
+
+Owner approved one additional proof-only fix batch and ninth targeted review,
+then exact-head CI and conditional main merge. The legacy archive check now
+counts RepoLight's three resources/revision triggers when its table family is
+installed, matching the existing archive-v2 compatibility condition. Strict
+inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
+Owned offline293 replay passes the actual archive lifecycle, compaction/races,
+Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
+clone setup; no shared mutation. Home recovery/contention, warning lint across
+569functions, generated types and canonical aggregate fingerprints pass.
+Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
+review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
+
 ## 2026-10-25 — Refresh the grading inspector after Return
 
 The dedicated-account manual canary exposed a stale revision after a successful
@@ -664,3 +576,35 @@ Reconciled actual #1683 production receipt/source6eacd7540 and manual canary wit
 normal reload recovery; this automatic-refresh fix still requires review/CI/main
 merge and separately authorized compatible release. Same3cohort/schema/plans and
 provider holds remain, with no production action or live-provider call.
+
+## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
+
+Owner explicitly overrode task workflow review-budget/low-usage stops through
+completion; keep independent review, strict CI and normal merge/rollout controls.
+Nine targeted reviews are recorded; next delta receives actual tenth review.
+Shared proof catalogue now includes ten literal tables from sealed293; member
+proof retains explicit292 admission and rejects partial/unknown catalogues.
+Historical unit profiles stay pinned; complete293 preservation includes private
+state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
+now fingerprint the same complete source-defined family; assertions unchanged.
+CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
+--disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
+config-process heap diagnostics added; no environment/heap dumps, assertion,
+project, timeout or compiler change. Full browser gate still required.
+Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
+upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
+SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
+CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-25 — RepoLight rebase after green CI
+
+CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
+SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
+(#1684 selected-inspector refresh after Return), creating continuity conflicts.
+Rebased feature commits; only CURRENT/archive conflicts required resolution.
+Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
+receipt and all held controls. No new deployment/query/provider authority.
+SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
+reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
+that equivalence; new-head CI still reruns the actual proof. Focused checks and
+one targeted main-sync review precede ready; task stop override remains active.

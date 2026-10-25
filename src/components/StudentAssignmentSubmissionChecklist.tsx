@@ -47,6 +47,12 @@ function StatusIcon({ item }: { item: ReturnType<typeof getSubmissionRequirement
   return <AlertCircle className="h-4 w-4 text-warning" aria-hidden="true" />
 }
 
+function savedGithubLogin(artifact: AssignmentSubmissionArtifact | null | undefined, githubIdentity: UserGitHubIdentity | null) {
+  if (!artifact) return githubIdentity?.github_login ?? ''
+  if (artifact.metadata_json?.github_login_selection === 'none') return ''
+  return typeof artifact.metadata_json?.github_login === 'string' ? artifact.metadata_json.github_login : ''
+}
+
 function buildDraftState(
   requirements: AssignmentSubmissionRequirement[],
   artifacts: AssignmentSubmissionArtifact[],
@@ -59,10 +65,7 @@ function buildDraftState(
     const artifact = artifactByRequirementId.get(requirement.id)
     next[requirement.id] = {
       url: artifact?.url ?? '',
-      githubLogin:
-        typeof artifact?.metadata_json?.github_login === 'string'
-          ? artifact.metadata_json.github_login
-          : githubIdentity?.github_login ?? '',
+      githubLogin: savedGithubLogin(artifact,githubIdentity),
     }
   }
 
@@ -173,14 +176,11 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
         if (requirement.type === 'image') continue
         const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
         const savedArtifact = nextArtifacts.find((artifact) => artifact.requirement_id === requirement.id)
-        const savedGithubLogin =
-          typeof savedArtifact?.metadata_json?.github_login === 'string'
-            ? savedArtifact.metadata_json.github_login
-            : githubIdentity?.github_login ?? ''
+        const savedLogin = savedGithubLogin(savedArtifact,githubIdentity)
         const hasChanges =
           normalizeDraftValue(draft.url) !== normalizeDraftValue(savedArtifact?.url) ||
           (requirement.type === 'repo_link' &&
-            normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedGithubLogin))
+            normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedLogin))
 
         if (!hasChanges) continue
         const nextArtifact = await persistUrlArtifact(requirement)
@@ -269,14 +269,11 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
           const requirement = item.requirement
           const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
           const isSaving = savingRequirementId === requirement.id
-          const savedGithubLogin =
-            typeof item.artifact?.metadata_json?.github_login === 'string'
-              ? item.artifact.metadata_json.github_login
-              : githubIdentity?.github_login ?? ''
+          const savedLogin = savedGithubLogin(item.artifact,githubIdentity)
           const hasChanges =
             normalizeDraftValue(draft.url) !== normalizeDraftValue(item.artifact?.url) ||
             (requirement.type === 'repo_link' &&
-              normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedGithubLogin))
+              normalizeDraftValue(draft.githubLogin) !== normalizeDraftValue(savedLogin))
 
           return (
             <div key={requirement.id} className="grid gap-3 px-4 py-3 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)]">
@@ -340,7 +337,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
                       />
                     </FormField>
                     {requirement.type === 'repo_link' ? (
-                      <FormField label="GitHub username">
+                      <FormField label="GitHub username (optional)" hint="Leave blank to analyze all contributors. Repository ownership does not identify your work.">
                         <Input
                           value={draft.githubLogin}
                           disabled={disabled || isSaving}

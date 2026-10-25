@@ -541,4 +541,23 @@ describe('ClassroomPurgeDialog', () => {
     await waitFor(() => expect(screen.queryByText('99')).not.toBeInTheDocument())
     expect(screen.getByText('11')).toBeInTheDocument()
   })
+  it('allows only explicitly confirmed cleanup reservation while final deletion waits for remote reports',async()=>{
+    const operation = {operation_id:'20000000-0000-4000-8000-000000000001',classroom_id:CLASSROOM_ID,status:'inventorying',retryable:true,error_code:null,attempt_count:1,resource_counts:{classrooms:1},storage_object_counts:{pending:0},completed_at:null,repolight_cleanup_pending:true}
+    const impact = {classroom_id:CLASSROOM_ID,classroom_title:'Archived Biology',source_revision:7,storage_inventory_sha256:'a'.repeat(64),operational_inventory_sha256:'b'.repeat(64),relational_row_count:2,student_count:1,managed_file_count:0,managed_file_bytes:0,missing_file_count:0,archive_count:0,gradex_extract_count:0,interrupted_upload_count:0,resource_counts:{classrooms:1},storage_counts:{},conflicting_operation:null,deletion_available:false,can_reserve_cleanup:true,cleanup_unavailable_reason:null,unavailable_reason:'repolight_cleanup_pending'}
+    const fetchMock = vi.fn(async(input:RequestInfo | URL,init?:RequestInit)=>String(input).includes('/attendance-decommission/') ? {ok:false,status:404,json:async()=>({})} : init?.method === 'POST' ? {ok:true,status:202,json:async()=>({operation,advanced:false})} : {ok:true,json:async()=>({impact,operation:null})})
+    vi.stubGlobal('fetch',fetchMock)
+    const onCompleted = vi.fn()
+    render(<ClassroomPurgeDialog classroomId={CLASSROOM_ID} classroomTitle="Archived Biology" isOpen onClose={vi.fn()} onCompleted={onCompleted} />)
+    const button = await screen.findByRole('button',{name:'Delete permanently'})
+    expect(button).toBeDisabled()
+    expect(fetchMock.mock.calls.some(([,init])=>init?.method === 'POST')).toBe(false)
+    fireEvent.change(screen.getByRole('textbox'),{target:{value:'DELETE'}})
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    await screen.findByText(/Waiting for repository-report cleanup/)
+    expect(onCompleted).not.toHaveBeenCalled()
+    expect(screen.getByRole('button',{name:'Continue deletion'})).toBeEnabled()
+    expect(fetchMock.mock.calls.filter(([url,init])=>String(url).endsWith('/purge') && init?.method === 'POST')).toHaveLength(1)
+  })
+
 })

@@ -6,11 +6,12 @@ import { liveCleanupDiscoverySchema, type LiveCleanupStatus, type LiveCleanupTar
 import { CleanupRequestError, cleanupKey, cleanupRequest, forgetCleanup, parseCleanupStatus, savedCleanup, saveCleanup, withCleanupLock } from '@/lib/live-student-cleanup-client'
 
 const envelope = z.object({ operation: z.unknown(), enabled: z.boolean().optional() }).strict()
-export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTarget | null, onCompleted: () => void) {
+export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTarget | null, onCompleted: (status: LiveCleanupStatus) => void, requestedScope?: 'repolight_only') {
   const [operation, setOperation] = useState<LiveCleanupStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [ready, setReady] = useState(false)
   const [enabled, setEnabled] = useState(false)
+  const [cleanupScope, setCleanupScope] = useState<LiveCleanupTarget['scope']>(requestedScope ?? target?.scope)
   const [error, setError] = useState('')
   const [hasSaved, setHasSaved] = useState(false)
   const epoch = useRef(0)
@@ -18,15 +19,16 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
   const notified = useRef<string | null>(null)
   const completed = useRef(onCompleted)
   completed.current = onCompleted
-  const identity = target ? cleanupKey(classroomId, target) : ''
-  const path = target ? `/api/teacher/classrooms/${classroomId}/students/${target.student_id}/purge/live` : ''
+  const identity = target ? cleanupKey(classroomId, target) + ((requestedScope ?? target.scope) === 'repolight_only' ? ':repolight_only' : '') : ''
+  const path = target ? `/api/teacher/classrooms/${classroomId}/students/${target.student_id}/purge/live${(requestedScope ?? target.scope) === 'repolight_only' ? '?scope=repolight_only' : ''}` : ''
 
   function accept(status: LiveCleanupStatus) {
     if (status.cleanup_completed) { forgetCleanup(identity); setHasSaved(false) }
     setOperation(status)
+    if (status.scope) setCleanupScope(status.scope)
     if (status.cleanup_completed && notified.current !== status.operation_id) {
       notified.current = status.operation_id
-      completed.current()
+      completed.current(status)
     }
   }
   async function refresh() {
@@ -38,7 +40,7 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
       setHasSaved(Boolean(saved))
       if (saved) {
         try {
-          const raw = envelope.parse(await cleanupRequest(`${path}?operation_id=${saved.operation_id}&generation_id=${target.generation_id}`))
+          const raw = envelope.parse(await cleanupRequest(`${path}${path.includes('?') ? '&' : '?'}operation_id=${saved.operation_id}&generation_id=${target.generation_id}`))
           const status = parseCleanupStatus(raw.operation, saved.operation_id)
           if (version !== epoch.current) return
           accept(status); setReady(true); setEnabled(raw.enabled === true)
@@ -49,10 +51,10 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
           if (discovery.generation_id !== target.generation_id)
             throw new Error('This membership changed. Close and refresh the roster.')
           if (version !== epoch.current) return
-          setEnabled(discovery.enabled)
+          setEnabled(discovery.enabled); if (discovery.scope) setCleanupScope(discovery.scope)
           if (!discovery.operation) throw savedReadError
           saveCleanup(identity, discovery.operation.operation_id)
-          accept(discovery.operation); setReady(true); setEnabled(discovery.enabled)
+          accept(discovery.operation); setReady(true); setEnabled(discovery.enabled); if (discovery.scope) setCleanupScope(discovery.scope)
         }
       } else {
         const discovery = liveCleanupDiscoverySchema.parse(await cleanupRequest(path))
@@ -62,7 +64,7 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
           saveCleanup(identity, discovery.operation.operation_id)
           accept(discovery.operation)
         }
-        setEnabled(discovery.enabled); setReady(true)
+        setEnabled(discovery.enabled); if (discovery.scope) setCleanupScope(discovery.scope); setReady(true)
       }
     } catch (reason) {
       if (version === epoch.current) setError(reason instanceof z.ZodError ? 'Cleanup status could not be verified.' : reason instanceof Error ? reason.message : 'Could not check cleanup.')
@@ -73,6 +75,7 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
   useEffect(() => {
     epoch.current += 1
     running.current = false
+    setCleanupScope(requestedScope ?? target?.scope)
     setOperation(null); setReady(false); setEnabled(false); setError(''); setHasSaved(false)
     void refresh()
     return () => { epoch.current += 1 }
@@ -94,7 +97,7 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
         setHasSaved(true)
         const raw = envelope.parse(await cleanupRequest(path, {
           action: operation ? 'advance' : 'reserve', operation_id: operationId,
-          generation_id: target.generation_id, confirmation: 'PURGE LIVE CLASSROOM DATA',
+          generation_id: target.generation_id, scope: cleanupScope, confirmation: cleanupScope === 'repolight_only' ? 'REMOVE REPOSITORY REPORTS' : 'PURGE LIVE CLASSROOM DATA',
         }))
         const status = parseCleanupStatus(raw.operation, operationId)
         if (version !== epoch.current) return
@@ -111,5 +114,5 @@ export function useLiveStudentCleanup(classroomId: string, target: LiveCleanupTa
       if (version === epoch.current) { running.current = false; setBusy(false) }
     }
   }
-  return { operation, busy, ready, enabled, error, hasSaved, refresh, advance }
+  return { operation, busy, ready, enabled, error, hasSaved, cleanupScope, refresh, advance }
 }

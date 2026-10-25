@@ -1,4 +1,7 @@
-import { readFileSync } from 'node:fs'
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
 import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 import { runInNewContext } from 'node:vm'
@@ -7,6 +10,12 @@ import { describe, expect, it } from 'vitest'
 const runner = readFileSync('scripts/check-classroom-home-visibility-database.sh', 'utf8')
 const contention = readFileSync('scripts/check-classroom-home-visibility-contention.mjs', 'utf8')
 const recovery = readFileSync('scripts/check-classroom-home-recovery-database.sql', 'utf8')
+
+function runManifest(repository = process.cwd()) {
+  const code = runner.match(/manifest\(\) \{\n  node - "\$root" <<'NODE'\n([\s\S]*?)\nNODE\n\}/)?.[1]
+  expect(code, 'exercise the exact embedded manifest before any Docker activity').toBeDefined()
+  return spawnSync(process.execPath, ['-', repository], { input: code, encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '' } })
+}
 
 describe('isolated home visibility proof runner source contracts', () => {
   it.each([
@@ -30,6 +39,39 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
+  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
+    const start = runner.indexOf('[[ "$source_version" =~')
+    const end = runner.indexOf('registry=', start)
+    expect(start).toBeGreaterThan(-1); expect(end).toBeGreaterThan(start)
+    const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${runner.slice(start, end)}`], { encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version } })
+    expect(result.status === 0).toBe(accepted)
+  })
+
+  it('executes the complete current293 manifest and seals the exact reviewed extension', () => {
+    const result = runManifest()
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.trim().split('\n')).toHaveLength(296)
+    expect(result.stdout).toContain(`${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.sha256}  supabase/migrations/${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.name}`)
+  })
+
+  it.each(['tampered293', 'renamed293', 'unknown294', 'historicalDirtyTree'] as const)('executes manifest compatibility rules for %s', defect => {
+    const repository = mkdtempSync(join(tmpdir(), 'pika-home-reviewed-profile-'))
+    try {
+      mkdirSync(join(repository, 'supabase')); mkdirSync(join(repository, 'scripts'))
+      const migrations = join(repository, 'supabase/migrations')
+      cpSync('supabase/migrations', migrations, { recursive: true })
+      for (const proof of ['check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) cpSync(join('scripts', proof), join(repository, 'scripts', proof))
+      const reviewed = join(migrations, REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.name)
+      if (defect === 'tampered293') appendFileSync(reviewed, '\n-- unreviewed source substitution\n')
+      if (defect === 'renamed293') renameSync(reviewed, join(migrations, '293_unreviewed.sql'))
+      if (defect === 'unknown294') writeFileSync(join(migrations, '294_unreviewed.sql'), 'select 1;\n')
+      if (defect === 'historicalDirtyTree') appendFileSync(join(migrations, readdirSync(migrations).find(name => name.startsWith('001_'))!), '\n-- historical dirty-tree manifest remains supported\n')
+      const result = runManifest(repository)
+      if (defect === 'historicalDirtyTree') expect(result.status, result.stderr).toBe(0)
+      else { expect(result.status).not.toBe(0); expect(result.stderr).toContain('AssertionError') }
+    } finally { rmSync(repository, { recursive: true, force: true }) }
+  })
+
   it.each([true, false])('retains exact cached-versus-running image identity checks: match=%s', matches => {
     const guard = runner.split('\n').find(line => line.startsWith('[[ "$(docker inspect "$source_id" --format \'{{.Image}}\')"'))
     expect(guard).toBeDefined()
@@ -51,8 +93,8 @@ ${guard}`], {
     expect(runner).toContain('drop schema public cascade; drop schema private cascade; create schema public;')
   })
 
-  it('validates a contiguous full292 inventory and seals SQL/proof bytes before and after execution', () => {
-    for (const token of ["assert.equal(paths.length, 292", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
+  it('validates a contiguous full293 inventory and seals SQL/proof bytes before and after execution', () => {
+    for (const token of ["assert.equal(paths.length, 293", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
       expect(runner).toContain(token)
     }
     expect(runner).not.toContain('validateLifecycleServicesReviewedMigrations')
@@ -60,7 +102,7 @@ ${guard}`], {
 
   it('runs recovery contracts only through the same owned offline clone and retained evidence', () => {
     expect(runner).toContain('sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1')
-    expect(runner.indexOf("echo 'PASS isolated replay001–292.'")).toBeLessThan(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"'))
+    expect(runner.indexOf("echo 'PASS isolated replay001–293.'")).toBeLessThan(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"'))
     expect(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"')).toBeLessThan(runner.lastIndexOf('verify_source ||'))
     expect(runner).not.toMatch(/recovery.*(?:source_id|supabase_db_pika).*psql/)
   })

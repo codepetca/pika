@@ -23,6 +23,8 @@ import {
   TableSelectionHeaderCell,
   useAppMessage,
 } from '@/ui'
+import { StudentRepositoryReportCleanupDialog } from '@/components/StudentRepositoryReportCleanupDialog'
+import { repoLightCleanupTargetsReplySchema,type LiveCleanupTarget } from '@/lib/validations/live-student-cleanup'
 import { UploadRosterModal } from '@/components/UploadRosterModal'
 import { AddStudentsModal } from '@/components/AddStudentsModal'
 import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
@@ -121,6 +123,39 @@ export function TeacherRosterTab({ classroom }: Props) {
   const [loadError, setLoadError] = useState<string>('')
   const [isUploadModalOpen, setUploadModalOpen] = useState(false)
   const [isAddModalOpen, setAddModalOpen] = useState(false)
+  const [reportCleanup,setReportCleanup]=useState<{classroomId:string;targets:LiveCleanupTarget[]}>({classroomId:'',targets:[]})
+  const [reportCleanupDialogOwner,setReportCleanupDialogOwner]=useState<string|null>(null)
+  const [reportCleanupRefresh,setReportCleanupRefresh]=useState(0)
+  const reportCleanupTargets=reportCleanup.classroomId===classroom.id ? reportCleanup.targets : []
+  useEffect(()=>{
+    let live=true
+    const controller=new AbortController()
+    async function load(){
+      try{
+        const targets:LiveCleanupTarget[]=[]
+        const seen=new Set<string>()
+        let cursor:string|null=null
+        for(let page=0;page<100;page+=1){
+          const url:string=`/api/teacher/classrooms/${classroom.id}/repolight-cleanup${cursor?`?afterStudentId=${encodeURIComponent(cursor)}`:''}`
+          const result:ReturnType<typeof repoLightCleanupTargetsReplySchema.parse>=await fetchJSONWithCache(`repolight-cleanup:${url}`,async()=>{
+            const response=await fetch(url,{cache:'no-store',signal:controller.signal})
+            if(!response.ok)throw new Error('Repository report cleanup is unavailable')
+            return repoLightCleanupTargetsReplySchema.parse(await response.json())
+          },0)
+          if(!live)return
+          for(const target of result.targets){const identity=`${target.student_id}:${target.generation_id}`;if(seen.has(identity))throw new Error('Cleanup target repeated');seen.add(identity);targets.push(target)}
+          if(result.nextStudentId===null){setReportCleanup({classroomId:classroom.id,targets});return}
+          const next:string=result.nextStudentId.toLowerCase()
+          if(cursor&&next<=cursor)throw new Error('Cleanup cursor did not advance')
+          cursor=next
+        }
+        throw new Error('Cleanup discovery exceeded its safe page limit')
+      }catch{if(live)setReportCleanup({classroomId:classroom.id,targets:[]})}
+    }
+    void load()
+    return()=>{live=false;controller.abort()}
+  },[classroom.id,reportCleanupRefresh])
+
   const [{ column: sortColumn, direction: sortDirection }, setSortState] = useState<{
     column: RosterSortColumn
     direction: 'asc' | 'desc'
@@ -625,6 +660,8 @@ export function TeacherRosterTab({ classroom }: Props) {
     },
   ]
 
+  if(reportCleanupTargets.length>0)rosterActionOptions.push({id:'remove-repository-reports',label:'Remove repository reports',onSelect:()=>setReportCleanupDialogOwner(classroom.id),disabled:isRosterLoading,destructive:true})
+
   const studentActionOptions: TeacherWorkSurfaceActionItem[] = [
     {
       id: 'copy-student-emails',
@@ -1014,6 +1051,8 @@ export function TeacherRosterTab({ classroom }: Props) {
         workspace={workspace}
         workspaceFrameClassName="min-h-[360px] border-0 bg-page"
       />
+
+      <StudentRepositoryReportCleanupDialog classroomId={classroom.id} classroomTitle={classroom.title} targets={reportCleanupTargets} isOpen={reportCleanupDialogOwner===classroom.id} onClose={()=>setReportCleanupDialogOwner(null)} onReportsRemoved={()=>setReportCleanupRefresh(current=>current+1)} />
 
       <AddStudentsModal
         isOpen={isAddModalOpen}

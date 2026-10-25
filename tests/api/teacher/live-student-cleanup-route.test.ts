@@ -1,11 +1,12 @@
+vi.mock('@/lib/server/repolight-removed-student-cleanup', () => ({ getRepoLightRemovedContext: mocks.remoteContext, reserveRepoLightRemovedCleanup: mocks.remoteReserve, advanceRepoLightRemovedCleanup: mocks.remoteAdvance }))
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-error'
 import { GET, POST } from '@/app/api/teacher/classrooms/[id]/students/[studentId]/purge/live/route'
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), gate: vi.fn(), target: vi.fn(), read: vi.fn(), reserve: vi.fn(), advance: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), gate: vi.fn(), target: vi.fn(), read: vi.fn(), reserve: vi.fn(), advance: vi.fn(), remoteContext: vi.fn(), remoteReserve: vi.fn(), remoteAdvance: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role, requireAuth: mocks.auth }))
 vi.mock('@/lib/server/live-student-cleanup', () => ({
-  isLiveStudentCleanupEnabled: () => false, readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
+  isManualRepoLightCleanupEnabled: () => true, isLiveStudentCleanupEnabled: () => false, readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
   liveStudentCleanup: () => ({ read: mocks.read, reserve: mocks.reserve, advance: mocks.advance }),
 }))
 const teacher = '10000000-0000-4000-8000-000000000001'
@@ -15,12 +16,14 @@ const operation = '40000000-0000-4000-8000-000000000001'
 const generation = '50000000-0000-4000-8000-000000000001'
 const context = { params: Promise.resolve({ id: classroom, studentId: student }) } as never
 const body = { action: 'reserve', operation_id: operation, generation_id: generation, confirmation: 'PURGE LIVE CLASSROOM DATA' }
-const request = (patch = {}) => new NextRequest('http://localhost/purge/live', { method: 'POST', body: JSON.stringify({ ...body, ...patch }) })
+const request = (patch = {}) => new NextRequest('http://localhost/purge/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, ...patch }) })
 beforeEach(() => {
   vi.resetAllMocks()
   vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
   mocks.auth.mockResolvedValue({ id: teacher, role: 'teacher' })
   mocks.role.mockResolvedValue({ id: teacher })
+  mocks.remoteContext.mockResolvedValue({ generation_id: generation, scope: 'provider_bound', provider_bound: true })
+  mocks.remoteReserve.mockResolvedValue({ scope: 'repolight_only', cleanup_completed: false })
   mocks.target.mockResolvedValue({ generation_id: generation })
   mocks.reserve.mockResolvedValue({ status: 'provider_pending', cleanup_completed: false })
   mocks.advance.mockResolvedValue({ status: 'completed', cleanup_completed: true })
@@ -108,11 +111,11 @@ describe('contextual owner cleanup progress (read-only)', () => {
     expect(mocks.advance).not.toHaveBeenCalled()
   })
 
-  it('keeps teacher-directed POST retired even for admitted actors', async () => {
+  it('keeps generic provider purge retired for admitted owners', async () => {
     admit()
     expect((await POST(request(), context)).status).toBe(404)
-    expect(mocks.role).toHaveBeenCalledExactlyOnceWith('teacher')
-    expect(mocks.auth).not.toHaveBeenCalled()
+    expect(mocks.role).not.toHaveBeenCalled()
+    expect(mocks.auth).toHaveBeenCalledOnce()
     expect(mocks.reserve).not.toHaveBeenCalled()
     expect(mocks.advance).not.toHaveBeenCalled()
   })
@@ -134,7 +137,7 @@ describe('teacher explicit live purge boundary', () => {
     expect(response.headers.get('Cache-Control')).toBe('no-store')
     expect(mocks.target).toHaveBeenCalledWith(teacher, classroom, student)
   })
-  it('rejects teacher-directed reservation after authentication and validation', async () => {
+  it('reserves after exact retained-owner authorization', async () => {
     expect((await POST(request(), context)).status).toBe(404)
     expect(mocks.reserve).not.toHaveBeenCalled()
     expect(mocks.advance).not.toHaveBeenCalled()
@@ -144,7 +147,17 @@ describe('teacher explicit live purge boundary', () => {
     expect(mocks.reserve).not.toHaveBeenCalled()
     expect(mocks.advance).not.toHaveBeenCalled()
   })
-  it('rejects teacher-directed advancement', async () => {
+  it('uses remote-only confirmation without invoking either existing provider', async () => {
+    mocks.remoteContext.mockResolvedValue({ generation_id: generation, scope: 'repolight_only', provider_bound: false })
+    expect((await POST(request({ scope: 'repolight_only' }), context)).status).toBe(400)
+    expect(mocks.remoteReserve).not.toHaveBeenCalled()
+    expect((await POST(request({ scope: 'repolight_only', confirmation: 'REMOVE REPOSITORY REPORTS' }), context)).status).toBe(200)
+    expect(mocks.remoteReserve).toHaveBeenCalledOnce()
+    expect(mocks.reserve).not.toHaveBeenCalled()
+    expect(mocks.advance).not.toHaveBeenCalled()
+  })
+
+  it('advances only the explicitly confirmed existing scope', async () => {
     expect((await POST(request({ action: 'advance' }), context)).status).toBe(404)
     expect(mocks.advance).not.toHaveBeenCalled()
   })
