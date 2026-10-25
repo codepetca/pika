@@ -11,11 +11,12 @@ focus and status region. No new shared component or visual pattern.
 | Action, select and layout | Shared Button/Select and existing dialog | reuse | Existing semantic, focus and responsive contracts fit. |
 
 Primary signal: the action becomes disabled and reads “Added to comment draft”
-after successful import of that exact preview in the current report session.
-Keep successful previews separate for each contributor/repository scope. Editing
+after successful import of that exact preview in the current workspace session.
+The workspace controller retains successful previews across dialog reopening,
+keyed by owner, report reference/digest and contributor/repository scope. Editing
 to new text enables a new explicit import; returning to an already-added preview
 keeps it disabled. Failed imports retain the reviewed text and can be retried.
-Opening a different report resets this local interaction state. This is a local
+Different reports keep independent completion state. This is a workspace-local
 repeat-click guard, not a permanent deduplication policy for all future feedback.
 The server's request-ID replay, source checks and document revision guards remain.
 

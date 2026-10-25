@@ -11,6 +11,7 @@ export interface AssignmentRepositoryReportProps {
   onImportFeedback: (scopeKey: string, text: string) => Promise<void>
   importing?: boolean
   importError?: string
+  isFeedbackImported?: (scopeKey: string, text: string) => boolean
 }
 
 /** The parent owns authorization, source freshness and the containing dialog. */
@@ -23,7 +24,7 @@ const readable = (value: string) => value.replaceAll('_', ' ')
 const focusRegion = 'min-w-0 overflow-x-auto rounded-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const linkStyle = 'break-all text-primary underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
 
-function RepositoryReportView({bundle,canImport,onImportFeedback,importing = false,importError = ''}: AssignmentRepositoryReportProps) {
+function RepositoryReportView({bundle,canImport,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
   const [scope,setScope] = useState(bundle.selection.status === 'matched' && bundle.selection.contributorId ? `contributor:${bundle.selection.contributorId}` : 'repository')
   const [evidence,setEvidence] = useState(false)
   const [drafts,setDrafts] = useState<Record<string,string>>({})
@@ -39,7 +40,7 @@ function RepositoryReportView({bundle,canImport,onImportFeedback,importing = fal
   const status = messages[scope]
   const message = status?.importedText === undefined || status.importedText === feedback ? status : undefined
   const busy = pending || importing
-  const alreadyImported = importedPreviews[scope]?.includes(feedback) ?? false
+  const alreadyImported = Boolean(isFeedbackImported?.(scope,feedback) || importedPreviews[scope]?.includes(feedback))
 
   function editFeedback(value: string) {
     setDrafts(current => ({...current,[scope]:value}))
