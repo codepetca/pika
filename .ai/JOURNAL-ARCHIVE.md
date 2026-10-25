@@ -50051,3 +50051,16 @@ findings. PR1664 encountered only journal conflict; union preserves both parent
 histories and trim restores chronology. Application/Supabase trees stay identical
 to main. One journal-resolution batch and targeted review/final CI pending; no
 production retry, fixture write, flag, account or provider change.
+
+<!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
+## 2026-10-23 — Markdown editor CI correction batch
+
+PR1662 returned to draft after391a CI: Test & Build passed; ECR throttled3setup jobs;
+dark PatternLab and publication catalog checks exposed real fixture/proof issues.
+Reuse shared prototype X clearance; update obsolete header/mode assertions and
+hydration readiness.28affected browser cases and83unit/source checks pass;
+visual matrix inspected (teacher desktop/mobile light/dark, student n/a for these
+experimental prototype controls). Fix nested catalog p-alias shadowing without
+changing capability checks or migration291. READ ONLY nested catalog passes.
+Native isolated publication verification follows on a clean committed checkpoint;
+final receipts/CI/review status live on PR1662. No merge or production authority.
