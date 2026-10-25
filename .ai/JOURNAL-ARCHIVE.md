@@ -49681,3 +49681,22 @@ Independent stable-SHA review/PR completion follows; no production promotion.
 Initial independent review found toolbar Tab trapping; one batch fixes native
 Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
 and corrected teacher browser matrix4/4 passed. Targeted review pending.
+
+<!-- pika-session-log-archive-batch:891cb5825c6e1c778caa89932521cb63d7c11e317ccf0a908dcfd333c026343b -->
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.

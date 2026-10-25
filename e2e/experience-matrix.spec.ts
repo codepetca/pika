@@ -1,3 +1,4 @@
+import { verifyAssignmentReturnRefresh } from './helpers/assignment-return-refresh'
 import { verifyTestUnpublication } from './helpers/test-unpublication'
 import { verifySignupOwnerContinuity } from './helpers/signup-owner-continuity'
 import { verifyLoginRecoveryContinuity } from './helpers/login-recovery-continuity'
@@ -4313,4 +4314,12 @@ test.describe('Student attendance return navigation', () => {
       await verifyAttendanceReturnLink(page, testInfo, motion)
     })
   }
+})
+
+
+test.describe('Assignment Return revision continuity', () => {
+  test.use({ storageState: { cookies: [], origins: [] } })
+  test('Return refreshes the selected teacher document before saving and sending the next comment', async ({ page }, info) => {
+    await verifyAssignmentReturnRefresh(page, info)
+  })
 })
