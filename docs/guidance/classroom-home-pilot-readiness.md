@@ -56,7 +56,7 @@ the source recovers, fresh reads recover without changing admission or roles.
 | Recovery SQL contract in the existing offline owned-clone verifier | **Passed2026-10-24:** installed atomic creation, managed disable/new-operation denial/completed replay, real service-role42501, exact ACL restoration, relationships/work preservation and rollback equality | HTTP/PostgREST connection-pool/cache behavior, browser outage behavior or deployed recovery |
 | Focused route/adapter/server-page recovery tests | Actual application mapping of capability42501 to503 with no writer/legacy fallback, retained independent reads and subsequent recovery for both global-role labels | Real transport/database provenance; their database responses are synthetic |
 | Inactive production release receipt | Exact released payload, schema292, public unauthenticated smoke checks and activation-off metadata at that observation | Signed-in production canaries or future configuration stability |
-| [Three-account production pilot receipt](classroom-home-pilot-receipt-2026-10-24.md) | Actual owner-assisted signed-in create, reciprocal code join, Teaching/Joined, persisted hide/unhide and outsider UI denial; dated configuration and stored-state checks | Direct create-API rejection/replay, submission/manual-grade-return, other API/resource denials, provider readiness or expansion authority |
+| [Three-account production pilot receipt](classroom-home-pilot-receipt-2026-10-24.md) | Actual signed-in Home/create/join/hide, seamless manual Assignment Return/comment persistence, direct Free creation rejection, exact creation replay, representative owner/member/nonmember/student-target API denials and selected-record preservation | Deployed Test/Survey/Gradebook journeys, new foreign-material mutation proof, entire-database preservation, live-provider readiness or expansion authority |
 
 The combined check is a **layered isolated prepilot growth-freeze/recovery
 proof**, not one operational PostgREST→SDK outage journey. Preserve this
@@ -129,6 +129,16 @@ signed-in accounts after separately approved activation:
    ready and authorized. Do not invoke held providers as a test.
 4. Deny a nonmember, a member's owner action, an owner's learner action and a
    substituted classroom/resource identity, without exposing private content.
+
+The dated receipt now records actual production coverage for these representative
+groups. It does not require a new full rehearsal for every assessment family by
+default. Before a proposed expansion, explicitly qualify the retained Test,
+Survey, Gradebook, foreign-resource and lifecycle proofs against that candidate's
+source/schema interactions and reachable workflows. Identify and close concrete
+uncovered interactions; do not treat Assignment results as proof of those other
+deployed domains. A selected provider-dependent workflow still needs its held
+readiness/authority. No deliberate production outage or destructive lifecycle
+drill follows from this applicability assessment.
 
 Stop new admissions immediately on **one** unexpected authorization denial,
 unexpected401/403/5xx on these authenticated positive canaries, duplicate or lost

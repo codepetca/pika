@@ -1,10 +1,43 @@
 # RepoLight report integration — implementation contract
 
-Implementation in progress, 2026-10-24. Pika base `c7ff0f1f0`; RepoLight service contract 1.0
+Original implementation context, 2026-10-24. Pika base `c7ff0f1f0`; RepoLight service contract 1.0
 is defined in its `docs/SERVICE.md` and `src/lib/service/contract.ts`. This note
 does not enable a gate, configure a credential, apply a migration, or establish
 hosted readiness. Risk: `runtime-platform` and `workspace-state`. Model:
 GPT-6.1 Sol/high for the cross-service authorization and lifecycle boundary.
+
+## Production checkpoint — 2026-10-25
+
+[PR#1687](https://github.com/codepetca/pika/pull/1687) deployed reviewed production
+`dbd1f62c12b3be8f359d6c35fde77a27d7f77987` to `pika.codepet.ca`; Vercel reported READY
+on that exact SHA. CI40222687057 passed all ten jobs. The approved one-shot
+[migration run](https://github.com/codepetca/pika/actions/runs/40226843818) applied only
+293 and verified history 001–293 against the frozen source/digest. Shared local
+was untouched. Direct catalog checks passed for ten tables/RLS/ACLs, 53 final
+routine bodies, 13 preserved renamed bodies, 31 triggers, constraints/indexes and
+current/V2 archive registrations. The public sign-in page returned 200 with an
+email-code form; anonymous session/report APIs returned 401 and Pattern Lab 404. Existing cohort/provider settings were unchanged; the window is closed.
+
+A separately authorized controlled pilot now has one installation-bound teacher
+connection. Analyze is enabled in server configuration and database settings;
+production redeployment `dpl_7687SPdP66G1yzrvXcdb2PeaDBQW` is READY on the same
+reviewed source SHA. The original 24 provider controls and Home cohort are unchanged.
+Paid AI remains OFF. No migration was reapplied.
+
+The controlled student joined and submitted a public repository through the normal
+UI. A blank optional GitHub login exposed an assignment-overview serialization
+failure: the repository mapper emitted an own `undefined` property, which the strict
+bounded JSON validator rejected. The fix omits absent optional metadata while
+preserving supplied strings and strict raw-artifact checks. Its source/tests are
+under review; production report creation and feedback import remain unverified.
+The epic remains incomplete until the hosted pilot finishes.
+
+The standalone `scripts/inventory-classroom-archives.ts` diagnostic still compares
+the current registry against a V1-derived expectation and rejects the additive
+RepoLight family. This nonblocking operator-tool follow-up is tracked in PR#1687;
+correct it before using that command on the expanded registry. It was not run or
+reported passing for this release. Runtime V2 resource graphs are additive-aware;
+installation verification used the direct catalog checks above.
 
 ## Ownership and product boundary
 

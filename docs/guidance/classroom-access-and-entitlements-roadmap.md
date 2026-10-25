@@ -1,10 +1,16 @@
 # Classroom access and entitlements
 
-2026-10-24 current checkpoint: the [three-account production Home pilot](classroom-home-pilot-receipt-2026-10-24.md)
+2026-10-25 current checkpoint: the [three-account production Home pilot](classroom-home-pilot-receipt-2026-10-24.md)
 has actual signed-in create, reciprocal owner/member Teaching/Joined, persisted
 hide/unhide and outsider UI denial evidence on schema292. Admission stays limited
-to those three accounts. Production classwork/replay/API acceptance and separately
-authorized expansion remain; live-provider holds and the incomplete epic remain.
+to those three accounts. Production seamless manual Assignment Return/comment,
+representative API denials, Free creation rejection, exact creation replay and
+selected-record preservation now pass on released9a845b268. Next qualify the
+retained domain proofs for an exact proposed expansion, close concrete uncovered
+interactions and obtain the separate cohort decision. Expansion/observation and
+live-provider readiness remain; the epic is incomplete. Do not repeat accepted
+lifecycle/recovery or require per-domain production rehearsals without a concrete
+applicability gap.
 Older implementation and activation-off statements below are historical receipts,
 not the current pilot configuration. The [live relationship home](live-classroom-home.md)
 records the implementation contract.

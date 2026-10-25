@@ -341,10 +341,10 @@ export function submissionArtifactToAssignmentArtifact(
       type: 'repo',
       url,
       ...requirementFields,
-      repo_owner: repoOwner,
-      repo_name: repoName,
-      normalized_url: normalizedUrl,
-      github_username: githubUsername,
+      ...(repoOwner !== undefined ? { repo_owner: repoOwner } : {}),
+      ...(repoName !== undefined ? { repo_name: repoName } : {}),
+      ...(normalizedUrl !== undefined ? { normalized_url: normalizedUrl } : {}),
+      ...(githubUsername !== undefined ? { github_username: githubUsername } : {}),
     }
   }
 

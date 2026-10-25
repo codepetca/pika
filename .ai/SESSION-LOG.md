@@ -11,68 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Native inventory compatibility with CI registry credentials
-
-Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
-39971332075 proved all7GHCR logins and image-download/startup paths, then reached
-previously blocked owner-list/draft-GET/reorder proofs. Their native environment
-checks rejected DOCKER_CONFIG before endpoint/resource discovery. PR returned to
-draft; obsolete run cancelled before any correction push. One shared assertion
-now permits only exactGHA/GHCR job-owned private config with marker, owned0600
-single-link regular bounded16KB file and onlyauths.ghcr.io.auth. Other Docker/
-proxy selectors, config keys and sidefiles remain forbidden. All3direct guards
-use it; context/TLS/local Unix socket identity, resource discovery and outer/inner
-actual-config propagation remain unchanged. Regression matrix covers credential
-isolation plus real offline native/PATCH transport protocols. No daemon restart,
-application/schema change or migration. Batch10 and two new independent guard
-reviews retain the existing human budget waiver. Normal reviewed1662main merge
-now explicitly authorized by direct human reply in classroom-home coordinator;
-verified with read_thread. No production/deploy/provider/rollout authority added.
-
-Guard reviews17/18 completed0af438c68. One P2 accepted: collector still read the
-ignored HOME Docker config after admitting the private override. Read the effective
-config instead; real-file tests cover ambient headers/malformed JSON and preserve
-default-config rejection without DOCKER_CONFIG. All207 affected helper/inventory
-cases PASS. The superseded0af full gate was deliberately cancelled before this
-source edit; new exact-source gate and targeted review19 precede CI. No timeout,
-assertion, endpoint, resource or permission control was weakened. Batch11; human
-review-limit waiver remains active.
-
-## 2026-10-23 Derived image ledger and modal keyboard CI integration
-
-CI39977192319 proves all seven authenticated Supabase starts and the previously
-blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
-TypeScript, lint and production build. The final lifecycle audit exposed the
-291 image-reference ledger missing from the classroom graph declaration. Declare
-its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
-contract; archive source rows and remapped managed objects rebuild references.
-Keep it outside portable resources, purge adapters and Gradex. Regression starts
-RED against the observed FK/composite key, then62affected archive cases PASS;
-missing-FK and unexpected-resource guards remain strict. No SQL changes.
-Browser CI exposed stale keyboard order after the shared corner Close and the
-removed mobile heading trigger. Update contracts to assert accessible Close in
-the tab cycle and the compact Format menu, retaining all focus, retirement,
-Escape, no-write and confirmed-write checks. Four-project native fixture checks,
-required focused gate and targeted review are recorded in retained receipts.
-Human waived review limits; normal reviewed1662-to-main merge is explicitly
-authorized after all checks. No production operation or additional DB change.
-
-## 2026-10-23 Compaction image rehearsal correction
-
-Independent targeted review20 accepted the ledger/browser correction but found
-an image lifecycle interaction: compaction stages real-restore URLs containing
-fresh identities before those objects are reserved. Preserve original authoring
-image identities only in rollback rehearsal via the verified plan's inverse ID
-map; real restore retains fresh identities, paths and reservation protocol.
-Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
-reproduced the unreserved staged URL;68affected archive cases PASS. Native local
-291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
-for original IDs, preserves exact managed state, and rolls every fixture back.
-Actual classroom schema audit passes284FKs; canonical migration history291 and
-zero fixture users/objects verified afterward. No SQL migration changed. Docker
-DB-only window is closed after proof; full focused gate and review21 tracked in
-retained receipts. Superseded7bbc gate deliberately terminated before edits.
-
 ## 2026-10-23 Editor production migration and release correction
 
 Owner approved exact production291 and normal editor release. Preview40003769768
@@ -539,6 +477,45 @@ one targeted main-sync review precede ready; task stop override remains active.
 ## 2026-10-25 — RepoLight local pilot and repeat-click guard
 
 Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
+
+## 2026-10-25 — Reconcile deployed classroom pilot acceptance
+
+Record protected production1685/9a and actual seamless Assignment Return/comment
+persistence. Reviewed bounded API attempt4 passed34requests: normal email-code
+sessions, reciprocal owner/member reads, contextual read/write/student-target
+denials, Free create403 and one-create/exact-replay without duplication. Scoped
+read-only SQL matched five protected fingerprints; Aowns2/B1/Control0, plans and
+original work unchanged. Exact3cohort/provider24metadata/pageflags pre/post match.
+Earlier failed attempts remain spent. Retain the one new empty synthetic class.
+Reconcile receipt/readiness/roadmap/CURRENT; no runtime, schema, UI, account, plan,
+configuration, production or provider action. Remaining work is candidate-specific
+evidence applicability and separately authorized observed expansion; isolated
+domain proofs and layered recovery are not all-domain/deployed outage evidence.
+Main-only docs review/CI follow; no overall-goal completion or production authority.
+
+## 2026-10-25 — RepoLight production migration and release
+
+Human approved production293 once plus reviewed1687 and the coordinated lifecycle
+window. Apply40226843818 verified only293/history001–293 and the approved digest.
+Catalog/RLS/ACL/body/trigger/archive checks pass;13renamed originals preserved.
+PR1687 merged dbd1f62c1; Vercel dpl_tCawB6aLRNnQN6FBxw35QinNZtx8 READY on that SHA.
+All10 CI40222687057 jobs and public HTTP boundaries passed. Cohort/provider
+metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
+released to both coordinated Pika tasks. Connection provisioning and hosted
+integration acceptance remain pending. Standalone inventory diagnostic limitation
+is tracked in the integration guide/PR; no passing claim for that command.
+
+## 2026-10-25 — Controlled RepoLight connection and blank-login regression
+
+User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
+attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
+redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
+Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
+Normal controlled student join/repository save/submit PASS. Teacher overview exposed
+own undefined optional GitHub metadata; mapper now omits absent fields. Regression
+failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
+and source release pending; no report/import/grade/sent-feedback acceptance claimed.
+Private connection/pilot receipts remain outside Git.
 
 ## 2026-10-25 — Prepare manual-grader reader compatible release
 
