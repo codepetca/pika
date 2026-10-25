@@ -15,8 +15,8 @@ on that exact SHA. CI40222687057 passed all ten jobs. The approved one-shot
 293 and verified history 001–293 against the frozen source/digest. Shared local
 was untouched. Direct catalog checks passed for ten tables/RLS/ACLs, 53 final
 routine bodies, 13 preserved renamed bodies, 31 triggers, constraints/indexes and
-current/V2 archive registrations. Public login and unauthenticated API boundaries
-passed. Existing cohort/provider settings were unchanged; the window is closed.
+current/V2 archive registrations. The public sign-in page returned 200 with an
+email-code form; anonymous session/report APIs returned 401 and Pattern Lab 404. Existing cohort/provider settings were unchanged; the window is closed.
 
 Analyze remains OFF in both server configuration and database settings. This Pika rollout
 provisioned no workspace key and left its report/subject/import tables empty.
