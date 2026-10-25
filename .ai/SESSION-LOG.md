@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Announcement calendar post dates
-
-Owner expanded post-date editing to published announcements in PR1663. Reuse
-material native date field and shared civil-date schema; extend announcement
-card/locked owner patch, refresh mounted teacher calendar, reuse publication
-calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
-Risk none; no new dependency/shared UI pattern. Student editing n/a; student
-saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
-feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
-keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
-Effective model, tokens and active time unknown; weekly99% remaining at start.
-Owner approved brief Docker restart only for disposable verification:001–290
-material/announcement and attendance proofs plus Data API normal/absent-default
-ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
-stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
-/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
-release. Final focused gate and new-scope independent delta review pending.
-
 ## 2026-10-22 — PR1663 CI registry repair
 
 Owner authorized fixing CI and merging1663 after all checks pass. Announcement
@@ -665,3 +647,17 @@ using CLI2.103.0's query. Home rollback/recovery and real two-session contention
 pass; generated types and canonical-preservation checks retained. Required local
 focused checks, targeted review and exact-head PR Gate remain merge prerequisites.
 No shared/prod migration or provider activation; Analyze OFF.
+
+## 2026-10-24 — RepoLight legacy archive inventory correction
+
+Owner approved one additional proof-only fix batch and ninth targeted review,
+then exact-head CI and conditional main merge. The legacy archive check now
+counts RepoLight's three resources/revision triggers when its table family is
+installed, matching the existing archive-v2 compatibility condition. Strict
+inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
+Owned offline293 replay passes the actual archive lifecycle, compaction/races,
+Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
+clone setup; no shared mutation. Home recovery/contention, warning lint across
+569functions, generated types and canonical aggregate fingerprints pass.
+Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
+review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
