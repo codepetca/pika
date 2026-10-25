@@ -11,39 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — PR1663 CI registry repair
-
-Owner authorized fixing CI and merging1663 after all checks pass. Announcement
-469773050 focused5406 and complete independent delta review passed; CI Test &
-Build passed but all seven Supabase setups and an isolated retry hit GHCR
-toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
-action preserves the override and both pinned Postgres/metadata OCI indexes are
-byte-identical across registries. Bounded Sol/high read-only worker verified
-upstream behavior/manifests; coordinator owns all edits. Local runner now imports
-only the literal reviewed workflow registry, refuses job/step overrides, retains
-historical no-env plans and all existing isolation/inventory/cleanup guards.
-Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
-risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
-dependencies, image contents, shared database or production changes. Docker stays
-stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
-prior feature review coverage reused, no extra full review wave.
-
-## 2026-10-22 — Production post-date release completed
-
-Owner authorized production289/290, then main promotion after checks. Single
-apply39862570602 returned applied-verified001–290, matching preview39862341945
-and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
-metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
-midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
-parent entries; two cumulative Sol/high reviews and one targeted pass found no
-blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
-ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
-dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
-GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
-retry, fixture/post mutation, flag/account/provider/billing change or Docker
-restart. Attributable tokens/active time unknown. Final receipt docs review/CI
-remains; production promotion worktree retired, shared env target preserved.
-
 ## 2026-10-22 — Approved four-editor implementation verification
 
 Actual Assignment/Material/Test/Survey now match the approved compact prototype:
@@ -661,3 +628,22 @@ clone setup; no shared mutation. Home recovery/contention, warning lint across
 569functions, generated types and canonical aggregate fingerprints pass.
 Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
 review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
+
+Owner explicitly overrode task workflow review-budget/low-usage stops through
+completion; keep independent review, strict CI and normal merge/rollout controls.
+Nine targeted reviews are recorded; next delta receives actual tenth review.
+Shared proof catalogue now includes ten literal tables from sealed293; member
+proof retains explicit292 admission and rejects partial/unknown catalogues.
+Historical unit profiles stay pinned; complete293 preservation includes private
+state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
+now fingerprint the same complete source-defined family; assertions unchanged.
+CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
+--disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
+config-process heap diagnostics added; no environment/heap dumps, assertion,
+project, timeout or compiler change. Full browser gate still required.
+Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
+upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
+SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
+CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.

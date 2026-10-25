@@ -1,9 +1,36 @@
 import { defineConfig, devices } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { freemem, totalmem } from 'node:os'
+import { getHeapStatistics } from 'node:v8'
+
+if (process.env.CI) {
+  const readMemoryBytes = (path: string): number | null => {
+    try {
+      const value = readFileSync(path, 'utf8').trim()
+      if (!/^\d{1,20}$/.test(value)) return null
+      const bytes = Number(value)
+      return Number.isSafeInteger(bytes) && bytes >= 0 ? bytes : null
+    } catch { return null }
+  }
+  // Numeric diagnostics only. This heap belongs to Playwright's config process;
+  // Next chooses its server-child heap separately. Never dump the environment.
+  process.stderr.write(`Browser CI memory: ${JSON.stringify({
+    ramTotalBytes: totalmem(), ramFreeBytes: freemem(),
+    cgroupLimitBytes: readMemoryBytes('/sys/fs/cgroup/memory.max')
+      ?? readMemoryBytes('/sys/fs/cgroup/memory/memory.limit_in_bytes'),
+    cgroupCurrentBytes: readMemoryBytes('/sys/fs/cgroup/memory.current')
+      ?? readMemoryBytes('/sys/fs/cgroup/memory/memory.usage_in_bytes'),
+    diagnosticProcessHeapLimitBytes: getHeapStatistics().heap_size_limit,
+  })}\n`)
+}
 
 const baseURL = process.env.E2E_BASE_URL || 'http://localhost:3000'
 const resolvedBaseUrl = new URL(baseURL)
 const resolvedPort = resolvedBaseUrl.port || (resolvedBaseUrl.protocol === 'https:' ? '443' : '80')
-const webServerCommand = `ENABLE_UI_GALLERY=true PIKA_E2E_FIXTURES=true pnpm exec next dev --port ${resolvedPort}`
+// Avoid automatic server source-map retention across the full CI route matrix.
+// Browser assertions, projects and local development source maps stay unchanged.
+const sourceMapFlag = process.env.CI ? ' --disable-source-maps' : ''
+const webServerCommand = `ENABLE_UI_GALLERY=true PIKA_E2E_FIXTURES=true pnpm exec next dev${sourceMapFlag} --port ${resolvedPort}`
 const experienceMatrixSpec = /(experience-matrix|pal-classroom-isolation)\.spec\.ts/
 const patternLabSpec = /ui-pattern-lab\.spec\.ts/
 

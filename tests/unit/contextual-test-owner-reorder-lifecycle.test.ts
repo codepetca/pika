@@ -1,3 +1,4 @@
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -30,7 +31,7 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
-    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments'].sort()
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments', ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {

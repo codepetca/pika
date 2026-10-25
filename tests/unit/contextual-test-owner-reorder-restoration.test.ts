@@ -1,3 +1,4 @@
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AssignmentListLifecycleAdapters } from '../../scripts/contextual-assignment-list-proof-lifecycle'
 import { testOwnerDigest } from '../../scripts/contextual-test-owner-detail-proof-fixture'
@@ -30,7 +31,7 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
       // Reviewed additions through292 participate in isolated preservation;
       // the historical canonical pre/post snapshot remains exact.
       __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
-        'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments'].sort()
+        'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments', ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
         .map(table => ({ table, fingerprint: 'unchanged' })) }
     vi.spyOn(Date, 'now').mockImplementation(() => clock)
     const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true)

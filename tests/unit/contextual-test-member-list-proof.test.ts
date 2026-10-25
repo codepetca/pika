@@ -1,4 +1,4 @@
-import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION, REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -165,7 +165,7 @@ describe('actual-source member migration profiles (offline)', () => {
     const complete = [...before, 'private.classroom_home_hidden_enrollments'].sort()
     for (const source of [before, complete]) {
       const captured = testMemberListCanonicalCatalog({ rowDigests: JSON.stringify(Object.fromEntries(source.map(name => [name, 'whole-row-digest']))) })
-      expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual(complete)
+      expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual([...complete, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort())
     }
     for (const source of [complete.filter(name => name !== 'public.users'),
       [...complete, 'private.unreviewed']]) {
@@ -181,8 +181,9 @@ describe('actual-source member migration profiles (offline)', () => {
     const adoption = [...membership, 'private.attendance_pointer_mutations'].sort()
     const learnerMembership = [...adoption, 'private.attendance_override_mutations'].sort()
     const authoringImages = [...learnerMembership, 'public.teacher_authoring_image_references'].sort()
-    const currentCatalog = [...authoringImages, 'private.classroom_home_hidden_enrollments'].sort()
-    for (const catalog of [local, prior, decommission, membership, adoption, learnerMembership, authoringImages, currentCatalog]) {
+    const homeVisibility = [...authoringImages, 'private.classroom_home_hidden_enrollments'].sort()
+    const currentCatalog = [...homeVisibility, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
+    for (const catalog of [local, prior, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, currentCatalog]) {
       expect(testMemberListReviewedIsolatedCatalog(catalog, current)).toEqual(currentCatalog)
     }
     expect(testMemberListReviewedIsolatedCatalog(membership, current.slice(0, 284))).toEqual(membership)
@@ -193,6 +194,22 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 290))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 284))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()
+  })
+  it('admits the actual201-table293 catalogue while retaining all historical fingerprints', () => {
+    const historical = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 292))
+    const complete = [...historical, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
+    expect(historical).toHaveLength(191)
+    expect(complete).toHaveLength(201)
+    const captured = testMemberListCanonicalCatalog({ rowDigests: JSON.stringify(Object.fromEntries(complete.map(table => [table, 'whole-row-digest']))) })
+    expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual(complete)
+    expect(testMemberListReviewedIsolatedCatalog(historical, current)).toEqual(complete)
+    expect(testMemberListReviewedIsolatedCatalog(historical, current.slice(0, 292))).toEqual(historical)
+    expect(() => testMemberListReviewedIsolatedCatalog(complete, current.slice(0, 292))).toThrow()
+    for (const table of REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES) {
+      expect(() => testMemberListReviewedIsolatedCatalog(complete.filter(name => name !== table), current)).toThrow()
+    }
+    expect(() => testMemberListReviewedIsolatedCatalog([...complete, 'private.unreviewed'], current)).toThrow()
+    expect(() => testMemberListReviewedIsolatedCatalog([...complete, complete[0]], current)).toThrow()
   })
   it('reproduces the former exact257 rejection of the complete current293 chain', () => {
     expect(current).toHaveLength(293)
