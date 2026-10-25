@@ -49809,6 +49809,24 @@ Worktrees: $HOME/.codex/worktrees/pika/; $HOME/.codex/worktrees/<id>/pika.
 Env: $HOME/Repos/.env/pika/.env.local; .env.example.
 Recorded releases: attendance `teacher_entitlements` smoke 4/4 on 2026-08-28;
 individual-student/removed cleanup ON (provider/live/automatic/academic); Pal OFF.
+<!-- pika-session-log-archive-batch:5b714cfb69fd26f2b13e17a938753af570f6096d11a3758375c65e1d7ed46095 -->
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
 
 
 ## 2026-10-25 — Full upstream CURRENT19b5abab retained during RepoLight sync

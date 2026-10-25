@@ -688,3 +688,11 @@ provider holds remain, with no production action or live-provider call.
 ## 2026-10-24 — RepoLight integration foundation (in progress)
 
 Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
+
+## 2026-10-24 — RepoLight publication approved
+
+Owner approved branch publication and main merge after required CI. Product code
+remains reviewed36ca8cd70; only continuity evidence refreshed. Local5892tests,
+native/HTTP/archive/browser and final reviews pass. Analyze OFF;293 unapplied
+shared/prod. Publish draft, mark stable head ready, require PR Gate; no deployment
+or production promotion. Optional AI stays RepoLight-owner-only and disabled.

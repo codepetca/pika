@@ -1,5 +1,5 @@
 {
-  "meta": {"project":"pika","lastUpdated":"2026-10-24","phase":"Native Attendance","DO_NOT_DELETE_FEATURES":"APPEND-ONLY. Never delete entries.","deletionPolicy":"PROHIBITED","totalFeatures":26,"passing":20,"failing":6},
+  "meta": {"project": "pika", "lastUpdated": "2026-10-25", "phase": "Native Attendance", "DO_NOT_DELETE_FEATURES": "APPEND-ONLY. Never delete entries.", "deletionPolicy": "PROHIBITED", "totalFeatures": 26, "passing": 20, "failing": 6},
   "features": [
     {"id":"epic-setup","phase":"Phase 0 — Setup","description":"Next.js, TypeScript, Tailwind, and Supabase bootstrap","passes":true,"verification":"Run: pnpm test","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
     {"id":"epic-auth","phase":"Phase 1 — Auth","description":"Email-code auth, password login, secure sessions, lockout, and role routing","passes":true,"verification":"Run: pnpm test. Manual smoke: signup → verify → create password → login → logout → reset password","issueRefs":[],"blockedBy":[],"addedDate":"2025-12-12"},
@@ -26,6 +26,6 @@
     {"id":"epic-course-guide","phase":"Course Guide","description":"Orientation/import guide; title-only assessments","passes":true,"verification":"Tests/build/UI.","issueRefs":[],"blockedBy":[],"addedDate":"2026-08-27","completedDate":"2026-08-28"},
     {"id":"epic-gradebook-general-breakdown","phase":"Gradebook","description":"Attendance/Term Work/Final breakdown","passes":false,"verification":"Future design/test/UI.","issueRefs":[],"blockedBy":[],"addedDate":"2026-08-28"},
     {"id":"epic-classroom-access-entitlements","phase":"Access","description":"Classroom roles, neutral onboarding, entitlements","passes":false,"verification":"Phase gates: docs/guidance/classroom-access-and-entitlements-roadmap.md","issueRefs":[],"blockedBy":[],"addedDate":"2026-09-02"},
-    {"id":"epic-repolight-report-integration","phase":"Repository reports","description":"Public repository workflow and contributor reports with explicit teacher feedback import and scoped lifecycle cleanup","passes":false,"verification":"Local native/HTTP/archive checks pass; review pending. docs/integrations/repolight.md. OFF.","issueRefs":[],"blockedBy":[],"addedDate":"2026-10-24"}
+    {"id":"epic-repolight-report-integration","phase":"Repository reports","description":"Public repository workflow and contributor reports with explicit teacher feedback import and scoped lifecycle cleanup","passes":false,"verification":"Local native/HTTP/archive and reviews pass; rollout pending. docs/integrations/repolight.md. OFF.","issueRefs":[],"blockedBy":[],"addedDate":"2026-10-24","completedDate":null}
   ]
 }
