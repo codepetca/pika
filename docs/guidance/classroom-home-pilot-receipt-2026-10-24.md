@@ -67,6 +67,15 @@ do not establish provider readiness or observation of unrelated real teaching tr
 
 ## Reuse accepted evidence; close concrete gaps
 
+The subsequent manual Assignment canary reached saved/submitted learner work and
+acknowledged manual scores. Owner readback then failed503: the detail reader
+required a UUID for `graded_by`, while the installed manual-grading primitive
+stores the text label `teacher`. This change aligns that metadata field with the
+existing grading/list contracts and tests the real writer shape. It changes no
+actor or relationship check. Stored work/grades were retained; Return and learner
+feedback acceptance remain pending compatible release and actual readback. Do
+not infer production deployment from this source fix or remove cohort controls.
+
 | Area | Evidence retained | Remaining boundary |
 | --- | --- | --- |
 | Core Home | Actual production results above plus the accepted isolated real-cookie Home rehearsal | No new Home implementation/rehearsal needed solely for a newer timestamp. |

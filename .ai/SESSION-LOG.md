@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Course Guide and assignment Markdown authoring
-
-Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
-opt-in Bold/Italic/Link/Format toolbar and unchanged Markdown persistence.
-Mode changes emit no content writes; source blur still uses assignment autosave.
-Focused 121 files/2,093 tests and all static policies passed; browser role,
-desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
-Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
-Independent stable-SHA review/PR completion follows; no production promotion.
-Initial independent review found toolbar Tab trapping; one batch fixes native
-Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
-and corrected teacher browser matrix4/4 passed. Targeted review pending.
-
 ## 2026-10-22 — Roster join dates
 
 Teacher roster Joined cells now pair the existing Lucide check with a compact
@@ -658,3 +645,17 @@ Kept production replay, classwork/manual-return and direct API negatives distinc
 from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
 provider/cohort change or epic exit; live-provider/expansion holds remain.
 Docs-only focused checks and independent review precede normal main merge.
+
+## 2026-10-24 — Manual grader label owner-read regression
+
+The dedicated pilot saved manual scores, then owner readback failed503 because
+the strict detail schema treated graded_by as an actor UUID. Installed manual
+writer223 stores teacher text; existing grading/list contracts already accept
+text. Align only this metadata field, retaining owner/member UUID checks and
+strict shape/size guards. No migration, stored-data repair or authorization change.
+An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
+AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
+focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
+independent review and exact-head CI follow. Both pilot sessions remain signed
+in; Return/learner feedback remain pending compatible release and readback.
+No production, cohort, provider, plan or schema change; growth stays frozen.

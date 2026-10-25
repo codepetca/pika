@@ -49667,3 +49667,17 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
 - Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
 - No dependency, database, grade policy or production change; broader experience epic remains incomplete.
+
+<!-- pika-session-log-archive-batch:0be2ddb7fb9759516a38cabc799dd3ac824f5f04a13682f20968028129decbb2 -->
+## 2026-10-22 — Course Guide and assignment Markdown authoring
+
+Branch `codex/markdown-authoring-toolbar`: shared Write / Markdown selector,
+opt-in Bold/Italic/Link/Format toolbar and unchanged Markdown persistence.
+Mode changes emit no content writes; source blur still uses assignment autosave.
+Focused 121 files/2,093 tests and all static policies passed; browser role,
+desktop/mobile, light/dark matrix 8/8, inspected captures retained privately.
+Change brief: `docs/guidance/ui/changes/markdown-authoring-toolbar.md`.
+Independent stable-SHA review/PR completion follows; no production promotion.
+Initial independent review found toolbar Tab trapping; one batch fixes native
+Tab/Enter handling. RED/GREEN regression, 75 editor/lifecycle tests, TypeScript
+and corrected teacher browser matrix4/4 passed. Targeted review pending.
