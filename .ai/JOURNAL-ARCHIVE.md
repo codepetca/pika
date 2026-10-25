@@ -49703,6 +49703,8 @@ checks and independent review receipts tracked in PR lifecycle. No migration.
 Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
 Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
 
+<!-- pika-session-log-archive-batch:ce351f895cb31a9c12b15ee695cf9bea0d51cbafc04818aa76246cb8408007ad -->
+
 ## 2026-10-24 — Pre-RepoLight CURRENT source checkpoint
 
 Source: main c7ff0f1f0, retained verbatim before startup-budget compaction.
@@ -50053,6 +50055,123 @@ to main. One journal-resolution batch and targeted review/final CI pending; no
 production retry, fixture write, flag, account or provider change.
 
 <!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
+<!-- pika-session-log-archive-batch:bb1ff3d4d63446d183f3908fb5132b01f29a5951a3e4c9ddd67ebfe0b1ed1274 -->
+## 2026-10-22 — Announcement calendar post dates
+
+Owner expanded post-date editing to published announcements in PR1663. Reuse
+material native date field and shared civil-date schema; extend announcement
+card/locked owner patch, refresh mounted teacher calendar, reuse publication
+calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
+Risk none; no new dependency/shared UI pattern. Student editing n/a; student
+saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
+feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
+keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
+Effective model, tokens and active time unknown; weekly99% remaining at start.
+Owner approved brief Docker restart only for disposable verification:001–290
+material/announcement and attendance proofs plus Data API normal/absent-default
+ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
+stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
+/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
+release. Final focused gate and new-scope independent delta review pending.
+
+## 2026-10-22 — PR1663 CI registry repair
+
+Owner authorized fixing CI and merging1663 after all checks pass. Announcement
+469773050 focused5406 and complete independent delta review passed; CI Test &
+Build passed but all seven Supabase setups and an isolated retry hit GHCR
+toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
+action preserves the override and both pinned Postgres/metadata OCI indexes are
+byte-identical across registries. Bounded Sol/high read-only worker verified
+upstream behavior/manifests; coordinator owns all edits. Local runner now imports
+only the literal reviewed workflow registry, refuses job/step overrides, retains
+historical no-env plans and all existing isolation/inventory/cleanup guards.
+Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
+risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
+dependencies, image contents, shared database or production changes. Docker stays
+stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
+prior feature review coverage reused, no extra full review wave.
+
+## 2026-10-22 — Production post-date release completed
+
+Owner authorized production289/290, then main promotion after checks. Single
+apply39862570602 returned applied-verified001–290, matching preview39862341945
+and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
+metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
+midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
+parent entries; two cumulative Sol/high reviews and one targeted pass found no
+blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
+ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
+dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
+GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
+retry, fixture/post mutation, flag/account/provider/billing change or Docker
+restart. Attributable tokens/active time unknown. Final receipt docs review/CI
+remains; production promotion worktree retired, shared env target preserved.
+
+## 2026-10-22 — Approved four-editor implementation verification
+
+Actual Assignment/Material/Test/Survey now match the approved compact prototype:
+Markdown source, shared mode/close/status header, question navigation and green
+Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
+legacy Material until content edit; source-only changes regenerate readers.
+Source/API checks cover publication timing, legacy submitted-Test access and
+literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
+transactional save attachment, archive/snapshot pins and narrow1h unclaimed
+retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
+Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
+Blueprint private-image portability is unsupported: reject incoming portable
+assets before copying/applying; preserve existing classroom source.
+
+Actual-source browser16teacher+4student matrix and existing8authoring contracts
+PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
+Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
+canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
+UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
+PASS. Audit PASS66changedTSfiles; composite mode,
+menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
+generated types and native ACL/schema/behavior receipts pending exact local
+permission. No Docker restart, shared migration or production action. Owned
+Next3036 stopped; owner prototype9026 retained. Current independent-review
+coverage ends94bd0b389;9historical launches consumed, approval for up to3new
+launches pending. PR1662 stays draft. Bounded implementation workers assisted;
+not independent review. Inherited effective models/tokens unknown; serial local
+verification limits honored after correcting an initial unflagged focused run.
+
+## 2026-10-22 — Local291 preflight and independent review
+
+Owner approved local291 and3additional reviews. Supabase local target verified
+Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
+application attempted; asked expanded exact244–291 authority, pending. Existing
+244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
+proofs PASS; shared schema unchanged. Harness final type equality differs only
+new2914-column ledger/2FKs; generated metadata pending official local generation.
+Data API historical/absent-default ACL replay PASS. Native receipts:
+/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
+Owned clones removed, local DB and Docker stopped again.
+
+Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
+and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
+(stale compatibility images and absolute URLs). One correction batch uses SQL's
+canonical source precedence and remaps protected URLs to new relative identity.
+Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
+PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
+suites71PASS. No UI delta; existing visual hashes retained. Launch12
+reserved for correction/integration after metadata/native gates; no further
+launch approved beyond12. Requested model/effort recorded; effective config,
+per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
+
+## 2026-10-22 — Production post-date promotion preparation
+
+Owner authorized one production application of289/290 followed by main promotion.
+Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
+CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
+service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
+checks PASS. Two Sol/high cumulative production→main reviews passed with no
+findings. PR1664 encountered only journal conflict; union preserves both parent
+histories and trim restores chronology. Application/Supabase trees stay identical
+to main. One journal-resolution batch and targeted review/final CI pending; no
+production retry, fixture write, flag, account or provider change.
+
 ## 2026-10-23 — Markdown editor CI correction batch
 
 PR1662 returned to draft after391a CI: Test & Build passed; ECR throttled3setup jobs;
@@ -50100,3 +50219,134 @@ findings resolved, no new blocker; exact-head receipt follows in PR1662. Request
 model/effort recorded, effective configuration/tokens/seconds not exposed.
 Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
 Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+## 2026-10-23 Authenticated CI Supabase registry repair
+
+PR1662's four remaining lanes failed before tests with the anonymous ECR data
+transfer cap, including one failed-only retry. Returned the PR to draft before
+repair. All seven Supabase jobs now select the official GHCR mirror with the
+existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
+image versions, proof commands, selectors and PR Gate remain unchanged; all17
+pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
+The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
+before login, sends the token on stdin, suppresses diagnostics and always removes
+only its own marked directory after stack cleanup. Local CI validates these exact
+credential slots and skips them without importing secrets; historical ECR/no-env
+plans remain supported. 360 focused helper/workflow/parser tests pass, including
+failed startup and rejection cases. Broader focused gate and two independent
+credential/parser reviews precede final stable-SHA CI. Existing human review-limit
+waiver covers this repair; prior13review receipts and7fix batches retained.
+No local Docker operation, migration, dependency or application/UI change in this
+batch. Another chat's bounded local verification hold remains active.
+
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+<!-- pika-session-log-archive-batch:1a3718ccc2c326813d3ffa3475de4988fc785d6408155acb9f3628e0c4bd3620 -->
+## 2026-10-23 Authenticated CI Supabase registry repair
+
+PR1662's four remaining lanes failed before tests with the anonymous ECR data
+transfer cap, including one failed-only retry. Returned the PR to draft before
+repair. All seven Supabase jobs now select the official GHCR mirror with the
+existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
+image versions, proof commands, selectors and PR Gate remain unchanged; all17
+pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
+The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
+before login, sends the token on stdin, suppresses diagnostics and always removes
+only its own marked directory after stack cleanup. Local CI validates these exact
+credential slots and skips them without importing secrets; historical ECR/no-env
+plans remain supported. 360 focused helper/workflow/parser tests pass, including
+failed startup and rejection cases. Broader focused gate and two independent
+credential/parser reviews precede final stable-SHA CI. Existing human review-limit
+waiver covers this repair; prior13review receipts and7fix batches retained.
+No local Docker operation, migration, dependency or application/UI change in this
+batch. Another chat's bounded local verification hold remains active.
+
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+## 2026-10-23 Native inventory compatibility with CI registry credentials
+
+Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
+39971332075 proved all7GHCR logins and image-download/startup paths, then reached
+previously blocked owner-list/draft-GET/reorder proofs. Their native environment
+checks rejected DOCKER_CONFIG before endpoint/resource discovery. PR returned to
+draft; obsolete run cancelled before any correction push. One shared assertion
+now permits only exactGHA/GHCR job-owned private config with marker, owned0600
+single-link regular bounded16KB file and onlyauths.ghcr.io.auth. Other Docker/
+proxy selectors, config keys and sidefiles remain forbidden. All3direct guards
+use it; context/TLS/local Unix socket identity, resource discovery and outer/inner
+actual-config propagation remain unchanged. Regression matrix covers credential
+isolation plus real offline native/PATCH transport protocols. No daemon restart,
+application/schema change or migration. Batch10 and two new independent guard
+reviews retain the existing human budget waiver. Normal reviewed1662main merge
+now explicitly authorized by direct human reply in classroom-home coordinator;
+verified with read_thread. No production/deploy/provider/rollout authority added.
+
+Guard reviews17/18 completed0af438c68. One P2 accepted: collector still read the
+ignored HOME Docker config after admitting the private override. Read the effective
+config instead; real-file tests cover ambient headers/malformed JSON and preserve
+default-config rejection without DOCKER_CONFIG. All207 affected helper/inventory
+cases PASS. The superseded0af full gate was deliberately cancelled before this
+source edit; new exact-source gate and targeted review19 precede CI. No timeout,
+assertion, endpoint, resource or permission control was weakened. Batch11; human
+review-limit waiver remains active.
+
+## 2026-10-23 Derived image ledger and modal keyboard CI integration
+
+CI39977192319 proves all seven authenticated Supabase starts and the previously
+blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
+TypeScript, lint and production build. The final lifecycle audit exposed the
+291 image-reference ledger missing from the classroom graph declaration. Declare
+its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
+contract; archive source rows and remapped managed objects rebuild references.
+Keep it outside portable resources, purge adapters and Gradex. Regression starts
+RED against the observed FK/composite key, then62affected archive cases PASS;
+missing-FK and unexpected-resource guards remain strict. No SQL changes.
+Browser CI exposed stale keyboard order after the shared corner Close and the
+removed mobile heading trigger. Update contracts to assert accessible Close in
+the tab cycle and the compact Format menu, retaining all focus, retirement,
+Escape, no-write and confirmed-write checks. Four-project native fixture checks,
+required focused gate and targeted review are recorded in retained receipts.
+Human waived review limits; normal reviewed1662-to-main merge is explicitly
+authorized after all checks. No production operation or additional DB change.
+
+## 2026-10-23 Compaction image rehearsal correction
+
+Independent targeted review20 accepted the ledger/browser correction but found
+an image lifecycle interaction: compaction stages real-restore URLs containing
+fresh identities before those objects are reserved. Preserve original authoring
+image identities only in rollback rehearsal via the verified plan's inverse ID
+map; real restore retains fresh identities, paths and reservation protocol.
+Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
+reproduced the unreserved staged URL;68affected archive cases PASS. Native local
+291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
+for original IDs, preserves exact managed state, and rolls every fixture back.
+Actual classroom schema audit passes284FKs; canonical migration history291 and
+zero fixture users/objects verified afterward. No SQL migration changed. Docker
+DB-only window is closed after proof; full focused gate and review21 tracked in
+retained receipts. Superseded7bbc gate deliberately terminated before edits.
