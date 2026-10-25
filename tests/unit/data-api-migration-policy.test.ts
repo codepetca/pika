@@ -10,6 +10,11 @@ revoke all on sequence public.example_id_seq from public, anon, authenticated;
 grant usage, select on sequence public.example_id_seq to service_role;`
 
 describe('new public table migration policy', () => {
+  it('accepts only the built-in C collation operand while retaining quoted-name restrictions', () => {
+    expect(checkDataApiMigration(`create function private.canonical() returns text language sql as $$select string_agg(key,',' order by key collate "C") from jsonb_object_keys('{}') key$$;`)).toEqual([])
+    expect(() => checkDataApiMigration('create table public."C"(id uuid);')).toThrow('simple lowercase')
+    expect(() => checkDataApiMigration('select key collate "Arbitrary";')).toThrow('simple lowercase')
+  })
   it('runs in the workflow suite and the ephemeral database lane', () => {
     const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts
     expect(scripts['check:data-api-migrations']).toBe('node scripts/check-data-api-migration-policy.mjs')

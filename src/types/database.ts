@@ -757,3 +757,37 @@ type Tables = Database['public']['Tables']
 export type TableRow<Name extends keyof Tables> = Tables[Name]['Row']
 export type TableInsert<Name extends keyof Tables> = Tables[Name]['Insert']
 export type TableUpdate<Name extends keyof Tables> = Tables[Name]['Update']
+
+/** Source contract for migration293 pending actual owned-schema CLI generation.
+ * This is deliberately separate from Database/GeneratedFunctions: these names
+ * must not be cast into the live generated schema before native replay. */
+export type RepoLightRpcSourceContract = {
+  get_assignment_repolight_source_v1: {
+    Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string }
+    Returns: { source: Json; source_fingerprint: string; latest_run: Json | null }
+  }
+  begin_assignment_repolight_run_v1: {
+    Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string; p_request_id: string; p_connection: Json; p_request: Json; p_expected_source: Json }
+    Returns: Json
+  }
+  advance_assignment_repolight_run_v1: {
+    Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string; p_run_id: string; p_action: 'claim' | 'authorize' | 'record_remote' | 'poll_pending' | 'complete' | 'retry'; p_payload: Json }
+    Returns: Json
+  }
+  read_assignment_repolight_run_v1: {
+    Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string; p_run_id: string; p_include_report?: boolean }
+    Returns: Json
+  }
+  import_assignment_repolight_feedback_v1: {
+    Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string; p_run_id: string; p_request_id: string; p_scope_key: string; p_expected_doc_updated_at: string; p_expected_report_digest: string; p_feedback_text?: string | null }
+    Returns: { doc: { id: string; assignment_id: string; student_id: string; updated_at: string; teacher_feedback_draft: string; teacher_feedback_draft_updated_at: string }; imported: true; replayed: boolean }
+  }
+  begin_repolight_subject_erasure_v1: {
+    Args: { p_actor_id: string; p_binding_id: string; p_operation_id: string }
+    Returns: Json
+  }
+  record_repolight_subject_erasure_v1: {
+    Args: { p_actor_id: string; p_binding_id: string; p_operation_id: string; p_receipt: Json }
+    Returns: Json
+  }
+}

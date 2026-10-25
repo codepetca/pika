@@ -1,9 +1,11 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { FolderGit2, Image as ImageIcon, Link2 } from 'lucide-react'
-import { Button, PageState } from '@/ui'
+import { Button, ContentDialog, FormField, PageState, Select } from '@/ui'
 import { RichTextViewer } from '@/components/editor'
+import { AssignmentRepositoryReport } from '@/components/assignment-workspace/AssignmentRepositoryReport'
+import { useAssignmentRepoLight } from '@/components/assignment-workspace/useAssignmentRepoLight'
 import { TeacherWorkInspector } from '@/components/assignment-workspace/TeacherWorkInspector'
 import { useTeacherStudentWorkController } from '@/components/assignment-workspace/useTeacherStudentWorkController'
 import { TeacherWorkspaceSplit } from '@/components/teacher-work-surface/TeacherWorkspaceSplit'
@@ -24,6 +26,18 @@ import { countCharacters, hasRenderableContent, isEmpty } from '@/lib/tiptap-con
 import { formatRelativeDateTimeInToronto } from '@/lib/timezone'
 import type { InspectorSectionId } from '@/components/assignment-workspace/types'
 import type { AssignmentSubmissionArtifact, AssignmentSubmissionRequirement } from '@/types'
+
+function repositoryNotice(notice: string) {
+  const labels: Record<string,string> = {
+    repolight_requirement_required:'Choose a submitted repository.',
+    repolight_requirement_unavailable:'The selected repository is unavailable.',
+    repolight_repository_required:'A submitted GitHub repository is required.',
+    repolight_source_read_only:'This submission is read-only.',
+    repolight_source_unavailable:'The submitted repository is unavailable.',
+    repolight_period_invalid:'Review the assignment dates before analyzing.',
+  }
+  return labels[notice] || 'Repository source is unavailable. Refresh its status.'
+}
 
 interface TeacherStudentWorkPanelProps {
   classroomId: string
@@ -294,6 +308,9 @@ export function TeacherStudentWorkPanel({
     showDraftAutosavedNotice,
     gradeError,
     feedbackReturning,
+    repositoryImporting,
+    canImportRepositoryFeedback,
+    beginRepositoryFeedbackImport,
     feedbackEntries,
     totalScore,
     totalPercent,
@@ -325,6 +342,33 @@ export function TeacherStudentWorkPanel({
   useEffect(() => {
     onWorkReadStateChange?.({ classroomId, assignmentId, studentId, writesPaused })
   }, [classroomId, assignmentId, studentId, writesPaused, onWorkReadStateChange])
+  const repositoryOwner = JSON.stringify([classroomId,assignmentId,studentId])
+  const [reportDialogOwner,setReportDialogOwner] = useState<string | null>(null)
+  const [repositoryChoice,setRepositoryChoice] = useState<{owner:string;requirementId:string} | null>(null)
+  const selectedRequirementId = repositoryChoice?.owner === repositoryOwner ? repositoryChoice.requirementId : undefined
+  const repositoryCandidate = Boolean(hasMatchingOwner && data && (
+    data.submission_artifacts?.some(artifact => artifact.type === 'repo_link' && /^https:\/\/github\.com\//i.test(artifact.url || '')) ||
+    /^https:\/\/github\.com\//i.test(data.doc?.repo_url || data.repo_target?.submittedRepoUrl || '')
+  ))
+  const repository = useAssignmentRepoLight({classroomId,assignmentId,studentId,active:repositoryCandidate && expandedSections.includes('repository'),paused:mutationsDisabled || writesPaused || repositoryImporting,selectedRequirementId,beginImport:beginRepositoryFeedbackImport})
+  const repositoryReview = repositoryCandidate ? <div className="space-y-3">
+    {!repository.context && !repository.error ? <p role="status" className="text-xs text-text-muted">Loading repository review…</p> : repository.context?.state !== 'ready' ? <p className="text-xs text-text-muted">{repository.context?.state === 'disabled' ? 'Repository analysis is disabled.' : repository.context?.state === 'not_configured' ? 'Repository analysis is not configured.' : 'Repository review is unavailable.'}</p> : <>
+      {repository.context.source.repositoryChoices.length > 1 && repository.context.source.notice === 'repolight_requirement_required' && <FormField label="Repository source" hint="Choose the submitted repository to analyze."><Select value={selectedRequirementId || ''} disabled={repository.busy || repositoryImporting || writesPaused} onChange={event => {setReportDialogOwner(null);setRepositoryChoice({owner:repositoryOwner,requirementId:event.target.value})}} options={[{value:'',label:'Choose a repository',disabled:true},...repository.context.source.repositoryChoices.map(choice => ({value:choice.requirementId,label:`${choice.label} · ${choice.repositoryUrl}`}))]} /></FormField>}
+      {repository.context.source.repositoryUrl && <p className="break-all text-xs text-text-muted">{repository.context.source.repositoryUrl}</p>}
+      {repository.context.source.notice && <p className="text-xs text-text-muted">{repositoryNotice(repository.context.source.notice)}</p>}
+      {repository.context.source.periodDefaulted && <p className="text-xs text-text-muted">The analysis period defaults to the last 60 local dates.</p>}
+      <p className="text-xs text-text-muted">{repository.context.source.githubUsername ? `Requested username: ${repository.context.source.githubUsername}` : 'No username supplied; repository overview.'}</p>
+      {repository.run && <p role="status" className="text-xs text-text-muted">Analysis {repository.run.status}{repository.run.errorCode ? ` · ${repository.run.errorCode.replaceAll('_',' ')}` : ''}{repository.run.nextRetryAt ? ` · retry after ${repository.run.nextRetryAt}` : ''}</p>}
+      <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={repository.busy || mutationsDisabled || writesPaused || !(repository.context.source.available || (repository.context.source.notice === 'repolight_requirement_required' && repository.context.source.repositoryChoices.some(choice => choice.requirementId === selectedRequirementId)))} onClick={() => {void repository.analyze()}}>Analyze repository</Button>
+      </div>
+    </>}
+    {repository.run?.reportAvailable && <Button size="sm" variant="secondary" disabled={repository.busy || !hasMatchingOwner} onClick={() => {setReportDialogOwner(repositoryOwner);void repository.openReport()}}>View report</Button>}
+    {repository.error && <p role="alert" className="text-xs text-danger">{repository.error}</p>}
+    {repository.error && <Button size="sm" variant="ghost" disabled={repository.busy || !hasMatchingOwner} onClick={repository.refreshStatus}>Refresh repository status</Button>}
+    <ContentDialog isOpen={reportDialogOwner === repositoryOwner} onClose={() => setReportDialogOwner(null)} title="Repository report">
+      {repository.report ? <AssignmentRepositoryReport bundle={repository.report.bundle} canImport={Boolean(repository.context?.state === 'ready' && repository.run?.canImport && repository.run.sourceCurrent && canImportRepositoryFeedback && !repository.busy)} onImportFeedback={repository.importFeedback} isFeedbackImported={repository.isFeedbackImported} importing={repositoryImporting} importError={repository.run && !repository.run.sourceCurrent ? 'This report belongs to an older submission. Analyze the current source before importing.' : !canImportRepositoryFeedback && !repositoryImporting ? 'Wait for your draft to save before adding feedback. Returned or changed work must be reviewed first.' : undefined} /> : repository.error ? <PageState compact kind="error" title="Could not load repository report" description={repository.error} action={<Button size="sm" onClick={() => {void repository.openReport()}}>Try again</Button>} /> : <PageState compact kind="loading" title="Loading repository report" />}
+    </ContentDialog>
+  </div> : undefined
   const workRegionRef = useRef<HTMLDivElement>(null)
   const previousInspectorEditModeRef = useRef(inspectorEditMode)
   const layoutMode: AssignmentWorkspaceMode =
@@ -503,6 +547,8 @@ export function TeacherStudentWorkPanel({
         gradeSaving={gradeSaving}
         mutationsDisabled={mutationsDisabled || !hasMatchingOwner}
         writeActionsDisabled={writesPaused}
+        repositoryImporting={repositoryImporting}
+        repositoryReview={repositoryReview}
         showDraftAutosavedNotice={showDraftAutosavedNotice}
         highlightedSections={highlightedInspectorSections}
         expandedSections={expandedSections}

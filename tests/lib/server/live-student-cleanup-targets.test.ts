@@ -1,3 +1,4 @@
+vi.mock('@/lib/server/repolight-removed-student-cleanup', () => ({ getRepoLightRemovedContext: vi.fn(async () => ({ provider_bound: true })) }))
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { StudentProviderCleanupError } from '@/lib/server/student-provider-cleanup'
 import { getLiveStudentCleanupTarget, listLiveStudentCleanupTargets } from '@/lib/server/live-student-cleanup'
@@ -43,7 +44,7 @@ it('maps current ownership rejection to the existing forbidden response', async 
 it('recovers exact operation evidence while activation is paused', async () => {
   mocks.rpc.mockResolvedValue({ data: page([target], null, student), error: null })
   mocks.read.mockResolvedValue({ operation_id: operation })
-  expect(await getLiveStudentCleanupTarget(teacher, classroom, student)).toEqual({ generation_id: generation, enabled: false, operation: { operation_id: operation } })
+  expect(await getLiveStudentCleanupTarget(teacher, classroom, student)).toEqual({ generation_id: generation, enabled: false, operation: { operation_id: operation, scope: 'provider_bound' } })
   expect(mocks.read).toHaveBeenCalledWith({ teacherId: teacher, classroomId: classroom, studentId: student, generationId: generation, operationId: operation })
   expect(mocks.factory).toHaveBeenCalledWith(undefined, { live: true })
 })

@@ -176,9 +176,14 @@ describe('classroom data inventory', () => {
     expect(GRADEX_RESOURCE_TABLES).not.toContain('classroom_creation_operations')
   })
 
-  it('is a valid, complete 45-resource classroom ownership graph', () => {
-    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(45)
-    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(45)
+  it('is a valid, complete 48-resource classroom ownership graph', () => {
+    expect(classroomResourceInventorySchema.parse(CLASSROOM_RELATIONAL_RESOURCES)).toHaveLength(48)
+    expect(CLASSROOM_RELATIONAL_RESOURCES.filter(resource => resource.table.startsWith('assignment_repolight_')).map(resource => ({ table: resource.table, primary_key: resource.primary_key }))).toEqual([
+      { table: 'assignment_repolight_runs', primary_key: ['id'] },
+      { table: 'assignment_repolight_reports', primary_key: ['run_id'] },
+      { table: 'assignment_repolight_feedback_imports', primary_key: ['id'] },
+    ])
+    expect(new Set(CLASSROOM_RELATIONAL_RESOURCES.map((resource) => resource.table)).size).toBe(48)
     expect(CLASSROOM_RELATIONAL_RESOURCES[0].table).toBe('classrooms')
     expect(CLASSROOM_RELATIONAL_RESOURCES.find((resource) => resource.table === 'assignments')?.restore_after)
       .toContain('gradebook_categories')

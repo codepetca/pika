@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { TeacherStudentWorkPanel } from '@/components/TeacherStudentWorkPanel'
+import repoLightFixture from '../unit/repolight/fixture.json'
 
 vi.mock('@/components/Spinner', () => ({
   Spinner: () => <div data-testid="spinner" />,
@@ -1666,7 +1667,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByTestId('history-list')).not.toBeInTheDocument()
   })
 
-  it('hides the repo marking section even when repo data exists', async () => {
+  it('keeps legacy repo marking absent and the new Repository review collapsed until explicitly opened', async () => {
     mockFetchByStudent({
       'student-1': {
         graded: false,
@@ -1700,6 +1701,8 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.queryByText('Contribution')).not.toBeInTheDocument()
     expect(screen.queryByText('Consistency')).not.toBeInTheDocument()
     expect(screen.queryByText('Iteration')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', {name:'Repository'})).toHaveAttribute('aria-expanded','false')
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url]) => String(url).includes('/repolight/'))).toBe(false)
   })
 
   it('keeps TeacherWorkInspector summary clicks and keyboard toggles accessible', async () => {
@@ -2289,4 +2292,119 @@ describe('TeacherStudentWorkPanel', () => {
       inspectorWidth: 50,
     })
   })
+  it('opens configured repository review and explicitly appends acknowledged feedback without saving grades or sending comments',async()=>{
+    const assignmentId = '10000000-0000-4000-8000-000000000001'
+    const studentId = '20000000-0000-4000-8000-000000000001'
+    const docId = '30000000-0000-4000-8000-000000000001'
+    const runId = '40000000-0000-4000-8000-000000000001'
+    const work = makeStudentWork(studentId,{graded:false,repoUrl:'https://github.com/sample-student/sky-hop',teacherFeedbackDraft:'Existing comment.'})
+    work.assignment.id = assignmentId
+    work.doc.id = docId;work.doc.assignment_id = assignmentId
+    const run = {id:runId,status:'completed',sourceCurrent:true,canAdvance:false,canImport:true,reportAvailable:true,errorCode:null,nextRetryAt:null}
+    const source = {available:true,repositoryUrl:work.doc.repo_url,githubUsername:null,usernameProvenance:'none',requirementId:null,period:null,periodDefaulted:true,notice:null}
+    const pendingImport = createDeferred<{ok:boolean;json:()=>Promise<unknown>}>()
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (input:RequestInfo | URL,init?:RequestInit)=>{
+      const url = String(input)
+      if (url.endsWith('/repolight/runs')) return {ok:true,json:async()=>({state:'ready',source,run})}
+      if (url.endsWith('/report')) return {ok:true,json:async()=>({run,report:{reportDigest:'a'.repeat(64),bundle:repoLightFixture.bundle}})}
+      if (url.endsWith('/import')) {
+        const body = JSON.parse(String(init?.body))
+        expect(body).toMatchObject({scopeKey:'repository',expectedDocUpdatedAt:work.doc.updated_at,expectedReportDigest:'a'.repeat(64),feedbackText:'Explicit reviewed repository text.'})
+        return pendingImport.promise
+      }
+      if (url.includes('/history')) return {ok:true,json:async()=>({history:[]})}
+      return {ok:true,json:async()=>work}
+    })
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId={assignmentId} studentId={studentId} inspectorCollapsed={false} totalWidth={1200} />)
+    const disclosure = await screen.findByRole('button',{name:'Repository'})
+    expect(disclosure).toHaveAttribute('aria-expanded','false')
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url])=>String(url).includes('/repolight/'))).toBe(false)
+    fireEvent.click(disclosure)
+    await screen.findByRole('button',{name:'Analyze repository'})
+    expect(screen.getByText('No username supplied; repository overview.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button',{name:'View report'}))
+    const dialog = await screen.findByRole('dialog',{name:'Repository report'})
+    await within(dialog).findByLabelText('Report feedback')
+    fireEvent.change(within(dialog).getByLabelText('Report view'),{target:{value:'repository'}})
+    fireEvent.change(within(dialog).getByLabelText('Report feedback'),{target:{value:'Explicit reviewed repository text.'}})
+    fireEvent.click(within(dialog).getByRole('button',{name:'Add to comment draft'}))
+    await waitFor(()=>expect(screen.getByPlaceholderText('Leave a comment...')).toBeDisabled())
+    expect(within(dialog).getByRole('button',{name:'Adding to comment draft…'})).toBeDisabled()
+    await act(async()=>{pendingImport.resolve({ok:true,json:async()=>({imported:true,replayed:false,doc:{id:docId,assignment_id:assignmentId,student_id:studentId,updated_at:'2026-10-24T20:00:00Z',teacher_feedback_draft:'Existing comment.\n\nExplicit reviewed repository text.',teacher_feedback_draft_updated_at:'2026-10-24T20:00:00Z'}})})})
+    await within(dialog).findByText('Added to the comment draft. Review it in Pika before sending.')
+    fireEvent.click(within(dialog).getAllByRole('button',{name:'Close'})[0])
+    expect(screen.getByPlaceholderText('Leave a comment...')).toHaveValue('Existing comment.\n\nExplicit reviewed repository text.')
+    fireEvent.click(screen.getByRole('button',{name:'View report'}))
+    const reopened = await screen.findByRole('dialog',{name:'Repository report'})
+    await within(reopened).findByLabelText('Report feedback')
+    fireEvent.change(within(reopened).getByLabelText('Report view'),{target:{value:'repository'}})
+    fireEvent.change(within(reopened).getByLabelText('Report feedback'),{target:{value:'Explicit reviewed repository text.'}})
+    const added = within(reopened).getByRole('button',{name:'Added to comment draft'})
+    expect(added).toBeDisabled()
+    fireEvent.click(added)
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([url])=>String(url).endsWith('/import'))).toHaveLength(1)
+    fireEvent.click(within(reopened).getAllByRole('button',{name:'Close'})[0])
+    const writes = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([url,init])=>init?.method === 'POST' && !String(url).endsWith('/import'))
+    expect(writes).toHaveLength(0)
+    expect(screen.getByLabelText('Completion score')).toHaveValue(null)
+  })
+
+  it.each([
+    ['disabled','Repository analysis is disabled.'],
+    ['not_configured','Repository analysis is not configured.'],
+    ['unavailable','Repository review is unavailable.'],
+  ])('keeps analysis commands absent when repository configuration is %s',async(state,copy)=>{
+    const work = makeStudentWork('student-1',{graded:false,repoUrl:'https://github.com/fixture/project'})
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async(input:RequestInfo | URL)=>({ok:true,json:async()=>String(input).endsWith('/repolight/runs') ? {state,source:{available:false,repositoryUrl:null,githubUsername:null,usernameProvenance:'none',requirementId:null,period:null,periodDefaulted:false,notice:null},run:null} : String(input).includes('/history') ? {history:[]} : work}))
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" inspectorCollapsed={false} totalWidth={1200} />)
+    fireEvent.click(await screen.findByRole('button',{name:'Repository'}))
+    await screen.findByText(copy)
+    expect(screen.queryByRole('button',{name:'Analyze repository'})).not.toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'View report'})).not.toBeInTheDocument()
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([,init])=>init?.method === 'POST')).toBe(false)
+  })
+
+  it('requires an explicit choice between submitted repositories before Analyze',async()=>{
+    const first = '50000000-0000-4000-8000-000000000001'
+    const second = '50000000-0000-4000-8000-000000000002'
+    const work = makeStudentWork('student-1',{graded:false,repoUrl:'https://github.com/fixture/first'})
+    const source = {repositoryChoices:[{requirementId:first,repositoryUrl:'https://github.com/fixture/first',label:'First project'},{requirementId:second,repositoryUrl:'https://github.com/fixture/second',label:'Second project'}],available:false,repositoryUrl:null,githubUsername:null,usernameProvenance:'none',requirementId:null,period:null,periodDefaulted:false,notice:'repolight_requirement_required'}
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async(input:RequestInfo | URL,init?:RequestInit)=>{
+      const url = String(input)
+      if (url.endsWith('/repolight/runs')) return {ok:true,json:async()=>init?.method === 'POST' ? {run:{id:'60000000-0000-4000-8000-000000000001',status:'queued',sourceCurrent:true,canAdvance:false,canImport:false,reportAvailable:false,errorCode:null,nextRetryAt:null}} : {state:'ready',source,run:null}}
+      return {ok:true,json:async()=>url.includes('/history') ? {history:[]} : work}
+    })
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" inspectorCollapsed={false} totalWidth={1200} />)
+    fireEvent.click(await screen.findByRole('button',{name:'Repository'}))
+    const select = await screen.findByRole('combobox',{name:'Repository source'})
+    expect(screen.getByText('Choose a submitted repository.')).toBeInTheDocument()
+    expect(screen.queryByText('repolight requirement required')).not.toBeInTheDocument()
+    expect(select).toHaveValue('')
+    expect(screen.getByRole('button',{name:'Analyze repository'})).toBeDisabled()
+    fireEvent.change(select,{target:{value:second}})
+    expect(screen.getByRole('combobox',{name:'Repository source'})).toHaveValue(second)
+    expect(screen.getByRole('button',{name:'Analyze repository'})).toBeEnabled()
+    fireEvent.click(screen.getByRole('button',{name:'Analyze repository'}))
+    await waitFor(()=>expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url,init])=>String(url).endsWith('/repolight/runs') && init?.method === 'POST')).toBe(true))
+    const post = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(([url,init])=>String(url).endsWith('/repolight/runs') && init?.method === 'POST')!
+    expect(JSON.parse(String(post[1].body)).requirementId).toBe(second)
+  })
+
+  it.each(['disabled','not_configured','ready'])('keeps a cached report readable in %s read-only conditions without POSTs',async state=>{
+    const work = makeStudentWork('student-1',{graded:false,repoUrl:'https://github.com/fixture/project'})
+    const run = {id:'70000000-0000-4000-8000-000000000001',status:'completed',sourceCurrent:true,canAdvance:false,canImport:true,reportAvailable:true,errorCode:null,nextRetryAt:null}
+    const source = {available:true,repositoryUrl:work.doc.repo_url,githubUsername:null,usernameProvenance:'none',requirementId:null,period:null,periodDefaulted:false,notice:null}
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async(input:RequestInfo | URL)=>{
+      const url = String(input)
+      return {ok:true,json:async()=>url.endsWith('/repolight/runs') ? {state,source,run} : url.endsWith('/report') ? {run,report:{reportDigest:'a'.repeat(64),bundle:repoLightFixture.bundle}} : url.includes('/history') ? {history:[]} : work}
+    })
+    render(<TeacherStudentWorkPanel classroomId="classroom-1" assignmentId="assignment-1" studentId="student-1" inspectorCollapsed={false} totalWidth={1200} mutationsDisabled={state === 'ready'} />)
+    fireEvent.click(await screen.findByRole('button',{name:'Repository'}))
+    fireEvent.click(await screen.findByRole('button',{name:'View report'}))
+    const dialog = await screen.findByRole('dialog',{name:'Repository report'})
+    expect(await within(dialog).findByLabelText('Report feedback')).toBeInTheDocument()
+    expect(within(dialog).getByRole('button',{name:'Add to comment draft'})).toBeDisabled()
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([,init])=>init?.method === 'POST')).toBe(false)
+  })
+
 })

@@ -1,3 +1,4 @@
+import { readAssignmentDeleteOperation, replayCompletedAssignmentDeletion, deleteAssignmentWithRepoLightCleanup } from '@/lib/server/repolight-assignment-delete'
 import { NextRequest, NextResponse } from 'next/server'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -45,7 +46,6 @@ import { authorizeContextualAssignmentOwnerMutationRequest } from '@/lib/server/
 import { authorizeSharedAssignmentOverviewReadActor, readContextualAssignmentOverview } from '@/lib/server/contextual-assignment-overview-read'
 import { contextualAssignmentOverviewQuerySchema } from '@/lib/validations/contextual-assignment-overview-read'
 import {
-  deleteAssignmentForOwner,
   updateAssignmentForOwner,
 } from '@/lib/server/contextual-assignment-owner-mutations'
 
@@ -761,6 +761,12 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     .single()
 
   if (existingError || !existing) {
+    if (existingError && existingError.code !== 'PGRST116') throw new ApiError(503, 'Could not verify assignment deletion')
+    const operationId = await readAssignmentDeleteOperation(request)
+    if (operationId && await replayCompletedAssignmentDeletion(user.id, id, operationId)) {
+      return NextResponse.json({ success: true }, { headers: { 'Cache-Control': 'no-store' } })
+    }
+
     return NextResponse.json(
       { error: 'Assignment not found' },
       { status: 404 }
@@ -781,26 +787,12 @@ export const DELETE = withErrorHandler('DeleteTeacherAssignment', async (request
     )
   }
 
-  if (assignmentAccess.mode === 'contextual') {
-    await deleteAssignmentForOwner({
-      supabase,
-      actorId: user.id,
-      assignmentId: id,
-    })
-  } else {
-    const { error } = await supabase
-      .from('assignments')
-      .delete()
-      .eq('id', id)
-
-    if (error) {
-      logServerError('assignment.delete', error)
-      return NextResponse.json(
-        { error: 'Failed to delete assignment' },
-        { status: 500 }
-      )
-    }
-  }
+  const operationId = await readAssignmentDeleteOperation(request)
+  const cleanup = await deleteAssignmentWithRepoLightCleanup({ actorId: user.id, assignmentId: id, operationId })
+  if (!cleanup.complete) return NextResponse.json({
+    error: 'RepoLight cleanup is pending. Retry this deletion operation.',
+    errorCode: 'repolight_cleanup_pending', operationId: cleanup.operationId,
+  }, { status: 409, headers: { 'Cache-Control': 'no-store' } })
 
   try {
     await runAssignmentArtifactStorageCleanup({ supabase, limit: 50 })

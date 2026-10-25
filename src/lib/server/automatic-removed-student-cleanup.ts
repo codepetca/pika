@@ -1,3 +1,4 @@
+import { hasUnresolvedRepoLightSubjects, RepoLightManualCleanupRequiredError } from '@/lib/server/repolight-decommission-database'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
@@ -73,7 +74,7 @@ export async function runAutomaticRemovedStudentCleanup(input: {
   leaseTokenFactory?: () => string
 } = {}) {
   const client = input.client ?? getServiceRoleClient()
-  const cleanup = input.cleanup ?? liveStudentCleanup()
+  const cleanup = input.cleanup ?? liveStudentCleanup({ automatic: true })
   const maxClaims = input.maxClaims ?? AUTOMATIC_REMOVED_STUDENT_CLEANUP_MAX_CLAIMS
   const maxAdvances = input.maxAdvances ?? AUTOMATIC_REMOVED_STUDENT_CLEANUP_MAX_ADVANCES
   const maxAttempts = input.maxAttempts ?? AUTOMATIC_REMOVED_STUDENT_CLEANUP_MAX_ATTEMPTS
@@ -100,10 +101,19 @@ export async function runAutomaticRemovedStudentCleanup(input: {
     try {
       if (job.attempt_count >= maxAttempts)
         throw new ApiError(409, 'Automatic cleanup attempt limit reached')
+      if (await hasUnresolvedRepoLightSubjects(scope, client)) {
+        if (!await release(client, { jobId: job.job_id, leaseToken, completed: false,
+          errorCode: 'repolight_manual_confirmation_required' })) metrics.retry_recording_failed += 1
+        else metrics.pending += 1
+        continue
+      }
       let result = await cleanup.reserve(scope)
       for (let step = 0; step < maxAdvances && !result.cleanup_completed
         && now()-startedAt<timeBudgetMs; step += 1)
-        result = await cleanup.advance(scope)
+        {
+          if (await hasUnresolvedRepoLightSubjects(scope, client)) break
+          result = await cleanup.advance(scope)
+        }
       const completed = result.cleanup_completed
       const recorded = await release(client, { jobId: job.job_id, leaseToken, completed,
         ...(!completed ? { errorCode: 'cleanup_pending' } : {}) })
@@ -111,6 +121,11 @@ export async function runAutomaticRemovedStudentCleanup(input: {
       else if (completed) metrics.completed += 1
       else metrics.pending += 1
     } catch (error) {
+      if (error instanceof RepoLightManualCleanupRequiredError) {
+        if (!await release(client, { jobId: job.job_id, leaseToken, completed: false, errorCode: 'repolight_manual_confirmation_required' })) metrics.retry_recording_failed += 1
+        else metrics.pending += 1
+        continue
+      }
       metrics.failed += 1
       const quarantined = isTerminalCleanupError(error)
       if (!await release(client, { jobId: job.job_id, leaseToken, completed: false,

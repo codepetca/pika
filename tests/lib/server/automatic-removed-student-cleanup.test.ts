@@ -1,3 +1,4 @@
+import { RepoLightManualCleanupRequiredError } from '@/lib/server/repolight-decommission-database'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   isAutomaticRemovedStudentCleanupEnabled,
@@ -12,7 +13,7 @@ const job = { job_id: ids[0], operation_id: ids[1], teacher_id: ids[2], classroo
 function fixture(claims: unknown[] = [job, null]) {
   const rpc = vi.fn(async (name: string) => name === 'claim_removed_student_cleanup_job'
     ? { data: claims.shift(), error: null }
-    : { data: true, error: null })
+    : name === 'read_repolight_cleanup_subjects_v1' ? { data: [], error: null } : { data: true, error: null })
   const cleanup = { reserve: vi.fn().mockResolvedValue({ cleanup_completed: false }),
     advance: vi.fn().mockResolvedValue({ cleanup_completed: true }) }
   return { client: { rpc } as never, cleanup, rpc }
@@ -53,6 +54,33 @@ describe('automatic removed-student cleanup worker', () => {
     expect(f.cleanup.advance).toHaveBeenCalledOnce()
     expect(f.rpc).toHaveBeenCalledWith('release_removed_student_cleanup_job', expect.objectContaining({
       p_job_id: job.job_id, p_lease_token: ids[6], p_completed: true,
+    }))
+  })
+
+  it('requires manual confirmation for any unresolved RepoLight subject before reserving or advancing', async () => {
+    const f = fixture()
+    f.rpc.mockImplementation(async name => name === 'claim_removed_student_cleanup_job'
+      ? { data: job, error: null } : name === 'read_repolight_cleanup_subjects_v1'
+        ? { data: [{ teacher_id: job.teacher_id, classroom_id: job.classroom_id, student_id: job.student_id, state: 'erasing' }], error: null }
+        : { data: true, error: null })
+    const result = await runAutomaticRemovedStudentCleanup({ client: f.client, cleanup: f.cleanup, maxClaims: 1 })
+    expect(result).toMatchObject({ pending: 1, completed: 0 })
+    expect(f.cleanup.reserve).not.toHaveBeenCalled()
+    expect(f.cleanup.advance).not.toHaveBeenCalled()
+    expect(f.rpc).toHaveBeenCalledWith('release_removed_student_cleanup_job', expect.objectContaining({
+      p_completed: false, p_error_code: 'repolight_manual_confirmation_required',
+    }))
+  })
+
+  it('keeps a subject discovered atomically during admission pending for manual confirmation', async () => {
+    const f = fixture()
+    f.cleanup.reserve.mockRejectedValueOnce(new RepoLightManualCleanupRequiredError())
+    await expect(runAutomaticRemovedStudentCleanup({ client: f.client, cleanup: f.cleanup })).resolves.toMatchObject({
+      pending: 1, failed: 0, quarantined: 0, completed: 0,
+    })
+    expect(f.cleanup.advance).not.toHaveBeenCalled()
+    expect(f.rpc).toHaveBeenCalledWith('release_removed_student_cleanup_job', expect.objectContaining({
+      p_completed: false, p_error_code: 'repolight_manual_confirmation_required',
     }))
   })
 

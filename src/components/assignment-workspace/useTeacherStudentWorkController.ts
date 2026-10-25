@@ -17,6 +17,13 @@ import type {
 } from '@/types'
 import type { InspectorSectionId, StudentWorkData } from './types'
 
+export type RepositoryFeedbackAcknowledgement = Pick<AssignmentDoc, 'id' | 'assignment_id' | 'student_id' | 'updated_at' | 'teacher_feedback_draft' | 'teacher_feedback_draft_updated_at'>
+export interface RepositoryFeedbackImportSession {
+  expectedDocUpdatedAt: string
+  accept: (doc: RepositoryFeedbackAcknowledgement) => void
+  finish: () => void
+}
+
 type GradeSaveMode = 'draft' | 'graded'
 type WorkReadState = 'pending' | 'ready' | 'transient' | 'unavailable' | 'conflict'
 
@@ -40,7 +47,7 @@ async function fetchStudentWork(url: string): Promise<StudentWorkData> {
   }
 }
 
-const SECTION_ORDER: InspectorSectionId[] = ['history', 'grades', 'comments']
+const SECTION_ORDER: InspectorSectionId[] = ['history', 'repository', 'grades', 'comments']
 const DEFAULT_EXPANDED_SECTIONS: InspectorSectionId[] = ['grades', 'comments']
 const DEFAULT_VISIBLE_SECTIONS: InspectorSectionId[] = SECTION_ORDER
 const INSPECTOR_SECTIONS_COOKIE_PREFIX = 'pika_teacher_student_work_sections'
@@ -256,6 +263,9 @@ export interface TeacherStudentWorkController {
   gradeError: string
   autoGrading: boolean
   feedbackReturning: boolean
+  repositoryImporting: boolean
+  canImportRepositoryFeedback: boolean
+  beginRepositoryFeedbackImport: () => RepositoryFeedbackImportSession
   feedbackEntries: AssignmentFeedbackEntry[]
   totalScore: number
   totalPercent: number
@@ -350,6 +360,8 @@ export function useTeacherStudentWorkController({
   const [gradeError, setGradeError] = useState('')
   const [autoGrading, setAutoGrading] = useState(false)
   const [feedbackReturning, setFeedbackReturning] = useState(false)
+  const [repositoryImportOwner, setRepositoryImportOwner] = useState<string | null>(null)
+  const repositoryImporting = repositoryImportOwner === `${owner}:${ownerEpochRef.current}`
   const [expandedSections, setExpandedSections] = useState<InspectorSectionId[]>(() =>
     parseExpandedSections(readCookie(getInspectorSectionsCookieName(classroomId))),
   )
@@ -817,7 +829,7 @@ export function useTeacherStudentWorkController({
   )
 
   useEffect(() => {
-    if (!data || gradeSaving || feedbackReturning || mutationsDisabled || writesPaused || autoGrading) return
+    if (!data || gradeSaving || feedbackReturning || mutationsDisabled || writesPaused || autoGrading || repositoryImporting) return
 
     const selectedSaveMode = gradeMode
     const nextSnapshot = buildGradeSnapshot({
@@ -855,7 +867,7 @@ export function useTeacherStudentWorkController({
         gradeAutosaveTimeoutRef.current = null
       }
     }
-  }, [autoGrading, data, feedbackDraft, feedbackReturning, gradeMode, gradeSaving, mutationsDisabled, persistGrade, scoreCompletion, scoreThinking, scoreWorkflow, writesPaused])
+  }, [autoGrading, data, feedbackDraft, feedbackReturning, gradeMode, gradeSaving, mutationsDisabled, persistGrade, repositoryImporting, scoreCompletion, scoreThinking, scoreWorkflow, writesPaused])
 
   useEffect(() => {
     if (!mutationsDisabled || !gradeAutosaveTimeoutRef.current) return
@@ -1019,12 +1031,41 @@ export function useTeacherStudentWorkController({
     }) !== lastSavedGradeSnapshotRef.current
   }, [data, feedbackDraft, gradeMode, scoreCompletion, scoreThinking, scoreWorkflow])
 
+  const canImportRepositoryFeedback = Boolean(data?.doc && !data.doc.returned_at && !data.doc.feedback_returned_at && !hasPendingGradeChanges && !gradeSaving && !feedbackReturning && !autoGrading && !repositoryImporting && !mutationsDisabled && !writesPaused)
+
+  const beginRepositoryFeedbackImport = useCallback((): RepositoryFeedbackImportSession => {
+    if (!data?.doc || !canDispatch() || gradeSaving || feedbackReturning || autoGrading || mutationsDisabled || data.doc.returned_at || data.doc.feedback_returned_at || liveSnapshotRef.current !== lastSavedGradeSnapshotRef.current || !confirmedRevisionRef.current) {
+      throw new Error('Wait for your draft to save before adding feedback. Returned or changed work must be reviewed first.')
+    }
+    const epoch = ownerEpochRef.current
+    const snapshot = liveSnapshotRef.current
+    const revision = confirmedRevisionRef.current
+    const token = `${owner}:${epoch}`
+    const finishMutation = beginMutation()
+    if (gradeAutosaveTimeoutRef.current) {window.clearTimeout(gradeAutosaveTimeoutRef.current);gradeAutosaveTimeoutRef.current = null}
+    setRepositoryImportOwner(token)
+    return {
+      expectedDocUpdatedAt:revision,
+      accept(doc) {
+        if (ownerRef.current !== owner || ownerEpochRef.current !== epoch || loadedOwnerRef.current !== owner || readBlockedRef.current || confirmedRevisionRef.current !== revision || liveSnapshotRef.current !== snapshot || lastSavedGradeSnapshotRef.current !== snapshot || doc.id !== data.doc!.id || doc.assignment_id !== assignmentId || doc.student_id !== studentId || typeof doc.teacher_feedback_draft !== 'string') {
+          throw new Error('Student work changed while feedback was added. Your local draft is kept. Refresh and reconcile before continuing.')
+        }
+        confirmedRevisionRef.current = doc.updated_at
+        setData(current => current?.doc ? {...current,doc:{...current.doc,...doc}} : current)
+        setFeedbackDraft(doc.teacher_feedback_draft)
+        setHasFreshAIDraft(false)
+        lastSavedGradeSnapshotRef.current = buildGradeSnapshot({scoreCompletion,scoreThinking,scoreWorkflow,feedbackDraft:doc.teacher_feedback_draft,mode:gradeMode})
+      },
+      finish() {finishMutation();setRepositoryImportOwner(current => current === token ? null : current)},
+    }
+  }, [assignmentId,autoGrading,beginMutation,canDispatch,data,feedbackReturning,gradeMode,gradeSaving,mutationsDisabled,owner,scoreCompletion,scoreThinking,scoreWorkflow,studentId])
+
   useEffect(() => {
     onGradePersistenceStateChange?.({
       hasPendingChanges: hasPendingGradeChanges,
-      isSaving: gradeSaving || feedbackReturning || autoGrading,
+      isSaving: gradeSaving || feedbackReturning || autoGrading || repositoryImporting,
     })
-  }, [autoGrading, feedbackReturning, gradeSaving, hasPendingGradeChanges, onGradePersistenceStateChange])
+  }, [autoGrading, feedbackReturning, gradeSaving, hasPendingGradeChanges, onGradePersistenceStateChange, repositoryImporting])
 
   useEffect(() => {
     return () => onGradePersistenceStateChange?.({ hasPendingChanges: false, isSaving: false })
@@ -1057,6 +1098,9 @@ export function useTeacherStudentWorkController({
     gradeError,
     autoGrading,
     feedbackReturning,
+    repositoryImporting,
+    canImportRepositoryFeedback,
+    beginRepositoryFeedbackImport,
     feedbackEntries,
     totalScore,
     totalPercent,

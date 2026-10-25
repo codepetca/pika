@@ -131,7 +131,7 @@ describe('StudentAssignmentSubmissionChecklist', () => {
       />
     )
 
-    const githubInput = screen.getByLabelText('GitHub username')
+    const githubInput = screen.getByLabelText('GitHub username (optional)')
     const saveButton = screen.getByRole('button', { name: 'Save' })
 
     expect(saveButton).toBeDisabled()
@@ -262,4 +262,43 @@ describe('StudentAssignmentSubmissionChecklist', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue without image' }))
     await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([])
   })
+  it('prefills a saved account only for a new repo attachment',()=>{
+    const props = {assignmentId:'assignment-1',requirements:[requirement({type:'repo_link'})],githubIdentity:{github_id:1234,github_login:'saved-account'},onArtifactsChange:vi.fn(),onError:vi.fn()}
+    const {rerender} = render(<StudentAssignmentSubmissionChecklist {...props} artifacts={[]} />)
+    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('saved-account')
+    rerender(<StudentAssignmentSubmissionChecklist {...props} artifacts={[artifact({type:'repo_link',metadata_json:{}})]} />)
+    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('')
+  })
+
+  it.each([{}, {github_login:null}, {github_login:''}, {github_login:'saved-account',github_login_selection:'none'}])('keeps an existing blank username blank without false unsaved edits: %j',async(metadata)=>{
+    const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
+    const saved = artifact({type:'repo_link',metadata_json:metadata})
+    const fetchMock = vi.fn();vi.stubGlobal('fetch',fetchMock)
+    render(<StudentAssignmentSubmissionChecklist ref={ref} assignmentId="assignment-1" requirements={[requirement({type:'repo_link'})]} artifacts={[saved]} githubIdentity={{github_id:1234,github_login:'saved-account'}} onArtifactsChange={vi.fn()} onError={vi.fn()} />)
+    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('')
+    expect(screen.getByRole('button',{name:'Save'})).toBeDisabled()
+    await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([saved])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('preserves an explicitly cleared username through save and artifact reload',async()=>{
+    const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
+    const cleared = artifact({type:'repo_link',metadata_json:{github_login:null}})
+    const onArtifactsChange = vi.fn()
+    const fetchMock = vi.fn().mockResolvedValue({ok:true,json:async()=>({artifact:cleared})})
+    vi.stubGlobal('fetch',fetchMock)
+    const props = {ref,assignmentId:'assignment-1',requirements:[requirement({type:'repo_link'})],githubIdentity:{github_id:1234,github_login:'saved-account'},onArtifactsChange,onError:vi.fn()}
+    const {rerender} = render(<StudentAssignmentSubmissionChecklist {...props} artifacts={[artifact({type:'repo_link',metadata_json:{github_login:'saved-account'}})]} />)
+    fireEvent.change(screen.getByLabelText('GitHub username (optional)'),{target:{value:''}})
+    fireEvent.click(screen.getByRole('button',{name:'Save'}))
+    await waitFor(()=>expect(onArtifactsChange).toHaveBeenCalledWith([cleared]))
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).github_login).toBe('')
+    rerender(<StudentAssignmentSubmissionChecklist {...props} artifacts={[cleared]} />)
+    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('')
+    expect(screen.getByRole('button',{name:'Save'})).toBeDisabled()
+    await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([cleared])
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/Leave blank to analyze all contributors/)).toBeInTheDocument()
+  })
+
 })

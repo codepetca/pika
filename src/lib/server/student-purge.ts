@@ -1,3 +1,4 @@
+import { advanceReservedRepoLightCleanup } from '@/lib/server/repolight-decommission-database'
 import { createHash } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
@@ -39,6 +40,8 @@ const inventorySchema = z.object({
   storage_counts: z.record(z.string(), z.number().int().nonnegative()).optional(),
   conflicting_operation: z.string().nullable().optional(),
   deletion_available: z.boolean().optional(),
+  can_reserve_cleanup: z.boolean().optional(),
+  cleanup_unavailable_reason: z.string().nullable().optional(),
   unavailable_reason: z.string().nullable().optional(),
 }).passthrough()
 
@@ -174,6 +177,8 @@ export async function getStudentPurgeImpact(
     storage_counts: raw.storage_counts || {},
     conflicting_operation: raw.conflicting_operation || null,
     deletion_available: raw.deletion_available,
+    can_reserve_cleanup: raw.can_reserve_cleanup ?? false,
+    cleanup_unavailable_reason: raw.cleanup_unavailable_reason ?? null,
     unavailable_reason: raw.unavailable_reason || null,
   })
 }
@@ -315,11 +320,15 @@ export async function advanceStudentPurge(teacherId: string, operationId: string
     return { operation: before, advanced: false }
   }
 
+  if (!await advanceReservedRepoLightCleanup(teacherId, operationId)) {
+    return { operation: { ...before, repolight_cleanup_pending: true }, advanced: false }
+  }
+
   const claim = parseResult(await rpc('claim_student_purge_object', {
     p_operation_id: operationId,
     p_teacher_id: teacherId,
   }))
-  if (claim.waiting_for_storage === true) {
+  if (claim.waiting_for_storage === true || claim.waiting_for_repolight === true) {
     return { operation: await getStudentPurgeStatus(teacherId, operationId), advanced: false }
   }
   if (!claim.object) {

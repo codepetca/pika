@@ -179,7 +179,8 @@ begin
   v_expected_v2_resource_count := 40
     + case when to_regclass('public.gradebook_score_overrides') is null then 0 else 1 end
     + case when to_regclass('public.gradebook_items') is null then 0 else 2 end
-    + case when to_regclass('public.classroom_guided_draft_provenance') is null then 0 else 1 end;
+    + case when to_regclass('public.classroom_guided_draft_provenance') is null then 0 else 1 end
+    + case when to_regclass('public.assignment_repolight_runs') is null then 0 else 3 end;
   if (
     select count(*)
     from public.classroom_archive_resource_contract_versions

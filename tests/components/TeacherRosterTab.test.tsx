@@ -1674,4 +1674,31 @@ describe('TeacherRosterTab', () => {
     expect(screen.getByText('Grace')).toBeInTheDocument()
     expect(screen.queryByText('No students on the roster')).not.toBeInTheDocument()
   })
+  it('opens separate repository-report cleanup from validated removed targets across every discovery page',async()=>{
+    const first={student_id:'20000000-0000-4000-8000-000000000001',generation_id:'30000000-0000-4000-8000-000000000001',email:'first@example.invalid',name:'First removed',scope:'repolight_only',report_cleanup_available:true}
+    const second={...first,student_id:'20000000-0000-4000-8000-000000000002',generation_id:'30000000-0000-4000-8000-000000000002',email:'second@example.invalid',name:'Second removed'}
+    const fetchMock=vi.fn(async(input:RequestInfo|URL,init?:RequestInit)=>{
+      const url=String(input)
+      if(url.includes('/repolight-cleanup'))return mockJson({targets:url.includes('afterStudentId')?[second]:[first],enabled:true,nextStudentId:url.includes('afterStudentId')?null:first.student_id})
+      return mockJson({roster:[rosterRow]})
+    })
+    vi.stubGlobal('fetch',fetchMock);renderRoster()
+    await waitFor(()=>expect(fetchMock.mock.calls.some(([url])=>String(url).includes(`afterStudentId=${first.student_id}`))).toBe(true))
+    fireEvent.click(await screen.findByRole('button',{name:'More actions'}))
+    fireEvent.click(await screen.findByText('Remove repository reports'))
+    expect(screen.getByRole('dialog',{name:'Remove repository reports'})).toBeInTheDocument()
+    expect(screen.getByRole('option',{name:'Second removed · second@example.invalid'})).toBeInTheDocument()
+    expect(screen.queryByRole('button',{name:'Delete live class data'})).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([,init])=>init?.method==='POST')).toBe(false)
+  })
+
+  it('discards the entire report-cleanup projection when a later discovery page fails',async()=>{
+    const target={student_id:'20000000-0000-4000-8000-000000000001',generation_id:'30000000-0000-4000-8000-000000000001',email:'first@example.invalid',name:'First removed',scope:'repolight_only',report_cleanup_available:true}
+    const fetchMock=vi.fn(async(input:RequestInfo|URL)=>String(input).includes('/repolight-cleanup') ? String(input).includes('afterStudentId') ? {ok:false,status:503,json:async()=>({error:'unavailable'})} : mockJson({targets:[target],enabled:true,nextStudentId:target.student_id}) : mockJson({roster:[rosterRow]}))
+    vi.stubGlobal('fetch',fetchMock);renderRoster()
+    await waitFor(()=>expect(fetchMock.mock.calls.some(([url])=>String(url).includes('afterStudentId'))).toBe(true))
+    fireEvent.click(await screen.findByRole('button',{name:'More actions'}))
+    expect(screen.queryByText('Remove repository reports')).not.toBeInTheDocument()
+  })
+
 })

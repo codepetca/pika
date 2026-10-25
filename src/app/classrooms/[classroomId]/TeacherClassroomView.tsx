@@ -653,6 +653,18 @@ export function TeacherClassroomView({
 
   const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const deleteOperationIdsRef = useRef(new Map<string,string>())
+  const deleteGenerationRef = useRef(0)
+  const pendingDeleteRef = useRef(pendingDelete)
+  pendingDeleteRef.current = pendingDelete
+  const [deleteCleanupPending,setDeleteCleanupPending] = useState<{classroomId:string;assignmentId:string} | null>(null)
+  const [deleteFailure,setDeleteFailure] = useState<{scope:string;message:string} | null>(null)
+  useEffect(() => {
+    setPendingDelete(null)
+    setIsDeleting(false)
+    return () => {deleteGenerationRef.current += 1}
+  },[classroom.id])
+
   const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [individualHeaderMeta, setIndividualHeaderMeta] = useState<{
@@ -2181,25 +2193,41 @@ export function TeacherClassroomView({
   }
 
   async function deleteAssignment() {
-    if (!pendingDelete) return
+    if (!pendingDelete || isDeleting) return
+    const target = pendingDelete
+    const scope = `${classroom.id}:${target.id}`
+    const generation = ++deleteGenerationRef.current
+    const isCurrent = () => deleteGenerationRef.current === generation && currentClassroomIdRef.current === classroom.id && pendingDeleteRef.current?.id === target.id
+    const operationId = deleteOperationIdsRef.current.get(scope) || crypto.randomUUID()
+    deleteOperationIdsRef.current.set(scope,operationId)
+    setDeleteFailure(null)
     setError('')
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/teacher/assignments/${pendingDelete.id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/teacher/assignments/${target.id}`, {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({operationId})})
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to delete assignment')
+      if (!isCurrent()) return
+      if (data.errorCode === 'repolight_cleanup_pending') {
+        if (typeof data.operationId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.operationId)) throw new Error('Cleanup progress could not be verified. Retry deletion to check its saved request.')
+        deleteOperationIdsRef.current.set(scope,data.operationId)
+        setDeleteCleanupPending({classroomId:classroom.id,assignmentId:target.id})
+        return
       }
+      if (!response.ok || data.success !== true) throw new Error(data.error || 'Failed to delete assignment')
+      deleteOperationIdsRef.current.delete(scope)
+      setDeleteCleanupPending(null)
       setPendingDelete(null)
       invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
       await loadAssignments()
-      if (selection.mode === 'assignment' && selection.assignmentId === pendingDelete.id) {
-        setSelectionAndPersist({ mode: 'summary' })
+      if (selection.mode === 'assignment' && selection.assignmentId === target.id) setSelectionAndPersist({mode:'summary'})
+    } catch (err: unknown) {
+      if (isCurrent()) {
+        const message = err instanceof Error ? err.message : 'Failed to delete assignment'
+        setDeleteFailure({scope,message})
+        setError(message)
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete assignment')
     } finally {
-      setIsDeleting(false)
+      if (deleteGenerationRef.current === generation && currentClassroomIdRef.current === classroom.id) setIsDeleting(false)
     }
   }
 
@@ -2971,8 +2999,9 @@ export function TeacherClassroomView({
       <ConfirmDialog
         isOpen={!!pendingDelete}
         title="Delete assignment?"
-        description={pendingDelete ? `${pendingDelete.title}\n\nThis cannot be undone.` : undefined}
-        confirmLabel={isDeleting ? 'Deleting...' : 'Delete'}
+        errorMessage={pendingDelete && deleteFailure?.scope === `${classroom.id}:${pendingDelete.id}` ? deleteFailure.message : undefined}
+        description={pendingDelete ? `${pendingDelete.title}\n\n${deleteCleanupPending?.classroomId === classroom.id && deleteCleanupPending.assignmentId === pendingDelete.id ? 'Repository-report cleanup is pending. The assignment has not been deleted. Retry deletion to continue the same saved request.\n\n' : ''}This cannot be undone.` : undefined}
+        confirmLabel={isDeleting ? 'Deleting...' : deleteCleanupPending?.classroomId === classroom.id && deleteCleanupPending.assignmentId === pendingDelete?.id ? 'Retry deletion' : 'Delete'}
         cancelLabel="Cancel"
         confirmVariant="danger"
         isConfirmDisabled={isDeleting}

@@ -49,6 +49,9 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
   assignment_repo_review_results: ['student_id'],
   assignment_repo_review_runs: ['triggered_by'],
   assignment_repo_targets: ['student_id'],
+  assignment_repolight_runs: ['actor_id','student_id'],
+  assignment_repolight_reports: ['student_id'],
+  assignment_repolight_feedback_imports: ['actor_id','student_id'],
   assignment_submission_artifacts: ['student_id'],
   assignments: ['created_by'],
   classroom_enrollments: ['student_id'],
@@ -454,6 +457,9 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('test_student_availability', 'tests', 'test_id', ['student_identity', 'operations']),
   resource('classroom_retired_assessment_records', 'classrooms', 'classroom_id', ['teacher_content', 'student_identity', 'student_work', 'grades_and_feedback', 'operations']),
   resource('classroom_retired_assessment_record_actors', 'classroom_retired_assessment_records', 'record_id', ['student_identity']),
+  resource('assignment_repolight_runs','assignments','assignment_id',['student_identity','external_reference','operations'],'exclude',['classrooms']),
+  resource('assignment_repolight_reports','assignment_repolight_runs','run_id',['student_identity','external_reference','operations'],'exclude',['assignments'],['run_id']),
+  resource('assignment_repolight_feedback_imports','assignment_repolight_runs','run_id',['student_identity','grades_and_feedback','operations'],'exclude',['assignments']),
 ] as const satisfies readonly ClassroomResource[]
 
 export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[number]['table']

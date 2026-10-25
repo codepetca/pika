@@ -1,4 +1,5 @@
-import { createHash, randomUUID } from 'node:crypto'
+import { advanceReservedRepoLightCleanup } from '@/lib/server/repolight-decommission-database'
+import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { classifyAttendanceDecommissionError } from '@/lib/server/attendance-decommission'
@@ -52,6 +53,8 @@ const inventorySchema = z.object({
   operational_counts: z.record(z.string(), z.number().int().nonnegative()).optional(),
   conflicting_operation: z.string().nullable().optional(),
   deletion_available: z.boolean().optional(),
+  can_reserve_cleanup: z.boolean().optional(),
+  cleanup_unavailable_reason: z.string().nullable().optional(),
   unavailable_reason: z.string().nullable().optional(),
 }).passthrough()
 
@@ -126,7 +129,10 @@ async function rpc(
   name: string,
   args: Record<string, unknown>,
 ): Promise<unknown> {
-  const { data, error } = await untyped(supabase).rpc(name, args)
+  return checkedPurgeRpc(await untyped(supabase).rpc(name, args))
+}
+
+function checkedPurgeRpc({ data, error }: { data: unknown; error: RpcError | null }): unknown {
   if (error) {
     const decommission = classifyAttendanceDecommissionError(error)
     throw new ClassroomPurgeError(
@@ -157,10 +163,6 @@ function inventoryConfiguration() {
   const secretKey = process.env.SUPABASE_SECRET_KEY
   if (!supabaseUrl || !secretKey) throw new Error('Missing Supabase inventory environment variables')
   return { supabaseUrl, secretKey }
-}
-
-function canonicalHash(value: unknown): string {
-  return createHash('sha256').update(JSON.stringify(value)).digest('hex')
 }
 
 async function readRoot(supabase: ServiceClient, teacherId: string, classroomId: string) {
@@ -378,6 +380,8 @@ async function readStableImpact(
       storage_counts: after.storage_counts,
       conflicting_operation: after.conflicting_operation ?? null,
       deletion_available: after.deletion_available,
+      can_reserve_cleanup: after.can_reserve_cleanup ?? false,
+      cleanup_unavailable_reason: after.cleanup_unavailable_reason ?? null,
       unavailable_reason: after.unavailable_reason ?? null,
     })
   }
@@ -404,83 +408,30 @@ export async function startClassroomPurge(args: {
 }): Promise<ClassroomPurgeStatus> {
   uuidSchema.parse(args.operationId)
   const supabase = getServiceRoleClient()
-  const replayQuery = untyped(supabase).from('classroom_purge_operations').select('id') as {
-    eq(column: string, value: string): {
-      eq(column: string, value: string): {
-        eq(column: string, value: string): {
-          eq(column: string, value: string): {
-            maybeSingle(): PromiseLike<{ data: unknown; error: RpcError | null }>
-          }
-        }
-      }
-    }
-  }
-  const completedReplay = await replayQuery
-    .eq('id', args.operationId)
-    .eq('teacher_id', args.teacherId)
-    .eq('classroom_id', args.classroomId)
-    .eq('status', 'completed')
-    .maybeSingle()
-  if (completedReplay.error) {
-    throw new ClassroomPurgeError(
-      completedReplay.error.code || 'purge_replay_read_failed',
-      'Could not verify the completed permanent deletion',
-      500,
-      true,
-    )
-  }
-  if (completedReplay.data) {
+  const replay = await supabase.from('classroom_purge_operations').select('id')
+    .eq('id', args.operationId).eq('teacher_id', args.teacherId).eq('classroom_id', args.classroomId)
+    .eq('status', 'completed').maybeSingle()
+  if (replay.error) throw new ClassroomPurgeError('purge_replay_read_failed', 'Could not verify deletion progress', 503, true)
+  if (replay.data) {
+    if (uuidSchema.parse(replay.data.id).toLowerCase() !== args.operationId.toLowerCase()) throw new ClassroomPurgeError('purge_replay_unverified', 'Could not verify deletion progress', 503)
     return getClassroomPurgeStatus(args.teacherId, args.operationId)
   }
-  const impact = await readStableImpact(supabase, args.teacherId, args.classroomId)
-  if (
-    impact.source_revision !== args.expectedSourceRevision
-    || impact.storage_inventory_sha256 !== args.expectedStorageInventorySha256
-    || impact.operational_inventory_sha256 !== args.expectedOperationalInventorySha256
-  ) {
-    throw new ClassroomPurgeError(
-      'classroom_purge_inventory_changed',
-      'Classroom data changed after the deletion impact was shown. Review it and confirm again.',
-      409,
-      true,
-    )
-  }
-  if (args.confirmation !== 'DELETE' && args.confirmation !== impact.classroom_title) {
-    throw new ClassroomPurgeError(
-      'confirmation_mismatch',
-      'Type the classroom name exactly, or type DELETE',
-      400,
-    )
-  }
-  if (!impact.deletion_available) {
-    throw new ClassroomPurgeError(
-      impact.conflicting_operation || 'classroom_purge_disabled',
-      impact.unavailable_reason || 'Permanent deletion is not available',
-      impact.conflicting_operation ? 409 : 503,
-      Boolean(impact.conflicting_operation),
-    )
-  }
-  const requestSha256 = canonicalHash({
-    classroom_id: args.classroomId,
-    teacher_id: args.teacherId,
-    source_revision: args.expectedSourceRevision,
-    storage_inventory_sha256: args.expectedStorageInventorySha256,
-    operational_inventory_sha256: args.expectedOperationalInventorySha256,
-    intent: 'delete_permanently',
-  })
-  const begun = parseResult(await rpc(supabase, 'begin_hot_archived_classroom_purge', {
+  // SQL validates ownership, typed confirmation, current inventory and replay
+  // using one canonical request fingerprint throughout the operation lifecycle.
+  const begun = parseResult(await getServiceRoleClient().rpc('reserve_repolight_hot_classroom_purge_v1', {
     p_operation_id: args.operationId,
     p_teacher_id: args.teacherId,
     p_classroom_id: args.classroomId,
-    p_request_sha256: requestSha256,
-    p_impact_summary: impact,
-  }))
+    p_confirmation: args.confirmation,
+    p_expected_source_revision: args.expectedSourceRevision,
+    p_expected_storage_inventory_sha256: args.expectedStorageInventorySha256,
+    p_expected_operational_inventory_sha256: args.expectedOperationalInventorySha256,
+  }).then(checkedPurgeRpc))
   if (begun.operation_id?.toLowerCase() !== args.operationId.toLowerCase() || ![200, 202].includes(begun.status)
     || !classroomPurgeOperationStatusSchema.safeParse(begun.operation_status).success) {
     throw new ClassroomPurgeError('purge_begin_unverified', 'Deletion outcome could not be verified', 503)
   }
-  await tickClassroomPurge(args.teacherId, args.operationId)
-  return getClassroomPurgeStatus(args.teacherId, args.operationId)
+  return tickClassroomPurge(args.teacherId, args.operationId)
 }
 
 export async function getClassroomPurgeStatus(
@@ -591,6 +542,9 @@ export async function advanceClassroomPurge(
   teacherId: string,
   operationId: string,
 ): Promise<{ operation: ClassroomPurgeStatus; advanced: boolean }> {
+  if (!await advanceReservedRepoLightCleanup(teacherId, operationId)) {
+    return { operation: { ...await getClassroomPurgeStatus(teacherId, operationId), repolight_cleanup_pending: true }, advanced: false }
+  }
   const supabase = getServiceRoleClient()
   const leaseToken = randomUUID()
   const claimed = z.array(purgeObjectSchema).parse(await rpc(

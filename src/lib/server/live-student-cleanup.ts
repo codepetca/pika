@@ -1,3 +1,5 @@
+import { getRepoLightRemovedContext, projectRepoLightRemovedStatus } from '@/lib/server/repolight-removed-student-cleanup'
+import { advanceReservedRepoLightCleanup, RepoLightManualCleanupRequiredError } from '@/lib/server/repolight-decommission-database'
 import { discoverRetainedStudentCleanupGroups } from '@/lib/server/retained-student-cleanup-discovery'
 import { ApiError } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -15,6 +17,7 @@ export function requireLiveStudentCleanupEnabled() {
 export function createLiveStudentCleanup(dependencies: {
   providers: ReturnType<typeof createStudentProviderCleanupDatabaseCoordinator>
   academic: ReturnType<typeof createRemovedStudentAcademicCleanupDatabaseCoordinator>
+  repolight?: (scope: StudentProviderScope) => Promise<boolean>
 }) {
   return {
     read: (scope: StudentProviderScope) => dependencies.providers.read(scope),
@@ -22,6 +25,10 @@ export function createLiveStudentCleanup(dependencies: {
     async advance(scope: StudentProviderScope) {
       const before = await dependencies.providers.read(scope)
       if (before.cleanup_completed) return { ...before, errors: [] }
+      if (dependencies.repolight && !await dependencies.repolight(scope)) {
+        return { ...before, repolight_cleanup_pending: true,
+          blockers: before.blockers?.filter(blocker => blocker !== 'repolight_erasure_required'), errors: [] }
+      }
       const attempts = await Promise.allSettled([
         dependencies.providers.advance(scope, 'pal'), dependencies.providers.advance(scope, 'bara'),
       ])
@@ -49,12 +56,13 @@ export function createLiveStudentCleanup(dependencies: {
   }
 }
 
-export function liveStudentCleanup() {
+export function liveStudentCleanup(options: { automatic?: boolean } = {}) {
   requireLiveStudentCleanupEnabled()
   const supabase = getServiceRoleClient()
   const coordinator = createLiveStudentCleanup({
-    providers: createStudentProviderCleanupDatabaseCoordinator(supabase, { live: true }),
+    providers: createStudentProviderCleanupDatabaseCoordinator(supabase, { live: true, ...(options.automatic ? { automatic: true } : {}) }),
     academic: createRemovedStudentAcademicCleanupDatabaseCoordinator(supabase),
+    repolight: scope => advanceReservedRepoLightCleanup(scope.teacherId, scope.operationId),
   })
   return {
     reserve: (scope: StudentProviderScope) => {
@@ -71,6 +79,7 @@ export function liveStudentCleanup() {
 async function publicLiveCleanupResult<T>(work: () => Promise<T>): Promise<T> {
   try { return await work() } catch (error) {
     if (error instanceof StudentProviderCleanupError) {
+      if (error.code === 'manual_confirmation_required') throw new RepoLightManualCleanupRequiredError()
       if (error.code === 'binding_invalid') throw new ApiError(409,
         'This operation does not match the live membership policy. It cannot be continued here.')
       if (error.code === 'terminal_failure') throw new ApiError(409,
@@ -83,7 +92,16 @@ async function publicLiveCleanupResult<T>(work: () => Promise<T>): Promise<T> {
 }
 
 /** Discovery is read-only, scoped to the current teacher and retained removal. */
-export async function getLiveStudentCleanupTarget(teacherId: string, classroomId: string, studentId: string) {
+export function isManualRepoLightCleanupEnabled() {
+  return process.env.PIKA_LIVE_STUDENT_CLEANUP_ENABLED === 'true'
+}
+
+export async function getLiveStudentCleanupTarget(teacherId: string, classroomId: string, studentId: string, requestedScope?: 'repolight_only') {
+  if (requestedScope === 'repolight_only') {
+    const context = await getRepoLightRemovedContext({ teacherId, classroomId, studentId })
+    return { generation_id: context.generation_id, enabled: isManualRepoLightCleanupEnabled(),
+      operation: context.operation_id ? projectRepoLightRemovedStatus(context) : null, scope: 'repolight_only' as const }
+  }
   const targets = await discoverRetainedStudentCleanupGroups(teacherId, classroomId, isLiveStudentCleanupEnabled(), studentId)
   const target = targets[0]
   if (!target) throw new ApiError(409, 'An exact removed membership is required')
@@ -96,8 +114,14 @@ export async function getLiveStudentCleanupTarget(teacherId: string, classroomId
 }
 
 /** Pausing activation must not hide durable evidence or progress a provider. */
-export function readLiveStudentCleanup(scope: StudentProviderScope) {
-  return publicLiveCleanupResult(() => createStudentProviderCleanupDatabaseCoordinator(undefined, { live: true }).read(scope))
+export async function readLiveStudentCleanup(scope: StudentProviderScope, requestedScope?: 'repolight_only') {
+  if (requestedScope === 'repolight_only') {
+    const context = await getRepoLightRemovedContext(scope)
+    if (context.operation_id !== scope.operationId) throw new ApiError(409, 'Cleanup operation does not match this membership')
+    return projectRepoLightRemovedStatus(context)
+  }
+  const operation = await publicLiveCleanupResult(() => createStudentProviderCleanupDatabaseCoordinator(undefined, { live: true }).read(scope))
+  return { ...operation, scope: 'provider_bound' as const }
 }
 
 export function isLiveStudentCleanupEnabled() {

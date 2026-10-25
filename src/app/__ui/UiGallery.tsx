@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { Spinner } from '@/components/Spinner'
 import { AppHeader } from '@/components/AppHeader'
+import { AssignmentRepoLightPattern } from './AssignmentRepoLightPattern'
+import { RepositoryReportCleanupPattern } from './RepositoryReportCleanupPattern'
 import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
@@ -754,6 +756,8 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
             <ModalClosePattern />
             {role === 'teacher' && <MaterialCreationPattern />}
             {role === 'teacher' && <AssignmentEditSplitPattern />}
+            {role === 'teacher' && <AssignmentRepoLightPattern />}
+            {role === 'teacher' && <RepositoryReportCleanupPattern />}
             {role === 'teacher' && <TestEditSplitPattern />}
             {role === 'teacher' && <SurveyEditSplitPattern />}
             <PatternSection id="survey-results" eyebrow="Feature-owned evidence"

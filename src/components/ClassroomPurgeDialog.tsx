@@ -61,6 +61,7 @@ export function ClassroomPurgeDialog({
   const [error, setError] = useState('')
 
   const isConfirmed = confirmation === 'DELETE' || confirmation === classroomTitle
+  const canReserveCleanup = impact?.can_reserve_cleanup === true && !impact.cleanup_unavailable_reason
   const deletionStarted = Boolean(attendanceOperation || operation)
   const requiresPurgeConfirmation = !operation
     && (!attendanceOperation || attendanceOperation.attendance_removed)
@@ -195,6 +196,9 @@ export function ClassroomPurgeDialog({
       }
       current = body.operation
       if (mountedRef.current) setOperation(current)
+      if (current.repolight_cleanup_pending) {
+        throw new Error('Waiting for repository-report cleanup. Permanent deletion is not complete. Select Continue deletion to retry.')
+      }
       if (body.advanced === false) {
         throw new Error('Deletion is waiting safely for another request or retry window. Select Continue deletion shortly.')
       }
@@ -370,6 +374,7 @@ export function ClassroomPurgeDialog({
               <p className="text-sm font-medium text-text-default">
                 {operation.status === 'completed'
                   ? 'Deletion complete'
+                  : operation.repolight_cleanup_pending ? 'Waiting for repository-report cleanup'
                   : `Deleting files ${finishedFiles} of ${totalFiles}…`}
               </p>
               <p className="mt-1 text-xs text-text-muted">
@@ -428,7 +433,7 @@ export function ClassroomPurgeDialog({
           ) : null}
           {impact && !impact.deletion_available ? (
             <p className="rounded-control border border-warning bg-warning-bg px-3 py-2 text-sm text-text-default">
-              {impact.unavailable_reason || 'Permanent deletion is not available for this classroom yet.'}
+              {canReserveCleanup ? 'Repository-report cleanup is required before permanent deletion. Confirm to begin cleanup; deletion stays pending until it is verified.' : impact.cleanup_unavailable_reason === 'repolight_cleanup_pending' || impact.unavailable_reason === 'repolight_cleanup_pending' ? 'Repository-report cleanup is pending. Permanent deletion is not available yet.' : impact.cleanup_unavailable_reason || impact.unavailable_reason || 'Permanent deletion is not available for this classroom yet.'}
             </p>
           ) : null}
           {error ? (
@@ -448,7 +453,7 @@ export function ClassroomPurgeDialog({
               loading={isWorking}
               disabled={
                 isLoading
-                || (impact?.deletion_available === false && !deletionStarted)
+                || (impact?.deletion_available === false && !canReserveCleanup && !deletionStarted)
                 || Boolean(impact?.conflicting_operation)
                 || (requiresPurgeConfirmation && !isConfirmed)
                 || operation?.status === 'completed'
