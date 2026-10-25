@@ -11,24 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Roster join dates
-
-Teacher roster Joined cells now pair the existing Lucide check with a compact
-Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
-and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
-surface reference; extend: joined-cell composition and shared timezone utility.
-No shared component or new pattern; no adjacent refactor needed. Risk: none.
-Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
-joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
-captures in ignored output/playwright/, synthetic roster responses on local stack,
-compared with roster-before and Pattern Lab teacher-patterns. No overflow.
-Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
-from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
-Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
-checks and independent review receipts tracked in PR lifecycle. No migration.
-Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
-Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
-
 ## 2026-10-22 — Roster dates without checkmarks
 
 Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
@@ -663,3 +645,22 @@ First CI caught the prior pilot summary's changed controls marker; restored
 the accurate established Controls unchanged prefix without reverting admission
 or provider state. Runtime grader fix unchanged; targeted docs regression and
 independent delta review precede the next stable-SHA CI.
+
+## 2026-10-25 — Refresh the grading inspector after Return
+
+The dedicated-account manual canary exposed a stale revision after a successful
+Return. Refresh the open learner inspector only when the acknowledgement marks
+that learner returned/already returned, before awaiting list refresh. Existing
+read fences, dirty-form handling and revision-conflict refusal remain intact.
+RED component regression reproduced unchanged inspector; focused owner/controller
+141 checks pass. Synthetic real-parent/controller browser flow saves and sends
+with the refreshed revision without document reload; teacher/student desktop/
+mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
+comment into view; existing learner recovery coverage is unchanged. Two initial
+driver failures (modal accessibility scope, then same-document navigation counted
+as reload) are retained; corrected semantic/time-origin checks pass unchanged
+app code. CI browser inventory retains all prior cases and adds this scenario.
+Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
+normal reload recovery; this automatic-refresh fix still requires review/CI/main
+merge and separately authorized compatible release. Same3cohort/schema/plans and
+provider holds remain, with no production action or live-provider call.

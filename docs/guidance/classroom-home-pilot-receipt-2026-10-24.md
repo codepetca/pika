@@ -72,15 +72,41 @@ acknowledged manual scores. Owner readback then failed503: the detail reader
 required a UUID for `graded_by`, while the installed manual-grading primitive
 stores the text label `teacher`. This change aligns that metadata field with the
 existing grading/list contracts and tests the real writer shape. It changes no
-actor or relationship check. Stored work/grades were retained; Return and learner
-feedback acceptance remain pending compatible release and actual readback. Do
-not infer production deployment from this source fix or remove cohort controls.
+actor or relationship check. Its separately authorized release and actual
+readback are recorded below; cohort and provider controls remain in place.
+
+### October25 compatible release and manual Assignment results
+
+Owner-approved #1682 merged main `7c2756906` after CI40158570083 passed all ten
+checks. Promotion #1683 reconciled only journal ancestry; independent review476
+was clean and CI40160892306 passed all ten checks including PR Gate. Production
+merged `6eacd7540bfb85e6cc36f1a0dcb7f29a4b6f06b3`; canonical READY deployment
+`dpl_93s8fvDq3v3UFy4iBoGhGoWtpfyK` was verified October25 00:52 and 00:57
+America/Toronto. Exact three-account settings, the original24 provider/control
+metadata records and absent independent page flags were unchanged. No migration,
+plan/account/configuration change or held provider action occurred.
+
+A fresh owner read showed Final scores8/7/9,24/30=80%. One Return for B committed.
+The first subsequent comment autosave correctly refused a stale inspector
+revision409 before any Send. A normal page reload fetched the current document;
+then autosave and one Send succeeded. B saw Returned,80%, all rubric values and
+the synthetic comment across two reloads; A's final reload preserved them too.
+Scoped read-only SQL confirmed exactly one returned teacher-comment entry,
+empty draft and no AI provenance/review. Both existing sessions stayed signed in.
+Actual UI captures were displayed and inspected; no filesystem PNG was retained.
+
+The remaining seamless-path defect is the missing selected-inspector refresh
+after Return. The bounded source fix uses the existing refresh key only for a
+learner acknowledged as returned/already returned; pending-read and optimistic
+revision guards remain. Controlled browser verification is distinct from a
+deployed canary of that fix. Its production release and cohort expansion remain
+held; do not call the seamless path or overall goal complete from these results.
 
 | Area | Evidence retained | Remaining boundary |
 | --- | --- | --- |
 | Core Home | Actual production results above plus the accepted isolated real-cookie Home rehearsal | No new Home implementation/rehearsal needed solely for a newer timestamp. |
 | Creation replay / managed disable / source recovery | Accepted isolated same-operation replay and layered SQL/application recovery in the readiness packet | Actual production replay and direct Free create-API rejection remain unverified. No deliberate production grant/ACL outage is authorized. |
-| Assignment / Test / Survey / Gradebook | Accepted isolated [Assignment lifecycle](contextual-assignment-lifecycle-rehearsal.md), [Test](contextual-test-screen-adoption.md), [Survey](contextual-surveys.md) and [Gradebook](contextual-gradebook.md) evidence | One deployed synthetic submission → inspection → manual grade → Return → learner disclosure journey remains unverified. Home screenshots do not establish it. |
+| Assignment / Test / Survey / Gradebook | Accepted isolated [Assignment lifecycle](contextual-assignment-lifecycle-rehearsal.md), [Test](contextual-test-screen-adoption.md), [Survey](contextual-surveys.md) and [Gradebook](contextual-gradebook.md) evidence; actual deployed synthetic Assignment submission → inspection → manual grade → Return → learner rubric/comment persistence above | The Assignment path required normal reload recovery after Return; automatic inspector refresh still needs its own release/readback. Other deployed domain canaries remain distinct from this Assignment evidence. |
 | Relationship and resource denials | Accepted isolated owner-as-learner, member-as-owner, nonmember and substituted-resource checks | Production direct API/resource-substitution negatives remain unverified. UI redirects alone do not prove those API contracts. |
 | Removal / rejoin | Accepted isolated retained-removal, absent-membership, hidden-preference cleanup and blocked-rejoin evidence | Immediate readmission remains a deferred policy change, not a required successful-rejoin canary. |
 | Lifecycle / compatible recovery | Accepted paired owner-label archive/purge HTTP proofs and committed-unarchive/export-postflight503 preservation, plus schema292-compatible recovery evidence | Do not reopen superseded lifecycle gaps. Layered SQL/application proofs are not a deployed browser/PostgREST outage drill. |

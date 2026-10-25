@@ -1,9 +1,9 @@
-# Checkpoint — 2026-10-24 (America/Toronto)
+# Checkpoint — 2026-10-25 (America/Toronto)
 
 Audit27 `3b7ae978e` accepted.
 [Audit](../docs/guidance/codebase-audit-remediation-2026-10.md).
 
-Prod `1da699fdc`; #1679 CI40128782362 PASS (Oct24).
+Prod `6eacd7540`; #1683 CI40160892306 PASS (Oct25).
 Home/admission ON: 3 test accounts; page flags absent; expansion held.
 Signed-in create/join/Teaching/Joined/hide/outsider UI PASS.
 DB001–292; [receipt/gates](../docs/guidance/classroom-home-pilot-receipt-2026-10-24.md).

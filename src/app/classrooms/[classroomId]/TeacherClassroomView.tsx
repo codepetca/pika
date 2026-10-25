@@ -1808,6 +1808,9 @@ export function TeacherClassroomView({
       }
       setInfo(summaryParts.join(' • '))
       setShowReturnConfirm(false)
+      if (activeSelectedStudentId && completedStudentIds.has(activeSelectedStudentId)) {
+        setGradeSelectedRefreshCounter((count) => count + 1)
+      }
       invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
       await loadAssignments()
       // Reload assignment detail data to refresh statuses/grades

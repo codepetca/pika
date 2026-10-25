@@ -4425,6 +4425,9 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => {
       expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-assignments:${classroom.id}`)
     })
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveAttribute('data-refresh-key', '1')
+    })
     act(() => {
       window.dispatchEvent(
         new CustomEvent(TEACHER_ASSIGNMENTS_SELECTION_EVENT, {
