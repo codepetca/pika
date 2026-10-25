@@ -11,59 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Approved four-editor implementation verification
-
-Actual Assignment/Material/Test/Survey now match the approved compact prototype:
-Markdown source, shared mode/close/status header, question navigation and green
-Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
-legacy Material until content edit; source-only changes regenerate readers.
-Source/API checks cover publication timing, legacy submitted-Test access and
-literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
-transactional save attachment, archive/snapshot pins and narrow1h unclaimed
-retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
-Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
-Blueprint private-image portability is unsupported: reject incoming portable
-assets before copying/applying; preserve existing classroom source.
-
-Actual-source browser16teacher+4student matrix and existing8authoring contracts
-PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
-/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
-Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
-canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
-UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
-PASS. Audit PASS66changedTSfiles; composite mode,
-menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
-generated types and native ACL/schema/behavior receipts pending exact local
-permission. No Docker restart, shared migration or production action. Owned
-Next3036 stopped; owner prototype9026 retained. Current independent-review
-coverage ends94bd0b389;9historical launches consumed, approval for up to3new
-launches pending. PR1662 stays draft. Bounded implementation workers assisted;
-not independent review. Inherited effective models/tokens unknown; serial local
-verification limits honored after correcting an initial unflagged focused run.
-
-## 2026-10-22 — Local291 preflight and independent review
-
-Owner approved local291 and3additional reviews. Supabase local target verified
-Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
-application attempted; asked expanded exact244–291 authority, pending. Existing
-244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
-proofs PASS; shared schema unchanged. Harness final type equality differs only
-new2914-column ledger/2FKs; generated metadata pending official local generation.
-Data API historical/absent-default ACL replay PASS. Native receipts:
-/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
-Owned clones removed, local DB and Docker stopped again.
-
-Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
-and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
-(stale compatibility images and absolute URLs). One correction batch uses SQL's
-canonical source precedence and remaps protected URLs to new relative identity.
-Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
-PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
-suites71PASS. No UI delta; existing visual hashes retained. Launch12
-reserved for correction/integration after metadata/native gates; no further
-launch approved beyond12. Requested model/effort recorded; effective config,
-per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
-
 ## 2026-10-22 — Production post-date promotion preparation
 
 Owner authorized one production application of289/290 followed by main promotion.
@@ -550,24 +497,6 @@ the accurate established Controls unchanged prefix without reverting admission
 or provider state. Runtime grader fix unchanged; targeted docs regression and
 independent delta review precede the next stable-SHA CI.
 
-## 2026-10-25 — Refresh the grading inspector after Return
-
-The dedicated-account manual canary exposed a stale revision after a successful
-Return. Refresh the open learner inspector only when the acknowledgement marks
-that learner returned/already returned, before awaiting list refresh. Existing
-read fences, dirty-form handling and revision-conflict refusal remain intact.
-RED component regression reproduced unchanged inspector; focused owner/controller
-141 checks pass. Synthetic real-parent/controller browser flow saves and sends
-with the refreshed revision without document reload; teacher/student desktop/
-mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
-comment into view; existing learner recovery coverage is unchanged. Two initial
-driver failures (modal accessibility scope, then same-document navigation counted
-as reload) are retained; corrected semantic/time-origin checks pass unchanged
-app code. CI browser inventory retains all prior cases and adds this scenario.
-Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
-normal reload recovery; this automatic-refresh fix still requires review/CI/main
-merge and separately authorized compatible release. Same3cohort/schema/plans and
-provider holds remain, with no production action or live-provider call.
 ## 2026-10-24 — RepoLight integration foundation (in progress)
 
 Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
@@ -629,6 +558,25 @@ clone setup; no shared mutation. Home recovery/contention, warning lint across
 Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
 review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
 
+## 2026-10-25 — Refresh the grading inspector after Return
+
+The dedicated-account manual canary exposed a stale revision after a successful
+Return. Refresh the open learner inspector only when the acknowledgement marks
+that learner returned/already returned, before awaiting list refresh. Existing
+read fences, dirty-form handling and revision-conflict refusal remain intact.
+RED component regression reproduced unchanged inspector; focused owner/controller
+141 checks pass. Synthetic real-parent/controller browser flow saves and sends
+with the refreshed revision without document reload; teacher/student desktop/
+mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
+comment into view; existing learner recovery coverage is unchanged. Two initial
+driver failures (modal accessibility scope, then same-document navigation counted
+as reload) are retained; corrected semantic/time-origin checks pass unchanged
+app code. CI browser inventory retains all prior cases and adds this scenario.
+Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
+normal reload recovery; this automatic-refresh fix still requires review/CI/main
+merge and separately authorized compatible release. Same3cohort/schema/plans and
+provider holds remain, with no production action or live-provider call.
+
 ## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
 
 Owner explicitly overrode task workflow review-budget/low-usage stops through
@@ -647,3 +595,16 @@ Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
 upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
 SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
 CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-25 — RepoLight rebase after green CI
+
+CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
+SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
+(#1684 selected-inspector refresh after Return), creating continuity conflicts.
+Rebased feature commits; only CURRENT/archive conflicts required resolution.
+Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
+receipt and all held controls. No new deployment/query/provider authority.
+SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
+reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
+that equivalence; new-head CI still reruns the actual proof. Focused checks and
+one targeted main-sync review precede ready; task stop override remains active.

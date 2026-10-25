@@ -49984,3 +49984,57 @@ GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No app
 retry, fixture/post mutation, flag/account/provider/billing change or Docker
 restart. Attributable tokens/active time unknown. Final receipt docs review/CI
 remains; production promotion worktree retired, shared env target preserved.
+
+<!-- pika-session-log-archive-batch:8a1ae8c633b04dbaabf33db1660e7c5d2446988e64d22e1bffb6e33b9af939e2 -->
+## 2026-10-22 — Approved four-editor implementation verification
+
+Actual Assignment/Material/Test/Survey now match the approved compact prototype:
+Markdown source, shared mode/close/status header, question navigation and green
+Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
+legacy Material until content edit; source-only changes regenerate readers.
+Source/API checks cover publication timing, legacy submitted-Test access and
+literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
+transactional save attachment, archive/snapshot pins and narrow1h unclaimed
+retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
+Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
+Blueprint private-image portability is unsupported: reject incoming portable
+assets before copying/applying; preserve existing classroom source.
+
+Actual-source browser16teacher+4student matrix and existing8authoring contracts
+PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
+Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
+canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
+UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
+PASS. Audit PASS66changedTSfiles; composite mode,
+menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
+generated types and native ACL/schema/behavior receipts pending exact local
+permission. No Docker restart, shared migration or production action. Owned
+Next3036 stopped; owner prototype9026 retained. Current independent-review
+coverage ends94bd0b389;9historical launches consumed, approval for up to3new
+launches pending. PR1662 stays draft. Bounded implementation workers assisted;
+not independent review. Inherited effective models/tokens unknown; serial local
+verification limits honored after correcting an initial unflagged focused run.
+
+## 2026-10-22 — Local291 preflight and independent review
+
+Owner approved local291 and3additional reviews. Supabase local target verified
+Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
+application attempted; asked expanded exact244–291 authority, pending. Existing
+244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
+proofs PASS; shared schema unchanged. Harness final type equality differs only
+new2914-column ledger/2FKs; generated metadata pending official local generation.
+Data API historical/absent-default ACL replay PASS. Native receipts:
+/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
+Owned clones removed, local DB and Docker stopped again.
+
+Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
+and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
+(stale compatibility images and absolute URLs). One correction batch uses SQL's
+canonical source precedence and remaps protected URLs to new relative identity.
+Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
+PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
+suites71PASS. No UI delta; existing visual hashes retained. Launch12
+reserved for correction/integration after metadata/native gates; no further
+launch approved beyond12. Requested model/effort recorded; effective config,
+per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
