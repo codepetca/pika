@@ -11,72 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Roster dates without checkmarks
-
-Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
-Extend the existing roster Joined cell; same roster/Pattern Lab reference and
-teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
-without a timestamp show the text Joined; unjoined cells stay empty. No new
-component, pattern, or widget behavior. PR1661 returned to draft for this delta;
-focused checks, screenshot refresh and targeted independent review required.
-
-## 2026-10-22 — Joined fallback checkmark
-
-Owner refinement: joined records without a saved date use the original simple
-Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
-unjoined rows remain empty. Reuse original roster status icon; same teacher-only
-roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
-No component or widget contract change. PR1661 draft during validation/review.
-
-## 2026-10-22 — Approved four-editor Markdown/image implementation
-
-Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
-separate type/classroom header, one question control bar, icon modes and green
-Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
-Markdown images round-trip and Material stores exact source beside compatibility
-nodes. Student readers use the same Markdown source. Prepared protected teacher
-image uploads, publication-aware reads, archive remapping and migration291 for
-transactional reference tracking/deferred cleanup. No migration applied yet;
-local291 and up to three extra reviewer launches explicitly requested and pending.
-Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
-apart from a corrected source-wire assertion awaiting rerun; final focused gate,
-local database/browser evidence and independent review remain. PR1662 stays draft.
-
-## 2026-10-22 — Material calendar post dates
-
-Added teacher Post date (Toronto) editing for already-posted Classwork materials;
-explicit Save moves the existing release date, with future release still owned
-by Schedule. Owner PATCH/receipt validation and migration289 retain locked
-ownership/lifecycle/immutable-field guards. Both calendar readers reuse the
-saved release date. Guidance: docs/guidance/material-post-date.md.
-UI reference: existing Material editor/Pattern Lab; reuse shared date controls,
-extend material owner, no new shared pattern. Teacher desktop/mobile light/dark
-focused/invalid captures inspected; browser4/4 and targeted298 PASS, plus date
-boundary/legacy-draft tests18 PASS. Checklist reviewed; keyboard and semantic
-state covered, no manual follow-up. Student date editor n/a; both calendar modes
-covered by date-movement regression. Risk profile none; standard independent
-review required. Branch codex/material-post-date owned by this chat. Sol/high DB
-worker handles289/profile seals/disposable replay; coordinator owns app/decisions.
-Weekly14% remaining at start; DeepSeek paused; effective model/usage and active
-coordination time unknown. Disposable001–289 replay, scheduling/post-date rollback
-proofs, generated-type equality and unchanged shared schema PASS; evidence
-/tmp/pika-material-post-date.83q3e4. Corrected one SQL fixture expression; stopped
-overlapping profile tests under host load140+. Focused gate rerunning with one
-worker before ready. Initial independent review PASS at de56dbceb; focused run
-4110PASS/24FAIL during contention (mostly timeouts). Corrected browser inventory
-598→602 and lane total600→604 for the four new matrix cases. Waiting for toolbar
-heavy-tests-released under the owner-authorized serial test plan before rerun;
-targeted review required for this test-only correction. No shared local/production
-migration applied and no production promotion.
-
-CI follow-up: owner approved one additional compatibility batch and targeted
-review within a45-minute extension. Attendance clone harness still required288;
-advance its exact-count/source upper bound to sealed289, preserving rejection of
-unknown290 and all clone/ACL/schema gates. Execute the actual source-seal
-preflight in its runner regression. Application and migration bytes unchanged.
-Runner26/26 and shell syntax PASS; no Docker invocation or SQL change. Full
-focused rerun waits for toolbar's local test slot; targeted delta review pending.
-
 ## 2026-10-22 — Announcement calendar post dates
 
 Owner expanded post-date editing to published announcements in PR1663. Reuse
@@ -549,6 +483,21 @@ Focused legacy/contextual/route-standard tests, TSC, lint and architecture check
 pass; final independent review/full focused checks remain coordinator-owned.
 No migration, dependency, account, cohort, provider or production changes.
 
+## 2026-10-23 — Prepare activation-off Home foundation release
+
+Owner explicitly approved292 locally and in production, then reviewed-main
+release with activation off. Local sole292 push and production apply40059138246
+both verified contiguous001–292; production preview40059060682 matched only292.
+Read-only checks match both installed function bodies, private RLS/ACLs and
+validated enrollment PK/FKcascade. No reset, seed, retry or production fixtures.
+Release1673 batches reviewed main3c1be2d39; full focused4738tests/151suites and
+static gates pass. Independent security464/compatibility465 complete clean.
+Reconciled only journal merge history with productioncd7179, retaining both
+parents and unchanged application/SQL/config/dependency bytes. Final delta
+review and exact-head CI precede merge. Home/admission/page settings remain
+absent; existing provider/control metadata unchanged. Live-provider, activation,
+account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
+
 ## 2026-10-24 — Release inactive classroom Home foundation
 
 Owner explicitly approved sole292 locally/production and reviewed-main release
@@ -646,6 +595,10 @@ the accurate established Controls unchanged prefix without reverting admission
 or provider state. Runtime grader fix unchanged; targeted docs regression and
 independent delta review precede the next stable-SHA CI.
 
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
+
 ## 2026-10-25 — Refresh the grading inspector after Return
 
 The dedicated-account manual canary exposed a stale revision after a successful
@@ -664,3 +617,19 @@ Reconciled actual #1683 production receipt/source6eacd7540 and manual canary wit
 normal reload recovery; this automatic-refresh fix still requires review/CI/main
 merge and separately authorized compatible release. Same3cohort/schema/plans and
 provider holds remain, with no production action or live-provider call.
+
+## 2026-10-25 — Prepare manual-grader reader compatible release
+
+Owner approved this exact grader-label fix after review and CI, retaining only
+the existing three-account cohort, plans, schema and provider holds. PR1682
+merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
+1683 reconciles only journal ancestry with production1da699fdc, preserving both
+histories and all non-history bytes from reviewed main. Independent cumulative
+compatibility review and exact-head CI precede protected production merge. No
+new provider call, migration, cohort expansion or account change is authorized.
+Both owner and learner sessions remain signed in; Return/feedback wait for the
+compatible READY deployment and fresh readback.
+
+## 2026-10-25 — Approved Return inspector compatible release
+
+Prepare production promotion of reviewed main19b5/PR1684 after the owner approved this exact compatible fix. Only runtime change is selected-inspector refresh after acknowledged Return; existing revision/dirty/write fences remain. Reconcile the two history files while preserving both parents; reuse accepted source/component/browser review477 and complete cumulative promotion review before ready CI. Keep exactly three pilot accounts, schema292, plans and live-provider/expansion holds unchanged. Signed-in no-reload Return/comment canary follows actual READY/source/control verification.
