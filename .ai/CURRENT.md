@@ -1,8 +1,8 @@
 # Checkpoint — 2026-10-25 (America/Toronto)
 
-RepoLight checks/reviews pass; publication approved.
+RepoLight pilot fix local: codex/repolight-local-pilot.
 Analyze OFF;293 unapplied shared/prod. [Contract](../docs/integrations/repolight.md).
-Full upstream: JOURNAL-ARCHIVE(c7ff0f1f/f00d723f/7c275690/19b5abab).
+Upstream: JOURNAL-ARCHIVE(c7ff0f1f/f00d723f/7c275690/19b5abab).
 
 DB001–292;Prod6eacd7540;#1683 CI40160892306 PASS. Home/admission ON for3test
 accounts;page flags absent;expansion held. Signed-in create/join/Teaching/Joined/

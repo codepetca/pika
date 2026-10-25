@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Production post-date promotion preparation
-
-Owner authorized one production application of289/290 followed by main promotion.
-Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
-CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
-service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
-checks PASS. Two Sol/high cumulative production→main reviews passed with no
-findings. PR1664 encountered only journal conflict; union preserves both parent
-histories and trim restores chronology. Application/Supabase trees stay identical
-to main. One journal-resolution batch and targeted review/final CI pending; no
-production retry, fixture write, flag, account or provider change.
-
 ## 2026-10-23 — Markdown editor CI correction batch
 
 PR1662 returned to draft after391a CI: Test & Build passed; ECR throttled3setup jobs;
@@ -608,3 +596,7 @@ SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
 reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
 that equivalence; new-head CI still reruns the actual proof. Focused checks and
 one targeted main-sync review precede ready; task stop override remains active.
+
+## 2026-10-25 — RepoLight local pilot and repeat-click guard
+
+Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.

@@ -24,6 +24,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
   const admission = useRef<{owner:string;sourceKey:string;requestId:string} | null>(null)
   const boundSelection = useRef<string | null>(null)
   const imports = useRef<{key:string;requestId:string} | null>(null)
+  const [importedPreviews,setImportedPreviews] = useState<Record<string,string[]>>({})
   const [refresh,setRefresh] = useState(0)
   const [record,setRecord] = useState<RecordState>({owner,targetOwner,context:null,report:null,busy:false,error:''})
   const current = record.owner === owner ? record : record.targetOwner === targetOwner ? {...record,owner,context:record.context ? {...record.context,run:null} : null,report:null,busy:false,error:''} : {owner,targetOwner,context:null,report:null,busy:false,error:''}
@@ -105,9 +106,14 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
     } catch (caught) {if (alive.current && ownerRef.current === owner && generation.current === cycle) update({busy:false,error:message(caught)})}
   }
 
+  const previewKey = (scopeKey: string) => JSON.stringify([owner,current.report?.bundle.bundleRef,current.report?.reportDigest,scopeKey])
+  const isFeedbackImported = (scopeKey: string,text: string) => importedPreviews[previewKey(scopeKey)]?.includes(text) ?? false
+
   async function importFeedback(scopeKey: string,text: string) {
     const run = current.context?.run
     if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.context?.state !== 'ready' || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
+    if (isFeedbackImported(scopeKey,text)) return
+    const acceptedPreviewKey = previewKey(scopeKey)
     const session = beginImport()
     const key = JSON.stringify([owner,run.id,current.report.reportDigest,scopeKey,text,session.expectedDocUpdatedAt])
     if (imports.current?.key !== key) imports.current = {key,requestId:crypto.randomUUID()}
@@ -115,9 +121,10 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
       const reply = repoLightImportResultSchema.parse(await fetchJSON(`${base}/${run.id}/import`,{init:post({requestId:imports.current.requestId,scopeKey,expectedDocUpdatedAt:session.expectedDocUpdatedAt,expectedReportDigest:current.report.reportDigest,feedbackText:text}),errorMessage:'Could not add repository feedback. Your reviewed text is kept; retry to reconcile.'}))
       if (!alive.current || ownerRef.current !== owner) throw new Error('The selected student or repository changed. Reopen their work before reconciling feedback.')
       session.accept(reply.doc)
+      setImportedPreviews(previous => ({...previous,[acceptedPreviewKey]:[...(previous[acceptedPreviewKey] || []),text]}))
       imports.current = null
     } finally {session.finish()}
   }
 
-  return {...current,run:current.context?.run || null,analyze,openReport,importFeedback,refreshStatus:() => setRefresh(value => value + 1)}
+  return {...current,run:current.context?.run || null,analyze,openReport,importFeedback,isFeedbackImported,refreshStatus:() => setRefresh(value => value + 1)}
 }
