@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Roster join dates
-
-Teacher roster Joined cells now pair the existing Lucide check with a compact
-Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
-and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
-surface reference; extend: joined-cell composition and shared timezone utility.
-No shared component or new pattern; no adjacent refactor needed. Risk: none.
-Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
-joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
-captures in ignored output/playwright/, synthetic roster responses on local stack,
-compared with roster-before and Pattern Lab teacher-patterns. No overflow.
-Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
-from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
-Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
-checks and independent review receipts tracked in PR lifecycle. No migration.
-Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
-Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
-
-## 2026-10-22 — Roster dates without checkmarks
-
-Owner follow-up: remove the Joined checkmark, leaving the compact date alone.
-Extend the existing roster Joined cell; same roster/Pattern Lab reference and
-teacher desktop/mobile light/dark default/selected matrix. Legacy joined rows
-without a timestamp show the text Joined; unjoined cells stay empty. No new
-component, pattern, or widget behavior. PR1661 returned to draft for this delta;
-focused checks, screenshot refresh and targeted independent review required.
-
-## 2026-10-22 — Joined fallback checkmark
-
-Owner refinement: joined records without a saved date use the original simple
-Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
-unjoined rows remain empty. Reuse original roster status icon; same teacher-only
-roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
-No component or widget contract change. PR1661 draft during validation/review.
-
 ## 2026-10-22 — Approved four-editor Markdown/image implementation
 
 Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
@@ -567,6 +532,21 @@ Focused legacy/contextual/route-standard tests, TSC, lint and architecture check
 pass; final independent review/full focused checks remain coordinator-owned.
 No migration, dependency, account, cohort, provider or production changes.
 
+## 2026-10-23 — Prepare activation-off Home foundation release
+
+Owner explicitly approved292 locally and in production, then reviewed-main
+release with activation off. Local sole292 push and production apply40059138246
+both verified contiguous001–292; production preview40059060682 matched only292.
+Read-only checks match both installed function bodies, private RLS/ACLs and
+validated enrollment PK/FKcascade. No reset, seed, retry or production fixtures.
+Release1673 batches reviewed main3c1be2d39; full focused4738tests/151suites and
+static gates pass. Independent security464/compatibility465 complete clean.
+Reconciled only journal merge history with productioncd7179, retaining both
+parents and unchanged application/SQL/config/dependency bytes. Final delta
+review and exact-head CI precede merge. Home/admission/page settings remain
+absent; existing provider/control metadata unchanged. Live-provider, activation,
+account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
+
 ## 2026-10-24 — Release inactive classroom Home foundation
 
 Owner explicitly approved sole292 locally/production and reviewed-main release
@@ -663,3 +643,19 @@ First CI caught the prior pilot summary's changed controls marker; restored
 the accurate established Controls unchanged prefix without reverting admission
 or provider state. Runtime grader fix unchanged; targeted docs regression and
 independent delta review precede the next stable-SHA CI.
+
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
+
+## 2026-10-25 — Prepare manual-grader reader compatible release
+
+Owner approved this exact grader-label fix after review and CI, retaining only
+the existing three-account cohort, plans, schema and provider holds. PR1682
+merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
+1683 reconciles only journal ancestry with production1da699fdc, preserving both
+histories and all non-history bytes from reviewed main. Independent cumulative
+compatibility review and exact-head CI precede protected production merge. No
+new provider call, migration, cohort expansion or account change is authorized.
+Both owner and learner sessions remain signed in; Return/feedback wait for the
+compatible READY deployment and fresh readback.
