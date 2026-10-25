@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Final editor/image review candidate
-
-Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
-and no backend remains. Durable native receipts beside actual-editor captures:
-/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
-Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
-17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
-change. Correct archive fixture to real rich_instructions field. All160affected
-startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
-UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
-remain identical to full-checked00ae6b071; closing docs/test-only delta.
-Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
-findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
-model/effort recorded, effective configuration/tokens/seconds not exposed.
-Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
-Ready-PR CI follows stable exact-head verdict; no merge or production action.
-
 ## 2026-10-23 Authenticated CI Supabase registry repair
 
 PR1662's four remaining lanes failed before tests with the anonymous ECR data
@@ -598,3 +581,15 @@ metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
 released to both coordinated Pika tasks. Connection provisioning and hosted
 integration acceptance remain pending. Standalone inventory diagnostic limitation
 is tracked in the integration guide/PR; no passing claim for that command.
+
+## 2026-10-25 — Controlled RepoLight connection and blank-login regression
+
+User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
+attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
+redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
+Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
+Normal controlled student join/repository save/submit PASS. Teacher overview exposed
+own undefined optional GitHub metadata; mapper now omits absent fields. Regression
+failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
+and source release pending; no report/import/grade/sent-feedback acceptance claimed.
+Private connection/pilot receipts remain outside Git.

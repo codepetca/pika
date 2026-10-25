@@ -189,6 +189,25 @@ describe('getSubmissionRequirementCompletion', () => {
 })
 
 describe('submissionArtifactsToAssignmentArtifacts', () => {
+  it.each([{}, { repo_owner: null, repo_name: null, normalized_url: null, github_login: null }])('omits absent optional repository metadata %#', metadata => {
+    const [mapped] = submissionArtifactsToAssignmentArtifacts([
+      artifact({ type: 'repo_link', metadata_json: metadata }),
+    ])
+
+    for (const field of ['repo_owner', 'repo_name', 'normalized_url', 'github_username']) {
+      expect(mapped).not.toHaveProperty(field)
+    }
+  })
+
+  it.each(['synthetic-login', ''])('preserves supplied repository metadata strings, including login %j', githubLogin => {
+    const metadata = { repo_owner: 'synthetic-owner', repo_name: 'project', normalized_url: 'https://github.com/synthetic-owner/project', github_login: githubLogin }
+    const [mapped] = submissionArtifactsToAssignmentArtifacts([
+      artifact({ type: 'repo_link', metadata_json: metadata }),
+    ])
+
+    expect(mapped).toMatchObject({ repo_owner: metadata.repo_owner, repo_name: metadata.repo_name, normalized_url: metadata.normalized_url, github_username: githubLogin })
+  })
+
   it('maps structured artifacts into existing teacher artifact display objects', () => {
     expect(submissionArtifactsToAssignmentArtifacts([
       artifact({

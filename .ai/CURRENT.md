@@ -1,7 +1,7 @@
 # Checkpoint — 2026-10-25 (America/Toronto)
 
-Prod #1687 dbd1f62c1; RepoLight Analyze/AI OFF.
-293 verified in prod; shared local unchanged. [Contract](../docs/integrations/repolight.md).
+Prod dbd1f62c1; RepoLight A connected; AI OFF.
+293 prod; local unchanged. Pilot pending: [Contract](../docs/integrations/repolight.md).
 Upstream: JOURNAL-ARCHIVE(c7ff0f1f/f00d723f/7c275690/19b5abab).
 
 Core #1685 CI40193720551 PASS. Home/admission ON for3test
