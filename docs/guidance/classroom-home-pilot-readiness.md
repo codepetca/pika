@@ -1,9 +1,11 @@
 # Classroom Home recovery and pilot readiness
 
-This is a preparation packet, not an activation instruction or approval.
-Production Home/page/cohort activation and all live-provider calls/configuration
-remain held. Immediate readmission policy is deferred; keep the existing final
-removal guard. Billing and subscription work is separately owned.
+This packet describes preparation and acceptance requirements, not activation
+authority. The owner subsequently authorized the exact three-account Home pilot;
+its [dated receipt](classroom-home-pilot-receipt-2026-10-24.md) supersedes the
+unfilled preparation fields below for that cohort only. Broader activation and
+all live-provider calls/configuration remain held. Immediate readmission policy
+is deferred; keep the existing final-removal guard. Billing is separately owned.
 
 ## Compatible recovery floor
 
@@ -54,6 +56,7 @@ the source recovers, fresh reads recover without changing admission or roles.
 | Recovery SQL contract in the existing offline owned-clone verifier | **Passed2026-10-24:** installed atomic creation, managed disable/new-operation denial/completed replay, real service-role42501, exact ACL restoration, relationships/work preservation and rollback equality | HTTP/PostgREST connection-pool/cache behavior, browser outage behavior or deployed recovery |
 | Focused route/adapter/server-page recovery tests | Actual application mapping of capability42501 to503 with no writer/legacy fallback, retained independent reads and subsequent recovery for both global-role labels | Real transport/database provenance; their database responses are synthetic |
 | Inactive production release receipt | Exact released payload, schema292, public unauthenticated smoke checks and activation-off metadata at that observation | Signed-in production canaries or future configuration stability |
+| [Three-account production pilot receipt](classroom-home-pilot-receipt-2026-10-24.md) | Actual owner-assisted signed-in create, reciprocal code join, Teaching/Joined, persisted hide/unhide and outsider UI denial; dated configuration and stored-state checks | Direct create-API rejection/replay, submission/manual-grade-return, other API/resource denials, provider readiness or expansion authority |
 
 The combined check is a **layered isolated prepilot growth-freeze/recovery
 proof**, not one operational PostgREST→SDK outage journey. Preserve this
@@ -86,7 +89,12 @@ fresh attempt. Its failure/cleanup/source-preservation evidence is retained.
 No Pika runtime or schema fix was needed. Neither case proves a deployed or
 real-HTTP outage/recovery journey.
 
-## Pilot decision sheet — not yet authorized
+## Historical preparation decision sheet
+
+These were unfilled preparation fields before the separately authorized pilot.
+Use the dated receipt and private operator record for its actual window, source,
+cohort and observed results. Do not interpret these placeholders as instructions
+to activate another window or undo the retained three-account configuration.
 
 Record these privately before activating anything:
 

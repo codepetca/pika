@@ -49658,3 +49658,12 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:4acf05012edc7dafd30dda8b5a570fc8afd14bca91833dee9239b28222a04eb2 -->
+## 2026-10-22 — Settings switch motion consistency
+
+- Source inventory identified remaining editor menu, switch and desktop-shell motion gaps. Selected the bounded production SettingsSwitch owner; the separate SettingsMockup lookalike is not acceptance evidence.
+- Native baseline confirmed 150ms track/thumb transitions persisted under reduced motion. Shared fast duration/standard easing and transition-none now cover both decorative spans, preserving immediate native state/callbacks and fixed labels.
+- Added an independent fixed-state Pattern Lab composition of actual SettingsSwitchRow and TeacherGradebookVisibilityControl, including disabled/saving. Existing eight owner tests, sixteen role/viewport/theme/motion native contexts and twelve browser contracts pass, including four unchanged catalog goldens. Twenty current state captures inspected; zero native API requests/page errors/overflow. Live reduced-motion changes retire transitions immediately.
+- Initial canonical gate passed 1267 tests/91 files and independent review found no blockers. PR #1660 CI exposed an inherited assignment-editor readiness race: the grading toolbar can exist before the details-backed More actions control. The two adjacent Markdown/visual editing tests now await that actual control; all 85 TeacherClassroomView tests pass. No production component changed in this correction. Updated canonical gate, targeted independent review and exact-head CI/PR Gate/main merge remain.
+- No dependency, database, grade policy or production change; broader experience epic remains incomplete.
