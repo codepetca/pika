@@ -1,5 +1,5 @@
 import { validateTeacherAuthoringImagesReviewedMigration } from './teacher-authoring-images-reviewed-migration'
-/** Exact source-only271–292 extension. This does not grant migration, native
+/** Exact source-only271–293 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
 import { validateAnnouncementPostDateReviewedMigration } from './announcement-post-date-reviewed-migration'

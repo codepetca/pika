@@ -5,7 +5,7 @@ import {
   type AnalysisStatus, type AnalysisResult, type ClientBinding, type CreateAnalysisRequest, type ErasureRequest,
 } from '@/lib/contracts/repolight/service/contract'
 import { makeRepositoryTarget, normalizeGitHubLogin } from '@/lib/contracts/repolight/engine/repo'
-import type { PublicRepositoryRequest } from '@/lib/contracts/repolight/report/bundle-contract'
+import { publicRepositoryRequestSchema, type PublicRepositoryRequest } from '@/lib/contracts/repolight/report/bundle-contract'
 import { parseRepoLightConfig, type RepoLightConnection } from './repolight-config'
 
 export class RepoLightClientError extends Error {
@@ -28,7 +28,12 @@ export function prepareRepoLightCreate(value: unknown): PreparedRepoLightCreate 
     const envelope = createAnalysisRequestSchema.parse(value)
     const binding = clientBindingSchema.parse(envelope.clientBinding)
     if (!/^[a-f0-9]{64}$/.test(binding.sourceRevisionRef)) throw new Error()
-    const prepared = { ...envelope, clientBinding: binding }
+    if (/\.git\.git$/i.test(envelope.request.repositoryUrl)) throw new Error()
+    // Match service/api.ts: validate the plain URL first, then fingerprint the canonical target URL.
+    const target = makeRepositoryTarget(envelope.request.repositoryUrl, envelope.request.branch)
+    if (!target) throw new Error()
+    const repositoryUrl = publicRepositoryRequestSchema.shape.repositoryUrl.parse(target.repoUrl)
+    const prepared = { ...envelope, request: { ...envelope.request, repositoryUrl }, clientBinding: binding }
     const encodedBody = canonicalRepoLightJson(prepared)
     if (Buffer.byteLength(encodedBody) > 65536) throw new Error()
     return { envelope: prepared, encodedBody, requestFingerprint: digestRepoLightJson(prepared) }

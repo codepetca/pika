@@ -4442,4 +4442,39 @@ describe('TeacherClassroomView', () => {
     expect(assignmentSummaryLoadCount).toBeGreaterThan(1)
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([input]) => String(input) === '/api/teacher/assignments/assignment-1')).toHaveLength(2)
   })
+  it('keeps assignment cleanup pending visible and retries its authoritative saved operation ID',async()=>{
+    const operationId = '80000000-0000-4000-8000-000000000001'
+    const bodies: Array<{operationId:string}> = []
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async(input:RequestInfo | URL,init?:RequestInit)=>{
+      const url = String(input)
+      if (url === `/api/classrooms/${classroom.id}/class-days`) return {ok:true,json:async()=>({class_days:[]})}
+      if (url === '/api/teacher/assignments/assignment-1' && init?.method === 'DELETE') {
+        bodies.push(JSON.parse(String(init.body)))
+        return bodies.length < 3 ? {ok:false,status:409,json:async()=>({errorCode:'repolight_cleanup_pending',operationId})} : {ok:true,status:200,json:async()=>({success:true})}
+      }
+      if (url === '/api/teacher/assignments/assignment-1') return {ok:true,json:async()=>makeAssignmentDetails('assignment-1','Assignment One','student-1')}
+      return {ok:false,json:async()=>({error:`Unhandled fetch: ${url}`})}
+    })
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    render(<TeacherClassroomView classroom={classroom} />)
+    await waitFor(()=>expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('assignment-1'))
+    fireEvent.click(getAssignmentUtilityAction('Delete Assignment'))
+    fireEvent.click(screen.getByRole('button',{name:'Delete'}))
+    await screen.findByRole('button',{name:'Retry deletion'})
+    expect(screen.getByRole('dialog')).toHaveTextContent('The assignment has not been deleted.')
+    expect(bodies).toHaveLength(1)
+    expect(bodies[0].operationId).toMatch(/^[0-9a-f-]{36}$/)
+    fireEvent.click(screen.getByRole('button',{name:'Retry deletion'}))
+    await waitFor(()=>expect(bodies).toHaveLength(2))
+    expect(bodies[1].operationId).toBe(operationId)
+    expect(screen.getByRole('dialog')).toHaveTextContent('Repository-report cleanup is pending.')
+    fireEvent.click(screen.getByRole('button',{name:'Cancel'}))
+    fireEvent.click(getAssignmentUtilityAction('Delete Assignment'))
+    fireEvent.click(screen.getByRole('button',{name:'Retry deletion'}))
+    await waitFor(()=>expect(bodies).toHaveLength(3))
+    expect(bodies[2].operationId).toBe(operationId)
+    await waitFor(()=>expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+  })
+
 })

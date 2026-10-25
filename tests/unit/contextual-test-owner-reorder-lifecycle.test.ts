@@ -1,3 +1,4 @@
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { AssertionError } from 'node:assert'
@@ -80,9 +81,10 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current292 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(292)
-    expect(current.at(-1)).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
+  it('binds the complete current293 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(293)
+    expect(current.at(-1)).toMatchObject(REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION)
+    expect(current[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))
     expect(manifest.sql.migrationManifestSha256).not.toBe(testOwnerDigest(JSON.stringify(current.slice(0, 259).map(({ name, sha256 }) => ({ name, sha256 })))))

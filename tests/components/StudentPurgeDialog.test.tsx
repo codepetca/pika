@@ -167,3 +167,22 @@ it('recovers a lost final reply, then clears the completed identity before refre
   expect(props.onCompleted).toHaveBeenCalledOnce()
   expect(fetch).toHaveBeenCalledTimes(3)
 })
+
+it('keeps full cleanup pending when repository reports still need erasure',async()=>{
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue(discovery({operation:{...pending,repolight_cleanup_pending:true}})))
+ await open()
+ expect(screen.getByText('Waiting for repository-report cleanup.')).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:'Continue cleanup'})).toBeEnabled()
+ expect(props.onCompleted).not.toHaveBeenCalled()
+})
+
+it('never presents report-only completion as full live-data cleanup or joining authorization',async()=>{
+ const reportOnly={operation_id:opId,scope:'repolight_only',academic_preserved:true,status:'completed',pal:'out_of_scope',bara:'out_of_scope',local_status:'not_started',cleanup_completed:true,repolight_cleanup_pending:false,blockers:[]}
+ vi.stubGlobal('fetch',vi.fn().mockResolvedValue(discovery({operation:reportOnly,scope:'repolight_only'})))
+ render(<StudentPurgeDialog {...props} />)
+ fireEvent.change(screen.getByRole('combobox'),{target:{value:target.generation_id}})
+ await screen.findByText(/Only repository reports are in scope/)
+ expect(props.onCompleted).not.toHaveBeenCalled()
+ expect(screen.queryByText(/can now be added and join again/)).not.toBeInTheDocument()
+ expect(screen.queryByRole('button',{name:'Delete live class data'})).not.toBeInTheDocument()
+})

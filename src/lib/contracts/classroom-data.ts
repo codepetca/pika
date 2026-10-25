@@ -426,9 +426,6 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('assignment_repo_review_runs', 'assignments', 'assignment_id', ['grades_and_feedback', 'operations'], 'include_structured'),
   resource('assignment_repo_review_results', 'assignment_repo_review_runs', 'run_id', ['student_identity', 'grades_and_feedback', 'operations'], 'include_structured', ['assignments']),
   resource('assignment_repo_targets', 'assignments', 'assignment_id', ['student_identity', 'external_reference']),
-  resource('assignment_repolight_runs','assignments','assignment_id',['student_identity','external_reference','operations'],'exclude',['classrooms']),
-  resource('assignment_repolight_reports','assignment_repolight_runs','run_id',['student_identity','external_reference','operations'],'exclude',['assignments'],['run_id']),
-  resource('assignment_repolight_feedback_imports','assignment_repolight_runs','run_id',['student_identity','grades_and_feedback','operations'],'exclude',['assignments']),
   resource('assignment_submission_requirements', 'assignments', 'assignment_id', ['teacher_content'], 'include_structured'),
   resource('assignment_submission_artifacts', 'assignment_docs', 'assignment_doc_id', ['student_identity', 'student_work', 'external_reference'], 'exclude', ['assignment_submission_requirements']),
   resource('class_days', 'classrooms', 'classroom_id', ['teacher_content', 'operations']),
@@ -460,6 +457,9 @@ export const CLASSROOM_RELATIONAL_RESOURCES = [
   resource('test_student_availability', 'tests', 'test_id', ['student_identity', 'operations']),
   resource('classroom_retired_assessment_records', 'classrooms', 'classroom_id', ['teacher_content', 'student_identity', 'student_work', 'grades_and_feedback', 'operations']),
   resource('classroom_retired_assessment_record_actors', 'classroom_retired_assessment_records', 'record_id', ['student_identity']),
+  resource('assignment_repolight_runs','assignments','assignment_id',['student_identity','external_reference','operations'],'exclude',['classrooms']),
+  resource('assignment_repolight_reports','assignment_repolight_runs','run_id',['student_identity','external_reference','operations'],'exclude',['assignments'],['run_id']),
+  resource('assignment_repolight_feedback_imports','assignment_repolight_runs','run_id',['student_identity','grades_and_feedback','operations'],'exclude',['assignments']),
 ] as const satisfies readonly ClassroomResource[]
 
 export type ClassroomResourceTable = (typeof CLASSROOM_RELATIONAL_RESOURCES)[number]['table']

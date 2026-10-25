@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Button, ContentDialog, FormField, Input, Select } from '@/ui'
 import { useLiveStudentCleanup } from '@/hooks/useLiveStudentCleanup'
-import type { LiveCleanupTarget } from '@/lib/validations/live-student-cleanup'
+import type { LiveCleanupStatus, LiveCleanupTarget } from '@/lib/validations/live-student-cleanup'
 
 type Props = {
   classroomId: string
@@ -38,12 +38,13 @@ function CleanupDetails({ classroomId, target, onCompleted, onClose }: {
   classroomId: string; target: LiveCleanupTarget; onCompleted: () => void; onClose: () => void
 }) {
   const [confirmation, setConfirmation] = useState('')
-  const state = useLiveStudentCleanup(classroomId, target, onCompleted)
+  const state = useLiveStudentCleanup(classroomId, target, (status?:LiveCleanupStatus) => {if(status?.scope !== 'repolight_only' && status?.cleanup_completed && !status.repolight_cleanup_pending)onCompleted()})
   const { operation, busy, ready, enabled, error, hasSaved } = state
-  const done = operation?.cleanup_completed
+  const done = operation?.scope !== 'repolight_only' && operation?.cleanup_completed && !operation.repolight_cleanup_pending
   const blocked = Boolean(operation?.blockers?.length) || operation?.errors?.some(item => !item.retryable)
   const providerWaiting = operation && (operation.pal !== 'completed' || operation.bara !== 'deleted')
   const retryableFailure = operation?.errors?.some(item => item.retryable)
+  if(state.cleanupScope === 'repolight_only' || operation?.scope === 'repolight_only') return <div className="space-y-3"><p className="text-sm text-text-muted">Only repository reports are in scope here. Use Remove repository reports from the roster. Academic data and other provider activity are kept.</p><Button variant="secondary" onClick={onClose}>Close</Button></div>
   return <div className="space-y-4">
     {!done && <div className="rounded-card border border-danger bg-danger-bg p-4 text-sm text-text-default">
       <p className="font-semibold text-danger">This cannot be undone.</p>
@@ -57,7 +58,7 @@ function CleanupDetails({ classroomId, target, onCompleted, onClose }: {
         : done ? 'Cleanup verified. The student can now be added and join again with fresh class data.'
           : operation ? (!enabled ? 'Cleanup is paused. Saved progress is available.' : blocked ? 'Cleanup needs attention. Some data cannot yet be safely removed.'
             : retryableFailure ? 'A service request failed. You can retry the next step.'
-              : providerWaiting ? 'Waiting for linked services.' : 'Classroom data cleanup is pending.')
+              : operation.repolight_cleanup_pending ? 'Waiting for repository-report cleanup.' : providerWaiting ? 'Waiting for linked services.' : 'Classroom data cleanup is pending.')
             : ready ? (enabled ? 'Ready for confirmation.' : 'Cleanup is paused. You can check saved progress.') : 'Cleanup has not been verified.'}
     </div>
     {operation && !done && <p className="text-xs text-text-muted">Each Continue runs one step. No further steps run after you close this dialog. Reopen it to check or continue.</p>}

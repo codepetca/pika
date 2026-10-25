@@ -413,6 +413,8 @@ export function TeacherWorkInspector({
   gradeSaving,
   mutationsDisabled = false,
   writeActionsDisabled = false,
+  repositoryImporting = false,
+  repositoryReview,
   showDraftAutosavedNotice,
   highlightedSections = [],
   expandedSections,
@@ -452,6 +454,8 @@ export function TeacherWorkInspector({
   gradeSaving: boolean
   mutationsDisabled?: boolean
   writeActionsDisabled?: boolean
+  repositoryImporting?: boolean
+  repositoryReview?: ReactNode
   showDraftAutosavedNotice: boolean
   highlightedSections?: readonly InspectorSectionId[]
   expandedSections: InspectorSectionId[]
@@ -462,9 +466,9 @@ export function TeacherWorkInspector({
   handleReturnFeedback: () => Promise<void>
   handleSetGradeMode: (mode: GradeSaveMode) => Promise<void>
 }) {
-  const gradeMutationsDisabled = gradeSaving || feedbackReturning || mutationsDisabled
+  const gradeMutationsDisabled = gradeSaving || feedbackReturning || mutationsDisabled || repositoryImporting
   const writeCommandsDisabled = gradeMutationsDisabled || writeActionsDisabled
-  const feedbackEditorDisabled = feedbackReturning || mutationsDisabled
+  const feedbackEditorDisabled = feedbackReturning || mutationsDisabled || repositoryImporting
   const gradeStatusLabel = gradeSaving
     ? `Saving ${gradeMode === 'graded' ? 'graded' : 'draft'}...`
     : data.doc?.graded_at
@@ -526,6 +530,7 @@ export function TeacherWorkInspector({
         </Fragment>
       ),
     },
+    ...(repositoryReview ? [{id:'repository' as const,title:'Repository',summary:null,content:repositoryReview}] : []),
     {
       id: 'grades',
       title: 'Grade',
@@ -638,9 +643,9 @@ export function TeacherWorkInspector({
       <div className="flex-1 overflow-y-auto scrollbar-hover">
         <div>
           {sections
-            .filter((section) => editMode || visibleSections.includes(section.id))
+            .filter((section) => section.id === 'repository' || editMode || visibleSections.includes(section.id))
             .map((section) => {
-              const visible = visibleSections.includes(section.id)
+              const visible = section.id === 'repository' || visibleSections.includes(section.id)
 
               return (
                 <InspectorSection
@@ -649,7 +654,7 @@ export function TeacherWorkInspector({
                   title={section.title}
                   expanded={expandedSections.includes(section.id)}
                   visible={visible}
-                  editMode={editMode}
+                  editMode={editMode && section.id !== 'repository'}
                   highlighted={highlightedSections.includes(section.id)}
                   summary={section.summary}
                   action={section.action}

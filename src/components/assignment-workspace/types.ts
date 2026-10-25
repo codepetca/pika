@@ -10,7 +10,7 @@ import type {
   AssignmentStatus,
 } from '@/types'
 
-export type InspectorSectionId = 'history' | 'grades' | 'comments'
+export type InspectorSectionId = 'history' | 'repository' | 'grades' | 'comments'
 
 export interface StudentWorkData {
   assignment: Assignment

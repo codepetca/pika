@@ -1,3 +1,4 @@
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
@@ -100,8 +101,9 @@ describe('inert unpublication source proof', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')
     expect(() => validateTestOwnerUnpublicationReviewedMigration({ name, sql, sha256: createHash('sha256').update(sql).digest('hex') })).not.toThrow()
     const m = testOwnerUnpublicationNativePlan(original, 'b'.repeat(40), process.cwd())
-    expect(m.migrations).toHaveLength(292)
-    expect(m.migrations.at(-1)).toEqual(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
+    expect(m.migrations).toHaveLength(293)
+    expect(m.migrations.at(-1)).toEqual(REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION)
+    expect(m.migrations[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.nativeVerified).toBe(false)
     for (const sql of [m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {
       expect(validateTestOwnerUnpublicationNativePlanSql(m,sql)).toBe(true)

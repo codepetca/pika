@@ -20,6 +20,19 @@ describe('RepoLight strict client', () => {
     expect(digestRepoLightJson(fixture.bundle)).toBe(fixture.reportDigest)
     expect(digestRepoLightJson([1, 2])).not.toBe(digestRepoLightJson([2, 1]))
   })
+  it('matches service API clone-URL normalization before request fingerprints and wire bytes', () => {
+    const cloneEnvelope = { ...fixture.envelope, request: { ...fixture.envelope.request, repositoryUrl: fixture.envelope.request.repositoryUrl + '.git' } }
+    expect(prepareRepoLightCreate(cloneEnvelope)).toMatchObject({ encodedBody: fixture.encodedBody, requestFingerprint: fixture.requestFingerprint, envelope: fixture.envelope })
+    expect(() => prepareRepoLightCreate({ ...cloneEnvelope, request: { ...cloneEnvelope.request, repositoryUrl: cloneEnvelope.request.repositoryUrl + '?download=1' } })).toThrow()
+    expect(() => prepareRepoLightCreate({ ...cloneEnvelope, request: { ...cloneEnvelope.request, repositoryUrl: 'https://github.com.attacker.test/owner/repo.git' } })).toThrow()
+  })
+  it.each(['.git.git', '.git.git.git', '.GIT.git'])('rejects ambiguous clone suffix %s before normalization or network access', async suffix => {
+    const envelope = { ...fixture.envelope, request: { ...fixture.envelope.request, repositoryUrl: fixture.envelope.request.repositoryUrl + suffix } }
+    expect(() => prepareRepoLightCreate(envelope)).toThrow()
+    const { api, fetchImpl } = client([])
+    await expect(api.createAnalysis({ ...prepareRepoLightCreate(fixture.envelope), envelope, idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })).rejects.toMatchObject({ code: 'repolight_invalid_request' })
+    expect(fetchImpl).not.toHaveBeenCalled()
+  })
   it('attests capabilities before create and preserves exact saved bytes and idempotency', async () => {
     const { api, fetchImpl } = client([json(capabilities), json(status, 202)])
     expect(await api.createAnalysis({ ...prepareRepoLightCreate(fixture.envelope), idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })).toEqual(status)

@@ -28,7 +28,8 @@ export class CleanupRequestError extends Error {
     super(status === 409 ? 'This operation is not eligible for live cleanup here. Its membership or cleanup policy may differ.'
       : status === 404 ? 'Cleanup is paused or unavailable. Saved progress can still be checked.'
       : status === 403 ? 'This membership cannot be cleaned up here. Refresh its status.'
-        : 'The request could not be verified. Check saved progress before continuing.')
+        : status === 503 ? 'Cleanup is unavailable. Saved progress can still be checked.'
+          : 'The request could not be verified. Check saved progress before continuing.')
   }
 }
 export async function cleanupRequest(path: string, body?: unknown): Promise<unknown> {
@@ -62,9 +63,9 @@ export function recoverCleanupTargets(classroomId: string): LiveCleanupTarget[] 
       const key = sessionStorage.key(index)
       if (!key?.startsWith(prefix)) continue
       const [studentId, generationId, extra] = key.slice(prefix.length).split(':')
-      if (extra || !z.string().uuid().safeParse(studentId).success || !z.string().uuid().safeParse(generationId).success) continue
+      if ((extra && extra !== 'repolight_only') || !z.string().uuid().safeParse(studentId).success || !z.string().uuid().safeParse(generationId).success) continue
       if (savedCleanup(key)) targets.push({ student_id: studentId, generation_id: generationId,
-        email: '', name: 'Saved cleanup' })
+        email: '', name: 'Saved cleanup', ...(extra === 'repolight_only' ? { scope: 'repolight_only' as const } : {}) })
     }
   } catch { return [] }
   return targets

@@ -1,3 +1,4 @@
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -193,9 +194,10 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 284))).toThrow()
     expect(() => testMemberListReviewedIsolatedCatalog(currentCatalog, current.slice(0, 280))).toThrow()
   })
-  it('reproduces the former exact257 rejection of the complete current292 chain', () => {
-    expect(current).toHaveLength(292)
-    expect(current.at(-1)).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
+  it('reproduces the former exact257 rejection of the complete current293 chain', () => {
+    expect(current).toHaveLength(293)
+    expect(current.at(-1)).toMatchObject(REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION)
+    expect(current[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',
       sha256: '33fece6f4d2bc64046888d93b88a5349f1028eb9f0851ec4895f81102de2d831' })

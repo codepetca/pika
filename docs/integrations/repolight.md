@@ -1,6 +1,6 @@
 # RepoLight report integration — implementation contract
 
-Design only, 2026-10-24. Pika base `c7ff0f1f0`; RepoLight service contract 1.0
+Implementation in progress, 2026-10-24. Pika base `c7ff0f1f0`; RepoLight service contract 1.0
 is defined in its `docs/SERVICE.md` and `src/lib/service/contract.ts`. This note
 does not enable a gate, configure a credential, apply a migration, or establish
 hosted readiness. Risk: `runtime-platform` and `workspace-state`. Model:
@@ -16,13 +16,13 @@ No route in this feature calls the old `artifact-repo/run` route,
 `completeAssignmentRepoReviewRunAtomic`, AI grading, a grade-save RPC, or Return.
 The old completion path writes score suggestions even with `markGraded=false`.
 
-The current teacher inspector is
-`src/components/assignment-workspace/TeacherWorkInspector.tsx`; its sections are
-history, grades and comments. The test in
-`tests/components/TeacherStudentWorkPanel.test.tsx` explicitly hides repository
-marking. There is no current `TeacherSubmissionInspector` component. The UI
-writer must load the UI change skill, capture the current approved submission
-surface and record reuse/extend/create decisions before adding the action.
+The teacher inspector is
+`src/components/assignment-workspace/TeacherWorkInspector.tsx`. Its Repository
+section opens the summary first, with contributor selection and detailed evidence
+behind View evidence. The approved reuse/extend decisions are in
+`docs/guidance/ui/repolight-change-brief.md`; cleanup dialogs have a separate
+`repolight-cleanup-change-brief.md`. Repository reports remain separate from
+repository marking and the old AI grading flow.
 
 ## Submission selection and source identity
 
@@ -42,11 +42,12 @@ Malformed/unmatched usernames retain the RepoLight bundle's fallback notice.
 
 The existing student checklist already submits `github_login` and can prefill
 the saved account; public-repository artifact validation already permits an
-absent login. Label the field optional. Persist an explicit cleared choice
-(`github_login_selection: 'none'`) separately from an absent legacy metadata
-field, so a saved account cannot silently reappear after reload. A saved-account
-prefill is editable and does not retroactively reinterpret an old artifact.
-Inspect contextual artifact metadata/SQL allowlists before adding this marker.
+absent login. The field is optional. Once an artifact exists, its saved login
+value (including blank, null or absent) takes precedence over the saved account,
+so clearing it survives reload. The optional compatibility marker
+`github_login_selection: 'none'` is also respected when present. Only a new
+artifact may prefill the saved account; that prefill remains editable and does
+not retroactively reinterpret an old artifact.
 
 The request period is explicit and half-open. Default to the assignment release
 and due instants; if release is unavailable, use the last 60 local calendar dates
@@ -75,7 +76,7 @@ teacher creates an installation-bound API key in RepoLight's authenticated key
 screen; the authorized operator installs it in Pika's server secret store. No
 key appears in browser props, localStorage, sessionStorage, archives or logs.
 
-Proposed server settings: `PIKA_REPOLIGHT_ENABLED` (exact true, default off),
+Server settings: `PIKA_REPOLIGHT_ENABLED` (exact true, default off),
 `REPOLIGHT_API_URL` (HTTPS origin; literal loopback HTTP only in development),
 and a strict private `REPOLIGHT_TEACHER_CONNECTIONS_JSON` mapping. Each entry has
 `connectionRef`, exact Pika `teacherId`, expected opaque `workspaceRef`,
@@ -249,14 +250,15 @@ feature refinements, not handwritten generated files.
   Retained completed evidence clears unnecessary direct student identifiers and
   uses saved scope digests. No API key is stored here.
 
-Proposed service-only atomic RPCs:
-`begin_assignment_repolight_run_v1`, `claim_assignment_repolight_run_v1`,
-`authorize_assignment_repolight_egress_v1`,
-`record_assignment_repolight_remote_v1`,
-`complete_assignment_repolight_run_v1`,
-`fail_assignment_repolight_run_v1`,
+Implemented service-only atomic report RPCs:
+`get_assignment_repolight_source_v1`, `begin_assignment_repolight_run_v1`,
+`read_assignment_repolight_run_v1`, `advance_assignment_repolight_run_v1`,
 `import_assignment_repolight_feedback_v1`,
 `begin_repolight_subject_erasure_v1`, `record_repolight_subject_erasure_v1`.
+The advance RPC fences claim, authorization, remote-ID acceptance, pending polls,
+completion and retry actions with a token and generation. Cleanup uses separate
+operation-specific subject snapshot RPCs; callers do not enumerate arbitrary
+subjects and erase them before confirming the owning destructive intent.
 Read/status adapters must bind saved owner/target as rigorously as mutation RPCs.
 
 Use the existing submission fence, classroom-operation fence, target purge
@@ -296,12 +298,11 @@ feedback as an AI suggestion or reuse grading-review provenance.
 
 ## Remote erasure is an acceptance prerequisite
 
-At the service checkpoint used for this design, RepoLight has no deletion API.
-Its live jobs/reports/edits are external copies, not historical backups. A
+RepoLight's live jobs/reports/edits are external copies, not historical backups. A
 per-job DELETE is insufficient if the initial create response was lost before
 Pika saved an analysis ID. Revoking a key does not erase any report.
 
-Freeze the additive service contract before enabling Pika Analyze:
+The additive service contract is implemented and locally verified before Pika activation:
 
 ```ts
 // POST /api/v2/erasures, authenticated analyses:erase scope

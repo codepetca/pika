@@ -87,8 +87,9 @@ export async function startContextualClassroomPurge(input: Target, start: Start)
     const value = target.archiveId
       ? await startColdClassroomPurge({ ...common, archiveId: target.archiveId, expectedColdResourceInventorySha256: start.expectedColdResourceInventorySha256! })
       : await startClassroomPurge({ ...common, expectedOperationalInventorySha256: start.expectedOperationalInventorySha256! })
-    statusFor(value, target, operationId)
-    return getContextualClassroomPurgeStatus(target, operationId)
+    const progress = statusFor(value, target, operationId)
+    const current = await getContextualClassroomPurgeStatus(target, operationId)
+    return { ...current, ...(current.status !== 'completed' && progress.repolight_cleanup_pending ? { repolight_cleanup_pending: true } : {}) }
   })
 }
 
@@ -101,7 +102,8 @@ export async function advanceContextualClassroomPurge(input: Target, requestedOp
     const result = z.object({ operation: classroomPurgeStatusSchema, advanced: z.boolean() }).strict().parse(target.archiveId
       ? await advanceColdClassroomPurge(target.actorId, operationId)
       : await advanceClassroomPurge(target.actorId, operationId))
-    statusFor(result.operation, target, operationId)
-    return { operation: await getContextualClassroomPurgeStatus(target, operationId), advanced: result.advanced }
+    const progress = statusFor(result.operation, target, operationId)
+    const current = await getContextualClassroomPurgeStatus(target, operationId)
+    return { operation: { ...current, ...(current.status !== 'completed' && progress.repolight_cleanup_pending ? { repolight_cleanup_pending: true } : {}) }, advanced: result.advanced }
   })
 }

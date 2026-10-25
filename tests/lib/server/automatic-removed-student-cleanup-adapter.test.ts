@@ -34,11 +34,11 @@ describe('automatic cleanup database error classification', () => {
       if (name === 'authorize_student_provider_cleanup') return {
         data: null, error: { code: '55000', message: 'student_provider_operation_conflict' },
       }
-      if (name === 'advance_removed_student_academic_cleanup'
+      if (name === 'reserve_automatic_live_student_cleanup_v1'
         || name === 'get_student_provider_cleanup') return { data: binding, error: null }
       throw new Error(`Unexpected provider RPC ${name}`)
     })
-    const providers = createStudentProviderCleanupDatabaseCoordinator({ rpc: providerRpc } as never, { live: true })
+    const providers = createStudentProviderCleanupDatabaseCoordinator({ rpc: providerRpc } as never, { live: true, automatic: true })
     const cleanup = createLiveStudentCleanup({
       providers,
       academic: { inventory: vi.fn(), advance: vi.fn() } as never,
@@ -46,7 +46,7 @@ describe('automatic cleanup database error classification', () => {
     const claims: unknown[] = [job, null]
     const queueRpc = vi.fn(async (name: string) => name === 'claim_removed_student_cleanup_job'
       ? { data: claims.shift(), error: null }
-      : { data: true, error: null })
+      : name === 'read_repolight_cleanup_subjects_v1' ? { data: [], error: null } : { data: true, error: null })
 
     const scope = { operationId: job.operation_id, teacherId: job.teacher_id,
       classroomId: job.classroom_id, studentId: job.student_id, generationId: job.generation_id }
@@ -61,6 +61,7 @@ describe('automatic cleanup database error classification', () => {
     expect(queueRpc).toHaveBeenCalledWith('release_removed_student_cleanup_job', expect.objectContaining({
       p_error_code: 'cleanup_pending', p_completed: false,
     }))
+    expect(providerRpc).toHaveBeenCalledWith('reserve_automatic_live_student_cleanup_v1', { p_operation_id: job.operation_id, p_teacher_id: job.teacher_id, p_classroom_id: job.classroom_id, p_student_id: job.student_id, p_generation_id: job.generation_id })
     expect(pal).not.toHaveBeenCalled()
     expect(bara).not.toHaveBeenCalled()
   })

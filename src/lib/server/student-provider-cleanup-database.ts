@@ -14,6 +14,7 @@ async function result(request: PromiseLike<{
 }>) {
   const response = await request
   if (response.error) {
+    if (response.error.code === '55000' && response.error.message === 'repolight_manual_cleanup_required') throw new StudentProviderCleanupError('manual_confirmation_required', true)
     if (response.error.code === '55000' && [
       'student_provider_cleanup_disabled', 'student_live_cleanup_disabled',
       'student_live_cleanup_prerequisite_paused',
@@ -33,11 +34,13 @@ async function result(request: PromiseLike<{
 /** Service-only entry point; no route, scheduler or removal hook invokes it. */
 export function createStudentProviderCleanupDatabaseCoordinator(
   supabase: Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'> = getServiceRoleClient(),
-  options: { live?: boolean } = {},
+  options: { live?: boolean; automatic?: boolean } = {},
 ) {
   return createStudentProviderCleanupCoordinator({
     liveOnly: options.live,
-    reserve: scope => options.live
+    reserve: scope => options.automatic
+      ? result(supabase.rpc('reserve_automatic_live_student_cleanup_v1', args(scope)))
+      : options.live
       ? result(supabase.rpc('advance_removed_student_academic_cleanup', { ...args(scope), p_action: 'live_reserve' }))
       : result(supabase.rpc('reserve_student_provider_cleanup', args(scope))),
     ...(options.live ? { finish: (scope: StudentProviderScope) => result(supabase.rpc('advance_removed_student_academic_cleanup',

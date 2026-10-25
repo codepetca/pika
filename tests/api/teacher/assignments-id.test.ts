@@ -1,3 +1,5 @@
+const mockDeleteCleanup = vi.hoisted(() => vi.fn(async () => ({ complete: true, operationId: 'fixture' })))
+vi.mock('@/lib/server/repolight-assignment-delete', async original => ({ ...await original<typeof import('@/lib/server/repolight-assignment-delete')>(), deleteAssignmentWithRepoLightCleanup: mockDeleteCleanup }))
 /**
  * API tests for GET/PATCH/DELETE /api/teacher/assignments/[id]
  */
@@ -1163,10 +1165,11 @@ describe('DELETE /api/teacher/assignments/[id]', () => {
     const response = await DELETE(request, { params: { id: 'a-1' } })
 
     expect(response.status).toBe(200)
-    expect(deleteEq).toHaveBeenCalledWith('id', 'a-1')
+    expect(deleteEq).not.toHaveBeenCalled()
+    expect(mockDeleteCleanup).toHaveBeenCalledWith(expect.objectContaining({ actorId: 'teacher-1', assignmentId: 'a-1' }))
     expect(remove).not.toHaveBeenCalled()
     expect(mockRunAssignmentArtifactStorageCleanup.mock.invocationCallOrder[0])
-      .toBeGreaterThan(deleteEq.mock.invocationCallOrder[0])
+      .toBeGreaterThan(mockDeleteCleanup.mock.invocationCallOrder[0])
   })
 
   it('logs storage removal failures without failing a successful assignment delete', async () => {
