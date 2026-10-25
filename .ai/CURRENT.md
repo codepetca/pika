@@ -1,7 +1,7 @@
 # Checkpoint — 2026-10-25 (America/Toronto)
 
-Prod #1687 dbd1f62c1; RepoLight Analyze/AI OFF.
-293 verified in prod; shared local unchanged. [Contract](../docs/integrations/repolight.md).
+Prod dbd1f62c1; RepoLight A connected; AI OFF.
+Prod DB001–293; local unchanged. Pilot pending: [Contract](../docs/integrations/repolight.md).
 Upstream: JOURNAL-ARCHIVE(c7ff0f1f/f00d723f/7c275690/19b5abab).
 
 Core #1685 CI40193720551 PASS. Home/admission ON for3test
@@ -10,7 +10,7 @@ hide/outsider PASS. [Gates](../docs/guidance/classroom-home-pilot-receipt-2026-1
 Audit27 3b7ae978e accepted;decommission ON.
 Cutover/billing held;181/206/Free ON;182–205/image213 OFF. Pal membership/signals
 OFF;live calls held. Assignment/API/replay PASS;expansion held.
-Controls unchanged; prior Oct25 five-hash receipts accepted.
+Controls unchanged: prior Oct25 five-hash receipts accepted.
 253 OFF;quota creation-error/batch2 deferred.
 
 Worktrees:$HOME/.codex/worktrees/pika/;$HOME/.codex/worktrees/<id>/pika.

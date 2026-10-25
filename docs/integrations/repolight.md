@@ -18,11 +18,19 @@ routine bodies, 13 preserved renamed bodies, 31 triggers, constraints/indexes an
 current/V2 archive registrations. The public sign-in page returned 200 with an
 email-code form; anonymous session/report APIs returned 401 and Pattern Lab 404. Existing cohort/provider settings were unchanged; the window is closed.
 
-Analyze remains OFF in both server configuration and database settings. This Pika rollout
-provisioned no workspace key and left its report/subject/import tables empty.
-Paid AI remains OFF. Server connection provisioning and an authenticated hosted Pika →
-RepoLight pilot are still pending; local and separate RepoLight-hosted evidence
-is not that integration acceptance. The epic remains incomplete.
+A separately authorized controlled pilot now has one installation-bound teacher
+connection. Analyze is enabled in server configuration and database settings;
+production redeployment `dpl_7687SPdP66G1yzrvXcdb2PeaDBQW` is READY on the same
+reviewed source SHA. The original 24 provider controls and Home cohort are unchanged.
+Paid AI remains OFF. No migration was reapplied.
+
+The controlled student joined and submitted a public repository through the normal
+UI. A blank optional GitHub login exposed an assignment-overview serialization
+failure: the repository mapper emitted an own `undefined` property, which the strict
+bounded JSON validator rejected. The fix omits absent optional metadata while
+preserving supplied strings and strict raw-artifact checks. Its source/tests are
+under review; production report creation and feedback import remain unverified.
+The epic remains incomplete until the hosted pilot finishes.
 
 The standalone `scripts/inventory-classroom-archives.ts` diagnostic still compares
 the current registry against a V1-derived expectation and rejects the additive

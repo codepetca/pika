@@ -67,6 +67,28 @@ function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; 
 }
 
 describe('statement-bound assignment overview with installed SDK', () => {
+  it.each([{}, { github_login: null }])('reads a submitted repository with no optional GitHub login %#', async metadata => {
+    const d = doc(0)
+    const repository = { ...artifact(0, d, 'repo_link'), url: 'https://github.com/synthetic-owner/project',
+      metadata_json: { repo_owner: 'synthetic-owner', repo_name: 'project', normalized_url: 'https://github.com/synthetic-owner/project', ...metadata } }
+    const f = fixture({ docs: [d], requirements: [requirement(0, 'repo_link')], artifacts: [repository] })
+
+    const result = await f.read()
+    const student = result.students[0]
+    expect(student.doc?.is_submitted).toBe(true)
+    expect(student.artifacts).toHaveLength(1)
+    expect(student.artifacts[0]).toMatchObject({ type: 'repo', url: repository.url, repo_owner: 'synthetic-owner', repo_name: 'project', normalized_url: repository.url })
+    expect(student.artifacts[0]).not.toHaveProperty('github_username')
+    expect(student.submission_artifacts[0].metadata_json).toEqual(repository.metadata_json)
+  })
+
+  it.each([{ metadata_json: null }, { unexpected: true }])('still rejects malformed raw repository artifacts %#', async patch => {
+    const d = doc(0)
+    const f = fixture({ docs: [d], requirements: [requirement(0, 'repo_link')], artifacts: [{ ...artifact(0, d, 'repo_link'), ...patch }] })
+
+    await expect(f.read()).rejects.toMatchObject({ statusCode: 503 })
+  })
+
   it('binds every payload and terminal to the requested assignment, current classroom and owner', async () => {
     const f = fixture(); const result = await f.read()
     expect(result).toMatchObject({ assignment: { id: assignmentId, instructions_markdown: 'Write' }, classroom: { title: 'Class' }, students: [{ student_email: 's0@example.test', doc: null }], active_ai_grading_run: null })
