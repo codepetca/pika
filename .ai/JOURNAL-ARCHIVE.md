@@ -49880,3 +49880,18 @@ Lucide checkmark plus screen-reader Joined label. Dated rows retain date alone;
 unjoined rows remain empty. Reuse original roster status icon; same teacher-only
 roster/Pattern Lab reference, desktop/mobile light/dark default/selected matrix.
 No component or widget contract change. PR1661 draft during validation/review.
+
+<!-- pika-session-log-archive-batch:5a56aa1dc47364ab897b28445724ad6f215a5c623dfcb8d19f9a3bc0bbcdf49d -->
+## 2026-10-22 — Approved four-editor Markdown/image implementation
+
+Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
+separate type/classroom header, one question control bar, icon modes and green
+Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
+Markdown images round-trip and Material stores exact source beside compatibility
+nodes. Student readers use the same Markdown source. Prepared protected teacher
+image uploads, publication-aware reads, archive remapping and migration291 for
+transactional reference tracking/deferred cleanup. No migration applied yet;
+local291 and up to three extra reviewer launches explicitly requested and pending.
+Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
+apart from a corrected source-wire assertion awaiting rerun; final focused gate,
+local database/browser evidence and independent review remain. PR1662 stays draft.

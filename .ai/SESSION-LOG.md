@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-22 — Approved four-editor Markdown/image implementation
-
-Applied the owner-approved prototypes to Assignment/Material/Test/Survey source:
-separate type/classroom header, one question control bar, icon modes and green
-Plus FAB. Shared image insertion imports PNG/JPEG/GIF/WebP with a 2 MB limit;
-Markdown images round-trip and Material stores exact source beside compatibility
-nodes. Student readers use the same Markdown source. Prepared protected teacher
-image uploads, publication-aware reads, archive remapping and migration291 for
-transactional reference tracking/deferred cleanup. No migration applied yet;
-local291 and up to three extra reviewer launches explicitly requested and pending.
-Focused component/storage/round-trip checks and TypeScript/UI/design policy pass
-apart from a corrected source-wire assertion awaiting rerun; final focused gate,
-local database/browser evidence and independent review remain. PR1662 stays draft.
-
 ## 2026-10-22 — Material calendar post dates
 
 Added teacher Post date (Toronto) editing for already-posted Classwork materials;
@@ -690,3 +676,14 @@ CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
 and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
 offline native replays and targeted independent review tracked in PR evidence.
 Shared/prod293 remains unapplied; Analyze OFF. No provider activation.
+
+## 2026-10-24 — Complete current-chain native proof audit
+
+Caught the remaining Home visibility292 cutoff before merge; PR1681 held as
+draft and40155285541 cancelled. Home manifest now requires the exact293 seal
+while retaining historical dirty-tree manifests and all clone/source guards.
+76unit tests/types/lint/syntax pass. Real293Home replay, rollback/recovery,
+two-session contention and generated types pass; shared fingerprints unchanged.
+Audit of159direct scripts,20package aliases,282reachable files and120shell
+scripts found no remaining current-chain cutoffs. NoSQL/app/flag changes.
+Final targeted review and exact-head CI remain required; Analyze OFF.

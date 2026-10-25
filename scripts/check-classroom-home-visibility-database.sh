@@ -23,7 +23,7 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-((10#$source_version >= 234 && 10#$source_version <= 292)) || exit 1
+((10#$source_version >= 234 && 10#$source_version <= 293)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"
@@ -79,7 +79,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Seal the exact dirty-tree SQL inventory, rather than asserting a reviewed SHA.
-# This validates contiguous001–292 and binds all migration and proof bytes.
+# This validates contiguous001–293 and binds all migration and proof bytes.
 manifest() {
   node - "$root" <<'NODE'
 const assert = require('node:assert/strict')
@@ -88,8 +88,12 @@ const { readFileSync, readdirSync } = require('node:fs')
 const { join } = require('node:path')
 const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
-assert.equal(paths.length, 292, 'Expected exactly292 migrations')
+assert.equal(paths.length, 293, 'Expected exactly293 migrations')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
+// Preserve historical dirty-tree manifests; only the new 293 extension is sealed.
+const reviewed293 = '293_repolight_report_service.sql'
+assert.equal(paths[292], reviewed293, 'Unreviewed migration 293 filename')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', reviewed293))).digest('hex'), '79cfbdd6222859111dbd41f07065a801d9e1c2b6df1b39d6ba2fb45b205aefe7', 'Unreviewed migration 293 source')
 for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
@@ -122,7 +126,7 @@ done
 manifest > "$scratch/replay-manifest.sha256"
 cmp -s "$scratch/source-manifest.sha256" "$scratch/replay-manifest.sha256" || { echo 'Source changed before replay.' >&2; exit 1; }
 if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then tail -25 "$scratch/replay.log" >&2; exit 1; fi
-echo 'PASS isolated replay001–292.'
+echo 'PASS isolated replay001–293.'
 if ! sql < "$root/scripts/check-classroom-home-visibility-database.sql" > "$scratch/behavior.log" 2>&1; then tail -25 "$scratch/behavior.log" >&2; exit 1; fi
 echo 'PASS rollback-only home visibility contracts.'
 if ! sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1; then tail -25 "$scratch/recovery.log" >&2; exit 1; fi
