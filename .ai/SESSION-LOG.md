@@ -659,3 +659,7 @@ focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
 independent review and exact-head CI follow. Both pilot sessions remain signed
 in; Return/learner feedback remain pending compatible release and readback.
 No production, cohort, provider, plan or schema change; growth stays frozen.
+First CI caught the prior pilot summary's changed controls marker; restored
+the accurate established Controls unchanged prefix without reverting admission
+or provider state. Runtime grader fix unchanged; targeted docs regression and
+independent delta review precede the next stable-SHA CI.
