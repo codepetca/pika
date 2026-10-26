@@ -3,10 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-error'
 import { GET, POST } from '@/app/api/teacher/classrooms/[id]/students/[studentId]/purge/live/route'
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), gate: vi.fn(), target: vi.fn(), read: vi.fn(), reserve: vi.fn(), advance: vi.fn(), remoteContext: vi.fn(), remoteReserve: vi.fn(), remoteAdvance: vi.fn() }))
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), gate: vi.fn(), manualGate: vi.fn(), target: vi.fn(), read: vi.fn(), reserve: vi.fn(), advance: vi.fn(), remoteContext: vi.fn(), remoteReserve: vi.fn(), remoteAdvance: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role, requireAuth: mocks.auth }))
 vi.mock('@/lib/server/live-student-cleanup', () => ({
-  isManualRepoLightCleanupEnabled: () => true, isLiveStudentCleanupEnabled: () => false, readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
+  isManualRepoLightCleanupEnabled: mocks.manualGate, isLiveStudentCleanupEnabled: () => false, readLiveStudentCleanup: mocks.read, requireLiveStudentCleanupEnabled: mocks.gate, getLiveStudentCleanupTarget: mocks.target,
   liveStudentCleanup: () => ({ read: mocks.read, reserve: mocks.reserve, advance: mocks.advance }),
 }))
 const teacher = '10000000-0000-4000-8000-000000000001'
@@ -22,12 +22,71 @@ beforeEach(() => {
   vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
   mocks.auth.mockResolvedValue({ id: teacher, role: 'teacher' })
   mocks.role.mockResolvedValue({ id: teacher })
+  mocks.manualGate.mockReturnValue(true)
   mocks.remoteContext.mockResolvedValue({ generation_id: generation, scope: 'provider_bound', provider_bound: true })
   mocks.remoteReserve.mockResolvedValue({ scope: 'repolight_only', cleanup_completed: false })
+  mocks.remoteAdvance.mockResolvedValue({ scope: 'repolight_only', cleanup_completed: true })
   mocks.target.mockResolvedValue({ generation_id: generation })
   mocks.reserve.mockResolvedValue({ status: 'provider_pending', cleanup_completed: false })
   mocks.advance.mockResolvedValue({ status: 'completed', cleanup_completed: true })
   mocks.read.mockResolvedValue({ status: 'provider_pending', cleanup_completed: false })
+})
+
+describe.each(['reserve', 'advance'])('admitted contextual owner report-only cleanup: %s', action => {
+  const reportRequest = (patch = {}) => request({ action, scope: 'repolight_only', confirmation: 'REMOVE REPOSITORY REPORTS', ...patch })
+  beforeEach(() => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [teacher] }))
+    mocks.auth.mockResolvedValue({ id: teacher, role: 'student' })
+    mocks.remoteContext.mockResolvedValue({ generation_id: generation, scope: 'repolight_only', provider_bound: false })
+  })
+
+  it('uses the exact owner/retained-generation report path without other provider work', async () => {
+    const response = await POST(reportRequest(), context)
+    expect(response.status).toBe(200); expect(response.headers.get('cache-control')).toBe('no-store')
+    expect(mocks.role).not.toHaveBeenCalled()
+    expect(mocks.remoteContext).toHaveBeenCalledExactlyOnceWith({ teacherId: teacher, classroomId: classroom, studentId: student })
+    const selected = action === 'reserve' ? mocks.remoteReserve : mocks.remoteAdvance
+    const other = action === 'reserve' ? mocks.remoteAdvance : mocks.remoteReserve
+    expect(selected).toHaveBeenCalledExactlyOnceWith({ teacherId: teacher, classroomId: classroom, studentId: student, generationId: generation, operationId: operation })
+    expect(other).not.toHaveBeenCalled(); expect(mocks.reserve).not.toHaveBeenCalled(); expect(mocks.advance).not.toHaveBeenCalled()
+  })
+
+  it('denies a nonowner before decoding even malformed request JSON', async () => {
+    mocks.remoteContext.mockRejectedValue(new ApiError(403, 'Forbidden'))
+    const malformed = new NextRequest('http://localhost/purge/live', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{' })
+    expect((await POST(malformed, context)).status).toBe(403)
+    expect(mocks.remoteReserve).not.toHaveBeenCalled(); expect(mocks.remoteAdvance).not.toHaveBeenCalled()
+  })
+
+  it('preserves current generation, confirmation and explicit report scope checks', async () => {
+    expect((await POST(reportRequest({ generation_id: operation }), context)).status).toBe(409)
+    expect((await POST(reportRequest({ confirmation: 'PURGE LIVE CLASSROOM DATA' }), context)).status).toBe(400)
+    expect((await POST(reportRequest({ scope: 'provider_bound' }), context)).status).toBe(404)
+    expect(mocks.remoteReserve).not.toHaveBeenCalled(); expect(mocks.remoteAdvance).not.toHaveBeenCalled()
+    expect(mocks.reserve).not.toHaveBeenCalled(); expect(mocks.advance).not.toHaveBeenCalled()
+  })
+
+  it('preserves authoritative operation binding denial and manual pause', async () => {
+    const selected = action === 'reserve' ? mocks.remoteReserve : mocks.remoteAdvance
+    selected.mockRejectedValueOnce(new ApiError(409, 'Cleanup operation does not match this membership'))
+    expect((await POST(reportRequest(), context)).status).toBe(409)
+    mocks.manualGate.mockReturnValue(false)
+    expect((await POST(reportRequest(), context)).status).toBe(404)
+    expect(selected).toHaveBeenCalledOnce(); expect(mocks.reserve).not.toHaveBeenCalled(); expect(mocks.advance).not.toHaveBeenCalled()
+  })
+
+  it.each(['broken', JSON.stringify({ version: 2, admittedUserIds: [teacher] })])('fails closed on present malformed admission %j', async value => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', value)
+    expect((await POST(reportRequest(), context)).status).toBe(503)
+    expect(mocks.remoteContext).not.toHaveBeenCalled(); expect(mocks.remoteReserve).not.toHaveBeenCalled(); expect(mocks.remoteAdvance).not.toHaveBeenCalled()
+  })
+
+  it('authenticates anonymous actors before configuration or retained-target checks', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', 'broken')
+    mocks.auth.mockRejectedValue(new ApiError(401, 'Unauthorized'))
+    expect((await POST(reportRequest(), context)).status).toBe(401)
+    expect(mocks.remoteContext).not.toHaveBeenCalled(); expect(mocks.remoteReserve).not.toHaveBeenCalled(); expect(mocks.remoteAdvance).not.toHaveBeenCalled()
+  })
 })
 
 describe('contextual owner cleanup progress (read-only)', () => {

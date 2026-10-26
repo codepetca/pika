@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Editor production migration and release correction
-
-Owner approved exact production291 and normal editor release. Preview40003769768
-matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
-is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
-and private bucket read-only checks PASS. No production fixtures or flags changed.
-Two cumulative release reviews found one source UUID casing blocker. Correction
-f316bf7da matches UUID identity only, preserving literal route/key/full identity
-and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
-static/audit and independent targeted review PASS. Main1668 and promotion1667
-each require final exact-head CI; no production app release claimed yet.
-Promotion keeps both journal histories and reviewed correction bytes. Home292,
-provider, billing and shared-local schema remain outside this release.
-
 ## 2026-10-23 Editor production release verified
 
 Owner-approved production291 single apply40004531458 is applied-verified001–291;
@@ -516,6 +502,20 @@ own undefined optional GitHub metadata; mapper now omits absent fields. Regressi
 failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
 and source release pending; no report/import/grade/sent-feedback acceptance claimed.
 Private connection/pilot receipts remain outside Git.
+
+## 2026-10-25 RepoLight contextual-owner report admission
+
+Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
+is READY. Overview now loads; pilot stopped before Analyze because report routes
+required global Teacher for admitted contextual owner A. No report/import; AI OFF.
+Draft preparation briefly saved zero marks in Final mode; normal Draft restored
+all synthetic marks/graded/returned fields to null. Production window released
+to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
+shared admission with legacy Teacher fallback, retaining owner/source/lease fences
+and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
+a Student-labelled owner and synthetic creation grant; fixture resources removed.
+Route regressions and independent auth/compatibility review precede CI and specific
+owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
 
 ## 2026-10-25 — Prepare manual-grader reader compatible release
 
