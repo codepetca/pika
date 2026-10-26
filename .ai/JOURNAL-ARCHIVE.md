@@ -50120,3 +50120,19 @@ credential/parser reviews precede final stable-SHA CI. Existing human review-lim
 waiver covers this repair; prior13review receipts and7fix batches retained.
 No local Docker operation, migration, dependency or application/UI change in this
 batch. Another chat's bounded local verification hold remains active.
+
+<!-- pika-session-log-archive-batch:c6e71e8a0e95bee9661a50f449386e02006c9a82f7efe06be870970bc9e449db -->
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).

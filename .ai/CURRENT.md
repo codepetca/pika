@@ -1,7 +1,7 @@
 # Checkpoint — 2026-10-25 (America/Toronto)
 
-Prod45a604275; RepoLight A connected; AI OFF.
-Prod DB001–293; local unchanged. Pilot auth blocked: [Contract](../docs/integrations/repolight.md).
+Prod405ef92cc; RepoLight A connected; AI OFF.
+Prod DB001–293; local unchanged. Pilot GitHub quota: [Contract](../docs/integrations/repolight.md).
 Upstream: JOURNAL-ARCHIVE(c7ff0f1f/f00d723f/7c275690/19b5abab).
 
 Core #1685 CI40193720551 PASS. Home/admission ON for3test
