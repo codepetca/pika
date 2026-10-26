@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Authenticated CI Supabase registry repair
-
-PR1662's four remaining lanes failed before tests with the anonymous ECR data
-transfer cap, including one failed-only retry. Returned the PR to draft before
-repair. All seven Supabase jobs now select the official GHCR mirror with the
-existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
-image versions, proof commands, selectors and PR Gate remain unchanged; all17
-pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
-The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
-before login, sends the token on stdin, suppresses diagnostics and always removes
-only its own marked directory after stack cleanup. Local CI validates these exact
-credential slots and skips them without importing secrets; historical ECR/no-env
-plans remain supported. 360 focused helper/workflow/parser tests pass, including
-failed startup and rejection cases. Broader focused gate and two independent
-credential/parser reviews precede final stable-SHA CI. Existing human review-limit
-waiver covers this repair; prior13review receipts and7fix batches retained.
-No local Docker operation, migration, dependency or application/UI change in this
-batch. Another chat's bounded local verification hold remains active.
-
 ## 2026-10-23 CI registry review corrections
 
 Independent Sol/high launches14/15 completed a39a13d05's credential/security and
@@ -593,3 +574,17 @@ own undefined optional GitHub metadata; mapper now omits absent fields. Regressi
 failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
 and source release pending; no report/import/grade/sent-feedback acceptance claimed.
 Private connection/pilot receipts remain outside Git.
+
+## 2026-10-25 RepoLight contextual-owner report admission
+
+Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
+is READY. Overview now loads; pilot stopped before Analyze because report routes
+required global Teacher for admitted contextual owner A. No report/import; AI OFF.
+Draft preparation briefly saved zero marks in Final mode; normal Draft restored
+all synthetic marks/graded/returned fields to null. Production window released
+to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
+shared admission with legacy Teacher fallback, retaining owner/source/lease fences
+and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
+a Student-labelled owner and synthetic creation grant; fixture resources removed.
+Route regressions and independent auth/compatibility review precede CI and specific
+owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.

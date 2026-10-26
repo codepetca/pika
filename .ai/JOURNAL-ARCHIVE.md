@@ -50100,3 +50100,23 @@ findings resolved, no new blocker; exact-head receipt follows in PR1662. Request
 model/effort recorded, effective configuration/tokens/seconds not exposed.
 Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
 Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+<!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
+## 2026-10-23 Authenticated CI Supabase registry repair
+
+PR1662's four remaining lanes failed before tests with the anonymous ECR data
+transfer cap, including one failed-only retry. Returned the PR to draft before
+repair. All seven Supabase jobs now select the official GHCR mirror with the
+existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
+image versions, proof commands, selectors and PR Gate remain unchanged; all17
+pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
+The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
+before login, sends the token on stdin, suppresses diagnostics and always removes
+only its own marked directory after stack cleanup. Local CI validates these exact
+credential slots and skips them without importing secrets; historical ECR/no-env
+plans remain supported. 360 focused helper/workflow/parser tests pass, including
+failed startup and rejection cases. Broader focused gate and two independent
+credential/parser reviews precede final stable-SHA CI. Existing human review-limit
+waiver covers this repair; prior13review receipts and7fix batches retained.
+No local Docker operation, migration, dependency or application/UI change in this
+batch. Another chat's bounded local verification hold remains active.
