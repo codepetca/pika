@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 CI registry review corrections
-
-Independent Sol/high launches14/15 completed a39a13d05's credential/security and
-workflow/compatibility assignments. One unique P2 credential issue: empty auths
-allows Docker's platform helper discovery, which can store tokens outside the
-private directory. Seed the fixed GHCR entry to suppress discovery; its regression
-failed before the correction. A daemon-free Docker CLI probe with an isolated
-config and fake helper confirmed empty auths invokes the helper while the seeded
-entry does not; no token, actual credential store or daemon operation. The other
-P2 was the broad focused gate's canonical workflow inventory omission. Register
-both new registry suites in check:workflow; preserve every existing test. Initial
-full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
-then required focused/static checks and one targeted independent correction review
-before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
-
 ## 2026-10-23 Native inventory compatibility with CI registry credentials
 
 Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
@@ -588,3 +573,16 @@ and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
 a Student-labelled owner and synthetic creation grant; fixture resources removed.
 Route regressions and independent auth/compatibility review precede CI and specific
 owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
+
+## 2026-10-25 RepoLight release and hosted quota stop
+
+1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
+canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
+promotion review passed; all6276parent journal occurrences preserved. Controlled
+Student-labelled owner access and blank-login overview PASS. One hosted analysis
+failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
+assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
+AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
+released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
+GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
+provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
