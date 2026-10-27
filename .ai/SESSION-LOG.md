@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Native inventory compatibility with CI registry credentials
-
-Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
-39971332075 proved all7GHCR logins and image-download/startup paths, then reached
-previously blocked owner-list/draft-GET/reorder proofs. Their native environment
-checks rejected DOCKER_CONFIG before endpoint/resource discovery. PR returned to
-draft; obsolete run cancelled before any correction push. One shared assertion
-now permits only exactGHA/GHCR job-owned private config with marker, owned0600
-single-link regular bounded16KB file and onlyauths.ghcr.io.auth. Other Docker/
-proxy selectors, config keys and sidefiles remain forbidden. All3direct guards
-use it; context/TLS/local Unix socket identity, resource discovery and outer/inner
-actual-config propagation remain unchanged. Regression matrix covers credential
-isolation plus real offline native/PATCH transport protocols. No daemon restart,
-application/schema change or migration. Batch10 and two new independent guard
-reviews retain the existing human budget waiver. Normal reviewed1662main merge
-now explicitly authorized by direct human reply in classroom-home coordinator;
-verified with read_thread. No production/deploy/provider/rollout authority added.
-
-Guard reviews17/18 completed0af438c68. One P2 accepted: collector still read the
-ignored HOME Docker config after admitting the private override. Read the effective
-config instead; real-file tests cover ambient headers/malformed JSON and preserve
-default-config rejection without DOCKER_CONFIG. All207 affected helper/inventory
-cases PASS. The superseded0af full gate was deliberately cancelled before this
-source edit; new exact-source gate and targeted review19 precede CI. No timeout,
-assertion, endpoint, resource or permission control was weakened. Batch11; human
-review-limit waiver remains active.
-
 ## 2026-10-23 Derived image ledger and modal keyboard CI integration
 
 CI39977192319 proves all seven authenticated Supabase starts and the previously
@@ -586,3 +559,16 @@ AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
 released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
 GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
 provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
+
+## 2026-10-27 Accept the bounded 70-account classroom rollout
+
+Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
+and schema293 into the dated70-account acceptance receipt. Retained actual
+signed-in versus isolated/source-qualified boundaries, exact roster checks,
+selected academic preservation and compatible recovery constraints. PPZ keeps
+Tests/native attendance off/no policy/mapping/manual log unchanged. Original
+observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
+passed7timely samples and final exact70/provider/work readbacks. Timed process
+exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
+historical pilot now point to bounded acceptance; wider admission/provider/billing
+holds and incomplete epic/paused goal remain. Documentation only; no live action.
