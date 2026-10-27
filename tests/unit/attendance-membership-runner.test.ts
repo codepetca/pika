@@ -169,11 +169,11 @@ describe('isolated attendance membership database proof', () => {
 
 
 describe('isolated material and announcement post-date proof target', () => {
-  it('requires scheduling, post-date and image rollback proofs before exact metadata comparison', () => {
+  it('requires scheduling, post-date, owner-write and image rollback proofs before exact metadata comparison', () => {
     const source = runner('scripts/check-material-post-date-database.sh')
     expect(source).toContain('assert.equal(migrations.length,294')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations(migrations)')
-    const proof = source.indexOf('check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-teacher-authoring-images-database.sql; do')
+    const proof = source.indexOf('check-material-release-scheduling-database.sql check-independent-calendar-post-dates-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-contextual-material-owner-writes-database.sql check-teacher-authoring-images-database.sql; do')
     expect(proof).toBeGreaterThan(-1)
     expect(proof).toBeLessThan(source.indexOf('meta_id="$(docker create'))
     expect(source).toContain('update_announcement_for_owner_v1:; do')

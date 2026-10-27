@@ -11,67 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Compaction image rehearsal correction
-
-Independent targeted review20 accepted the ledger/browser correction but found
-an image lifecycle interaction: compaction stages real-restore URLs containing
-fresh identities before those objects are reserved. Preserve original authoring
-image identities only in rollback rehearsal via the verified plan's inverse ID
-map; real restore retains fresh identities, paths and reservation protocol.
-Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
-reproduced the unreserved staged URL;68affected archive cases PASS. Native local
-291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
-for original IDs, preserves exact managed state, and rolls every fixture back.
-Actual classroom schema audit passes284FKs; canonical migration history291 and
-zero fixture users/objects verified afterward. No SQL migration changed. Docker
-DB-only window is closed after proof; full focused gate and review21 tracked in
-retained receipts. Superseded7bbc gate deliberately terminated before edits.
-
-## 2026-10-23 Editor production migration and release correction
-
-Owner approved exact production291 and normal editor release. Preview40003769768
-matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
-is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
-and private bucket read-only checks PASS. No production fixtures or flags changed.
-Two cumulative release reviews found one source UUID casing blocker. Correction
-f316bf7da matches UUID identity only, preserving literal route/key/full identity
-and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
-static/audit and independent targeted review PASS. Main1668 and promotion1667
-each require final exact-head CI; no production app release claimed yet.
-Promotion keeps both journal histories and reviewed correction bytes. Home292,
-provider, billing and shared-local schema remain outside this release.
-
-## 2026-10-23 Editor production release verified
-
-Owner-approved production291 single apply40004531458 is applied-verified001–291;
-exact body/ACL/RLS/constraint/trigger/privatebucket read-only checks PASS. Four
-release review turns resolved one UUID casing source blocker; normal main1668
-merged b03198a9 after1012local/21534CI tests and allselectedgates. Production1667
-merged cd7179e64 after all10exact3208858CI40006108276checksPASS. Vercel
-dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
-verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
-292, flags, provider, account/billing or cleanup activation. Receipt imports both
-production/main journal histories; application/test/schema/config unchanged.
-
-## 2026-10-23 — Prepare live relationship home
-
-Implement the approved Teaching/Joined composition under exact home plus shared
-admission, preserving legacy users/session roles and the owner lifecycle manager.
-Private current-enrollment preferences persist personal hide/unhide; stale rejoin
-requests fail. Managed creation hints retain atomic quotas/idempotent replay;
-code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
-Disposable replay, rollback and real two-session contention passed; shared source
-ID/version/schema preserved, generated RPC types matched and owned resources absent.
-UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
-evidence. Initial browser failure was a selector matching Next's route announcer;
-its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
-gate and independent review still pending. Creation capability refresh regression
-failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
-unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
-owner authorized coordination and reviewed1662 merge to main only. Home numbering
-must follow upstream before readiness. No shared migration, production, provider,
-account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
-
 ## 2026-10-23 — Correct complete live-home reads
 
 Initial independent reviews425/426 completed: compatibility/UI clean, security
@@ -716,3 +655,34 @@ passed7timely samples and final exact70/provider/work readbacks. Timed process
 exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
 historical pilot now point to bounded acceptance; wider admission/provider/billing
 holds and incomplete epic/paused goal remain. Documentation only; no live action.
+
+## 2026-10-27 Prepare wider classroom admission design
+
+Prepared a proposal for one durable service-owned admission source, exact70
+bootstrap retention and staged expansion/new-user policy. Current Home/API each
+cap100; Bara also selects protocol behavior from admission. The plan requires
+Home/API consumer migration and frozen bootstrap provider-compatibility decisions
+before widening, with current nonadmitted behavior preserved too. New grants use
+atomic approved batches/growth stop; automatic signup stays off until separately
+approved. Rollout stages and exact-source recovery/verification gates are recorded;
+no code, SQL, cohort, plan, production or provider operation performed. Existing70,
+all other holds and paused goal/DeepSeek remain unchanged.
+
+## 2026-10-27 Material owner calendar receipt proof correction
+
+Owner explicitly approved one additional correction batch/eighth targeted review,
+then existing credits for this fix/review only; no purchase/reset or broader waiver.
+CI40514407721 passed22591coverage cases/8skip, TypeScript/build, both future-date
+native read proofs and cleanup. Its later owner-write proof compared the raw
+posted_on:null column with the deliberately omitted legacy receipt key. PR1695
+returned to draft; no application/SQL migration/ACL/UI change. Batch3 normalizes
+only that missing null in the comparison; strict14/15-key cases and unchanged
+historical identity/lineage/release/calendar date checks cover null and future dates.
+Private replay now records each migration after success and includes the complete
+owner-write rollback proof before metadata equality. Reproduced CI failure in
+owned offline clone /tmp/pika-material-post-date.pgrIwt; corrected full001–294
+replay/proofs/types/shared-schema equality PASS /tmp/pika-material-post-date.rnxlag.
+All owned clones removed; shared history292 unchanged. One syntax correction was
+caught locally before the final private pass. Targeted checks, canonical gate,
+review8 and replacementCI receipts follow in PR1695. No merge/release/migration
+application authorized; prior cumulative45a coverage reused for unchanged sources.

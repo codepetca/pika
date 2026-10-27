@@ -86,25 +86,30 @@ sql < "$scratch/schema.sql" > "$scratch/restore.log" 2>&1
 printf 'drop schema public cascade; drop schema private cascade; create schema public; grant usage on schema public to anon, authenticated, service_role; alter default privileges for role postgres in schema public grant all on functions to anon, authenticated, service_role; alter default privileges for role postgres in schema public grant all on tables to anon, authenticated, service_role; alter default privileges for role postgres in schema public grant all on sequences to anon, authenticated, service_role;' | sql > "$scratch/application-reset.log" 2>&1
 # One owned psql session avoids hundreds of Docker daemon round trips. Exact
 # source seals were checked above; per-file markers retain failure attribution.
+cat > "$scratch/replay.sql" <<'SQL'
+create schema supabase_migrations;
+create table supabase_migrations.schema_migrations(version text primary key);
+SQL
 for path in "$root"/supabase/migrations/*.sql; do
   file="${path##*/}"; number="${file%%_*}"
   [[ "$number" =~ ^[0-9]{3}$ ]] || exit 1
   printf '\\echo Replay %s\n' "$file" >> "$scratch/replay.sql"
   cat "$path" >> "$scratch/replay.sql"
   printf '\n' >> "$scratch/replay.sql"
+  printf "insert into supabase_migrations.schema_migrations(version) values ('%s');\n" "$number" >> "$scratch/replay.sql"
 done
 if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then
   tail -25 "$scratch/replay.log" >&2
   exit 1
 fi
 echo 'PASS replay001–294.'
-for proof in check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-teacher-authoring-images-database.sql; do
+for proof in check-material-release-scheduling-database.sql check-independent-calendar-post-dates-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-contextual-material-owner-writes-database.sql check-teacher-authoring-images-database.sql; do
   if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
     tail -25 "$scratch/$proof.log" >&2
     exit 1
   fi
 done
-echo 'PASS rollback-only material scheduling, post-date and teacher authoring image contracts.'
+echo 'PASS rollback-only material scheduling, post-date, owner-write and teacher authoring image contracts.'
 meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.material-post-date.owner=$$:$token" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-material-check -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true "$meta_image")"
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
 [[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]] || exit 1

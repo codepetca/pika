@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Local-only transaction/rollback proofs. This does not apply migrations.
-# Run only after the exact reviewed 234 has been applied through the owner flow.
+# Run against a reviewed schema including 294; this proof never applies migrations.
 MATERIAL_OWNER_SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 MATERIAL_OWNER_DB_CONTAINER='supabase_db_pika'
 [[ "$(docker inspect "$MATERIAL_OWNER_DB_CONTAINER" --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
