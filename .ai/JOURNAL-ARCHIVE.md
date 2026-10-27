@@ -50136,3 +50136,31 @@ both new registry suites in check:workflow; preserve every existing test. Initia
 full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
 then required focused/static checks and one targeted independent correction review
 before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+<!-- pika-session-log-archive-batch:dcbfd493a7569d7994b83cc3fddf26a352e6deb5ad7bdba77befa1c73a914a0a -->
+## 2026-10-23 Native inventory compatibility with CI registry credentials
+
+Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
+39971332075 proved all7GHCR logins and image-download/startup paths, then reached
+previously blocked owner-list/draft-GET/reorder proofs. Their native environment
+checks rejected DOCKER_CONFIG before endpoint/resource discovery. PR returned to
+draft; obsolete run cancelled before any correction push. One shared assertion
+now permits only exactGHA/GHCR job-owned private config with marker, owned0600
+single-link regular bounded16KB file and onlyauths.ghcr.io.auth. Other Docker/
+proxy selectors, config keys and sidefiles remain forbidden. All3direct guards
+use it; context/TLS/local Unix socket identity, resource discovery and outer/inner
+actual-config propagation remain unchanged. Regression matrix covers credential
+isolation plus real offline native/PATCH transport protocols. No daemon restart,
+application/schema change or migration. Batch10 and two new independent guard
+reviews retain the existing human budget waiver. Normal reviewed1662main merge
+now explicitly authorized by direct human reply in classroom-home coordinator;
+verified with read_thread. No production/deploy/provider/rollout authority added.
+
+Guard reviews17/18 completed0af438c68. One P2 accepted: collector still read the
+ignored HOME Docker config after admitting the private override. Read the effective
+config instead; real-file tests cover ambient headers/malformed JSON and preserve
+default-config rejection without DOCKER_CONFIG. All207 affected helper/inventory
+cases PASS. The superseded0af full gate was deliberately cancelled before this
+source edit; new exact-source gate and targeted review19 precede CI. No timeout,
+assertion, endpoint, resource or permission control was weakened. Batch11; human
+review-limit waiver remains active.

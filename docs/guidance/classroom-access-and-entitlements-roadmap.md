@@ -1,16 +1,18 @@
 # Classroom access and entitlements
 
-2026-10-25 current checkpoint: the [three-account production Home pilot](classroom-home-pilot-receipt-2026-10-24.md)
-has actual signed-in create, reciprocal owner/member Teaching/Joined, persisted
-hide/unhide and outsider UI denial evidence on schema292. Admission stays limited
-to those three accounts. Production seamless manual Assignment Return/comment,
-representative API denials, Free creation rejection, exact creation replay and
-selected-record preservation now pass on released9a845b268. Next qualify the
-retained domain proofs for an exact proposed expansion, close concrete uncovered
-interactions and obtain the separate cohort decision. Expansion/observation and
-live-provider readiness remain; the epic is incomplete. Do not repeat accepted
-lifecycle/recovery or require per-domain production rehearsals without a concrete
-applicability gap.
+2026-10-27 current checkpoint: the [70-account bounded rollout](classroom-rollout-acceptance-2026-10-27.md)
+is accepted on production405/schema293. Exact authorized owner and P3/P5/PPZ roster
+expansions retain the dedicated three-account Home, create/join/hide, seamless
+manual Assignment Return/comment, representative API denial and creation-replay
+proofs. Actual owner and representative learner canaries plus selected-record
+preservation passed. PPZ keeps Tests/native attendance off and manual/log attendance
+unchanged. Its original observation gap remains recorded; a fresh read-only
+30-minute window passed seven timely checks and final exact70/provider/work
+readbacks, closing that periodic-coverage requirement. No all70 personal UI or
+general live-provider readiness is claimed. Wider admission and provider actions
+retain separate decisions/holds; the epic remains incomplete. Reuse accepted
+unchanged lifecycle/recovery/domain proofs and close only concrete applicability
+gaps before any further expansion.
 Older implementation and activation-off statements below are historical receipts,
 not the current pilot configuration. The [live relationship home](live-classroom-home.md)
 records the implementation contract.

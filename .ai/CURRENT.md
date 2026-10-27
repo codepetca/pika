@@ -1,17 +1,16 @@
-# Checkpoint — 2026-10-25 (America/Toronto)
+# Checkpoint — 2026-10-27 (America/Toronto)
 
-Prod405ef92cc; RepoLight A connected; AI OFF.
-Prod DB001–293; local unchanged. Pilot GitHub quota: [Contract](../docs/integrations/repolight.md).
-Upstream: JOURNAL-ARCHIVE(c7ff0f1f/f00d723f/7c275690/19b5abab).
+Prod405ef92cc; DB001–293; local unchanged. RepoLight A connected; AI OFF.
+GitHub quota: [Contract](../docs/integrations/repolight.md).
 
-Core #1685 CI40193720551 PASS. Home/admission ON for3test
-accounts;page flags absent;expansion held. Signed-in create/join/Teaching/Joined/
-hide/outsider PASS. [Gates](../docs/guidance/classroom-home-pilot-receipt-2026-10-24.md).
-Audit27 3b7ae978e accepted;decommission ON.
-Cutover/billing held;181/206/Free ON;182–205/image213 OFF. Pal membership/signals
-OFF;live calls held. Assignment/API/replay PASS;expansion held.
-Controls unchanged: prior Oct25 five-hash receipts accepted.
-253 OFF;quota creation-error/batch2 deferred.
+Home/admission exact70 ON; page flags absent; further admission held.
+[Acceptance](../docs/guidance/classroom-rollout-acceptance-2026-10-27.md):
+representative canaries PASS; PPZ Tests/native OFF, manual log unchanged.
+Fresh08:04–08:34 readonly7/7 PASS;70/provider/checked work preserved.
+Prior gap retained. Audit27 3b7ae978e accepted;decommission ON.
+Billing/other provider holds unchanged;181/206/Free ON;182–205/image213/253 OFF.
+Pal membership/signals OFF;quota creation-error/batch2 deferred.
+Epic incomplete; goal/DeepSeek paused.
 
 Worktrees:$HOME/.codex/worktrees/pika/;$HOME/.codex/worktrees/<id>/pika.
 Env:$HOME/Repos/.env/pika/.env.local;.env.example.

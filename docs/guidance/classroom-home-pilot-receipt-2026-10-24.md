@@ -2,6 +2,9 @@
 
 Core Home signed-in canaries passed for the three dedicated accounts. This is
 not overall cutover completion, provider readiness, or permission to expand.
+The [October27 70-account acceptance](classroom-rollout-acceptance-2026-10-27.md)
+supersedes the three-account scope and pending-expansion statements in this
+historical receipt. Its original runtime, checks and limitations remain intact.
 The [readiness packet](classroom-home-pilot-readiness.md) retains the acceptance
 and recovery requirements; the [bounded roadmap](classroom-access-and-entitlements-roadmap.md#owner-approved-completion-strategy--2026-10-09)
 retains the goal and remaining integration gates.
@@ -166,8 +169,8 @@ applicable workflows, accepted isolated proof revisions, later source/schema
 interactions and any remaining uncovered deployed interaction. Run an additional
 canary when that assessment identifies a concrete gap.
 
-Next prepare the exact proposed cohort/class, provider applicability, compatible
-release and stop conditions. Any applicable provider canary requires separate
-readiness/authority. Expansion and its observation remain unperformed and require
-the separate cohort decision; retain the current three accounts and all provider
-holds meanwhile. Billing, broad global-role cleanup and retention remain separate.
+The separately authorized owner and P3/P5/PPZ expansions and their observation
+results are now consolidated in the [70-account acceptance](classroom-rollout-acceptance-2026-10-27.md).
+That bounded scope retains these accepted proofs with later-source qualification;
+it does not authorize wider admission or additional provider operations. Billing,
+broad global-role cleanup and retention remain separate.
