@@ -53,21 +53,17 @@ access. Use a dedicated account without provider credentials or developer `.env`
 files. Images and package/browser caches may persist; database containers, volumes
 and custom networks may not.
 
-Supabase jobs pull the pinned official GHCR images using only their ephemeral
-workflow token with `packages: read`. The registry helper creates a private Docker
-config under `RUNNER_TEMP`, exports its ownership before login, and removes it in
-an `always()` step after stack cleanup, including failed startup. It never changes
-the runner account's Docker config or requires a stored registry secret. Local
-`ci:local` plans validate and skip these exact GitHub-only credential steps;
-ordinary local image downloads use the selected registry without importing a
-workflow token. Do not add operator credentials to the runner to work around
-download failures.
-Native inventory and draft GET/save guards accept only this validated job-owned
-credential file. They reject arbitrary Docker configs and all routing overrides,
-including extra config keys or directory members, then retain their existing
-context/TLS/local Unix socket identity and full resource discovery checks. The
-outer PATCH transport and its inner inventory keep the same config, including
-credentials needed for later image pulls.
+Supabase jobs pull pinned official images from `public.ecr.aws`, the
+[Supabase CLI default registry](https://github.com/supabase/cli/blob/v2.103.0/apps/cli-go/internal/utils/docker.go#L184-L203),
+without a registry token or job-level package permission. On 2026-10-27,
+authenticated GHCR pulls repeatedly hit rate limits; the ECR and Docker Hub
+Postgres `17.6.1.132` index digests matched. GHCR returned 429 during comparison,
+so its current digest was not verified. The [Supabase mirror workflow](https://github.com/supabase/postgres/blob/develop/.github/workflows/mirror.yml)
+publishes both registries from Docker Hub. Do not add operator credentials to
+work around download failures. Local `ci:local` plans use the selected registry
+and retain validation for historical authenticated GHCR plans. Native guards
+continue to reject arbitrary Docker configs and routing overrides and check
+context, local socket identity and resources.
 
 Preflight refuses existing Docker resources, occupied test ports or checkout
 environment files before stack startup, without deleting them. Jobs stop their
