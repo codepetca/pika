@@ -572,5 +572,7 @@ bootstrap attendance protocol selection. Existing version1 and70 stay active.
 Isolated001–294 replay/ACL/rollback/committed races/source preservation and genuine
 types pass; first harness import failure retained and fixed. Focused11735 tests
 passed, plus architecture/UI/design/TypeScript/lint. All294 tables join sealed whole-row
-proof catalogs; historical profiles retained. Independent review/CI pending. No shared
+proof catalogs; historical profiles retained. Review found a concurrent growth-stop
+race; one correction gives restrictive stops priority, preserves original replay
+binding and records actual predecessor. Targeted review/CI pending. No shared
 local/prod migration/import/release/config/provider/account action; goal/DeepSeek paused.

@@ -69,12 +69,21 @@ before considering any replay.
 | Kind | Preconditions and effect |
 | --- | --- |
 | `bootstrap` | Exactly 70 canonical existing users, optional disjoint protected exclusions, uninitialized registry. Records immutable bootstrap origins; growth stays stopped. |
-| `growth_on` / `growth_off` | Initialized registry and empty user/exclusion sets. Advances the policy revision; existing grants remain. |
+| `growth_on` | Initialized registry, current expected revision and empty user/exclusion sets. Advances the policy revision without changing grants. |
+| `growth_off` | Initialized registry, an observed revision no newer than current, and empty sets. Takes priority after concurrent grants, recording both requested and actual predecessor revisions; existing grants remain. |
 | `operator` | Initialized registry, growth enabled, current expected revision, nonempty entirely new/unexcluded users and no exclusion changes. Commits the whole set or none. |
+
+If a batch commits before a concurrent stop using the same observed revision,
+the stop still commits next. Grants/enabling retain strict revision checks.
+Replaying an already committed stop returns its historical receipt and does not
+stop a subsequently resumed policy again. A distinct stop operation from an older
+observed revision intentionally stops resumed growth; future revisions refuse.
+The last safe integer revision is reserved for growth stopped. A stop changes
+only growth policy, never retained grants or compatible routing.
 
 Each operation is bounded to 5,000 combined input UUIDs; there is no global
 100-user registry cap. Duplicate/null/multidimensional arrays, unknown users,
-overlaps, stale revisions, invalid digests and malformed approval references
+overlaps, stale grant/enable revisions, future revisions, invalid digests and malformed approval references
 refuse without partial grants. No membership, quota, plan or provider state is
 written. Batch/origin records are immutable; bootstrap policy binding cannot
 be reset. This interface includes no admission-removal or account-deletion path.

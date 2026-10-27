@@ -189,7 +189,12 @@ begin
  original_digest := pg_temp.admission_digest('bootstrap',f.bootstrap,f.excluded);
  actual := public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000003',2,'operator',f.expansion,'{}',pg_temp.admission_digest('operator',f.expansion),'fixture/expansion');
  if actual->>'registry_revision' <> '3' or (select count(*) from private.classroom_experience_admission_grants) <> 110 then raise exception 'Expansion truncated'; end if;
- perform public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000004',3,'growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/growth-off');
+ -- Stop was prepared at revision2 before the winning operator batch committed.
+ actual := public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000004',2,'growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/growth-off');
+ if actual->>'requested_revision' <> '2' or actual->>'predecessor_revision' <> '3' or actual->>'registry_revision' <> '4'
+   or actual->>'growth_enabled' <> 'false' then raise exception 'Old-observed stop lost to committed batch: %',actual; end if;
+ if not exists(select 1 from private.classroom_experience_admission_batches where operation_id = 'e2941000-0000-4000-8000-000000000004'
+   and expected_revision = 2 and predecessor_revision = 3 and registry_revision = 4) then raise exception 'Stop ledger conflated requested and actual revisions'; end if;
  foreach actor in array f.bootstrap || f.expansion || f.excluded || f.unused loop
    decision := public.read_classroom_experience_admission_v2(actor);
    if decision <> jsonb_build_object('version',2,'registry_revision',4,'bootstrap_manifest_sha256',original_digest,
@@ -205,6 +210,76 @@ begin
    'e2941000-0000-4000-8000-000000000005','operator',f.unused,'{}',pg_temp.admission_digest('operator',f.unused),'fixture/still-stopped'),'55000','classroom_admission_growth_stopped');
 end
 $expansion$;
+
+-- Historical stop retries reconcile without stopping a later explicit resume.
+-- A fresh restrictive operation may intentionally stop that resumed policy using
+-- an old observed revision; enable/admission retain strict compare-and-swap.
+do $stop_priority$
+declare saved jsonb; replay jsonb; stopped jsonb; f record;
+begin
+ select * into f from admission_fixture;
+ saved := public.read_classroom_experience_admission_operation_v2('e2941000-0000-4000-8000-000000000004');
+ perform public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000006',4,'growth_on','{}','{}',pg_temp.admission_digest('growth_on','{}'),'fixture/resume');
+ replay := public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000004',2,'growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/growth-off');
+ if replay <> saved or not exists(select 1 from private.classroom_experience_admission_policy where registry_revision = 5 and growth_enabled) then
+   raise exception 'Historical stop replay changed resumed growth';
+ end if;
+ perform pg_temp.refuses(format('select public.commit_classroom_experience_admission_batch_v2(%L,3,%L,%L::uuid[],%L::uuid[],%L,%L)',
+   'e2941000-0000-4000-8000-000000000004','growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/growth-off'),
+   '23505','classroom_admission_operation_conflict');
+ perform pg_temp.refuses(format('select public.commit_classroom_experience_admission_batch_v2(%L,4,%L,%L::uuid[],%L::uuid[],%L,%L)',
+   'e2941000-0000-4000-8000-000000000008','growth_on','{}','{}',pg_temp.admission_digest('growth_on','{}'),'fixture/stale-enable'),
+   '40001','classroom_admission_revision_conflict');
+ perform pg_temp.refuses(format('select public.commit_classroom_experience_admission_batch_v2(%L,4,%L,%L::uuid[],%L::uuid[],%L,%L)',
+   'e2941000-0000-4000-8000-000000000008','operator',f.unused,'{}',pg_temp.admission_digest('operator',f.unused),'fixture/stale-admit'),
+   '40001','classroom_admission_revision_conflict');
+ perform pg_temp.refuses(format('select public.commit_classroom_experience_admission_batch_v2(%L,6,%L,%L::uuid[],%L::uuid[],%L,%L)',
+   'e2941000-0000-4000-8000-000000000008','growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/future-stop'),
+   '40001','classroom_admission_revision_conflict');
+ stopped := public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000007',2,'growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/distinct-old-stop');
+ if stopped->>'requested_revision' <> '2' or stopped->>'predecessor_revision' <> '5' or stopped->>'registry_revision' <> '6'
+   or stopped->>'growth_enabled' <> 'false' or not exists(select 1 from private.classroom_experience_admission_policy where registry_revision = 6 and not growth_enabled)
+   or (select count(*) from private.classroom_experience_admission_grants) <> 110 then
+   raise exception 'Distinct old-observed stop failed or removed retained grants';
+ end if;
+ if public.read_classroom_experience_admission_v2(f.expansion[40])->>'admitted' <> 'true'
+   or public.read_classroom_experience_admission_v2(f.expansion[40])->>'bootstrap_member' <> 'false' then
+   raise exception 'Stop changed retained non-bootstrap compatibility';
+ end if;
+end
+$stop_priority$;
+
+-- Synthetic owner setup is confined to this fixture savepoint and rolled back.
+-- Production cannot reach the last safe revision while growth remains enabled.
+savepoint admission_revision_ceiling;
+alter table private.classroom_experience_admission_policy disable trigger classroom_admission_policy_guard;
+update private.classroom_experience_admission_policy set registry_revision = 9007199254740990, growth_enabled = true;
+alter table private.classroom_experience_admission_policy enable trigger classroom_admission_policy_guard;
+do $revision_ceiling$
+declare stopped jsonb;
+begin
+ perform pg_temp.refuses(format('select public.commit_classroom_experience_admission_batch_v2(%L,9007199254740990,%L,%L::uuid[],%L::uuid[],%L,%L)',
+   'e2941000-0000-4000-8000-000000000009','growth_on','{}','{}',pg_temp.admission_digest('growth_on','{}'),'fixture/ceiling-enable'),
+   '55000','classroom_admission_revision_exhausted');
+ perform pg_temp.refuses($sql$update private.classroom_experience_admission_policy set registry_revision = registry_revision + 1, growth_enabled = true$sql$,
+   '23514',null);
+ stopped := public.commit_classroom_experience_admission_batch_v2('e2941000-0000-4000-8000-000000000010',6,'growth_off','{}','{}',pg_temp.admission_digest('growth_off','{}'),'fixture/ceiling-stop');
+ if stopped->>'requested_revision' <> '6' or stopped->>'predecessor_revision' <> '9007199254740990'
+   or stopped->>'registry_revision' <> '9007199254740991' or stopped->>'growth_enabled' <> 'false'
+   or not exists(select 1 from private.classroom_experience_admission_policy where registry_revision = 9007199254740991 and not growth_enabled)
+   or (select count(*) from private.classroom_experience_admission_grants) <> 110 then
+   raise exception 'Last safe increment did not preserve restrictive stop';
+ end if;
+ perform pg_temp.refuses(format('select public.commit_classroom_experience_admission_batch_v2(%L,9007199254740991,%L,%L::uuid[],%L::uuid[],%L,%L)',
+   'e2941000-0000-4000-8000-000000000011','growth_on','{}','{}',pg_temp.admission_digest('growth_on','{}'),'fixture/exhausted-enable'),
+   '55000','classroom_admission_revision_exhausted');
+ if public.read_classroom_experience_admission_v2('e2940000-0000-4000-8000-000000000110')->>'admitted' <> 'true' then
+   raise exception 'Revision ceiling changed retained admission';
+ end if;
+end
+$revision_ceiling$;
+rollback to savepoint admission_revision_ceiling;
+release savepoint admission_revision_ceiling;
 
 select pg_temp.refuses($$update private.classroom_experience_admission_grants set origin_operation_id = 'e2941000-0000-4000-8000-000000000003'$$,'55000','classroom_admission_record_immutable');
 select pg_temp.refuses($$delete from private.classroom_experience_admission_grants$$,'55000','classroom_admission_record_immutable');

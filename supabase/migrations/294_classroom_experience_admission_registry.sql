@@ -7,6 +7,8 @@ create table private.classroom_experience_admission_policy (
   growth_enabled boolean not null default false,
   bootstrap_initialized boolean not null default false,
   bootstrap_manifest_sha256 text,
+  -- Keep one safe increment available to stop new grants at the revision ceiling.
+  check (registry_revision < 9007199254740991 or not growth_enabled),
   check ((not bootstrap_initialized and registry_revision = 0 and not growth_enabled and bootstrap_manifest_sha256 is null)
     or (bootstrap_initialized and registry_revision >= 1 and bootstrap_manifest_sha256 is not null and bootstrap_manifest_sha256 ~ '^[a-f0-9]{64}$'))
 );
@@ -15,6 +17,7 @@ insert into private.classroom_experience_admission_policy(singleton) values (tru
 create table private.classroom_experience_admission_batches (
   operation_id uuid primary key,
   expected_revision bigint not null check (expected_revision between 0 and 9007199254740990),
+  predecessor_revision bigint not null check (predecessor_revision between 0 and 9007199254740990),
   registry_revision bigint not null unique check (registry_revision between 1 and 9007199254740991),
   kind text not null check (kind in ('bootstrap','operator','growth_on','growth_off')),
   manifest_sha256 text not null check (manifest_sha256 ~ '^[a-f0-9]{64}$'),
@@ -24,7 +27,8 @@ create table private.classroom_experience_admission_batches (
   approval_ref text not null check (approval_ref ~ '^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$'),
   result jsonb not null,
   committed_at timestamptz not null default clock_timestamp(),
-  check (registry_revision = expected_revision + 1),
+  check (registry_revision = predecessor_revision + 1),
+  check (expected_revision <= predecessor_revision and (kind = 'growth_off' or expected_revision = predecessor_revision)),
   check ((kind = 'bootstrap' and admitted_count = 70)
     or (kind = 'operator' and admitted_count > 0 and excluded_count = 0)
     or (kind in ('growth_on','growth_off') and admitted_count = 0 and excluded_count = 0))
@@ -139,7 +143,7 @@ declare
   excluded_count integer;
 begin
   if p_operation_id is null or p_expected_revision is null
-    or p_expected_revision not between 0 and 9007199254740990
+    or p_expected_revision not between 0 and 9007199254740991
     or p_kind is null or p_kind not in ('bootstrap','operator','growth_on','growth_off')
     or p_user_ids is null or p_excluded_user_ids is null
     or coalesce(array_ndims(p_user_ids),1) <> 1 or coalesce(array_ndims(p_excluded_user_ids),1) <> 1
@@ -174,8 +178,15 @@ begin
     end if;
     return saved.result;
   end if;
-  if p_expected_revision <> policy.registry_revision then
+  -- Restrictive stops have priority after any intervening commit. Other writes
+  -- retain strict CAS; no future-observed revision can manufacture authority.
+  if (p_kind = 'growth_off' and p_expected_revision > policy.registry_revision)
+    or (p_kind <> 'growth_off' and p_expected_revision <> policy.registry_revision) then
     raise exception using errcode = '40001', message = 'classroom_admission_revision_conflict';
+  end if;
+  if policy.registry_revision >= 9007199254740991
+    or (p_kind <> 'growth_off' and policy.registry_revision = 9007199254740990) then
+    raise exception using errcode = '55000', message = 'classroom_admission_revision_exhausted';
   end if;
   if p_kind = 'bootstrap' then
     if policy.bootstrap_initialized then
@@ -196,14 +207,15 @@ begin
     raise exception using errcode = '23505', message = 'classroom_admission_identity_conflict';
   end if;
   result := jsonb_build_object('version',2,'operation_id',p_operation_id,'kind',p_kind,
+    'requested_revision',p_expected_revision,'predecessor_revision',policy.registry_revision,
     'registry_revision',policy.registry_revision + 1,'manifest_sha256',p_manifest_sha256,
     'admitted_count',user_count,'excluded_count',excluded_count,
     'growth_enabled',case when p_kind = 'growth_on' then true when p_kind in ('bootstrap','growth_off') then false else policy.growth_enabled end,
     'bootstrap_initialized',true);
   insert into private.classroom_experience_admission_batches(
-    operation_id,expected_revision,registry_revision,kind,manifest_sha256,request_sha256,
+    operation_id,expected_revision,predecessor_revision,registry_revision,kind,manifest_sha256,request_sha256,
     admitted_count,excluded_count,approval_ref,result)
-  values(p_operation_id,p_expected_revision,policy.registry_revision + 1,p_kind,p_manifest_sha256,
+  values(p_operation_id,p_expected_revision,policy.registry_revision,policy.registry_revision + 1,p_kind,p_manifest_sha256,
     request_hash,user_count,excluded_count,p_approval_ref,result);
   insert into private.classroom_experience_admission_grants(user_id,origin_operation_id,registry_revision)
     select u,p_operation_id,policy.registry_revision + 1 from unnest(p_user_ids) u;

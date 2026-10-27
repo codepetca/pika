@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 
 export const CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION = Object.freeze({
   name: '294_classroom_experience_admission_registry.sql',
-  sha256: '129a6521dfe25846ec923f91bda2b1b123a0dec7df7d42690ccae5e137ae07de',
+  sha256: '908ac8f3765426eb2ab93258206c1f2c10b0fa8299d118821414a1f4ebeaf197',
 })
 // Literal reviewed catalog: private control/evidence rows participate in every
 // whole-row preservation proof just as existing application tables do.
