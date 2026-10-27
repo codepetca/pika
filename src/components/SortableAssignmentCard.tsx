@@ -126,12 +126,12 @@ export function SortableAssignmentCard({
             ].join(' ')}>
               <ClassworkTypeIcon type="assignment" /><span className="truncate">{assignment.title}</span>
             </span>
-            <span className="block text-xs text-text-muted">
-              Due: {formatDueDate(assignment.due_at)}
-            </span>
             {isScheduled && (
               <span className="block text-xs text-warning">{scheduledOpenLabel}</span>
             )}
+            <span className="block text-xs text-text-muted">
+              Due: {formatDueDate(assignment.due_at)}
+            </span>
           </span>
 
           <span className="whitespace-nowrap px-2 text-center">

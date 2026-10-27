@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Compaction image rehearsal correction
-
-Independent targeted review20 accepted the ledger/browser correction but found
-an image lifecycle interaction: compaction stages real-restore URLs containing
-fresh identities before those objects are reserved. Preserve original authoring
-image identities only in rollback rehearsal via the verified plan's inverse ID
-map; real restore retains fresh identities, paths and reservation protocol.
-Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
-reproduced the unreserved staged URL;68affected archive cases PASS. Native local
-291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
-for original IDs, preserves exact managed state, and rolls every fixture back.
-Actual classroom schema audit passes284FKs; canonical migration history291 and
-zero fixture users/objects verified afterward. No SQL migration changed. Docker
-DB-only window is closed after proof; full focused gate and review21 tracked in
-retained receipts. Superseded7bbc gate deliberately terminated before edits.
-
 ## 2026-10-23 Editor production migration and release correction
 
 Owner approved exact production291 and normal editor release. Preview40003769768
@@ -565,3 +549,9 @@ atomic approved batches/growth stop; automatic signup stays off until separately
 approved. Rollout stages and exact-source recovery/verification gates are recorded;
 no code, SQL, cohort, plan, production or provider operation performed. Existing70,
 all other holds and paused goal/DeepSeek remain unchanged.
+
+## 2026-10-27 — Scheduled assignment card date order
+- Branch `codex/scheduled-date-card-order`: reuse SortableAssignmentCard; scheduled release now precedes due date. Existing formatting/status/actions unchanged. Other list owners inspected: Tests have a calendar date/manual access but no due date; materials/announcements have no due date; surveys have no scheduling. Student n/a: future assignments hidden.
+- UI brief: approved Classwork/Tests family and Pattern Lab workspace framing; teacher desktop/mobile, light/dark, scheduled/default + keyboard focus; reading order is the primary signal. No new pattern, component, composite behavior, experimental promotion or refactor.
+- Evidence: focused gate 79 files/1,209 tests plus architecture/UI/design/TypeScript/lint PASS; audit PASS. Playwright actual Classwork list via intercepted fixture APIs 4/4 PASS, y-order/no-overflow assertions and all four screenshots visually reviewed. Screenshots `/tmp/pika-date-order-pattern-lab-{desktop,mobile}-{light,dark}.png`; repeatable driver `/tmp/pika-scheduled-date-order.ui-pattern-lab.spec.ts`; logs `/tmp/pika-date-{unit,browser,audit}.log` and `/tmp/pika-scheduled-date-focused.log`. Browser first launch lacked session secret; rerun with generated process-only secret passed.
+- Draft-first lifecycle: independent review not launched (0 launches/waves/fix batches). Weekly remaining 4%; pr-review low-usage checkpoint applies. DeepSeek paused through 2026-12-31. Keep draft; no merge or production promotion. Next: user-authorized review continuation with one Luna/medium reviewer on fixed SHA. Risk profile none; no epic status change.

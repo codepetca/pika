@@ -50184,3 +50184,20 @@ Escape, no-write and confirmed-write checks. Four-project native fixture checks,
 required focused gate and targeted review are recorded in retained receipts.
 Human waived review limits; normal reviewed1662-to-main merge is explicitly
 authorized after all checks. No production operation or additional DB change.
+
+<!-- pika-session-log-archive-batch:210aec6ec8e0482483eccd90f9fedbcb80414d919399c67d30333be8fac11cb1 -->
+## 2026-10-23 Compaction image rehearsal correction
+
+Independent targeted review20 accepted the ledger/browser correction but found
+an image lifecycle interaction: compaction stages real-restore URLs containing
+fresh identities before those objects are reserved. Preserve original authoring
+image identities only in rollback rehearsal via the verified plan's inverse ID
+map; real restore retains fresh identities, paths and reservation protocol.
+Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
+reproduced the unreserved staged URL;68affected archive cases PASS. Native local
+291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
+for original IDs, preserves exact managed state, and rolls every fixture back.
+Actual classroom schema audit passes284FKs; canonical migration history291 and
+zero fixture users/objects verified afterward. No SQL migration changed. Docker
+DB-only window is closed after proof; full focused gate and review21 tracked in
+retained receipts. Superseded7bbc gate deliberately terminated before edits.
