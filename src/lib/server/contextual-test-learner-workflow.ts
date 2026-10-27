@@ -155,7 +155,7 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
   request: Request, params: Promise<unknown>, source?: 'upload' | 'link'): Promise<NextResponse | null> {
   if (!isClassroomExperienceAdmissionConfigured()) return null
   const actor = await requireAuth()
-  if (resolveClassroomExperienceAdmission(actor).status !== 'admitted') return null
+  if ((await resolveClassroomExperienceAdmission(actor)).status !== 'admitted') return null
   const deadline = Date.now() + TEST_LEARNER_DEADLINE_MS
   const parsedParams = testLearnerParamsSchema.parse(await resolveTestLearnerParams(request, params, deadline))
   const rawSubject = operation === 'history' ? new URL(request.url).searchParams.get('student_id') : null

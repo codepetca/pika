@@ -36,7 +36,7 @@ function sealedReplayPreflight(path: string, repository = process.cwd()) {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -57,7 +57,7 @@ describe('isolated attendance membership database proof', () => {
       expect(result.status, result.stderr).toBe(0)
     })
 
-  it.each(['tampered293', 'renamed293', 'unknown294'] as const)('rejects %s before any clone or replay using the actual runner preflight', defect => {
+  it.each(['tampered293', 'renamed293', 'tampered294', 'renamed294', 'missing294', 'unknown295'] as const)('rejects %s before any clone or replay using the actual runner preflight', defect => {
     const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-reviewed-profile-'))
     try {
       mkdirSync(join(repository, 'supabase'))
@@ -66,7 +66,10 @@ describe('isolated attendance membership database proof', () => {
       const reviewed = join(migrations, '293_repolight_report_service.sql')
       if (defect === 'tampered293') appendFileSync(reviewed, '\n-- unreviewed source substitution\n')
       if (defect === 'renamed293') renameSync(reviewed, join(migrations, '293_unreviewed.sql'))
-      if (defect === 'unknown294') writeFileSync(join(migrations, '294_unreviewed.sql'), 'select 1;\n')
+      if (defect === 'tampered294') appendFileSync(join(migrations, '294_classroom_experience_admission_registry.sql'), '\n-- unreviewed\n')
+      if (defect === 'renamed294') renameSync(join(migrations, '294_classroom_experience_admission_registry.sql'), join(migrations, '294_unreviewed.sql'))
+      if (defect === 'missing294') rmSync(join(migrations, '294_classroom_experience_admission_registry.sql'))
+      if (defect === 'unknown295') writeFileSync(join(migrations, '295_unreviewed.sql'), 'select 1;\n')
       for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
         const result = sealedReplayPreflight(path, repository)
         expect(result.status, `${path} must fail closed for ${defect}`).not.toBe(0)
@@ -140,7 +143,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,293")
+    expect(source).toContain("assert.equal(migrations.length,294")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
@@ -168,7 +171,7 @@ describe('isolated attendance membership database proof', () => {
 describe('isolated material and announcement post-date proof target', () => {
   it('requires scheduling, post-date and image rollback proofs before exact metadata comparison', () => {
     const source = runner('scripts/check-material-post-date-database.sh')
-    expect(source).toContain('assert.equal(migrations.length,293')
+    expect(source).toContain('assert.equal(migrations.length,294')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations(migrations)')
     const proof = source.indexOf('check-material-release-scheduling-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-teacher-authoring-images-database.sql; do')
     expect(proof).toBeGreaterThan(-1)

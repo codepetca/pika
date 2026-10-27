@@ -32,7 +32,7 @@ const referenceRelation = 'refs:managed_storage_json_references!managed_storage_
 export async function authorizeSharedTestDetailReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 /** Every data statement proves current Test/Classroom ownership. This is a

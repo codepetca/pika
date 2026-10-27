@@ -1,3 +1,4 @@
+import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AssignmentListLifecycleAdapters } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -24,11 +25,11 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
     let failure: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListLifecycleError | undefined
     let resources: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListResource[] = []
     const events: string[] = [], canonicalRequests: unknown[] = [], fieldReads: string[] = []
-    const names = [...TEST_OWNER_REORDER_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets', 'public.future_unrelated_table'].sort()
+    const names = [...TEST_OWNER_REORDER_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets', 'public.future_unrelated_table', ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort()
     const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(n => [n, { count: 0, digest: 'a'.repeat(32) }]))),
       guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
     const graph = { ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(t => [t, []])), __bulk_tests: [], __bulk_setup: [],
-      // Reviewed additions through292 participate in isolated preservation;
+      // Reviewed additions through294 participate in isolated preservation;
       // the historical canonical pre/post snapshot remains exact.
       __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
         'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments', ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
@@ -74,7 +75,15 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
           canonicalRequests.push(structuredClone(request)); events.push(canonicalRequests.length === 1 ? 'before' : 'after')
           if (canonicalRequests.length === 1) return { ...canonical }
           return Object.defineProperties({}, Object.fromEntries(Object.keys(canonical).map(field => [field, { enumerable: true,
-            get: () => { fieldReads.push(field); return drift === field ? (field === 'rowDigests' ? canonical.rowDigests.replace('a'.repeat(32), 'b'.repeat(32)) : 'changed') : canonical[field as keyof typeof canonical] } }])))
+            get: () => {
+              fieldReads.push(field)
+              if (field === 'rowDigests' && drift?.startsWith('registry:')) {
+                const rows = JSON.parse(canonical.rowDigests)
+                rows[drift.slice('registry:'.length)].digest = 'b'.repeat(32)
+                return JSON.stringify(rows)
+              }
+              return drift === field ? (field === 'rowDigests' ? canonical.rowDigests.replace('a'.repeat(32), 'b'.repeat(32)) : 'changed') : canonical[field as keyof typeof canonical]
+            } }])))
         },
         async inventory() { return { resources: structuredClone(resources), occupiedPorts: running ? [54331, 54332] : [], workdirExists: exists } },
         async prepare(p: { projectId: string; workdir: string; config: string }, migrations: Array<{ name: string; sha256: string }>) {
@@ -183,7 +192,9 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
     if (drift) {
       const error = failure?.cleanupFailures[0].error as { operator: string; expected: unknown; actual: Record<string, string> }
       expect(error.operator).toBe('deepStrictEqual'); expect(error.expected).toEqual(canonical)
-      expect(Object.keys(error.actual).sort()).toEqual(Object.keys(canonical).sort()); expect(error.actual[drift]).not.toBe(canonical[drift as keyof typeof canonical])
+      expect(Object.keys(error.actual).sort()).toEqual(Object.keys(canonical).sort())
+      const changedField = drift.startsWith('registry:') ? 'rowDigests' : drift
+      expect(error.actual[changedField]).not.toBe(canonical[changedField as keyof typeof canonical])
     }
     expect(stdout).not.toHaveBeenCalled()
   }
@@ -191,5 +202,6 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
   it.each(['restore-target', 'restore-session', 'restore-sql', 'restore-container', 'verify-plan', 'verify-fixture', 'verify-target'])
     ('denies corrupted %s at the live exact-restoration boundary', corruption => run('pending-fulfilled', undefined, false, corruption))
   it('retains restoration verification failure after ambiguous settlement', () => run('pending-rejected', undefined, true))
+  it.each(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES)('rejects changed294 table %s in the real restoration closure', table => run('pending-fulfilled', `registry:${table}`))
   it.each(['rowDigests', 'guard168Metadata', 'settings', 'cronJobs', 'resources'])('retains exact canonical %s comparison after restoration', field => run('pending-fulfilled', field))
 })

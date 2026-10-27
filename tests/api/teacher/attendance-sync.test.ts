@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 const {
   requireRole,
   authorizeSharedAttendancePolicyActor,
+  protocolAdmission,
   assertTeacherCanMutateClassroom,
   syncTeacherAttendanceSources,
   resolveVerifiedPikaAttendanceTeacher,
@@ -13,6 +14,7 @@ const {
 } = vi.hoisted(() => ({
   requireRole: vi.fn(),
   authorizeSharedAttendancePolicyActor: vi.fn(),
+  protocolAdmission: vi.fn(),
   assertTeacherCanMutateClassroom: vi.fn(),
   syncTeacherAttendanceSources: vi.fn(),
   resolveVerifiedPikaAttendanceTeacher: vi.fn(),
@@ -32,6 +34,7 @@ vi.mock('@/lib/server/bara-attendance-teacher', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-teacher')>()
   return { ...actual, resolveVerifiedPikaAttendanceTeacher, resolveVerifiedPikaAttendanceOwner }
 })
+vi.mock('@/lib/server/classroom-experience-admission', () => ({ resolveAttendanceProtocolCompatibility: protocolAdmission }))
 vi.mock('@/lib/server/contextual-attendance-policy', () => ({ authorizeSharedAttendancePolicyActor }))
 vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/server/bara-attendance-canary')>()
@@ -57,6 +60,7 @@ describe('POST /api/teacher/attendance/sync', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'existing' })
+    protocolAdmission.mockResolvedValue({ status: 'not-admitted' })
     assertBaraAttendanceCanaryClassroom.mockImplementation(() => undefined)
     requireRole.mockResolvedValue({ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' })
     resolveVerifiedPikaAttendanceTeacher.mockResolvedValue(actor)
@@ -66,6 +70,31 @@ describe('POST /api/teacher/attendance/sync', () => {
       roster: { outcome: 'applied', revision: 2 },
       schedule: { outcome: 'applied', revision: 3 },
     })
+  })
+
+  it('uses the legacy teacher identity and source protocol for a shared actor outside the bootstrap set', async () => {
+    authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user: {
+      id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'teacher',
+    } })
+    protocolAdmission.mockResolvedValue({ status: 'not-admitted' })
+    requireRole.mockResolvedValue({ id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'teacher' })
+    const response = await POST(request({ classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31' }))
+    expect(response.status).toBe(200)
+    expect(resolveVerifiedPikaAttendanceTeacher).toHaveBeenCalled()
+    expect(resolveVerifiedPikaAttendanceOwner).not.toHaveBeenCalled()
+    expect(syncTeacherAttendanceSources.mock.calls[0][0]).not.toHaveProperty('membershipAware')
+  })
+
+  it('retains the teacher role gate for a later admitted student-label owner', async () => {
+    authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user: {
+      id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student',
+    } })
+    requireRole.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+    const response = await POST(request({ classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31' }))
+    expect(response.status).toBe(403)
+    expect(syncTeacherAttendanceSources).not.toHaveBeenCalled()
+    expect(resolveVerifiedPikaAttendanceOwner).not.toHaveBeenCalled()
+    expect(resolveVerifiedPikaAttendanceTeacher).not.toHaveBeenCalled()
   })
 
   it('authorizes and stages a bounded teacher-owned source window', async () => {
@@ -108,6 +137,7 @@ describe('POST /api/teacher/attendance/sync', () => {
 
   it('uses current ownership and the membership-aware sync for an admitted owner with a student label', async () => {
     const user = { id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student' }
+    protocolAdmission.mockResolvedValue({ status: 'admitted' })
     authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user })
     const response = await POST(request({ classroom_id: classroomId, window_start: '2026-09-01', window_end: '2026-12-31' }))
     expect(response.status).toBe(200)
@@ -121,6 +151,7 @@ describe('POST /api/teacher/attendance/sync', () => {
   })
 
   it.each([403, 404])('does not treat admission as ownership (%s)', async (status) => {
+    protocolAdmission.mockResolvedValue({ status: 'admitted' })
     authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user: {
       id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student',
     } })
@@ -140,6 +171,7 @@ describe('POST /api/teacher/attendance/sync', () => {
   })
 
   it('does not sync an admitted owner whose WorkOS identity no longer matches', async () => {
+    protocolAdmission.mockResolvedValue({ status: 'admitted' })
     authorizeSharedAttendancePolicyActor.mockResolvedValue({ mode: 'shared', user: {
       id: '30000000-0000-4000-8000-000000000003', email: 'owner@example.com', role: 'student',
     } })

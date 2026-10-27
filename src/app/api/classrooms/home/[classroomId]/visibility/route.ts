@@ -13,7 +13,7 @@ export const PATCH = withErrorHandler('SetClassroomHomeVisibility', async (
   request: NextRequest, context: { params: Promise<Record<string, string>> },
 ) => {
   const user = await authenticateContextualClassroomHome()
-  if (resolveClassroomExperienceAdmission(user).status !== 'admitted') throw new ApiError(404, 'Not found')
+  if ((await resolveClassroomExperienceAdmission(user)).status !== 'admitted') throw new ApiError(404, 'Not found')
   const { classroomId } = classroomHomeVisibilityParamsSchema.parse(await context.params)
   const input = classroomHomeVisibilitySchema.parse(await request.json())
   return NextResponse.json(await setClassroomHomeVisibility({

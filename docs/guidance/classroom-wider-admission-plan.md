@@ -6,6 +6,10 @@ deployment, automatic signup admission or cohort activation approval.** The
 compatible routing remain unchanged. All other provider, account/plan, billing
 and schema-operation holds remain in place.
 
+Subsequent source-only scope: the owner authorized preparing the
+[inactive stage-0 registry](classroom-admission-registry.md). This does not approve
+stages 1–5 or change the accepted production cohort.
+
 ## Recommended direction
 
 Keep the existing authentication, server/service-role architecture and
@@ -206,7 +210,7 @@ preserve already admitted users/data/routing and investigate. Security revocatio
 or account deletion remains a separate explicitly authorized operation. No
 automatic rollback, destructive cleanup or observer renewal is proposed.
 
-The owner still needs to approve implementation scope, any exact migration/import
+The owner still needs to approve any exact migration/import
 and compatible production cutover, the first concrete wider batch, and eventually
 the automatic new-user policy. Preparing or merging this plan supplies none of
 those permissions. Billing/subscriptions, broad role cleanup, retention, provider

@@ -32,7 +32,7 @@ export async function authorizeContextualDailyLogRequest(
   }
 
   const user = await requireAuth()
-  const admission = resolveClassroomExperienceAdmission(user)
+  const admission = await resolveClassroomExperienceAdmission(user)
   if (admission.status === 'not-admitted') {
     if (user.role !== 'student') {
       throw new AuthorizationError('Forbidden: student role required')

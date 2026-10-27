@@ -3,7 +3,7 @@ import type { getServiceRoleClient } from '@/lib/supabase'
 import { openAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
 import { resolveClassroomAttendanceQrId } from '@/lib/server/classroom-attendance-qr'
 import { resolveAttendanceMembershipScanGeneration, resolveAttendanceScanGeneration, sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
-import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 
 const enrolledClassroomSchema = z.object({
   classrooms: z.object({ title: z.string() }),
@@ -17,7 +17,7 @@ export async function loadStudentAttendanceEntryClassroomName(input: {
   mode?: 'occurrence' | 'classroom'
 }): Promise<string | undefined> {
   try {
-    const admitted = resolveClassroomExperienceAdmission(input.pikaUser).status === 'admitted'
+    const admitted = (await resolveAttendanceProtocolCompatibility(input.pikaUser)).status === 'admitted'
     if (!admitted && input.pikaUser.role !== 'student') return undefined
     const resolveGeneration = admitted ? resolveAttendanceMembershipScanGeneration : resolveAttendanceScanGeneration
     const classroomId = input.mode === 'classroom'

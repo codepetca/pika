@@ -85,7 +85,7 @@ export async function authorizeContextualAssignmentArtifactRequest(
 ): Promise<ContextualAssignmentArtifactAccess> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
       const requestedId = canonicalUuid.safeParse(rawId)
       if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
@@ -130,7 +130,7 @@ async function resolveContextualAssignmentDocHistoryAccess(
 ): Promise<ContextualAssignmentDocHistoryAccess> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
       const requestedId = canonicalUuid.safeParse(rawId)
       if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
@@ -189,7 +189,7 @@ export async function authorizeContextualAssignmentDocSubmissionRequest(
 ): Promise<ContextualAssignmentDocSubmissionAccess> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
       const requestedId = canonicalUuid.safeParse(rawId)
       if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')
@@ -234,7 +234,7 @@ export async function authorizeContextualAssignmentDocSaveRequest(
 ): Promise<ContextualAssignmentDocSaveAccess> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
       const requestedId = canonicalUuid.safeParse(rawId)
       if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')

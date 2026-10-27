@@ -12,31 +12,31 @@ describe('classroom experience admission', () => {
     vi.unstubAllEnvs()
   })
 
-  it('treats an absent variable as the legacy installation', () => {
+  it('treats an absent variable as the legacy installation', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', undefined)
 
     expect(isClassroomExperienceAdmissionConfigured()).toBe(false)
-    expect(resolveClassroomExperienceAdmission({ id: admittedId })).toEqual({ status: 'not-admitted' })
+    expect(await resolveClassroomExperienceAdmission({ id: admittedId })).toEqual({ status: 'not-admitted' })
   })
 
-  it('distinguishes an explicitly configured empty cohort from an absent variable', () => {
+  it('distinguishes an explicitly configured empty cohort from an absent variable', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
       version: 1,
       admittedUserIds: [],
     }))
 
     expect(isClassroomExperienceAdmissionConfigured()).toBe(true)
-    expect(resolveClassroomExperienceAdmission({ id: admittedId })).toEqual({ status: 'not-admitted' })
+    expect(await resolveClassroomExperienceAdmission({ id: admittedId })).toEqual({ status: 'not-admitted' })
   })
 
-  it('canonicalizes UUID casing before matching an admitted identity', () => {
+  it('canonicalizes UUID casing before matching an admitted identity', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
       version: 1,
       admittedUserIds: [admittedId.toUpperCase()],
     }))
 
-    expect(resolveClassroomExperienceAdmission({ id: admittedId.toUpperCase() })).toEqual({ status: 'admitted' })
-    expect(resolveClassroomExperienceAdmission({ id: otherId })).toEqual({ status: 'not-admitted' })
+    expect(await resolveClassroomExperienceAdmission({ id: admittedId.toUpperCase() })).toEqual({ status: 'admitted' })
+    expect(await resolveClassroomExperienceAdmission({ id: otherId })).toEqual({ status: 'not-admitted' })
   })
 
   it.each([
@@ -48,39 +48,39 @@ describe('classroom experience admission', () => {
     JSON.stringify({ version: 1, admittedUserIds: ['invalid'] }),
     JSON.stringify({ version: 1, admittedUserIds: [admittedId, admittedId.toUpperCase()] }),
     ' '.repeat(20_001),
-  ])('fails closed for malformed or unsafe configuration', (configuration) => {
+  ])('fails closed for malformed or unsafe configuration', async (configuration) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', configuration)
 
-    expect(() => resolveClassroomExperienceAdmission({ id: admittedId }))
-      .toThrowError(expect.objectContaining({ statusCode: 503 }))
+    await expect(resolveClassroomExperienceAdmission({ id: admittedId }))
+      .rejects.toThrowError(expect.objectContaining({ statusCode: 503 }))
   })
 
-  it('rejects a cohort larger than 100 identities', () => {
+  it('rejects a cohort larger than 100 identities', async () => {
     const admittedUserIds = Array.from({ length: 101 }, (_, index) => (
       `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
     ))
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds }))
 
-    expect(() => resolveClassroomExperienceAdmission({ id: admittedId }))
-      .toThrowError(expect.objectContaining({ statusCode: 503 }))
+    await expect(resolveClassroomExperienceAdmission({ id: admittedId }))
+      .rejects.toThrowError(expect.objectContaining({ statusCode: 503 }))
   })
 
-  it('accepts exactly 100 admitted identities', () => {
+  it('accepts exactly 100 admitted identities', async () => {
     const admittedUserIds = [admittedId, ...Array.from({ length: 99 }, (_, index) => (
       `00000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`
     ))]
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds }))
 
-    expect(resolveClassroomExperienceAdmission({ id: admittedId.toUpperCase() })).toEqual({ status: 'admitted' })
+    expect(await resolveClassroomExperienceAdmission({ id: admittedId.toUpperCase() })).toEqual({ status: 'admitted' })
   })
 
-  it('fails closed when the authenticated identity is not a canonical UUID', () => {
+  it('fails closed when the authenticated identity is not a canonical UUID', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({
       version: 1,
       admittedUserIds: [admittedId],
     }))
 
-    expect(() => resolveClassroomExperienceAdmission({ id: 'not-a-user-id' }))
-      .toThrowError(expect.objectContaining({ statusCode: 503 }))
+    await expect(resolveClassroomExperienceAdmission({ id: 'not-a-user-id' }))
+      .rejects.toThrowError(expect.objectContaining({ statusCode: 503 }))
   })
 })

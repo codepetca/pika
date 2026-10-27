@@ -21,38 +21,38 @@ const teacher = { id: actorId, role: 'teacher', email: 'member@example.com' }
 describe('contextual assignment inline-image access', () => {
   afterEach(() => vi.unstubAllEnvs())
 
-  it.each(['teacher', 'student'] as const)('gives admitted %s actors contextual selection while retaining resource validation', (role) => {
+  it.each(['teacher', 'student'] as const)('gives admitted %s actors contextual selection while retaining resource validation', async (role) => {
     const user = { ...teacher, role }
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
-    expect(() => assertContextualAssignmentInlineImageConfiguration(user as any)).not.toThrow()
-    expect(authorizeContextualAssignmentInlineImageAccess(user as any, classroomId)).toEqual({ mode: 'contextual', user, classroomId })
-    expect(() => authorizeContextualAssignmentInlineImageAccess(user as any, 'invalid')).toThrow(/Invalid classroom ID/)
+    await expect(assertContextualAssignmentInlineImageConfiguration(user as any)).resolves.toBeUndefined()
+    await expect(authorizeContextualAssignmentInlineImageAccess(user as any, classroomId)).resolves.toEqual({ mode: 'contextual', user, classroomId })
+    await expect(authorizeContextualAssignmentInlineImageAccess(user as any, 'invalid')).rejects.toThrow(/Invalid classroom ID/)
   })
 
-  it.each([{ ids: [] }, { ids: [otherActorId] }])('keeps nonadmitted actors on the literal image pair or legacy path', ({ ids }) => {
+  it.each([{ ids: [] }, { ids: [otherActorId] }])('keeps nonadmitted actors on the literal image pair or legacy path', async ({ ids }) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: ids }))
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'false')
-    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, 'legacy-id')).toMatchObject({ mode: 'legacy', classroomId: 'legacy-id' })
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, 'legacy-id')).resolves.toMatchObject({ mode: 'legacy', classroomId: 'legacy-id' })
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
-    expect(() => assertContextualAssignmentInlineImageConfiguration(teacher as any)).toThrow(/Classroom assignment image configuration is unavailable/)
+    await expect(assertContextualAssignmentInlineImageConfiguration(teacher as any)).rejects.toThrow(/Classroom assignment image configuration is unavailable/)
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', JSON.stringify([{ userId: actorId, classroomId }]))
-    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).toMatchObject({ mode: 'contextual' })
-    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, otherClassroomId)).toMatchObject({ mode: 'legacy' })
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).resolves.toMatchObject({ mode: 'contextual' })
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, otherClassroomId)).resolves.toMatchObject({ mode: 'legacy' })
   })
 
-  it.each(['', 'not-json', JSON.stringify({ version: 1, admittedUserIds: [actorId, actorId] })])('validates shared configuration before pair configuration', (raw) => {
+  it.each(['', 'not-json', JSON.stringify({ version: 1, admittedUserIds: [actorId, actorId] })])('validates shared configuration before pair configuration', async (raw) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', raw)
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
     vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', 'broken')
-    expect(() => assertContextualAssignmentInlineImageConfiguration(teacher as any)).toThrow(/Classroom experience admission configuration is unavailable/)
-    expect(() => authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).toThrow(/Classroom experience admission configuration is unavailable/)
+    await expect(assertContextualAssignmentInlineImageConfiguration(teacher as any)).rejects.toThrow(/Classroom experience admission configuration is unavailable/)
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).rejects.toThrow(/Classroom experience admission configuration is unavailable/)
   })
 
-  it('is disabled by default and only admits exact user/Classroom pairs when enabled', () => {
-    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).toEqual({
+  it('is disabled by default and only admits exact user/Classroom pairs when enabled', async () => {
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId)).resolves.toEqual({
       mode: 'legacy', user: teacher, classroomId,
     })
 
@@ -62,21 +62,21 @@ describe('contextual assignment inline-image access', () => {
       { userId: otherActorId, classroomId: otherClassroomId },
     ]))
 
-    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId.toUpperCase()))
-      .toEqual({ mode: 'contextual', user: teacher, classroomId })
-    expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, otherClassroomId))
-      .toEqual({ mode: 'legacy', user: teacher, classroomId: otherClassroomId })
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId.toUpperCase()))
+      .resolves.toEqual({ mode: 'contextual', user: teacher, classroomId })
+    await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, otherClassroomId))
+      .resolves.toEqual({ mode: 'legacy', user: teacher, classroomId: otherClassroomId })
   })
 
   it.each(['', 'not-json', '{}', '[{"userId":"*","classroomId":"*"}]', ' '.repeat(20_001)])(
     'fails closed for malformed enabled cohort configuration',
-    (pairs) => {
+    async (pairs) => {
       vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED', 'true')
       vi.stubEnv('PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_PAIRS', pairs)
-      expect(() => assertContextualAssignmentInlineImageConfiguration())
-        .toThrow(/configuration is unavailable/)
-      expect(() => authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId))
-        .toThrow(/configuration is unavailable/)
+      await expect(assertContextualAssignmentInlineImageConfiguration())
+        .rejects.toThrow(/configuration is unavailable/)
+      await expect(authorizeContextualAssignmentInlineImageAccess(teacher as any, classroomId))
+        .rejects.toThrow(/configuration is unavailable/)
     },
   )
 

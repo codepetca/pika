@@ -34,7 +34,7 @@ const feedbackFields = 'id,assignment_id,student_id,returned_at,feedback_returne
 export async function authorizeSharedAssignmentListReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 /** Current statement authority, including terminal pages; this does not promise a transaction snapshot. */

@@ -46,7 +46,7 @@ export function validateOwnerGradeSaveResult(raw: unknown, studentId: string | n
 export async function handleContextualTestOwnerGradingRequest(operation: Operation, request: Request, params: Promise<unknown>): Promise<NextResponse | null> {
   if (!isClassroomExperienceAdmissionConfigured()) return null
   const actor = await requireAuth()
-  if (resolveClassroomExperienceAdmission(actor).status !== 'admitted') return null
+  if ((await resolveClassroomExperienceAdmission(actor)).status !== 'admitted') return null
   const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
   const identity = ownerGradingParamsSchema.parse(await resolveContextualTestOwnerParams(request, params, deadline))
   const body = operation === 'results' ? undefined : await readContextualTestOwnerBody(request, deadline)

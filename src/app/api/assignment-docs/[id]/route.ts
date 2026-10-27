@@ -100,7 +100,7 @@ async function loadStudentSubmissionContext(
 // The [id] here is the assignment_id, not the doc id
 export const GET = withErrorHandler('GetAssignmentDoc', async (request, context) => {
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+  if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
     const { id: assignmentId } = assignmentLearnerOpenParamsSchema.parse(await context.params)
     if (new URL(request.url).searchParams.has('student_id')) {
       throw new ApiError(400, 'student_id is not supported for classroom member assignment documents')

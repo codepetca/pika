@@ -29,8 +29,8 @@ export default async function ClassroomsIndexPage() {
 
   const supabase = getServiceRoleClient()
 
-  if (isContextualClassroomHomeAdmitted(user)
-    && resolveClassroomExperienceAdmission(user).status === 'admitted') {
+  if ((await isContextualClassroomHomeAdmitted(user))
+    && (await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
     const displayInfo = await getUserDisplayInfo(user, supabase)
     let initialClassrooms: Classroom[] = []
     let initialReadError = false

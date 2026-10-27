@@ -26,7 +26,7 @@ const unavailable = () => new ApiError(503, 'Unable to verify classroom class da
 export async function authorizeSharedClassDayReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status !== 'admitted') return { mode: 'existing' }
+  if ((await resolveClassroomExperienceAdmission(user)).status !== 'admitted') return { mode: 'existing' }
   return { mode: 'shared', user }
 }
 

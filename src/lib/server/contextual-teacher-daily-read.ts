@@ -39,7 +39,7 @@ export async function authorizeTeacherDailyReadActor(): Promise<TeacherDailyRead
     return { mode: 'legacy', user: await requireRole('teacher') }
   }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status === 'not-admitted') {
+  if ((await resolveClassroomExperienceAdmission(user)).status === 'not-admitted') {
     if (user.role !== 'teacher') throw new AuthorizationError('Forbidden: teacher role required')
     return { mode: 'legacy', user }
   }

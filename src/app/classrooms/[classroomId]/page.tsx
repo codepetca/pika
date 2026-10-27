@@ -49,7 +49,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
     redirect(await getServerLoginRedirectPath())
   }
 
-  const testExperienceMode = resolveClassroomExperienceAdmission(user).status === 'admitted' ? 'shared' : 'existing'
+  const testExperienceMode = (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? 'shared' : 'existing'
   const supabase = getServiceRoleClient()
 
   let pageAccess: ClassroomPagePilotAccess

@@ -22,7 +22,7 @@ const messages: Record<number, string> = {
 export async function handleContextualTestOwnerUnpublicationRequest(request: Request, params: Promise<unknown>): Promise<NextResponse | null> {
   if (!isClassroomExperienceAdmissionConfigured()) return null
   const actor = await requireAuth()
-  if (resolveClassroomExperienceAdmission(actor).status !== 'admitted') return null
+  if ((await resolveClassroomExperienceAdmission(actor)).status !== 'admitted') return null
   const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
   try {
     const { id } = testUnpublicationParamsSchema.parse(await resolveContextualTestOwnerParams(request, params, deadline))

@@ -32,7 +32,7 @@ export async function authorizeContextualClassworkCreationRequest(
 ): Promise<ContextualClassworkCreationAccess> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       const rawId = typeof classroomId === 'function' ? await classroomId() : classroomId
       const requestedId = canonicalUuid.safeParse(rawId)
       if (!requestedId.success) throw new ApiError(400, 'Invalid classroom ID')

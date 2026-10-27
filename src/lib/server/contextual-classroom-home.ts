@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth'
 import { normalizeClassroomThemeColor, type ClassroomThemeColor } from '@/lib/classroom-theme'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { AuthenticatedUser } from '@/types'
+import { isClassroomExperienceRegistryConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 
 type SupabaseClient = ReturnType<typeof getServiceRoleClient>
 
@@ -122,9 +123,13 @@ function configuredHomeCohort(): string[] | null {
  * independent from the classroom-core pair pilot: home admission reveals every
  * current relationship for one identity, not a cross-product of configured IDs.
  */
-export function isContextualClassroomHomeAdmitted(user: Pick<AuthenticatedUser, 'id'>): boolean {
+export async function isContextualClassroomHomeAdmitted(user: Pick<AuthenticatedUser, 'id'>): Promise<boolean> {
   if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED !== 'true') {
     return false
+  }
+
+  if (isClassroomExperienceRegistryConfigured()) {
+    return (await resolveClassroomExperienceAdmission(user)).status === 'admitted'
   }
 
   const cohort = configuredHomeCohort()
@@ -137,7 +142,7 @@ export function isContextualClassroomHomeAdmitted(user: Pick<AuthenticatedUser, 
 
 export async function authenticateContextualClassroomHome(): Promise<AuthenticatedUser> {
   const user = await requireAuth()
-  if (!isContextualClassroomHomeAdmitted(user)) throw new ApiError(404, 'Not found')
+  if (!(await isContextualClassroomHomeAdmitted(user))) throw new ApiError(404, 'Not found')
   return user
 }
 

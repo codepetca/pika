@@ -1,3 +1,4 @@
+import { readClassroomAdmissionRegistry } from '@/lib/server/classroom-admission-registry'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
 import {
@@ -26,6 +27,8 @@ const studentId = '30000000-0000-4000-8000-000000000001'
 const pikaUser = { id: studentId, email: 'student@example.com', role: 'student' }
 const actor = { principalRef: 'principal_student_one', displayName: 'Student One' }
 const attemptId = '11111111-1111-4111-8111-111111111111'
+vi.mock('@/lib/server/classroom-admission-registry', () => ({ readClassroomAdmissionRegistry: vi.fn() }))
+
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const classroomName = 'PPZ3C — Health for Life'
 const classroomRead = vi.fn()
@@ -76,6 +79,28 @@ describe('native Pika student attendance check-in', () => {
     return { outcome: 'applied', resultCode: 'check_in_accepted', occurrenceRef: 'occurrence_one', sessionRevision: 1,
       checkIn: { checkInRef: 'check_in_one', participantRef, checkInRevision: 1, acceptedAt: '2026-09-02T13:01:00.000Z' } }
   }
+
+  it('keeps a later registry grant on legacy generation and wire identity with cleanup paused', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 2, source: 'registry', bootstrapManifestSha256: 'a'.repeat(64) }))
+    vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
+    vi.mocked(readClassroomAdmissionRegistry).mockResolvedValue({ admitted: true, bootstrap_member: false } as never)
+    const send = vi.fn().mockResolvedValue(accepted())
+    await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send })
+    expect(resolveMembershipGeneration).not.toHaveBeenCalled()
+    expect(resolveGeneration).toHaveBeenCalled()
+    expect(send.mock.calls[0][0]).not.toHaveProperty('participant_ref')
+  })
+
+  it('does not let a later registry grant bypass the legacy learner identity gate for a teacher label', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 2, source: 'registry', bootstrapManifestSha256: 'a'.repeat(64) }))
+    vi.mocked(readClassroomAdmissionRegistry).mockResolvedValue({ admitted: true, bootstrap_member: false } as never)
+    withAuth.mockResolvedValue({ user: { id: 'user_teacher', email: pikaUser.email, emailVerified: true } })
+    const from = vi.fn()
+    await expect(resolveVerifiedPikaAttendanceStudent({ supabase: { from }, pikaUser: { ...pikaUser, role: 'teacher' } }))
+      .rejects.toEqual(new StudentAttendanceCheckInError('identity_not_linked'))
+    expect(from).not.toHaveBeenCalled()
+  })
 
   it.each(['student', 'teacher'])('binds admitted %s scans to exact membership with cleanup paused', async role => {
     admit()

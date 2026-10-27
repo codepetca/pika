@@ -34,7 +34,7 @@ export function createContextualSurveyRetryBudget(): SurveyRetryBudget {
 export async function authorizeSharedSurveyActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 async function invoke<Name extends SurveyRpcName, T extends z.ZodType>(client: SurveyRpcClient | undefined, name: Name, args: Database['public']['Functions'][Name]['Args'], schema: T, retryBudget = createContextualSurveyRetryBudget()): Promise<z.infer<T>> {
