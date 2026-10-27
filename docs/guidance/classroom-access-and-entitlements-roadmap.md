@@ -13,6 +13,11 @@ general live-provider readiness is claimed. Wider admission and provider actions
 retain separate decisions/holds; the epic remains incomplete. Reuse accepted
 unchanged lifecycle/recovery/domain proofs and close only concrete applicability
 gaps before any further expansion.
+The [wider-admission design and rollout scope](classroom-wider-admission-plan.md)
+is a prepared proposal: preserve the 70, introduce one durable admission source
+and a provider-compatible transition, then separately approve exact wider batches
+and any automatic new-user rule. No new admission, schema application, deployment
+or provider action is authorized by the plan.
 Older implementation and activation-off statements below are historical receipts,
 not the current pilot configuration. The [live relationship home](live-classroom-home.md)
 records the implementation contract.

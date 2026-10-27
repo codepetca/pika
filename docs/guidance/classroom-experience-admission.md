@@ -1,5 +1,11 @@
 # Classroom experience admission
 
+Current checkpoint, October 27: the exact [70-account rollout](classroom-rollout-acceptance-2026-10-27.md)
+is accepted. Version 1 below is still the active admission contract. The
+[wider-admission proposal](classroom-wider-admission-plan.md) prepares a durable
+source and staged scope; it implements or activates nothing. The dormant-slice
+and activation-hold checkpoints below retain their historical context.
+
 ## Current implementation and activation hold
 
 This is a dormant first slice of batch 1 in the

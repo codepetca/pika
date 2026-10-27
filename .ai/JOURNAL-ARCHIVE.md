@@ -50164,3 +50164,23 @@ cases PASS. The superseded0af full gate was deliberately cancelled before this
 source edit; new exact-source gate and targeted review19 precede CI. No timeout,
 assertion, endpoint, resource or permission control was weakened. Batch11; human
 review-limit waiver remains active.
+
+<!-- pika-session-log-archive-batch:0654a6d763726be730dfb7de09c531103791c0b000afdb203f7a16682e8034dd -->
+## 2026-10-23 Derived image ledger and modal keyboard CI integration
+
+CI39977192319 proves all seven authenticated Supabase starts and the previously
+blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
+TypeScript, lint and production build. The final lifecycle audit exposed the
+291 image-reference ledger missing from the classroom graph declaration. Declare
+its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
+contract; archive source rows and remapped managed objects rebuild references.
+Keep it outside portable resources, purge adapters and Gradex. Regression starts
+RED against the observed FK/composite key, then62affected archive cases PASS;
+missing-FK and unexpected-resource guards remain strict. No SQL changes.
+Browser CI exposed stale keyboard order after the shared corner Close and the
+removed mobile heading trigger. Update contracts to assert accessible Close in
+the tab cycle and the compact Format menu, retaining all focus, retirement,
+Escape, no-write and confirmed-write checks. Four-project native fixture checks,
+required focused gate and targeted review are recorded in retained receipts.
+Human waived review limits; normal reviewed1662-to-main merge is explicitly
+authorized after all checks. No production operation or additional DB change.
