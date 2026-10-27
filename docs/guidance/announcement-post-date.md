@@ -10,6 +10,10 @@ creating or editing new, draft, posted and scheduled announcements.
 distinction, and choosing a future calendar day never changes Post/Save into
 Schedule. Drafts remain unpublished.
 
+Creation saves the displayed date even when today's default is untouched.
+Publication changes also preserve the displayed date for legacy undated rows;
+ordinary unchanged edits retain their existing no-op behavior.
+
 Published announcements stay immediately accessible in Announcements. On the
 student Calendar, their date must fit the existing Calendar Visibility horizon
 (current week, one week ahead, or all). Week/Month/All/presentation views share

@@ -519,9 +519,11 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         : null
     const scheduleChanged = newScheduledFor !== (originalScheduledFor ? new Date(originalScheduledFor).toISOString() : null)
     const draftChanged = newIsDraft !== !!existingAnnouncement.is_draft
+    const persistPostDate = hasPostDateEdit || (existingAnnouncement.posted_on == null
+      && (mode !== 'preserve' || scheduleChanged || draftChanged))
 
     // Don't save if nothing changed
-    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged && !hasPostDateEdit) {
+    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged && !persistPostDate) {
       cancelEditing()
       return
     }
@@ -543,7 +545,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
               title: normalizedEditTitle,
               content: editContent.trim(),
               is_draft: newIsDraft,
-              ...(hasPostDateEdit ? { posted_on: editPostDate } : {}),
+              ...(persistPostDate ? { posted_on: editPostDate } : {}),
               published_at: optimisticPublishedAt,
               scheduled_for: newScheduledFor,
               updated_at: new Date().toISOString(),
@@ -559,7 +561,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         title?: string | null
         posted_on?: string
       } = {}
-      if (hasPostDateEdit) body.posted_on = editPostDate
+      if (persistPostDate) body.posted_on = editPostDate
       if (titleChanged) {
         body.title = normalizedEditTitle
       }
@@ -658,8 +660,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         scheduled_for?: string
         title?: string
         posted_on?: string
-      } = { content: newContent.trim() }
-      if (newPostDate !== getTodayDate()) body.posted_on = newPostDate
+      } = { content: newContent.trim(), posted_on: newPostDate }
       if (normalizedNewTitle) {
         body.title = normalizedNewTitle
       }

@@ -81,7 +81,6 @@ function MaterialEditor({
     : getTodayInSchedulingTimezone())
   const [postDate, setPostDate] = useState(initialPostDate)
   const validPostDate = postDateInputSchema.safeParse(postDate).success
-  const changedPostDate = postDate !== initialPostDate ? postDate : undefined
   const [action, setAction] = useState<'post' | 'draft' | 'schedule' | 'preserve'>(isScheduled ? 'preserve' : 'post')
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const initialSchedule = releasedAt && isScheduled ? parseScheduleIsoToParts(releasedAt) : null
@@ -97,16 +96,8 @@ function MaterialEditor({
   function save() {
     if (saveDisabled) return
     if (action === 'schedule') { setScheduleOpen(true); return }
-    if (action === 'draft') {
-      if (changedPostDate) onSave(true, undefined, changedPostDate)
-      else onSave(true)
-      return
-    }
-    if (action === 'post' && isScheduled) {
-      if (changedPostDate) onSave(false, null, changedPostDate)
-      else onSave(false, null)
-    } else if (changedPostDate) onSave(false, undefined, changedPostDate)
-    else onSave(false)
+    if (action === 'draft') { onSave(true, undefined, postDate); return }
+    onSave(false, action === 'post' && isScheduled ? null : undefined, postDate)
   }
 
   return (
@@ -197,7 +188,7 @@ function MaterialEditor({
           date={scheduleDate} time={scheduleTime} minDate={getTodayInSchedulingTimezone()}
           isFutureValid={validSchedule} onDateChange={setScheduleDate} onTimeChange={setScheduleTime}
           onCancel={() => setScheduleOpen(false)}
-          onConfirm={() => { if (!saveDisabled && validSchedule) { setScheduleOpen(false); if (changedPostDate) onSave(false, scheduleIso, changedPostDate); else onSave(false, scheduleIso) } }}
+          onConfirm={() => { if (!saveDisabled && validSchedule) { setScheduleOpen(false); onSave(false, scheduleIso, postDate) } }}
           confirmLabel={isScheduled ? 'Save schedule' : 'Schedule'}
           showHeader={false}
         />

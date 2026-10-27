@@ -311,6 +311,42 @@ describe('announcement markdown rendering', () => {
     await waitFor(() => expect(bodies).toEqual([{ content: 'Available now on a later day', posted_on: '2099-01-01' }]))
   })
 
+  it('persists the untouched calendar date when creating a draft', async () => {
+    const bodies: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        bodies.push(JSON.parse(init.body as string))
+        return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, id: 'new-draft', is_draft: true,
+          published_at: null, scheduled_for: null, posted_on: getTodayInSchedulingTimezone() } }), { status: 201 })
+      }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await openAnnouncementMenu('new')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Save draft' }))
+    await waitFor(() => expect(bodies).toEqual([{ content: 'Retained new draft', posted_on: getTodayInSchedulingTimezone(), is_draft: true }]))
+  })
+
+  it('preserves the displayed legacy calendar date when scheduling without editing it', async () => {
+    const patches: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        patches.push(JSON.parse(init.body as string))
+        return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, posted_on: '2026-05-13',
+          published_at: '2099-06-15T13:45:00.000Z', scheduled_for: '2099-06-15T13:45:00.000Z' } }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await openAnnouncementMenu('posted')
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
+    fireEvent.change(screen.getByLabelText('Date (Toronto)'), { target: { value: '2099-06-15' } })
+    fireEvent.change(screen.getByLabelText('Time (Toronto)'), { target: { value: '09:45' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(patches).toEqual([{ posted_on: '2026-05-13', content: 'Retained edit draft', scheduled_for: '2099-06-15T13:45:00.000Z' }]))
+  })
+
   it.each(['draft', 'scheduled', 'future-publication'] as const)('shows calendar placement for %s announcements', async state => {
     mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: state === 'draft',
       published_at: state === 'draft' ? null : '2099-01-01T12:00:00Z',
@@ -1046,6 +1082,7 @@ describe('announcement markdown rendering', () => {
     expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
       content: 'Private draft content',
       is_draft: true,
+      posted_on: getTodayInSchedulingTimezone(),
     })
     consoleError.mockRestore()
   })

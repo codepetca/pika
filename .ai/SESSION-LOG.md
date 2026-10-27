@@ -676,3 +676,15 @@ clock fixed Oct20 for window proof. No live classroom mutation or shared env edi
 Coordinator edits/API; Sol-medium worker calendar adapter/read tests, Sol-high
 worker SQL/profiles/types; verified deliveries. Weekly remaining82%; DeepSeek pause
 honored. Effective configs, attributable effort/tokens unknown; no savings claim.
+
+Two independent Sol-high full reviews of559ff277e completed their app/compatibility
+and SQL/security scopes, finding one deduplicated blocker: untouched displayed
+dates were omitted during draft/schedule publication changes. Batch1 persists the
+visible date in both editors, including legacy null-date publication transitions.
+Default schedule, draft creation/reopen across midnight and scheduled Post now
+regressions reproduce before correction;217 affected tests, TypeScript and lint
+PASS afterward. Private SQL proof and unchanged visual matrix remain applicable.
+Fresh12 browser editor scenarios PASS across desktop/mobile light/dark; screenshots
+inspected under /tmp/pika-post-date-remediation-browser. Staged audit PASS; composite
+keyboard/focus coverage retained. Default date metadata also respects fixture actions.
+Final focused gate, targeted and cumulative review receipts follow in PR1695.

@@ -9,6 +9,9 @@ civil date from 0001–9999, including past and future dates.
 - **Schedule** separately chooses when students receive access.
 - **Save draft** retains an unpublished item, including its chosen calendar date.
 
+The editor always saves the displayed calendar date, even when today's default
+is left unchanged. Reopening a draft or changing release timing keeps that date.
+
 The field is available for new, draft, posted and scheduled materials. Its hint
 explains calendar placement versus release timing. Published materials remain
 accessible in Classwork; their placement in the student calendar follows the
