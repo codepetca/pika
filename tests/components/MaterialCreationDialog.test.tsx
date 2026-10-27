@@ -235,17 +235,34 @@ describe('Material scheduling', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save material')
   })
 
-  it('blocks empty/future post dates and locks the date field while saving or read-only', () => {
+  it('blocks invalid post dates and locks the date field while saving or read-only', () => {
     const handlers = { ...props(), isExisting: true, isDraft: false, releasedAt: '2026-10-03T12:00:00Z' }
     const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
     fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '' } })
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '0000-01-01' } })
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
     view.rerender(<MaterialCreationDialog {...handlers} saving />)
     expect(screen.getByLabelText('Post date (Toronto)')).toBeDisabled()
     view.rerender(<MaterialCreationDialog {...handlers} readOnly />)
     expect(screen.getByLabelText('Post date (Toronto)')).toBeDisabled()
+  })
+
+  it('schedules a future post date at Toronto midnight only on explicit Schedule and retains failures', async () => {
+    const user = userEvent.setup()
+    const handlers = { ...props(), isExisting: true, isDraft: false, releasedAt: '2026-10-03T12:00:00Z' }
+    const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
+    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    expect(screen.getByText('Hidden from students until midnight (Toronto) on this date.')).toBeVisible()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Schedule', exact: true }))
+    expect(handlers.onSave).toHaveBeenCalledWith(false, '2099-01-01T05:00:00.000Z', undefined)
+    view.rerender(<MaterialCreationDialog {...handlers} error="Could not schedule material" />)
+    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2099-01-01')
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not schedule material')
+    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2026-10-01' } })
+    await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    expect(handlers.onSave).toHaveBeenLastCalledWith(false, undefined, '2026-10-01')
   })
 
   it('keeps post-date editing out of new, draft and scheduled materials', () => {

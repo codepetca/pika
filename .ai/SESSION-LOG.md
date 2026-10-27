@@ -11,6 +11,96 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-23 Derived image ledger and modal keyboard CI integration
+
+CI39977192319 proves all seven authenticated Supabase starts and the previously
+blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
+TypeScript, lint and production build. The final lifecycle audit exposed the
+291 image-reference ledger missing from the classroom graph declaration. Declare
+its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
+contract; archive source rows and remapped managed objects rebuild references.
+Keep it outside portable resources, purge adapters and Gradex. Regression starts
+RED against the observed FK/composite key, then62affected archive cases PASS;
+missing-FK and unexpected-resource guards remain strict. No SQL changes.
+Browser CI exposed stale keyboard order after the shared corner Close and the
+removed mobile heading trigger. Update contracts to assert accessible Close in
+the tab cycle and the compact Format menu, retaining all focus, retirement,
+Escape, no-write and confirmed-write checks. Four-project native fixture checks,
+required focused gate and targeted review are recorded in retained receipts.
+Human waived review limits; normal reviewed1662-to-main merge is explicitly
+authorized after all checks. No production operation or additional DB change.
+
+## 2026-10-23 Compaction image rehearsal correction
+
+Independent targeted review20 accepted the ledger/browser correction but found
+an image lifecycle interaction: compaction stages real-restore URLs containing
+fresh identities before those objects are reserved. Preserve original authoring
+image identities only in rollback rehearsal via the verified plan's inverse ID
+map; real restore retains fresh identities, paths and reservation protocol.
+Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
+reproduced the unreserved staged URL;68affected archive cases PASS. Native local
+291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
+for original IDs, preserves exact managed state, and rolls every fixture back.
+Actual classroom schema audit passes284FKs; canonical migration history291 and
+zero fixture users/objects verified afterward. No SQL migration changed. Docker
+DB-only window is closed after proof; full focused gate and review21 tracked in
+retained receipts. Superseded7bbc gate deliberately terminated before edits.
+
+## 2026-10-23 Editor production migration and release correction
+
+Owner approved exact production291 and normal editor release. Preview40003769768
+matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
+is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
+and private bucket read-only checks PASS. No production fixtures or flags changed.
+Two cumulative release reviews found one source UUID casing blocker. Correction
+f316bf7da matches UUID identity only, preserving literal route/key/full identity
+and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
+static/audit and independent targeted review PASS. Main1668 and promotion1667
+each require final exact-head CI; no production app release claimed yet.
+Promotion keeps both journal histories and reviewed correction bytes. Home292,
+provider, billing and shared-local schema remain outside this release.
+
+## 2026-10-23 Editor production release verified
+
+Owner-approved production291 single apply40004531458 is applied-verified001–291;
+exact body/ACL/RLS/constraint/trigger/privatebucket read-only checks PASS. Four
+release review turns resolved one UUID casing source blocker; normal main1668
+merged b03198a9 after1012local/21534CI tests and allselectedgates. Production1667
+merged cd7179e64 after all10exact3208858CI40006108276checksPASS. Vercel
+dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
+verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
+292, flags, provider, account/billing or cleanup activation. Receipt imports both
+production/main journal histories; application/test/schema/config unchanged.
+
+## 2026-10-23 — Prepare live relationship home
+
+Implement the approved Teaching/Joined composition under exact home plus shared
+admission, preserving legacy users/session roles and the owner lifecycle manager.
+Private current-enrollment preferences persist personal hide/unhide; stale rejoin
+requests fail. Managed creation hints retain atomic quotas/idempotent replay;
+code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
+Disposable replay, rollback and real two-session contention passed; shared source
+ID/version/schema preserved, generated RPC types matched and owned resources absent.
+UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
+evidence. Initial browser failure was a selector matching Next's route announcer;
+its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
+gate and independent review still pending. Creation capability refresh regression
+failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
+unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
+owner authorized coordination and reviewed1662 merge to main only. Home numbering
+must follow upstream before readiness. No shared migration, production, provider,
+account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
+
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
+
 ## 2026-10-23 — Reconcile home with merged editor291
 
 Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
@@ -548,3 +638,24 @@ noncredential lane step stay unchanged. No SQL, product/UI, version, deadline,
 provider, shared schema, release or70-account configuration changes. Goal/DeepSeek
 remain paused. Targeted checks, focused gate and independent delta review precede
 one stable ready event; no registry fallback or automatic extra retry is added.
+## 2026-10-26 Future post dates
+
+Announcements and posted Classwork materials accept future Post date values.
+Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
+today/past dates retain posted_on. A field hint discloses student hiding. No schema
+or dependency changes. Risk none. Reference/reuse: production Material editor and
+Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
+existing scheduling. No new shared UI pattern or unrelated refactor. Composite
+checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
+contracts retained and interaction-tested; no new ARIA widget.
+Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
+material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
+cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
+corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
+student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
+and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
+Material student editing n/a (teacher-only); existing student release API checks
+reused. Capture source equals this candidate's UI files; deterministic fixtures,
+Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
+process secret used. Draft PR and independent review follow; merge/release require
+authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.

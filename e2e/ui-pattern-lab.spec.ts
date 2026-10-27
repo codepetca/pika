@@ -1725,7 +1725,7 @@ test.describe('teacher Pattern Lab', () => {
     })
     await date.fill('')
     await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-    await expect(dialog.getByText('Choose today or an earlier date.')).toBeVisible()
+    await expect(dialog.getByText('Choose a valid date.')).toBeVisible()
     await testInfo.attach('material-post-date-validation', {
       body: await dialog.screenshot({ path: testInfo.outputPath('material-post-date-validation.png'), animations: 'disabled' }), contentType: 'image/png',
     })
@@ -1733,6 +1733,16 @@ test.describe('teacher Pattern Lab', () => {
     await dialog.getByRole('button', { name: 'Save', exact: true }).click()
     await expect(dialog).toBeHidden()
     await expect(page.locator('#material-creation').getByRole('status')).toHaveText('Post date 2026-01-21 selected. Example only—nothing was saved or posted.')
+    await page.getByRole('button', { name: 'Edit posted material example' }).click()
+    await date.fill('2099-01-01')
+    await date.focus()
+    await expect(dialog.getByText('Hidden from students until midnight (Toronto) on this date.')).toBeVisible()
+    await testInfo.attach('material-future-post-date', {
+      body: await dialog.screenshot({ path: testInfo.outputPath('material-future-post-date.png'), animations: 'disabled' }), contentType: 'image/png',
+    })
+    await dialog.getByRole('button', { name: 'Schedule', exact: true }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.locator('#material-creation').getByRole('status')).toHaveText('Schedule 2099-01-01T05:00:00.000Z selected. Example only—nothing was saved or posted.')
   })
 
   test('demonstrates merged teacher date context and both workspace frames', async ({ page }, testInfo) => {
@@ -1891,18 +1901,21 @@ test('changes a published announcement post date on explicit Save', async ({ pag
   await page.getByRole('dialog', { name: 'Material', exact: true }).screenshot({ path: testInfo.outputPath('material-reference.png') })
 
   await mockTableShellReads(page, 'teacher')
-  let announcement = { id: '30000000-0000-4000-8000-000000000041', classroom_id: TABLE_CLASSROOM_ID,
+  let announcement: { id: string; classroom_id: string; title: string; content: string; created_by: string; is_draft: boolean;
+    published_at: string; scheduled_for: string | null; created_at: string; updated_at: string } = { id: '30000000-0000-4000-8000-000000000041', classroom_id: TABLE_CLASSROOM_ID,
     title: 'Calendar date update', content: 'A published announcement with an editable post date.',
     created_by: '30000000-0000-4000-8000-000000000012', is_draft: false,
     published_at: '2026-01-22T17:00:00Z', scheduled_for: null,
     created_at: '2026-01-22T17:00:00Z', updated_at: '2026-01-22T17:00:00Z' }
   const patches: unknown[] = []
   await page.route('**/api/teacher/classrooms/*/announcements', route => route.fulfill({ json: { announcements: [announcement] } }))
-  await page.route('**/api/teacher/classrooms/*/announcements/*', async route => {
-    patches.push(route.request().postDataJSON())
-    announcement = { ...announcement, published_at: '2026-01-21T05:00:00Z' }
+  const mockAnnouncementPatch = () => page.route('**/api/teacher/classrooms/*/announcements/*', async route => {
+    const patch = route.request().postDataJSON()
+    patches.push(patch)
+    announcement = { ...announcement, published_at: patch.scheduled_for ?? '2026-01-21T05:00:00Z', scheduled_for: patch.scheduled_for ?? null }
     await route.fulfill({ json: { announcement } })
   })
+  await mockAnnouncementPatch()
   await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=announcements')
   await page.getByText(announcement.title, { exact: true }).click()
   const date = page.getByLabel('Post date (Toronto)', { exact: true })
@@ -1911,9 +1924,9 @@ test('changes a published announcement post date on explicit Save', async ({ pag
   await date.focus()
   expect(patches).toEqual([])
   await page.screenshot({ path: testInfo.outputPath('teacher-post-date-focused.png') })
-  await date.fill('2099-01-01')
+  await date.fill('')
   await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-  await expect(page.getByText('Choose today or an earlier date.')).toBeVisible()
+  await expect(page.getByText('Choose a valid date.')).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('teacher-post-date-invalid.png') })
   await date.fill('2026-01-21')
   await page.getByRole('button', { name: 'Save', exact: true }).click()
@@ -1931,4 +1944,27 @@ test('changes a published announcement post date on explicit Save', async ({ pag
   await expect(page.getByLabel('Post date (Toronto)', { exact: true })).toHaveCount(0)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: testInfo.outputPath('student-backdated-announcement.png') })
+
+  await mockTableShellReads(page, 'teacher')
+  await page.route('**/api/teacher/classrooms/*/announcements', route => route.fulfill({ json: { announcements: [announcement] } }))
+  await mockAnnouncementPatch()
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=announcements')
+  await page.getByText(announcement.title, { exact: true }).click()
+  await date.fill('2099-01-01')
+  await date.focus()
+  await expect(page.getByText('Hidden from students until midnight (Toronto) on this date.')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('teacher-future-post-date.png') })
+  await page.getByRole('button', { name: 'Schedule', exact: true }).click()
+  await expect(date).toHaveCount(0)
+  expect(patches).toEqual([{ posted_on: '2026-01-21' }, { scheduled_for: '2099-01-01T05:00:00.000Z' }])
+  await expect(page.getByText(/Scheduled for/).first()).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('teacher-future-announcement-saved.png') })
+
+  await mockTableShellReads(page, 'student')
+  await page.route('**/api/student/classrooms/*/gradebook-items', route => route.fulfill({ json: { items: [] } }))
+  await page.route('**/api/student/classrooms/*/announcements', route => route.fulfill({ json: { announcements: [] } }))
+  await page.goto('/e2e-fixtures/teacher-student-tables?role=student&tab=announcements')
+  await expect(page.getByText(announcement.title, { exact: true })).toHaveCount(0)
+  await expect(page.getByText('No announcements yet', { exact: true })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('student-future-announcement-hidden.png') })
 })

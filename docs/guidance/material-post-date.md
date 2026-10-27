@@ -2,8 +2,13 @@
 
 Teachers can open an already-posted Classwork material, change **Post date
 (Toronto)**, and click **Save** to move it to that day in both classroom
-calendars. The date can be today or earlier. Future release continues to use
-Schedule; drafts and scheduled materials do not show the post-date field.
+calendars. Today and earlier dates use the backdating operation. A future date
+changes the primary action to **Schedule** and releases at midnight
+America/Toronto on that day. The field explains that the material becomes
+hidden from students until then. This uses the existing `scheduled_for`
+operation, leaving the backdating API contract unchanged. The separate
+Schedule picker remains available for a specific time. Drafts and scheduled
+materials do not show the post-date field.
 
 ## Persistence and rollout
 

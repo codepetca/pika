@@ -244,12 +244,40 @@ describe('announcement markdown rendering', () => {
   it('disables invalid post-date Save while keeping the future scheduling action available', async () => {
     render(teacherAnnouncementsElement(classroom))
     fireEvent.click(await screen.findByText('bring notes'))
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '' } })
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-    expect(screen.getByText('Choose today or an earlier date.')).toBeInTheDocument()
+    expect(screen.getByText('Choose a valid date.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
     fireEvent.click(screen.getByRole('menuitem', { name: 'Schedule...' }))
     expect(screen.getByLabelText('Date (Toronto)')).toBeInTheDocument()
+  })
+
+  it.each([null, '2026-05-13T12:00:00Z'])('schedules a future post date and retains it after failure (historical schedule=%s)', async scheduled_for => {
+    const patches: unknown[] = []
+    let fail = true
+    const scheduledFor = '2099-01-01T05:00:00.000Z'
+    vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        patches.push(JSON.parse(init.body as string))
+        return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement,
+          published_at: scheduledFor, scheduled_for: scheduledFor } }), { status: fail ? 500 : 200 })
+      }
+      return new Response(JSON.stringify({ announcements: [{ ...markdownAnnouncement, scheduled_for }] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    fireEvent.click(await screen.findByText('bring notes'))
+    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    expect(patches).toEqual([])
+    expect(screen.getByText('Hidden from students until midnight (Toronto) on this date.')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule', exact: true }))
+    await screen.findByRole('alert')
+    expect(patches).toEqual([{ scheduled_for: scheduledFor }])
+    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2099-01-01')
+    fail = false
+    fireEvent.click(screen.getByRole('button', { name: 'Schedule', exact: true }))
+    await waitFor(() => expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument())
+    expect(patches).toEqual([{ scheduled_for: scheduledFor }, { scheduled_for: scheduledFor }])
+    expect(screen.getByText(/Scheduled for/)).toBeVisible()
   })
 
   it.each(['draft', 'scheduled', 'future-publication'] as const)('hides the post-date field for %s announcements', async state => {

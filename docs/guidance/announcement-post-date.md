@@ -2,7 +2,12 @@
 
 Teachers can edit an already-published announcement, choose **Post date
 (Toronto)**, then **Save** to move its publication/calendar day. Today or an
-older real civil date is allowed; future dates use the existing Schedule action.
+older real civil date uses the backdating operation. A future date changes the
+primary action to **Schedule** and releases at midnight America/Toronto on that
+day. The field explains that the announcement becomes hidden from students
+until then. Date-only scheduling sends `scheduled_for` through the existing
+schedule operation; it never sends a future `posted_on`. The separate Schedule
+picker remains available for choosing a specific time.
 Drafts and future-scheduled announcements do not show this field. Changing the
 field does not write until Save; unconfirmed saves retain the edited date.
 
