@@ -411,6 +411,14 @@ type FunctionOverrides = {
       p_title: string | null
     }>
   >
+  create_announcement_for_owner_v2: FunctionContract<
+    'create_announcement_for_owner_v2',
+    Json,
+    Replace<GeneratedFunctions['create_announcement_for_owner_v2']['Args'], {
+      p_scheduled_for: string | null
+      p_title: string | null
+    }>
+  >
   set_gradebook_maximum_override: FunctionContract<
     'set_gradebook_maximum_override',
     Json,

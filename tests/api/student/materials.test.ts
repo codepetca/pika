@@ -55,6 +55,27 @@ describe('GET /api/student/classrooms/[id]/materials', () => {
     expect(or).toHaveBeenCalledWith(expect.stringMatching(/^released_at.is.null,released_at.lte./))
   })
 
+  it.each([
+    { posted_on: '2099-01-01' },
+    { posted_on: null },
+    {},
+  ])('preserves published material calendar placement while excluding future release %j', async placement => {
+    const published = { id: 'published', is_draft: false, released_at: '2025-01-01T12:00:00Z', ...placement }
+    const scheduled = { id: 'scheduled', is_draft: false, released_at: '2099-01-01T12:00:00Z', posted_on: '2025-01-01' }
+    const order = vi.fn().mockImplementationOnce(() => ({ order }))
+      .mockResolvedValue({ data: [published, scheduled], error: null })
+    const or = vi.fn(() => ({ order }))
+    const eq = vi.fn().mockReturnThis()
+    mockSupabaseClient.from = vi.fn(() => ({ select: vi.fn(() => ({ eq, or })) }))
+    const response = await GET(new NextRequest('http://localhost/api/student/classrooms/c-1/materials'), {
+      params: Promise.resolve({ id: 'c-1' }),
+    })
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ materials: [published] })
+    expect(or).toHaveBeenCalledWith(expect.stringMatching(/^released_at.is.null,released_at.lte./))
+    expect(eq).not.toHaveBeenCalledWith('posted_on', expect.anything())
+  })
+
   it('returns an empty list before the materials migration is applied', async () => {
     const order = vi
       .fn()

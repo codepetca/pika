@@ -54,15 +54,27 @@ describe('shared-admission owner announcement writes', () => {
   it.each(['shared', 'legacy'] as const)('routes %s post-date editing through the locked owner operation', async mode => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', mode === 'legacy' ? undefined : JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
     vi.mocked(requireRole).mockResolvedValue(user('teacher'))
-    const saved = { ...announcement, published_at: '2026-10-21T04:00:00.000Z' }
+    const saved = { ...announcement, posted_on: '2099-01-01' }
     rpc.mockResolvedValue({ data: { announcement: saved }, error: null })
-    const res = await PATCH(request('PATCH', { posted_on: '2026-10-21' }), { params: Promise.resolve(routes[1].params) })
+    const res = await PATCH(request('PATCH', { posted_on: '2099-01-01' }), { params: Promise.resolve(routes[1].params) })
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ announcement: saved })
     expect(rpc).toHaveBeenCalledWith('update_announcement_for_owner_v1', {
       p_actor_id: actorId, p_classroom_id: classroomId, p_announcement_id: announcementId,
-      p_patch: { posted_on: '2026-10-21' },
+      p_patch: { posted_on: '2099-01-01' },
     })
+    expect(from).not.toHaveBeenCalled()
+  })
+
+  it.each(['shared', 'legacy'] as const)('atomically posts a future calendar date through %s creation', async mode => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', mode === 'legacy' ? undefined : JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
+    vi.mocked(requireRole).mockResolvedValue(user('teacher'))
+    const saved = { ...announcement, posted_on: '2099-01-01' }
+    rpc.mockResolvedValue({ data: { announcement: saved }, error: null })
+    const res = await POST(request('POST', { content: 'Content', posted_on: '2099-01-01' }), { params: Promise.resolve({ id: classroomId }) })
+    expect(res.status).toBe(201)
+    expect(await res.json()).toEqual({ announcement: saved })
+    expect(rpc).toHaveBeenCalledWith('create_announcement_for_owner_v2', expect.objectContaining({ p_posted_on: '2099-01-01', p_scheduled_for: null, p_is_draft: false }))
     expect(from).not.toHaveBeenCalled()
   })
 

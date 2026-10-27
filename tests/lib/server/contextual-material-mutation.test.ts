@@ -52,18 +52,18 @@ describe('shared material owner RPC contracts', () => {
       body: contextualMaterialCreateSchema.parse({ title: 'Reference', content, is_draft: false }),
     })).toEqual({ material: allocated })
   })
-  it.each([
-    ['2026-03-08', '2026-03-08T05:00:00.000Z'],
-    ['2026-07-10', '2026-07-10T04:00:00.000Z'],
-    ['0001-01-01', '0001-01-01T05:17:32.000Z'],
-  ])('binds the persisted Toronto calendar date: %s', async (posted_on, released_at) => {
-    rpc.mockResolvedValue(success({ ...row(), released_at }))
-    expect((await update(materialUpdateBodySchema.parse({ posted_on }))).material.released_at).toBe(released_at)
+  it.each(['2026-03-08', '2099-01-01', '0001-01-01'])('binds calendar date %s independently of release', async posted_on => {
+    rpc.mockResolvedValue(success({ ...row(), posted_on }))
+    expect((await update(materialUpdateBodySchema.parse({ posted_on }))).material).toMatchObject({ posted_on, released_at: timestamp })
     expect(rpc).toHaveBeenCalledWith('update_classwork_material_for_owner_v1', expect.objectContaining({ p_patch: { posted_on } }))
     rpc.mockResolvedValue(success(row()))
     await expect(update({ posted_on })).rejects.toMatchObject({ statusCode: 503 })
-    rpc.mockResolvedValue(success({ ...row(), released_at, is_draft: true }))
-    await expect(update({ posted_on })).rejects.toMatchObject({ statusCode: 503 })
+  })
+  it('atomically creates an immediately visible future-dated material', async () => {
+    const posted_on = '2099-01-01'
+    rpc.mockResolvedValue(success({ ...row(), posted_on }))
+    expect((await createContextualMaterial({ actorId, classroomId, body: contextualMaterialCreateSchema.parse({ title: 'Reference', content, is_draft: false, posted_on }) })).material).toMatchObject({ posted_on, released_at: timestamp })
+    expect(rpc).toHaveBeenCalledWith('create_classwork_material_for_owner_v4', expect.objectContaining({ p_posted_on: posted_on, p_is_draft: false }))
   })
   it.each([{ title: 'Reference' }, { content }, { is_draft: false }])('forwards only present patch keys: %j', async patch => {
     await update(materialUpdateBodySchema.parse(patch))
@@ -180,7 +180,7 @@ describe('shared material owner RPC contracts', () => {
 })
 
 describe('shared material mutation request schemas', () => {
-  it.each(['', '0000-01-01', '2026-02-29', '2026-02-30', '2026-1-01', '2026-10-02T00:00:00Z', '2099-01-01'])('rejects invalid post date %s', posted_on => {
+  it.each(['', '0000-01-01', '2026-02-29', '2026-02-30', '2026-1-01', '2026-10-02T00:00:00Z'])('rejects invalid post date %s', posted_on => {
     expect(materialUpdateBodySchema.safeParse({ posted_on }).success).toBe(false)
   })
   it.each(['invalid', '2020-01-01T00:00:00Z', '2099-01-01T00:00:00'])('rejects invalid schedule %s', scheduled_for => {

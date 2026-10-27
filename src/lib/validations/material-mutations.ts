@@ -14,11 +14,7 @@ export const materialUpdateBodySchema = z.object({
   is_draft: z.boolean().optional(),
   scheduled_for: materialScheduledForSchema.optional(),
   posted_on: materialPostDateSchema.optional(),
-}).strict().superRefine(validateMaterialPublication).superRefine((value, context) => {
-  if (value.posted_on !== undefined && (value.is_draft === true || value.scheduled_for !== undefined)) {
-    context.addIssue({ code: 'custom', message: 'A post date cannot also change the publication state', path: ['posted_on'] })
-  }
-}).refine(value => Object.values(value).some(field => field !== undefined), 'No changes provided')
+}).strict().superRefine(validateMaterialPublication).refine(value => Object.values(value).some(field => field !== undefined), 'No changes provided')
 export type MaterialUpdateInput = z.infer<typeof materialUpdateBodySchema>
 
 // These decoders cover shared admission; the retained legacy branch still has validation debt.

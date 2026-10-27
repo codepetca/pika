@@ -44,7 +44,7 @@ export async function loadPublishedClassroomSource(
       .order('date', { ascending: true }),
     supabase
       .from('announcements')
-      .select('id, classroom_id, title, content, created_by, is_draft, published_at, scheduled_for, created_at, updated_at')
+      .select('id, classroom_id, title, content, created_by, is_draft, published_at, scheduled_for, created_at, updated_at, posted_on')
       .eq('classroom_id', classroomId)
       .eq('is_draft', false)
       .order('published_at', { ascending: false }),

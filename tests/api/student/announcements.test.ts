@@ -67,6 +67,28 @@ describe('GET /api/student/classrooms/[id]/announcements', () => {
     expect(data.announcements[0].id).toBe('a-2')
   })
 
+  it.each([
+    { posted_on: '2099-01-01' },
+    { posted_on: null },
+    {},
+  ])('returns immediately published announcements independently of calendar placement %j', async placement => {
+    const published = { id: 'published', content: 'Available now', is_draft: false,
+      published_at: '2025-01-01T12:00:00Z', scheduled_for: null, ...placement }
+    const eq = vi.fn().mockReturnThis()
+    const order = vi.fn().mockResolvedValue({ data: [published], error: null })
+    const or = vi.fn(() => ({ order }))
+    mockSupabaseClient.from = vi.fn(() => ({ select: vi.fn(() => ({ eq, or })) }))
+    const response = await GET(new NextRequest('http://localhost/api/student/classrooms/c-1/announcements'), {
+      params: Promise.resolve({ id: 'c-1' }),
+    })
+    expect(response.status).toBe(200)
+    await expect(response.json()).resolves.toEqual({ announcements: [published] })
+    expect(eq).toHaveBeenCalledWith('is_draft', false)
+    // Genuine release scheduling remains excluded by the database, regardless of placement.
+    expect(or).toHaveBeenCalledExactlyOnceWith('scheduled_for.is.null,scheduled_for.lte.now()')
+    expect(eq).not.toHaveBeenCalledWith('posted_on', expect.anything())
+  })
+
   it('should return 403 when student is not enrolled', async () => {
     const { assertStudentCanAccessClassroom } = await import('@/lib/server/classrooms')
     ;(assertStudentCanAccessClassroom as any).mockResolvedValueOnce({

@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Derived image ledger and modal keyboard CI integration
-
-CI39977192319 proves all seven authenticated Supabase starts and the previously
-blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
-TypeScript, lint and production build. The final lifecycle audit exposed the
-291 image-reference ledger missing from the classroom graph declaration. Declare
-its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
-contract; archive source rows and remapped managed objects rebuild references.
-Keep it outside portable resources, purge adapters and Gradex. Regression starts
-RED against the observed FK/composite key, then62affected archive cases PASS;
-missing-FK and unexpected-resource guards remain strict. No SQL changes.
-Browser CI exposed stale keyboard order after the shared corner Close and the
-removed mobile heading trigger. Update contracts to assert accessible Close in
-the tab cycle and the compact Format menu, retaining all focus, retirement,
-Escape, no-write and confirmed-write checks. Four-project native fixture checks,
-required focused gate and targeted review are recorded in retained receipts.
-Human waived review limits; normal reviewed1662-to-main merge is explicitly
-authorized after all checks. No production operation or additional DB change.
-
 ## 2026-10-23 Compaction image rehearsal correction
 
 Independent targeted review20 accepted the ledger/browser correction but found
@@ -659,3 +640,39 @@ reused. Capture source equals this candidate's UI files; deterministic fixtures,
 Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
 process secret used. Draft PR and independent review follow; merge/release require
 authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
+
+## 2026-10-27 Independent calendar post dates
+
+Owner clarified: calendar placement is independent of release, superseding Oct26's
+future-date-as-schedule interpretation (never deployed). PR1695 returned to draft.
+Calendar date defaults today for new posts; past/future edits retain Post/Save.
+Release metadata says Releases; Schedule retains explicit release timing. New,
+draft, posted and scheduled editors retain independent placement. Student lists
+keep published content; every Calendar view applies the server advance horizon
+for announcements/materials, failing closed while unconfirmed. Test exceptions
+remain navigation-only. Existing Material/announcement owners and Pattern Lab
+are reference; reuse FormField/Input/SplitButton, extend feature adapters; no new
+shared visual pattern or dependency. Composite labels/hints/actions and existing
+keyboard/focus contracts retained. Risk none; review high (schema/owner RPCs).
+
+294 adds nullable posted_on and atomic create wrappers. No backfill or historical
+SQL edits. Existing locks/immutable/after-row/ACL guards retained; null mutation
+keys omitted for legacy decoders. Coordinate app/migration rollout; no shared or
+production application authorized. Shared local history292 and normalized schema
+unchanged. Private001–294 replay, rollback/tamper/atomic/date/state/ACL proofs and
+type equality PASS /tmp/pika-material-post-date.Op5td6; all owned clones removed.
+Source seal7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3.
+
+Initial focused5733/175 + static PASS. Added coverage passes175 source/list and175
+interaction tests; corrected browser inventory count and235 regression recheck
+PASS. Final focused gate/review/CI receipts follow in PR1695. Twelve Playwright
+matrix cases PASS across teacher/student1440x900/390x844 light/dark; additional
+new/draft/scheduled editor captures inspected. Evidence /tmp/pika-calendar-post-
+placement-browser, /tmp/pika-calendar-visibility-probe, /tmp/pika-calendar-visibility-
+final and /tmp/pika-post-placement-editor-states-final (desktop-light probes named
+similarly); montage /tmp/pika-calendar-post-placement-matrix.png. Current candidate
+source, synthetic production-owner fixtures, Playwright1.58, localhost3127; calendar
+clock fixed Oct20 for window proof. No live classroom mutation or shared env edit.
+Coordinator edits/API; Sol-medium worker calendar adapter/read tests, Sol-high
+worker SQL/profiles/types; verified deliveries. Weekly remaining82%; DeepSeek pause
+honored. Effective configs, attributable effort/tokens unknown; no savings claim.

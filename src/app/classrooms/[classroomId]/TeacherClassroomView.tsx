@@ -412,6 +412,7 @@ function TeacherMaterialDialog({
       isOpen={isOpen}
       isExisting={!!material}
       isDraft={isDraft}
+      postedOn={material?.posted_on}
       releasedAt={material?.released_at}
       createdAt={material?.created_at}
       readOnly={isReadOnly}

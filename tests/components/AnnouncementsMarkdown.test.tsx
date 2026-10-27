@@ -1,3 +1,4 @@
+import { getTodayInSchedulingTimezone } from '@/lib/scheduling'
 import userEvent from '@testing-library/user-event'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -220,13 +221,13 @@ describe('announcement markdown rendering', () => {
       if (init?.method === 'PATCH') {
         patches.push(JSON.parse(init.body as string))
         return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement,
-          published_at: '2026-05-12T04:00:00.000Z', scheduled_for: null } }), { status: fail ? 500 : 200 })
+          posted_on: '2026-05-12', scheduled_for } }), { status: fail ? 500 : 200 })
       }
       return new Response(JSON.stringify({ announcements: [original] }), { status: 200 })
     }))
     render(teacherAnnouncementsElement(classroom))
     fireEvent.click(await screen.findByText('bring notes'))
-    const field = screen.getByLabelText('Post date (Toronto)')
+    const field = screen.getByLabelText('Calendar date (Toronto)')
     expect(field).toHaveValue('2026-05-13')
     fireEvent.change(field, { target: { value: '2026-05-12' } })
     expect(patches).toEqual([])
@@ -236,15 +237,15 @@ describe('announcement markdown rendering', () => {
     expect(patches).toEqual([{ posted_on: '2026-05-12' }])
     fail = false
     fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
-    await waitFor(() => expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument())
+    await waitFor(() => expect(screen.queryByLabelText('Calendar date (Toronto)')).not.toBeInTheDocument())
     fireEvent.click(screen.getByText('bring notes'))
-    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2026-05-12')
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2026-05-12')
   })
 
   it('disables invalid post-date Save while keeping the future scheduling action available', async () => {
     render(teacherAnnouncementsElement(classroom))
     fireEvent.click(await screen.findByText('bring notes'))
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '' } })
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
     expect(screen.getByText('Choose a valid date.')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Choose announcement action' }))
@@ -252,42 +253,72 @@ describe('announcement markdown rendering', () => {
     expect(screen.getByLabelText('Date (Toronto)')).toBeInTheDocument()
   })
 
-  it.each([null, '2026-05-13T12:00:00Z'])('schedules a future post date and retains it after failure (historical schedule=%s)', async scheduled_for => {
+  it.each([null, '2026-05-13T12:00:00Z'])('saves a future calendar date without scheduling and retains it after failure (historical schedule=%s)', async scheduled_for => {
     const patches: unknown[] = []
     let fail = true
-    const scheduledFor = '2099-01-01T05:00:00.000Z'
     vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init?: RequestInit) => {
       if (init?.method === 'PATCH') {
         patches.push(JSON.parse(init.body as string))
         return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement,
-          published_at: scheduledFor, scheduled_for: scheduledFor } }), { status: fail ? 500 : 200 })
+          posted_on: '2099-01-01', scheduled_for } }), { status: fail ? 500 : 200 })
       }
       return new Response(JSON.stringify({ announcements: [{ ...markdownAnnouncement, scheduled_for }] }), { status: 200 })
     }))
     render(teacherAnnouncementsElement(classroom))
     fireEvent.click(await screen.findByText('bring notes'))
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-01-01' } })
     expect(patches).toEqual([])
-    expect(screen.getByText('Hidden from students until midnight (Toronto) on this date.')).toBeVisible()
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule', exact: true }))
+    expect(screen.getByText(/Post makes it available now; Schedule delays release/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
     await screen.findByRole('alert')
-    expect(patches).toEqual([{ scheduled_for: scheduledFor }])
-    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2099-01-01')
+    expect(patches).toEqual([{ posted_on: '2099-01-01' }])
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2099-01-01')
     fail = false
-    fireEvent.click(screen.getByRole('button', { name: 'Schedule', exact: true }))
-    await waitFor(() => expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument())
-    expect(patches).toEqual([{ scheduled_for: scheduledFor }, { scheduled_for: scheduledFor }])
-    expect(screen.getByText(/Scheduled for/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    await waitFor(() => expect(screen.queryByLabelText('Calendar date (Toronto)')).not.toBeInTheDocument())
+    expect(patches).toEqual([{ posted_on: '2099-01-01' }, { posted_on: '2099-01-01' }])
+    expect(screen.queryByText(/Scheduled for/)).not.toBeInTheDocument()
   })
 
-  it.each(['draft', 'scheduled', 'future-publication'] as const)('hides the post-date field for %s announcements', async state => {
+  it('defaults a newly opened announcement to today after the page crosses Toronto midnight', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-10-28T03:59:00Z'))
+      render(teacherAnnouncementsElement(classroom))
+      await screen.findByText('bring notes')
+      vi.setSystemTime(new Date('2026-10-28T04:01:00Z'))
+      fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+      expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2026-10-28')
+    } finally { vi.useRealTimers() }
+  })
+
+  it('defaults new posts to today and posts a future calendar date without scheduling', async () => {
+    const bodies: unknown[] = []
+    vi.stubGlobal('fetch', vi.fn(async (_url: unknown, init?: RequestInit) => {
+      if (init?.method === 'POST') {
+        bodies.push(JSON.parse(init.body as string))
+        return new Response(JSON.stringify({ announcement: { ...markdownAnnouncement, id: 'new-announcement', posted_on: '2099-01-01', scheduled_for: null } }), { status: 201 })
+      }
+      return new Response(JSON.stringify({ announcements: [markdownAnnouncement] }), { status: 200 })
+    }))
+    render(teacherAnnouncementsElement(classroom))
+    await screen.findByText('bring notes')
+    fireEvent.click(screen.getByRole('button', { name: 'Create announcement' }))
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue(getTodayInSchedulingTimezone())
+    fireEvent.change(screen.getByRole('textbox', { name: 'Announcement body' }), { target: { value: 'Available now on a later day' } })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-01-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    await waitFor(() => expect(bodies).toEqual([{ content: 'Available now on a later day', posted_on: '2099-01-01' }]))
+  })
+
+  it.each(['draft', 'scheduled', 'future-publication'] as const)('shows calendar placement for %s announcements', async state => {
     mockAnnouncementFetch([{ ...markdownAnnouncement, is_draft: state === 'draft',
       published_at: state === 'draft' ? null : '2099-01-01T12:00:00Z',
       scheduled_for: state === 'scheduled' ? '2099-01-01T12:00:00Z' : null }])
     render(teacherAnnouncementsElement(classroom))
     fireEvent.click(await screen.findByText('bring notes'))
     expect(screen.getByRole('textbox', { name: 'Edit announcement body' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toBeInTheDocument()
     if (state === 'future-publication') expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeEnabled()
   })
 

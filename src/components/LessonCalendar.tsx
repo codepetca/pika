@@ -169,8 +169,8 @@ export function LessonCalendar({
   }, [materials])
 
   // Build a map of date -> announcements for quick lookup
-  // Announcements stay on the date they are published, including after a
-  // scheduled publication boundary passes. Drafts are excluded.
+  // Explicit calendar dates stay independent of publication. Legacy rows use
+  // their publication day, including after a schedule passes. Drafts are excluded.
   const announcementsByDate = useMemo(() => {
     const map = new Map<string, Announcement[]>()
     announcements.forEach((announcement) => {

@@ -1592,17 +1592,17 @@ describe('TeacherClassroomView', () => {
 
   it.each([
     ['2026-10-21', '2026-10-21T04:00:00Z', 'Save', { posted_on: '2026-10-21' }],
-    ['2099-01-01', '2099-01-01T05:00:00.000Z', 'Schedule', { scheduled_for: '2099-01-01T05:00:00.000Z' }],
+    ['2099-01-01', '2026-10-22T14:00:00Z', 'Save', { posted_on: '2099-01-01' }],
   ] as const)('saves material post date %s and invalidates both calendar material caches', async (dateValue, releasedAt, action, datePatch) => {
     const material = makeMaterialSummary('material-post-date', 'Calendar reading', { is_draft: false, released_at: '2026-10-22T14:00:00Z' })
     mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
       key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
     ))
-    const saved = { ...material, released_at: releasedAt }
+    const saved = { ...material, released_at: releasedAt, posted_on: dateValue }
     vi.mocked(global.fetch).mockResolvedValue({ ok: true, json: async () => ({ material: saved }) } as Response)
     render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} />, { wrapper: TooltipProvider })
     const dialog = await screen.findByRole('dialog', { name: 'Material' })
-    const date = within(dialog).getByLabelText('Post date (Toronto)')
+    const date = within(dialog).getByLabelText('Calendar date (Toronto)')
     fireEvent.change(date, { target: { value: dateValue } })
     fireEvent.click(within(dialog).getAllByRole('button', { name: action, exact: true })[0])
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
