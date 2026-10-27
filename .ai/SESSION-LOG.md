@@ -688,3 +688,31 @@ Fresh12 browser editor scenarios PASS across desktop/mobile light/dark; screensh
 inspected under /tmp/pika-post-date-remediation-browser. Staged audit PASS; composite
 keyboard/focus coverage retained. Default date metadata also respects fixture actions.
 Final focused gate, targeted and cumulative review receipts follow in PR1695.
+
+## 2026-10-27 Calendar date CI proof alignment
+
+Final56ff40d41 review clean; prior implementation canonical5741/175PASS. Exacthead
+broad run5740PASS plus one5s preflight timeout under load; isolated38PASS and all
+static gatesPASS. CI40510181489 found the native announcement reader's old exact
+field inventory, plus main's compact CURRENT labels rejected by the existing
+attendance guidance test (22590other casesPASS/8skip). Returned PR1695 to draft.
+Batch2 extends both native material/announcement inventories narrowly with posted_on
+and asserts published future-calendar rows reach both member roles. Restores
+existing DB/control label anchors in CURRENT without changing any recorded facts.
+No application, SQL, ACL, shared data, visibility or release behavior changed.
+Targeted verification/review and replacement exacthead CI follow; no migration,
+merge or release authorized. Review ledger retains5 prior launches including the
+superseded interpretation;2fix batches, targeted wave2 planned within7launch/60min.
+
+## 2026-10-27 Accept the bounded 70-account classroom rollout
+
+Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
+and schema293 into the dated70-account acceptance receipt. Retained actual
+signed-in versus isolated/source-qualified boundaries, exact roster checks,
+selected academic preservation and compatible recovery constraints. PPZ keeps
+Tests/native attendance off/no policy/mapping/manual log unchanged. Original
+observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
+passed7timely samples and final exact70/provider/work readbacks. Timed process
+exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
+historical pilot now point to bounded acceptance; wider admission/provider/billing
+holds and incomplete epic/paused goal remain. Documentation only; no live action.
