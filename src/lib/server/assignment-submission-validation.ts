@@ -3,7 +3,8 @@ import { lookup } from 'node:dns/promises'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
 import type { IncomingMessage, RequestOptions } from 'node:http'
-import { parseGitHubRepoReference } from '@/lib/github-repos'
+import { normalizeGitHubLogin, parseGitHubRepoReference, REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE } from '@/lib/github-repos'
+export { normalizeGitHubLogin } from '@/lib/github-repos'
 import {
   normalizeAssignmentSubmissionValidationPolicy,
   type AssignmentSubmissionValidationPolicy,
@@ -75,15 +76,6 @@ export function getGitHubIdentityValidationFromArtifact(
     validation_status: 'unvalidated',
     validation_message: validation.validation_message,
   }
-}
-
-export function normalizeGitHubLogin(value: string | null | undefined): string | null {
-  const login = String(value ?? '').trim().replace(/^@+/, '')
-  if (!login) return null
-  if (!/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(login)) {
-    return null
-  }
-  return login
 }
 
 function normalizeHostnameForIpCheck(hostname: string): string {
@@ -504,8 +496,16 @@ export async function validateAssignmentSubmissionArtifactValue(opts: {
       }
     }
 
-    const repoValidation = await validatePublicGitHubRepo(normalizedUrl)
     const githubLogin = normalizeGitHubLogin(opts.githubLogin)
+    if (!githubLogin) {
+      return {
+        validation_status: 'invalid',
+        validation_message: REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE,
+        metadata_json: {},
+        normalized_url: parsed.normalizedUrl,
+      }
+    }
+    const repoValidation = await validatePublicGitHubRepo(normalizedUrl)
     let githubLoginValidation: Awaited<ReturnType<typeof validateGitHubLogin>> | null = null
 
     if (githubLogin) {

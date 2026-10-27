@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events'
+import { validatePublicGitHubRepo } from '@/lib/server/assignment-repo-targets'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getGitHubIdentityValidationFromArtifact,
@@ -110,6 +111,7 @@ function mockBoundedHttpResponse(opts: {
 
 describe('assignment submission validation helpers', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
     dnsMocks.lookup.mockReset()
     dnsMocks.lookup.mockResolvedValue([{ address: '93.184.216.34', family: 4 }])
     requestMocks.httpRequest.mockReset()
@@ -156,6 +158,21 @@ describe('assignment submission validation helpers', () => {
       github_login_validation_message: null,
     })
 
+    vi.unstubAllGlobals()
+  })
+
+  it.each([undefined, null, '', '   ', '-bad', 'bad name'])('rejects a repo username before any GitHub request: %j', async (githubLogin) => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    const result = await validateAssignmentSubmissionArtifactValue({
+      type: 'repo_link', url: 'https://github.com/codepetca/pika', githubLogin,
+    })
+
+    expect(result.validation_status).toBe('invalid')
+    expect(result.validation_message).toBe('Enter a valid GitHub username for your repository.')
+    expect(validatePublicGitHubRepo).not.toHaveBeenCalled()
+    expect(fetchSpy).not.toHaveBeenCalled()
     vi.unstubAllGlobals()
   })
 
