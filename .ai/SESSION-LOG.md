@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Derived image ledger and modal keyboard CI integration
-
-CI39977192319 proves all seven authenticated Supabase starts and the previously
-blocked native GET/list/reorder guards pass. Test & Build passes21,522 cases,
-TypeScript, lint and production build. The final lifecycle audit exposed the
-291 image-reference ledger missing from the classroom graph declaration. Declare
-its exact classroom FK non-owning, following the trigger-rebuilt storage ledger
-contract; archive source rows and remapped managed objects rebuild references.
-Keep it outside portable resources, purge adapters and Gradex. Regression starts
-RED against the observed FK/composite key, then62affected archive cases PASS;
-missing-FK and unexpected-resource guards remain strict. No SQL changes.
-Browser CI exposed stale keyboard order after the shared corner Close and the
-removed mobile heading trigger. Update contracts to assert accessible Close in
-the tab cycle and the compact Format menu, retaining all focus, retirement,
-Escape, no-write and confirmed-write checks. Four-project native fixture checks,
-required focused gate and targeted review are recorded in retained receipts.
-Human waived review limits; normal reviewed1662-to-main merge is explicitly
-authorized after all checks. No production operation or additional DB change.
-
 ## 2026-10-23 Compaction image rehearsal correction
 
 Independent targeted review20 accepted the ledger/browser correction but found
@@ -572,3 +553,15 @@ passed7timely samples and final exact70/provider/work readbacks. Timed process
 exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
 historical pilot now point to bounded acceptance; wider admission/provider/billing
 holds and incomplete epic/paused goal remain. Documentation only; no live action.
+
+## 2026-10-27 Prepare wider classroom admission design
+
+Prepared a proposal for one durable service-owned admission source, exact70
+bootstrap retention and staged expansion/new-user policy. Current Home/API each
+cap100; Bara also selects protocol behavior from admission. The plan requires
+Home/API consumer migration and frozen bootstrap provider-compatibility decisions
+before widening, with current nonadmitted behavior preserved too. New grants use
+atomic approved batches/growth stop; automatic signup stays off until separately
+approved. Rollout stages and exact-source recovery/verification gates are recorded;
+no code, SQL, cohort, plan, production or provider operation performed. Existing70,
+all other holds and paused goal/DeepSeek remain unchanged.

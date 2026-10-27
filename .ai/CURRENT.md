@@ -11,6 +11,7 @@ Prior gap retained. Audit27 3b7ae978e accepted;decommission ON.
 Billing/other provider holds unchanged;181/206/Free ON;182–205/image213/253 OFF.
 Pal membership/signals OFF;quota creation-error/batch2 deferred.
 Epic incomplete; goal/DeepSeek paused.
+[Next](../docs/guidance/classroom-wider-admission-plan.md): proposal only.
 
 Worktrees:$HOME/.codex/worktrees/pika/;$HOME/.codex/worktrees/<id>/pika.
 Env:$HOME/Repos/.env/pika/.env.local;.env.example.
