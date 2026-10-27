@@ -574,5 +574,8 @@ types pass; first harness import failure retained and fixed. Focused11735 tests
 passed, plus architecture/UI/design/TypeScript/lint. All294 tables join sealed whole-row
 proof catalogs; historical profiles retained. Review found a concurrent growth-stop
 race; one correction gives restrictive stops priority, preserves original replay
-binding and records actual predecessor. Targeted review/CI pending. No shared
+binding and records actual predecessor; four review turns are clean. CI coverage
+passed22623 tests but failed one inherited CURRENT-label assertion. Restored the
+factual production/control receipt labels;83 targeted checks and local build pass.
+Fresh final CI remains pending. No shared
 local/prod migration/import/release/config/provider/account action; goal/DeepSeek paused.
