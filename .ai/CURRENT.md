@@ -1,6 +1,7 @@
 # Checkpoint — 2026-10-27 (America/Toronto)
 
-Prod405ef92cc; DB001–293; local unchanged. RepoLight A connected; AI OFF.
+Prod405ef92cc; local unchanged. RepoLight A connected; AI OFF.
+DB001–293.
 GitHub quota: [Contract](../docs/integrations/repolight.md).
 
 Home/admission exact70 ON; page flags absent; further admission held.
@@ -8,7 +9,7 @@ Home/admission exact70 ON; page flags absent; further admission held.
 representative canaries PASS; PPZ Tests/native OFF, manual log unchanged.
 Fresh08:04–08:34 readonly7/7 PASS;70/provider/checked work preserved.
 Prior gap retained. Audit27 3b7ae978e accepted;decommission ON.
-Billing/other provider holds unchanged;181/206/Free ON;182–205/image213/253 OFF.
+Controls unchanged: billing/other provider holds;181/206/Free ON;182–205/image213/253 OFF.
 Pal membership/signals OFF;quota creation-error/batch2 deferred.
 Epic incomplete; goal/DeepSeek paused.
 [Next](../docs/guidance/classroom-wider-admission-plan.md): proposal only.

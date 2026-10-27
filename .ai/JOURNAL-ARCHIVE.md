@@ -50184,3 +50184,35 @@ Escape, no-write and confirmed-write checks. Four-project native fixture checks,
 required focused gate and targeted review are recorded in retained receipts.
 Human waived review limits; normal reviewed1662-to-main merge is explicitly
 authorized after all checks. No production operation or additional DB change.
+
+<!-- pika-session-log-archive-batch:210aec6ec8e0482483eccd90f9fedbcb80414d919399c67d30333be8fac11cb1 -->
+## 2026-10-23 Compaction image rehearsal correction
+
+Independent targeted review20 accepted the ledger/browser correction but found
+an image lifecycle interaction: compaction stages real-restore URLs containing
+fresh identities before those objects are reserved. Preserve original authoring
+image identities only in rollback rehearsal via the verified plan's inverse ID
+map; real restore retains fresh identities, paths and reservation protocol.
+Reuse one protected URL grammar for Markdown and nested JSON. Regression RED
+reproduced the unreserved staged URL;68affected archive cases PASS. Native local
+291 source-delete/reinsert proof rejects fresh unreserved IDs, rebuilds the ledger
+for original IDs, preserves exact managed state, and rolls every fixture back.
+Actual classroom schema audit passes284FKs; canonical migration history291 and
+zero fixture users/objects verified afterward. No SQL migration changed. Docker
+DB-only window is closed after proof; full focused gate and review21 tracked in
+retained receipts. Superseded7bbc gate deliberately terminated before edits.
+
+<!-- pika-session-log-archive-batch:6e534719264a503fed8f4ea73c6cf8bfbaaa42ac62ecf5ba8e39e1d9c0facaa1 -->
+## 2026-10-23 Editor production migration and release correction
+
+Owner approved exact production291 and normal editor release. Preview40003769768
+matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
+is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
+and private bucket read-only checks PASS. No production fixtures or flags changed.
+Two cumulative release reviews found one source UUID casing blocker. Correction
+f316bf7da matches UUID identity only, preserving literal route/key/full identity
+and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
+static/audit and independent targeted review PASS. Main1668 and promotion1667
+each require final exact-head CI; no production app release claimed yet.
+Promotion keeps both journal histories and reviewed correction bytes. Home292,
+provider, billing and shared-local schema remain outside this release.
