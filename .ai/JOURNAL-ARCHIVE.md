@@ -50216,3 +50216,49 @@ static/audit and independent targeted review PASS. Main1668 and promotion1667
 each require final exact-head CI; no production app release claimed yet.
 Promotion keeps both journal histories and reviewed correction bytes. Home292,
 provider, billing and shared-local schema remain outside this release.
+
+<!-- pika-session-log-archive-batch:1f7687235f567614c8c3c056b414b56d71b4d2834f9ca52ae6fca088802a12a8 -->
+## 2026-10-23 Editor production migration and release correction
+
+Owner approved exact production291 and normal editor release. Preview40003769768
+matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
+is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
+and private bucket read-only checks PASS. No production fixtures or flags changed.
+Two cumulative release reviews found one source UUID casing blocker. Correction
+f316bf7da matches UUID identity only, preserving literal route/key/full identity
+and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
+static/audit and independent targeted review PASS. Main1668 and promotion1667
+each require final exact-head CI; no production app release claimed yet.
+Promotion keeps both journal histories and reviewed correction bytes. Home292,
+provider, billing and shared-local schema remain outside this release.
+
+## 2026-10-23 Editor production release verified
+
+Owner-approved production291 single apply40004531458 is applied-verified001–291;
+exact body/ACL/RLS/constraint/trigger/privatebucket read-only checks PASS. Four
+release review turns resolved one UUID casing source blocker; normal main1668
+merged b03198a9 after1012local/21534CI tests and allselectedgates. Production1667
+merged cd7179e64 after all10exact3208858CI40006108276checksPASS. Vercel
+dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
+verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
+292, flags, provider, account/billing or cleanup activation. Receipt imports both
+production/main journal histories; application/test/schema/config unchanged.
+
+## 2026-10-23 — Prepare live relationship home
+
+Implement the approved Teaching/Joined composition under exact home plus shared
+admission, preserving legacy users/session roles and the owner lifecycle manager.
+Private current-enrollment preferences persist personal hide/unhide; stale rejoin
+requests fail. Managed creation hints retain atomic quotas/idempotent replay;
+code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
+Disposable replay, rollback and real two-session contention passed; shared source
+ID/version/schema preserved, generated RPC types matched and owned resources absent.
+UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
+evidence. Initial browser failure was a selector matching Next's route announcer;
+its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
+gate and independent review still pending. Creation capability refresh regression
+failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
+unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
+owner authorized coordination and reviewed1662 merge to main only. Home numbering
+must follow upstream before readiness. No shared migration, production, provider,
+account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
