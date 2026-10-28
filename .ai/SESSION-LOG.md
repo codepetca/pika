@@ -552,23 +552,10 @@ caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
 
-## 2026-10-28 — Creation action placement (in progress)
+## 2026-10-28 — Creation action placement
 
 - Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
 - Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-10-28 — Integrate calendar dates after admission294
 
