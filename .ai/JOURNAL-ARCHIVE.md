@@ -50411,3 +50411,11 @@ Owner approved one bounded correction/review continuation. Rebased onto reviewed
 main45fd19251, preserving its new classroom-home database proof and local aliases.
 Application source, visibility and runner opt-in remain unchanged. Final focused,
 browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
+
+<!-- pika-session-log-archive-batch:454bb16dd45c0f6b4656cf6f02fb3c07d7091dfb851563fdeb93e2258ffa34e8 -->
+## 2026-10-23 — Editor overlay motion consistency
+
+- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
+- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
+- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
+- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.

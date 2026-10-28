@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Editor overlay motion consistency
-
-- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
-- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
-- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
-- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
-
 ## 2026-10-23 — Contextual owner manual-attendance authorization
 
 Signed-in home verification identified the Daily manual-attendance fallback still
@@ -570,3 +563,8 @@ independent integration review and fresh stable-head CI. Prior calendar-only294
 receipts stay historical; current294 means admission only. No shared schema
 application, production release, provider/cohort/account or reset action. Durable
 plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
+
+## 2026-10-28 — Restore hosted browser CI compatibility
+
+- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
+- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.

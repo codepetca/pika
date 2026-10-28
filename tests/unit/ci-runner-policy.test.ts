@@ -6,18 +6,18 @@ const sameRepositoryPr = { event: 'pull_request', privateRepository: 'true', hea
 
 describe('CI compute routing', () => {
   it('keeps hosted compute until explicitly enabled', () => {
-    expect(selectCiRunner(sameRepositoryPr)).toEqual(['ubuntu-latest'])
+    expect(selectCiRunner(sameRepositoryPr)).toEqual(['ubuntu-24.04'])
     expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
   })
   it.each(['true', 'false'])('routes enabled same-repository PRs regardless of visibility (%s)', privateRepository => {
     expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', privateRepository })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
   })
   it('keeps fork and missing-source PRs hosted', () => {
-    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', headRepository: 'someone/pika' })).toEqual(['ubuntu-latest'])
-    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', headRepository: '' })).toEqual(['ubuntu-latest'])
+    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', headRepository: 'someone/pika' })).toEqual(['ubuntu-24.04'])
+    expect(selectCiRunner({ ...sameRepositoryPr, enabled: 'true', headRepository: '' })).toEqual(['ubuntu-24.04'])
   })
   it('supports an explicit hosted diagnostic despite the enabled default', () => {
-    expect(selectCiRunner({ ...sameRepositoryPr, event: 'workflow_dispatch', enabled: 'true', requested: 'hosted' })).toEqual(['ubuntu-latest'])
+    expect(selectCiRunner({ ...sameRepositoryPr, event: 'workflow_dispatch', enabled: 'true', requested: 'hosted' })).toEqual(['ubuntu-24.04'])
   })
   it('allows explicit dispatch and rejects unsafe or malformed routing', () => {
     expect(selectCiRunner({ ...sameRepositoryPr, event: 'workflow_dispatch', requested: 'self-hosted' })).toEqual(['self-hosted', 'Linux', 'pika-ci'])
