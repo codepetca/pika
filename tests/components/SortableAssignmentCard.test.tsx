@@ -69,6 +69,19 @@ function renderCard({
 }
 
 describe('SortableAssignmentCard', () => {
+  it('places the scheduled release before the due date in the reading order', () => {
+    render(<TooltipProvider><SortableAssignmentCard
+      assignment={{ ...assignment, released_at: '2099-04-10T12:00:00Z' }}
+      isReadOnly={false} editMode={false}
+      onOpen={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()}
+    /></TooltipProvider>)
+
+    const release = screen.getByText(/Fri Apr 10/)
+    const due = screen.getByText(/^Due:/)
+    expect(release.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByText('Scheduled')).toBeInTheDocument()
+  })
+
   it('keeps survey title activation available from the keyboard beside its decorative icon', async () => {
     const user = userEvent.setup()
     const onOpen = vi.fn()

@@ -50239,6 +50239,7 @@ waiver covers this repair; prior13review receipts and7fix batches retained.
 No local Docker operation, migration, dependency or application/UI change in this
 batch. Another chat's bounded local verification hold remains active.
 
+<!-- pika-session-log-archive-batch:c6e71e8a0e95bee9661a50f449386e02006c9a82f7efe06be870970bc9e449db -->
 ## 2026-10-23 CI registry review corrections
 
 Independent Sol/high launches14/15 completed a39a13d05's credential/security and
@@ -50254,6 +50255,7 @@ full selection:10205PASS/8skip, only inventory failure. Both fixes batched toget
 then required focused/static checks and one targeted independent correction review
 before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
 
+<!-- pika-session-log-archive-batch:dcbfd493a7569d7994b83cc3fddf26a352e6deb5ad7bdba77befa1c73a914a0a -->
 <!-- pika-session-log-archive-batch:1a3718ccc2c326813d3ffa3475de4988fc785d6408155acb9f3628e0c4bd3620 -->
 ## 2026-10-23 Authenticated CI Supabase registry repair
 
@@ -50316,6 +50318,7 @@ source edit; new exact-source gate and targeted review19 precede CI. No timeout,
 assertion, endpoint, resource or permission control was weakened. Batch11; human
 review-limit waiver remains active.
 
+<!-- pika-session-log-archive-batch:0654a6d763726be730dfb7de09c531103791c0b000afdb203f7a16682e8034dd -->
 ## 2026-10-23 Derived image ledger and modal keyboard CI integration
 
 CI39977192319 proves all seven authenticated Supabase starts and the previously
@@ -50335,6 +50338,7 @@ required focused gate and targeted review are recorded in retained receipts.
 Human waived review limits; normal reviewed1662-to-main merge is explicitly
 authorized after all checks. No production operation or additional DB change.
 
+<!-- pika-session-log-archive-batch:210aec6ec8e0482483eccd90f9fedbcb80414d919399c67d30333be8fac11cb1 -->
 ## 2026-10-23 Compaction image rehearsal correction
 
 Independent targeted review20 accepted the ledger/browser correction but found
@@ -50351,6 +50355,7 @@ zero fixture users/objects verified afterward. No SQL migration changed. Docker
 DB-only window is closed after proof; full focused gate and review21 tracked in
 retained receipts. Superseded7bbc gate deliberately terminated before edits.
 
+<!-- pika-session-log-archive-batch:6e534719264a503fed8f4ea73c6cf8bfbaaa42ac62ecf5ba8e39e1d9c0facaa1 -->
 ## 2026-10-22 — Roster join dates
 
 Teacher roster Joined cells now pair the existing Lucide check with a compact
@@ -50415,3 +50420,88 @@ Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
 Ready-PR CI follows stable exact-head verdict; no merge or production action.
 
 <!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
+
+<!-- pika-session-log-archive-batch:c42641fbc6ed9f95cf8c671d17cdbc00501f1d615162e1aaae94dd5ca6dcc527 -->
+## 2026-10-23 Editor production release verified
+
+Owner-approved production291 single apply40004531458 is applied-verified001–291;
+exact body/ACL/RLS/constraint/trigger/privatebucket read-only checks PASS. Four
+release review turns resolved one UUID casing source blocker; normal main1668
+merged b03198a9 after1012local/21534CI tests and allselectedgates. Production1667
+merged cd7179e64 after all10exact3208858CI40006108276checksPASS. Vercel
+dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
+verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
+292, flags, provider, account/billing or cleanup activation. Receipt imports both
+production/main journal histories; application/test/schema/config unchanged.
+
+## 2026-10-23 — Prepare live relationship home
+
+Implement the approved Teaching/Joined composition under exact home plus shared
+admission, preserving legacy users/session roles and the owner lifecycle manager.
+Private current-enrollment preferences persist personal hide/unhide; stale rejoin
+requests fail. Managed creation hints retain atomic quotas/idempotent replay;
+code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
+Disposable replay, rollback and real two-session contention passed; shared source
+ID/version/schema preserved, generated RPC types matched and owned resources absent.
+UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
+evidence. Initial browser failure was a selector matching Next's route announcer;
+its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
+gate and independent review still pending. Creation capability refresh regression
+failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
+unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
+owner authorized coordination and reviewed1662 merge to main only. Home numbering
+must follow upstream before readiness. No shared migration, production, provider,
+account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
+
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
+
+## 2026-10-23 — Reconcile home with merged editor291
+
+Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
+historical receipts. Images291 remains fixed; visibility renamed292 with SQL hash
+3d5d47…f349d unchanged. Exact source profiles extend292 and reject293; no historical
+seal rebound. Initial profile run found the omitted offline-helper allowance;
+corrected1500/4PASS. Full001–292 isolated replay, rollback, real two-session locks,
+generated types and canonical291/schema preservation PASS. Launcher PATH failure
+preceded clone setup and remains failed evidence; corrected fresh proof passed.
+Fresh16UIcases/64PNG PASS40.425s; root inspected current captures, 48unchanged PNGs
+match prior bytes. Native/browser resources settled, envlink restored, Dockerwindow
+released; editor stopped exactsourceDB/Desktop preserving volumes. Final focused
+4486/143PASS; static completion and cumulative review428 tracked privately before
+ready/CI. No shared migration, production/provider/account/cohort/goal action.
+
+## 2026-10-23 — Reconcile authoring-image role boundaries
+
+Cumulative review428 accepted the rebase/native/visual evidence but found new
+upstream image endpoints still globally role-bound. Batch42 adapts existing
+reserve/finalize/cancel and delivery only within exact home/shared admission;
+actual owner/creator/object checks, current-member publication, archived denial,
+retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
+regressions reproduced the mismatch before the fix;79 focused checks then passed.
+No SQL, UI, provider execution or shared database change. Native292/16-case UI
+evidence remains unchanged; final focused checks and targeted review429 required.
+All deployment/provider/account/cohort/cutover holds stay in place.
+
+<!-- pika-session-log-archive-batch:32a2b59385749ee316b7a0702d59336d352977f3dc3577fff5e6b1fbf05e0684 -->
+## 2026-10-23 — Correct current-chain native verification pins
+
+Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
+material native harnesses;21,759 CPU checks passed, one preflight unit failed.
+Returned1666 to draft before one batched correction. RED5/31 reproduced boundary
+and actual-command failures;1519/3 then passed with both sealed preflights and
+future293/malformed rejection. Fresh offline attendance/material292 proofs passed
+full replay, rollback behavior, actual attendance contention, generated types and
+unchanged canonical001–291/schema; owned containers removed. Evidence retained
+privately. Two launcher failures used pnpm9 before clone setup, retained as failed
+evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
+accepted visual and home-native evidence reused. Final focused gate and targeted
+review430 precede new ready-event CI; editor release-order interlock remains.
+Production, providers, shared applications, account and activation holds remain.

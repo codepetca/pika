@@ -1,7 +1,10 @@
 # Live relationship-based classroom home
 
-Implementation slice, 2026-10-23. Production, live-provider calls and activation
-remain on hold. This is not a release or a schema-application receipt.
+Current rollout, 2026-10-27: Home and complete-experience admission are enabled
+for the exact [accepted 70-account cohort](classroom-rollout-acceptance-2026-10-27.md).
+Further admission and other provider actions remain held. The implementation and
+pre-release checkpoints below are historical; the acceptance receipt records the
+actual production release, observations and evidence boundaries.
 
 The approved `/pattern-lab#owned-joined-home` is the reference. Adopt its
 Teaching/Joined grouping, top-right actions menu and personal Hidden section

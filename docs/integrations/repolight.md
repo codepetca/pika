@@ -33,14 +33,40 @@ merged; [promotion#1691](https://github.com/codepetca/pika/pull/1691) passed all
 checks and deployed production `45a604275c70b81d3cf83b120d52757d0b409248`, READY as
 `dpl_12vbuC69sEjQFGHUsb8UXgkAX6XF`. The controlled assignment overview now loads.
 
-The next pilot step stopped before Analyze: the controlled owner has global role
-Student, and the report routes still required global Teacher. No report or import
-was requested. Preparing the existing comment draft in Final mode briefly saved
-zero marks; normal Draft mode restored all score, graded and returned fields to
-null, verified against the synthetic document. The saved pilot note remains private.
-AI is OFF. The production window was handed back to the coordinating Pika tasks;
-the authorization correction is source-only until separately reviewed and approved.
-The epic remains incomplete until hosted report creation and edited feedback import pass.
+The following step exposed a global-Teacher gate for the controlled Student-labelled
+classroom owner. [PR#1692](https://github.com/codepetca/pika/pull/1692) corrected all six
+report handlers using the existing shared admission contract and preserved exact
+ownership checks. Two independent authorization/compatibility reviews passed;
+CI40246476466 passed all ten jobs (22,485 tests, eight existing test skips).
+[Promotion#1693](https://github.com/codepetca/pika/pull/1693) passed cumulative review
+and all ten jobs in CI40250033344. Production
+`405ef92cc1dead539e21d77a4193208b9166994d` is READY as
+`dpl_9eR44SBCseFRjBik1GRJyJNeNcg5`. Its application/test files match reviewed main;
+the journal merge preserved all parent entry occurrences. No migration or account,
+cohort, credential or provider configuration changed.
+
+Normal owner access now passes, and the blank-username notice correctly selects
+repository overview. One analysis of the submitted public repository reached
+RepoLight, then failed with `upstream_rate_limited` after three worker attempts.
+There are zero reports and zero feedback imports. The complete assignment-document
+snapshot is unchanged from immediately before analysis: submission, blank marks,
+graded/returned fields and the existing private draft are preserved. Earlier draft
+preparation had briefly saved zero marks in Final mode; normal Draft mode restored
+them before this full-snapshot baseline. Nothing was sent or returned.
+
+The hosted pilot remains incomplete. The collector already supports an optional
+`GITHUB_TOKEN` and affirmatively rejects private repositories even when a token is
+present. GitHub allows 60 unauthenticated REST requests per hour per originating IP,
+versus generally 5,000 for authenticated user requests
+([rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api)).
+Exact upstream quota/reset headers were not retained, so the specific bucket and
+reset time are unknown. The owner's choice of a dedicated public-read credential,
+GitHub App discussion, or unauthenticated waiting is pending; no token was created,
+borrowed from the coordinator, or installed. A future token must be entered securely
+in RepoLight's production settings, followed by a same-source redeploy and fresh
+coordination before another pilot attempt. AI stays OFF. The completed release/pilot
+window was released to the other Pika tasks with the actual source/deployment and
+unchanged-control receipt; the fixture and last cleanup credential are retained.
 
 The standalone `scripts/inventory-classroom-archives.ts` diagnostic still compares
 the current registry against a V1-derived expectation and rejects the additive

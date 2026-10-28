@@ -301,20 +301,21 @@ CI classifies changes conservatively:
   exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
-CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`, which
-preserves that setting. Supabase jobs authenticate official image downloads with
-the ephemeral workflow token and job-scoped `packages: read`. Startup and later
-metadata proofs inherit the same registry; pinned CLI and image versions remain
-unchanged. A private temporary Docker config is exported before login and removed
-by an `always()` step after guarded stack cleanup. Operator credentials are never
-modified. The local CI runner validates these exact GitHub-only steps, skips
-their credential handling, and inherits the literal registry while rejecting
-job/step registry overrides. Historical ECR and no-registry plans remain readable.
-Native proof guards admit this credential-only config only after checking the
-owned private directory, marker, file permissions and bounded GHCR-only auth
-shape. Other Docker/proxy overrides and context/header/helper/plugin settings
-remain forbidden; context, local socket identity and full resource checks still
-run against the actual config used by Docker.
+CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws` before `setup-cli`.
+Startup and later metadata proofs use the same official public registry without a
+registry token or job-level package permission; CLI and image versions remain
+pinned. On 2026-10-27, authenticated GHCR pulls repeatedly returned rate limits.
+The CLI's [default registry](https://github.com/supabase/cli/blob/v2.103.0/apps/cli-go/internal/utils/docker.go#L184-L203)
+is public ECR. The ECR and Docker Hub manifests for the pinned Postgres
+`17.6.1.132` image had matching index digest
+`sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13`;
+GHCR returned 429 during comparison, so its current digest was not verified.
+Supabase's [mirror workflow](https://github.com/supabase/postgres/blob/develop/.github/workflows/mirror.yml)
+publishes both registries from Docker Hub. The local CI runner inherits the literal
+registry and rejects job/step overrides; historical authenticated GHCR and
+no-registry plans remain readable. Native proof guards retain their constrained
+historical GHCR credential support, while rejecting arbitrary Docker/proxy and
+context overrides and checking the actual daemon identity and resources.
 
 Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
 while classification stays hosted and `PR Gate` follows the selected runner with a hosted classification-failure fallback. Setup, isolation, local full-CI commands and the hosted

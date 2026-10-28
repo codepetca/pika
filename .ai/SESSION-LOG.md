@@ -11,89 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Editor production release verified
-
-Owner-approved production291 single apply40004531458 is applied-verified001–291;
-exact body/ACL/RLS/constraint/trigger/privatebucket read-only checks PASS. Four
-release review turns resolved one UUID casing source blocker; normal main1668
-merged b03198a9 after1012local/21534CI tests and allselectedgates. Production1667
-merged cd7179e64 after all10exact3208858CI40006108276checksPASS. Vercel
-dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
-verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
-292, flags, provider, account/billing or cleanup activation. Receipt imports both
-production/main journal histories; application/test/schema/config unchanged.
-
-## 2026-10-23 — Prepare live relationship home
-
-Implement the approved Teaching/Joined composition under exact home plus shared
-admission, preserving legacy users/session roles and the owner lifecycle manager.
-Private current-enrollment preferences persist personal hide/unhide; stale rejoin
-requests fail. Managed creation hints retain atomic quotas/idempotent replay;
-code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
-Disposable replay, rollback and real two-session contention passed; shared source
-ID/version/schema preserved, generated RPC types matched and owned resources absent.
-UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
-evidence. Initial browser failure was a selector matching Next's route announcer;
-its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
-gate and independent review still pending. Creation capability refresh regression
-failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
-unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
-owner authorized coordination and reviewed1662 merge to main only. Home numbering
-must follow upstream before readiness. No shared migration, production, provider,
-account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
-
-## 2026-10-23 — Correct complete live-home reads
-
-Initial independent reviews425/426 completed: compatibility/UI clean, security
-found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
-with exact-count/page/identity validation, reused by SSR and admitted owned-list
-refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
-TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
-no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
-before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
-
-## 2026-10-23 — Reconcile home with merged editor291
-
-Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
-historical receipts. Images291 remains fixed; visibility renamed292 with SQL hash
-3d5d47…f349d unchanged. Exact source profiles extend292 and reject293; no historical
-seal rebound. Initial profile run found the omitted offline-helper allowance;
-corrected1500/4PASS. Full001–292 isolated replay, rollback, real two-session locks,
-generated types and canonical291/schema preservation PASS. Launcher PATH failure
-preceded clone setup and remains failed evidence; corrected fresh proof passed.
-Fresh16UIcases/64PNG PASS40.425s; root inspected current captures, 48unchanged PNGs
-match prior bytes. Native/browser resources settled, envlink restored, Dockerwindow
-released; editor stopped exactsourceDB/Desktop preserving volumes. Final focused
-4486/143PASS; static completion and cumulative review428 tracked privately before
-ready/CI. No shared migration, production/provider/account/cohort/goal action.
-
-## 2026-10-23 — Reconcile authoring-image role boundaries
-
-Cumulative review428 accepted the rebase/native/visual evidence but found new
-upstream image endpoints still globally role-bound. Batch42 adapts existing
-reserve/finalize/cancel and delivery only within exact home/shared admission;
-actual owner/creator/object checks, current-member publication, archived denial,
-retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
-regressions reproduced the mismatch before the fix;79 focused checks then passed.
-No SQL, UI, provider execution or shared database change. Native292/16-case UI
-evidence remains unchanged; final focused checks and targeted review429 required.
-All deployment/provider/account/cohort/cutover holds stay in place.
-
-## 2026-10-23 — Correct current-chain native verification pins
-
-Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
-material native harnesses;21,759 CPU checks passed, one preflight unit failed.
-Returned1666 to draft before one batched correction. RED5/31 reproduced boundary
-and actual-command failures;1519/3 then passed with both sealed preflights and
-future293/malformed rejection. Fresh offline attendance/material292 proofs passed
-full replay, rollback behavior, actual attendance contention, generated types and
-unchanged canonical001–291/schema; owned containers removed. Evidence retained
-privately. Two launcher failures used pnpm9 before clone setup, retained as failed
-evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
-accepted visual and home-native evidence reused. Final focused gate and targeted
-review430 precede new ready-event CI; editor release-order interlock remains.
-Production, providers, shared applications, account and activation holds remain.
-
 ## 2026-10-23 — Reconcile home proof with pinned CI image
 
 Review430 and full4544/145+static passed07cceb; normal draft push then one ready
@@ -517,6 +434,19 @@ a Student-labelled owner and synthetic creation grant; fixture resources removed
 Route regressions and independent auth/compatibility review precede CI and specific
 owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
 
+## 2026-10-25 RepoLight release and hosted quota stop
+
+1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
+canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
+promotion review passed; all6276parent journal occurrences preserved. Controlled
+Student-labelled owner access and blank-login overview PASS. One hosted analysis
+failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
+assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
+AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
+released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
+GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
+provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
+
 ## 2026-10-25 — Prepare manual-grader reader compatible release
 
 Owner approved this exact grader-label fix after review and CI, retaining only
@@ -540,3 +470,48 @@ conflict. Application and SQL sources are unchanged. Production preview402210937
 verified001–292 and solepending293; no application. Exact migration approval and
 the independently owned permissions-check window remain required. Release1687
 stays draft pending reconciliation/review/CI; Analyze and paid AI remain OFF.
+
+## 2026-10-27 Accept the bounded 70-account classroom rollout
+
+Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
+and schema293 into the dated70-account acceptance receipt. Retained actual
+signed-in versus isolated/source-qualified boundaries, exact roster checks,
+selected academic preservation and compatible recovery constraints. PPZ keeps
+Tests/native attendance off/no policy/mapping/manual log unchanged. Original
+observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
+passed7timely samples and final exact70/provider/work readbacks. Timed process
+exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
+historical pilot now point to bounded acceptance; wider admission/provider/billing
+holds and incomplete epic/paused goal remain. Documentation only; no live action.
+
+## 2026-10-27 Prepare wider classroom admission design
+
+Prepared a proposal for one durable service-owned admission source, exact70
+bootstrap retention and staged expansion/new-user policy. Current Home/API each
+cap100; Bara also selects protocol behavior from admission. The plan requires
+Home/API consumer migration and frozen bootstrap provider-compatibility decisions
+before widening, with current nonadmitted behavior preserved too. New grants use
+atomic approved batches/growth stop; automatic signup stays off until separately
+approved. Rollout stages and exact-source recovery/verification gates are recorded;
+no code, SQL, cohort, plan, production or provider operation performed. Existing70,
+all other holds and paused goal/DeepSeek remain unchanged.
+
+## 2026-10-27 — Scheduled assignment card date order
+- Branch `codex/scheduled-date-card-order`: reuse SortableAssignmentCard; scheduled release now precedes due date. Existing formatting/status/actions unchanged. Other list owners inspected: Tests have a calendar date/manual access but no due date; materials/announcements have no due date; surveys have no scheduling. Student n/a: future assignments hidden.
+- UI brief: approved Classwork/Tests family and Pattern Lab workspace framing; teacher desktop/mobile, light/dark, scheduled/default + keyboard focus; reading order is the primary signal. No new pattern, component, composite behavior, experimental promotion or refactor.
+- Evidence: focused gate 79 files/1,209 tests plus architecture/UI/design/TypeScript/lint PASS; audit PASS. Playwright actual Classwork list via intercepted fixture APIs 4/4 PASS, y-order/no-overflow assertions and all four screenshots visually reviewed. Screenshots `/tmp/pika-date-order-pattern-lab-{desktop,mobile}-{light,dark}.png`; repeatable driver `/tmp/pika-scheduled-date-order.ui-pattern-lab.spec.ts`; logs `/tmp/pika-date-{unit,browser,audit}.log` and `/tmp/pika-scheduled-date-focused.log`. Browser first launch lacked session secret; rerun with generated process-only secret passed.
+- Draft PR#1698 initially paused at the 4% weekly-usage checkpoint. Owner explicitly authorized continuation despite low usage, then PR and merge, on 2026-10-27 in chat 01a17da9-f37c-7872-bbcc-268e37a3f5fd. This task-scoped low-usage waiver persists through completion; ordinary review/check gates remain. DeepSeek stays paused through 2026-12-31. Review ledger starts at 0 launches/waves/fix batches; one Luna/medium reviewer on a fixed SHA. Risk profile none; no epic status change; production promotion excluded.
+- Independent review1: GPT-6 Luna/medium accepted full four-file diff at c9d2b342f; zero findings. CI40537585928: 22,485 tests passed, eight existing skips, one pre-existing CURRENT-format contract failed; all three browser lanes failed before assertions on GHCR image-download rate limits. PR returned to draft before corrections.
+- Remediation batch1 preserves CURRENT's recorded values while putting DB001–293 at the start of its own line and naming the existing unchanged-controls statement, restoring compatibility with the existing attendance guidance test. No application change or rollout action. Source/tests/UI remain identical to the visually verified implementation. Targeted re-review and fresh required CI follow.
+
+## 2026-10-27 — Investigate CI registry throttling for PR1698
+- Owner authorized orchestrated investigation/fix and merge after all required checks pass. Existing task-scoped low-usage waiver retained; no billing/reset/provider-pause change. Risk profile runtime-platform. Branch remains codex/scheduled-date-card-order; PR1698 returned to draft before implementation.
+- Terra/medium handled bounded read-only CLI2.103.0 source/log investigation, then received sole write ownership of workflow, registry-workflow tests and the two CI workflow/runbook docs; coordinator owns integration/log/review/merge. Native execution accepted despite exhausted ordinary allowance; no credential/provider workaround. Investigation accepted after independent manifest verification; worker/coordinator tokens and exact active time unknown, no savings claim.
+- Auth was used correctly; pinned ghcr.io/supabase/postgres:17.6.1.132 repeatedly returns HTTP429, including public manifest requests outside Actions. Official public.ecr.aws mirror is reachable. Coordinator verified ECR and Docker Hub index bytes share sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13; linux/amd64 child9d50688a826cf1455a0e91013160171de73b4d31df1509014e73463fb276a84d. GHCR digest parity could not be checked and is not claimed. Primary sources: pinned CLI internal/utils/docker.go and config/templates/Dockerfile; supabase/postgres .github/workflows/mirror.yml. No live database or image-layer download performed.
+- Plan: restore official CLI-default public ECR, remove unnecessary GHCR permissions/login/cleanup from current CI, preserve historical exact-auth safety contracts, all pinned versions, lanes, commands and gates. Existing obsolete exclusion names are out of this repair scope. Verify targeted tests and focused gate, independent risk-matched review on fixed SHA, then one fresh required native CI run and squash merge only after final PR Gate passes.
+- Terra implementation accepted in five owned files (local-ci test ownership explicitly extended after six stale GHCR expectations surfaced). Targeted registry/auth/workflow/local-runner suites PASS430 tests/4files; coordinator inspected diff and confirmed parser/native auth guards unchanged. No files/edits conflicted. Current ECR plan omits all seven GHCR credential blocks and extra permissions; reconstructed historical GHCR plan keeps exact-auth/drift coverage. No registry layers or databases started locally.
+
+## 2026-10-27 — Prepare reviewed main promotion to production
+- Owner authorized main→production and deployment verification. PR1700 batches main9756a9751 from production405ef92cc; no new migrations, API/server changes or dependency changes. Registry/date-order application tree has full CI40563343248 ten-job PASS and clean independent review; operational/provider/admission/billing holds are preserved.
+- Cumulative Sol/high release review found only conflicting continuity history. Terra/medium resolved six archive hunks and retained both parents' entry bodies, occurrence counts and archive markers across SESSION+ARCHIVE. Coordinator independently verifies preservation; payload outside the two journals stays byte-identical to reviewed main. Runtime-platform risk; no fixture, environment, database or provider mutation is part of the release.
+- Initial local release focused gate PASS79files/1210tests plus architecture/UI/design/TypeScript/lint. Resolved-candidate checks and targeted review precede readiness; final exact-head PR Gate and Vercel source/production-alias/read-only smoke verification remain required. Production migration permissions are not requested or consumed.
