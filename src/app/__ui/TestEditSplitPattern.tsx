@@ -6,7 +6,7 @@ import { CreationModalContextHeader, CreationModalTitleField, CreationModalShell
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import type { ExamDocumentItem } from '@/components/ExamDocumentWorkspace'
 import { MarkdownContentEditor } from '@/components/editor'
-import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { TeacherWorkSurfaceIconMenuButton, TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { escapeTestMarkdownBody, markdownToTest } from '@/lib/test-markdown'
 import { MAX_TEST_DOCUMENT_TEXT_LENGTH } from '@/lib/test-documents'
 import type { TestAssessmentQuestion, TestDocument } from '@/types'
@@ -517,41 +517,6 @@ export function TestEditSplitPattern() {
             <CreationModalContextHeader itemType="Test" classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning" />
             <CreationModalTitleField
               error={titleError}
-              actions={(
-                <div className="flex items-center gap-1">
-                  <TeacherWorkSurfaceIconMenuButton
-                    icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-                    ariaLabel="Settings"
-                    tooltip="Settings"
-                    variant="ghost"
-                    menuAriaLabel="Test settings"
-                    menuPlacement="down"
-                    menuAlign="end"
-                    items={[
-                      {
-                        id: 'after-return',
-                        label: 'Show results after return',
-                        checked: results === 'after-return',
-                        checkedRole: 'menuitemradio',
-                        onSelect: () => {
-                          setResults('after-return')
-                          setChanged(true)
-                        },
-                      },
-                      {
-                        id: 'hidden',
-                        label: 'Keep results hidden',
-                        checked: results === 'hidden',
-                        checkedRole: 'menuitemradio',
-                        onSelect: () => {
-                          setResults('hidden')
-                          setChanged(true)
-                        },
-                      },
-                    ]}
-                  />
-                </div>
-              )}
             >
               <Input
                 value={title}
@@ -695,22 +660,52 @@ export function TestEditSplitPattern() {
             </Button>
 
             <div className="mt-1 shrink-0 lg:mt-auto">
-              <div className="grid grid-cols-2 gap-2">
+              <div className="mb-2 grid grid-cols-2 gap-2">
                 <Button ref={previewButtonRef} type="button" variant="secondary" size="sm" fullWidth onClick={openFullTestPreview}>
                   <Eye className="h-4 w-4" aria-hidden="true" />
                   Preview
                 </Button>
-                <Button
-                  type="button"
-                  fullWidth
-                  size="sm"
-                  className="font-semibold"
-                  disabled={validationErrors.length > 0}
-                  onClick={() => setChanged(false)}
-                >
-                  Publish
-                </Button>
+                <TeacherWorkSurfaceMenuButton
+                  label={<><Settings className="h-4 w-4" aria-hidden="true" /> Settings</>}
+                  variant="secondary"
+                  className="w-full"
+                  menuAriaLabel="Test settings"
+                  menuPlacement="up"
+                  menuAlign="end"
+                  items={[
+                    {
+                      id: 'after-return',
+                      label: 'Show results after return',
+                      checked: results === 'after-return',
+                      checkedRole: 'menuitemradio',
+                      onSelect: () => {
+                        setResults('after-return')
+                        setChanged(true)
+                      },
+                    },
+                    {
+                      id: 'hidden',
+                      label: 'Keep results hidden',
+                      checked: results === 'hidden',
+                      checkedRole: 'menuitemradio',
+                      onSelect: () => {
+                        setResults('hidden')
+                        setChanged(true)
+                      },
+                    },
+                  ]}
+                />
               </div>
+              <Button
+                type="button"
+                fullWidth
+                size="sm"
+                className="font-semibold"
+                disabled={validationErrors.length > 0}
+                onClick={() => setChanged(false)}
+              >
+                Publish
+              </Button>
               {invalidQuestionIndex >= 0 ? (
                 <p className="mt-2 text-xs text-danger" role="alert">Check question {invalidQuestionIndex + 1}.</p>
               ) : null}

@@ -50386,3 +50386,50 @@ all original deadline/action/restoration corruption cases remain. Affected387/4
 plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
 real member-list/cleanup finalCI remains required. Production/provider/shared
 applications/accounts/activation holds remain; no native or Docker action.
+
+<!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
+## 2026-10-23 — CI runner completion and capacity
+
+Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
+quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
+classification stays hosted and classification failure retains hosted gate refusal.
+Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
+Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
+current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
+Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
+in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
+routing, live runner acceptance and post-activation quota week remain pending.
+Local quota audit requires complete post-activation evidence and<=1000min/month,
+<=250MB artifacts. No visibility, plan, production or database changes. Focused
+workflow/policy/type/lint checks and bounded independent review recorded in PR.
+
+First exact-head CI passed every heavy lane except light browsers: clearing the
+remounted Pattern Lab question editor left Publish enabled. All assertions remain;
+the test now uses native Select All/Backspace and checks the editor is empty before
+parent validation. Local baseline passes did not reproduce the hosted failure.
+Owner approved one bounded correction/review continuation. Rebased onto reviewed
+main45fd19251, preserving its new classroom-home database proof and local aliases.
+Application source, visibility and runner opt-in remain unchanged. Final focused,
+browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
+
+<!-- pika-session-log-archive-batch:454bb16dd45c0f6b4656cf6f02fb3c07d7091dfb851563fdeb93e2258ffa34e8 -->
+## 2026-10-23 — Editor overlay motion consistency
+
+- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
+- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
+- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
+- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
+
+<!-- pika-session-log-archive-batch:1e326abff0159714d6819ea85e5b351e0a98dcfa6090d4a564c0f7f461318a78 -->
+## 2026-10-23 — Contextual owner manual-attendance authorization
+
+Signed-in home verification identified the Daily manual-attendance fallback still
+requiring a global teacher role before classroom ownership. Owner approved the
+narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
+shared attendance actor admission; unmatched accounts retain the original teacher
+gate. Actual classroom ownership, archived read/mutation distinction and unchanged
+SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
+26 failures before the fix; affected API/store/hook/migration tests pass afterward.
+Full local checks, independent auth/compatibility review and exact-head CI precede
+main merge. No schema, cohort, provider, account or production changes; existing
+failed rehearsal evidence is retained and does not establish workflow acceptance.

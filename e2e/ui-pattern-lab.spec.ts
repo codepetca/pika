@@ -1391,8 +1391,10 @@ test.describe('teacher Pattern Lab', () => {
       const previewBounds = (await detailsPane.getByRole('button', { name: 'Preview', exact: true }).boundingBox())!
       const detailsPaddingBottom = await detailsPane.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
       expect(Math.abs(publishBounds.y + publishBounds.height - (detailsBounds.y + detailsBounds.height - detailsPaddingBottom))).toBeLessThanOrEqual(2)
-      expect(Math.abs(previewBounds.y - publishBounds.y)).toBeLessThanOrEqual(1)
-      expect(Math.abs(previewBounds.width - publishBounds.width)).toBeLessThanOrEqual(2)
+      const settingsBounds = (await settings.boundingBox())!
+      expect(previewBounds.y + previewBounds.height).toBeLessThanOrEqual(publishBounds.y)
+      expect(Math.abs(previewBounds.y - settingsBounds.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(previewBounds.width - settingsBounds.width)).toBeLessThanOrEqual(2)
     } else {
       expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
       expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)

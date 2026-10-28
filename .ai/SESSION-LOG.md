@@ -11,50 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — CI runner completion and capacity
-
-Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
-quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
-classification stays hosted and classification failure retains hosted gate refusal.
-Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
-Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
-current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
-Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
-in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
-routing, live runner acceptance and post-activation quota week remain pending.
-Local quota audit requires complete post-activation evidence and<=1000min/month,
-<=250MB artifacts. No visibility, plan, production or database changes. Focused
-workflow/policy/type/lint checks and bounded independent review recorded in PR.
-
-First exact-head CI passed every heavy lane except light browsers: clearing the
-remounted Pattern Lab question editor left Publish enabled. All assertions remain;
-the test now uses native Select All/Backspace and checks the editor is empty before
-parent validation. Local baseline passes did not reproduce the hosted failure.
-Owner approved one bounded correction/review continuation. Rebased onto reviewed
-main45fd19251, preserving its new classroom-home database proof and local aliases.
-Application source, visibility and runner opt-in remain unchanged. Final focused,
-browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
-
-## 2026-10-23 — Editor overlay motion consistency
-
-- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
-- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
-- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
-- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
-
-## 2026-10-23 — Contextual owner manual-attendance authorization
-
-Signed-in home verification identified the Daily manual-attendance fallback still
-requiring a global teacher role before classroom ownership. Owner approved the
-narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
-shared attendance actor admission; unmatched accounts retain the original teacher
-gate. Actual classroom ownership, archived read/mutation distinction and unchanged
-SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
-26 failures before the fix; affected API/store/hook/migration tests pass afterward.
-Full local checks, independent auth/compatibility review and exact-head CI precede
-main merge. No schema, cohort, provider, account or production changes; existing
-failed rehearsal evidence is retained and does not establish workflow acceptance.
-
 ## 2026-10-23 — Contextual member notification reads
 
 Owner approved the signed-in mixed-role notification gap after an actual route
@@ -576,6 +532,11 @@ caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
 
+## 2026-10-28 — Creation action placement
+
+- Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
+- Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.
+
 ## 2026-10-28 — Integrate calendar dates after admission294
 
 Human moved coordination to Teacher vs student login and then directed Do next
@@ -589,3 +550,12 @@ independent integration review and fresh stable-head CI. Prior calendar-only294
 receipts stay historical; current294 means admission only. No shared schema
 application, production release, provider/cohort/account or reset action. Durable
 plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
+
+## 2026-10-28 — Restore hosted browser CI compatibility
+
+- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
+- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
+
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
