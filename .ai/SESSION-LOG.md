@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — CI runner completion and capacity
-
-Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
-quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
-classification stays hosted and classification failure retains hosted gate refusal.
-Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
-Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
-current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
-Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
-in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
-routing, live runner acceptance and post-activation quota week remain pending.
-Local quota audit requires complete post-activation evidence and<=1000min/month,
-<=250MB artifacts. No visibility, plan, production or database changes. Focused
-workflow/policy/type/lint checks and bounded independent review recorded in PR.
-
-First exact-head CI passed every heavy lane except light browsers: clearing the
-remounted Pattern Lab question editor left Publish enabled. All assertions remain;
-the test now uses native Select All/Backspace and checks the editor is empty before
-parent validation. Local baseline passes did not reproduce the hosted failure.
-Owner approved one bounded correction/review continuation. Rebased onto reviewed
-main45fd19251, preserving its new classroom-home database proof and local aliases.
-Application source, visibility and runner opt-in remain unchanged. Final focused,
-browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
-
 ## 2026-10-23 — Editor overlay motion consistency
 
 - Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
@@ -575,6 +551,24 @@ All owned clones removed; shared history292 unchanged. One syntax correction was
 caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+## 2026-10-28 — Creation action placement (in progress)
+
+- Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
+- Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-10-28 — Integrate calendar dates after admission294
 

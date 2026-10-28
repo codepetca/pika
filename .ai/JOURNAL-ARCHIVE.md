@@ -50386,3 +50386,28 @@ all original deadline/action/restoration corruption cases remain. Affected387/4
 plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
 real member-list/cleanup finalCI remains required. Production/provider/shared
 applications/accounts/activation holds remain; no native or Docker action.
+
+<!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
+## 2026-10-23 — CI runner completion and capacity
+
+Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
+quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
+classification stays hosted and classification failure retains hosted gate refusal.
+Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
+Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
+current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
+Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
+in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
+routing, live runner acceptance and post-activation quota week remain pending.
+Local quota audit requires complete post-activation evidence and<=1000min/month,
+<=250MB artifacts. No visibility, plan, production or database changes. Focused
+workflow/policy/type/lint checks and bounded independent review recorded in PR.
+
+First exact-head CI passed every heavy lane except light browsers: clearing the
+remounted Pattern Lab question editor left Publish enabled. All assertions remain;
+the test now uses native Select All/Backspace and checks the editor is empty before
+parent validation. Local baseline passes did not reproduce the hosted failure.
+Owner approved one bounded correction/review continuation. Rebased onto reviewed
+main45fd19251, preserving its new classroom-home database proof and local aliases.
+Application source, visibility and runner opt-in remain unchanged. Final focused,
+browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.

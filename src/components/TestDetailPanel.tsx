@@ -48,7 +48,7 @@ import { TestDocumentsEditor } from '@/components/TestDocumentsEditor'
 import { TestResultsView } from '@/components/TestResultsView'
 import { SummaryDetailWorkspaceShell } from '@/components/SummaryDetailWorkspaceShell'
 import { TeacherWorkSurfaceModeBar, type TeacherWorkSurfaceMode } from '@/components/teacher-work-surface/TeacherWorkSurfaceModeBar'
-import { TeacherWorkSurfaceIconMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
+import { TeacherWorkSurfaceIconMenuButton, TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { DEFAULT_MULTIPLE_CHOICE_POINTS, DEFAULT_OPEN_RESPONSE_POINTS } from '@/lib/test-questions'
 import { isLinkDocumentSnapshotStale, normalizeTestDocuments } from '@/lib/test-documents'
@@ -2291,39 +2291,7 @@ export function TestDetailPanel({
       <div data-testid="test-editor-details-pane" className="flex min-w-0 flex-col bg-surface-2 lg:min-h-0 lg:overflow-hidden">
         <CreationModalContextHeader spacious itemType="Test" classroomName={classroomName} />
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
-          <CreationModalTitleField
-            actions={(
-              <div className="flex items-center gap-1">
-                <TeacherWorkSurfaceIconMenuButton
-                  icon={<Settings className="h-4 w-4" aria-hidden="true" />}
-                  ariaLabel="Settings"
-                  tooltip="Settings"
-                  menuAriaLabel="Test settings"
-                  menuPlacement="down"
-                  menuAlign="end"
-                  disabled={!isEditable}
-                  className="h-11 w-11"
-                  items={[
-                    {
-                      id: 'show-results',
-                      label: 'Show results after return',
-                      checked: draftShowResults,
-                      checkedRole: 'menuitemradio',
-                      onSelect: () => handleResultsVisibilityChange(true),
-                    },
-                    {
-                      id: 'hide-results',
-                      label: 'Keep results hidden',
-                      checked: !draftShowResults,
-                      checkedRole: 'menuitemradio',
-                      onSelect: () => handleResultsVisibilityChange(false),
-                    },
-                  ]}
-                />
-
-              </div>
-            )}
-          >
+          <CreationModalTitleField>
             <Input
               value={isGeneratedAssessmentTitle(editTitle) ? '' : editTitle}
               placeholder={titleGeneratedLabel}
@@ -2377,7 +2345,7 @@ export function TestDetailPanel({
 
           <div className="mt-1 shrink-0 lg:mt-auto">
             {publicationError ? <p role="alert" className="mb-2 text-sm text-danger">{publicationError}</p> : null}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="mb-2 grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="secondary"
@@ -2389,8 +2357,33 @@ export function TestDetailPanel({
                 <Eye className="h-4 w-4" aria-hidden="true" />
                 {openingTestPreview ? 'Opening...' : 'Preview'}
               </Button>
-              {publicationControl}
+              <TeacherWorkSurfaceMenuButton
+                label={<><Settings className="h-4 w-4" aria-hidden="true" /> Settings</>}
+                variant="secondary"
+                menuAriaLabel="Test settings"
+                menuPlacement="up"
+                menuAlign="end"
+                disabled={!isEditable}
+                className="w-full"
+                items={[
+                  {
+                    id: 'show-results',
+                    label: 'Show results after return',
+                    checked: draftShowResults,
+                    checkedRole: 'menuitemradio',
+                    onSelect: () => handleResultsVisibilityChange(true),
+                  },
+                  {
+                    id: 'hide-results',
+                    label: 'Keep results hidden',
+                    checked: !draftShowResults,
+                    checkedRole: 'menuitemradio',
+                    onSelect: () => handleResultsVisibilityChange(false),
+                  },
+                ]}
+              />
             </div>
+            {publicationControl}
             {testAssessment.status !== 'draft' ? (
               <Button type="button" variant="ghost" size="sm" fullWidth disabled={isClosing} onClick={onRequestClose}>
                 {isClosing ? 'Saving...' : 'Close'}
