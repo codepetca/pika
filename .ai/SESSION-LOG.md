@@ -11,84 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — CI runner completion and capacity
-
-Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
-quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
-classification stays hosted and classification failure retains hosted gate refusal.
-Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
-Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
-current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
-Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
-in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
-routing, live runner acceptance and post-activation quota week remain pending.
-Local quota audit requires complete post-activation evidence and<=1000min/month,
-<=250MB artifacts. No visibility, plan, production or database changes. Focused
-workflow/policy/type/lint checks and bounded independent review recorded in PR.
-
-First exact-head CI passed every heavy lane except light browsers: clearing the
-remounted Pattern Lab question editor left Publish enabled. All assertions remain;
-the test now uses native Select All/Backspace and checks the editor is empty before
-parent validation. Local baseline passes did not reproduce the hosted failure.
-Owner approved one bounded correction/review continuation. Rebased onto reviewed
-main45fd19251, preserving its new classroom-home database proof and local aliases.
-Application source, visibility and runner opt-in remain unchanged. Final focused,
-browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
-
-## 2026-10-23 — Editor overlay motion consistency
-
-- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
-- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
-- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
-- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
-
-## 2026-10-23 — Contextual owner manual-attendance authorization
-
-Signed-in home verification identified the Daily manual-attendance fallback still
-requiring a global teacher role before classroom ownership. Owner approved the
-narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
-shared attendance actor admission; unmatched accounts retain the original teacher
-gate. Actual classroom ownership, archived read/mutation distinction and unchanged
-SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
-26 failures before the fix; affected API/store/hook/migration tests pass afterward.
-Full local checks, independent auth/compatibility review and exact-head CI precede
-main merge. No schema, cohort, provider, account or production changes; existing
-failed rehearsal evidence is retained and does not establish workflow acceptance.
-
-## 2026-10-23 — Contextual member notification reads
-
-Owner approved the signed-in mixed-role notification gap after an actual route
-regression reproduced403. Admitted current nonowner members now use compact,
-bounded classroom-root reads for the unchanged four notification counters;
-every payload and terminal page binds active class, actor, owner and enrollment
-generation. Publication/own-resource checks, repeated snapshot validation and a
-final relationship guard reject observed drift without claiming a transaction
-snapshot. Absent/unadmitted behavior retains the original student-role path.
-Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
-pass; final independent review/full focused checks remain coordinator-owned.
-No migration, dependency, account, cohort, provider or production changes.
-
-## 2026-10-24 — RepoLight report integration local verification
-
-- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
-- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
-- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
-- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
-- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
 ## 2026-10-24 — Release inactive classroom Home foundation
 
 Owner explicitly approved sole292 locally/production and reviewed-main release
@@ -247,6 +169,10 @@ clone setup; no shared mutation. Home recovery/contention, warning lint across
 Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
 review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
 
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
+
 ## 2026-10-25 — Refresh the grading inspector after Return
 
 The dedicated-account manual canary exposed a stale revision after a successful
@@ -367,6 +293,30 @@ AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
 released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
 GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
 provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
+
+## 2026-10-25 — Prepare manual-grader reader compatible release
+
+Owner approved this exact grader-label fix after review and CI, retaining only
+the existing three-account cohort, plans, schema and provider holds. PR1682
+merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
+1683 reconciles only journal ancestry with production1da699fdc, preserving both
+histories and all non-history bytes from reviewed main. Independent cumulative
+compatibility review and exact-head CI precede protected production merge. No
+new provider call, migration, cohort expansion or account change is authorized.
+Both owner and learner sessions remain signed in; Return/feedback wait for the
+compatible READY deployment and fresh readback.
+
+## 2026-10-25 — Approved Return inspector compatible release
+
+Prepare production promotion of reviewed main19b5/PR1684 after the owner approved this exact compatible fix. Only runtime change is selected-inspector refresh after acknowledged Return; existing revision/dirty/write fences remain. Reconcile the two history files while preserving both parents; reuse accepted source/component/browser review477 and complete cumulative promotion review before ready CI. Keep exactly three pilot accounts, schema292, plans and live-provider/expansion holds unchanged. Signed-in no-reload Return/comment canary follows actual READY/source/control verification.
+
+## 2026-10-25 — RepoLight release-note reconciliation
+
+Retained both main and production journal batches to resolve the promotion-note
+conflict. Application and SQL sources are unchanged. Production preview40221093743
+verified001–292 and solepending293; no application. Exact migration approval and
+the independently owned permissions-check window remain required. Release1687
+stays draft pending reconciliation/review/CI; Analyze and paid AI remain OFF.
 
 ## 2026-10-26 Future post dates
 
@@ -575,6 +525,11 @@ All owned clones removed; shared history292 unchanged. One syntax correction was
 caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+## 2026-10-27 — Prepare reviewed main promotion to production
+- Owner authorized main→production and deployment verification. PR1700 batches main9756a9751 from production405ef92cc; no new migrations, API/server changes or dependency changes. Registry/date-order application tree has full CI40563343248 ten-job PASS and clean independent review; operational/provider/admission/billing holds are preserved.
+- Cumulative Sol/high release review found only conflicting continuity history. Terra/medium resolved six archive hunks and retained both parents' entry bodies, occurrence counts and archive markers across SESSION+ARCHIVE. Coordinator independently verifies preservation; payload outside the two journals stays byte-identical to reviewed main. Runtime-platform risk; no fixture, environment, database or provider mutation is part of the release.
+- Initial local release focused gate PASS79files/1210tests plus architecture/UI/design/TypeScript/lint. Resolved-candidate checks and targeted review precede readiness; final exact-head PR Gate and Vercel source/production-alias/read-only smoke verification remain required. Production migration permissions are not requested or consumed.
 
 ## 2026-10-28 — Integrate calendar dates after admission294
 
