@@ -11,7 +11,7 @@ export function selectCiRunner({ event, repository, headRepository, enabled = ''
     && (event === 'workflow_dispatch' || headRepository === repository)
   if (requested === 'self-hosted' && !trusted) throw new Error('Self-hosted CI requires a repository identity and same-repository source')
   return (requested === 'self-hosted' || (requested === 'auto' && enabled === 'true' && trusted))
-    ? ['self-hosted', 'Linux', 'pika-ci'] : ['ubuntu-latest']
+    ? ['self-hosted', 'Linux', 'pika-ci'] : ['ubuntu-24.04']
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

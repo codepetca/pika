@@ -50593,6 +50593,7 @@ plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
 real member-list/cleanup finalCI remains required. Production/provider/shared
 applications/accounts/activation holds remain; no native or Docker action.
 
+<!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
 <!-- pika-session-log-archive-batch:264dc7d415e806283f9cca8f0daa6aadc0ed5eb9a78ac3d201db3dcac98fa702 -->
 ## 2026-10-23 — Reconcile home proof with pinned CI image
 
@@ -50678,6 +50679,7 @@ main45fd19251, preserving its new classroom-home database proof and local aliase
 Application source, visibility and runner opt-in remain unchanged. Final focused,
 browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
 
+<!-- pika-session-log-archive-batch:454bb16dd45c0f6b4656cf6f02fb3c07d7091dfb851563fdeb93e2258ffa34e8 -->
 ## 2026-10-23 — Editor overlay motion consistency
 
 - Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
@@ -50685,6 +50687,7 @@ browser matrix, targeted review and exact-head CI evidence is recorded in PR1670
 - Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
 - The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
 
+<!-- pika-session-log-archive-batch:1e326abff0159714d6819ea85e5b351e0a98dcfa6090d4a564c0f7f461318a78 -->
 ## 2026-10-23 — Contextual owner manual-attendance authorization
 
 Signed-in home verification identified the Daily manual-attendance fallback still
@@ -50746,3 +50749,80 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:f88a41eafd560edea05a43d4530969f032eb7bba0e70b20a9417036463a4a7bd -->
+## 2026-10-23 — Contextual member notification reads
+
+Owner approved the signed-in mixed-role notification gap after an actual route
+regression reproduced403. Admitted current nonowner members now use compact,
+bounded classroom-root reads for the unchanged four notification counters;
+every payload and terminal page binds active class, actor, owner and enrollment
+generation. Publication/own-resource checks, repeated snapshot validation and a
+final relationship guard reject observed drift without claiming a transaction
+snapshot. Absent/unadmitted behavior retains the original student-role path.
+Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
+pass; final independent review/full focused checks remain coordinator-owned.
+No migration, dependency, account, cohort, provider or production changes.
+
+## 2026-10-24 — RepoLight report integration local verification
+
+- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
+- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
+- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
+- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
+- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-10-24 — Release inactive classroom Home foundation
+
+Owner explicitly approved sole292 locally/production and reviewed-main release
+with activation off. Local pinned CLI and production apply40059138246 both
+verified001–292; read-only bodies/grants/RLS/PK/FK checks pass. Release1673
+independently reviewed464–466, local4738/151+1022/73 and exact-head CI40059627420
+all10jobs/PRGate PASS. Protected merge4778514b0 has exact reviewed tree; Vercel
+dpl_DHbxckpbMDrojHGw6uD5ZePPpS54 and public alias READY00:28Toronto. Six public
+unauthenticated GET checks pass, including exact root307→login200; initial
+root200 expectation was a smoke-assumption error, not an app change. Five
+activation settings absent;24provider/controlmetadata records unchanged. No
+retry/reset/seed/production fixture/provider/account/plan/billing/activation
+change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
+
+## 2026-10-24 — Assignment image submission recovery
+
+Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+## 2026-10-24 — Prepare classroom Home recovery and pilot
+
+Prepared a rollback-only creation freeze/getter-permission fault/restoration
+contract in the existing sealed offline owned-clone verifier, plus actual-route,
+adapter and server-page CPU composition tests for both account-role labels.
+The layered evidence intentionally does not claim real PostgREST/browser outage
+or deployed recovery. Pilot packet records compatible477/schema292 floor,
+retained-admission growth stop, canaries, zero-tolerance stop conditions and
+unset operator/cohort/activation authority. Root verified84focused cases and
+TypeScript. Reviews468–470 cover source and corrections; bounded
+Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
+(351s), effective model/tokens unknown. No runtime, migration, dependency,
+production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.
+Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
+fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
+unchanged lock contention, generated types and canonical schema/source equality.
+Exact owned resources absent; full failure/success evidence retained privately.
+Final receipt review/CI/main merge pending; production477 and activation/provider
+holds unchanged. Pilot still requires selected operator/cohort and authorization.

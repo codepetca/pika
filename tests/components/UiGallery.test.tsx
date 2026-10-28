@@ -184,6 +184,21 @@ describe('UiGallery history preview fixture', () => {
     expect(addRequirement).toHaveFocus()
   })
 
+  it('keeps the test settings menu keyboard accessible above Publish', async () => {
+    const user = userEvent.setup()
+    render(<ThemeProvider><TooltipProvider><TestEditSplitPattern /></TooltipProvider></ThemeProvider>)
+    await user.click(screen.getByRole('button', { name: 'Open test edit prototype' }))
+    const dialog = screen.getByRole('dialog', { name: 'Edit Test' })
+    const settings = within(dialog).getByRole('button', { name: 'Settings' })
+    const publish = within(dialog).getByRole('button', { name: 'Publish' })
+    expect(settings.compareDocumentPosition(publish) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    settings.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('menuitemradio', { name: 'Show results after return' })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    expect(settings).toHaveFocus()
+  })
+
   it('supports keyboard reordering in the Test edit prototype reference list', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><TestEditSplitPattern /></TooltipProvider></ThemeProvider>)

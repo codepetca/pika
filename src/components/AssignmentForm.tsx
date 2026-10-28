@@ -128,43 +128,45 @@ export function AssignmentForm({
             />
           </FormField>
 
-          {onPreviewInstructions && (
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              fullWidth
-              className="shrink-0"
-              onClick={onPreviewInstructions}
-              disabled={disabled}
-            >
-              <Eye className="h-4 w-4" aria-hidden="true" />
-              Preview
-            </Button>
-          )}
-
           {statusContent}
           {extraFields}
           {error && <p className="text-sm text-warning">{error}</p>}
 
-          <div
-            data-testid="assignment-editor-primary-actions"
-            className={topRowActions
-              ? 'grid shrink-0 grid-cols-2 gap-2 lg:mt-auto'
-              : 'grid shrink-0 grid-cols-1 gap-2 lg:mt-auto'}
-          >
-            <DateActionBar
-              value={dueAt}
-              onChange={onDueAtChange}
-              layout="compact"
-              subtitle={relativeDateSubtitle}
-              className="min-w-0 [&>div]:w-full [&_button]:w-full"
-            />
-            {topRowActions && (
-              <div className="min-w-0 [&>*]:w-full">
-                {topRowActions}
-              </div>
+          <div className="mt-auto space-y-2">
+            {onPreviewInstructions && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                fullWidth
+                className="shrink-0"
+                onClick={onPreviewInstructions}
+                disabled={disabled}
+              >
+                <Eye className="h-4 w-4" aria-hidden="true" />
+                Preview
+              </Button>
             )}
+
+            <div
+              data-testid="assignment-editor-primary-actions"
+              className={topRowActions
+                ? 'grid shrink-0 grid-cols-2 gap-2 lg:mt-auto'
+                : 'grid shrink-0 grid-cols-1 gap-2 lg:mt-auto'}
+            >
+              <DateActionBar
+                value={dueAt}
+                onChange={onDueAtChange}
+                layout="compact"
+                subtitle={relativeDateSubtitle}
+                className="min-w-0 [&>div]:w-full [&_button]:w-full"
+              />
+              {topRowActions && (
+                <div className="min-w-0 [&>*]:w-full">
+                  {topRowActions}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
