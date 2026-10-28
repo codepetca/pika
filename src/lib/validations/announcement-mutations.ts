@@ -29,6 +29,7 @@ const fields = {
   title: title.optional(),
   is_draft: z.boolean().optional(),
   scheduled_for: scheduledFor.optional(),
+  posted_on: postDateSchema.optional(),
 }
 const publicationCheck = (value: { is_draft?: boolean; scheduled_for?: string | null }, context: z.RefinementCtx) => {
   if (value.is_draft === true && value.scheduled_for != null) {
@@ -45,9 +46,6 @@ export const announcementUpdateBodySchema = z.object({
   content: fields.content.optional(),
 }).strict().superRefine((value, context) => {
   publicationCheck(value, context)
-  if (value.posted_on !== undefined && (value.is_draft === true || value.scheduled_for !== undefined)) {
-    context.addIssue({ code: 'custom', message: 'Post date cannot be combined with draft or scheduling changes', path: ['posted_on'] })
-  }
   if (!Object.values(value).some(field => field !== undefined)) {
     context.addIssue({ code: 'custom', message: 'At least one announcement field is required' })
   }

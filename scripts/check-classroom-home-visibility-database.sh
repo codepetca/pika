@@ -23,7 +23,7 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-((10#$source_version >= 234 && 10#$source_version <= 293)) || exit 1
+((10#$source_version >= 234 && 10#$source_version <= 295)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"
@@ -79,7 +79,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Seal the exact dirty-tree SQL inventory, rather than asserting a reviewed SHA.
-# This validates contiguous001–293 and binds all migration and proof bytes.
+# This validates contiguous001–295 and binds all migration and proof bytes.
 manifest() {
   node - "$root" <<'NODE'
 const assert = require('node:assert/strict')
@@ -88,13 +88,17 @@ const { readFileSync, readdirSync } = require('node:fs')
 const { join } = require('node:path')
 const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
-assert.equal(paths.length, 293, 'Expected exactly293 migrations')
+assert.equal(paths.length, 295, 'Expected exactly295 migrations')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
-// Preserve historical dirty-tree manifests; only the new 293 extension is sealed.
+// Preserve the reviewed293 pin and require the exact admission294/calendar295 tails.
 const reviewed293 = '293_repolight_report_service.sql'
 assert.equal(paths[292], reviewed293, 'Unreviewed migration 293 filename')
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', reviewed293))).digest('hex'), 'b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052', 'Unreviewed migration 293 source')
-for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs']) {
+assert.equal(paths[293], '294_classroom_experience_admission_registry.sql', 'Unreviewed migration 294 filename')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[293]))).digest('hex'), '908ac8f3765426eb2ab93258206c1f2c10b0fa8299d118821414a1f4ebeaf197', 'Unreviewed migration 294 source')
+assert.equal(paths[294], '295_independent_calendar_post_dates.sql', 'Unreviewed migration 295 filename')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[294]))).digest('hex'), '7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3', 'Unreviewed migration 295 source')
+for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
 NODE
@@ -126,7 +130,7 @@ done
 manifest > "$scratch/replay-manifest.sha256"
 cmp -s "$scratch/source-manifest.sha256" "$scratch/replay-manifest.sha256" || { echo 'Source changed before replay.' >&2; exit 1; }
 if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then tail -25 "$scratch/replay.log" >&2; exit 1; fi
-echo 'PASS isolated replay001–293.'
+echo 'PASS isolated replay001–295.'
 if ! sql < "$root/scripts/check-classroom-home-visibility-database.sql" > "$scratch/behavior.log" 2>&1; then tail -25 "$scratch/behavior.log" >&2; exit 1; fi
 echo 'PASS rollback-only home visibility contracts.'
 if ! sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1; then tail -25 "$scratch/recovery.log" >&2; exit 1; fi
@@ -140,11 +144,20 @@ NODE
 echo 'PASS rollback-only classroom creation freeze and capability recovery contracts.'
 if ! node "$root/scripts/check-classroom-home-visibility-contention.mjs" --container-id "$clone_id" --owner "$owner" > "$scratch/contention.log" 2>&1; then tail -25 "$scratch/contention.log" >&2; exit 1; fi
 echo 'PASS actual two-session visibility membership/owner/archive contention.'
+docker exec "$clone_id" pg_dump -U postgres -d postgres --no-owner --schema=public --schema=private > "$scratch/admission-before.sql"
+normalize_schema "$scratch/admission-before.sql" > "$scratch/admission-before-normalized.sql"
+if ! sql < "$root/scripts/check-classroom-admission-registry-database.sql" > "$scratch/admission.log" 2>&1; then tail -25 "$scratch/admission.log" >&2; exit 1; fi
+echo 'PASS rollback-only classroom admission registry contracts.'
+if ! node --import tsx "$root/scripts/check-classroom-admission-registry-contention.mjs" --container-id "$clone_id" --owner "$owner" > "$scratch/admission-contention.log" 2>&1; then tail -25 "$scratch/admission-contention.log" >&2; exit 1; fi
+echo 'PASS actual two-session admission stop/batch/duplicate/reconciliation; fixture graph restored.'
+docker exec "$clone_id" pg_dump -U postgres -d postgres --no-owner --schema=public --schema=private > "$scratch/admission-after.sql"
+normalize_schema "$scratch/admission-after.sql" > "$scratch/admission-after-normalized.sql"
+cmp -s "$scratch/admission-before-normalized.sql" "$scratch/admission-after-normalized.sql" || { echo 'Admission proofs changed the preproof clone graph/schema.' >&2; exit 1; }
 meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.home-visibility.owner=$owner" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-home-visibility -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true "$meta_image")"
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
 [[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]] || exit 1
 (( $(wc -c < "$scratch/generated.ts") <= 8388608 )) || exit 1
-for rpc in read_classroom_home_visibility_v1: set_classroom_home_visibility_v1:; do grep -Fq "$rpc" "$scratch/generated.ts"; done
+for rpc in read_classroom_home_visibility_v1: set_classroom_home_visibility_v1: read_classroom_experience_admission_v2: commit_classroom_experience_admission_batch_v2: read_classroom_experience_admission_operation_v2:; do grep -Fq "$rpc" "$scratch/generated.ts"; done
 awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { print ""; blank_lines -= 1 }; print }' "$scratch/generated.ts" > "$scratch/normalized.ts"
 manifest > "$scratch/final-manifest.sha256"
 cmp -s "$scratch/source-manifest.sha256" "$scratch/final-manifest.sha256" || { echo 'Source changed during proof.' >&2; exit 1; }

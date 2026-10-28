@@ -90,6 +90,23 @@ describe('actor-bound shared announcement reads', () => {
     expect(queries[1]).toContainEqual(['or', [`and(or(scheduled_for.is.null,scheduled_for.lte.2026-10-02T12:00:00.124Z),or(published_at.lt.${timestamp},and(published_at.eq.${timestamp},id.gt.${id(1)})))`, { referencedTable: 'announcements' }]])
   })
 
+  it.each([{ posted_on: '2099-01-01' }, { posted_on: null }, {}])(
+    'preserves immediately published member calendar placement %j without a date cutoff', async placement => {
+      const row = { ...announcement(), ...placement }
+      const { result, queries } = read([envelope(root([row])), envelope(root([]))])
+      await expect(result).resolves.toEqual({ announcements: [row] })
+      expect(String(queries[0][0][1][0])).toContain('announcements_classroom_id_fkey(posted_on,id,')
+      expect(queries[0].filter(([method]) => method === 'or')).toEqual([
+        ['or', ['scheduled_for.is.null,scheduled_for.lte.2026-10-02T12:00:00.124Z', { referencedTable: 'announcements' }]],
+      ])
+    },
+  )
+
+  it('fails closed if a scheduled member announcement leaks through despite a permitted calendar placement', async () => {
+    const row = { ...announcement(1, '2099-01-01T12:00:00Z'), scheduled_for: '2099-01-01T12:00:00Z', posted_on: '2026-10-01' }
+    await expect(read([envelope(root([row]))]).result).rejects.toMatchObject({ statusCode: 503 })
+  })
+
   it('keysets null drafts before publications with exact microsecond timestamps and UUID ties', async () => {
     const older = '2026-10-02T12:00:00.123455+00:00'
     const rows = [announcement(1, null), announcement(2, null), announcement(3), announcement(4), announcement(5, older)]

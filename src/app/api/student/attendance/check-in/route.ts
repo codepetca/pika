@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { requireAuth, requireRole } from '@/lib/auth'
-import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 import {
   executeStudentAttendanceCheckIn,
   StudentAttendanceCheckInError,
@@ -14,7 +14,7 @@ export const revalidate = 0
 
 export const POST = withErrorHandler('PostStudentAttendanceCheckIn', async (request) => {
   const authenticated = await requireAuth()
-  const user = resolveClassroomExperienceAdmission(authenticated).status === 'admitted'
+  const user = (await resolveAttendanceProtocolCompatibility(authenticated)).status === 'admitted'
     ? authenticated : await requireRole('student')
   const { entryToken, attemptId } = studentAttendanceCheckInSchema.parse(await request.json())
   try {

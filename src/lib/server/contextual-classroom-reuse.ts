@@ -8,7 +8,7 @@ import { contextualClassroomReuseProposalBindingSchema as reuseProposalBindingSc
 export async function authorizeClassroomReuseActor() {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       return { user, contextual: true }
     }
   }

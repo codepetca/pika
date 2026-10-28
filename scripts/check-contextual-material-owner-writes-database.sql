@@ -112,6 +112,7 @@ declare
   v_archive bigint;
   v_blueprint bigint;
   v_operation uuid;
+  v_posted_on date;
 begin
   v_row := public.create_classwork_material_for_owner_v2(v_actor,v_class,'读 🐦 café',
     '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"汉字 🐦"}]}]}',true);
@@ -167,12 +168,22 @@ begin
   -- Transfer and retain every immutable historical field, including negative positions.
   update public.classrooms set teacher_id = v_teacher where id = v_class;
   update public.classwork_materials set position = -5 where id = v_id;
-  v_before := (select to_jsonb(material) from public.classwork_materials material where id = v_id);
-  v_row := public.update_classwork_material_for_owner_v1(v_teacher,v_class,v_id,
-    jsonb_build_object('title',repeat('😀',300)))->'material';
-  if (v_row - array['title','updated_at']) is distinct from (v_before - array['title','updated_at']) then
-    raise exception 'Transfer edit changed historical author/identity/position/lineage';
-  end if;
+  foreach v_posted_on in array array[null::date,'2099-07-10'::date] loop
+    update public.classwork_materials set posted_on = v_posted_on where id = v_id;
+    v_before := (select to_jsonb(material) from public.classwork_materials material where id = v_id);
+    v_row := public.update_classwork_material_for_owner_v1(v_teacher,v_class,v_id,
+      jsonb_build_object('title',repeat('😀',300)))->'material';
+    if (select count(*) from jsonb_object_keys(v_row)) <> (case when v_posted_on is null then 14 else 15 end)
+      or (v_posted_on is null and (v_row ? 'posted_on')) then
+      raise exception 'Calendar date receipt changed the legacy-null or dated field contract';
+    end if;
+    -- Legacy receipts omit only a null calendar key. Restore that null for the
+    -- raw-row comparison; a missing or changed nonnull date still fails.
+    if ((v_row || jsonb_build_object('posted_on',v_row->'posted_on')) - array['title','updated_at'])
+      is distinct from (v_before - array['title','updated_at']) then
+      raise exception 'Transfer edit changed historical author/identity/position/lineage/calendar date';
+    end if;
+  end loop;
   -- Creator193 uses max(position)+1 even for historical all-negative ordering.
   -- The shared wrapper must retain that allocator across every classwork type.
   perform public.create_assignment_for_owner_v1(v_teacher,v_class,'Negative assignment',

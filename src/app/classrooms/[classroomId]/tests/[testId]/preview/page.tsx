@@ -22,7 +22,7 @@ export default async function TestPreviewPage({ params }: PageProps) {
   if (!user) {
     redirect(await getServerLoginRedirectPath())
   }
-  if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+  if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
     let detail
     try {
       detail = await readContextualTestDetail({ supabase: getServiceRoleClient(), actorId: user.id, testId })

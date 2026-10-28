@@ -41,7 +41,7 @@ const childParentBatchSize = 25
 export async function authorizeSharedAssignmentOverviewReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 /** Owner authority is proved by every payload statement, including empty terminal and final reads. */

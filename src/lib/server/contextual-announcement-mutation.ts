@@ -1,4 +1,3 @@
-import { getCalendarAnnouncementDate } from '@/lib/calendar-items'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
@@ -40,9 +39,7 @@ function announcementResult(response: unknown, classroomId: string, body: Announ
   if (announcement.classroom_id !== classroomId
     || (body.content !== undefined && announcement.content !== body.content)
     || (body.title !== undefined && announcement.title !== body.title)
-    || (body.posted_on !== undefined && (announcement.is_draft || announcement.published_at === null
-      || announcement.scheduled_for !== null || getCalendarAnnouncementDate(announcement) !== body.posted_on
-      || Date.parse(announcement.published_at) > Date.now()))
+    || (body.posted_on !== undefined && announcement.posted_on !== body.posted_on)
     || (body.is_draft === true && !announcement.is_draft)
     || (body.is_draft === false && announcement.is_draft)
     || (body.is_draft !== true && body.scheduled_for !== undefined && (
@@ -60,14 +57,15 @@ export async function createContextualAnnouncement(input: {
 }) {
   const actor = actorId(input.actorId)
   const { id: classroomId } = announcementCreateParamsSchema.parse({ id: input.classroomId })
-  const response = await invoke(() => getServiceRoleClient().rpc('create_announcement_for_owner_v1', {
-    p_actor_id: actor,
-    p_classroom_id: classroomId,
-    p_content: input.body.content,
-    p_is_draft: input.body.is_draft,
-    p_scheduled_for: input.body.scheduled_for ?? null,
+  const args = {
+    p_actor_id: actor, p_classroom_id: classroomId, p_content: input.body.content,
+    p_is_draft: input.body.is_draft, p_scheduled_for: input.body.scheduled_for ?? null,
     p_title: input.body.title ?? null,
-  }))
+  }
+  const client = getServiceRoleClient()
+  const response = await invoke(() => input.body.posted_on !== undefined
+    ? client.rpc('create_announcement_for_owner_v2', { ...args, p_posted_on: input.body.posted_on })
+    : client.rpc('create_announcement_for_owner_v1', args))
   const result = announcementResult(response, classroomId, input.body)
   if (result.announcement.created_by !== actor
     || result.announcement.title !== (input.body.title ?? null)

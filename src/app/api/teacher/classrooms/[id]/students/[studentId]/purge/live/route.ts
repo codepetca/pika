@@ -16,7 +16,7 @@ const headers = { 'Cache-Control': 'no-store' }
 
 export const GET = withErrorHandler('GetLiveStudentCleanup', async (request, context) => {
   const candidate = isClassroomExperienceAdmissionConfigured() ? await requireAuth() : null
-  const contextual = candidate !== null && resolveClassroomExperienceAdmission(candidate).status === 'admitted'
+  const contextual = candidate !== null && (await resolveClassroomExperienceAdmission(candidate)).status === 'admitted'
   const user = contextual && candidate ? candidate : await requireRole('teacher')
   const params = liveStudentCleanupParamsSchema.parse(await context.params)
   const canonical = (value: string) => contextual ? value.toLowerCase() : value
@@ -36,7 +36,7 @@ export const GET = withErrorHandler('GetLiveStudentCleanup', async (request, con
 
 export const POST = withErrorHandler('PostLiveStudentCleanup', async (request, context) => {
   const candidate = isClassroomExperienceAdmissionConfigured() ? await requireAuth() : null
-  const contextual = candidate !== null && resolveClassroomExperienceAdmission(candidate).status === 'admitted'
+  const contextual = candidate !== null && (await resolveClassroomExperienceAdmission(candidate)).status === 'admitted'
   const user = contextual && candidate ? candidate : await requireRole('teacher')
   const params = liveStudentCleanupParamsSchema.parse(await context.params)
   const teacherId = user.id.toLowerCase(), classroomId = params.id.toLowerCase(), studentId = params.studentId.toLowerCase()

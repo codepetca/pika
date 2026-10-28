@@ -20,14 +20,14 @@ const withoutSessionProof = (source: string) => withoutReportProof(source).repla
 describe('Supabase image registry parity', () => {
   it('inherits the explicit registry before setup and throughout every local lane', async () => {
     const source = workflow()
-    expect(source).toContain('env:\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws\n')
+    expect(source).toContain('env:\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io\n')
     const jobs = Object.values(extractWorkflow(source))
     expect(jobs.filter(job => job.steps.some(step => step.uses === 'supabase/setup-cli@v1'))).toHaveLength(7)
     const directory = mkdtempSync(join(tmpdir(), 'pika-ci-registry-test-'))
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     try {
       for (const job of jobs) {
-        expect(job.env.SUPABASE_INTERNAL_IMAGE_REGISTRY).toBe('public.ecr.aws')
+        expect(job.env.SUPABASE_INTERNAL_IMAGE_REGISTRY).toBe('ghcr.io')
         const seen: string[] = []
         expect(await runLane(job, directory, directory, { SUPABASE_INTERNAL_IMAGE_REGISTRY: 'caller.invalid' }, {
           execute: async (_script: string, _cwd: string, env: Record<string, string>, _child: unknown, path: string) => {
@@ -37,7 +37,7 @@ describe('Supabase image registry parity', () => {
           },
         })).toBe(false)
         expect(seen.length).toBeGreaterThan(1)
-        expect(new Set(seen)).toEqual(new Set(['public.ecr.aws']))
+        expect(new Set(seen)).toEqual(new Set(['ghcr.io']))
       }
     } finally {
       log.mockRestore()
@@ -49,9 +49,9 @@ describe('Supabase image registry parity', () => {
     '  SUPABASE_INTERNAL_IMAGE_REGISTRY: docker.io',
     '  SUPABASE_INTERNAL_IMAGE_REGISTRY: ${{ vars.REGISTRY }}',
     '  NODE_OPTIONS: --require=unreviewed',
-    '  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws',
+    '  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io',
   ])('rejects unsupported workflow environment %s', entry => {
-    expect(() => extractWorkflow(workflow().replace('  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws', entry))).toThrow()
+    expect(() => extractWorkflow(workflow().replace('  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io', entry))).toThrow()
   })
 
   it.each(['job', 'step'])('rejects a %s override of the shared registry', scope => {
@@ -305,8 +305,8 @@ describe('local canonical CI', () => {
     expect(browser.steps.find(step => step.name === 'Export local Supabase environment')?.run).toContain('>> "$GITHUB_ENV"')
     expect(browser.steps.find(step => step.name === 'Seed browser fixtures')?.run).toBe('pnpm seed')
     expect(browser.steps.find(step => step.name === 'Run combined browser contracts')?.run).toContain('pnpm e2e:ci --project=chromium-desktop ')
-    expect(browser.steps.at(-1)?.run).toBe('supabase stop --no-backup')
-    expect(browser.steps.some(step => step.githubOnlyRegistry)).toBe(false)
+    expect(browser.steps.at(-2)?.run).toBe('supabase stop --no-backup')
+    expect(browser.steps.at(-1)).toMatchObject({ run: 'node scripts/ci-supabase-registry-auth.mjs cleanup', if: 'always()' })
   })
 
   it('retains the exact pre-attendance database inventories and every historical layout', () => {

@@ -50388,6 +50388,21 @@ each require final exact-head CI; no production app release claimed yet.
 Promotion keeps both journal histories and reviewed correction bytes. Home292,
 provider, billing and shared-local schema remain outside this release.
 
+<!-- pika-session-log-archive-batch:1f7687235f567614c8c3c056b414b56d71b4d2834f9ca52ae6fca088802a12a8 -->
+## 2026-10-23 Editor production migration and release correction
+
+Owner approved exact production291 and normal editor release. Preview40003769768
+matched only291 from reviewed61d9265/fullCI39995508676. Single apply40004531458
+is applied-verified001–291; exact installed bodies/ACL/RLS/constraints/triggers
+and private bucket read-only checks PASS. No production fixtures or flags changed.
+Two cumulative release reviews found one source UUID casing blocker. Correction
+f316bf7da matches UUID identity only, preserving literal route/key/full identity
+and publication/member guards. Regression6fail→43affectedPASS; focused1012/75,
+static/audit and independent targeted review PASS. Main1668 and promotion1667
+each require final exact-head CI; no production app release claimed yet.
+Promotion keeps both journal histories and reviewed correction bytes. Home292,
+provider, billing and shared-local schema remain outside this release.
+
 ## 2026-10-22 — Production post-date promotion preparation
 
 Owner authorized one production application of289/290 followed by main promotion.
@@ -50453,6 +50468,18 @@ owner authorized coordination and reviewed1662 merge to main only. Home numberin
 must follow upstream before readiness. No shared migration, production, provider,
 account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
 
+<!-- pika-session-log-archive-batch:2f7b9b12be3ebc19c0d821a60f61b809d75e94912c7557709494914537dc7c09 -->
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
+
+<!-- pika-session-log-archive-batch:39b2bc320bab01d6d6fd2bbe9c7c1b4b1afb7ff49bc0d566a17530ecb4839781 -->
 ## 2026-10-23 — Correct complete live-home reads
 
 Initial independent reviews425/426 completed: compatibility/UI clean, security
@@ -50505,3 +50532,217 @@ evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
 accepted visual and home-native evidence reused. Final focused gate and targeted
 review430 precede new ready-event CI; editor release-order interlock remains.
 Production, providers, shared applications, account and activation holds remain.
+
+## 2026-10-23 — Reconcile home proof with pinned CI image
+
+Review430 and full4544/145+static passed07cceb; normal draft push then one ready
+event started40007133291. CI passed corrected attendance292 native proof, then
+home preflight rejected the CI image before scratch creation. Returned1666 to
+draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
+local accepted stack uses17.6.1.044. Add only exact official aliases for132,
+retaining044 and cached/running ID equality. Actual shell regressions RED2/18
+reproduced the mismatch; future/custom/latest/malformed references and mismatched
+IDs remain rejected. No SQL/UI/database/provider change or new dependency.
+Targeted review and final CI remain required; unchanged native/visual evidence
+is reused. Editor1668 main correction is close; wait for actual merged SHA to
+combine compatibility reconciliation before another CI. Release interlock and
+all production/provider/shared application/account/activation holds persist.
+
+Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
+completed without conflicts. All six feature patches remain equivalent; image
+helper's UUID-case-only change and tests are the only upstream delta. Migration
+291/292 hashes unchanged, no renumbering/application or new stash. Combine this
+interaction and image-pin batch44 in targeted431 after affected checks; final
+focused gate/CI still required. Editor1667 release interlock remains held.
+
+## 2026-10-23 — Final home base reconciliation after editor release
+
+Editor release/receipt complete: actual finalmain24c294b1, interlock explicitly
+released by its owner. Rebased home onto docs-only1669, preserving CURRENT and
+exact production receipt. Conflicts only in history journals; keep both histories
+and markers, remove one merge-reinserted historical duplicate only after byte
+equality with its preserved earlier entry. All application/test/script/dependency/
+configuration/SQL bytes match reviewed4772;291/292digests unchanged. No shared
+migration/provider/activation action. Reused4557/145+static/source review431 and
+accepted native/UI evidence; final docs verification/review432 and exact-head CI
+precede normal1666mainmerge. This task's production/provider/account/plan/cohort
+holds remain; tool goal and DeepSeek stay paused.
+
+## 2026-10-23 — Include home preference in closed Test proof catalogs
+
+CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
+contention/types/source-preservation, then an older member-list canonical-before
+check rejected292's unlisted private home table before fixture allocation. Return
+1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
+include the sealed292 table centrally and preserve exact291 source compatibility.
+Test missing/drifted fingerprints for create/publication/discard restoration,
+tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
+provider behavior changed. Unchanged accepted native/UI evidence reused; full
+focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
+Prior failed CI is not acceptance. All deployment/provider/shared-application/
+account/activation holds remain unchanged.
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.
+
+<!-- pika-session-log-archive-batch:264dc7d415e806283f9cca8f0daa6aadc0ed5eb9a78ac3d201db3dcac98fa702 -->
+## 2026-10-23 — Reconcile home proof with pinned CI image
+
+Review430 and full4544/145+static passed07cceb; normal draft push then one ready
+event started40007133291. CI passed corrected attendance292 native proof, then
+home preflight rejected the CI image before scratch creation. Returned1666 to
+draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
+local accepted stack uses17.6.1.044. Add only exact official aliases for132,
+retaining044 and cached/running ID equality. Actual shell regressions RED2/18
+reproduced the mismatch; future/custom/latest/malformed references and mismatched
+IDs remain rejected. No SQL/UI/database/provider change or new dependency.
+Targeted review and final CI remain required; unchanged native/visual evidence
+is reused. Editor1668 main correction is close; wait for actual merged SHA to
+combine compatibility reconciliation before another CI. Release interlock and
+all production/provider/shared application/account/activation holds persist.
+
+Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
+completed without conflicts. All six feature patches remain equivalent; image
+helper's UUID-case-only change and tests are the only upstream delta. Migration
+291/292 hashes unchanged, no renumbering/application or new stash. Combine this
+interaction and image-pin batch44 in targeted431 after affected checks; final
+focused gate/CI still required. Editor1667 release interlock remains held.
+
+## 2026-10-23 — Final home base reconciliation after editor release
+
+Editor release/receipt complete: actual finalmain24c294b1, interlock explicitly
+released by its owner. Rebased home onto docs-only1669, preserving CURRENT and
+exact production receipt. Conflicts only in history journals; keep both histories
+and markers, remove one merge-reinserted historical duplicate only after byte
+equality with its preserved earlier entry. All application/test/script/dependency/
+configuration/SQL bytes match reviewed4772;291/292digests unchanged. No shared
+migration/provider/activation action. Reused4557/145+static/source review431 and
+accepted native/UI evidence; final docs verification/review432 and exact-head CI
+precede normal1666mainmerge. This task's production/provider/account/plan/cohort
+holds remain; tool goal and DeepSeek stay paused.
+
+## 2026-10-23 — Include home preference in closed Test proof catalogs
+
+CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
+contention/types/source-preservation, then an older member-list canonical-before
+check rejected292's unlisted private home table before fixture allocation. Return
+1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
+include the sealed292 table centrally and preserve exact291 source compatibility.
+Test missing/drifted fingerprints for create/publication/discard restoration,
+tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
+provider behavior changed. Unchanged accepted native/UI evidence reused; full
+focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
+Prior failed CI is not acceptance. All deployment/provider/shared-application/
+account/activation holds remain unchanged.
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.
+
+## 2026-10-23 — CI runner completion and capacity
+
+Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
+quota acceptance. All eight heavy lanes and final PR Gate now select the runner;
+classification stays hosted and classification failure retains hosted gate refusal.
+Success artifacts removed; four failure sites cap256KiB/eight files with1day retention.
+Mac4vCPU/12GiB admission reserves6GiB host memory and checks pressure/load/swap/storage;
+current24GiB Mac refuses safely. Observed238heavy hours/week exceeds one serial slot.
+Dedicated64GiB/1TBNVMe Linux/Tailscale setup, three-slot pilot and public hold documented
+in docs/guidance/ci-runner-capacity-and-rollout.md. No machine exists yet; automatic
+routing, live runner acceptance and post-activation quota week remain pending.
+Local quota audit requires complete post-activation evidence and<=1000min/month,
+<=250MB artifacts. No visibility, plan, production or database changes. Focused
+workflow/policy/type/lint checks and bounded independent review recorded in PR.
+
+First exact-head CI passed every heavy lane except light browsers: clearing the
+remounted Pattern Lab question editor left Publish enabled. All assertions remain;
+the test now uses native Select All/Backspace and checks the editor is empty before
+parent validation. Local baseline passes did not reproduce the hosted failure.
+Owner approved one bounded correction/review continuation. Rebased onto reviewed
+main45fd19251, preserving its new classroom-home database proof and local aliases.
+Application source, visibility and runner opt-in remain unchanged. Final focused,
+browser matrix, targeted review and exact-head CI evidence is recorded in PR1670.
+
+## 2026-10-23 — Editor overlay motion consistency
+
+- Reused teacher Markdown authoring and student document-editor Pattern Lab owners. Two Tiptap wrapper styles now use semantic fast opacity entry, with no translation/zoom and an explicit reduced-motion animation-none path.
+- Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
+- Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
+- The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
+
+## 2026-10-23 — Contextual owner manual-attendance authorization
+
+Signed-in home verification identified the Daily manual-attendance fallback still
+requiring a global teacher role before classroom ownership. Owner approved the
+narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
+shared attendance actor admission; unmatched accounts retain the original teacher
+gate. Actual classroom ownership, archived read/mutation distinction and unchanged
+SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
+26 failures before the fix; affected API/store/hook/migration tests pass afterward.
+Full local checks, independent auth/compatibility review and exact-head CI precede
+main merge. No schema, cohort, provider, account or production changes; existing
+failed rehearsal evidence is retained and does not establish workflow acceptance.
+
+## 2026-10-23 — Contextual member notification reads
+
+Owner approved the signed-in mixed-role notification gap after an actual route
+regression reproduced403. Admitted current nonowner members now use compact,
+bounded classroom-root reads for the unchanged four notification counters;
+every payload and terminal page binds active class, actor, owner and enrollment
+generation. Publication/own-resource checks, repeated snapshot validation and a
+final relationship guard reject observed drift without claiming a transaction
+snapshot. Absent/unadmitted behavior retains the original student-role path.
+Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
+pass; final independent review/full focused checks remain coordinator-owned.
+No migration, dependency, account, cohort, provider or production changes.
+
+## 2026-10-23 — Prepare activation-off Home foundation release
+
+Owner explicitly approved292 locally and in production, then reviewed-main
+release with activation off. Local sole292 push and production apply40059138246
+both verified contiguous001–292; production preview40059060682 matched only292.
+Read-only checks match both installed function bodies, private RLS/ACLs and
+validated enrollment PK/FKcascade. No reset, seed, retry or production fixtures.
+Release1673 batches reviewed main3c1be2d39; full focused4738tests/151suites and
+static gates pass. Independent security464/compatibility465 complete clean.
+Reconciled only journal merge history with productioncd7179, retaining both
+parents and unchanged application/SQL/config/dependency bytes. Final delta
+review and exact-head CI precede merge. Home/admission/page settings remain
+absent; existing provider/control metadata unchanged. Live-provider, activation,
+account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
+
+## 2026-10-24 — RepoLight report integration local verification
+
+- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
+- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
+- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
+- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
+- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.

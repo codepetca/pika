@@ -67,7 +67,7 @@ async function main() {
   const quote = (value: string) => `'${value.replaceAll("'", "''")}'`
   const richSql = `${quote(JSON.stringify(rich))}::jsonb`, docSql = `${quote(JSON.stringify(doc))}::jsonb`
   const materialFields = [
-    'id','classroom_id','title','content','is_draft','released_at','created_by','created_at','updated_at',
+    'id','classroom_id','title','content','is_draft','released_at','posted_on','created_by','created_at','updated_at',
     'position','artifact_id','source_artifact_id','blueprint_archived_at','source_blueprint_version_id',
   ]
   type Permission = 'owner' | 'member'
@@ -198,6 +198,7 @@ async function main() {
           '2020-01-01T00:00:00.000004Z');
       insert into public.classwork_materials(classroom_id,title,content,is_draft,created_by,position)
         values('${draftClass}','Hidden draft',${docSql},true,'${ownerStudent}',0);
+      update public.classwork_materials set posted_on='2099-07-10' where id='${complex}';
       commit;`)
     if (process.argv.includes('--verify-cleanup-after-fixture')) throw new Error('Forced post-fixture cleanup proof')
 
@@ -209,6 +210,7 @@ async function main() {
     assert.equal(new Set(owner.materials.map(row => row.id)).size, 1007)
     assert.deepEqual(Object.keys(owner.materials[0]).sort(), [...materialFields].sort())
     assert.equal(owner.materials[0].id, complex)
+    assert.equal(owner.materials[0].posted_on, '2099-07-10')
     assert.deepEqual(owner.materials[0].content, rich)
     assert.match(owner.materials[0].blueprint_archived_at ?? '', /^2020-02-01T00:00:00\.123456(?:\+00:00|Z)$/)
     assert.equal(owner.materials[0].source_blueprint_version_id, null)
@@ -226,9 +228,13 @@ async function main() {
     assert.equal(memberTrace.pages(), 3)
     assert(!member.materials.some(row => row.id === draft))
     assert(!member.materials.some(row => row.id === future), 'Future releases stay hidden from members')
+    assert.equal(member.materials.find(row => row.id === complex)?.posted_on, '2099-07-10',
+      'A future calendar date does not hide a published material')
     assert.deepEqual(member.materials.filter(row => row.position === -2).map(row => row.id), [early, late, nullRelease],
       'Member order retains microseconds and puts null release last')
-    assert.equal((await read(memberStudent, classA, 'member')).materials.length, 1005)
+    const studentMember = await read(memberStudent, classA, 'member')
+    assert.equal(studentMember.materials.length, 1005)
+    assert.equal(studentMember.materials.find(row => row.id === complex)?.posted_on, '2099-07-10')
     const bOwner = await read(ownerTeacher, classB, 'owner')
     assert.deepEqual(bOwner.materials.map(row => row.id), [bIds[1], bIds[0], bIds[2], bIds[3]],
       'Owner tied positions follow created_at microseconds before ID')

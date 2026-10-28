@@ -40,7 +40,7 @@ export async function authorizeSharedLessonPlanReadActor(): Promise<{ mode: 'exi
     return { mode: 'existing' }
   }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status !== 'admitted') {
+  if ((await resolveClassroomExperienceAdmission(user)).status !== 'admitted') {
     return { mode: 'existing' }
   }
   return { mode: 'shared', user }

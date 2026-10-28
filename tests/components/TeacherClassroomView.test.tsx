@@ -1590,21 +1590,24 @@ describe('TeacherClassroomView', () => {
     expect(params.has('materialId')).toBe(false)
   })
 
-  it('saves a changed material post date and invalidates both calendar material caches', async () => {
+  it.each([
+    ['2026-10-21', '2026-10-21T04:00:00Z', 'Save', { posted_on: '2026-10-21' }],
+    ['2099-01-01', '2026-10-22T14:00:00Z', 'Save', { posted_on: '2099-01-01' }],
+  ] as const)('saves material post date %s and invalidates both calendar material caches', async (dateValue, releasedAt, action, datePatch) => {
     const material = makeMaterialSummary('material-post-date', 'Calendar reading', { is_draft: false, released_at: '2026-10-22T14:00:00Z' })
     mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
       key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
     ))
-    const saved = { ...material, released_at: '2026-10-21T04:00:00Z' }
+    const saved = { ...material, released_at: releasedAt, posted_on: dateValue }
     vi.mocked(global.fetch).mockResolvedValue({ ok: true, json: async () => ({ material: saved }) } as Response)
     render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} />, { wrapper: TooltipProvider })
     const dialog = await screen.findByRole('dialog', { name: 'Material' })
-    const date = within(dialog).getByLabelText('Post date (Toronto)')
-    fireEvent.change(date, { target: { value: '2026-10-21' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Save', exact: true }))
+    const date = within(dialog).getByLabelText('Calendar date (Toronto)')
+    fireEvent.change(date, { target: { value: dateValue } })
+    fireEvent.click(within(dialog).getAllByRole('button', { name: action, exact: true })[0])
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
       `/api/teacher/classrooms/${classroom.id}/materials/${material.id}`,
-      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'Calendar reading', content: material.content, is_draft: false, posted_on: '2026-10-21' }) }),
+      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ title: 'Calendar reading', content: material.content, is_draft: false, ...datePatch }) }),
     ))
     await waitFor(() => expect(dialog).not.toBeInTheDocument())
     expect(mockInvalidateCachedJSON).toHaveBeenCalledWith(`teacher-materials:${classroom.id}`)

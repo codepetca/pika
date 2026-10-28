@@ -1,3 +1,4 @@
+import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { describe, expect, it } from 'vitest'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -29,8 +30,46 @@ const profiles = [
 ]
 
 describe('externally sealed Test quota proof table addition', () => {
-  it('includes all ten sealed293 tables and rejects incomplete or substituted source profiles', async () => {
+  it('includes all four sealed294 tables and preserves the explicit historical293 catalog', async () => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const introduced = [...current[293].sql.matchAll(/^create table ((?:public|private)\.[a-z_]+)/gm)].map(match => match[1]).sort()
+    expect(introduced).toEqual([...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort())
+    expect(introduced).toHaveLength(4)
+    const before = classroomTestQuotaProofCatalog(['public.tests'], current.slice(0, 293))
+    const expected = [...before, ...introduced].sort()
+    expect(classroomTestQuotaProofCatalog(['public.tests'], current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(['public.tests'], current.slice(0,294))).toEqual(expected)
+    for (const index of [293,294]) {
+      const changed = current.map((row, at) => at === index ? { ...row, sql: row.sql + '\n', sha256: createHash('sha256').update(row.sql + '\n').digest('hex') } : row)
+      expect(() => classroomTestQuotaProofCatalog(before, changed)).toThrow()
+    }
+    expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(['public.tests'], current.slice(0, 293))).toEqual(before)
+    for (const changed of [
+      current.slice(0, 293).concat({ ...current[293], name: '294_unknown.sql' }),
+      current.map((row, index) => index === 293 ? { ...row, sql: row.sql + '\n' } : row),
+      current.map((row, index) => index === 293 ? { ...row, sql: row.sql + '\n', sha256: createHash('sha256').update(row.sql + '\n').digest('hex') } : row),
+      [current[252], current[293]],
+      [...current, { name: '296_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }],
+    ]) expect(() => classroomTestQuotaProofCatalog(before, changed)).toThrow()
+    for (const profile of profiles) {
+      const complete = [...new Set([...profile.scopes, ...expected])].sort()
+      const graph = (): Rows => ({ ...Object.fromEntries(profile.scopes.map(table => [table, []])),
+        __nontarget_fingerprints: complete.map(table => ({ table, fingerprint: 'unchanged' })) })
+      await expect(profile.restore(graph(), async () => graph())).resolves.toBeDefined()
+      for (const table of introduced) {
+        const missing = graph()
+        missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== table)
+        expect(() => profile.validate(missing, complete)).toThrow()
+        const changed = graph()
+        changed.__nontarget_fingerprints.find(row => row.table === table)!.fingerprint = 'changed'
+        await expect(profile.restore(graph(), async () => changed)).rejects.toThrow()
+      }
+    }
+  })
+
+  it('includes all ten sealed293 tables and rejects incomplete or substituted source profiles', async () => {
+    const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 293)
     const introduced = [...current[292].sql.matchAll(/^create table ((?:public|private)\.[a-z_]+)/gm)].map(match => match[1]).sort()
     expect(introduced).toEqual([...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort())
     expect(introduced).toHaveLength(10)

@@ -15,7 +15,7 @@ import {
 } from '@/lib/server/bara-attendance-student'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
 import { buildPostgrestExactTextFilter } from '@/lib/server/contextual-classroom-enrollment'
-import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 
 const CLASSROOM_QR_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/
 const ENTRY_PATH_PATTERN = /^\/attendance\/check-in\/([A-Za-z0-9_-]{80,768})$/
@@ -365,7 +365,7 @@ export async function executeClassroomQrStudentCheckIn(input: {
   studentId?: string
   occurrenceBinding?: string
 }> {
-  if (resolveClassroomExperienceAdmission(input.pikaUser).status !== 'admitted'
+  if ((await resolveAttendanceProtocolCompatibility(input.pikaUser)).status !== 'admitted'
     && input.pikaUser.role !== 'student') {
     throw new StudentAttendanceCheckInError('identity_not_linked')
   }

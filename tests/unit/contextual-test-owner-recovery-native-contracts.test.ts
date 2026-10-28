@@ -1,4 +1,5 @@
-import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION } from '../../scripts/repolight-report-service-reviewed-migration'
+import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
+import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { createHash,randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it,vi } from 'vitest'
@@ -66,13 +67,14 @@ describe('inert recovery proof and exact selected-work projections', () => {
   })
 })
 
-describe('recovery current293 sealed source profile',()=>{
+describe('recovery current295 sealed source profile',()=>{
   const observed=Object.freeze([1,2].map(i=>Object.freeze({actorId:f.actors[i].id,attemptId:randomUUID(),revision:1})))
   const nativePlan=()=>testOwnerRecoveryNativePlan(original,observed,'a'.repeat(40),process.cwd())
-  it('retains the complete current293 tail',()=>{
+  it('retains the complete current295 tail',()=>{
     const migrations=nativePlan().migrations
-    expect(migrations).toHaveLength(293)
-    expect(migrations.at(-1)).toEqual(REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION)
+    expect(migrations).toHaveLength(295)
+    expect(migrations[293]).toEqual(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
+    expect(migrations.at(-1)).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
     expect(migrations[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
   })
   it.each(['name','digest','bytes','self-hashed-bytes','unknown289'])('refuses changed268 or future tail %s',defect=>{

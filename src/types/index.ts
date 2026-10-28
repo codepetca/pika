@@ -1210,6 +1210,8 @@ export interface LogSummary {
 
 // Announcement types
 export interface Announcement {
+  /** Calendar placement, independent of publication or release time. */
+  posted_on?: string | null
   id: string
   classroom_id: string
   title?: string | null
@@ -1223,6 +1225,8 @@ export interface Announcement {
 }
 
 export interface ClassworkMaterial {
+  /** Calendar placement, independent of publication or release time. */
+  posted_on?: string | null
   id: string
   artifact_id?: string
   source_artifact_id?: string | null

@@ -37,7 +37,7 @@ function participantFields(table: 'test_attempts' | 'test_responses' | 'test_stu
 export async function authorizeSharedTestListReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 /** Each statement proves current owner authority; the read does not promise a transaction snapshot. */

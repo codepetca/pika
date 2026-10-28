@@ -62,19 +62,17 @@ begin
  select to_jsonb(m) into original from public.announcements m where classroom_id=classroom and title='Posted';
  select to_jsonb(r) into receipt from public.announcement_reads r where r.announcement_id=(original->>'id')::uuid;
  announcement := (original->>'id')::uuid;
- -- Standard/winter, summer and DST transition dates; result must be Toronto midnight.
- foreach day in array array['2020-01-15','2020-07-15','2020-03-08','2020-11-01','2024-02-29','0001-01-01',((clock_timestamp() at time zone 'America/Toronto')::date)::text] loop
+ -- Calendar labels, including future dates and DST days, never change availability.
+ foreach day in array array['2020-01-15','2020-07-15','2020-03-08','2020-11-01','2024-02-29','0001-01-01','9999-12-31',future_day,((clock_timestamp() at time zone 'America/Toronto')::date)::text] loop
    expected := day::date::timestamp at time zone 'America/Toronto';
    result := public.update_announcement_for_owner_v1(actor,classroom,announcement,jsonb_build_object('posted_on',day));
-   if (result->'announcement'->>'published_at')::timestamptz is distinct from expected
-     or (result->'announcement'->>'is_draft')::boolean
-     or result->'announcement'->'scheduled_for' is distinct from 'null'::jsonb then raise exception 'Post date failed for %',day; end if;
-   if ((result->'announcement') - 'published_at' - 'updated_at') is distinct from (original - 'published_at' - 'updated_at') then
+   if result->'announcement'->>'posted_on' is distinct from day then raise exception 'Post date failed for %',day; end if;
+   if ((result->'announcement') - 'posted_on' - 'updated_at') is distinct from (original - 'posted_on' - 'updated_at') then
      raise exception 'Post date changed an unrelated field';
    end if;
  end loop;
  result := public.update_announcement_for_owner_v1(actor,classroom,announcement,'{"posted_on":"2020-01-15","title":"Edited","content":"Edited content","is_draft":false}');
- if result->'announcement'->>'title' <> 'Edited' or (result->'announcement'->>'published_at')::timestamptz <> '2020-01-15T05:00:00Z'::timestamptz then raise exception 'Combined edit failed'; end if;
+ if result->'announcement'->>'title' <> 'Edited' or result->'announcement'->>'posted_on' <> '2020-01-15' then raise exception 'Combined edit failed'; end if;
  select to_jsonb(m) into before_rejection from public.announcements m where id=announcement;
  for patch in select value from jsonb_array_elements(jsonb_build_array(
    '{"posted_on":null}'::jsonb,'{"posted_on":true}'::jsonb,'{"posted_on":1}'::jsonb,'{"posted_on":{}}'::jsonb,
@@ -82,11 +80,7 @@ begin
    '{"posted_on":"2023-02-29"}'::jsonb,'{"posted_on":"0000-01-01"}'::jsonb,'{"posted_on":"10000-01-01"}'::jsonb,
    '{"posted_on":"2024-13-01"}'::jsonb,'{"posted_on":"2024-01-00"}'::jsonb,'{"posted_on":"infinity"}'::jsonb,
    '{"posted_on":"2024-01-01T00:00:00Z"}'::jsonb,'{"posted_on":"2024-01-01 "}'::jsonb,
-   '{"posted_on":"2024-01-01","scheduled_for":null}'::jsonb,
-   jsonb_build_object('posted_on','2024-01-01','scheduled_for',clock_timestamp()+interval '2 days'),
-   '{"posted_on":"2024-01-01","is_draft":true}'::jsonb,
-   '{"posted_on":"2024-01-01","created_by":"c2900000-0000-4000-8000-000000000002"}'::jsonb,
-   jsonb_build_object('posted_on',future_day),'{"posted_on":"9999-12-31"}'::jsonb)) loop
+   '{"posted_on":"2024-01-01","created_by":"c2900000-0000-4000-8000-000000000002"}'::jsonb)) loop
    begin
      perform public.update_announcement_for_owner_v1(actor,classroom,announcement,patch);
      raise exception 'Invalid post date accepted: %',patch;
@@ -111,17 +105,14 @@ begin
  end loop;
  for announcement in select id from public.announcements where classroom_id=classroom and title in ('Draft','Scheduled','Future publication') loop
    select to_jsonb(m) into before_rejection from public.announcements m where id=announcement;
-   begin
-     perform public.update_announcement_for_owner_v1(actor,classroom,announcement,'{"posted_on":"2024-01-01","is_draft":false}');
-     raise exception 'Unpublished post date accepted';
-   exception when invalid_parameter_value then null;
-   end;
-   if (select to_jsonb(m) from public.announcements m where id=announcement) is distinct from before_rejection then raise exception 'Unpublished rejection changed a row'; end if;
+   result := public.update_announcement_for_owner_v1(actor,classroom,announcement,'{"posted_on":"9999-12-31"}');
+   if ((result->'announcement') - 'posted_on' - 'updated_at') is distinct from (before_rejection - 'posted_on' - 'updated_at') then
+     raise exception 'Draft/scheduled metadata edit changed publication';
+   end if;
  end loop;
  select id into announcement from public.announcements where classroom_id=classroom and title='Historical schedule';
  result := public.update_announcement_for_owner_v1(actor,classroom,announcement,'{"posted_on":"2024-01-01"}');
- if (result->'announcement'->>'published_at')::timestamptz <> '2024-01-01T05:00:00Z'::timestamptz
-   or result->'announcement'->'scheduled_for' is distinct from 'null'::jsonb then raise exception 'Historical schedule was not cleared'; end if;
+ if result->'announcement'->>'posted_on' <> '2024-01-01' or (result->'announcement'->>'published_at')::timestamptz <> '2020-01-01T05:00:00Z'::timestamptz or (result->'announcement'->>'scheduled_for')::timestamptz <> '2020-01-01T05:00:00Z'::timestamptz then raise exception 'Calendar edit changed historical scheduling'; end if;
  -- Existing publication no-ops preserve both the row and archive revision.
  select to_jsonb(m) into original from public.announcements m where id=announcement;
  select r.revision into revision from public.classroom_archive_revisions r where r.classroom_id=classroom;
@@ -132,7 +123,7 @@ begin
  end if;
  -- Existing content edits, rescheduling, draft cancellation and post-now remain supported.
  result := public.update_announcement_for_owner_v1(actor,classroom,announcement,'{"content":"Still editable"}');
- if result->'announcement'->>'content' <> 'Still editable' or (result->'announcement'->>'published_at')::timestamptz <> '2024-01-01T05:00:00Z'::timestamptz then raise exception 'Content edit changed publication'; end if;
+ if result->'announcement'->>'content' <> 'Still editable' or (result->'announcement'->>'published_at')::timestamptz <> '2020-01-01T05:00:00Z'::timestamptz then raise exception 'Content edit changed publication'; end if;
  expected := clock_timestamp()+interval '2 days';
  result := public.update_announcement_for_owner_v1(actor,classroom,announcement,jsonb_build_object('scheduled_for',expected));
  if (result->'announcement'->>'published_at')::timestamptz is distinct from expected or (result->'announcement'->>'scheduled_for')::timestamptz is distinct from expected then raise exception 'Reschedule changed'; end if;

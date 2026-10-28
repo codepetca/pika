@@ -1,3 +1,4 @@
+import { postDateSchema } from '@/lib/validations/post-date'
 import { formatInTimeZone } from 'date-fns-tz'
 import type { Announcement, Assignment, ClassworkMaterial, TestAssessment } from '@/types'
 
@@ -26,10 +27,11 @@ export function isCalendarAnnouncementScheduled(
 }
 
 export function getCalendarAnnouncementDate(
-  announcement: Pick<Announcement, 'is_draft' | 'published_at' | 'scheduled_for' | 'created_at'>,
+  announcement: Pick<Announcement, 'is_draft' | 'published_at' | 'scheduled_for' | 'created_at' | 'posted_on'>,
   _now: Date = new Date(),
 ): string | null {
   if (announcement.is_draft) return null
+  if (announcement.posted_on != null) return postDateSchema.safeParse(announcement.posted_on).success ? announcement.posted_on : null
   const dateToUse = announcement.published_at ?? announcement.scheduled_for ?? announcement.created_at
   const date = new Date(dateToUse)
   if (Number.isNaN(date.getTime())) return null
@@ -49,11 +51,12 @@ export function getCalendarTestDate(test: Pick<TestAssessment, 'test_date'>): st
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : null
 }
 
-/** Materials appear on their publication day, never as a deadline. */
+/** Calendar placement is a civil day; legacy rows fall back to their release day. */
 export function getCalendarMaterialDate(
-  material: Pick<ClassworkMaterial, 'is_draft' | 'released_at' | 'created_at'>,
+  material: Pick<ClassworkMaterial, 'is_draft' | 'released_at' | 'created_at' | 'posted_on'>,
 ): string | null {
   if (material.is_draft) return null
+  if (material.posted_on != null) return postDateSchema.safeParse(material.posted_on).success ? material.posted_on : null
   const date = new Date(material.released_at ?? material.created_at)
   return Number.isNaN(date.getTime()) ? null : formatInTimeZone(date, CLASSROOM_CALENDAR_TIMEZONE, 'yyyy-MM-dd')
 }

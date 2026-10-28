@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useState, useRef, type Compone
 import { Trash2, Plus, Clock, Calendar, FileText, MoreVertical } from 'lucide-react'
 import { Button, IconButton, ConfirmDialog, FormField, Input, PageState, RefreshingIndicator, SplitButton } from '@/ui'
 import { getCalendarAnnouncementDate } from '@/lib/calendar-items'
-import { postDateSchema } from '@/lib/validations/post-date'
+import { postDateInputSchema } from '@/lib/validations/post-date'
 import { CLASSROOM_ANNOUNCEMENTS_UPDATED_EVENT } from '@/lib/events'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
@@ -202,7 +202,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editTitle, setEditTitle] = useState('')
   const [editPostDate, setEditPostDate] = useState('')
-  const validPostDate = postDateSchema.safeParse(editPostDate).success
+  const validPostDate = postDateInputSchema.safeParse(editPostDate).success
   const [originalTitle, setOriginalTitle] = useState<string | null>(null)
   const [editContent, setEditContent] = useState('')
   const [originalContent, setOriginalContent] = useState('')
@@ -210,6 +210,8 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
   const [originalScheduledFor, setOriginalScheduledFor] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
   const [newTitle, setNewTitle] = useState('')
+  const [newPostDate, setNewPostDate] = useState(getTodayDate)
+  const validNewPostDate = postDateInputSchema.safeParse(newPostDate).success
   const [newContent, setNewContent] = useState('')
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<Announcement | null>(null)
@@ -363,6 +365,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     setOriginalScheduledFor(null)
     setIsCreating(false)
     setNewTitle('')
+    setNewPostDate(getTodayDate())
     setNewContent('')
     setSaving(false)
     setDeleteTarget(null)
@@ -459,7 +462,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     if (isReadOnly || saving) return
     setEditingId(announcement.id)
     setEditTitle(announcement.title ?? '')
-    setEditPostDate(getCalendarAnnouncementDate(announcement) ?? getTodayDate())
+    setEditPostDate(announcement.posted_on ?? getCalendarAnnouncementDate(announcement) ?? getTodayDate())
     setOriginalTitle(announcement.title ?? null)
     setEditContent(announcement.content)
     setOriginalContent(announcement.content)
@@ -501,13 +504,9 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     const titleChanged = normalizedEditTitle !== normalizeAnnouncementTitle(originalTitle)
     const existingAnnouncement = announcements.find((announcement) => announcement.id === announcementId)
     if (!existingAnnouncement) return
-    const canEditPostDate = !existingAnnouncement.is_draft && !isScheduled(existingAnnouncement)
-      && !isScheduleIsoInFuture(getAnnouncementPublicationTimestamp(existingAnnouncement))
-    // Empty scheduling controls represent null; historical published schedules are retained until a date edit.
-    const hasPostDateEdit = mode === 'preserve' && canEditPostDate
-      && (editScheduleDateTime || null) === originalScheduledFor
-      && editPostDate !== getCalendarAnnouncementDate(existingAnnouncement)
-    if (hasPostDateEdit && !validPostDate) return
+    const originalPostDate = existingAnnouncement.posted_on ?? getCalendarAnnouncementDate(existingAnnouncement) ?? getTodayDate()
+    const hasPostDateEdit = editPostDate !== originalPostDate
+    if (!validPostDate) return
     const newIsDraft = mode === 'draft'
       ? true
       : mode === 'publish' || mode === 'schedule'
@@ -520,9 +519,11 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         : null
     const scheduleChanged = newScheduledFor !== (originalScheduledFor ? new Date(originalScheduledFor).toISOString() : null)
     const draftChanged = newIsDraft !== !!existingAnnouncement.is_draft
+    const persistPostDate = hasPostDateEdit || (existingAnnouncement.posted_on == null
+      && (mode !== 'preserve' || scheduleChanged || draftChanged))
 
     // Don't save if nothing changed
-    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged && !hasPostDateEdit) {
+    if (!contentChanged && !titleChanged && !scheduleChanged && !draftChanged && !persistPostDate) {
       cancelEditing()
       return
     }
@@ -544,6 +545,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
               title: normalizedEditTitle,
               content: editContent.trim(),
               is_draft: newIsDraft,
+              ...(persistPostDate ? { posted_on: editPostDate } : {}),
               published_at: optimisticPublishedAt,
               scheduled_for: newScheduledFor,
               updated_at: new Date().toISOString(),
@@ -559,7 +561,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         title?: string | null
         posted_on?: string
       } = {}
-      if (hasPostDateEdit) body.posted_on = editPostDate
+      if (persistPostDate) body.posted_on = editPostDate
       if (titleChanged) {
         body.title = normalizedEditTitle
       }
@@ -612,11 +614,16 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     }
   }
 
+  function startCreating() {
+    if (!isCreating) setNewPostDate(getTodayDate())
+    setIsCreating(true)
+  }
+
   async function createAnnouncement(
     mode: 'publish' | 'draft' | 'schedule',
     scheduledFor?: string,
   ) {
-    if (!newContent.trim() || saving) return
+    if (!newContent.trim() || saving || !validNewPostDate) return
     const classroomId = classroom.id
     const feedbackSession = createFeedbackSessionRef.current
     const requestId = saveRequestIdRef.current + 1
@@ -632,6 +639,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
       title: normalizedNewTitle,
       content: newContent.trim(),
       created_by: classroom.teacher_id,
+      posted_on: newPostDate,
       is_draft: mode === 'draft',
       published_at: mode === 'draft'
         ? null
@@ -651,7 +659,8 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
         is_draft?: boolean
         scheduled_for?: string
         title?: string
-      } = { content: newContent.trim() }
+        posted_on?: string
+      } = { content: newContent.trim(), posted_on: newPostDate }
       if (normalizedNewTitle) {
         body.title = normalizedNewTitle
       }
@@ -678,6 +687,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
       setCreateError(null)
       setIsCreating(false)
       setNewTitle('')
+      setNewPostDate(getTodayDate())
       setNewContent('')
       setScheduleDateTime('')
       setShowScheduleDropdown(false)
@@ -744,6 +754,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
       setCreateError(null)
       setIsCreating(false)
       setNewTitle('')
+      setNewPostDate(getTodayDate())
       setNewContent('')
     }
   }
@@ -788,7 +799,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
     {
       id: 'announcement',
       label: 'Announcement',
-      onSelect: () => setIsCreating(true),
+      onSelect: startCreating,
     },
   ]
 
@@ -831,7 +842,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                 icon={Plus}
                 label="Create announcement"
                 variant="primary"
-                onClick={() => setIsCreating(true)}
+                onClick={startCreating}
                 disabled={isCreating || saving}
               />
             </TeacherWorkSurfaceActionCluster>
@@ -902,6 +913,11 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
             className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             placeholder="Write an announcement..."
           />
+          <FormField label="Calendar date (Toronto)" error={!validNewPostDate ? 'Choose a valid date.' : undefined}
+            hint="Places this announcement on the calendar. Post makes it available now; Schedule delays release.">
+            <Input type="date" value={newPostDate} min="0001-01-01" disabled={saving}
+              onChange={event => setNewPostDate(event.target.value)} />
+          </FormField>
           {createError ? (
             <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
               <span>{createError}</span>
@@ -915,7 +931,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                 className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
               >
                 <Calendar className="h-4 w-4 flex-shrink-0" />
-                <span>{formatAnnouncementTimestamp(scheduleDateTime)}</span>
+                <span>Releases {formatAnnouncementTimestamp(scheduleDateTime)}</span>
               </button>
               <button
                 type="button"
@@ -934,6 +950,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                 setCreateError(null)
                 setIsCreating(false)
                 setNewTitle('')
+                setNewPostDate(getTodayDate())
                 setNewContent('')
                 setScheduleDateTime('')
                 setShowScheduleDropdown(false)
@@ -949,7 +966,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                   size="sm"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => createAnnouncement('schedule', scheduleDateTime)}
-                  disabled={saving || !newContent.trim()}
+                  disabled={saving || !newContent.trim() || !validNewPostDate}
                 >
                   {saving ? 'Scheduling...' : 'Schedule'}
                 </Button>
@@ -975,6 +992,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                   ]}
                   toggleAriaLabel="Choose announcement action"
                   primaryButtonProps={{
+                    disabled: saving || !newContent.trim() || !validNewPostDate,
                     onMouseDown: (e) => e.preventDefault(),
                   }}
                 />
@@ -1058,13 +1076,11 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                       rows={6}
                       className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     />
-                    {!announcement.is_draft && !scheduled
-                      && !isScheduleIsoInFuture(getAnnouncementPublicationTimestamp(announcement)) && (
-                      <FormField label="Post date (Toronto)" error={!validPostDate ? 'Choose today or an earlier date.' : undefined}>
-                        <Input type="date" value={editPostDate} min="0001-01-01" max={getTodayDate()}
+                      <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}
+                        hint="Places this announcement on the calendar. Post makes it available now; Schedule delays release.">
+                        <Input type="date" value={editPostDate} min="0001-01-01"
                           disabled={saving} onChange={(event) => setEditPostDate(event.target.value)} />
                       </FormField>
-                    )}
                     {editError?.announcementId === announcement.id ? (
                       <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
                         <span>{editError.message}</span>
@@ -1079,7 +1095,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                           className="flex items-center gap-2 text-sm text-amber-600 hover:text-amber-700"
                         >
                           <Calendar className="h-4 w-4 flex-shrink-0" />
-                          <span>{formatAnnouncementTimestamp(editScheduleDateTime)}</span>
+                          <span>Releases {formatAnnouncementTimestamp(editScheduleDateTime)}</span>
                         </button>
                         <button
                           type="button"
@@ -1107,7 +1123,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                             size="sm"
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => saveEdit(announcement.is_draft ? 'schedule' : 'preserve')}
-                            disabled={saving || !editContent.trim() || (!scheduled && !announcement.is_draft && editScheduleDateTime === originalScheduledFor && !validPostDate)}
+                            disabled={saving || !editContent.trim() || !validPostDate}
                           >
                             {saving ? 'Saving...' : 'Save'}
                           </Button>
@@ -1133,6 +1149,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                             ]}
                             toggleAriaLabel="Choose announcement action"
                             primaryButtonProps={{
+                              disabled: saving || !editContent.trim() || !validPostDate,
                               onMouseDown: (e) => e.preventDefault(),
                             }}
                           />
@@ -1153,7 +1170,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                             ]}
                             toggleAriaLabel="Choose announcement action"
                             primaryButtonProps={{
-                              disabled: saving || !editContent.trim() || (!isScheduleIsoInFuture(getAnnouncementPublicationTimestamp(announcement)) && !validPostDate),
+                              disabled: saving || !editContent.trim() || !validPostDate,
                               onMouseDown: (e) => e.preventDefault(),
                             }}
                           />

@@ -44,8 +44,8 @@ export async function resolveClassroomPagePilotAccess(
   // The complete live-home cohort must open new classrooms whose IDs did not
   // exist when configuration was written. Admission selects the resolver, never
   // a relationship: the same trusted ownership/membership proof still follows.
-  const liveHome = isContextualClassroomHomeAdmitted(user)
-    && resolveClassroomExperienceAdmission(user).status === 'admitted'
+  const liveHome = (await isContextualClassroomHomeAdmitted(user))
+    && (await resolveClassroomExperienceAdmission(user)).status === 'admitted'
   if (!liveHome && process.env.PIKA_CLASSROOM_PAGE_ACCESS_ENABLED !== 'true') {
     return { mode: 'legacy' }
   }

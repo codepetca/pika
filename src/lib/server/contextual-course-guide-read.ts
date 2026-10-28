@@ -30,7 +30,7 @@ const testFields = 'tests:tests!tests_classroom_id_fkey(id,classroom_id,title,po
 export async function authorizeSharedCourseGuideReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status !== 'admitted') return { mode: 'existing' }
+  if ((await resolveClassroomExperienceAdmission(user)).status !== 'admitted') return { mode: 'existing' }
   return { mode: 'shared', user }
 }
 

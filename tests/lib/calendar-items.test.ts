@@ -71,3 +71,22 @@ describe('material publication date mapping', () => {
     expect(isCalendarMaterialScheduled({ is_draft: true, released_at: '2026-05-12T12:00:00Z' }, now)).toBe(false)
   })
 })
+
+
+describe('independent calendar post dates', () => {
+  it.each(['2024-02-29', '2099-01-01'])('places a published item on %s without changing release eligibility', posted_on => {
+    const announcement = { is_draft: false, posted_on, published_at: '2026-05-10T12:00:00Z', scheduled_for: null, created_at: '2026-05-10T12:00:00Z' }
+    const material = { is_draft: false, posted_on, released_at: '2026-05-10T12:00:00Z', created_at: '2026-05-10T12:00:00Z' }
+    expect(getCalendarAnnouncementDate(announcement)).toBe(posted_on)
+    expect(getCalendarMaterialDate(material)).toBe(posted_on)
+    expect(isCalendarAnnouncementScheduled(announcement, new Date('2026-05-11T12:00:00Z'))).toBe(false)
+    expect(isCalendarMaterialScheduled(material, new Date('2026-05-11T12:00:00Z'))).toBe(false)
+  })
+  it('keeps future release separate from an earlier calendar date', () => {
+    const announcement = { is_draft: false, posted_on: '2026-05-10', published_at: '2099-01-01T12:00:00Z', scheduled_for: '2099-01-01T12:00:00Z', created_at: '2026-05-10T12:00:00Z' }
+    expect(getCalendarAnnouncementDate(announcement)).toBe('2026-05-10')
+    expect(isCalendarAnnouncementScheduled(announcement)).toBe(true)
+    expect(getCalendarAnnouncementDate({ ...announcement, is_draft: true })).toBeNull()
+    expect(getCalendarMaterialDate({ is_draft: true, posted_on: '2099-01-01', released_at: null, created_at: announcement.created_at })).toBeNull()
+  })
+})

@@ -82,6 +82,11 @@ export const POST = withErrorHandler('PostCreateAnnouncement', async (request, c
   const user = await requireRole('teacher')
   const { id: classroomId } = await context.params
   const body = await request.json()
+  if (body && typeof body === 'object' && 'posted_on' in body) {
+    return NextResponse.json(await createContextualAnnouncement({
+      actorId: user.id, classroomId, body: parseAnnouncementCreateBody(body),
+    }), { status: 201 })
+  }
   const { content, is_draft, scheduled_for, title } = body as {
     content?: string
     is_draft?: boolean

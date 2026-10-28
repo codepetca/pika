@@ -26,7 +26,7 @@ const disabled = () => new ApiError(404, 'Attendance is not enabled for this cla
 export async function authorizeSharedAttendancePolicyActor() {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' as const }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted'
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted'
     ? { mode: 'shared' as const, user } : { mode: 'existing' as const }
 }
 

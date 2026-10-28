@@ -22,7 +22,7 @@ type Client = ReturnType<typeof getServiceRoleClient>
 type Permission = 'owner' | 'member'
 type Material = z.infer<typeof materialReadRowSchema>
 const PAGE_SIZE = 1000
-const materialFields = 'id,classroom_id,title,content,is_draft,released_at,created_by,created_at,updated_at,position,artifact_id,source_artifact_id,blueprint_archived_at,source_blueprint_version_id'
+const materialFields = 'posted_on,id,classroom_id,title,content,is_draft,released_at,created_by,created_at,updated_at,position,artifact_id,source_artifact_id,blueprint_archived_at,source_blueprint_version_id'
 const ownerSelect = `id,teacher_id,archived_at,materials:classwork_materials!classwork_materials_classroom_id_fkey(${materialFields})`
 const memberSelect = `${ownerSelect},membership:classroom_enrollments!classroom_enrollments_classroom_id_fkey!inner(classroom_id,student_id)`
 const unavailable = () => new ApiError(503, 'Unable to verify classroom materials')
@@ -31,7 +31,7 @@ const unavailable = () => new ApiError(503, 'Unable to verify classroom material
 export async function authorizeSharedMaterialReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status !== 'admitted') return { mode: 'existing' }
+  if ((await resolveClassroomExperienceAdmission(user)).status !== 'admitted') return { mode: 'existing' }
   return { mode: 'shared', user }
 }
 

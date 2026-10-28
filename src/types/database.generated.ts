@@ -143,6 +143,7 @@ export type Database = {
           created_by: string
           id: string
           is_draft: boolean
+          posted_on: string | null
           published_at: string | null
           scheduled_for: string | null
           title: string | null
@@ -155,6 +156,7 @@ export type Database = {
           created_by: string
           id?: string
           is_draft?: boolean
+          posted_on?: string | null
           published_at?: string | null
           scheduled_for?: string | null
           title?: string | null
@@ -167,6 +169,7 @@ export type Database = {
           created_by?: string
           id?: string
           is_draft?: boolean
+          posted_on?: string | null
           published_at?: string | null
           scheduled_for?: string | null
           title?: string | null
@@ -4922,6 +4925,7 @@ export type Database = {
           id: string
           is_draft: boolean
           position: number
+          posted_on: string | null
           released_at: string | null
           source_artifact_id: string | null
           source_blueprint_version_id: string | null
@@ -4938,6 +4942,7 @@ export type Database = {
           id?: string
           is_draft?: boolean
           position: number
+          posted_on?: string | null
           released_at?: string | null
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
@@ -4954,6 +4959,7 @@ export type Database = {
           id?: string
           is_draft?: boolean
           position?: number
+          posted_on?: string | null
           released_at?: string | null
           source_artifact_id?: string | null
           source_blueprint_version_id?: string | null
@@ -10925,6 +10931,18 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: boolean
       }
+      commit_classroom_experience_admission_batch_v2: {
+        Args: {
+          p_approval_ref: string
+          p_excluded_user_ids: string[]
+          p_expected_revision: number
+          p_kind: string
+          p_manifest_sha256: string
+          p_operation_id: string
+          p_user_ids: string[]
+        }
+        Returns: Json
+      }
       complete_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
@@ -11212,6 +11230,18 @@ export type Database = {
         }
         Returns: Json
       }
+      create_announcement_for_owner_v2: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: string
+          p_is_draft: boolean
+          p_posted_on?: string
+          p_scheduled_for: string
+          p_title: string
+        }
+        Returns: Json
+      }
       create_archived_classroom_blueprint_atomic: {
         Args: {
           p_expected_source_revision: number
@@ -11362,6 +11392,18 @@ export type Database = {
           p_classroom_id: string
           p_content: Json
           p_is_draft: boolean
+          p_scheduled_for?: string
+          p_title: string
+        }
+        Returns: Json
+      }
+      create_classwork_material_for_owner_v4: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_is_draft: boolean
+          p_posted_on?: string
           p_scheduled_for?: string
           p_title: string
         }
@@ -13109,6 +13151,14 @@ export type Database = {
       }
       read_classroom_authoring_guidance_for_owner_v1: {
         Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      read_classroom_experience_admission_operation_v2: {
+        Args: { p_operation_id: string }
+        Returns: Json
+      }
+      read_classroom_experience_admission_v2: {
+        Args: { p_actor_id: string }
         Returns: Json
       }
       read_classroom_guidance_adoption_source_v1: {

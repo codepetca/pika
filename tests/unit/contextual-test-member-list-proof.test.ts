@@ -1,4 +1,6 @@
-import { REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION, REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
+import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
+import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION, CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
+import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
 import { describe, expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -165,7 +167,7 @@ describe('actual-source member migration profiles (offline)', () => {
     const complete = [...before, 'private.classroom_home_hidden_enrollments'].sort()
     for (const source of [before, complete]) {
       const captured = testMemberListCanonicalCatalog({ rowDigests: JSON.stringify(Object.fromEntries(source.map(name => [name, 'whole-row-digest']))) })
-      expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual([...complete, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort())
+      expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual([...complete, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES, ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort())
     }
     for (const source of [complete.filter(name => name !== 'public.users'),
       [...complete, 'private.unreviewed']]) {
@@ -182,7 +184,7 @@ describe('actual-source member migration profiles (offline)', () => {
     const learnerMembership = [...adoption, 'private.attendance_override_mutations'].sort()
     const authoringImages = [...learnerMembership, 'public.teacher_authoring_image_references'].sort()
     const homeVisibility = [...authoringImages, 'private.classroom_home_hidden_enrollments'].sort()
-    const currentCatalog = [...homeVisibility, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
+    const currentCatalog = [...homeVisibility, ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES, ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort()
     for (const catalog of [local, prior, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, currentCatalog]) {
       expect(testMemberListReviewedIsolatedCatalog(catalog, current)).toEqual(currentCatalog)
     }
@@ -201,19 +203,32 @@ describe('actual-source member migration profiles (offline)', () => {
     expect(historical).toHaveLength(191)
     expect(complete).toHaveLength(201)
     const captured = testMemberListCanonicalCatalog({ rowDigests: JSON.stringify(Object.fromEntries(complete.map(table => [table, 'whole-row-digest']))) })
-    expect(testMemberListReviewedIsolatedCatalog(captured, current)).toEqual(complete)
-    expect(testMemberListReviewedIsolatedCatalog(historical, current)).toEqual(complete)
+    expect(testMemberListReviewedIsolatedCatalog(captured, current.slice(0, 293))).toEqual(complete)
+    expect(testMemberListReviewedIsolatedCatalog(historical, current.slice(0, 293))).toEqual(complete)
     expect(testMemberListReviewedIsolatedCatalog(historical, current.slice(0, 292))).toEqual(historical)
     expect(() => testMemberListReviewedIsolatedCatalog(complete, current.slice(0, 292))).toThrow()
     for (const table of REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES) {
-      expect(() => testMemberListReviewedIsolatedCatalog(complete.filter(name => name !== table), current)).toThrow()
+      expect(() => testMemberListReviewedIsolatedCatalog(complete.filter(name => name !== table), current.slice(0, 293))).toThrow()
     }
-    expect(() => testMemberListReviewedIsolatedCatalog([...complete, 'private.unreviewed'], current)).toThrow()
-    expect(() => testMemberListReviewedIsolatedCatalog([...complete, complete[0]], current)).toThrow()
+    expect(() => testMemberListReviewedIsolatedCatalog([...complete, 'private.unreviewed'], current.slice(0, 293))).toThrow()
+    expect(() => testMemberListReviewedIsolatedCatalog([...complete, complete[0]], current.slice(0, 293))).toThrow()
   })
-  it('reproduces the former exact257 rejection of the complete current293 chain', () => {
-    expect(current).toHaveLength(293)
-    expect(current.at(-1)).toMatchObject(REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION)
+  it.each(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES)('requires the complete294 member catalog and exact restoration of %s', table => {
+    const complete = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)
+    const predecessor = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 293))
+    expect(complete).toHaveLength(205)
+    expect(testMemberListReviewedIsolatedCatalog(predecessor, current)).toEqual(complete)
+    expect(() => testMemberListReviewedIsolatedCatalog(complete.filter(name => name !== table), current)).toThrow()
+    const before = { rowDigests: JSON.stringify(Object.fromEntries(complete.map(name => [name, 'whole-row-digest']))),
+      guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
+    expect(() => validateTestMemberListCanonicalCheckpoint(before, before)).not.toThrow()
+    const changed = { ...before, rowDigests: JSON.stringify(Object.fromEntries(complete.map(name => [name, name === table ? 'changed' : 'whole-row-digest']))) }
+    expect(() => validateTestMemberListCanonicalCheckpoint(changed, before)).toThrow()
+  })
+  it('reproduces the former exact257 rejection of the complete current295 chain', () => {
+    expect(current).toHaveLength(295)
+    expect(current[293]).toMatchObject(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
+    expect(current.at(-1)).toMatchObject(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
     expect(current[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',

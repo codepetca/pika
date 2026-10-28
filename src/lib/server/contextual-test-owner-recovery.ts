@@ -19,7 +19,7 @@ type Operation = 'unsubmit' | 'delete-single' | 'delete-bulk'
 export async function handleContextualTestOwnerRecoveryRequest(operation: Operation, request: Request, params: Promise<unknown>): Promise<NextResponse | null> {
   if (!isClassroomExperienceAdmissionConfigured()) return null
   const actor = await requireAuth()
-  if (resolveClassroomExperienceAdmission(actor).status !== 'admitted') return null
+  if ((await resolveClassroomExperienceAdmission(actor)).status !== 'admitted') return null
   const deadline = Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS
   const identity = ownerRecoveryParamsSchema.parse(await resolveContextualTestOwnerParams(request, params, deadline))
   const payload = operation === 'delete-single' ? { student_ids: [ownerRecoveryParamsSchema.required().parse(identity).studentId] }

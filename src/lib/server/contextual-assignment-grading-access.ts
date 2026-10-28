@@ -32,7 +32,7 @@ export async function authorizeContextualAssignmentGradingRequest(
 ): Promise<ContextualAssignmentGradingAccess> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
       const rawId = typeof assignmentId === 'function' ? await assignmentId() : assignmentId
       const requestedId = canonicalUuid.safeParse(rawId)
       if (!requestedId.success) throw new ApiError(400, 'Invalid assignment ID')

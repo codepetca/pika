@@ -54,9 +54,9 @@ export function MaterialCreationPattern() {
         onTitleChange={setTitle}
         onContentChange={setContent}
         onClose={() => setOpen(false)}
-        onSave={(asDraft, _scheduledFor, postedOn) => {
+        onSave={(asDraft, scheduledFor, postedOn) => {
           if (!title.trim()) { setError('Title is required'); return }
-          setResult(`${postedOn ? `Post date ${postedOn}` : asDraft ? 'Save draft' : 'Post'} selected. Example only—nothing was saved or posted.`)
+          setResult(`${asDraft ? 'Save draft' : scheduledFor ? `Schedule ${scheduledFor}` : postedOn ? `Post date ${postedOn}` : 'Post'} selected. Example only—nothing was saved or posted.`)
           setOpen(false)
         }}
       />

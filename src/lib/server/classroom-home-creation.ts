@@ -38,8 +38,8 @@ const creationAccessEnvelopeSchema = z.object({ data: creationAccessSchema, erro
 export async function authorizeClassroomHomeActor() {
   if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED === 'true' && isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    const sharedAdmission = resolveClassroomExperienceAdmission(user)
-    if (isContextualClassroomHomeAdmitted(user) && sharedAdmission.status === 'admitted') {
+    const sharedAdmission = await resolveClassroomExperienceAdmission(user)
+    if ((await isContextualClassroomHomeAdmitted(user)) && sharedAdmission.status === 'admitted') {
       return { user, contextual: true }
     }
   }

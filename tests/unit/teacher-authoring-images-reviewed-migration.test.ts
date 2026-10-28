@@ -23,14 +23,14 @@ describe('additive291 source and exact catalog admission', () => {
     }
   })
 
-  it('keeps historical source prefixes and rejects an unknown294 tail', () => {
+  it('keeps historical source prefixes and rejects an unknown295 tail', () => {
     const migrations = loadAssignmentListReviewedMigrations(process.cwd())
-    expect(migrations).toHaveLength(293)
-    for (const count of [281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292]) {
+    expect(migrations).toHaveLength(295)
+    for (const count of [281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294]) {
       expect(() => validateLifecycleServicesReviewedMigrations(migrations.slice(0, count))).not.toThrow()
     }
     expect(() => validateLifecycleServicesReviewedMigrations(migrations)).not.toThrow()
-    expect(() => validateLifecycleServicesReviewedMigrations([...migrations, { name: '294_unknown.sql', sql: 'select 1;', sha256: sha256('select 1;') }])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...migrations, { name: '295_unknown.sql', sql: 'select 1;', sha256: sha256('select 1;') }])).toThrow()
     const changed = migrations.map((entry) => ({ ...entry }))
     changed[290].sql += '\n'
     changed[290].sha256 = sha256(changed[290].sql)

@@ -17,7 +17,7 @@ const row = () => ({
 })
 const rpc = vi.fn()
 const bindings = { actorId, classroomId, announcementId }
-const success = (announcement = row()) => ({ data: { announcement }, error: null, status: 200, statusText: 'OK', count: null })
+const success = (announcement: ReturnType<typeof row> & { posted_on?: string | null } = row()) => ({ data: { announcement }, error: null, status: 200, statusText: 'OK', count: null })
 const update = (body = announcementUpdateBodySchema.parse({ content: 'Content' })) => updateContextualAnnouncement({ ...bindings, body })
 
 describe('announcement owner mutation RPC contracts', () => {
@@ -45,28 +45,26 @@ describe('announcement owner mutation RPC contracts', () => {
     })
   })
 
-  it('sends a date-only patch and binds the receipt to its Toronto publication day', async () => {
-    const published_at = '2026-10-21T04:00:00.000Z'
-    rpc.mockResolvedValue(success({ ...row(), published_at }))
-    const body = announcementUpdateBodySchema.parse({ posted_on: '2026-10-21' })
-    expect((await update(body)).announcement.published_at).toBe(published_at)
-    expect(rpc).toHaveBeenCalledWith('update_announcement_for_owner_v1', {
-      p_actor_id: actorId, p_classroom_id: classroomId, p_announcement_id: announcementId,
-      p_patch: { posted_on: '2026-10-21' },
-    })
+  it.each(['2026-10-21', '2099-01-01'])('binds calendar day %s without changing release', async posted_on => {
+    rpc.mockResolvedValue(success({ ...row(), posted_on }))
+    const body = announcementUpdateBodySchema.parse({ posted_on })
+    expect((await update(body)).announcement).toMatchObject({ posted_on, published_at: timestamp, scheduled_for: null })
+    expect(rpc).toHaveBeenCalledWith('update_announcement_for_owner_v1', expect.objectContaining({ p_patch: { posted_on } }))
     rpc.mockResolvedValue(success())
-    await expect(update(body)).rejects.toMatchObject({ statusCode: 503 })
-    rpc.mockResolvedValue(success({ ...row(), published_at, scheduled_for: published_at }))
     await expect(update(body)).rejects.toMatchObject({ statusCode: 503 })
   })
 
-  it.each([
-    { posted_on: '2099-01-01' }, { posted_on: '0000-01-01' }, { posted_on: '2026-02-30' },
-    { posted_on: null }, { posted_on: '2026-10-21', is_draft: true },
-    { posted_on: '2026-10-21', scheduled_for: null },
-  ])('rejects invalid or competing post-date mutations: %j', body => {
+  it.each([{ posted_on: '0000-01-01' }, { posted_on: '2026-02-30' }, { posted_on: null }])('rejects invalid calendar date: %j', body => {
     expect(announcementUpdateBodySchema.safeParse(body).success).toBe(false)
     expect(announcementCreateBodySchema.safeParse({ content: 'Content', ...body }).success).toBe(false)
+  })
+
+  it('atomically creates a future-dated announcement with immediate publication', async () => {
+    const posted_on = '2099-01-01'
+    rpc.mockResolvedValue(success({ ...row(), posted_on }))
+    const body = announcementCreateBodySchema.parse({ content: 'Content', posted_on })
+    expect((await createContextualAnnouncement({ actorId, classroomId, body })).announcement).toMatchObject({ posted_on, published_at: timestamp, scheduled_for: null })
+    expect(rpc).toHaveBeenCalledWith('create_announcement_for_owner_v2', expect.objectContaining({ p_posted_on: posted_on, p_is_draft: false, p_scheduled_for: null }))
   })
 
   it('accepts a historical author after ownership transfer', async () => {
