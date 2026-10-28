@@ -50419,3 +50419,17 @@ browser matrix, targeted review and exact-head CI evidence is recorded in PR1670
 - Kept closed animation none: installed Radix presence would otherwise retain live commands and delay editor-owned unmount focus callbacks. No JavaScript, focus ownership, content parsing or saved-draft behavior changed.
 - Existing 40 editor tests and eight teacher/student Markdown-authoring browser cases pass, including focus return, keyboard navigation, draft preservation and target sizes. Motion/visual measurements, canonical gates, independent review and exact-head CI/PR Gate are tracked in the PR and retained private receipts.
 - The local Supabase stack exposed only DB status, so the normal launcher refused; used the existing Playwright fixture-server configuration with an in-process session secret and unreachable loopback API placeholders. No backend changes, dependencies, migrations, API writes or production promotion. Broader experience work remains incomplete.
+
+<!-- pika-session-log-archive-batch:1e326abff0159714d6819ea85e5b351e0a98dcfa6090d4a564c0f7f461318a78 -->
+## 2026-10-23 — Contextual owner manual-attendance authorization
+
+Signed-in home verification identified the Daily manual-attendance fallback still
+requiring a global teacher role before classroom ownership. Owner approved the
+narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
+shared attendance actor admission; unmatched accounts retain the original teacher
+gate. Actual classroom ownership, archived read/mutation distinction and unchanged
+SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
+26 failures before the fix; affected API/store/hook/migration tests pass afterward.
+Full local checks, independent auth/compatibility review and exact-head CI precede
+main merge. No schema, cohort, provider, account or production changes; existing
+failed rehearsal evidence is retained and does not establish workflow acceptance.

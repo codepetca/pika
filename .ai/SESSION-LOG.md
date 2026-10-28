@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Contextual owner manual-attendance authorization
-
-Signed-in home verification identified the Daily manual-attendance fallback still
-requiring a global teacher role before classroom ownership. Owner approved the
-narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
-shared attendance actor admission; unmatched accounts retain the original teacher
-gate. Actual classroom ownership, archived read/mutation distinction and unchanged
-SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
-26 failures before the fix; affected API/store/hook/migration tests pass afterward.
-Full local checks, independent auth/compatibility review and exact-head CI precede
-main merge. No schema, cohort, provider, account or production changes; existing
-failed rehearsal evidence is retained and does not establish workflow acceptance.
-
 ## 2026-10-23 — Contextual member notification reads
 
 Owner approved the signed-in mixed-role notification gap after an actual route
@@ -568,3 +555,7 @@ plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
 
 - PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
 - The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
+
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
