@@ -1,3 +1,4 @@
+import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from './classroom-admission-registry-reviewed-migration'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
@@ -29,7 +30,8 @@ export function classroomTestQuotaProofCatalog(
   const hasAuthoringImages = migrations.length >= 291 || migrations.some(migration => migration.name.startsWith('291_'))
   const hasHomeVisibility = migrations.length >= 292 || migrations.some(migration => migration.name.startsWith('292_'))
   const hasRepoLight = migrations.length >= 293 || migrations.some(migration => migration.name.startsWith('293_'))
-  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership || hasAuthoringImages || hasHomeVisibility || hasRepoLight) validateLifecycleServicesReviewedMigrations(migrations)
+  const hasAdmissionRegistry = migrations.length >= 294 || migrations.some(migration => migration.name.startsWith('294_'))
+  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership || hasAuthoringImages || hasHomeVisibility || hasRepoLight || hasAdmissionRegistry) validateLifecycleServicesReviewedMigrations(migrations)
   const expected = [...new Set([...canonicalTables, quotaTable,
     ...(hasDecommission ? ['private.attendance_decommission_delete_capabilities'] : []),
     ...(hasMembership ? ['private.attendance_participant_associations', 'private.attendance_override_event_generations'] : []),
@@ -37,7 +39,8 @@ export function classroomTestQuotaProofCatalog(
     ...(hasLearnerMembership ? ['private.attendance_override_mutations'] : []),
     ...(hasAuthoringImages ? ['public.teacher_authoring_image_references'] : []),
     ...(hasHomeVisibility ? ['private.classroom_home_hidden_enrollments'] : []),
-    ...(hasRepoLight ? REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES : [])])].sort()
+    ...(hasRepoLight ? REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES : []),
+    ...(hasAdmissionRegistry ? CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
 }

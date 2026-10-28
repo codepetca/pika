@@ -22,8 +22,8 @@ export const GET = withErrorHandler('ReadTeacherAuthoringImage', async request =
     || (!['verified', 'ready'].includes(object.status) && !isRetainedAuthoringImage(object))
     || object.storage_bucket !== 'test-documents' || !object.classroom_id
     || object.resource_type !== 'classroom' || object.resource_id !== object.classroom_id) throw new ApiError(404, 'Image not found')
-  if (isContextualClassroomHomeAdmitted(user)
-    && resolveClassroomExperienceAdmission(user).status === 'admitted') {
+  if ((await isContextualClassroomHomeAdmitted(user))
+    && (await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
     const context = await resolveClassroomAccess(user.id, object.classroom_id, { supabase: db })
     if (!context || !canAccessClassroom(context, 'read')) throw new ApiError(404, 'Image not found')
     // Ownership wins over a historical self-enrollment. Members of either global

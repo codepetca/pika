@@ -1,3 +1,4 @@
+import { readClassroomAdmissionRegistry } from '@/lib/server/classroom-admission-registry'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { BaraAttendanceSyncError } from '@/lib/server/bara-attendance-sync'
@@ -5,6 +6,8 @@ import {
   BaraAttendanceAutomationError,
   syncBaraAttendanceSchedules,
 } from '@/lib/server/bara-attendance-automation'
+
+vi.mock('@/lib/server/classroom-admission-registry', () => ({ readClassroomAdmissionRegistry: vi.fn() }))
 
 const targets = [
   {
@@ -20,6 +23,16 @@ const targets = [
 describe('Bara attendance schedule automation', () => {
   beforeEach(() => { vi.clearAllMocks(); delete process.env.PIKA_CLASSROOM_EXPERIENCE_ADMISSION })
   afterEach(() => vi.unstubAllEnvs())
+
+  it('keeps later registry grants on the original protocol while bootstrap owners retain membership synchronization', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 2, source: 'registry', bootstrapManifestSha256: 'a'.repeat(64) }))
+    vi.mocked(readClassroomAdmissionRegistry).mockImplementation(async id => ({ admitted: true, bootstrap_member: id === targets[0].teacher_id }) as never)
+    const rpc = vi.fn().mockResolvedValue({ data: targets, error: null })
+    const sync = vi.fn().mockResolvedValue({})
+    await expect(syncBaraAttendanceSchedules({ supabase: { rpc }, integrationState: 'ready', scopeMode: 'teacher_entitlements', sync })).resolves.toMatchObject({ status: 'ok', synced: 2 })
+    expect(sync.mock.calls[0][0]).toMatchObject({ membershipAware: true })
+    expect(sync.mock.calls[1][0]).not.toHaveProperty('membershipAware')
+  })
 
   it('selects membership-aware preparation for only admitted active owners without inventing a user session', async () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [targets[0].teacher_id] }))

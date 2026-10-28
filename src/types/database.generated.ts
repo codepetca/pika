@@ -10925,6 +10925,18 @@ export type Database = {
         Args: { p_classroom_id: string; p_teacher_id: string }
         Returns: boolean
       }
+      commit_classroom_experience_admission_batch_v2: {
+        Args: {
+          p_approval_ref: string
+          p_excluded_user_ids: string[]
+          p_expected_revision: number
+          p_kind: string
+          p_manifest_sha256: string
+          p_operation_id: string
+          p_user_ids: string[]
+        }
+        Returns: Json
+      }
       complete_assignment_artifact_storage_cleanup: {
         Args: { p_cleanup_id: string; p_lease_token: string }
         Returns: boolean
@@ -13109,6 +13121,14 @@ export type Database = {
       }
       read_classroom_authoring_guidance_for_owner_v1: {
         Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      read_classroom_experience_admission_operation_v2: {
+        Args: { p_operation_id: string }
+        Returns: Json
+      }
+      read_classroom_experience_admission_v2: {
+        Args: { p_actor_id: string }
         Returns: Json
       }
       read_classroom_guidance_adoption_source_v1: {

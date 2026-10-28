@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ZodError } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { logServerError } from '@/lib/server/diagnostics'
+import { withAdmissionRequestContext } from '@/lib/server/admission-request-context'
 
 export { ApiError } from '@/lib/api-error'
 
@@ -133,7 +134,7 @@ export function withErrorHandler(_routeName: string, handler: RouteHandler): Rou
   return async (request, context) => {
     try {
       mapRequestJsonSyntaxErrors(request)
-      return await handler(request, context)
+      return await withAdmissionRequestContext(() => handler(request, context))
     } catch (error) {
       return mapErrorToResponse(error)
     }

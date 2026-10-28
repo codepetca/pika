@@ -17,7 +17,7 @@ const unavailable = () => new ApiError(503, 'Classroom archive recovery is unava
 export async function authorizeSharedClassroomArchiveActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 export async function readContextualClassroomArchiveSnapshot(input: {

@@ -1,18 +1,17 @@
 # Checkpoint — 2026-10-27 (America/Toronto)
 
-Prod405ef92cc; local unchanged. RepoLight A connected; AI OFF.
-DB001–293.
+Prod DB001–293; source405ef92cc; local unchanged. RepoLight A connected; AI OFF.
 GitHub quota: [Contract](../docs/integrations/repolight.md).
 
-Home/admission exact70 ON; page flags absent; further admission held.
+Home/admission 70 ON; page flags absent; further admission held.
 [Acceptance](../docs/guidance/classroom-rollout-acceptance-2026-10-27.md):
 representative canaries PASS; PPZ Tests/native OFF, manual log unchanged.
 Fresh08:04–08:34 readonly7/7 PASS;70/provider/checked work preserved.
 Prior gap retained. Audit27 3b7ae978e accepted;decommission ON.
-Controls unchanged: billing/other provider holds;181/206/Free ON;182–205/image213/253 OFF.
+Controls unchanged: prior receipts; billing/provider held;181/206/Free ON;182–205/image213/253 OFF.
 Pal membership/signals OFF;quota creation-error/batch2 deferred.
-Epic incomplete; goal/DeepSeek paused.
-[Next](../docs/guidance/classroom-wider-admission-plan.md): proposal only.
+Epic open; goal/DeepSeek paused.
+[Next](../docs/guidance/classroom-wider-admission-plan.md): source only.
 
 Worktrees:$HOME/.codex/worktrees/pika/;$HOME/.codex/worktrees/<id>/pika.
 Env:$HOME/Repos/.env/pika/.env.local;.env.example.

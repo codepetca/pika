@@ -1,3 +1,4 @@
+import { readClassroomAdmissionRegistry } from '@/lib/server/classroom-admission-registry'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
@@ -8,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   execute: vi.fn(),
 }))
 
+vi.mock('@/lib/server/classroom-admission-registry', () => ({ readClassroomAdmissionRegistry: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.requireRole, requireAuth: mocks.requireAuth }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.getServiceRoleClient }))
 vi.mock('@/lib/server/bara-attendance-student', async () => {
@@ -60,6 +62,15 @@ describe('POST /api/student/attendance/check-in', () => {
     expect(mocks.requireAuth).toHaveBeenCalled()
     expect(mocks.requireRole).not.toHaveBeenCalled()
     expect(mocks.execute).toHaveBeenCalledWith(expect.objectContaining({ pikaUser: current }))
+  })
+
+  it('keeps later registry grants subject to the legacy student role gate', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 2, source: 'registry', bootstrapManifestSha256: 'a'.repeat(64) }))
+    vi.mocked(readClassroomAdmissionRegistry).mockResolvedValue({ admitted: true, bootstrap_member: false } as never)
+    mocks.requireAuth.mockResolvedValue({ ...user, role: 'teacher' })
+    mocks.requireRole.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+    expect((await POST(request({ entryToken, attemptId }))).status).toBe(403)
+    expect(mocks.execute).not.toHaveBeenCalled()
   })
 
   it('retains the role guard for an unadmitted teacher', async () => {

@@ -29,7 +29,7 @@ const imageRequestSchema = z.object({
 
 export const GET = withErrorHandler('GetManagedSubmissionImage', async (request) => {
   const user = await requireAuth()
-  assertContextualAssignmentInlineImageConfiguration(user)
+  await assertContextualAssignmentInlineImageConfiguration(user)
   const input = imageRequestSchema.parse(Object.fromEntries(new URL(request.url).searchParams))
   const supabase = getServiceRoleClient()
 
@@ -86,7 +86,7 @@ export const GET = withErrorHandler('GetManagedSubmissionImage', async (request)
     return NextResponse.json({ error: 'Image not found' }, { status: 404 })
   }
 
-  const access = authorizeContextualAssignmentInlineImageAccess(user, assignment.classroom_id)
+  const access = await authorizeContextualAssignmentInlineImageAccess(user, assignment.classroom_id)
   if (access.mode === 'contextual') {
     const authorized = await readContextualAssignmentInlineImage({
       supabase: supabase as unknown as ContextualAssignmentInlineImageClient,

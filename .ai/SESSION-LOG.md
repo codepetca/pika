@@ -11,47 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 Editor production release verified
-
-Owner-approved production291 single apply40004531458 is applied-verified001–291;
-exact body/ACL/RLS/constraint/trigger/privatebucket read-only checks PASS. Four
-release review turns resolved one UUID casing source blocker; normal main1668
-merged b03198a9 after1012local/21534CI tests and allselectedgates. Production1667
-merged cd7179e64 after all10exact3208858CI40006108276checksPASS. Vercel
-dpl_8GRTVHmoMdx9mdETNWAUx2dcgsZa READY15:31Toronto; exactGitSHA andpublicalias
-verified. PublicGETsmoke5/5PASS, including newimage401. No productionfixtures,
-292, flags, provider, account/billing or cleanup activation. Receipt imports both
-production/main journal histories; application/test/schema/config unchanged.
-
-## 2026-10-23 — Prepare live relationship home
-
-Implement the approved Teaching/Joined composition under exact home plus shared
-admission, preserving legacy users/session roles and the owner lifecycle manager.
-Private current-enrollment preferences persist personal hide/unhide; stale rejoin
-requests fail. Managed creation hints retain atomic quotas/idempotent replay;
-code joins preserve exact lookup/limiter/roster rules and membership-only Pal.
-Disposable replay, rollback and real two-session contention passed; shared source
-ID/version/schema preserved, generated RPC types matched and owned resources absent.
-UI fixture matrix8 and wizard matrix8 passed,64screenshots; not signed-in persistence
-evidence. Initial browser failure was a selector matching Next's route announcer;
-its failed evidence retained. Source tests/TypeScript/lint/audit pass; required focused
-gate and independent review still pending. Creation capability refresh regression
-failed before its fix. Two Sol6.1/high bounded implementers, effective config/tokens
-unknown; prior review424/fix39 counters retained. Editor owns locally applied291;
-owner authorized coordination and reviewed1662 merge to main only. Home numbering
-must follow upstream before readiness. No shared migration, production, provider,
-account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
-
-## 2026-10-23 — Correct complete live-home reads
-
-Initial independent reviews425/426 completed: compatibility/UI clean, security
-found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
-with exact-count/page/identity validation, reused by SSR and admitted owned-list
-refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
-TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
-no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
-before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
-
 ## 2026-10-23 — Reconcile home with merged editor291
 
 Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
@@ -550,3 +509,42 @@ all other holds and paused goal/DeepSeek remain unchanged.
 - Auth was used correctly; pinned ghcr.io/supabase/postgres:17.6.1.132 repeatedly returns HTTP429, including public manifest requests outside Actions. Official public.ecr.aws mirror is reachable. Coordinator verified ECR and Docker Hub index bytes share sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13; linux/amd64 child9d50688a826cf1455a0e91013160171de73b4d31df1509014e73463fb276a84d. GHCR digest parity could not be checked and is not claimed. Primary sources: pinned CLI internal/utils/docker.go and config/templates/Dockerfile; supabase/postgres .github/workflows/mirror.yml. No live database or image-layer download performed.
 - Plan: restore official CLI-default public ECR, remove unnecessary GHCR permissions/login/cleanup from current CI, preserve historical exact-auth safety contracts, all pinned versions, lanes, commands and gates. Existing obsolete exclusion names are out of this repair scope. Verify targeted tests and focused gate, independent risk-matched review on fixed SHA, then one fresh required native CI run and squash merge only after final PR Gate passes.
 - Terra implementation accepted in five owned files (local-ci test ownership explicitly extended after six stale GHCR expectations surfaced). Targeted registry/auth/workflow/local-runner suites PASS430 tests/4files; coordinator inspected diff and confirmed parser/native auth guards unchanged. No files/edits conflicted. Current ECR plan omits all seven GHCR credential blocks and extra permissions; reconstructed historical GHCR plan keeps exact-auth/drift coverage. No registry layers or databases started locally.
+
+## 2026-10-27 Prepare inactive admission registry
+
+Implemented stage0 source: candidate294 service-only registry, exact atomic/idempotent
+batches and growth stop, request-scoped async reads, shared Home audience and frozen
+bootstrap attendance protocol selection. Existing version1 and70 stay active.
+Isolated001–294 replay/ACL/rollback/committed races/source preservation and genuine
+types pass; first harness import failure retained and fixed. Focused11735 tests
+passed, plus architecture/UI/design/TypeScript/lint. All294 tables join sealed whole-row
+proof catalogs; historical profiles retained. Review found a concurrent growth-stop
+race; one correction gives restrictive stops priority, preserves original replay
+binding and records actual predecessor; four review turns are clean. CI coverage
+passed22623 tests but failed one inherited CURRENT-label assertion. Restored the
+factual production/control receipt labels;83 targeted checks and local build pass.
+Fresh final CI remains pending. No shared
+local/prod migration/import/release/config/provider/account action; goal/DeepSeek paused.
+
+## 2026-10-27 Admission registry integration with current main
+
+Rebased1699 onto9756a9751, retaining the reviewed294 SQL and registry behavior.
+Resolved continuity conflicts by preserving canonical production/control labels
+and both substantive journal histories. Main's official ECR image transport and
+scheduled-date display changes remain intact; no UI or SQL behavior changed here.
+Earlier GHCR setup failures remain historical. Focused integration checks and a
+proportional independent delta review precede fresh reviewed-head CI. Existing70,
+provider/schema/release holds and paused goal/DeepSeek remain unchanged.
+
+## 2026-10-27 Restore isolated CI image authentication after quota failures
+
+#1699's current-base build22626 tests, primary SDK and browser matrix passed; five
+other lanes failed ECR image startup in attempts1/3; one serialized attempt2
+failed identically. Kept failed evidence. Normal bounded GHCR Postgres17.6.1.132 pull succeeded
+locally; cache reuse is possible and final CI is still required. Returned draft
+before restoring the previously reviewed GHCR workflow and exact auth/drift tests,
+retaining historical ECR coverage. Registry helper/parser/native guards and every
+noncredential lane step stay unchanged. No SQL, product/UI, version, deadline,
+provider, shared schema, release or70-account configuration changes. Goal/DeepSeek
+remain paused. Targeted checks, focused gate and independent delta review precede
+one stable ready event; no registry fallback or automatic extra retry is added.

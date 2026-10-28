@@ -8,6 +8,7 @@ import {
   TeacherAttendanceCommandError,
 } from '@/lib/server/bara-attendance-commands'
 import { teacherAttendanceMarksSchema, teacherAttendanceMembershipMarksSchema } from '@/lib/validations/teacher-attendance'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
 import {
   BaraAttendanceCanaryError,
@@ -37,8 +38,10 @@ function mapCommandError(error: unknown): never {
 
 export const POST = withErrorHandler('PostTeacherAttendanceMarks', async (request) => {
   const admission = await authorizeSharedAttendancePolicyActor()
-  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
-  const input = admission.mode === 'shared'
+  const candidate = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
+  const membershipAware = (await resolveAttendanceProtocolCompatibility(candidate)).status === 'admitted'
+  const user = admission.mode === 'shared' && !membershipAware ? await requireRole('teacher') : candidate
+  const input = membershipAware
     ? teacherAttendanceMembershipMarksSchema.parse(await request.json())
     : teacherAttendanceMarksSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
@@ -58,7 +61,7 @@ export const POST = withErrorHandler('PostTeacherAttendanceMarks', async (reques
       classDate: input.date,
       requestId: input.request_id,
       integrationState: 'ready',
-      ...(admission.mode === 'shared' ? { membershipAware: true as const } : {}),
+      ...(membershipAware ? { membershipAware: true as const } : {}),
       marks: input.marks.map((mark) => ({
         studentId: mark.student_id,
         ...('expected_generation_id' in mark && typeof mark.expected_generation_id === 'string'

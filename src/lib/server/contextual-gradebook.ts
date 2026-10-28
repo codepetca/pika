@@ -35,7 +35,7 @@ const rpcEnvelope = z.object({
 export async function authorizeSharedGradebookActor() {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' as const }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted'
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted'
     ? { mode: 'shared' as const, user } : { mode: 'existing' as const }
 }
 

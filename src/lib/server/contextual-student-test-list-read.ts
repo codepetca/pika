@@ -31,7 +31,7 @@ const relation = 'tests:tests!tests_classroom_id_fkey'
 export async function authorizeSharedStudentTestListReadActor(): Promise<{ mode: 'existing' } | { mode: 'shared'; user: AuthenticatedUser }> {
   if (!isClassroomExperienceAdmissionConfigured()) return { mode: 'existing' }
   const user = await requireAuth()
-  return resolveClassroomExperienceAdmission(user).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
+  return (await resolveClassroomExperienceAdmission(user)).status === 'admitted' ? { mode: 'shared', user } : { mode: 'existing' }
 }
 
 /** Every statement proves current membership; final revalidation is not a transaction snapshot. */

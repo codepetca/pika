@@ -21,7 +21,7 @@ import {
 } from '@/lib/server/bara-attendance-canary'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
 import { resolveAttendanceMembershipScanGeneration, resolveAttendanceScanGeneration, sameAttendanceScanGeneration } from '@/lib/server/attendance-generation'
-import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 
 const actorUserSchema = z.object({
   email: z.string().email(),
@@ -76,7 +76,7 @@ export async function resolveVerifiedPikaAttendanceStudent(input: {
 }): Promise<VerifiedPikaAttendanceStudent> {
   const { withAuth } = await import('@workos-inc/authkit-nextjs')
   const { user: workOSUser } = await withAuth()
-  const admitted = resolveClassroomExperienceAdmission(input.pikaUser).status === 'admitted'
+  const admitted = (await resolveAttendanceProtocolCompatibility(input.pikaUser)).status === 'admitted'
   if (!workOSUser || !workOSUser.emailVerified
     || !z.string().uuid().safeParse(input.pikaUser.id).success
     || (!admitted && input.pikaUser.role !== 'student')) {
@@ -243,7 +243,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   if (!z.string().uuid().safeParse(input.attemptId).success) {
     throw new StudentAttendanceCheckInError('invalid_entry')
   }
-  const admitted = resolveClassroomExperienceAdmission(input.pikaUser).status === 'admitted'
+  const admitted = (await resolveAttendanceProtocolCompatibility(input.pikaUser)).status === 'admitted'
   const resolveGeneration = admitted
     ? resolveAttendanceMembershipScanGeneration
     : input.resolveGeneration ?? resolveAttendanceScanGeneration
@@ -287,7 +287,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     occurrenceMetadata = { classDate: parsed.data.class_date, presentThroughAt: parsed.data.present_through_at }
   }
   if (occurrenceMetadata.classDate !== formatDateInToronto(now())) return checkInClosed()
-  // Shared admission always uses the exact membership identity, independently
+  // Bootstrap-compatible scans always use the exact membership identity, independently
   // of the legacy cleanup rollout's optional wire-field gate.
   const participantRef = generation.status === 'active' && (admitted || process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true')
     ? generation.participant_ref : undefined

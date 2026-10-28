@@ -46,9 +46,9 @@ function configuredImagePairs(): z.infer<typeof imagePairsSchema> | null {
 }
 
 /** Validate shared admission, then any existing image gate, before compatibility disclosure. */
-export function assertContextualAssignmentInlineImageConfiguration(user?: AuthenticatedUser): void {
+export async function assertContextualAssignmentInlineImageConfiguration(user?: AuthenticatedUser): Promise<void> {
   if (isClassroomExperienceAdmissionConfigured()
-    && resolveClassroomExperienceAdmission({ id: user?.id ?? '' }).status === 'admitted') return
+    && (await resolveClassroomExperienceAdmission({ id: user?.id ?? '' })).status === 'admitted') return
 
   if (process.env.PIKA_CLASSROOM_ASSIGNMENT_IMAGE_ACCESS_ENABLED === 'true'
     && configuredImagePairs() === null) {
@@ -61,12 +61,12 @@ export function assertContextualAssignmentInlineImageConfiguration(user?: Authen
  * Assignment/Classroom binding before using this gate; it never accepts IDs
  * supplied by a browser as relationship evidence.
  */
-export function authorizeContextualAssignmentInlineImageAccess(
+export async function authorizeContextualAssignmentInlineImageAccess(
   user: AuthenticatedUser,
   classroomId: string,
-): InlineImageAccess {
+): Promise<InlineImageAccess> {
   if (isClassroomExperienceAdmissionConfigured()
-    && resolveClassroomExperienceAdmission(user).status === 'admitted') {
+    && (await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
     const requestedId = canonicalUuid.safeParse(classroomId)
     if (!requestedId.success) throw new ApiError(400, 'Invalid classroom ID')
     return { mode: 'contextual', user, classroomId: requestedId.data }
@@ -76,7 +76,7 @@ export function authorizeContextualAssignmentInlineImageAccess(
     return { mode: 'legacy', user, classroomId }
   }
 
-  assertContextualAssignmentInlineImageConfiguration(user)
+  await assertContextualAssignmentInlineImageConfiguration(user)
   const pairs = configuredImagePairs()
   const identity = canonicalUuid.safeParse(user.id)
   const requestedClassroomId = canonicalUuid.safeParse(classroomId)

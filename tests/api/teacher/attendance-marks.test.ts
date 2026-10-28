@@ -1,3 +1,4 @@
+import { readClassroomAdmissionRegistry } from '@/lib/server/classroom-admission-registry'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { POST } from '@/app/api/teacher/attendance/marks/route'
@@ -47,6 +48,8 @@ vi.mock('@/lib/server/bara-attendance-canary', async (importOriginal) => {
   return { ...actual, assertBaraAttendanceCanaryClassroom }
 })
 
+vi.mock('@/lib/server/classroom-admission-registry', () => ({ readClassroomAdmissionRegistry: vi.fn() }))
+
 const classroomId = '20000000-0000-4000-8000-000000000002'
 const studentId = '10000000-0000-4000-8000-000000000001'
 const requestId = '40000000-0000-4000-8000-000000000004'
@@ -78,6 +81,30 @@ describe('POST /api/teacher/attendance/marks', () => {
     })
   })
   afterEach(() => vi.unstubAllEnvs())
+
+  it('retains the legacy marks protocol for later registry grants', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 2, source: 'registry', bootstrapManifestSha256: 'a'.repeat(64) }))
+    vi.mocked(readClassroomAdmissionRegistry).mockResolvedValue({ admitted: true, bootstrap_member: false } as never)
+    requireAuth.mockResolvedValue({ id: requestId, email: 'owner@example.com', role: 'teacher' })
+    requireRole.mockResolvedValue({ id: requestId, email: 'owner@example.com', role: 'teacher' })
+    const response = await POST(request({ classroom_id: classroomId, date: '2026-09-08', request_id: requestId,
+      marks: [{ student_id: studentId, status: 'present' }] }))
+    expect(response.status).toBe(200)
+    expect(executeTeacherAttendanceMarks.mock.calls[0][0]).not.toHaveProperty('membershipAware')
+    const generationRequest = await POST(request({ classroom_id: classroomId, date: '2026-09-08', request_id: requestId,
+      marks: [{ student_id: studentId, expected_generation_id: classroomId, status: 'present' }] }))
+    expect(generationRequest.status).toBe(400)
+  })
+
+  it('retains the teacher role gate for a later registry-admitted student-label owner', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 2, source: 'registry', bootstrapManifestSha256: 'a'.repeat(64) }))
+    vi.mocked(readClassroomAdmissionRegistry).mockResolvedValue({ admitted: true, bootstrap_member: false } as never)
+    requireAuth.mockResolvedValue({ id: requestId, email: 'owner@example.com', role: 'student' })
+    requireRole.mockRejectedValue(Object.assign(new Error('Forbidden'), { name: 'AuthorizationError' }))
+    expect((await POST(request({ classroom_id: classroomId, date: '2026-09-08', request_id: requestId,
+      marks: [{ student_id: studentId, status: 'present' }] }))).status).toBe(403)
+    expect(executeTeacherAttendanceMarks).not.toHaveBeenCalled()
+  })
 
   it.each(['teacher', 'student'])('binds admitted %s owner marks to their supplied exact generation', async role => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [requestId] }))

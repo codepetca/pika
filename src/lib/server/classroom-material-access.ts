@@ -92,7 +92,7 @@ export async function authorizeClassroomMaterialRequest(
 
   const user = await requireAuth()
   if (sharedAdmissionConfigured) {
-    const admission = resolveClassroomExperienceAdmission(user)
+    const admission = await resolveClassroomExperienceAdmission(user)
     if (admission.status === 'admitted') {
       return contextualMaterialAccess(user, classroomId, options.permission)
     }

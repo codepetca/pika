@@ -25,7 +25,7 @@ export async function authorizeDailyLogReadActor(): Promise<DailyLogReadActor> {
     return { mode: 'legacy', user: await requireRole('student') }
   }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status === 'not-admitted') {
+  if ((await resolveClassroomExperienceAdmission(user)).status === 'not-admitted') {
     if (user.role !== 'student') throw new AuthorizationError('Forbidden: student role required')
     return { mode: 'legacy', user }
   }

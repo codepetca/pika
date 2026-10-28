@@ -26,7 +26,7 @@ export async function authorizeContextualLessonPlanMutationActor(): Promise<
     return { mode: 'legacy', user: await requireRole('teacher') }
   }
   const user = await requireAuth()
-  if (resolveClassroomExperienceAdmission(user).status === 'not-admitted') {
+  if ((await resolveClassroomExperienceAdmission(user)).status === 'not-admitted') {
     // Preserve the role guard for callers outside the dormant cohort.
     return { mode: 'legacy', user: await requireRole('teacher') }
   }

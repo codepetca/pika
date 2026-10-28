@@ -18,6 +18,7 @@ import {
   BaraAttendanceCanaryError,
 } from '@/lib/server/bara-attendance-canary'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
 
 export const dynamic = 'force-dynamic'
@@ -25,7 +26,9 @@ export const revalidate = 0
 
 export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request) => {
   const admission = await authorizeSharedAttendancePolicyActor()
-  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
+  const candidate = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
+  const membershipAware = (await resolveAttendanceProtocolCompatibility(candidate)).status === 'admitted'
+  const user = admission.mode === 'shared' && !membershipAware ? await requireRole('teacher') : candidate
   const input = teacherAttendanceSyncSchema.parse(await request.json())
   const supabase = getServiceRoleClient()
   const ownership = await assertTeacherCanMutateClassroom(
@@ -41,7 +44,7 @@ export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request
       teacherId: user.id,
       classroomId: input.classroom_id,
     })
-    const actor = await (admission.mode === 'shared'
+    const actor = await (membershipAware
       ? resolveVerifiedPikaAttendanceOwner : resolveVerifiedPikaAttendanceTeacher)({ supabase, pikaUser: user })
     return NextResponse.json(await syncTeacherAttendanceSources({
       supabase,
@@ -52,7 +55,7 @@ export const POST = withErrorHandler('PostTeacherAttendanceSync', async (request
       verifiedActor: actor,
       integrationState: 'ready',
       scheduleThrough: access.scheduleThrough,
-      ...(admission.mode === 'shared' ? { membershipAware: true as const } : {}),
+      ...(membershipAware ? { membershipAware: true as const } : {}),
     }))
   } catch (error) {
     if (error instanceof BaraAttendanceCanaryError) {

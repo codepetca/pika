@@ -6,7 +6,7 @@ import type { AuthenticatedUser } from '@/types'
 export async function requireRepoLightActor(): Promise<AuthenticatedUser> {
   if (isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    if (resolveClassroomExperienceAdmission(user).status === 'admitted') return user
+    if ((await resolveClassroomExperienceAdmission(user)).status === 'admitted') return user
   }
   return requireRole('teacher')
 }

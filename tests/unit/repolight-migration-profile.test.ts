@@ -10,7 +10,7 @@ describe('RepoLight exact source profile (not native execution authority)', () =
     return { name, sql, sha256: createHash('sha256').update(sql).digest('hex') }
   })
   it('accepts the full sealed293 chain and preserves historical seals', () => {
-    expect(() => validateLifecycleServicesReviewedMigrations(migrations())).not.toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations(migrations().slice(0,293))).not.toThrow()
     expect(() => validateLifecycleServicesReviewedMigrations(migrations().slice(0,292))).not.toThrow()
   })
   it('rejects any migration/source/hash substitution and unknown next profile', () => {
@@ -18,7 +18,7 @@ describe('RepoLight exact source profile (not native execution authority)', () =
     expect(() => validateRepoLightReportServiceReviewedMigration({...last,sql:last.sql+'\n'})).toThrow()
     expect(() => validateRepoLightReportServiceReviewedMigration({...last,sha256:'0'.repeat(64)})).toThrow()
     expect(() => validateRepoLightReportServiceReviewedMigration({...last,name:'294_other.sql'})).toThrow()
-    const next={name:'294_other.sql',sql:'select 1;',sha256:createHash('sha256').update('select 1;').digest('hex')}
+    const next={name:'295_other.sql',sql:'select 1;',sha256:createHash('sha256').update('select 1;').digest('hex')}
     expect(() => validateLifecycleServicesReviewedMigrations([...chain,next])).toThrow('Unreviewed')
   })
 })

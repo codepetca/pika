@@ -50,8 +50,8 @@ export async function authenticateClassroomEnrollmentRequest(): Promise<Authenti
   let homeUser: AuthenticatedUser | undefined
   if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED === 'true' && isClassroomExperienceAdmissionConfigured()) {
     homeUser = await requireAuth()
-    const sharedAdmission = resolveClassroomExperienceAdmission(homeUser)
-    if (isContextualClassroomHomeAdmitted(homeUser) && sharedAdmission.status === 'admitted') {
+    const sharedAdmission = await resolveClassroomExperienceAdmission(homeUser)
+    if ((await isContextualClassroomHomeAdmitted(homeUser)) && sharedAdmission.status === 'admitted') {
       return trustedAuthentication({ mode: 'home_code', user: homeUser })
     }
   }

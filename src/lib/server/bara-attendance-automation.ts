@@ -1,7 +1,7 @@
 import { addDays, format, parseISO } from 'date-fns'
 import { formatInTimeZone } from 'date-fns-tz'
 import { z } from 'zod'
-import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 
 import {
   getBaraAttendanceWorkerScope,
@@ -162,12 +162,12 @@ export async function syncBaraAttendanceSchedules(input: {
     while (cursor < targets.length) {
       const target = targets[cursor++]
       try {
-        // This only selects the admitted source protocol. The membership RPC
+        // This only selects the bootstrap-compatible source protocol. The membership RPC
         // reauthorizes the actual owner/classroom/scope under its DB lock; an
         // installation credential is not a classroom relationship or a session.
         // Deactivation must retain its existing entitlement-expiry path.
         const membershipAware = target.integration_mode !== 'deactivating'
-          && resolveClassroomExperienceAdmission({ id: target.teacher_id }).status === 'admitted'
+          && (await resolveAttendanceProtocolCompatibility({ id: target.teacher_id })).status === 'admitted'
         await sync({
           supabase: input.supabase,
           teacherId: target.teacher_id,

@@ -3,7 +3,8 @@
 Current checkpoint, October 27: the exact [70-account rollout](classroom-rollout-acceptance-2026-10-27.md)
 is accepted. Version 1 below is still the active admission contract. The
 [wider-admission proposal](classroom-wider-admission-plan.md) prepares a durable
-source and staged scope; it implements or activates nothing. The dormant-slice
+source and staged scope. The [inactive registry implementation](classroom-admission-registry.md)
+prepares stage 0; it applies no migration, configuration or grant. The dormant-slice
 and activation-hold checkpoints below retain their historical context.
 
 ## Current implementation and activation hold
@@ -97,5 +98,6 @@ admitted accounts back to global-role routing as a stop-new-admission procedure.
 This stateless environment reader cannot detect a deleted value or an older
 deployment. Retention and the compatible deployment floor are operational
 requirements, not durable guarantees. Automatic admission or independent,
-concurrent admission administration would require a separately designed durable
-admission store. No such store or workflow is introduced here.
+concurrent admission administration requires the separately versioned
+[durable registry contract](classroom-admission-registry.md). Version 1 remains
+the active source until its separate migration/import and compatible cutover gates.

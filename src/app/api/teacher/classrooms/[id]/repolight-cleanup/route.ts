@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 export const GET = withErrorHandler('GetRepoLightCleanupTargets', async (request, context) => {
   const candidate = isClassroomExperienceAdmissionConfigured() ? await requireAuth() : null
-  const admitted = candidate !== null && resolveClassroomExperienceAdmission(candidate).status === 'admitted'
+  const admitted = candidate !== null && (await resolveClassroomExperienceAdmission(candidate)).status === 'admitted'
   const user = admitted && candidate ? candidate : await requireRole('teacher')
   const classroomId = z.string().uuid().parse((await context.params).id).toLowerCase()
   const query = z.object({ afterStudentId: z.string().uuid().optional() }).strict().parse(Object.fromEntries(new URL(request.url).searchParams))
