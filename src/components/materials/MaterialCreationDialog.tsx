@@ -12,7 +12,7 @@ import { createMaterialMarkdownContent, getMaterialMarkdownDraft, getMaterialVis
 import { tiptapToMarkdown } from '@/lib/limited-markdown'
 import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import type { TiptapContent } from '@/types'
-import { materialPostDateSchema } from '@/lib/validations/material-post-date'
+import { postDateInputSchema } from '@/lib/validations/post-date'
 
 interface MaterialCreationDialogProps {
   classroomId?: string
@@ -21,6 +21,7 @@ interface MaterialCreationDialogProps {
   isOpen: boolean
   isExisting?: boolean
   isDraft?: boolean
+  postedOn?: string | null
   releasedAt?: string | null
   createdAt?: string
   readOnly?: boolean
@@ -41,7 +42,7 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 }
 
 function MaterialEditor({
-  isOpen, isExisting = false, isDraft = true, releasedAt, createdAt, readOnly = false, saving = false,
+  isOpen, isExisting = false, isDraft = true, releasedAt, createdAt, postedOn, readOnly = false, saving = false,
   classroomId, classroomName, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
 }: MaterialCreationDialogProps) {
   const [mode, setMode] = useState<'visual' | 'markdown'>('visual')
@@ -74,14 +75,13 @@ function MaterialEditor({
 
   const [previewOpen, setPreviewOpen] = useState(false)
   const isScheduled = !isDraft && !!releasedAt && isScheduleIsoInFuture(releasedAt)
-  const canEditPostDate = isExisting && !isDraft && !isScheduled
   const originalPostTimestamp = releasedAt ?? createdAt
-  const initialPostDate = originalPostTimestamp
+  const initialPostDate = postedOn ?? (!isDraft && originalPostTimestamp
     ? formatInTimeZone(originalPostTimestamp, 'America/Toronto', 'yyyy-MM-dd')
-    : getTodayInSchedulingTimezone()
+    : getTodayInSchedulingTimezone())
   const [postDate, setPostDate] = useState(initialPostDate)
-  const validPostDate = materialPostDateSchema.safeParse(postDate).success
-  const [action, setAction] = useState<'post' | 'draft' | 'schedule'>(isScheduled ? 'schedule' : 'post')
+  const validPostDate = postDateInputSchema.safeParse(postDate).success
+  const [action, setAction] = useState<'post' | 'draft' | 'schedule' | 'preserve'>(isScheduled ? 'preserve' : 'post')
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const initialSchedule = releasedAt && isScheduled ? parseScheduleIsoToParts(releasedAt) : null
   const [scheduleDate, setScheduleDate] = useState(initialSchedule?.date ?? getDefaultScheduleDateInSchedulingTimezone())
@@ -89,17 +89,15 @@ function MaterialEditor({
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const validSchedule = !!scheduleIso && isScheduleIsoInFuture(scheduleIso)
   const disabled = saving || readOnly
-  const saveDisabled = disabled || (action === 'post' && canEditPostDate && !validPostDate)
+  const saveDisabled = disabled || !validPostDate
   const publishLabel = isScheduled ? 'Post now' : isDraft ? 'Post' : 'Save'
-  const primaryLabel = action === 'draft' ? 'Save draft' : action === 'schedule' ? isScheduled ? 'Save schedule' : 'Schedule' : publishLabel
+  const primaryLabel = action === 'preserve' ? 'Save' : action === 'draft' ? 'Save draft' : action === 'schedule' ? isScheduled ? 'Save schedule' : 'Schedule' : publishLabel
 
   function save() {
     if (saveDisabled) return
     if (action === 'schedule') { setScheduleOpen(true); return }
-    if (action === 'draft') { onSave(true); return }
-    if (isScheduled) onSave(false, null)
-    else if (canEditPostDate && postDate !== initialPostDate) onSave(false, undefined, postDate)
-    else onSave(false)
+    if (action === 'draft') { onSave(true, undefined, postDate); return }
+    onSave(false, action === 'post' && isScheduled ? null : undefined, postDate)
   }
 
   return (
@@ -128,10 +126,11 @@ function MaterialEditor({
             <p role="status" className="text-xs text-text-muted">{isScheduled && releasedAt
               ? `Scheduled for ${formatInTimeZone(releasedAt, 'America/Toronto', 'EEE MMM d, h:mm a')} (Toronto)`
               : isExisting ? isDraft ? 'Draft' : 'Posted' : 'Not posted'}</p>
-            {canEditPostDate && <FormField label="Post date (Toronto)" error={!validPostDate ? 'Choose today or an earlier date.' : undefined}>
-              <Input type="date" value={postDate} min="0001-01-01" max={getTodayInSchedulingTimezone()}
+            <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}
+              hint="Places this material on the calendar. Post makes it available now; Schedule delays release.">
+              <Input type="date" value={postDate} min="0001-01-01"
                 disabled={disabled} onChange={(event) => setPostDate(event.target.value)} />
-            </FormField>}
+            </FormField>
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <div className="shrink-0 lg:mt-auto">
               <SplitButton
@@ -189,7 +188,7 @@ function MaterialEditor({
           date={scheduleDate} time={scheduleTime} minDate={getTodayInSchedulingTimezone()}
           isFutureValid={validSchedule} onDateChange={setScheduleDate} onTimeChange={setScheduleTime}
           onCancel={() => setScheduleOpen(false)}
-          onConfirm={() => { if (!saveDisabled && validSchedule) { setScheduleOpen(false); onSave(false, scheduleIso) } }}
+          onConfirm={() => { if (!saveDisabled && validSchedule) { setScheduleOpen(false); onSave(false, scheduleIso, postDate) } }}
           confirmLabel={isScheduled ? 'Save schedule' : 'Schedule'}
           showHeader={false}
         />

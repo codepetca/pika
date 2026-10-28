@@ -1,3 +1,4 @@
+import { getTodayInSchedulingTimezone } from '@/lib/scheduling'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -69,7 +70,7 @@ describe('Material formatted editing', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Material content Markdown' }), { target: { value: markdown } })
     expect(getMaterialMarkdownSource(latestContent)).toBe(markdown)
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
-    expect(handlers.onSave).toHaveBeenCalledWith(false)
+    expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, getTodayInSchedulingTimezone())
     view.unmount()
     render(<MaterialCreationDialog {...handlers} content={latestContent} />, { wrapper: TooltipProvider })
     await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
@@ -99,7 +100,7 @@ describe('Material formatted editing', () => {
     expect(within(screen.getByRole('dialog', { name: 'Material preview' })).getByText('Updated reading')).toBeVisible()
     await user.keyboard('{Escape}')
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
-    expect(handlers.onSave).toHaveBeenCalledWith(false)
+    expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, getTodayInSchedulingTimezone())
     await user.click(screen.getByRole('button', { name: 'Close material modal' }))
     expect(handlers.onClose).toHaveBeenCalledOnce()
   })
@@ -153,11 +154,11 @@ describe('Material creation', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: 'Choose material action' })).toHaveFocus())
     expect(handlers.onSave).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Save draft', exact: true }))
-    expect(handlers.onSave).toHaveBeenLastCalledWith(true)
+    expect(handlers.onSave).toHaveBeenLastCalledWith(true, undefined, getTodayInSchedulingTimezone())
     await user.click(screen.getByRole('button', { name: 'Choose material action' }))
     await user.click(screen.getByRole('menuitem', { name: 'Post' }))
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
-    expect(handlers.onSave).toHaveBeenLastCalledWith(false)
+    expect(handlers.onSave).toHaveBeenLastCalledWith(false, undefined, getTodayInSchedulingTimezone())
   })
 
   it('keeps delete available for existing items, and blocks mutations when saving or read-only', async () => {
@@ -224,50 +225,84 @@ describe('Material scheduling', () => {
     const user = userEvent.setup()
     const handlers = props()
     const view = render(<MaterialCreationDialog {...handlers} isExisting isDraft={false} releasedAt="2026-10-03T01:00:00Z" />, { wrapper: TooltipProvider })
-    const field = screen.getByLabelText('Post date (Toronto)')
+    const field = screen.getByLabelText('Calendar date (Toronto)')
     expect(field).toHaveValue('2026-10-02')
     fireEvent.change(field, { target: { value: '2026-10-01' } })
     expect(handlers.onSave).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
     expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, '2026-10-01')
     view.rerender(<MaterialCreationDialog {...handlers} isExisting isDraft={false} releasedAt="2026-10-03T01:00:00Z" error="Could not save material" />)
-    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2026-10-01')
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2026-10-01')
     expect(screen.getByRole('alert')).toHaveTextContent('Could not save material')
   })
 
-  it('blocks empty/future post dates and locks the date field while saving or read-only', () => {
+  it('blocks invalid post dates and locks the date field while saving or read-only', () => {
     const handlers = { ...props(), isExisting: true, isDraft: false, releasedAt: '2026-10-03T12:00:00Z' }
     const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '' } })
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '2099-01-01' } })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '0000-01-01' } })
     expect(screen.getByRole('button', { name: 'Save', exact: true })).toBeDisabled()
     view.rerender(<MaterialCreationDialog {...handlers} saving />)
-    expect(screen.getByLabelText('Post date (Toronto)')).toBeDisabled()
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toBeDisabled()
     view.rerender(<MaterialCreationDialog {...handlers} readOnly />)
-    expect(screen.getByLabelText('Post date (Toronto)')).toBeDisabled()
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toBeDisabled()
   })
 
-  it('keeps post-date editing out of new, draft and scheduled materials', () => {
+  it('saves a future calendar date without scheduling and retains failures', async () => {
+    const user = userEvent.setup()
+    const handlers = { ...props(), isExisting: true, isDraft: false, releasedAt: '2026-10-03T12:00:00Z' }
+    const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-01-01' } })
+    expect(screen.getByText(/Post makes it available now; Schedule delays release/)).toBeVisible()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, '2099-01-01')
+    view.rerender(<MaterialCreationDialog {...handlers} error="Could not schedule material" />)
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2099-01-01')
+    expect(screen.getByRole('alert')).toHaveTextContent('Could not schedule material')
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2026-10-01' } })
+    await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    expect(handlers.onSave).toHaveBeenLastCalledWith(false, undefined, '2026-10-01')
+  })
+
+  it('shows calendar placement for new, draft and scheduled materials', () => {
     const handlers = props()
     const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
-    expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toBeInTheDocument()
     view.rerender(<MaterialCreationDialog {...handlers} isExisting isDraft />)
-    expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toBeInTheDocument()
     view.rerender(<MaterialCreationDialog {...handlers} isExisting isDraft={false} releasedAt="2099-07-10T11:00:00Z" />)
-    expect(screen.queryByLabelText('Post date (Toronto)')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toBeInTheDocument()
   })
 
-  it('uses a legacy published material creation date and preserves Save draft with an invalid post date', async () => {
+  it('uses a legacy published material creation date and rejects an invalid calendar date', async () => {
     const user = userEvent.setup()
     const handlers = props()
     render(<MaterialCreationDialog {...handlers} isExisting isDraft={false} releasedAt={null} createdAt="2026-01-22T01:00:00Z" />, { wrapper: TooltipProvider })
-    expect(screen.getByLabelText('Post date (Toronto)')).toHaveValue('2026-01-21')
-    fireEvent.change(screen.getByLabelText('Post date (Toronto)'), { target: { value: '' } })
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2026-01-21')
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '' } })
     await user.click(screen.getByRole('button', { name: 'Choose material action' }))
     await user.click(screen.getByRole('menuitem', { name: 'Save draft' }))
-    await user.click(screen.getByRole('button', { name: 'Save draft', exact: true }))
-    expect(handlers.onSave).toHaveBeenCalledWith(true)
+    expect(screen.getByRole('button', { name: 'Save draft', exact: true })).toBeDisabled()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+  })
+
+  it('posts a new material on a future calendar day without a release schedule', async () => {
+    const handlers = props()
+    render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
+    expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue(getTodayInSchedulingTimezone())
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-01-01' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, '2099-01-01')
+  })
+
+  it('moves a scheduled material on the calendar without changing its release time', async () => {
+    const handlers = props()
+    render(<MaterialCreationDialog {...handlers} isExisting isDraft={false} releasedAt="2099-07-10T11:00:00Z" />, { wrapper: TooltipProvider })
+    fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-08-01' } })
+    await userEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
+    expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, '2099-08-01')
   })
 
   it('uses assignment-style details and content panes without a due date', () => {
@@ -289,7 +324,27 @@ describe('Material scheduling', () => {
     fireEvent.change(within(dialog).getByLabelText('Date (Toronto)'), { target: { value: '2099-07-10' } })
     fireEvent.change(within(dialog).getByLabelText('Time (Toronto)'), { target: { value: '07:00' } })
     await user.click(within(dialog).getByRole('button', { name: 'Schedule', exact: true }))
-    expect(handlers.onSave).toHaveBeenCalledWith(false, '2099-07-10T11:00:00.000Z')
+    expect(handlers.onSave).toHaveBeenCalledWith(false, '2099-07-10T11:00:00.000Z', getTodayInSchedulingTimezone())
+  })
+
+  it('retains an untouched draft calendar date when posted on a later Toronto day', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      vi.setSystemTime(new Date('2026-10-27T16:00:00Z'))
+      const handlers = props()
+      const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
+      await userEvent.click(screen.getByRole('button', { name: 'Choose material action' }))
+      await userEvent.click(screen.getByRole('menuitem', { name: 'Save draft' }))
+      await userEvent.click(screen.getByRole('button', { name: 'Save draft', exact: true }))
+      expect(handlers.onSave).toHaveBeenLastCalledWith(true, undefined, '2026-10-27')
+      const savedDate = handlers.onSave.mock.calls.at(-1)?.[2]
+      view.rerender(<MaterialCreationDialog {...handlers} isOpen={false} />)
+      vi.setSystemTime(new Date('2026-10-29T16:00:00Z'))
+      view.rerender(<MaterialCreationDialog {...handlers} isExisting isDraft postedOn={savedDate} />)
+      expect(screen.getByLabelText('Calendar date (Toronto)')).toHaveValue('2026-10-27')
+      await userEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+      expect(handlers.onSave).toHaveBeenLastCalledWith(false, undefined, '2026-10-27')
+    } finally { vi.useRealTimers() }
   })
 
   it('can post a scheduled material now or return it to a draft', async () => {
@@ -300,10 +355,10 @@ describe('Material scheduling', () => {
     await user.click(screen.getByRole('button', { name: 'Choose material action' }))
     await user.click(screen.getByRole('menuitem', { name: 'Post now' }))
     await user.click(screen.getByRole('button', { name: 'Post now', exact: true }))
-    expect(handlers.onSave).toHaveBeenLastCalledWith(false, null)
+    expect(handlers.onSave).toHaveBeenLastCalledWith(false, null, '2099-07-10')
     await user.click(screen.getByRole('button', { name: 'Choose material action' }))
     await user.click(screen.getByRole('menuitem', { name: 'Save draft' }))
     await user.click(screen.getByRole('button', { name: 'Save draft', exact: true }))
-    expect(handlers.onSave).toHaveBeenLastCalledWith(true)
+    expect(handlers.onSave).toHaveBeenLastCalledWith(true, undefined, '2099-07-10')
   })
 })

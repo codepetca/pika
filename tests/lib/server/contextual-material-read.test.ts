@@ -98,6 +98,23 @@ describe('current-relationship shared material reads', () => {
     }
   })
 
+  it.each([{ posted_on: '2099-01-01' }, { posted_on: null }, {}])(
+    'preserves immediately released member calendar placement %j without a date cutoff', async placement => {
+      const row = { ...material(), ...placement }
+      const { result, queries } = read([envelope(root([row])), envelope(root([]))])
+      await expect(result).resolves.toEqual({ materials: [row] })
+      expect(String(queries[0][0][1][0])).toContain('classwork_materials_classroom_id_fkey(posted_on,id,')
+      const filters = queries[0].filter(([method]) => method === 'or')
+      expect(filters).toHaveLength(1)
+      expect(String(filters[0][1][0])).toMatch(/^released_at.is.null,released_at.lte./)
+    },
+  )
+
+  it('fails closed if scheduled material leaks through despite a permitted calendar placement', async () => {
+    const row = { ...material(1, 0, '2099-01-01T12:00:00Z'), posted_on: '2026-10-01' }
+    await expect(read([envelope(root([row]))]).result).rejects.toMatchObject({ statusCode: 503 })
+  })
+
   it('keysets owner position, full microsecond creation time and UUID ties without rounding', async () => {
     const later = '2026-10-03T12:00:00.123457+00:00'
     const rows = [material(1, -2), material(2, -2), { ...material(3, -2), created_at: later }, material(4, -1)]

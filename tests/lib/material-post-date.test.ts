@@ -1,19 +1,11 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { materialPostDateSchema } from '@/lib/validations/material-post-date'
 
-describe('material post date validation', () => {
-  afterEach(() => vi.useRealTimers())
-
-  it('uses the Toronto day when UTC has already reached tomorrow', () => {
-    vi.useFakeTimers().setSystemTime(new Date('2026-10-23T02:00:00Z'))
-    expect(materialPostDateSchema.safeParse('2026-10-22').success).toBe(true)
-    expect(materialPostDateSchema.safeParse('2026-10-21').success).toBe(true)
-    expect(materialPostDateSchema.safeParse('2026-10-23').success).toBe(false)
+describe('calendar post date validation', () => {
+  it.each(['0001-01-01', '2024-02-29', '2026-10-27', '2099-01-01', '9999-12-31'])('accepts past and future civil date %s', date => {
+    expect(materialPostDateSchema.parse(date)).toBe(date)
   })
-
-  it('accepts today immediately after Toronto midnight during standard time', () => {
-    vi.useFakeTimers().setSystemTime(new Date('2026-11-02T05:00:00Z'))
-    expect(materialPostDateSchema.safeParse('2026-11-02').success).toBe(true)
-    expect(materialPostDateSchema.safeParse('2026-11-03').success).toBe(false)
+  it.each(['', '0000-01-01', '2026-02-29', '2026-02-30', '2026-1-01', '2026-10-27T12:00:00Z'])('rejects invalid date %s', date => {
+    expect(materialPostDateSchema.safeParse(date).success).toBe(false)
   })
 })

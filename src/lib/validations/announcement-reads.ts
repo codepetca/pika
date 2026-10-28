@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { postDateSchema } from '@/lib/validations/post-date'
 
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
 const timestamp = z.string().datetime({ offset: true }).refine(value => Number.isFinite(Date.parse(value)))
@@ -29,6 +30,7 @@ export const announcementReadEnrollmentEnvelopeSchema = z.object({ data: enrollm
 export const announcementReadMembershipSchema = z.array(enrollmentSchema).length(1)
 
 export const announcementReadRowSchema = z.object({
+  posted_on: postDateSchema.nullable().optional(),
   id: uuid, classroom_id: uuid, title: z.string().nullable(), content: z.string(),
   created_by: uuid, is_draft: z.boolean(), published_at: timestamp.nullable(),
   scheduled_for: timestamp.nullable(), created_at: timestamp, updated_at: timestamp,

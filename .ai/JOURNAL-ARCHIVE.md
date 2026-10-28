@@ -50273,3 +50273,116 @@ refresh. Legacy paths unchanged. Regressions first failed, then118 focused check
 TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
 no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
 before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
+
+<!-- pika-session-log-archive-batch:39b2bc320bab01d6d6fd2bbe9c7c1b4b1afb7ff49bc0d566a17530ecb4839781 -->
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
+
+## 2026-10-23 — Reconcile home with merged editor291
+
+Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
+historical receipts. Images291 remains fixed; visibility renamed292 with SQL hash
+3d5d47…f349d unchanged. Exact source profiles extend292 and reject293; no historical
+seal rebound. Initial profile run found the omitted offline-helper allowance;
+corrected1500/4PASS. Full001–292 isolated replay, rollback, real two-session locks,
+generated types and canonical291/schema preservation PASS. Launcher PATH failure
+preceded clone setup and remains failed evidence; corrected fresh proof passed.
+Fresh16UIcases/64PNG PASS40.425s; root inspected current captures, 48unchanged PNGs
+match prior bytes. Native/browser resources settled, envlink restored, Dockerwindow
+released; editor stopped exactsourceDB/Desktop preserving volumes. Final focused
+4486/143PASS; static completion and cumulative review428 tracked privately before
+ready/CI. No shared migration, production/provider/account/cohort/goal action.
+
+## 2026-10-23 — Reconcile authoring-image role boundaries
+
+Cumulative review428 accepted the rebase/native/visual evidence but found new
+upstream image endpoints still globally role-bound. Batch42 adapts existing
+reserve/finalize/cancel and delivery only within exact home/shared admission;
+actual owner/creator/object checks, current-member publication, archived denial,
+retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
+regressions reproduced the mismatch before the fix;79 focused checks then passed.
+No SQL, UI, provider execution or shared database change. Native292/16-case UI
+evidence remains unchanged; final focused checks and targeted review429 required.
+All deployment/provider/account/cohort/cutover holds stay in place.
+
+## 2026-10-23 — Correct current-chain native verification pins
+
+Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
+material native harnesses;21,759 CPU checks passed, one preflight unit failed.
+Returned1666 to draft before one batched correction. RED5/31 reproduced boundary
+and actual-command failures;1519/3 then passed with both sealed preflights and
+future293/malformed rejection. Fresh offline attendance/material292 proofs passed
+full replay, rollback behavior, actual attendance contention, generated types and
+unchanged canonical001–291/schema; owned containers removed. Evidence retained
+privately. Two launcher failures used pnpm9 before clone setup, retained as failed
+evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
+accepted visual and home-native evidence reused. Final focused gate and targeted
+review430 precede new ready-event CI; editor release-order interlock remains.
+Production, providers, shared applications, account and activation holds remain.
+
+## 2026-10-23 — Reconcile home proof with pinned CI image
+
+Review430 and full4544/145+static passed07cceb; normal draft push then one ready
+event started40007133291. CI passed corrected attendance292 native proof, then
+home preflight rejected the CI image before scratch creation. Returned1666 to
+draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
+local accepted stack uses17.6.1.044. Add only exact official aliases for132,
+retaining044 and cached/running ID equality. Actual shell regressions RED2/18
+reproduced the mismatch; future/custom/latest/malformed references and mismatched
+IDs remain rejected. No SQL/UI/database/provider change or new dependency.
+Targeted review and final CI remain required; unchanged native/visual evidence
+is reused. Editor1668 main correction is close; wait for actual merged SHA to
+combine compatibility reconciliation before another CI. Release interlock and
+all production/provider/shared application/account/activation holds persist.
+
+Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
+completed without conflicts. All six feature patches remain equivalent; image
+helper's UUID-case-only change and tests are the only upstream delta. Migration
+291/292 hashes unchanged, no renumbering/application or new stash. Combine this
+interaction and image-pin batch44 in targeted431 after affected checks; final
+focused gate/CI still required. Editor1667 release interlock remains held.
+
+## 2026-10-23 — Final home base reconciliation after editor release
+
+Editor release/receipt complete: actual finalmain24c294b1, interlock explicitly
+released by its owner. Rebased home onto docs-only1669, preserving CURRENT and
+exact production receipt. Conflicts only in history journals; keep both histories
+and markers, remove one merge-reinserted historical duplicate only after byte
+equality with its preserved earlier entry. All application/test/script/dependency/
+configuration/SQL bytes match reviewed4772;291/292digests unchanged. No shared
+migration/provider/activation action. Reused4557/145+static/source review431 and
+accepted native/UI evidence; final docs verification/review432 and exact-head CI
+precede normal1666mainmerge. This task's production/provider/account/plan/cohort
+holds remain; tool goal and DeepSeek stay paused.
+
+## 2026-10-23 — Include home preference in closed Test proof catalogs
+
+CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
+contention/types/source-preservation, then an older member-list canonical-before
+check rejected292's unlisted private home table before fixture allocation. Return
+1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
+include the sealed292 table centrally and preserve exact291 source compatibility.
+Test missing/drifted fingerprints for create/publication/discard restoration,
+tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
+provider behavior changed. Unchanged accepted native/UI evidence reused; full
+focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
+Prior failed CI is not acceptance. All deployment/provider/shared-application/
+account/activation holds remain unchanged.
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.

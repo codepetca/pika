@@ -1,55 +1,53 @@
-# Announcement post dates
+# Announcement calendar dates
 
-Teachers can edit an already-published announcement, choose **Post date
-(Toronto)**, then **Save** to move its publication/calendar day. Today or an
-older real civil date is allowed; future dates use the existing Schedule action.
-Drafts and future-scheduled announcements do not show this field. Changing the
-field does not write until Save; unconfirmed saves retain the edited date.
+**Calendar date (Toronto)** places an announcement on any past, current or
+future civil day. New posts default to today. The field is available while
+creating or editing new, draft, posted and scheduled announcements.
 
-Both API access paths use the existing locked owner operation for `posted_on`.
-Migration290 extends its JSON patch without changing signatures or columns.
-It stores Toronto midnight in `published_at` and clears historical
-`scheduled_for`, preserving author, creation time and read receipts. It rejects
-drafts, future publication, competing draft/schedule patches, nonowners,
-archived classes and tampered after-row evidence. The API receipt must match
-the requested Toronto day. Existing announcement sorting and teacher/student
-calendar readers prefer publication time. A confirmed edit refreshes the
-already-mounted teacher calendar. Apply289 and290 before deployment; no shared
-local or production migration application was authorized by the feature request.
-The later production rollout is recorded in the
-[October 22 release receipt](./production-release-2026-10-22.md).
+**Post** publishes now, including when the calendar date is in the future.
+**Save** changes placement while retaining publication/scheduling state.
+**Schedule** separately selects a future release time. The field hint names this
+distinction, and choosing a future calendar day never changes Post/Save into
+Schedule. Drafts remain unpublished.
 
-UI reference: Material editor Post date and its Pattern Lab example, composed
-with existing announcement card editing. Reuse FormField/Input/SplitButton;
-extend the announcement editor, reuse the civil-date schema for both post
-kinds. No new shared UI pattern. Primary signal is the labeled native date
-field and existing Save action; no decoration. Matrix: teacher desktop/mobile,
-light/dark, edited/focused/invalid/saving/failure; student desktop/mobile
-light/dark reading the saved date with no editing controls. Composite checklist
-reviewed: native label/error association, primary disabled state with schedule
-chooser retained, existing menu keyboard/focus contract. No new ARIA widget.
-Risk profile none; API/schema payload compatibility is the rollout boundary.
+Creation saves the displayed date even when today's default is untouched.
+Publication changes also preserve the displayed date for legacy undated rows;
+ordinary unchanged edits retain their existing no-op behavior.
 
-Verification: focused API/server/interaction and calendar movement/refresh tests;
-Playwright uses production owners with deterministic mocked API responses and
-takes the declared teacher/student matrix screenshots. Database replay and
-rollback proofs are in `scripts/check-material-post-date-database.sh` and
-`scripts/check-announcement-post-date-database.sql`; Owner approved a brief Docker restart in this chat. Full001–290 replay,
-material scheduling/backdating and announcement rollback proofs passed; evidence
-`/tmp/pika-material-post-date.NSbkTw`. Attendance replay/rollback/contention/type
-checks passed at `/tmp/pika-attendance-membership.R8Oq4m`. Both normal and
-absent-default Data API ACL replays passed. Shared schema/history remained
-unchanged, all owned clones were removed, and Docker was stopped again. No dependency
-added. Migration289 remains byte-identical to the reviewed material change.
+Published announcements stay immediately accessible in Announcements. On the
+student Calendar, their date must fit the existing Calendar Visibility horizon
+(current week, one week ahead, or all). Week/Month/All/presentation views share
+this filter; a pending/failed/missing horizon cannot reveal extra calendar placements. The existing
+Test reminder navigation exception does not widen announcement/material dates.
 
+## Storage and API
 
-Visual evidence (2026-10-22, America/Toronto): production owners, deterministic
-API fixtures, reference Material Pattern Lab owner, baseb6fd47492 plus this PR
-announcement diff. Playwright1.58; viewports1440×900 and390×844, light/dark.
-Four new cases passed with teacher focused/invalid and student saved-date
-captures inspected in `/tmp/pika-announcement-post-date-browser-matrix`.
-Two existing mutation-feedback cases passed at normal/reduced motion in
-`/tmp/pika-announcement-existing-feedback-browser`. No baseline refresh or
-experimental pattern. Feature focused5,413/173 and cumulative independent review
-passed; production-base focused12,583/559 and the journal-resolution review also
-passed. See the release receipt for exact-head CI and production verification.
+Migration `295_independent_calendar_post_dates.sql` adds nullable `posted_on`
+separately from `published_at` and `scheduled_for`. Readers prefer this civil day
+without timezone conversion; legacy null/absent values retain the old Toronto
+publication-day fallback. Existing announcement ordering and read receipts remain
+based on their original contracts, and a confirmed edit refreshes the calendar.
+
+Create/PATCH accept `posted_on` with ordinary draft/schedule inputs. New
+`create_announcement_for_owner_v2` creates and sets the date in one transaction;
+existing `update_announcement_for_owner_v1` changes date metadata independently.
+Owner, archive, purge, immutable-row, returned-row and concurrent-binding checks
+remain in the locked operations. Browser roles gain no new function/table access.
+
+This supersedes migrations 289/290's timestamp-based date edits without changing
+historical SQL or backfilling rows. Migration and app rollout must be coordinated:
+old date-edit callers expect a changed publication timestamp. Null calendar keys
+are omitted from legacy mutation receipts; nonnull dates require the new decoder.
+The revised app's explicit shared reads require column 295 and fail closed before
+it is installed. No shared/production application is authorized by this feature
+request; follow the [schema checklist](./schema-rollout-checklist.md). See the
+[material contract](./material-post-date.md) for the shared rollout and test matrix.
+
+## UI evidence
+
+Reference: existing inline announcement editor plus the production Material
+Calendar date field and Pattern Lab example. Extend the feature editor and reuse
+FormField/Input/SplitButton and current publication controls. Teacher and student,
+desktop/mobile, light/dark verification covers new/edit/future/invalid/saved,
+failed mutation, immediate list availability and calendar horizon behavior.
+No new shared visual pattern or unrelated refactor is introduced.

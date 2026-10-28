@@ -11,6 +11,7 @@ import { readCookie, writeCookie } from '@/lib/cookies'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { CLASSWORK_MATERIALS_UPDATED_EVENT } from '@/lib/events'
 import { getCalendarTestDate } from '@/lib/calendar-items'
+import { filterCalendarAnnouncements, filterCalendarMaterials } from '@/lib/calendar-post-visibility'
 import { nowInToronto } from '@/lib/timezone'
 import type { Classroom, LessonPlan, Assignment, Announcement, ClassworkMaterial, TestAssessment } from '@/types'
 import { Button, PageState, RefreshingIndicator } from '@/ui'
@@ -90,7 +91,7 @@ export function StudentLessonCalendarTab({
     writeCookie(`calendarViewMode:${classroom.id}`, mode)
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(nowInToronto)
-  const [maxDate, setMaxDate] = useState<string | null>(null)
+  const [maxDate, setMaxDate] = useState<string | null | undefined>(undefined)
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = {
@@ -110,7 +111,7 @@ export function StudentLessonCalendarTab({
     setLessonPlans([])
     setAssignments([])
     setAnnouncements([])
-    setMaxDate(null)
+    setMaxDate(undefined)
     retryingSourcesRef.current.clear()
     setSourceStatus(initialSourceStatus())
   }, [classroom.id])
@@ -139,7 +140,7 @@ export function StudentLessonCalendarTab({
       )
       if (loadRequestIdsRef.current[source] !== requestId || currentClassroomIdRef.current !== requestedClassroomId) return
       setLessonPlans(data.lesson_plans || [])
-      setMaxDate(data.max_date || null)
+      setMaxDate(data.max_date)
       setSourceStatus((current) => ({
         ...current,
         [source]: { classroomId: requestedClassroomId, error: false, hasLoadedSnapshot: true, isLoading: false },
@@ -361,9 +362,13 @@ export function StudentLessonCalendarTab({
   const announcementsStatus = sourceStatus.announcements
   const currentLessonPlans = lessonPlansStatus.classroomId === classroom.id && lessonPlansStatus.hasLoadedSnapshot ? lessonPlans : []
   const currentTests = showTests && testsStatus.classroomId === classroom.id && testsStatus.hasLoadedSnapshot ? tests : []
-  const currentMaterials = materialsStatus.classroomId === classroom.id && materialsStatus.hasLoadedSnapshot ? materials : []
+  const postHorizon = lessonPlansStatus.classroomId === classroom.id
+    && lessonPlansStatus.hasLoadedSnapshot && !lessonPlansStatus.error ? maxDate : undefined
+  const currentMaterials = materialsStatus.classroomId === classroom.id && materialsStatus.hasLoadedSnapshot
+    ? filterCalendarMaterials(materials, postHorizon) : []
   const currentAssignments = assignmentsStatus.classroomId === classroom.id && assignmentsStatus.hasLoadedSnapshot ? assignments : []
-  const currentAnnouncements = announcementsStatus.classroomId === classroom.id && announcementsStatus.hasLoadedSnapshot ? announcements : []
+  const currentAnnouncements = announcementsStatus.classroomId === classroom.id && announcementsStatus.hasLoadedSnapshot
+    ? filterCalendarAnnouncements(announcements, postHorizon) : []
   const localStatuses = [lessonPlansStatus, materialsStatus, assignmentsStatus, announcementsStatus, ...(showTests ? [testsStatus] : [])]
   const hasAnyLocalSnapshot = localStatuses.some((status) => (
     status.classroomId === classroom.id && status.hasLoadedSnapshot

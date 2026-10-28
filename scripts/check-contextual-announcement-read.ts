@@ -118,6 +118,8 @@ async function main() {
         ('${classB}','other published three','${ownerTeacher}',false,'2020-01-01T00:00:00Z',null),
         ('${classB}','other draft one','${ownerTeacher}',true,null,null),
         ('${classB}','other draft two','${ownerTeacher}',true,null,null);
+      update public.announcements set posted_on='2099-07-10'
+        where classroom_id='${classA}' and content='micro later';
       commit;`)
     if (forcedCleanup) throw new Error('Forced post-fixture cleanup proof')
     const trace = instrument(ownerStudent, classA, 'owner')
@@ -127,9 +129,10 @@ async function main() {
     assert.equal(new Set(owner.announcements.map(row => row.id)).size, 1009)
     assert.deepEqual(Object.keys(owner), ['announcements'])
     assert.deepEqual(Object.keys(owner.announcements[0]).sort(), [
-      'id','classroom_id','title','content','created_by','is_draft','published_at','scheduled_for','created_at','updated_at',
+      'id','classroom_id','title','content','created_by','is_draft','published_at','scheduled_for','posted_on','created_at','updated_at',
     ].sort())
     assert(!JSON.stringify(owner).includes('other published'))
+    assert.equal(owner.announcements.find(row => row.content === 'micro later')?.posted_on, '2099-07-10')
     const contents = owner.announcements.map(row => row.content)
     assert(contents.indexOf('micro later') < contents.indexOf('micro earlier'))
     assert(owner.announcements.slice(0, 2).every(row => row.is_draft && row.published_at === null))
@@ -142,6 +145,8 @@ async function main() {
       assert(!member.announcements.some(row => row.content === 'scheduled future'))
       assert(member.announcements.some(row => row.content === 'scheduled boundary'))
       assert(member.announcements.some(row => row.content === 'future publication without schedule'))
+      assert.equal(member.announcements.find(row => row.content === 'micro later')?.posted_on, '2099-07-10',
+        'A future calendar date does not hide a published announcement')
     }
     assert.deepEqual(await read(ownerStudent, emptyClass, 'owner'), { announcements: [] })
     assert.deepEqual(await read(memberTeacher, emptyClass, 'member'), { announcements: [] })

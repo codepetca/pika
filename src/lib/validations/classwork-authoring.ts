@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { postDateSchema } from '@/lib/validations/post-date'
 
 import { materialScheduledForSchema, validateMaterialPublication } from '@/lib/validations/material-scheduling'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
@@ -8,6 +9,7 @@ export const contextualMaterialCreateSchema = z.object({
   content: assignmentSubmissionContentSchema,
   is_draft: z.boolean().optional().default(true),
   scheduled_for: materialScheduledForSchema.optional(),
+  posted_on: postDateSchema.optional(),
 }).strict().superRefine(validateMaterialPublication)
 
 export const contextualSurveyCreateSchema = z.object({

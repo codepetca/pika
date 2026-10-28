@@ -23,7 +23,7 @@ type Permission = 'owner' | 'member'
 type Announcement = z.infer<typeof announcementReadRowSchema>
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
 const PAGE_SIZE = 1000
-const announcementFields = 'id,classroom_id,title,content,created_by,is_draft,published_at,scheduled_for,created_at,updated_at'
+const announcementFields = 'posted_on,id,classroom_id,title,content,created_by,is_draft,published_at,scheduled_for,created_at,updated_at'
 const ownerSelect = `id,teacher_id,archived_at,announcements:announcements!announcements_classroom_id_fkey(${announcementFields})`
 const memberSelect = `${ownerSelect},membership:classroom_enrollments!classroom_enrollments_classroom_id_fkey!inner(classroom_id,student_id)`
 const unavailable = () => new ApiError(503, 'Unable to verify classroom announcements')

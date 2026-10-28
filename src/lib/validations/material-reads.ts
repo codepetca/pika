@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { postDateSchema } from '@/lib/validations/post-date'
 import { isValidTiptapContent } from '@/lib/tiptap-content'
 import type { TiptapContent } from '@/types'
 
@@ -10,6 +11,7 @@ const enrollmentSchema = z.object({ classroom_id: uuid, student_id: uuid }).stri
 export const materialReadMembershipSchema = z.array(enrollmentSchema).length(1)
 
 export const materialReadRowSchema = z.object({
+  posted_on: postDateSchema.nullable().optional(),
   id: uuid,
   classroom_id: uuid,
   title: z.string(),

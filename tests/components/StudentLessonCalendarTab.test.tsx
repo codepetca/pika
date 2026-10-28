@@ -98,7 +98,7 @@ describe('StudentLessonCalendarTab', () => {
   })
 
   it('preserves student date navigation and Month/All selection without refetching term data', async () => {
-    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) })
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
     const week = screen.getByRole('button', { name: 'Week', exact: true })
@@ -162,7 +162,7 @@ describe('StudentLessonCalendarTab', () => {
   it('fetches each enabled source once', async () => {
     fetchMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }),
+      json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }),
     })
 
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
@@ -204,9 +204,9 @@ describe('StudentLessonCalendarTab', () => {
     fetchMock.mockImplementation(async (url: string) => ({
       ok: true,
       json: async () => {
-        if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }] }
+        if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }], max_date: null }
         if (url.includes('assignments')) return { assignments: [{ id: 'assignment-1' }] }
-        if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1' }] }
+        if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1', created_at: '2025-01-01T12:00:00Z' }] }
         return {}
       },
     }))
@@ -250,8 +250,8 @@ describe('StudentLessonCalendarTab', () => {
       return {
         ok: true,
         json: async () => {
-          if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }] }
-          if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1' }] }
+          if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }], max_date: null }
+          if (url.includes('announcements')) return { announcements: [{ id: 'announcement-1', created_at: '2025-01-01T12:00:00Z' }] }
           return {}
         },
       }
@@ -286,8 +286,8 @@ describe('StudentLessonCalendarTab', () => {
       return Promise.resolve({
         ok: true,
         json: async () => url.includes('lesson-plans')
-          ? { lesson_plans: [{ id: 'lesson-1' }] }
-          : { announcements: [{ id: 'announcement-1' }] },
+          ? { lesson_plans: [{ id: 'lesson-1' }], max_date: null }
+          : { announcements: [{ id: 'announcement-1', created_at: '2025-01-01T12:00:00Z' }] },
       })
     })
 
@@ -323,7 +323,7 @@ describe('StudentLessonCalendarTab', () => {
     fetchMock.mockImplementation(async (url: string) => ({
       ok: true,
       json: async () => {
-        if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }] }
+        if (url.includes('lesson-plans')) return { lesson_plans: [{ id: 'lesson-1' }], max_date: null }
         if (url.includes('assignments')) return { assignments: [] }
         if (url.includes('announcements')) return { announcements: [] }
         return {}
@@ -431,9 +431,9 @@ describe('StudentLessonCalendarTab', () => {
       if (url.includes('assignments')) {
         return { assignments: [{ id: `${classroomId}-assignment` }] }
       }
-      if (url.includes('materials')) return { materials: [{ id: `${classroomId}-material`, is_draft: false, released_at: null }] }
+      if (url.includes('materials')) return { materials: [{ id: `${classroomId}-material`, is_draft: false, released_at: null, created_at: '2025-01-01T12:00:00Z' }] }
       if (url.includes('announcements')) {
-        return { announcements: [{ id: `${classroomId}-announcement` }] }
+        return { announcements: [{ id: `${classroomId}-announcement`, created_at: '2025-01-01T12:00:00Z' }] }
       }
       return {}
     }
@@ -487,7 +487,7 @@ describe('StudentLessonCalendarTab', () => {
           ? { ok: false, json: async () => ({ error: 'Unavailable' }) }
           : { ok: true, json: async () => ({ tests: [{ id: 'dated-test', title: 'Dated', test_date: '9999-03-01', status: 'closed', student_status: 'not_started' }] }) }
       }
-      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+      return { ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) }
     })
     render(<StudentLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
     expect(await screen.findByRole('button', { name: 'Retry tests' })).toBeInTheDocument()
@@ -501,7 +501,7 @@ describe('StudentLessonCalendarTab', () => {
     let resolveFirst!: (value: any) => void
     fetchMock.mockImplementation((url: string) => {
       if (url.includes(`/tests?classroom_id=${classroom.id}`)) return new Promise(resolve => { resolveFirst = resolve })
-      return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [], tests: [{ id: 'second-test' }] }) })
+      return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [], tests: [{ id: 'second-test' }] }) })
     })
     const view = render(<StudentLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
     await waitFor(() => expect(resolveFirst).toBeTypeOf('function'))
@@ -536,7 +536,7 @@ describe('StudentLessonCalendarTab', () => {
         if (materialReads === 1) return { ok: false, status: 500, json: async () => ({ error: 'Unavailable' }) }
         return { ok: true, json: async () => ({ materials: [{ id: 'reading', is_draft: false, released_at: '2025-01-01T12:00:00Z' }, { id: 'future', is_draft: false, released_at: '2099-01-01T12:00:00Z' }, { id: 'draft', is_draft: true, released_at: null }] }) }
       }
-      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+      return { ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) }
     })
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} onNavigateToMaterial={onNavigateToMaterial} />, { wrapper: Wrapper })
     await screen.findByRole('button', { name: 'Retry materials' })
@@ -551,8 +551,8 @@ describe('StudentLessonCalendarTab', () => {
   it('refreshes materials only for the current classroom update event', async () => {
     let reads = 0
     fetchMock.mockImplementation(async (url: string) => {
-      if (url.includes('/materials')) return { ok: true, json: async () => ({ materials: [{ id: `material-${++reads}`, is_draft: false, released_at: null }] }) }
-      return { ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) }
+      if (url.includes('/materials')) return { ok: true, json: async () => ({ materials: [{ id: `material-${++reads}`, is_draft: false, released_at: null, created_at: '2025-01-01T12:00:00Z' }] }) }
+      return { ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) }
     })
     render(<StudentLessonCalendarTab classroom={classroom} showTests={false} />, { wrapper: Wrapper })
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-1'))
@@ -560,6 +560,71 @@ describe('StudentLessonCalendarTab', () => {
     expect(reads).toBe(1)
     act(() => window.dispatchEvent(new CustomEvent('pika:classworkMaterialsUpdated', { detail: { classroomId: classroom.id } })))
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-2'))
+  })
+
+  it.each(['Week', 'Month', 'All'])('limits published post placement in %s without extending it for Test reminders', async (mode) => {
+    const announcement = { is_draft: false, published_at: '2025-01-01T12:00:00Z', scheduled_for: null, created_at: '2025-01-01T12:00:00Z' }
+    const material = { is_draft: false, released_at: '2025-01-01T12:00:00Z', created_at: '2025-01-01T12:00:00Z' }
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => {
+      if (url.includes('lesson-plans')) return { lesson_plans: [], max_date: '2090-01-06' }
+      if (url.includes('/tests?')) return { tests: [{ id: 'future-test', test_date: '2091-01-01' }] }
+      if (url.includes('/announcements')) return { announcements: [
+        { ...announcement, id: 'within', posted_on: '2090-01-06' },
+        { ...announcement, id: 'beyond', posted_on: '2090-01-07' },
+        { ...announcement, id: 'scheduled', posted_on: '2090-01-05', scheduled_for: '2099-01-01T12:00:00Z' },
+      ] }
+      if (url.includes('/materials')) return { materials: [
+        { ...material, id: 'within', posted_on: '2090-01-06' },
+        { ...material, id: 'beyond', posted_on: '2090-01-07' },
+        { ...material, id: 'scheduled', posted_on: '2090-01-05', released_at: '2099-01-01T12:00:00Z' },
+      ] }
+      return { assignments: [] }
+    } }))
+    render(<StudentLessonCalendarTab classroom={classroom} />, { wrapper: Wrapper })
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'future-test'))
+    fireEvent.click(screen.getByRole('button', { name: mode, exact: true }))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-ids', 'within')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'within')
+  })
+
+  it('withholds posts while the horizon is pending or failed and restores them after retry', async () => {
+    let resolveHorizon!: (value: any) => void
+    let horizonReads = 0
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('lesson-plans')) {
+        horizonReads += 1
+        if (horizonReads === 1) return new Promise(resolve => { resolveHorizon = resolve })
+        return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], max_date: null }) })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({
+        announcements: [{ id: 'published', created_at: '2025-01-01T12:00:00Z' }],
+        materials: [{ id: 'published', is_draft: false, released_at: null, created_at: '2025-01-01T12:00:00Z' }],
+        assignments: [],
+      }) })
+    })
+    render(<StudentLessonCalendarTab classroom={classroom} showTests={false} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-ids', '')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', '')
+    await act(async () => { resolveHorizon({ ok: false, json: async () => ({ error: 'Unavailable' }) }) })
+    const retry = await screen.findByRole('button', { name: 'Retry lesson plans' })
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-ids', '')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', '')
+    fireEvent.click(retry)
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'published'))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-ids', 'published')
+  })
+
+  it('does not mistake a missing horizon field for unrestricted visibility', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({
+      lesson_plans: [], assignments: [],
+      announcements: [{ id: 'published', created_at: '2025-01-01T12:00:00Z' }],
+      materials: [{ id: 'published', is_draft: false, released_at: null, created_at: '2025-01-01T12:00:00Z' }],
+    }) })
+    render(<StudentLessonCalendarTab classroom={classroom} showTests={false} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-announcement-ids', '')
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', '')
   })
 
 })
