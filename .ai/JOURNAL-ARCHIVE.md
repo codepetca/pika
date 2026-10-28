@@ -50262,3 +50262,14 @@ unknown; prior review424/fix39 counters retained. Editor owns locally applied291
 owner authorized coordination and reviewed1662 merge to main only. Home numbering
 must follow upstream before readiness. No shared migration, production, provider,
 account/plan/billing/cohort/cutover or goal-state action. See live-classroom-home.md.
+
+<!-- pika-session-log-archive-batch:2f7b9b12be3ebc19c0d821a60f61b809d75e94912c7557709494914537dc7c09 -->
+## 2026-10-23 — Correct complete live-home reads
+
+Initial independent reviews425/426 completed: compatibility/UI clean, security
+found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
+with exact-count/page/identity validation, reused by SSR and admitted owned-list
+refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
+TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
+no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
+before readiness. Production/provider/shared-schema/account/cohort holds unchanged.

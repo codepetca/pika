@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Correct complete live-home reads
-
-Initial independent reviews425/426 completed: compatibility/UI clean, security
-found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
-with exact-count/page/identity validation, reused by SSR and admitted owned-list
-refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
-TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
-no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
-before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
-
 ## 2026-10-23 — Reconcile home with merged editor291
 
 Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
@@ -545,3 +535,16 @@ scheduled-date display changes remain intact; no UI or SQL behavior changed here
 Earlier GHCR setup failures remain historical. Focused integration checks and a
 proportional independent delta review precede fresh reviewed-head CI. Existing70,
 provider/schema/release holds and paused goal/DeepSeek remain unchanged.
+
+## 2026-10-27 Restore isolated CI image authentication after quota failures
+
+#1699's current-base build22626 tests, primary SDK and browser matrix passed; five
+other lanes failed ECR image startup in attempts1/3; one serialized attempt2
+failed identically. Kept failed evidence. Normal bounded GHCR Postgres17.6.1.132 pull succeeded
+locally; cache reuse is possible and final CI is still required. Returned draft
+before restoring the previously reviewed GHCR workflow and exact auth/drift tests,
+retaining historical ECR coverage. Registry helper/parser/native guards and every
+noncredential lane step stay unchanged. No SQL, product/UI, version, deadline,
+provider, shared schema, release or70-account configuration changes. Goal/DeepSeek
+remain paused. Targeted checks, focused gate and independent delta review precede
+one stable ready event; no registry fallback or automatic extra retry is added.

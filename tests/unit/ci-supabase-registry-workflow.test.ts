@@ -8,21 +8,15 @@ const workflow = () => readFileSync('.github/workflows/ci.yml', 'utf8')
 const login = 'Authenticate Supabase image pulls'
 const cleanup = 'Remove Supabase registry credentials'
 const block = (source: string, name: string) => source.match(new RegExp(`^      - name: ${name}\\n[\\s\\S]*?(?=^      - name:|^  [a-z][a-z-]*:|$(?![\\s\\S]))`, 'm'))![0]
-// Reconstruct the former authenticated shape from the current workflow so drift
-// rejection remains covered without maintaining a second full workflow copy.
-const authenticated = (source: string) => source
-  .replace('SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws', 'SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io')
-  .replace(/^(  (?:architecture-database-contracts(?:-lifecycle)?|contextual-test-owner-sdk(?:-lifecycle)?|browser-experience-matrix|browser-experience-dark|browser-pattern-lab-dark):\n    name: [^\n]+\n)/gm,
-    '$1    permissions:\n      contents: read\n      packages: read\n')
-  .replace(/(^      - name: Start ephemeral Supabase and replay migrations\n)/gm, `      - name: ${login}\n        id: supabase-registry-auth\n        env:\n          SUPABASE_CI_GHCR_TOKEN: \${{ github.token }}\n        run: node scripts/ci-supabase-registry-auth.mjs login\n\n$1`)
-  .replace(/(^        run: supabase stop --no-backup\n)/gm, `$1\n      - name: ${cleanup}\n        id: supabase-registry-cleanup\n        if: always()\n        run: node scripts/ci-supabase-registry-auth.mjs cleanup\n`)
+const historical = (source: string, registry = true) => source
+  .replace(new RegExp(`^      - name: (?:${login}|${cleanup})\\n[\\s\\S]*?(?=^      - name:|^  [a-z][a-z-]*:|$(?![\\s\\S]))`, 'gm'), '')
+  .replaceAll('    permissions:\n      contents: read\n      packages: read\n', '')
+  .replace('  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io', '  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws')
+  .replace(registry ? /$^/ : /^env:\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws\n/m, '')
 
-const historical = (source: string, registry = true) => registry ? source
-  : source.replace(/^env:\n  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws\n/m, '')
-
-describe('Supabase CI registry contract', () => {
-  it('uses official ECR without registry credentials or extra package permissions', () => {
-    const source = workflow()
+describe('authenticated Supabase CI registry contract', () => {
+  it('preserves the historical official ECR workflow without credentials or extra permissions', () => {
+    const source = historical(workflow())
     const jobs = Object.values(extractWorkflow(source))
     expect(jobs.filter(job => job.lane !== 'test-build')).toHaveLength(7)
     expect(source).toMatch(/^permissions:\n  contents: read\n/m)
@@ -35,8 +29,8 @@ describe('Supabase CI registry contract', () => {
     }
   })
 
-  it('preserves the historical authenticated workflow contract', () => {
-    const jobs = Object.values(extractWorkflow(authenticated(workflow())))
+  it('authenticates only the seven Supabase jobs with read-only package access and always cleanup', () => {
+    const jobs = Object.values(extractWorkflow(workflow()))
     const pullJobs = jobs.filter(job => job.lane !== 'test-build')
     expect(pullJobs).toHaveLength(7)
     for (const job of pullJobs) {
@@ -58,7 +52,7 @@ describe('Supabase CI registry contract', () => {
   })
 
   it('keeps credentials and their cleanup out of local execution while retaining stack cleanup on failure', async () => {
-    const job = selectPlan(extractWorkflow(authenticated(workflow())), 'browser')[0]
+    const job = selectPlan(extractWorkflow(workflow()), 'browser')[0]
     const directory = mkdtempSync(join(tmpdir(), 'pika-registry-local-'))
     const log = vi.spyOn(console, 'log').mockImplementation(() => {})
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -84,7 +78,7 @@ describe('Supabase CI registry contract', () => {
 
   it.each(['secret', 'extra-env', 'changed-login', 'conditional-login', 'missing-cleanup', 'conditional-cleanup', 'changed-cleanup', 'duplicate-login', 'write-scope', 'missing-scope', 'wrong-registry'])(
     'rejects %s drift instead of accepting an arbitrary credential workflow', defect => {
-      const source = authenticated(workflow())
+      const source = workflow()
       const auth = block(source, login), remove = block(source, cleanup)
       const changed = defect === 'secret' ? source.replace('${{ github.token }}', '${{ secrets.OTHER_TOKEN }}')
         : defect === 'extra-env' ? source.replace('          SUPABASE_CI_GHCR_TOKEN:', '          NODE_OPTIONS: --require=unreviewed\n          SUPABASE_CI_GHCR_TOKEN:')

@@ -301,21 +301,28 @@ CI classifies changes conservatively:
   exact `main` SHA.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
-CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=public.ecr.aws` before `setup-cli`.
-Startup and later metadata proofs use the same official public registry without a
-registry token or job-level package permission; CLI and image versions remain
-pinned. On 2026-10-27, authenticated GHCR pulls repeatedly returned rate limits.
-The CLI's [default registry](https://github.com/supabase/cli/blob/v2.103.0/apps/cli-go/internal/utils/docker.go#L184-L203)
-is public ECR. The ECR and Docker Hub manifests for the pinned Postgres
-`17.6.1.132` image had matching index digest
-`sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13`;
-GHCR returned 429 during comparison, so its current digest was not verified.
+CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`.
+The seven Supabase jobs authenticate image downloads using their ephemeral
+workflow token with job-scoped `packages: read`; CLI/image versions, commands,
+lanes and gates remain pinned. The unchanged registry helper creates a private,
+owned temporary Docker config, exports cleanup ownership before login, passes the
+token only on stdin and removes the directory in an `always()` step after guarded
+stack cleanup. It never modifies operator credentials. The local runner validates
+these exact GitHub-only steps, skips credential handling and rejects registry
+overrides. Historical public ECR and no-registry plans remain readable. Native
+guards accept only the owned, bounded GHCR-only auth shape; arbitrary Docker/proxy
+and context overrides remain forbidden, with actual daemon identity/resource checks.
+
+Registry evidence on 2026-10-27: earlier GHCR requests were rate-limited, and main's
+public ECR repair passed CI. Later, five lanes of #1699 hit ECR `Data limit exceeded`
+in attempts 1 and 3; the one-lane serialized attempt 2 failed identically. Other runs recovered selectively;
+that does not establish universal recovery. A later bounded normal GHCR pull of the
+pinned Postgres `17.6.1.132` succeeded locally; cached layers may have been reused.
+Fresh final-head CI must verify the restored authenticated workflow. This uses the
+CLI's [existing registry/auth support](https://github.com/supabase/cli/blob/v2.103.0/apps/cli-go/internal/utils/docker.go#L150-L181)
+and [GitHub's workflow-token authentication](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry#authenticating-in-a-github-actions-workflow).
 Supabase's [mirror workflow](https://github.com/supabase/postgres/blob/develop/.github/workflows/mirror.yml)
-publishes both registries from Docker Hub. The local CI runner inherits the literal
-registry and rejects job/step overrides; historical authenticated GHCR and
-no-registry plans remain readable. Native proof guards retain their constrained
-historical GHCR credential support, while rejecting arbitrary Docker/proxy and
-context overrides and checking the actual daemon identity and resources.
+publishes GHCR and ECR from Docker Hub; no registry fallback or timeout increase is added.
 
 Heavy jobs support an opt-in isolated Linux runner for public or private Pika,
 while classification stays hosted and `PR Gate` follows the selected runner with a hosted classification-failure fallback. Setup, isolation, local full-CI commands and the hosted

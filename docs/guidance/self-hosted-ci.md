@@ -53,17 +53,20 @@ access. Use a dedicated account without provider credentials or developer `.env`
 files. Images and package/browser caches may persist; database containers, volumes
 and custom networks may not.
 
-Supabase jobs pull pinned official images from `public.ecr.aws`, the
-[Supabase CLI default registry](https://github.com/supabase/cli/blob/v2.103.0/apps/cli-go/internal/utils/docker.go#L184-L203),
-without a registry token or job-level package permission. On 2026-10-27,
-authenticated GHCR pulls repeatedly hit rate limits; the ECR and Docker Hub
-Postgres `17.6.1.132` index digests matched. GHCR returned 429 during comparison,
-so its current digest was not verified. The [Supabase mirror workflow](https://github.com/supabase/postgres/blob/develop/.github/workflows/mirror.yml)
-publishes both registries from Docker Hub. Do not add operator credentials to
-work around download failures. Local `ci:local` plans use the selected registry
-and retain validation for historical authenticated GHCR plans. Native guards
-continue to reject arbitrary Docker configs and routing overrides and check
-context, local socket identity and resources.
+Supabase jobs pull pinned official images from `ghcr.io` using their ephemeral
+workflow token and job-scoped `packages: read`. The unchanged helper confines auth
+to a private, marked temporary Docker config with an `always()` cleanup after stack
+cleanup; operator credentials are not read or modified. Local `ci:local` validates
+and skips these GitHub-only credential steps, retaining public ECR/no-registry
+historical plans. Native guards continue to reject arbitrary Docker/proxy/context
+settings and verify the actual daemon identity and resource inventory.
+
+The 2026-10-27 record includes earlier GHCR rate limits, successful public ECR CI,
+then repeated ECR `Data limit exceeded` setup refusals in #1699. A bounded normal
+pull from GHCR later succeeded locally, possibly reusing cached layers; fresh
+final-head CI remains the acceptance check. See the dated [registry evidence and
+workflow contract](../dev-workflow.md#automatic-ai-pull-request-lifecycle). Do not
+add operator credentials, change image versions or weaken guards to make pulls work.
 
 Preflight refuses existing Docker resources, occupied test ports or checkout
 environment files before stack startup, without deleting them. Jobs stop their
