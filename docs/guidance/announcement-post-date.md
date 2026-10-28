@@ -22,7 +22,7 @@ Test reminder navigation exception does not widen announcement/material dates.
 
 ## Storage and API
 
-Migration `294_independent_calendar_post_dates.sql` adds nullable `posted_on`
+Migration `295_independent_calendar_post_dates.sql` adds nullable `posted_on`
 separately from `published_at` and `scheduled_for`. Readers prefer this civil day
 without timezone conversion; legacy null/absent values retain the old Toronto
 publication-day fallback. Existing announcement ordering and read receipts remain
@@ -38,7 +38,7 @@ This supersedes migrations 289/290's timestamp-based date edits without changing
 historical SQL or backfilling rows. Migration and app rollout must be coordinated:
 old date-edit callers expect a changed publication timestamp. Null calendar keys
 are omitted from legacy mutation receipts; nonnull dates require the new decoder.
-The revised app's explicit shared reads require column 294 and fail closed before
+The revised app's explicit shared reads require column 295 and fail closed before
 it is installed. No shared/production application is authorized by this feature
 request; follow the [schema checklist](./schema-rollout-checklist.md). See the
 [material contract](./material-post-date.md) for the shared rollout and test matrix.

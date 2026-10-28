@@ -22,7 +22,7 @@ Tests retain their existing reminder/navigation exception.
 
 ## Persistence and rollout
 
-Migration `294_independent_calendar_post_dates.sql` adds nullable `posted_on`
+Migration `295_independent_calendar_post_dates.sql` adds nullable `posted_on`
 civil dates to materials and announcements. It supersedes the date-edit behavior
 introduced by migrations 289/290, which used publication timestamps as calendar
 placement. Historical migration files remain unchanged; there is no data backfill.
@@ -36,7 +36,7 @@ changes the date without touching release timestamps unless the request explicit
 changes publication too. All owner/archive/purge locks, immutable-row checks,
 mutation receipts and service-only execution ACLs remain enforced.
 
-The application requires migration 294 for these fields and create wrappers.
+The application requires migration 295 for these fields and create wrappers.
 Explicit shared reads fail closed if the column is absent; no fallback silently
 turns a calendar date into a schedule. Coordinate migration and application
 rollout: existing v1 date-edit semantics change at migration time. Null date keys

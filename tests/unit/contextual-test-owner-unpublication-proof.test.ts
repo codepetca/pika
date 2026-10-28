@@ -1,3 +1,4 @@
+import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
@@ -101,8 +102,9 @@ describe('inert unpublication source proof', () => {
     const name = TEST_OWNER_UNPUBLICATION_REVIEWED_MIGRATION.name, sql = readFileSync(`supabase/migrations/${name}`, 'utf8')
     expect(() => validateTestOwnerUnpublicationReviewedMigration({ name, sql, sha256: createHash('sha256').update(sql).digest('hex') })).not.toThrow()
     const m = testOwnerUnpublicationNativePlan(original, 'b'.repeat(40), process.cwd())
-    expect(m.migrations).toHaveLength(294)
-    expect(m.migrations.at(-1)).toEqual(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
+    expect(m.migrations).toHaveLength(295)
+    expect(m.migrations[293]).toEqual(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
+    expect(m.migrations.at(-1)).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
     expect(m.migrations[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.nativeVerified).toBe(false)
     for (const sql of [m.setup,m.snapshot,...m.contracts.frames.map(frame=>frame.sql),...m.concurrency.schedules.flatMap(s=>[s.holderSql,s.rejectSql])]) {

@@ -38,6 +38,11 @@ describe('externally sealed Test quota proof table addition', () => {
     const before = classroomTestQuotaProofCatalog(['public.tests'], current.slice(0, 293))
     const expected = [...before, ...introduced].sort()
     expect(classroomTestQuotaProofCatalog(['public.tests'], current)).toEqual(expected)
+    expect(classroomTestQuotaProofCatalog(['public.tests'], current.slice(0,294))).toEqual(expected)
+    for (const index of [293,294]) {
+      const changed = current.map((row, at) => at === index ? { ...row, sql: row.sql + '\n', sha256: createHash('sha256').update(row.sql + '\n').digest('hex') } : row)
+      expect(() => classroomTestQuotaProofCatalog(before, changed)).toThrow()
+    }
     expect(classroomTestQuotaProofCatalog(expected, current)).toEqual(expected)
     expect(classroomTestQuotaProofCatalog(['public.tests'], current.slice(0, 293))).toEqual(before)
     for (const changed of [
@@ -45,7 +50,7 @@ describe('externally sealed Test quota proof table addition', () => {
       current.map((row, index) => index === 293 ? { ...row, sql: row.sql + '\n' } : row),
       current.map((row, index) => index === 293 ? { ...row, sql: row.sql + '\n', sha256: createHash('sha256').update(row.sql + '\n').digest('hex') } : row),
       [current[252], current[293]],
-      [...current, { name: '295_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }],
+      [...current, { name: '296_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }],
     ]) expect(() => classroomTestQuotaProofCatalog(before, changed)).toThrow()
     for (const profile of profiles) {
       const complete = [...new Set([...profile.scopes, ...expected])].sort()

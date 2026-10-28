@@ -11,118 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Correct complete live-home reads
-
-Initial independent reviews425/426 completed: compatibility/UI clean, security
-found a partial-list risk at REST1,000rows. Batch40 adds bounded ordered pagination
-with exact-count/page/identity validation, reused by SSR and admitted owned-list
-refresh. Legacy paths unchanged. Regressions first failed, then118 focused checks,
-TypeScript and affected ESLint passed. Previous schema/native/64PNG matrix retained;
-no visual or SQL change. Targeted review427 and editor1662→home292 sequencing remain
-before readiness. Production/provider/shared-schema/account/cohort holds unchanged.
-
-## 2026-10-23 — Reconcile home with merged editor291
-
-Verified editor1662 merge61d9265b7, rebased home1666 preserving upstream source and
-historical receipts. Images291 remains fixed; visibility renamed292 with SQL hash
-3d5d47…f349d unchanged. Exact source profiles extend292 and reject293; no historical
-seal rebound. Initial profile run found the omitted offline-helper allowance;
-corrected1500/4PASS. Full001–292 isolated replay, rollback, real two-session locks,
-generated types and canonical291/schema preservation PASS. Launcher PATH failure
-preceded clone setup and remains failed evidence; corrected fresh proof passed.
-Fresh16UIcases/64PNG PASS40.425s; root inspected current captures, 48unchanged PNGs
-match prior bytes. Native/browser resources settled, envlink restored, Dockerwindow
-released; editor stopped exactsourceDB/Desktop preserving volumes. Final focused
-4486/143PASS; static completion and cumulative review428 tracked privately before
-ready/CI. No shared migration, production/provider/account/cohort/goal action.
-
-## 2026-10-23 — Reconcile authoring-image role boundaries
-
-Cumulative review428 accepted the rebase/native/visual evidence but found new
-upstream image endpoints still globally role-bound. Batch42 adapts existing
-reserve/finalize/cancel and delivery only within exact home/shared admission;
-actual owner/creator/object checks, current-member publication, archived denial,
-retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
-regressions reproduced the mismatch before the fix;79 focused checks then passed.
-No SQL, UI, provider execution or shared database change. Native292/16-case UI
-evidence remains unchanged; final focused checks and targeted review429 required.
-All deployment/provider/account/cohort/cutover holds stay in place.
-
-## 2026-10-23 — Correct current-chain native verification pins
-
-Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
-material native harnesses;21,759 CPU checks passed, one preflight unit failed.
-Returned1666 to draft before one batched correction. RED5/31 reproduced boundary
-and actual-command failures;1519/3 then passed with both sealed preflights and
-future293/malformed rejection. Fresh offline attendance/material292 proofs passed
-full replay, rollback behavior, actual attendance contention, generated types and
-unchanged canonical001–291/schema; owned containers removed. Evidence retained
-privately. Two launcher failures used pnpm9 before clone setup, retained as failed
-evidence; corrected pinned10.25.0 invocation passed. No product SQL/UI change;
-accepted visual and home-native evidence reused. Final focused gate and targeted
-review430 precede new ready-event CI; editor release-order interlock remains.
-Production, providers, shared applications, account and activation holds remain.
-
-## 2026-10-23 — Reconcile home proof with pinned CI image
-
-Review430 and full4544/145+static passed07cceb; normal draft push then one ready
-event started40007133291. CI passed corrected attendance292 native proof, then
-home preflight rejected the CI image before scratch creation. Returned1666 to
-draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
-local accepted stack uses17.6.1.044. Add only exact official aliases for132,
-retaining044 and cached/running ID equality. Actual shell regressions RED2/18
-reproduced the mismatch; future/custom/latest/malformed references and mismatched
-IDs remain rejected. No SQL/UI/database/provider change or new dependency.
-Targeted review and final CI remain required; unchanged native/visual evidence
-is reused. Editor1668 main correction is close; wait for actual merged SHA to
-combine compatibility reconciliation before another CI. Release interlock and
-all production/provider/shared application/account/activation holds persist.
-
-Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
-completed without conflicts. All six feature patches remain equivalent; image
-helper's UUID-case-only change and tests are the only upstream delta. Migration
-291/292 hashes unchanged, no renumbering/application or new stash. Combine this
-interaction and image-pin batch44 in targeted431 after affected checks; final
-focused gate/CI still required. Editor1667 release interlock remains held.
-
-## 2026-10-23 — Final home base reconciliation after editor release
-
-Editor release/receipt complete: actual finalmain24c294b1, interlock explicitly
-released by its owner. Rebased home onto docs-only1669, preserving CURRENT and
-exact production receipt. Conflicts only in history journals; keep both histories
-and markers, remove one merge-reinserted historical duplicate only after byte
-equality with its preserved earlier entry. All application/test/script/dependency/
-configuration/SQL bytes match reviewed4772;291/292digests unchanged. No shared
-migration/provider/activation action. Reused4557/145+static/source review431 and
-accepted native/UI evidence; final docs verification/review432 and exact-head CI
-precede normal1666mainmerge. This task's production/provider/account/plan/cohort
-holds remain; tool goal and DeepSeek stay paused.
-
-## 2026-10-23 — Include home preference in closed Test proof catalogs
-
-CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
-contention/types/source-preservation, then an older member-list canonical-before
-check rejected292's unlisted private home table before fixture allocation. Return
-1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
-include the sealed292 table centrally and preserve exact291 source compatibility.
-Test missing/drifted fingerprints for create/publication/discard restoration,
-tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
-provider behavior changed. Unchanged accepted native/UI evidence reused; full
-focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
-Prior failed CI is not acceptance. All deployment/provider/shared-application/
-account/activation holds remain unchanged.
-
-## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
-
-Review433 covered the complete shared-catalog delta and accepted one P2: two
-stale reorder CPU graphs omitted the correctly required home-table fingerprint.
-Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
-Batch47 updates only those two test graphs and explicit missing-home denial;
-all original deadline/action/restoration corruption cases remain. Affected387/4
-plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
-real member-list/cleanup finalCI remains required. Production/provider/shared
-applications/accounts/activation holds remain; no native or Docker action.
-
 ## 2026-10-23 — CI runner completion and capacity
 
 Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
@@ -480,6 +368,28 @@ released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Publ
 GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
 provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
 
+## 2026-10-26 Future post dates
+
+Announcements and posted Classwork materials accept future Post date values.
+Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
+today/past dates retain posted_on. A field hint discloses student hiding. No schema
+or dependency changes. Risk none. Reference/reuse: production Material editor and
+Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
+existing scheduling. No new shared UI pattern or unrelated refactor. Composite
+checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
+contracts retained and interaction-tested; no new ARIA widget.
+Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
+material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
+cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
+corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
+student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
+and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
+Material student editing n/a (teacher-only); existing student release API checks
+reused. Capture source equals this candidate's UI files; deterministic fixtures,
+Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
+process secret used. Draft PR and independent review follow; merge/release require
+authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
+
 ## 2026-10-27 Accept the bounded 70-account classroom rollout
 
 Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
@@ -558,27 +468,6 @@ noncredential lane step stay unchanged. No SQL, product/UI, version, deadline,
 provider, shared schema, release or70-account configuration changes. Goal/DeepSeek
 remain paused. Targeted checks, focused gate and independent delta review precede
 one stable ready event; no registry fallback or automatic extra retry is added.
-## 2026-10-26 Future post dates
-
-Announcements and posted Classwork materials accept future Post date values.
-Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
-today/past dates retain posted_on. A field hint discloses student hiding. No schema
-or dependency changes. Risk none. Reference/reuse: production Material editor and
-Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
-existing scheduling. No new shared UI pattern or unrelated refactor. Composite
-checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
-contracts retained and interaction-tested; no new ARIA widget.
-Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
-material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
-cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
-corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
-student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
-and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
-Material student editing n/a (teacher-only); existing student release API checks
-reused. Capture source equals this candidate's UI files; deterministic fixtures,
-Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
-process secret used. Draft PR and independent review follow; merge/release require
-authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
 
 ## 2026-10-27 Independent calendar post dates
 
@@ -686,3 +575,17 @@ All owned clones removed; shared history292 unchanged. One syntax correction was
 caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+## 2026-10-28 — Integrate calendar dates after admission294
+
+Human moved coordination to Teacher vs student login and then directed Do next
+after its1699 merge receipt. Rebased this existing calendar worktree onto actual
+main8d3c6e19; preserve admission294 exact908ac8f3 source and rename unchanged
+calendar SQL7b4d0853 to actual nextfree295. Historical001–293 files unchanged.
+40 feature app/e2e/API/component/lib files match a calculated clean three-way merge
+with main; current main guidance and admission awaits preserved. Combined exact
+profiles/catalogs/runner proofs and genuine metadata are being verified before
+independent integration review and fresh stable-head CI. Prior calendar-only294
+receipts stay historical; current294 means admission only. No shared schema
+application, production release, provider/cohort/account or reset action. Durable
+plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.

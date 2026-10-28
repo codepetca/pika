@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# The 294 extension also requires its exact reviewed source seal in the preflight below.
+# The 295 extension also requires its exact reviewed source seal in the preflight below.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 294)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,294,'Attendance proof target must be exactly294'); validateLifecycleServicesReviewedMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 295)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,295,'Attendance proof target must be exactly295'); validateLifecycleServicesReviewedMigrations(migrations);"
 meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"
@@ -93,7 +93,7 @@ for path in "$root"/supabase/migrations/*.sql; do
     exit 1
   fi
 done
-echo 'PASS replay001–294.'
+echo 'PASS replay001–295.'
 # Record only versions whose actual replay just succeeded, so existing native
 # harness preflights see the same real migration history as a CLI-created stack.
 {
@@ -139,4 +139,4 @@ if [[ "$mode" == --generate-types ]]; then
 else
   cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts"
 fi
-echo 'PASS isolated attendance286/current294 replay, rollback behavior, real metadata and unchanged shared schema.'
+echo 'PASS isolated attendance286/current295 replay, rollback behavior, real metadata and unchanged shared schema.'
