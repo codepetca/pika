@@ -97,7 +97,8 @@ function makeSupabase(opts: {
   deleteError?: unknown
   storageRemoveError?: unknown
   cleanupCompletionData?: boolean
-  requirementType?: 'image' | 'link'
+  requirementType?: 'image' | 'link' | 'repo_link'
+  savedGithubLogin?: string
   provisionalInsertError?: unknown
   provisionalAdoptError?: unknown
   artifactReferenceExists?: boolean
@@ -227,6 +228,11 @@ function makeSupabase(opts: {
         }
       }
       if (table === 'assignment_submission_artifacts') return artifactTable
+      if (table === 'user_github_identities') {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({
+          data: opts.savedGithubLogin ? { github_login: opts.savedGithubLogin } : null, error: null,
+        })) })) })) }
+      }
       if (table === 'assignment_artifact_storage_cleanup') return cleanupTable
       throw new Error(`Unexpected table ${table}`)
     }),
@@ -317,6 +323,37 @@ describe('PUT /api/assignment-docs/[id]/artifacts/[requirementId]', () => {
     })
 
     expect(response.status).toBe(200)
+  })
+
+  it.each([undefined, '', '   ', '-bad'])('rejects saving a GitHub repo without a usable username before network or persistence: %j', async (github_login) => {
+    mocks.supabase = makeSupabase({ requirementType: 'repo_link' })
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+
+    try {
+      const response = await putArtifact({ url: 'https://github.com/team/project', github_login })
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({ error: 'Enter a valid GitHub username for your repository.' })
+      expect(mocks.supabase.artifactTable.upsert).not.toHaveBeenCalled()
+      expect(fetchSpy).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('does not replace an explicitly blank repo username with a saved account', async () => {
+    mocks.supabase = makeSupabase({ requirementType: 'repo_link', savedGithubLogin: 'saved-account' })
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    try {
+      const response = await putArtifact({ url: 'https://github.com/team/project', github_login: '   ' })
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({ error: 'Enter a valid GitHub username for your repository.' })
+      expect(mocks.supabase.artifactTable.upsert).not.toHaveBeenCalled()
+      expect(fetchSpy).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllGlobals()
+    }
   })
 })
 

@@ -218,6 +218,30 @@ describe('contextual assignment submit and unsubmit routes', () => {
     expect(client.from).not.toHaveBeenCalled()
   })
 
+  it('blocks a new submission of a saved GitHub repo with no explicit username', async () => {
+    const client = contextualClient()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+    const repoRequirement = requirement({ type: 'repo_link' })
+    vi.mocked(prepareContextualAssignmentDocSubmission).mockResolvedValue({
+      assignment: { id: assignmentId, classroom_id: classroomId, due_at: null },
+      doc: preflightDoc() as any,
+      submissionRequirements: [repoRequirement as any],
+      submissionArtifacts: [{
+        id: '77777777-7777-4777-8777-777777777777', assignment_doc_id: docId,
+        requirement_id: repoRequirement.id, student_id: actorId, type: 'repo_link',
+        url: 'https://github.com/team/project', storage_path: null, metadata_json: {},
+        validation_status: 'valid', validation_message: null, validated_at: revision,
+        created_at: revision, updated_at: revision,
+      } as any],
+    })
+
+    const response = await submit(submitRequest(), { params: Promise.resolve({ id: assignmentId }) })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Fix invalid attachments before submitting.' })
+    expect(submitContextualAssignmentDoc).not.toHaveBeenCalled()
+    expect(client.from).not.toHaveBeenCalled()
+  })
+
   it('denies a removed exact-pair member before reading document or requirement state', async () => {
     vi.mocked(prepareContextualAssignmentDocSubmission).mockRejectedValue(
       new ApiError(403, 'Forbidden'),

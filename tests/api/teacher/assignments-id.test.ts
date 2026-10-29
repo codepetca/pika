@@ -523,9 +523,10 @@ describe('GET /api/teacher/assignments/[id]', () => {
     ])
     expect(data.students[0].submission_completion).toEqual({
       required_count: 3,
-      completed_required_count: 3,
-      can_submit: true,
-      blocking_count: 0,
+      // Legacy submitted artifacts remain readable, but a new submit needs a username.
+      completed_required_count: 2,
+      can_submit: false,
+      blocking_count: 1,
     })
     expect(data.students[0].doc).toEqual({
       is_submitted: true,

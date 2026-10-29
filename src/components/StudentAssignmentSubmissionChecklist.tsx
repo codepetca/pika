@@ -3,6 +3,7 @@
 import { ChangeEvent, forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 import { AlertCircle, Camera, CheckCircle2, FolderGit2, Link2, Upload } from 'lucide-react'
 import { Button, CircularProgress, FormField, Input } from '@/ui'
+import { normalizeGitHubLogin, REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE } from '@/lib/github-repos'
 import {
   getSubmissionRequirementCompletion,
 } from '@/lib/assignment-submission-requirements'
@@ -38,10 +39,10 @@ function StatusIcon({ item }: { item: ReturnType<typeof getSubmissionRequirement
   if (item.artifact?.validation_status === 'pending') {
     return <CircularProgress className="h-4 w-4 text-text-muted" />
   }
-  if (item.isPresent && item.artifact?.validation_status === 'valid') {
+  if (item.isPresent && !item.isBlocking && item.artifact?.validation_status === 'valid') {
     return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
   }
-  if (item.isPresent && !item.artifact?.validation_status) {
+  if (item.isPresent && !item.isBlocking && !item.artifact?.validation_status) {
     return <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
   }
   return <AlertCircle className="h-4 w-4 text-warning" aria-hidden="true" />
@@ -87,6 +88,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
 }, ref) {
   const [drafts, setDrafts] = useState<DraftState>(() => buildDraftState(requirements, artifacts, githubIdentity))
   const [savingRequirementId, setSavingRequirementId] = useState<string | null>(null)
+  const [githubLoginErrors, setGithubLoginErrors] = useState<Record<string, string>>({})
   const [failedImageRequirementIds, setFailedImageRequirementIds] = useState<Set<string>>(() => new Set())
   const failedImageRequirementIdsRef = useRef(new Set<string>())
   const pendingImageUploadsRef = useRef(new Map<string, Promise<void>>())
@@ -102,6 +104,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
   )
 
   function updateDraft(requirementId: string, patch: Partial<DraftState[string]>) {
+    setGithubLoginErrors((current) => ({ ...current, [requirementId]: '' }))
     setDrafts((current) => ({
       ...current,
       [requirementId]: {
@@ -122,6 +125,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
 
   async function persistUrlArtifact(requirement: AssignmentSubmissionRequirement) {
     const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
+    validateDraftGitHubLogin(requirement, draft)
     setSavingRequirementId(requirement.id)
     onError('')
 
@@ -151,6 +155,14 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
     }
   }
 
+  function validateDraftGitHubLogin(requirement: AssignmentSubmissionRequirement, draft: DraftState[string]) {
+    if (requirement.type === 'repo_link' && draft.url.trim() && !normalizeGitHubLogin(draft.githubLogin)) {
+      setGithubLoginErrors((current) => ({ ...current, [requirement.id]: REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE }))
+      onError(REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE)
+      throw new Error(REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE)
+    }
+  }
+
   async function saveUrlArtifact(requirement: AssignmentSubmissionRequirement) {
     try {
       const nextArtifact = await persistUrlArtifact(requirement)
@@ -175,6 +187,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
       for (const requirement of requirements) {
         if (requirement.type === 'image') continue
         const draft = drafts[requirement.id] ?? { url: '', githubLogin: '' }
+        validateDraftGitHubLogin(requirement, draft)
         const savedArtifact = nextArtifacts.find((artifact) => artifact.requirement_id === requirement.id)
         const savedLogin = savedGithubLogin(savedArtifact,githubIdentity)
         const hasChanges =
@@ -337,7 +350,7 @@ export const StudentAssignmentSubmissionChecklist = forwardRef<StudentAssignment
                       />
                     </FormField>
                     {requirement.type === 'repo_link' ? (
-                      <FormField label="GitHub username (optional)" hint="Leave blank to analyze all contributors. Repository ownership does not identify your work.">
+                      <FormField label="GitHub username" required error={githubLoginErrors[requirement.id]} hint="Enter the GitHub username you used for this work.">
                         <Input
                           value={draft.githubLogin}
                           disabled={disabled || isSaving}

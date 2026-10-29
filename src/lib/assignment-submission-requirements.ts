@@ -4,6 +4,7 @@ import type {
   AssignmentSubmissionRequirementType,
 } from '@/types'
 import type { AssignmentArtifact } from '@/lib/assignment-artifacts'
+import { normalizeGitHubLogin, parseGitHubRepoReference } from '@/lib/github-repos'
 
 export const ASSIGNMENT_SUBMISSION_REQUIREMENT_TYPES: AssignmentSubmissionRequirementType[] = [
   'repo_link',
@@ -186,12 +187,21 @@ export function isSubmissionArtifactBlocking(
 ): boolean {
   if (!artifact || !isSubmissionArtifactPresent(artifact)) return false
   return artifact.validation_status === 'invalid' || artifact.validation_status === 'inaccessible'
+    || hasMissingRepositoryGitHubLogin(artifact)
+}
+
+function hasMissingRepositoryGitHubLogin(artifact: AssignmentSubmissionArtifact): boolean {
+  if (artifact.type !== 'repo_link' || !parseGitHubRepoReference(artifact.url ?? '')) return false
+  const login = artifact.metadata_json?.github_login
+  return artifact.metadata_json?.github_login_selection === 'none'
+    || !normalizeGitHubLogin(typeof login === 'string' ? login : null)
 }
 
 export function getSubmissionArtifactStatusLabel(
   artifact: AssignmentSubmissionArtifact | null | undefined
 ): string {
   if (!artifact || !isSubmissionArtifactPresent(artifact)) return 'Missing'
+  if (hasMissingRepositoryGitHubLogin(artifact)) return 'Fix needed'
 
   switch (artifact.validation_status) {
     case 'valid':

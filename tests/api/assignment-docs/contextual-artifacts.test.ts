@@ -192,6 +192,27 @@ describe('contextual assignment artifact routes', () => {
     )
   })
 
+  it('rejects a blank repository username before the contextual write boundary', async () => {
+    mocks.prepare.mockResolvedValue({
+      ok: true, classroomId, assignmentDocId,
+      requirement: { ...linkRequirement, type: 'repo_link' }, artifact: null,
+    })
+    mocks.from.mockReturnValue({ select: vi.fn(() => ({ eq: vi.fn(() => ({ limit: vi.fn(async () => ({ data: [], error: null })) })) })) })
+    mocks.validate.mockResolvedValue({
+      validation_status: 'invalid', validation_message: 'Enter a valid GitHub username for your repository.',
+      metadata_json: {}, normalized_url: 'https://github.com/team/project',
+    })
+    const response = await PUT(new NextRequest(
+      `http://localhost/api/assignment-docs/${assignmentId}/artifacts/${requirementId}`,
+      { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: 'https://github.com/team/project', github_login: '' }) },
+    ), { params: Promise.resolve({ id: assignmentId, requirementId }) })
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Enter a valid GitHub username for your repository.' })
+    expect(mocks.upsert).not.toHaveBeenCalled()
+    expect(mocks.from).toHaveBeenCalledTimes(1)
+    expect(mocks.from).toHaveBeenCalledWith('user_github_identities')
+  })
+
   it('queues uploaded managed bytes when membership disappears before image attach', async () => {
     mocks.prepare.mockResolvedValue({
       ok: true,

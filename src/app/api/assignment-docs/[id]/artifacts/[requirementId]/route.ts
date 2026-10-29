@@ -286,6 +286,10 @@ export const PUT = withErrorHandler('PutAssignmentSubmissionArtifact', async (re
     validationPolicy: requirement.validation_policy_json,
   })
 
+  if (requirement.type === 'repo_link' && !githubLogin) {
+    return NextResponse.json({ error: validation.validation_message }, { status: 400 })
+  }
+
   const metadata = {
     ...validation.metadata_json,
     ...(githubLogin ? { github_login: githubLogin } : {}),
