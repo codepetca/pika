@@ -78,7 +78,7 @@ describe('RepoLight facts through the actual TypeScript archive pipeline', () =>
       report: plan.resources.assignment_repolight_reports[0].result_json }, error: null })), source: forbidden, begin: forbidden, advance: forbidden, importFeedback: forbidden }
     const cached = await getAssignmentRepoLightReport(actor, { assignmentId: run.assignment_id, studentId: student }, run.id,
       { database } satisfies RepoLightDependencies)
-    expect(cached.report).toEqual({ reportDigest, bundle })
+    expect(cached.report).toEqual({ reportDigest, bundle, assignmentSummary: null })
     expect(cached.run).toMatchObject({ reportAvailable: true, canAdvance: false, canImport: false })
   })
 })

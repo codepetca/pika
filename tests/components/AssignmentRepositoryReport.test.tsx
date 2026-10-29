@@ -35,6 +35,17 @@ const choose = (scope: string) => fireEvent.change(screen.getByLabelText('Report
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks()})
 
 describe('AssignmentRepositoryReport',()=>{
+  it('uses the assignment draft only for the matched account and restores it after edits',()=>{
+    render(<AssignmentRepositoryReport bundle={fixture(false,true)} assignmentSummary={{scopeKey:'contributor:alice',text:'Assignment-specific summary.',rulesVersion:'1.0.0'}} canImport onImportFeedback={vi.fn()} />)
+    expect(text()).toBe('Assignment-specific summary.')
+    fireEvent.change(screen.getByLabelText('Report feedback'),{target:{value:'Teacher edit.'}})
+    choose('repository')
+    expect(text()).toBe('Original repository draft.')
+    choose('contributor:alice')
+    expect(text()).toBe('Teacher edit.')
+    fireEvent.click(screen.getByRole('button',{name:'Restore rule draft'}))
+    expect(text()).toBe('Assignment-specific summary.')
+  })
   it('starts on overview, exposes contributor kinds and switches local scopes without collection',()=>{
     const fetchMock = vi.fn();vi.stubGlobal('fetch',fetchMock)
     render(<AssignmentRepositoryReport bundle={fixture()} canImport onImportFeedback={vi.fn()} />)

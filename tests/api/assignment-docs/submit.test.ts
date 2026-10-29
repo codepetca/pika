@@ -377,6 +377,42 @@ describe('POST /api/assignment-docs/[id]/submit', () => {
     })
   })
 
+  it('blocks a new submission of an already saved GitHub repo without a username even with missing-attachment acknowledgement', async () => {
+    const revision = '2026-04-20T14:00:00.000Z'
+    const content = { type: 'doc', content: [] }
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      if (table === 'assignment_submission_requirements') {
+        return { select: vi.fn(() => ({ eq: vi.fn(() => ({ order: vi.fn(() => ({ order: vi.fn(async () => ({
+          data: [{ id: 'req-repo', type: 'repo_link', position: 0, created_at: revision }], error: null,
+        })) })) })) })) }
+      }
+      if (table === 'assignment_submission_artifacts') {
+        return { select: vi.fn(() => ({ eq: vi.fn(async () => ({
+          data: [{ requirement_id: 'req-repo', type: 'repo_link', url: 'https://github.com/team/project', metadata_json: {}, validation_status: 'valid' }], error: null,
+        })) })) }
+      }
+      const query: any = {
+        eq: vi.fn(() => query),
+        single: vi.fn(async () => ({
+          data: table === 'assignments'
+            ? { id: 'assign-1', classroom_id: 'class-1', is_draft: false, released_at: null }
+            : { id: 'doc-1', student_id: 'student-1', assignment_id: 'assign-1', content, is_submitted: false, updated_at: revision },
+          error: null,
+        })),
+      }
+      return { select: vi.fn(() => query) }
+    })
+
+    const response = await POST(new NextRequest('http://localhost:3000/api/assignment-docs/assign-1/submit', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content, expected_updated_at: revision, allow_missing_attachments: true }),
+    }), { params: { id: 'assign-1' } })
+
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({ error: 'Fix invalid attachments before submitting.' })
+    expect(submitAssignmentDocAtomic).not.toHaveBeenCalled()
+  })
+
   it('rejects saved repo metadata only because repo links must be in assignment content', async () => {
     const historyInsert = vi.fn(async () => ({ error: null }))
     const emptyContent = { type: 'doc', content: [] }

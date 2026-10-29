@@ -40,7 +40,7 @@ function artifact(
     requirement_id: overrides.requirement_id ?? 'req-link',
     student_id: 'student-1',
     type: overrides.type ?? 'link',
-    url: overrides.url ?? 'https://codehs.com/sandbox/example',
+    url: overrides.url ?? (overrides.type === 'repo_link' ? 'https://github.com/team/project' : 'https://codehs.com/sandbox/example'),
     storage_path: overrides.storage_path ?? null,
     metadata_json: overrides.metadata_json ?? {},
     validation_status: overrides.validation_status ?? 'valid',
@@ -131,7 +131,7 @@ describe('StudentAssignmentSubmissionChecklist', () => {
       />
     )
 
-    const githubInput = screen.getByLabelText('GitHub username (optional)')
+    const githubInput = screen.getByRole('textbox', { name: 'GitHub username' })
     const saveButton = screen.getByRole('button', { name: 'Save' })
 
     expect(saveButton).toBeDisabled()
@@ -265,40 +265,55 @@ describe('StudentAssignmentSubmissionChecklist', () => {
   it('prefills a saved account only for a new repo attachment',()=>{
     const props = {assignmentId:'assignment-1',requirements:[requirement({type:'repo_link'})],githubIdentity:{github_id:1234,github_login:'saved-account'},onArtifactsChange:vi.fn(),onError:vi.fn()}
     const {rerender} = render(<StudentAssignmentSubmissionChecklist {...props} artifacts={[]} />)
-    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('saved-account')
+    expect(screen.getByRole('textbox', { name: 'GitHub username' })).toHaveValue('saved-account')
     rerender(<StudentAssignmentSubmissionChecklist {...props} artifacts={[artifact({type:'repo_link',metadata_json:{}})]} />)
-    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('')
+    expect(screen.getByRole('textbox', { name: 'GitHub username' })).toHaveValue('')
   })
 
-  it.each([{}, {github_login:null}, {github_login:''}, {github_login:'saved-account',github_login_selection:'none'}])('keeps an existing blank username blank without false unsaved edits: %j',async(metadata)=>{
+  it.each([{}, {github_login:null}, {github_login:''}, {github_login:'saved-account',github_login_selection:'none'}])('keeps existing blank usernames readable but blocks a new submit without network: %j',async(metadata)=>{
     const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
     const saved = artifact({type:'repo_link',metadata_json:metadata})
     const fetchMock = vi.fn();vi.stubGlobal('fetch',fetchMock)
     render(<StudentAssignmentSubmissionChecklist ref={ref} assignmentId="assignment-1" requirements={[requirement({type:'repo_link'})]} artifacts={[saved]} githubIdentity={{github_id:1234,github_login:'saved-account'}} onArtifactsChange={vi.fn()} onError={vi.fn()} />)
-    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('')
+    expect(screen.getByRole('textbox', { name: 'GitHub username' })).toHaveValue('')
     expect(screen.getByRole('button',{name:'Save'})).toBeDisabled()
-    await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([saved])
+    await act(async () => {
+      await expect(ref.current!.savePendingArtifacts()).rejects.toThrow('Enter a valid GitHub username for your repository.')
+    })
+    expect(screen.getByRole('textbox', { name: 'GitHub username' })).toHaveAttribute('aria-invalid', 'true')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it('preserves an explicitly cleared username through save and artifact reload',async()=>{
+  it('requires a username and blocks clearing it without saving over the existing attachment', async () => {
     const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
-    const cleared = artifact({type:'repo_link',metadata_json:{github_login:null}})
     const onArtifactsChange = vi.fn()
-    const fetchMock = vi.fn().mockResolvedValue({ok:true,json:async()=>({artifact:cleared})})
-    vi.stubGlobal('fetch',fetchMock)
-    const props = {ref,assignmentId:'assignment-1',requirements:[requirement({type:'repo_link'})],githubIdentity:{github_id:1234,github_login:'saved-account'},onArtifactsChange,onError:vi.fn()}
-    const {rerender} = render(<StudentAssignmentSubmissionChecklist {...props} artifacts={[artifact({type:'repo_link',metadata_json:{github_login:'saved-account'}})]} />)
-    fireEvent.change(screen.getByLabelText('GitHub username (optional)'),{target:{value:''}})
-    fireEvent.click(screen.getByRole('button',{name:'Save'}))
-    await waitFor(()=>expect(onArtifactsChange).toHaveBeenCalledWith([cleared]))
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body).github_login).toBe('')
-    rerender(<StudentAssignmentSubmissionChecklist {...props} artifacts={[cleared]} />)
-    expect(screen.getByLabelText('GitHub username (optional)')).toHaveValue('')
-    expect(screen.getByRole('button',{name:'Save'})).toBeDisabled()
-    await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([cleared])
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    expect(screen.getByText(/Leave blank to analyze all contributors/)).toBeInTheDocument()
+    const onError = vi.fn()
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    render(<StudentAssignmentSubmissionChecklist
+      ref={ref} assignmentId="assignment-1" requirements={[requirement({ type: 'repo_link' })]}
+      artifacts={[artifact({ type: 'repo_link', metadata_json: { github_login: 'saved-account' } })]}
+      githubIdentity={null} onArtifactsChange={onArtifactsChange} onError={onError}
+    />)
+    const username = screen.getByRole('textbox', { name: 'GitHub username' })
+    expect(username).toBeRequired()
+    expect(screen.queryByText(/Leave blank to analyze all contributors/)).not.toBeInTheDocument()
+    fireEvent.change(username, { target: { value: '   ' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() => expect(username).toHaveAttribute('aria-invalid', 'true'))
+    expect(onError).toHaveBeenCalledWith('Enter a valid GitHub username for your repository.')
+    expect(onArtifactsChange).not.toHaveBeenCalled()
+    expect(fetchMock).not.toHaveBeenCalled()
+    fireEvent.change(username, { target: { value: 'corrected-user' } })
+    expect(username).not.toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeEnabled()
   })
 
+  it('does not block missing-attachment confirmation for a completely empty repository row', async () => {
+    const ref = createRef<StudentAssignmentSubmissionChecklistHandle>()
+    render(<StudentAssignmentSubmissionChecklist ref={ref} assignmentId="assignment-1"
+      requirements={[requirement({ type: 'repo_link' })]} artifacts={[]} githubIdentity={null}
+      onArtifactsChange={vi.fn()} onError={vi.fn()} />)
+    await expect(ref.current!.savePendingArtifacts()).resolves.toEqual([])
+  })
 })

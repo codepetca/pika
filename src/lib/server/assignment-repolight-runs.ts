@@ -6,6 +6,7 @@ import { parseRepoLightConfig, resolveRepoLightConnection, type RepoLightConfig 
 import { createRepoLightClient, prepareRepoLightCreate, canonicalRepoLightJson, digestRepoLightJson, RepoLightClientError } from './repolight-client'
 import type { RepoLightRpcSourceContract } from '@/types/database'
 import type { Json } from '@/types/database.generated'
+import { assignmentSummary } from './repolight-assignment-summary'
 
 type Contract = RepoLightRpcSourceContract
 type Reply = PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
@@ -125,7 +126,8 @@ export async function getAssignmentRepoLightReport(actorId: string, target: Repo
   const result = row.report
   if (!result || !row.analysis_id) throw new ApiError(404, 'repolight_report_unavailable')
   if (result.analysisId !== row.analysis_id || result.requestFingerprint !== row.request_fingerprint || !same(result.clientBinding, row.create_envelope.clientBinding) || digestRepoLightJson(result.bundle) !== result.reportDigest) throw new ApiError(503, 'repolight_invalid_storage')
-  return { run: repoLightRunView(row, row.source_current!, deps.now?.()), report: { reportDigest: result.reportDigest, bundle: result.bundle } }
+  const summary = row.source_current && !row.detached ? assignmentSummary(result.bundle, row.request_json, row.source_json.assignment) : null
+  return { run: repoLightRunView(row, row.source_current!, deps.now?.()), report: { reportDigest: result.reportDigest, bundle: result.bundle, assignmentSummary: summary } }
 }
 export async function advanceAssignmentRepoLightRun(actorId: string, target: RepoLightTarget, runId: string, deps: RepoLightDependencies = {}) {
   const prior = await readAssignmentRepoLightRun(actorId, target, runId, false, deps)

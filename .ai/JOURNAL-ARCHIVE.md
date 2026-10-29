@@ -50826,3 +50826,197 @@ unchanged lock contention, generated types and canonical schema/source equality.
 Exact owned resources absent; full failure/success evidence retained privately.
 Final receipt review/CI/main merge pending; production477 and activation/provider
 holds unchanged. Pilot still requires selected operator/cohort and authorization.
+## 2026-10-22 — Production post-date promotion preparation
+
+Owner authorized one production application of289/290 followed by main promotion.
+Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
+CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
+service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
+checks PASS. Two Sol/high cumulative production→main reviews passed with no
+findings. PR1664 encountered only journal conflict; union preserves both parent
+histories and trim restores chronology. Application/Supabase trees stay identical
+to main. One journal-resolution batch and targeted review/final CI pending; no
+production retry, fixture write, flag, account or provider change.
+
+<!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
+## 2026-10-23 — Final editor/image review candidate
+
+Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
+and no backend remains. Durable native receipts beside actual-editor captures:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
+Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
+17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
+change. Correct archive fixture to real rich_instructions field. All160affected
+startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
+UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
+remain identical to full-checked00ae6b071; closing docs/test-only delta.
+Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
+findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
+model/effort recorded, effective configuration/tokens/seconds not exposed.
+Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
+Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+<!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+<!-- pika-session-log-archive-batch:dcbfd493a7569d7994b83cc3fddf26a352e6deb5ad7bdba77befa1c73a914a0a -->
+## 2026-10-23 — Reconcile authoring-image role boundaries
+
+Cumulative review428 accepted the rebase/native/visual evidence but found new
+upstream image endpoints still globally role-bound. Batch42 adapts existing
+reserve/finalize/cancel and delivery only within exact home/shared admission;
+actual owner/creator/object checks, current-member publication, archived denial,
+retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
+regressions reproduced the mismatch before the fix;79 focused checks then passed.
+No SQL, UI, provider execution or shared database change. Native292/16-case UI
+evidence remains unchanged; final focused checks and targeted review429 required.
+All deployment/provider/account/cohort/cutover holds stay in place.
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.
+
+<!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
+## 2026-10-23 — Contextual owner manual-attendance authorization
+
+Signed-in home verification identified the Daily manual-attendance fallback still
+requiring a global teacher role before classroom ownership. Owner approved the
+narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
+shared attendance actor admission; unmatched accounts retain the original teacher
+gate. Actual classroom ownership, archived read/mutation distinction and unchanged
+SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
+26 failures before the fix; affected API/store/hook/migration tests pass afterward.
+Full local checks, independent auth/compatibility review and exact-head CI precede
+main merge. No schema, cohort, provider, account or production changes; existing
+failed rehearsal evidence is retained and does not establish workflow acceptance.
+
+<!-- pika-session-log-archive-batch:0996470dfa6fe293e1e5f974d619eb523a166297a268765a9269db086a34cab9 -->
+## 2026-10-23 — Contextual member notification reads
+
+Owner approved the signed-in mixed-role notification gap after an actual route
+regression reproduced403. Admitted current nonowner members now use compact,
+bounded classroom-root reads for the unchanged four notification counters;
+every payload and terminal page binds active class, actor, owner and enrollment
+generation. Publication/own-resource checks, repeated snapshot validation and a
+final relationship guard reject observed drift without claiming a transaction
+snapshot. Absent/unadmitted behavior retains the original student-role path.
+Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
+pass; final independent review/full focused checks remain coordinator-owned.
+No migration, dependency, account, cohort, provider or production changes.
+
+<!-- pika-session-log-archive-batch:28968fefc08ccf4847fcfc6dbdc6ab8ffe8341236a363185580c6c2d5c88c35a -->
+## 2026-10-24 — Release inactive classroom Home foundation
+
+Owner explicitly approved sole292 locally/production and reviewed-main release
+with activation off. Local pinned CLI and production apply40059138246 both
+verified001–292; read-only bodies/grants/RLS/PK/FK checks pass. Release1673
+independently reviewed464–466, local4738/151+1022/73 and exact-head CI40059627420
+all10jobs/PRGate PASS. Protected merge4778514b0 has exact reviewed tree; Vercel
+dpl_DHbxckpbMDrojHGw6uD5ZePPpS54 and public alias READY00:28Toronto. Six public
+unauthenticated GET checks pass, including exact root307→login200; initial
+root200 expectation was a smoke-assumption error, not an app change. Five
+activation settings absent;24provider/controlmetadata records unchanged. No
+retry/reset/seed/production fixture/provider/account/plan/billing/activation
+change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
+## 2026-10-24 — Assignment image submission recovery
+
+Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+## 2026-10-24 — Prepare classroom Home recovery and pilot
+
+Prepared a rollback-only creation freeze/getter-permission fault/restoration
+contract in the existing sealed offline owned-clone verifier, plus actual-route,
+adapter and server-page CPU composition tests for both account-role labels.
+The layered evidence intentionally does not claim real PostgREST/browser outage
+or deployed recovery. Pilot packet records compatible477/schema292 floor,
+retained-admission growth stop, canaries, zero-tolerance stop conditions and
+unset operator/cohort/activation authority. Root verified84focused cases and
+TypeScript. Reviews468–470 cover source and corrections; bounded
+Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
+(351s), effective model/tokens unknown. No runtime, migration, dependency,
+production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.
+Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
+fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
+unchanged lock contention, generated types and canonical schema/source equality.
+Exact owned resources absent; full failure/success evidence retained privately.
+Final receipt review/CI/main merge pending; production477 and activation/provider
+holds unchanged. Pilot still requires selected operator/cohort and authorization.
+
+## 2026-10-24 — Assessment diagnostic privacy cleanup
+
+Owner approved orchestration; journal-derived product feedback stays unchanged.
+Three disjoint GPT-6.1 Sol/high implementation workers migrated Assignment/Test
+API and document/helper diagnostics; coordinator owns shared allowlist, guard,
+integration and review. Replaced140 raw server error logs plus one fixed Test
+publication log; browser history warning no longer carries an entry ID. Cleanup
+retry records use fixed stage descriptions instead of provider/database messages.
+Synthetic red/green coverage:35 Assignment boundaries,26 Test assertions and47
+helper cases. Scoped regressions pass242/288/127 tests respectively. Source
+comparison finds no unexpected logic deltas; durable diagnostic changes and
+literal operation branches reviewed separately. No UI/schema/dependency/query/
+authorization changes, production actions or historical log deletion. Remaining
+logging inventory/vendor controls stay open. Focused gate, independent review and
+stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
+Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
+Worker token/effective-model and coordinator active-time telemetry unavailable.
+PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
+TypeScript and lint. Independent privacy review found an immediate JSON-patch
+helper still emitting document trees; compatibility review found no regressions.
+One remediation batch replaces both patch-helper logs with browser-safe fixed
+warnings and strengthens aggregate reconstruction diagnostics tests/guard.
+Targeted review and exact-head CI remain required before readiness/merge.
+
+## 2026-10-24 — Three-account Home pilot acceptance reconciliation
+
+Recorded exact production1da699/schema292 and the retained dedicated three-account
+Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
+code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
+scoped state matched one owned/one joined per reciprocal account, no Control
+membership and unchanged plans/providers. Corrected stale current-state and
+preparation-only wording; private identities/codes/content stay outside Git.
+Kept production replay, classwork/manual-return and direct API negatives distinct
+from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
+provider/cohort change or epic exit; live-provider/expansion holds remain.
+Docs-only focused checks and independent review precede normal main merge.
+
+## 2026-10-24 — Manual grader label owner-read regression
+
+The dedicated pilot saved manual scores, then owner readback failed503 because
+the strict detail schema treated graded_by as an actor UUID. Installed manual
+writer223 stores teacher text; existing grading/list contracts already accept
+text. Align only this metadata field, retaining owner/member UUID checks and
+strict shape/size guards. No migration, stored-data repair or authorization change.
+An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
+AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
+focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
+independent review and exact-head CI follow. Both pilot sessions remain signed
+in; Return/learner feedback remain pending compatible release and readback.
+No production, cohort, provider, plan or schema change; growth stays frozen.
+First CI caught the prior pilot summary's changed controls marker; restored
+the accurate established Controls unchanged prefix without reverting admission
+or provider state. Runtime grader fix unchanged; targeted docs regression and
+independent delta review precede the next stable-SHA CI.

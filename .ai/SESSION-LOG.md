@@ -11,61 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Assessment diagnostic privacy cleanup
-
-Owner approved orchestration; journal-derived product feedback stays unchanged.
-Three disjoint GPT-6.1 Sol/high implementation workers migrated Assignment/Test
-API and document/helper diagnostics; coordinator owns shared allowlist, guard,
-integration and review. Replaced140 raw server error logs plus one fixed Test
-publication log; browser history warning no longer carries an entry ID. Cleanup
-retry records use fixed stage descriptions instead of provider/database messages.
-Synthetic red/green coverage:35 Assignment boundaries,26 Test assertions and47
-helper cases. Scoped regressions pass242/288/127 tests respectively. Source
-comparison finds no unexpected logic deltas; durable diagnostic changes and
-literal operation branches reviewed separately. No UI/schema/dependency/query/
-authorization changes, production actions or historical log deletion. Remaining
-logging inventory/vendor controls stay open. Focused gate, independent review and
-stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
-Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
-Worker token/effective-model and coordinator active-time telemetry unavailable.
-PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
-TypeScript and lint. Independent privacy review found an immediate JSON-patch
-helper still emitting document trees; compatibility review found no regressions.
-One remediation batch replaces both patch-helper logs with browser-safe fixed
-warnings and strengthens aggregate reconstruction diagnostics tests/guard.
-Targeted review and exact-head CI remain required before readiness/merge.
-
-## 2026-10-24 — Three-account Home pilot acceptance reconciliation
-
-Recorded exact production1da699/schema292 and the retained dedicated three-account
-Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
-code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
-scoped state matched one owned/one joined per reciprocal account, no Control
-membership and unchanged plans/providers. Corrected stale current-state and
-preparation-only wording; private identities/codes/content stay outside Git.
-Kept production replay, classwork/manual-return and direct API negatives distinct
-from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
-provider/cohort change or epic exit; live-provider/expansion holds remain.
-Docs-only focused checks and independent review precede normal main merge.
-
-## 2026-10-24 — Manual grader label owner-read regression
-
-The dedicated pilot saved manual scores, then owner readback failed503 because
-the strict detail schema treated graded_by as an actor UUID. Installed manual
-writer223 stores teacher text; existing grading/list contracts already accept
-text. Align only this metadata field, retaining owner/member UUID checks and
-strict shape/size guards. No migration, stored-data repair or authorization change.
-An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
-AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
-focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
-independent review and exact-head CI follow. Both pilot sessions remain signed
-in; Return/learner feedback remain pending compatible release and readback.
-No production, cohort, provider, plan or schema change; growth stays frozen.
-First CI caught the prior pilot summary's changed controls marker; restored
-the accurate established Controls unchanged prefix without reverting admission
-or provider state. Runtime grader fix unchanged; targeted docs regression and
-independent delta review precede the next stable-SHA CI.
-
 ## 2026-10-24 — RepoLight integration foundation (in progress)
 
 Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
@@ -516,3 +461,23 @@ plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
 ## 2026-10-28 — Update assignment focus test
 
 - Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.
+
+## 2026-10-28 Required repository usernames — base refresh
+
+Rebased the previously reviewed required-username change onto current main. Preserved
+upstream journal history and the prior local preparation evidence; focused verification
+is recorded in the task handoff. No migration, provider or production action.
+
+## 2026-10-29 — RepoLight required username integration
+
+Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
+journal history and both integration contracts; application and test patches match
+the previously reviewed branch. Focused checks and final PR review follow.

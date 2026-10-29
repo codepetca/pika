@@ -104,6 +104,28 @@ describe('normalizeAssignmentSubmissionRequirementDrafts', () => {
 })
 
 describe('getSubmissionRequirementCompletion', () => {
+  it.each([{}, { github_login: null }, { github_login: '' }, { github_login: '   ' }, { github_login: '-bad' }, { github_login: 'student', github_login_selection: 'none' }])('blocks an existing GitHub repository without a usable explicit username: %j', (metadata_json) => {
+    const saved = artifact({ type: 'repo_link', url: 'https://github.com/team/project', metadata_json })
+    const completion = getSubmissionRequirementCompletion([requirement({ type: 'repo_link' })], [saved])
+
+    expect(completion.items[0]).toMatchObject({ artifact: saved, isPresent: true, isBlocking: true, statusLabel: 'Fix needed' })
+    expect(completion.completedRequiredCount).toBe(0)
+    expect(completion.canSubmit).toBe(false)
+    expect(getAssignmentAttachmentSubmissionGate(completion, true)).toEqual({ ok: false, reason: 'invalid_attachments' })
+  })
+
+  it('accepts an explicit contributor username without guessing repository ownership', () => {
+    const completion = getSubmissionRequirementCompletion([requirement({ type: 'repo_link' })], [
+      artifact({ type: 'repo_link', url: 'https://github.com/team/project', metadata_json: { github_login: 'student-dev' } }),
+    ])
+    expect(completion.canSubmit).toBe(true)
+    expect(completion.completedRequiredCount).toBe(1)
+  })
+
+  it('does not require a GitHub username on a generic link or an absent repo attachment', () => {
+    expect(getSubmissionRequirementCompletion([requirement({})], [artifact({ url: 'https://github.com/team/project' })]).canSubmit).toBe(true)
+    expect(getSubmissionRequirementCompletion([requirement({ type: 'repo_link' })], []).canSubmit).toBe(true)
+  })
   it('treats every configured attachment as expected without blocking missing items', () => {
     const completion = getSubmissionRequirementCompletion([
       requirement({ id: 'req-1', required: true }),

@@ -6,6 +6,14 @@ export interface ParsedGitHubRepo {
 
 const GITHUB_HOSTS = new Set(['github.com', 'www.github.com'])
 
+export const REQUIRED_REPOSITORY_GITHUB_LOGIN_MESSAGE = 'Enter a valid GitHub username for your repository.'
+
+export function normalizeGitHubLogin(value: string | null | undefined): string | null {
+  const login = String(value ?? '').trim().replace(/^@+/, '')
+  if (!login || !/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$/.test(login)) return null
+  return login
+}
+
 const RESERVED_GITHUB_ROOT_PATHS = new Set([
   'about',
   'apps',

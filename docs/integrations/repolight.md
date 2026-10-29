@@ -85,6 +85,20 @@ No route in this feature calls the old `artifact-repo/run` route,
 `completeAssignmentRepoReviewRunAtomic`, AI grading, a grade-save RPC, or Return.
 The old completion path writes score suggestions even with `markGraded=false`.
 
+Pika derives a versioned, deterministic assignment feedback preview from the
+fingerprint-bound assignment release and due instants and the digest-validated
+report, without modifying the saved bundle. It is available only for the requested,
+matched GitHub account on a current, non-detached report. The analysis period must
+cover the complete assignment and agree with the stored request; absent or invalid
+assignment dates and insufficient period coverage produce an unavailable draft.
+The deadline is exclusive. The final window uses 24 elapsed hours, clamped to the
+assignment start for shorter assignments. Partial history, missing author dates,
+unreviewed baseline, incomplete path-exclusion evidence or a snapshot captured
+before the deadline are disclosed as provisional. Undated commits do not receive
+an invented date or percentage. The preview is teacher-editable and import remains
+an explicit separate action; it never establishes who operated an account, push
+timing, effort, or AI use. Old reports and requests remain readable.
+
 The teacher inspector is
 `src/components/assignment-workspace/TeacherWorkInspector.tsx`. Its Repository
 section opens the summary first, with contributor selection and detailed evidence
@@ -109,14 +123,25 @@ the legacy document's explicit `github_username`. Repository ownership and email
 must never supply a username. Missing username is a valid repository overview.
 Malformed/unmatched usernames retain the RepoLight bundle's fallback notice.
 
-The existing student checklist already submits `github_login` and can prefill
-the saved account; public-repository artifact validation already permits an
-absent login. The field is optional. Once an artifact exists, its saved login
-value (including blank, null or absent) takes precedence over the saved account,
-so clearing it survives reload. The optional compatibility marker
-`github_login_selection: 'none'` is also respected when present. Only a new
-artifact may prefill the saved account; that prefill remains editable and does
-not retroactively reinterpret an old artifact.
+New student `repo_link` saves require a valid GitHub username. The checklist marks
+the field required and reports an inline error; the server rejects missing or
+malformed usernames before any GitHub request or artifact write. Completion and
+both submission routes also block a new submit of an already saved GitHub repo
+artifact with no usable username, even when missing attachments are acknowledged.
+Explicit blank input is preserved at the request boundary and cannot silently
+fall back to a saved account.
+Generic links, images and entirely missing repo attachments retain their existing
+rules. Repo links already require a GitHub repository URL.
+
+The checklist can prefill the saved account for a new attachment. Once an artifact
+exists, its saved login value (including blank, null or absent) takes precedence
+over the saved account. The compatibility marker `github_login_selection: 'none'`
+also remains respected. Existing artifacts and submitted work stay readable;
+students must supply their username before saving a repo or submitting again.
+No repository-owner or email inference supplies it. Legacy no-username sources
+remain valid RepoLight repository overviews, and unmatched-contributor fallback
+remains unchanged. This submission requirement does not make the standalone
+RepoLight overview contract require a username.
 
 The request period is explicit and half-open. Default to the assignment release
 and due instants; if release is unavailable, use the last 60 local calendar dates
@@ -291,7 +316,7 @@ responses after student/assignment navigation. Pause/flush existing autosave
 before an explicit import, then use its acknowledged document revision.
 Display a report summary and optional evidence view with repository/contributor
 selection, coverage and fallback notices. Analyze/status/report remain teacher
-only. Student UI changes only explain the optional username; existing sent-comment
+only. Student UI requires a username for repo submissions; existing sent-comment
 visibility and Return remain authoritative.
 
 ## Durable local storage and RPCs
@@ -464,7 +489,7 @@ The testing writer should add behavior tests before implementation:
    compaction equality; joined/removed purge inventory, provider blocker and
    finalizer; whole-class hot/cold purge and other-class/classmate isolation.
 8. UI: teacher Analyze/status/reconnect/partial/failure/stale/report/scope/import
-   states, optional student username, keyboard/mobile/dark/light, and existing
+   states, required student username and legacy overview compatibility, keyboard/mobile/dark/light, and existing
    sent-feedback/Return regression. Use local Playwright screenshots, not mock
    screenshots, for final visual verification.
 
