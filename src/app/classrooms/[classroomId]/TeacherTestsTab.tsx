@@ -1606,6 +1606,7 @@ export function TeacherTestsTab({
         clearTestWorkspace({ replace: true })
       }
       setPendingDeleteTest(null)
+      setShowEditModal(false)
       window.dispatchEvent(
         new CustomEvent(TEACHER_TESTS_UPDATED_EVENT, { detail: { classroomId: classroom.id } })
       )
@@ -3318,6 +3319,7 @@ export function TeacherTestsTab({
         hasPendingMarkdownImport={hasPendingMarkdownImport}
         publicationError={statusActionError}
         onClose={handleCloseTestEditor}
+        onRequestDelete={!isReadOnly && selectedTestWorkspace ? () => { setStatusActionError(''); setPendingDeleteTest(selectedTestWorkspace) } : undefined}
         discardPristineOnClose={newlyCreatedTestId === selectedTestWorkspace?.id}
         onDiscardPristine={handleDiscardPristineTest}
         onDraftSummaryChange={handleSelectedTestDraftSummaryChange}
@@ -3353,6 +3355,7 @@ export function TeacherTestsTab({
       <ConfirmDialog
         isOpen={!!pendingDeleteTest}
         title="Delete test?"
+        errorMessage={statusActionError || undefined}
         description="This permanently removes the test and responses."
         confirmLabel={isDeletingTest ? 'Deleting...' : 'Delete'}
         cancelLabel="Cancel"

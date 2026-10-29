@@ -51020,3 +51020,8 @@ First CI caught the prior pilot summary's changed controls marker; restored
 the accurate established Controls unchanged prefix without reverting admission
 or provider state. Runtime grader fix unchanged; targeted docs regression and
 independent delta review precede the next stable-SHA CI.
+
+<!-- pika-session-log-archive-batch:a9e6e75f0e4b47861167cb86c998298b47d6e79ea20ac3a5b79c4b77b62ef075 -->
+## 2026-10-24 — Assignment image submission recovery
+
+Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
