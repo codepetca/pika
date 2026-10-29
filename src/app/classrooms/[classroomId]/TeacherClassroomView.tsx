@@ -2218,6 +2218,7 @@ export function TeacherClassroomView({
       deleteOperationIdsRef.current.delete(scope)
       setDeleteCleanupPending(null)
       setPendingDelete(null)
+      if (editAssignment?.id === target.id) closeAssignmentModal()
       invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
       await loadAssignments()
       if (selection.mode === 'assignment' && selection.assignmentId === target.id) setSelectionAndPersist({mode:'summary'})
@@ -2997,19 +2998,6 @@ export function TeacherClassroomView({
         }}
       />
 
-      <ConfirmDialog
-        isOpen={!!pendingDelete}
-        title="Delete assignment?"
-        errorMessage={pendingDelete && deleteFailure?.scope === `${classroom.id}:${pendingDelete.id}` ? deleteFailure.message : undefined}
-        description={pendingDelete ? `${pendingDelete.title}\n\n${deleteCleanupPending?.classroomId === classroom.id && deleteCleanupPending.assignmentId === pendingDelete.id ? 'Repository-report cleanup is pending. The assignment has not been deleted. Retry deletion to continue the same saved request.\n\n' : ''}This cannot be undone.` : undefined}
-        confirmLabel={isDeleting ? 'Deleting...' : deleteCleanupPending?.classroomId === classroom.id && deleteCleanupPending.assignmentId === pendingDelete?.id ? 'Retry deletion' : 'Delete'}
-        cancelLabel="Cancel"
-        confirmVariant="danger"
-        isConfirmDisabled={isDeleting}
-        isCancelDisabled={isDeleting}
-        onCancel={() => (isDeleting ? null : setPendingDelete(null))}
-        onConfirm={deleteAssignment}
-      />
 
       <ConfirmDialog
         isOpen={!!pendingMaterialDelete}
@@ -3108,6 +3096,7 @@ export function TeacherClassroomView({
         instructionsMode={assignmentInstructionsMode}
         classDays={classDays}
         onClose={closeAssignmentModal}
+        onRequestDelete={editAssignment ? () => setPendingDelete({ id: editAssignment.id, title: editAssignment.title }) : undefined}
         onSuccess={(assignment, options) => {
           if (editAssignment) {
             handleEditSuccess(assignment)
@@ -3120,6 +3109,21 @@ export function TeacherClassroomView({
           closeAssignmentModal()
         }}
       />
+
+      <ConfirmDialog
+        isOpen={!!pendingDelete}
+        title="Delete assignment?"
+        errorMessage={pendingDelete && deleteFailure?.scope === `${classroom.id}:${pendingDelete.id}` ? deleteFailure.message : undefined}
+        description={pendingDelete ? `${pendingDelete.title}\n\n${deleteCleanupPending?.classroomId === classroom.id && deleteCleanupPending.assignmentId === pendingDelete.id ? 'Repository-report cleanup is pending. The assignment has not been deleted. Retry deletion to continue the same saved request.\n\n' : ''}This cannot be undone.` : undefined}
+        confirmLabel={isDeleting ? 'Deleting...' : deleteCleanupPending?.classroomId === classroom.id && deleteCleanupPending.assignmentId === pendingDelete?.id ? 'Retry deletion' : 'Delete'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isConfirmDisabled={isDeleting}
+        isCancelDisabled={isDeleting}
+        onCancel={() => (isDeleting ? null : setPendingDelete(null))}
+        onConfirm={deleteAssignment}
+      />
+
 
       <ClassroomBlueprintDraftDialog
         isOpen={isBlueprintDraftOpen}

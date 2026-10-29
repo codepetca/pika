@@ -48,6 +48,13 @@ describe('AssignmentModal', () => {
   })
 
   describe('edit mode', () => {
+    it('requests deletion from the edit modal', () => {
+      const onRequestDelete = vi.fn()
+      render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment} onClose={vi.fn()} onSuccess={vi.fn()} onRequestDelete={onRequestDelete} />)
+      fireEvent.click(screen.getByRole('button', { name: 'Delete assignment' }))
+      expect(onRequestDelete).toHaveBeenCalledOnce()
+    })
+
     it('does not render the track writing authenticity toggle', () => {
       render(
         <AssignmentModal

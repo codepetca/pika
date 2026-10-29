@@ -182,10 +182,11 @@ interface AssignmentModalProps {
   instructionsMode?: 'visual' | 'markdown'
   classDays?: ClassDay[]
   onClose: () => void
+  onRequestDelete?: () => void
   onSuccess: (assignment: Assignment, options?: { closeModal?: boolean }) => void
 }
 
-export function AssignmentModal({ isOpen, classroomId, classroomName, assignment, instructionsMode = 'visual', classDays, onClose, onSuccess }: AssignmentModalProps) {
+export function AssignmentModal({ isOpen, classroomId, classroomName, assignment, instructionsMode = 'visual', classDays, onClose, onRequestDelete, onSuccess }: AssignmentModalProps) {
   // Only a new logical open retires the old body's local editor/menu/history state.
   const [bodyLifetime, setBodyLifetime] = useState({ open: isOpen, key: 0 })
   if (bodyLifetime.open !== isOpen) {
@@ -990,6 +991,11 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
+        footer={assignment && onRequestDelete ? (
+          <Button type="button" variant="danger" onClick={activeInput(onRequestDelete)} disabled={creating || saving || releasing || discarding}>
+            Delete assignment
+          </Button>
+        ) : undefined}
         contentClassName="!overflow-hidden !p-0"
       >
         <AssignmentEditorBody
