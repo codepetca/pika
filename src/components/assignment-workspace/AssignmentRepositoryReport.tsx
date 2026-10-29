@@ -7,6 +7,7 @@ import { formatDayInZone } from '@/lib/contracts/repolight/engine/time'
 
 export interface AssignmentRepositoryReportProps {
   bundle: PublicRepositoryBundle
+  assignmentSummary?: {scopeKey: string; text: string; rulesVersion: '1.0.0'} | null
   canImport: boolean
   onImportFeedback: (scopeKey: string, text: string) => Promise<void>
   importing?: boolean
@@ -24,7 +25,7 @@ const readable = (value: string) => value.replaceAll('_', ' ')
 const focusRegion = 'min-w-0 overflow-x-auto rounded-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const linkStyle = 'break-all text-primary underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
 
-function RepositoryReportView({bundle,canImport,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
+function RepositoryReportView({bundle,assignmentSummary,canImport,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
   const [scope,setScope] = useState(bundle.selection.status === 'matched' && bundle.selection.contributorId ? `contributor:${bundle.selection.contributorId}` : 'repository')
   const [evidence,setEvidence] = useState(false)
   const [drafts,setDrafts] = useState<Record<string,string>>({})
@@ -35,7 +36,8 @@ function RepositoryReportView({bundle,canImport,onImportFeedback,importing = fal
   const analysis = selected?.analysis || bundle.overview
   const facts = analysis.facts
   const label = selected?.contributor.label || 'Repository overview'
-  const feedback = drafts[scope] ?? analysis.ruleFeedback.feedbackDraft
+  const ruleDraft = assignmentSummary?.scopeKey === scope && bundle.selection.status === 'matched' && `contributor:${bundle.selection.contributorId}` === scope ? assignmentSummary.text : analysis.ruleFeedback.feedbackDraft
+  const feedback = drafts[scope] ?? ruleDraft
   const unknown = selected?.contributor.kind === 'unknown_author'
   const status = messages[scope]
   const message = status?.importedText === undefined || status.importedText === feedback ? status : undefined
@@ -85,7 +87,7 @@ function RepositoryReportView({bundle,canImport,onImportFeedback,importing = fal
         <FormField label="Report feedback" hint={`Preview for ${label}. Appends this preview to the Pika comment draft, preserving its existing text. Nothing is sent to the student.`}>
           <textarea value={feedback} onChange={event => editFeedback(event.target.value)} rows={7} maxLength={20000} className="min-h-control w-full resize-y rounded-control border border-border bg-surface px-3 py-2 text-text-default focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus" />
         </FormField>
-        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => {void importFeedback()}} disabled={!canImport || busy || alreadyImported || !feedback.trim()}>{busy ? 'Adding to comment draft…' : alreadyImported ? 'Added to comment draft' : 'Add to comment draft'}</Button><Button type="button" size="sm" variant="ghost" onClick={() => editFeedback(analysis.ruleFeedback.feedbackDraft)}>Restore rule draft</Button></div>
+        <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => {void importFeedback()}} disabled={!canImport || busy || alreadyImported || !feedback.trim()}>{busy ? 'Adding to comment draft…' : alreadyImported ? 'Added to comment draft' : 'Add to comment draft'}</Button><Button type="button" size="sm" variant="ghost" onClick={() => editFeedback(ruleDraft)}>Restore rule draft</Button></div>
         {!canImport && !importError && <p className="text-text-muted">Feedback import is unavailable for this report or submission.</p>}
         {importError ? <p role="alert" className="text-danger">{importError}</p> : message?.text ? <p role={message.error ? 'alert' : 'status'} className={message.error ? 'text-danger' : 'text-text-muted'}>{message.text}</p> : null}
       </section>

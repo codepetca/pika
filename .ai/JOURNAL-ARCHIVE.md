@@ -50433,3 +50433,17 @@ SQL roster/day/revision guards remain authoritative. Red route regressions repro
 Full local checks, independent auth/compatibility review and exact-head CI precede
 main merge. No schema, cohort, provider, account or production changes; existing
 failed rehearsal evidence is retained and does not establish workflow acceptance.
+
+<!-- pika-session-log-archive-batch:0996470dfa6fe293e1e5f974d619eb523a166297a268765a9269db086a34cab9 -->
+## 2026-10-23 — Contextual member notification reads
+
+Owner approved the signed-in mixed-role notification gap after an actual route
+regression reproduced403. Admitted current nonowner members now use compact,
+bounded classroom-root reads for the unchanged four notification counters;
+every payload and terminal page binds active class, actor, owner and enrollment
+generation. Publication/own-resource checks, repeated snapshot validation and a
+final relationship guard reject observed drift without claiming a transaction
+snapshot. Absent/unadmitted behavior retains the original student-role path.
+Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
+pass; final independent review/full focused checks remain coordinator-owned.
+No migration, dependency, account, cohort, provider or production changes.

@@ -6,7 +6,8 @@ import { publicRepositoryBundleSchema } from '@/lib/contracts/repolight/report/b
 import { Button, ContentDialog } from '@/ui'
 import fixture from '../../../tests/unit/repolight/fixture.json'
 
-const bundle = publicRepositoryBundleSchema.parse(fixture.bundle)
+const bundle = publicRepositoryBundleSchema.parse({...fixture.bundle, selection:{status:'matched',requestedGithubLogin:'sample-student',contributorId:'github-sample-student',notice:null}})
+const assignmentSummary = {scopeKey:'contributor:github-sample-student',rulesVersion:'1.0.0' as const,text:'For the selected GitHub account, the assignment contains 12 included commits; the first observed commit author timestamp was Oct 5, 2026, 9:22 a.m. EDT, approximately 9.37 hours after release, and 3 of 12 (25%) were in the final 24 hours before the deadline. Review the exclusions and consider using descriptive commit messages; commit dates do not show push times or time spent.'}
 
 /** Fixed, synthetic wire evidence; no API, authentication or provider calls. */
 export function AssignmentRepoLightPattern() {
@@ -18,7 +19,7 @@ export function AssignmentRepoLightPattern() {
     <Button size="sm" variant="secondary" onClick={() => setOpen(true)}>View repository report</Button>
     <div data-testid="repolight-pattern-comment" className="whitespace-pre-wrap rounded-lg bg-surface-2 p-3 text-sm">{comment}</div>
     <ContentDialog isOpen={open} onClose={() => setOpen(false)} title="Repository report" subtitle="Synthetic assignment fixture">
-      <AssignmentRepositoryReport bundle={bundle} canImport onImportFeedback={async (_scopeKey,text) => {setComment(current => `${current}\n\n${text}`)}} />
+      <AssignmentRepositoryReport bundle={bundle} assignmentSummary={assignmentSummary} canImport onImportFeedback={async (_scopeKey,text) => {setComment(current => `${current}\n\n${text}`)}} />
     </ContentDialog>
   </section>
 }
