@@ -85,6 +85,20 @@ No route in this feature calls the old `artifact-repo/run` route,
 `completeAssignmentRepoReviewRunAtomic`, AI grading, a grade-save RPC, or Return.
 The old completion path writes score suggestions even with `markGraded=false`.
 
+Pika derives a versioned, deterministic assignment feedback preview from the
+fingerprint-bound assignment release and due instants and the digest-validated
+report, without modifying the saved bundle. It is available only for the requested,
+matched GitHub account on a current, non-detached report. The analysis period must
+cover the complete assignment and agree with the stored request; absent or invalid
+assignment dates and insufficient period coverage produce an unavailable draft.
+The deadline is exclusive. The final window uses 24 elapsed hours, clamped to the
+assignment start for shorter assignments. Partial history, missing author dates,
+unreviewed baseline, incomplete path-exclusion evidence or a snapshot captured
+before the deadline are disclosed as provisional. Undated commits do not receive
+an invented date or percentage. The preview is teacher-editable and import remains
+an explicit separate action; it never establishes who operated an account, push
+timing, effort, or AI use. Old reports and requests remain readable.
+
 The teacher inspector is
 `src/components/assignment-workspace/TeacherWorkInspector.tsx`. Its Repository
 section opens the summary first, with contributor selection and detailed evidence

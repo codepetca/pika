@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-23 — Contextual member notification reads
-
-Owner approved the signed-in mixed-role notification gap after an actual route
-regression reproduced403. Admitted current nonowner members now use compact,
-bounded classroom-root reads for the unchanged four notification counters;
-every payload and terminal page binds active class, actor, owner and enrollment
-generation. Publication/own-resource checks, repeated snapshot validation and a
-final relationship guard reject observed drift without claiming a transaction
-snapshot. Absent/unadmitted behavior retains the original student-role path.
-Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
-pass; final independent review/full focused checks remain coordinator-owned.
-No migration, dependency, account, cohort, provider or production changes.
-
 ## 2026-10-24 — RepoLight report integration local verification
 
 - Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
@@ -559,3 +546,11 @@ plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
 ## 2026-10-28 — Update assignment focus test
 
 - Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.

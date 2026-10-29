@@ -81,7 +81,23 @@ describe('report-only durable orchestration', () => {
     const output = await getAssignmentRepoLightReport(f.actor, f.target, f.row.id, f.deps)
     expect(output.run.status).toBe('stale'); expect(output.run.canImport).toBe(false)
     expect(output.report.bundle).toEqual(wire.bundle); expect(f.factory).not.toHaveBeenCalled()
+    expect(output.report.assignmentSummary).toBeNull()
     expect(output).not.toHaveProperty('source_json'); expect(output.run).not.toHaveProperty('connection_json')
+  })
+  it('derives a matched assignment draft without modifying the saved report or its digest', async () => {
+    const f = setup()
+    f.source.assignment.released_at = wire.bundle.context.period.startAt
+    f.source.assignment.due_at = wire.bundle.context.period.endAt
+    const sourceDigest = digestRepoLightJson(f.source)
+    const bundle = structuredClone(wire.bundle)
+    bundle.selection = {status:'matched', requestedGithubLogin:'sample-student', contributorId:'github-sample-student', notice:null} as typeof bundle.selection
+    const prepared = prepareRepoLightCreate({...wire.envelope, request:{...wire.envelope.request, githubUsername:'sample-student'}, clientBinding:{...wire.envelope.clientBinding, sourceRevisionRef:sourceDigest}})
+    Object.assign(f.row,{source_json:f.source,source_fingerprint:sourceDigest,request_json:prepared.envelope.request,create_envelope:prepared.envelope,request_fingerprint:prepared.requestFingerprint,status:'completed',analysis_id:bundle.bundleRef,
+      report:{schemaVersion:'1.0',analysisId:bundle.bundleRef,reportRef:bundle.bundleRef,requestFingerprint:prepared.requestFingerprint,clientBinding:prepared.envelope.clientBinding,reportDigest:digestRepoLightJson(bundle),bundle}})
+    const output = await getAssignmentRepoLightReport(f.actor,f.target,f.row.id,f.deps)
+    expect(output.report.assignmentSummary).toMatchObject({scopeKey:'contributor:github-sample-student',text:expect.stringContaining('12 included commits')})
+    expect(output.report.bundle).toEqual(bundle)
+    expect(output.report.reportDigest).toBe(digestRepoLightJson(bundle))
   })
   it('keeps an unavailable source safe in context and performs no external attestation', async () => {
     const f = setup(); f.source.artifacts = []
