@@ -97,7 +97,8 @@ export async function mockLongTeacherTable(page: Page, surface: TeacherStudentTa
           graded_at: null, returned_at: null, feedback_returned_at: null },
       })) }
     } else if (surface === 'assignment' && url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) {
-      const student = students.find(item => url.pathname.endsWith(item.id))!
+      const student = students.find(item => url.pathname.endsWith(item.id))
+      if (!student) return route.fallback()
       body = { assignment, student: { id: student.id, email: student.email, name: `${student.first} ${student.last}` }, doc: null, feedback_entries: [] }
     } else if (surface === 'test' && url.pathname === '/api/teacher/tests') {
       body = { tests: [assessment] }

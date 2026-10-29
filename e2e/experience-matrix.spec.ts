@@ -2682,7 +2682,8 @@ test('confirms assignment AI grading before sending selected students', async ({
     } else if (url.pathname === '/api/teacher/assignments') body = { assignments: [assignment] }
     else if (url.pathname === `/api/teacher/assignments/${assignmentId}`) body = { assignment, students, active_ai_grading_run: null }
     else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) {
-      const student = students.find((item) => url.pathname.endsWith(item.student_id))!
+      const student = students.find((item) => url.pathname.endsWith(item.student_id))
+      if (!student) return route.fallback()
       body = { assignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} ${student.student_last_name}` }, doc: null, feedback_entries: [] }
     } else if (url.pathname.endsWith('/history')) body = { history: [] }
     else if (url.pathname.endsWith('/class-days')) body = { class_days: [] }
@@ -4158,8 +4159,9 @@ test('retains teacher Classwork student editor and table through background refr
         ? students.map((student, index) => index === 20 ? { ...student, status: 'returned', doc: { ...student.doc, returned_at: '2026-01-03T12:00:00Z' } } : student)
         : students, active_ai_grading_run: null }
     } else if (url.pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`) || url.pathname.startsWith(`/api/teacher/assignments/${nextAssignmentId}/students/`)) {
+      const student = students.find((item) => url.pathname.endsWith(item.student_id))
+      if (!student) return route.fallback()
       studentReads += 1
-      const student = students.find((item) => url.pathname.endsWith(item.student_id))!
       const selectedAssignment = url.pathname.includes(nextAssignmentId) ? nextAssignment : assignment
       body = { assignment: selectedAssignment, student: { id: student.student_id, email: student.student_email, name: `${student.student_first_name} Example` }, doc: { ...student.doc, assignment_id: selectedAssignment.id }, feedback_entries: [] }
     } else if (url.pathname === `/api/teacher/assignments/${assignmentId}/grade`) {

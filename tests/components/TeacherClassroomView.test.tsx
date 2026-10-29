@@ -7,6 +7,7 @@ import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 import { TooltipProvider } from '@/ui'
 
 const mockAssignmentModalRender = vi.fn()
+const mockExecuteRepoLightBatch = vi.fn()
 const mockFetchJSONWithCache = vi.fn()
 const mockInvalidateCachedJSON = vi.fn()
 const mockInvalidateGradebookForClassroom = vi.fn()
@@ -30,6 +31,8 @@ const mockWorkPanelGradePersistenceState = {
   hasPendingChanges: false,
   isSaving: false,
 }
+
+vi.mock('@/lib/repolight-batch', () => ({ executeRepoLightBatch: (...args: unknown[]) => mockExecuteRepoLightBatch(...args) }))
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: any) => <div>{children}</div>,
@@ -667,6 +670,7 @@ async function getSelectedStudentAction(
     | 'Copy grade to 2 selected'
     | 'Copy comment to 2 selected'
     | `AI Grade ${string}`
+    | `Analyze repos for ${number} students`
     | 'Return',
 ) {
   const toolbar = screen.getByRole('toolbar', { name: 'Assignment grading actions' })
@@ -680,6 +684,7 @@ async function getSelectedStudentAction(
 describe('TeacherClassroomView', () => {
   beforeEach(() => {
     mockAssignmentModalRender.mockReset()
+    mockExecuteRepoLightBatch.mockReset()
     vi.stubGlobal('fetch', vi.fn())
     vi.stubGlobal('ResizeObserver', class {
       observe() {}
@@ -707,6 +712,7 @@ describe('TeacherClassroomView', () => {
     clearAssignmentWorkspaceStudentCookie()
     mockFetchClassDaysForClassroom.mockReset()
     mockFetchClassDaysForClassroom.mockResolvedValue([])
+    mockFetchJSONWithCache.mockReset()
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
         return Promise.resolve({
@@ -3645,6 +3651,53 @@ describe('TeacherClassroomView', () => {
       expect(mockShowMessage).toHaveBeenCalledWith({ text: 'Graded 1 • 1 missing', tone: 'info' })
     })
     expect(mockClearSelection).toHaveBeenCalled()
+  })
+
+  it.each(['ready', 'not_configured'] as const)('RepoLight selected action reflects the teacher connection: %s', async (connectionState) => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    details.students.push(makeStudentSubmissionRow('student-2'))
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url === '/api/teacher/assignments/assignment-1') return Promise.resolve({ok:true,json:async () => details})
+      if (url.endsWith('/repolight/runs')) return Promise.resolve({ok:true,json:async () => ({state:connectionState,source:{repositoryChoices:[],available:true,repositoryUrl:'https://github.com/example/repo',githubUsername:'sample',usernameProvenance:'artifact',requirementId:null,period:null,periodDefaulted:false,notice:null},run:null})})
+      return Promise.resolve({ok:false,json:async () => ({error:'unavailable'})})
+    })
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+    render(<TeacherClassroomView classroom={classroom} />)
+    await screen.findByTestId('teacher-work-panel')
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/repolight/runs'), expect.anything()))
+    await act(async () => {
+      const accessCall = mockFetchJSONWithCache.mock.calls.findIndex(([key]) => String(key).startsWith('repolight-batch-access:'))
+      await mockFetchJSONWithCache.mock.results[accessCall].value
+    })
+    const toolbar = screen.getByRole('toolbar', { name: 'Assignment grading actions' })
+    const trigger = within(toolbar).getByRole('button', {name:/Student actions/})
+    await waitFor(() => expect(trigger).toBeEnabled())
+    openActionMenu(trigger)
+    expect(await screen.findByRole('menuitem', {name:'AI Grade 2 students'})).toBeInTheDocument()
+    if (connectionState === 'not_configured') {
+      await waitFor(() => expect(screen.queryByRole('menuitem', {name:'Analyze repos for 2 students'})).not.toBeInTheDocument())
+      expect(mockExecuteRepoLightBatch).not.toHaveBeenCalled()
+      return
+    }
+    fireEvent.click(await screen.findByRole('menuitem', {name:'Analyze repos for 2 students'}))
+    const dialog = screen.getByRole('dialog', {name:'Analyze repos for 2 students?'})
+    expect(dialog).toHaveTextContent('rule-based summary')
+    expect(dialog).toHaveTextContent('private comment draft')
+    expect(dialog).toHaveTextContent('No comments are sent and grades do not change')
+    expect(dialog).toHaveTextContent('Keep this page open')
+    expect(mockExecuteRepoLightBatch).not.toHaveBeenCalled()
+    fireEvent.click(within(dialog).getByRole('button', {name:'Cancel'}))
+    expect(mockExecuteRepoLightBatch).not.toHaveBeenCalled()
+    fireEvent.click(await getSelectedStudentAction('Analyze repos for 2 students'))
+    mockExecuteRepoLightBatch.mockResolvedValue([{studentId:'student-1',status:'imported',reason:'Added to the private comment draft.'},{studentId:'student-2',status:'skipped',reason:'A valid GitHub username is required.'}])
+    fireEvent.click(within(screen.getByRole('dialog', {name:'Analyze repos for 2 students?'})).getByRole('button', {name:'Analyze repos'}))
+    await waitFor(() => expect(mockExecuteRepoLightBatch).toHaveBeenCalledTimes(1))
+    expect(mockExecuteRepoLightBatch).toHaveBeenCalledWith(expect.objectContaining({assignmentId:'assignment-1',students:[{studentId:'student-1',expectedDocUpdatedAt:'2026-04-10T12:00:00Z'},{studentId:'student-2',expectedDocUpdatedAt:'2026-04-10T12:00:00Z'}]}))
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.filter(([, init]) => init?.method === 'POST')).toEqual([])
+    expect(await screen.findByText(/A valid GitHub username is required/)).toBeInTheDocument()
   })
 
   it.each([1, 2])('confirms AI grading for %i selected students before starting and polling a Gradex assignment run', async (selectedCount) => {
