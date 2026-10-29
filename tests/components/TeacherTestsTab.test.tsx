@@ -820,6 +820,23 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByText('Class B Test')).toBeInTheDocument()
   })
 
+  it('confirms deletion from the test editor and keeps the editor on cancel', async () => {
+    mockTestsResponse([makeTest({ id: 'test-1', title: 'Unit Test' })])
+    fetchMock.mockResolvedValueOnce(makeResultsResponse())
+    renderTab()
+    await openEditModalFromSelectedTest()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete test' }))
+    const confirmation = screen.getByRole('dialog', { name: 'Delete test?' })
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByTestId('mock-test-detail')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete test' }))
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete test?' })).getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/test-1', { method: 'DELETE' }))
+    await waitFor(() => expect(screen.queryByTestId('mock-test-detail')).not.toBeInTheDocument())
+  })
+
   it('clears pending test delete confirmation after switching classrooms', async () => {
     mockTestsResponse([makeTest({ id: 'test-a', classroom_id: classroom.id, title: 'Class A Test' })])
     const view = renderTab({ classroom })

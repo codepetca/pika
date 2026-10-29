@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
+import { Button } from '@/ui'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -22,6 +23,7 @@ interface TeacherTestAuthoringDialogProps {
   hasPendingMarkdownImport: boolean
   publicationError?: string
   onClose: () => void
+  onRequestDelete?: () => void
   discardPristineOnClose?: boolean
   onDiscardPristine?: (draftVersion: number, testUpdatedAt: string) => Promise<boolean>
   onDraftSummaryChange: (update: AssessmentEditorSummaryUpdate) => void
@@ -43,6 +45,7 @@ export function TeacherTestAuthoringDialog({
   apiBasePath,
   publicationError = '',
   onClose,
+  onRequestDelete,
   discardPristineOnClose = false,
   onDiscardPristine,
   onDraftSummaryChange,
@@ -126,6 +129,11 @@ export function TeacherTestAuthoringDialog({
       panelClassName="!p-0"
       contentClassName="!overflow-hidden !p-0"
       tall
+      footer={test && onRequestDelete ? (
+        <Button type="button" variant="danger" onClick={onRequestDelete} disabled={isClosing || isPreparingPublish}>
+          Delete test
+        </Button>
+      ) : undefined}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <ClassroomBlueprintDraftSource

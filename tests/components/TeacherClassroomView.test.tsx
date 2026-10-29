@@ -203,10 +203,11 @@ vi.mock('@/components/Spinner', () => ({
 vi.mock('@/components/AssignmentModal', () => ({
   AssignmentModal: (props: any) => {
     mockAssignmentModalRender(props)
-    const { isOpen, assignment, instructionsMode = 'visual', onClose } = props
+    const { isOpen, assignment, instructionsMode = 'visual', onClose, onRequestDelete } = props
     return isOpen ? (
       <div role="dialog" data-instructions-mode={instructionsMode}>
         {assignment ? `Editing ${assignment.title}` : 'New Assignment'}
+        {onRequestDelete && <button type="button" onClick={onRequestDelete}>Delete assignment</button>}
         <button type="button" onClick={onClose}>
           Close assignment modal
         </button>
@@ -2712,6 +2713,67 @@ describe('TeacherClassroomView', () => {
         expect.objectContaining({ method: 'DELETE' }),
       )
     })
+  })
+
+  it('confirms deletion from the assignment editor', async () => {
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+
+      if (url === `/api/classrooms/${classroom.id}/class-days`) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ class_days: [] }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1' && init?.method === 'DELETE') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ success: true }),
+        })
+      }
+
+      if (url === '/api/teacher/assignments/assignment-1') {
+        return Promise.resolve({
+          ok: true,
+          json: async () => makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1'),
+        })
+      }
+
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: `Unhandled fetch: ${url}` }),
+      })
+    })
+
+    document.cookie = `${encodeURIComponent(`teacherAssignmentsSelection:${classroom.id}`)}=${encodeURIComponent('assignment-1')}; Path=/; SameSite=Lax`
+
+    render(<TeacherClassroomView classroom={classroom} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('grading:assignment-1:student-1')
+    })
+
+    fireEvent.click(getAssignmentUtilityAction('Edit Assignment'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete assignment' }))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Delete assignment?' })).getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText('Editing Assignment One')).toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete assignment' }))
+
+    const deleteDialog = (await screen.findByText('Delete assignment?')).parentElement
+    expect(deleteDialog).not.toBeNull()
+    expect(deleteDialog).toHaveTextContent('Assignment One')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/teacher/assignments/assignment-1',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+    await waitFor(() => expect(screen.queryByText('Editing Assignment One')).not.toBeInTheDocument())
   })
 
   it('copies the active inspector grade to checked students after confirmation', async () => {

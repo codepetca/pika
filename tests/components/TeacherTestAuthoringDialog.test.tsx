@@ -86,6 +86,7 @@ function renderDialog({
   discardPristineOnClose = false,
   onDiscardPristine = vi.fn(async (_draftVersion: number, _testUpdatedAt: string) => true),
   onRequestUnpublish,
+  onRequestDelete,
   canUnpublish,
 }: {
   hasPendingMarkdownImport?: boolean
@@ -97,6 +98,7 @@ function renderDialog({
   discardPristineOnClose?: boolean
   onDiscardPristine?: (draftVersion: number, testUpdatedAt: string) => Promise<boolean>
   onRequestUnpublish?: () => void
+  onRequestDelete?: () => void
   canUnpublish?: boolean
 } = {}) {
   render(
@@ -118,6 +120,7 @@ function renderDialog({
         onRequestPreview={onRequestPreview}
         onRequestPublish={onRequestPublish}
         onRequestUnpublish={onRequestUnpublish}
+        onRequestDelete={onRequestDelete}
         canUnpublish={canUnpublish}
       />
     </TooltipProvider>,
@@ -311,4 +314,12 @@ describe('TeacherTestAuthoringDialog', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
     expect(onDiscardPristine).not.toHaveBeenCalled()
   })
+})
+
+
+it('requests deletion from the test editor', () => {
+  const onRequestDelete = vi.fn()
+  renderDialog({ onRequestDelete })
+  fireEvent.click(screen.getByRole('button', { name: 'Delete test' }))
+  expect(onRequestDelete).toHaveBeenCalledOnce()
 })
