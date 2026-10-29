@@ -20,6 +20,21 @@ describe('assignment summary', () => {
     expect(result.text).toContain('12 included commits')
     expect(result.text).toContain('9.37 hours after release')
     expect(result.text).toContain('3 of 12 (25%)')
+    expect(result.text).toContain('These figures describe recorded commit author timestamps')
+    expect(result.text).not.toMatch(/review the exclusions|descriptive commit messages/i)
+  })
+  it('gives checkpoint advice only for reliable concentrated evidence', () => {
+    const f = fixture(); const facts = f.bundle.contributors[0].analysis.facts
+    facts.commits = facts.commits.map((commit, index) => ({...commit, authoredAt:index < 6 ? '2026-10-16T12:00:00Z' : '2026-10-10T12:00:00Z'}))
+    expect(assignmentSummary(f.bundle,f.request,f.assignment)!.text).toContain('consider recording checkpoints earlier')
+    facts.coverage.history = 'partial'
+    const provisional = assignmentSummary(f.bundle,f.request,f.assignment)!.text
+    expect(provisional).toContain('provisional')
+    expect(provisional).not.toContain('consider recording checkpoints earlier')
+    expect(provisional).not.toMatch(/review the exclusions|descriptive commit messages/i)
+    facts.coverage.history = 'complete'
+    facts.commits = facts.commits.slice(0,3)
+    expect(assignmentSummary(f.bundle,f.request,f.assignment)!.text).not.toContain('consider recording checkpoints earlier')
   })
   it('never attributes an unmatched, unrequested, or mismatched account', () => {
     const f = fixture()
@@ -42,6 +57,7 @@ describe('assignment summary', () => {
     const text = assignmentSummary(f.bundle, f.request, f.assignment)!.text
     expect(text).toContain('provisional'); expect(text).toContain('undated'); expect(text).toContain('share is unavailable')
     expect(text).toContain('snapshot before the deadline'); expect(text).toContain('starter baseline')
+    expect(text).not.toContain('consider recording checkpoints earlier')
   })
   it('clamps the final window and uses half-open instants through DST', () => {
     const f = fixture(); const facts = f.bundle.contributors[0].analysis.facts
@@ -52,6 +68,7 @@ describe('assignment summary', () => {
     facts.commits = [ {...facts.commits[0],authoredAt:f.assignment.released_at}, {...facts.commits[1],authoredAt:f.assignment.due_at} ]
     const text = assignmentSummary(f.bundle, f.request, f.assignment)!.text
     expect(text).toContain('1 of 1 (100%)'); expect(text).toContain('shorter than 24 hours')
+    expect(text).not.toContain('consider recording checkpoints earlier')
   })
   it('filters to the assignment and counts the final window start but not the deadline', () => {
     const f = fixture(); const facts = f.bundle.contributors[0].analysis.facts
@@ -64,7 +81,9 @@ describe('assignment summary', () => {
   it('distinguishes empty and unavailable history and rejects mismatched report settings', () => {
     const f = fixture(); const facts = f.bundle.contributors[0].analysis.facts
     facts.commits = []
-    expect(assignmentSummary(f.bundle, f.request, f.assignment)!.text).toContain('0 included commits')
+    const empty = assignmentSummary(f.bundle, f.request, f.assignment)!.text
+    expect(empty).toContain('0 included commits')
+    expect(empty).not.toContain('consider recording checkpoints earlier')
     facts.metrics.commits.status = 'unavailable'
     expect(assignmentSummary(f.bundle, f.request, f.assignment)!.text).toContain('commit history is unavailable')
     f.request.exclusions.commitShas = ['a'.repeat(40)]
