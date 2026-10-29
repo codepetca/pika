@@ -72,7 +72,8 @@ export async function verifyWorkspaceMotion(page: Page, testInfo: TestInfo,
   }, { theme, workspaceSelector })
   let studentWorkReads = 0
   page.on('request', request => {
-    if (request.method() === 'GET' && new URL(request.url()).pathname.startsWith(`/api/teacher/assignments/${assignmentId}/students/`)) studentWorkReads += 1
+    const path = new URL(request.url()).pathname
+    if (request.method() === 'GET' && path.startsWith(`/api/teacher/assignments/${assignmentId}/students/`) && !path.slice(`/api/teacher/assignments/${assignmentId}/students/`.length).includes('/')) studentWorkReads += 1
   })
   const role = surface === 'student' ? 'student' : 'teacher'
   await mockTableShellReads(page, role)
