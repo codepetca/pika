@@ -170,6 +170,18 @@ describe('useAssignmentRepoLight',()=>{
     expect(fetchMock.mock.calls.some(([,options])=>(options as RequestInit | undefined)?.method === 'POST')).toBe(false)
   })
 
+  it.each([true, false])('honors server continuation permission after access expires (canAdvance=%s)',async canAdvance=>{
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']})
+    const activeRun = {...run,status:'running',canAdvance,reportAvailable:false,canImport:false}
+    const fetchMock = vi.fn(async(url:string,_options?:RequestInit)=>reply(url.endsWith('/runs') ? {state:'access_required',source,run:activeRun} : {run:activeRun}))
+    vi.stubGlobal('fetch',fetchMock)
+    await act(async()=>{render(<Harness />)})
+    expect(screen.getByText('access_required')).toBeInTheDocument()
+    await act(async()=>{fireEvent.click(screen.getByText('Analyze'));await vi.advanceTimersByTimeAsync(2000)})
+    expect(fetchMock.mock.calls.filter(([url])=>url.endsWith('/advance'))).toHaveLength(canAdvance ? 1 : 0)
+    expect(fetchMock.mock.calls.filter(([url,options])=>url.endsWith('/runs') && options?.method === 'POST')).toHaveLength(0)
+  })
+
   it('allows cached GETs while mutations are paused and never advances or imports',async()=>{
     vi.useFakeTimers({toFake:['setTimeout','clearTimeout']})
     const activeRun = {...run,status:'running',canAdvance:true}

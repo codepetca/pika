@@ -34,6 +34,32 @@ beforeEach(() => {
 })
 
 describe('typed RepoLight cleanup database adapter', () => {
+  it('resolves retained managed credentials only after cleanup reservation, even with configuration removed', async () => {
+    const saved = { ...subject, connection_ref: 'pika_managed_saved-operation' }
+    mocks.rpc.mockImplementation(async (name: string) => ({ data: name === 'read_repolight_cleanup_subjects_v1'
+      ? mocks.erase.mock.calls.length ? [] : [saved]
+      : name === 'record_repolight_subject_erasure_v1' ? { ...saved, state: 'erased', receipt } : saved, error: null }))
+    mocks.config.mockImplementation(() => { throw new Error('provisioning configuration removed') })
+    const latest = { ...connection, connectionRef: saved.connection_ref, apiKey: 'replacement-key' }
+    const registry = { ensure: vi.fn(), resolveSaved: vi.fn(async () => ({ connection: latest, apiOrigin: 'https://saved.invalid' })) }
+    expect(await createRepoLightDecommissionDatabaseCoordinator(undefined, { managedRegistry: registry }).advance({ teacherId, classroomId }))
+      .toEqual({ complete: true, erased: 1, pending: 0 })
+    expect(registry.resolveSaved).toHaveBeenCalledExactlyOnceWith(teacherId, saved.connection_ref)
+    expect(mocks.rpc.mock.invocationCallOrder[1]).toBeLessThan(registry.resolveSaved.mock.invocationCallOrder[0])
+    expect(registry.ensure).not.toHaveBeenCalled(); expect(mocks.config).not.toHaveBeenCalled()
+    expect(mocks.client).toHaveBeenCalledWith(latest, { apiOrigin: 'https://saved.invalid' })
+  })
+
+  it('keeps a pending managed rotation unavailable without credential fallback or false erasure completion', async () => {
+    const saved = { ...subject, connection_ref: 'pika_managed_saved-operation' }
+    mocks.rpc.mockImplementation(async name => ({ data: name === 'read_repolight_cleanup_subjects_v1' ? [saved] : saved, error: null }))
+    const registry = { ensure: vi.fn(), resolveSaved: vi.fn(async () => { throw new Error('repolight_managed_pending') }) }
+    await expect(createRepoLightDecommissionDatabaseCoordinator(undefined, { managedRegistry: registry }).advance({ teacherId, classroomId }))
+      .rejects.toMatchObject({ code: 'repolight_cleanup_unavailable', retryable: true })
+    expect(registry.ensure).not.toHaveBeenCalled(); expect(mocks.erase).not.toHaveBeenCalled(); expect(mocks.config).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalledWith('record_repolight_subject_erasure_v1', expect.anything())
+  })
+
   it('uses saved inactive connection identity while Analyze is paused and records only strict receipts', async () => {
     expect(await createRepoLightDecommissionDatabaseCoordinator().advance({ teacherId, classroomId }))
       .toEqual({ complete: true, erased: 1, pending: 0 })

@@ -5,6 +5,7 @@ import { sourceFixture } from './adapter-fixtures'
 import { digestRepoLightJson, prepareRepoLightCreate, RepoLightClientError, type RepoLightClient } from '@/lib/server/repolight-client'
 import { beginAssignmentRepoLightRun, advanceAssignmentRepoLightRun, getAssignmentRepoLightContext, getAssignmentRepoLightReport, getAssignmentRepoLightRun, readRepoLightRequestJson, parseRepoLightRun, type RepoLightDependencies } from '@/lib/server/assignment-repolight-runs'
 import { importAssignmentRepoLightFeedback } from '@/lib/server/assignment-repolight-import'
+import { ManagedRepoLightError } from '@/lib/server/repolight-managed'
 const uuid = (n: number) => `${String(n).padStart(8, '0')}-1111-4111-8111-111111111111`
 function setup() {
   const source = sourceFixture(); source.artifacts[0].url = wire.envelope.request.repositoryUrl
@@ -23,7 +24,134 @@ function setup() {
   const deps: RepoLightDependencies = { database, config: () => ({ enabled: true, apiOrigin: 'https://reports.example.test', connections: [connection] }), clientFactory: factory, now: () => new Date('2026-10-24T12:00:00Z') }
   return { source, actor, target, row, database, factory, remote, deps, prepared, connection }
 }
+function managedSetup(allowed = true) {
+  const f = setup()
+  const access = { enforced: false, allowed, reason: allowed ? 'eligible' : 'expired', source: 'trial', access_ends_at: null, plan_revision: 2 }
+  f.row.connection_json.connectionRef = `pika_managed_${uuid(40)}`
+  const connection = { ...f.connection, connectionRef: f.row.connection_json.connectionRef }
+  const registry = { ensure: vi.fn(async () => ({ connection, apiOrigin: 'https://reports.example.test' })), resolveSaved: vi.fn(async () => ({ connection, apiOrigin: 'https://reports.example.test' })) }
+  f.deps.config = () => ({ enabled: true, managedEnabled: true, apiOrigin: 'https://reports.example.test', connections: [] })
+  f.deps.managedRegistry = registry
+  f.deps.managedConfig = () => ({ enabled: true, apiOrigin: 'https://reports.example.test', installationRef: connection.installationRef, controlSecret: 'x'.repeat(43), activeEncryptionKeyId: 'key-1', encryptionKeys: { 'key-1': 'y'.repeat(43) } })
+  Object.assign(f.row, { analysis_access: access })
+  f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: f.row, analysis_access: access }, error: null }) as never)
+  return { ...f, access, registry, connection }
+}
+describe('managed report integration', () => {
+  it('shows eligible unprovisioned owners ready on GET with no registry or provider call', async () => {
+    const f = managedSetup()
+    f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: null, analysis_access: f.access }, error: null }) as never)
+    expect((await getAssignmentRepoLightContext(f.actor, f.target, f.deps)).state).toBe('ready')
+    expect(f.registry.ensure).not.toHaveBeenCalled(); expect(f.registry.resolveSaved).not.toHaveBeenCalled(); expect(f.factory).not.toHaveBeenCalled()
+  })
+  it('automatically ensures only after actor/source validation, persisting opaque bindings', async () => {
+    const f = managedSetup()
+    f.database.begin.mockImplementation(async args => {
+      const prepared = prepareRepoLightCreate({ schemaVersion: '1.0', request: args.p_request, clientBinding: f.row.create_envelope.clientBinding })
+      return { data: { ...f.row, request_json: prepared.envelope.request, create_envelope: prepared.envelope, request_fingerprint: prepared.requestFingerprint }, error: null }
+    })
+    const view = await beginAssignmentRepoLightRun(f.actor, f.target, { requestId: f.row.id }, f.deps)
+    expect(view.canAdvance).toBe(true)
+    expect(f.registry.ensure).toHaveBeenCalledExactlyOnceWith(f.actor)
+    expect(f.database.source.mock.invocationCallOrder[0]).toBeLessThan(f.registry.ensure.mock.invocationCallOrder[0])
+    expect(f.registry.ensure.mock.invocationCallOrder[0]).toBeLessThan(f.database.begin.mock.invocationCallOrder[0])
+    expect(f.database.begin.mock.calls[0][0].p_connection).toEqual(f.row.connection_json)
+    expect(JSON.stringify(f.database.begin.mock.calls[0][0])).not.toContain(f.connection.apiKey)
+  })
+  it('requires allowed=true even with dormant enforcement and makes no provisioning call on denial', async () => {
+    const f = managedSetup(false)
+    expect((await getAssignmentRepoLightContext(f.actor, f.target, f.deps))).toMatchObject({ state: 'access_required', run: { canAdvance: false } })
+    await expect(beginAssignmentRepoLightRun(f.actor, f.target, { requestId: f.row.id }, f.deps)).rejects.toMatchObject({ statusCode: 403 })
+    expect(f.registry.ensure).not.toHaveBeenCalled(); expect(f.database.begin).not.toHaveBeenCalled()
+  })
+  it('fails closed on missing access metadata, bad managed configuration, or failed managed provisioning', async () => {
+    const f = managedSetup()
+    f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: null }, error: null }))
+    await expect(beginAssignmentRepoLightRun(f.actor, f.target, { requestId: f.row.id }, f.deps)).rejects.toMatchObject({ statusCode: 403 })
+    expect(f.registry.ensure).not.toHaveBeenCalled()
+    const g = managedSetup()
+    g.deps.config = () => ({ enabled: true, managedEnabled: true, apiOrigin: 'https://reports.example.test', connections: [g.connection] })
+    g.registry.ensure.mockRejectedValue(new ManagedRepoLightError('repolight_managed_provision_failed', true))
+    await expect(beginAssignmentRepoLightRun(g.actor, g.target, { requestId: g.row.id }, g.deps)).rejects.toMatchObject({ statusCode: 503 })
+    expect(g.database.begin).not.toHaveBeenCalled()
+    g.deps.managedConfig = () => { throw new Error('private control configuration') }
+    expect((await getAssignmentRepoLightContext(g.actor, g.target, g.deps)).state).toBe('not_configured')
+  })
+  it('polls known jobs after expiry using saved resolution without provisioning configuration', async () => {
+    const f = managedSetup(false); f.row.analysis_id = wire.bundle.bundleRef
+    f.deps.config = () => { throw new Error('provisioning config removed') }
+    await advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)
+    expect(f.registry.resolveSaved).toHaveBeenCalledExactlyOnceWith(f.actor, f.row.connection_json.connectionRef)
+    expect(f.registry.ensure).not.toHaveBeenCalled(); expect(f.remote.getStatus).toHaveBeenCalledOnce()
+  })
+  it.each([0, 1])('denies an expired managed create/reconciliation with dormant enforcement (attempts %s)', async attempts => {
+    const f = managedSetup(false); f.row.attempt_count = attempts
+    await expect(advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)).rejects.toMatchObject({ statusCode: 403 })
+    expect(f.database.advance).not.toHaveBeenCalled(); expect(f.factory).not.toHaveBeenCalled()
+  })
+  it('creates with real SQL transition shape that omits projected analysis-access metadata', async () => {
+    const f = managedSetup()
+    f.database.advance.mockImplementation(async args => {
+      const { analysis_access: ignored, ...row } = { ...f.row, analysis_access: f.access }
+      void ignored
+      return { data: { ...row, lease_token: args.p_action === 'claim' ? uuid(22) : null, lease_generation: 1 }, error: null }
+    })
+    const view = await advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)
+    expect(f.remote.createAnalysis).toHaveBeenCalledOnce()
+    expect(f.database.read).toHaveBeenCalledTimes(2)
+    expect(view.canAdvance).toBe(true)
+  })
+  it('rechecks managed access with a fresh owner-bound read immediately before egress', async () => {
+    const f = managedSetup()
+    f.database.read.mockResolvedValueOnce({ data: { ...f.row, analysis_access: f.access }, error: null })
+      .mockResolvedValue({ data: { ...f.row, analysis_access: { ...f.access, allowed: false, reason: 'expired' } }, error: null } as never)
+    await expect(advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)).rejects.toMatchObject({ statusCode: 403 })
+    expect(f.remote.createAnalysis).not.toHaveBeenCalled(); expect(f.remote.reconcileAnalysis).not.toHaveBeenCalled()
+  })
+  it('rejects a saved connection moved to another workspace before provider access', async () => {
+    const f = managedSetup(); f.registry.resolveSaved.mockResolvedValue({ connection: { ...f.connection, workspaceRef: 'other' }, apiOrigin: 'https://reports.example.test' })
+    await expect(advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)).rejects.toMatchObject({ statusCode: 503 })
+    expect(f.factory).not.toHaveBeenCalled(); expect(f.database.advance).not.toHaveBeenCalled()
+  })
+})
 describe('report-only durable orchestration', () => {
+  it('projects an enforced denial for new work while preserving continuation for known jobs', async () => {
+    const f = setup()
+    const denied = { enforced: true, allowed: false, reason: 'expired', source: 'trial', access_ends_at: '2026-10-24T12:00:00Z', plan_revision: 2 }
+    Object.assign(f.row, { analysis_access: denied })
+    f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: f.row, analysis_access: denied }, error: null }) as never)
+    const context = await getAssignmentRepoLightContext(f.actor, f.target, f.deps)
+    expect(context.state).toBe('access_required'); expect(context.run?.canAdvance).toBe(false)
+    expect((await getAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)).canAdvance).toBe(false)
+    f.row.analysis_id = wire.bundle.bundleRef; f.row.status = 'running'
+    expect((await getAssignmentRepoLightContext(f.actor, f.target, f.deps)).run?.canAdvance).toBe(true)
+    expect((await getAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)).canAdvance).toBe(true)
+    expect(f.factory).not.toHaveBeenCalled()
+  })
+  it('preserves the dormant pilot projection even when no plan entitlement is available', async () => {
+    const f = setup()
+    const dormant = { enforced: false, allowed: false, reason: 'account_unavailable', source: null, access_ends_at: null, plan_revision: null }
+    f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: f.row, analysis_access: dormant }, error: null }) as never)
+    const context = await getAssignmentRepoLightContext(f.actor, f.target, f.deps)
+    expect(context.state).toBe('ready'); expect(context.run?.canAdvance).toBe(true)
+  })
+  it('denies an expired new analysis at transaction admission without provider work', async () => {
+    const f = setup()
+    f.database.begin.mockResolvedValue({ data: null, error: { code: 'P2961', message: 'repolight_analysis_access_required' } } as never)
+    await expect(beginAssignmentRepoLightRun(f.actor, f.target, { requestId: f.row.id }, f.deps))
+      .rejects.toMatchObject({ statusCode: 403, message: 'repolight_analysis_access_required' })
+    expect(f.factory).not.toHaveBeenCalled()
+  })
+  it.each([0, 1])('denies create or uncertain-create reconciliation before egress (prior attempts %s)', async attemptCount => {
+    const f = setup(); f.row.attempt_count = attemptCount
+    f.database.advance.mockImplementation(async args => args.p_action === 'authorize'
+      ? { data: null, error: { code: 'P2961', message: 'repolight_analysis_access_required' } } as never
+      : { data: { ...f.row, lease_token: uuid(22), lease_generation: 1 }, error: null })
+    await expect(advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps))
+      .rejects.toMatchObject({ statusCode: 403, message: 'repolight_analysis_access_required' })
+    expect(f.remote.createAnalysis).not.toHaveBeenCalled()
+    expect(f.remote.reconcileAnalysis).not.toHaveBeenCalled()
+  })
   it('authorizes source and blocks a disabled begin without any external call or RPC mutation', async () => {
     const f = setup(); f.deps.config = () => ({ enabled: false, apiOrigin: null, connections: [] })
     await expect(beginAssignmentRepoLightRun(f.actor, f.target, { requestId: uuid(20) }, f.deps)).rejects.toMatchObject({ statusCode: 503 })

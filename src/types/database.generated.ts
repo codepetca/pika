@@ -9443,6 +9443,14 @@ export type Database = {
         Args: { p_generation: number; p_inventory_digest: string }
         Returns: boolean
       }
+      activate_repolight_managed_connection_v1: {
+        Args: {
+          p_expected: Json
+          p_teacher_id: string
+          p_workspace_ref: string
+        }
+        Returns: Json
+      }
       activate_test_from_draft_atomic: {
         Args: {
           p_expected_draft_version: number
@@ -12486,6 +12494,10 @@ export type Database = {
         Args: { p_storage_bucket: string; p_storage_path: string }
         Returns: Json
       }
+      get_repolight_analysis_access_v1: {
+        Args: { p_subject_user_id: string }
+        Returns: Json
+      }
       get_repolight_assignment_delete_context_v1: {
         Args: { p_actor_id: string; p_assignment_id: string }
         Returns: Json
@@ -13042,6 +13054,14 @@ export type Database = {
         }
         Returns: Json
       }
+      prepare_repolight_managed_connection_v1: {
+        Args: { p_candidate: Json; p_teacher_id: string }
+        Returns: Json
+      }
+      prepare_repolight_managed_rotation_v1: {
+        Args: { p_candidate: Json; p_teacher_id: string }
+        Returns: Json
+      }
       preview_classroom_authoring_guidance_for_owner_v1: {
         Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
@@ -13191,6 +13211,10 @@ export type Database = {
       }
       read_repolight_decommission_subjects_v1: {
         Args: { p_actor_id: string; p_operation_id: string }
+        Returns: Json
+      }
+      read_repolight_managed_connection_v1: {
+        Args: { p_connection_ref?: string; p_teacher_id: string }
         Returns: Json
       }
       read_repolight_purge_cleanup_subjects_v1: {

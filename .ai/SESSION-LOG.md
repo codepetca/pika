@@ -474,6 +474,27 @@ Rebased the previously reviewed required-username change onto current main. Pres
 upstream journal history and the prior local preparation evidence; focused verification
 is recorded in the task handoff. No migration, provider or production action.
 
+## 2026-10-29 — RepoLight plan policy
+
+Owner selected Pro and Max, including active Pro trial. Documented SUB-17 and
+preserved offering-version, pilot, billing, and activation boundaries. Runtime
+plan enforcement remains unimplemented; sandbox billing status is not a safe
+production resolver. Next: implement and verify authoritative entitlement and
+race-safe analysis admission before any separately authorized rollout.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
 ## 2026-10-29 — Delete from assignment and test editors
 
 - Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.

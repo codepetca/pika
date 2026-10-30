@@ -2,7 +2,8 @@ import { ApiError } from '@/lib/api-error'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { createRepoLightClient } from '@/lib/server/repolight-client'
-import { parseRepoLightConfig, resolveRepoLightConnection } from '@/lib/server/repolight-config'
+import { parseRepoLightConfig } from '@/lib/server/repolight-config'
+import { resolveSavedRepoLightConnection, type RepoLightConnectionDependencies } from '@/lib/server/repolight-connections'
 import { createRepoLightDecommission, RepoLightDecommissionError } from '@/lib/server/repolight-decommission'
 
 async function result(request: PromiseLike<{
@@ -24,7 +25,7 @@ async function result(request: PromiseLike<{
  */
 export function createRepoLightDecommissionDatabaseCoordinator(
   supabase: Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'> = getServiceRoleClient(),
-  options: {
+  options: RepoLightConnectionDependencies & {
     operation?: { id: string; kind: 'purge' | 'decommission' }
     config?: typeof parseRepoLightConfig
     client?: typeof createRepoLightClient
@@ -43,16 +44,16 @@ export function createRepoLightDecommissionDatabaseCoordinator(
     reserve: (scope, binding, operationId) => result(supabase.rpc('begin_repolight_subject_erasure_v1', {
       p_actor_id: scope.teacherId, p_binding_id: binding.id, p_operation_id: operationId,
     })),
-    erase: (binding, request) => {
-      let config: ReturnType<typeof parseRepoLightConfig>, connection: ReturnType<typeof resolveRepoLightConnection>
+    erase: async (binding, request) => {
+      let resolved
       try {
-        config = (options.config ?? parseRepoLightConfig)()
-        connection = resolveRepoLightConnection(config, binding.teacher_id, binding.connection_ref)
+        resolved = await resolveSavedRepoLightConnection(binding.teacher_id, binding.connection_ref, options)
       } catch { throw new RepoLightDecommissionError('repolight_cleanup_unavailable', true) }
+      const { connection, apiOrigin } = resolved
       if (connection.workspaceRef !== binding.workspace_ref || connection.installationRef !== binding.installation_ref) {
         throw new RepoLightDecommissionError('repolight_cleanup_binding_invalid')
       }
-      return (options.client ?? createRepoLightClient)(connection, { apiOrigin: config.apiOrigin! }).eraseSubject(request)
+      return (options.client ?? createRepoLightClient)(connection, { apiOrigin }).eraseSubject(request)
     },
     record: (scope, binding, operationId, receipt) => result(supabase.rpc('record_repolight_subject_erasure_v1', {
       p_actor_id: scope.teacherId, p_binding_id: binding.id, p_operation_id: operationId,

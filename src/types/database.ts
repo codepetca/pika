@@ -278,7 +278,19 @@ type TableOverrides = {
   >
 }
 
+export type RepoLightAnalysisAccess = {
+  enforced: boolean
+  allowed: boolean
+  reason: 'access_unavailable' | 'account_unavailable' | 'plan_not_included' | 'entitlement_inconsistent'
+    | 'not_started' | 'expired' | 'legacy_access_disabled' | 'billing_access_disabled'
+    | 'synchronization_pending' | 'offering_not_included' | 'eligible'
+  source: 'legacy' | 'trial' | 'offering' | null
+  access_ends_at: string | null
+  plan_revision: number | null
+}
+
 type FunctionOverrides = {
+  get_repolight_analysis_access_v1: FunctionContract<'get_repolight_analysis_access_v1', RepoLightAnalysisAccess>
   //286 accepts SQLNULL for disabled-runtime installation and canary filters.
   // Generated PostgreSQL metadata preserves keys/defaults, not input nullability.
   read_attendance_membership_status_v1: FunctionContract<
@@ -772,7 +784,7 @@ export type TableUpdate<Name extends keyof Tables> = Tables[Name]['Update']
 export type RepoLightRpcSourceContract = {
   get_assignment_repolight_source_v1: {
     Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string }
-    Returns: { source: Json; source_fingerprint: string; latest_run: Json | null }
+    Returns: { source: Json; source_fingerprint: string; latest_run: Json | null; analysis_access?: RepoLightAnalysisAccess }
   }
   begin_assignment_repolight_run_v1: {
     Args: { p_actor_id: string; p_assignment_id: string; p_student_id: string; p_request_id: string; p_connection: Json; p_request: Json; p_expected_source: Json }
