@@ -60,8 +60,8 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
   if (migrations.length >= 295) validateIndependentCalendarPostDatesReviewedMigration(migrations[294])
   for (const [index, name, digest] of [
     [295, '296_repolight_analysis_access.sql', '63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'],
-    [296, '297_repolight_managed_registry.sql', '18b23cf1f5dfeb7fc138c30a11807a059bde9a00c03063a6193805515196c222'],
-    [297, '298_repolight_provision_outbox.sql', '88fdc1875cc0d14a526c38830c0038f66e06f4e0e6c9b250aa9fc2c7eb62c4cf'],
+    [296, '297_repolight_managed_registry.sql', '8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'],
+    [297, '298_repolight_provision_outbox.sql', '6822ef983ebd68d1b87ec3bb26abd6b55eeed698841d297523cf26be3956398f'],
   ] as const) {
     if (migrations.length <= index) continue
     const migration = migrations[index]
