@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto'
 
 export const ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION = Object.freeze({
   name: '296_attendance_named_schedules.sql',
-  sha256: '8fdefed93d0a1c3c0466e02b90cef0cab4c56fe0ce71476856e20aee01508b83',
+  sha256: '4a640c6bd6f1217314387b2122861f286986cd4c07e6a7f1be9b149388e5c917',
 })
 
 export function validateAttendanceNamedSchedulesReviewedMigration(migration: { name: string; sql: string; sha256: string }) {

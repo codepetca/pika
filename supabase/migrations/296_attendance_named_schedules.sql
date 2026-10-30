@@ -38,14 +38,14 @@ create function public.read_attendance_schedules_for_owner_v1(
   p_canary_actor_id uuid default null, p_canary_classroom_id uuid default null
 ) returns jsonb language sql stable security invoker set search_path = ''
 set lock_timeout = '1s' set statement_timeout = '8s' as $$
-  with authorization as materialized (
+  with owner_authorization as materialized (
     select public.read_attendance_policy_for_owner_v1(
       p_actor_id,p_classroom_id,p_scope_mode,p_canary_actor_id,p_canary_classroom_id) as value
   ), decision as materialized (
     select value, case when p_date is null or not isfinite(p_date)
       or p_date < date '0001-01-01' or p_date > date '9999-12-31'
       then 'blocked' else value->>'status' end as status
-    from authorization
+    from owner_authorization
   ), schedule_rows as materialized (
     select s.id,s.name,s.policy from public.attendance_named_schedules s, decision d
     where d.status='ready' and s.classroom_id=p_classroom_id

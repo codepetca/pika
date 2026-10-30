@@ -99,7 +99,7 @@ assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migra
 assert.equal(paths[294], '295_independent_calendar_post_dates.sql', 'Unreviewed migration 295 filename')
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[294]))).digest('hex'), '7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3', 'Unreviewed migration 295 source')
 assert.equal(paths[295], '296_attendance_named_schedules.sql', 'Unreviewed migration 296 filename')
-assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[295]))).digest('hex'), '8fdefed93d0a1c3c0466e02b90cef0cab4c56fe0ce71476856e20aee01508b83', 'Unreviewed migration 296 source')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[295]))).digest('hex'), '4a640c6bd6f1217314387b2122861f286986cd4c07e6a7f1be9b149388e5c917', 'Unreviewed migration 296 source')
 for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
