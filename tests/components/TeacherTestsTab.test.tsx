@@ -63,6 +63,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onDraftPristineCheckReady,
     initialSplitView,
     onRequestClose,
+    onRequestDelete,
     onRequestPublish,
     generatedTitleLabel,
   }: {
@@ -89,6 +90,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     ) => void
     initialSplitView?: 'edit' | 'markdown'
     onRequestClose?: () => void
+    onRequestDelete?: () => void
     onRequestPublish?: () => void
     generatedTitleLabel?: string
   }) => {
@@ -119,6 +121,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
           data-show-preview={String(showPreviewButton)}
           data-show-results={String(showResultsTab)}
         >
+          {onRequestDelete && <button type="button" onClick={onRequestDelete}>Delete test</button>}
           Detail for {test.title}
           {testQuestionLayout === 'split' ? <label>Title<input value={displayedTitle} readOnly /></label> : null}
           {testQuestionLayout === 'split' ? (

@@ -51,7 +51,9 @@ describe('AssignmentModal', () => {
     it('requests deletion from the edit modal', () => {
       const onRequestDelete = vi.fn()
       render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment} onClose={vi.fn()} onSuccess={vi.fn()} onRequestDelete={onRequestDelete} />)
-      fireEvent.click(screen.getByRole('button', { name: 'Delete assignment' }))
+      expect(screen.queryByRole('menuitem', { name: 'Delete assignment' })).not.toBeInTheDocument()
+      fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Delete assignment' }))
       expect(onRequestDelete).toHaveBeenCalledOnce()
     })
 
