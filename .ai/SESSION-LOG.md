@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Prepare classroom Home recovery and pilot
-
-Prepared a rollback-only creation freeze/getter-permission fault/restoration
-contract in the existing sealed offline owned-clone verifier, plus actual-route,
-adapter and server-page CPU composition tests for both account-role labels.
-The layered evidence intentionally does not claim real PostgREST/browser outage
-or deployed recovery. Pilot packet records compatible477/schema292 floor,
-retained-admission growth stop, canaries, zero-tolerance stop conditions and
-unset operator/cohort/activation authority. Root verified84focused cases and
-TypeScript. Reviews468–470 cover source and corrections; bounded
-Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
-(351s), effective model/tokens unknown. No runtime, migration, dependency,
-production, real-account, provider or activation change. Cutover remains open.
-First isolated attempt stopped on a legacy plain-text work fixture in JSONB
-content; no product defect. Source schema preservation and exact-owned cleanup
-passed; failed evidence retained. Red/green regression now parses the fixture's
-actual JSON document; independent delta review precedes a fresh attempt.
-Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
-fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
-unchanged lock contention, generated types and canonical schema/source equality.
-Exact owned resources absent; full failure/success evidence retained privately.
-Final receipt review/CI/main merge pending; production477 and activation/provider
-holds unchanged. Pilot still requires selected operator/cohort and authorization.
-
 ## 2026-10-24 — Assessment diagnostic privacy cleanup
 
 Owner approved orchestration; journal-derived product feedback stays unchanged.
@@ -559,9 +535,17 @@ is recorded in the task handoff. No migration, provider or production action.
 
 - Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
 
-
 ## 2026-10-29 — RepoLight required username integration
 
 Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
 journal history and both integration contracts; application and test patches match
 the previously reviewed branch. Focused checks and final PR review follow.
+
+## 2026-10-29 — RepoLight selected-student drafts
+
+Prepared an approval-gated selected-student repository action beside AI Grade.
+It runs individual public reports sequentially and appends matched assignment
+summaries to revision-checked private drafts while the page remains open. No AI,
+grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
+component and executor checks, policy checks, and synthetic teacher desktop/mobile
+light/dark verification are in progress; publication and rollout remain separate.

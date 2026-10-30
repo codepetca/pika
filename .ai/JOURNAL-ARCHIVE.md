@@ -51025,3 +51025,28 @@ independent delta review precede the next stable-SHA CI.
 ## 2026-10-24 — Assignment image submission recovery
 
 Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+<!-- pika-session-log-archive-batch:d551f29af5867d33acb156651061e7c7dd0526a43d3b7556c897ee154e9a352e -->
+## 2026-10-24 — Prepare classroom Home recovery and pilot
+
+Prepared a rollback-only creation freeze/getter-permission fault/restoration
+contract in the existing sealed offline owned-clone verifier, plus actual-route,
+adapter and server-page CPU composition tests for both account-role labels.
+The layered evidence intentionally does not claim real PostgREST/browser outage
+or deployed recovery. Pilot packet records compatible477/schema292 floor,
+retained-admission growth stop, canaries, zero-tolerance stop conditions and
+unset operator/cohort/activation authority. Root verified84focused cases and
+TypeScript. Reviews468–470 cover source and corrections; bounded
+Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
+(351s), effective model/tokens unknown. No runtime, migration, dependency,
+production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.
+Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
+fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
+unchanged lock contention, generated types and canonical schema/source equality.
+Exact owned resources absent; full failure/success evidence retained privately.
+Final receipt review/CI/main merge pending; production477 and activation/provider
+holds unchanged. Pilot still requires selected operator/cohort and authorization.
