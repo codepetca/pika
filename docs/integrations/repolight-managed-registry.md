@@ -73,9 +73,11 @@ an 8-second default operation timeout (maximum 15 seconds), and logs no response
    and 297. Complete the closed migration inventory and schema-resource audit for
    this private operational table before rollout.
 2. Eligible begin requests call `ensure` automatically; no separate RepoLight
-   login or setup UI is needed. This is first-use provisioning, not immediate
-   provisioning at subscription or trial start. Eager provisioning requires a
-   durable plan-event outbox and bounded worker; neither is implemented here.
+   login or setup UI is needed. A dormant transactional outbox and bounded
+   worker also prepare workspaces after eligible billing, upgrade and trial
+   changes. Recovery uses daily bounded batches and retry cooldowns; activation
+   and deployment require the separate rollout evidence and authorization in
+   `repolight-managed-provisioning.md`.
 3. Saved run/cleanup references resolve through the registry, retaining the
    environment resolver for old locators. Lookups require exact actor/resource/
    lifecycle authorization before credential use; uncertain creates are never
