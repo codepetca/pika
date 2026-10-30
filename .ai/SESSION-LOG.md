@@ -496,3 +496,6 @@ light/dark verification are in progress; publication and rollout remain separate
 ## 2026-10-30 — Test and assignment settings menus
 
 Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
+## 2026-10-30 Scheduling date display
+
+- Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
