@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createCheckoutService } from '@/lib/server/billing/checkout-service'
+import { validateLaunchCheckoutOffering } from '@/lib/server/billing/purchase-catalog'
 import { CheckoutProviderContractError, type CheckoutAttempt, type CheckoutProvider, type CheckoutStore } from '@/lib/server/billing/checkout-contracts'
 
 const user = 'a2100000-0000-4000-8000-000000000001'
@@ -79,6 +80,22 @@ describe('durable hosted checkout orchestration', () => {
     expect(f.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'bound', subscription_id: 'sub_test' }))
     f.row().access_confirmed = true
     expect((await f.service.getCheckout({ subjectUserId: user, attemptId: id }))?.status).toBe('active')
+  })
+  it('rejects a fresh historical offering but preserves retry and reconciliation of an existing attempt', async () => {
+    const fresh = fixture()
+    const currentService = createCheckoutService({ store: fresh.store, provider: fresh.provider, stripeAccount: 'acct_test',
+      returnOrigin: 'http://localhost:3000', validateOffering: validateLaunchCheckoutOffering, now: () => at })
+    await expect(currentService.startCheckout({ subjectUserId: user, offeringVersionId: version, operationId: id })).rejects.toThrow('approved launch catalog')
+    expect(fresh.store.reserveCheckout).not.toHaveBeenCalled()
+    expect(fresh.provider.createCustomer).not.toHaveBeenCalled()
+
+    const historical = fixture(); await historical.start()
+    const resumed = createCheckoutService({ store: historical.store, provider: historical.provider, stripeAccount: 'acct_test',
+      returnOrigin: 'http://localhost:3000', validateOffering: validateLaunchCheckoutOffering, now: () => at })
+    expect((await resumed.startCheckout({ subjectUserId: user, offeringVersionId: version, operationId: id })).status).toBe('checkout_open')
+    expect(await resumed.reconcileCheckouts({ limit: 1 })).toEqual({ processed: 1, failed: 0 })
+    expect(historical.store.getCheckoutOffering).toHaveBeenCalledTimes(1)
+    expect(historical.provider.createSession).toHaveBeenCalledTimes(1)
   })
   it('rejects a changed offering under the same operation', async () => {
     const f = fixture(); await f.start()
