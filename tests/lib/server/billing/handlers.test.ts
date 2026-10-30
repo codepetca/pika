@@ -89,4 +89,20 @@ describe('billing handler boundaries', () => {
     expect(closeDueRenewals).toHaveBeenCalledWith({ limit: 1 })
     expect(await response.json()).toMatchObject({ closeouts: { processed: 1, closed: 1 } })
   })
+  it('kicks durable provisioning only after the billing worker transactions complete', async () => {
+    const order: string[] = []
+    const drainProvisioning = vi.fn().mockImplementation(async () => { order.push('provision'); return { status: 'pending' } })
+    const handlers = createBillingHandlers(
+      () => ({ stripeAccount: 'acct_fixture', workerSecret: secret }),
+      vi.fn().mockResolvedValue({ store: { listWork: vi.fn().mockResolvedValue({ items: [] }) }, drainProvisioning }),
+      undefined,
+      vi.fn().mockResolvedValue({ applyDue: async () => { order.push('billing'); return { processed: 1 } } }),
+    )
+    const response = await handlers.process(new NextRequest('http://localhost/process', {
+      method: 'POST', headers: { Authorization: `Bearer ${secret}` },
+    }), context)
+    expect(response.status).toBe(200)
+    expect(order).toEqual(['billing', 'provision'])
+    expect(drainProvisioning).toHaveBeenCalledTimes(1)
+  })
 })

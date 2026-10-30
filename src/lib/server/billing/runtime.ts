@@ -9,6 +9,8 @@ import {
   type StripeBillingReadPort,
 } from '@/lib/server/billing/stripe-provider'
 import { createStripeUpgradePort, createStripeUpgradeProvider } from './stripe-upgrade-provider'
+import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
+import { BillingSubscriptionClaimSchema } from './contracts'
 
 /** Pinned to the API version whose response shapes this foundation validates. */
 export const STRIPE_BILLING_API_VERSION = '2026-08-26.dahlia' as const
@@ -44,7 +46,14 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     // The shared guard pins this client to loopback and rejects redirect responses.
     fetch: createTargetBoundFetch(config.supabaseOrigin),
   })
-  const store = createBillingStore(client)
+  const databaseStore = createBillingStore(client)
+  let provisioningSubject: string | undefined
+  const store = { ...databaseStore, async claimSubscription(input: Parameters<typeof databaseStore.claimSubscription>[0]) {
+    const raw = await databaseStore.claimSubscription(input)
+    const result = BillingSubscriptionClaimSchema.safeParse(raw)
+    if (result.success && result.data.status === 'claimed') provisioningSubject = result.data.binding.subject_user_id
+    return raw
+  } }
   const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe))
   if (process.env.BILLING_UPGRADES_ENABLED === 'true') {
     const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
@@ -58,5 +67,6 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
       return stripe.webhooks.constructEvent(raw, signature, config.webhookSecret)
     },
     record: store.recordEvent,
+    drainProvisioning: () => attemptRepoLightProvisionOutbox({ client, teacherId: provisioningSubject }),
   }
 }
