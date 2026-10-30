@@ -1,5 +1,6 @@
 -- Source only. Depends on296; no rollout activation or shared-DB application.
 begin;
+alter table private.repolight_settings add column managed_provisioning_enabled boolean not null default false;
 create table private.repolight_managed_connections (
  operation_ref uuid primary key,teacher_id uuid not null,
  tenant_ref text not null check(tenant_ref ~ '^[A-Za-z0-9._~-]{1,128}$'),
@@ -67,6 +68,8 @@ declare r private.repolight_managed_connections; access jsonb;
 begin
  -- Lock order: settings -> account-plan-subject -> effective-feature -> owner.
  access:=public.get_repolight_analysis_access_v1(p_teacher_id);
+ if not exists(select 1 from private.repolight_settings where singleton and managed_provisioning_enabled)
+ then raise exception using errcode='42501',message='repolight_managed_disabled';end if;
  if (access->>'allowed')::boolean is distinct from true then raise exception using errcode='42501',message='repolight_managed_ineligible';end if;
  perform pg_advisory_xact_lock(hashtextextended('repolight-managed-owner:'||p_teacher_id::text,297));
  access:=public.get_repolight_analysis_access_v1(p_teacher_id);
@@ -117,6 +120,8 @@ begin
  -- it grants no analysis permission and never changes plan state.
  if p_expected->>'operationKind'='provision' then
   access:=public.get_repolight_analysis_access_v1(p_teacher_id);
+  if not exists(select 1 from private.repolight_settings where singleton and managed_provisioning_enabled)
+  then raise exception using errcode='42501',message='repolight_managed_disabled';end if;
   if (access->>'allowed')::boolean is distinct from true then raise exception using errcode='42501',message='repolight_managed_ineligible';end if;
  end if;
  perform pg_advisory_xact_lock(hashtextextended('repolight-managed-owner:'||p_teacher_id::text,297));

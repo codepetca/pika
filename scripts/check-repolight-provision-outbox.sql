@@ -14,6 +14,8 @@ begin
  -- already independently tested billing entitlement resolver and registry297.
  -- Legacy identity roles do not determine account-plan eligibility.
  insert into public.users(id,role) values(teacher,'student');
+ insert into public.account_plans values(teacher,1,'plus','trial');
+ insert into public.effective_feature_entitlements values(teacher,'classrooms.create',1,true,'trial',clock_timestamp(),null);
  insert into public.billing_account_access(subject_user_id,revision,account_plan_revision,entitlement_revision,starts_at,access_ends_at)
  values(teacher,1,1,1,clock_timestamp(),clock_timestamp()+interval '1 day');
  if exists(select 1 from private.repolight_provision_outbox where teacher_id=teacher)
@@ -25,6 +27,8 @@ begin
  if public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher)) is not null then raise exception 'Concurrent active lease claimed';end if;
  old_claim:=c;
  -- A committed new billing/entitlement revision invalidates the old lease.
+ update public.effective_feature_entitlements set revision=2 where subject_user_id=teacher;
+ update public.account_plans set revision=2 where subject_user_id=teacher;
  update public.billing_account_access set revision=2,account_plan_revision=2,entitlement_revision=2 where subject_user_id=teacher;
  result:=public.repolight_provision_outbox_v1('finish',old_claim-'attempt'||jsonb_build_object('outcome','ready'));
  if (result->>'acknowledged')::boolean then raise exception 'Stale revision acknowledged';end if;
@@ -50,6 +54,8 @@ begin
  -- The identical revision is terminal even on reconciliation scans.
  update public.billing_account_access set updated_at=clock_timestamp() where subject_user_id=teacher;
  if (select state from private.repolight_provision_outbox where teacher_id=teacher)<>'failed' then raise exception 'Replay reset exhausted work';end if;
+ update public.effective_feature_entitlements set revision=3 where subject_user_id=teacher;
+ update public.account_plans set revision=3 where subject_user_id=teacher;
  update public.billing_account_access set revision=3,account_plan_revision=3,entitlement_revision=3 where subject_user_id=teacher;
  c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher));
  perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','ineligible','errorCode','repolight_managed_ineligible'));
@@ -64,13 +70,41 @@ begin
  perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','ready'));
  -- Transaction rollback cannot lose billing success or emit phantom work.
  begin
-  update public.billing_account_access set revision=4,account_plan_revision=4,entitlement_revision=4 where subject_user_id=teacher;
+  update public.effective_feature_entitlements set revision=4 where subject_user_id=teacher;
+ update public.account_plans set revision=4 where subject_user_id=teacher;
+ update public.billing_account_access set revision=4,account_plan_revision=4,entitlement_revision=4 where subject_user_id=teacher;
   raise exception using errcode='P2999',message='intentional rollback';
  exception when sqlstate 'P2999' then null;end;
  if (select source_revision from private.repolight_provision_outbox where teacher_id=teacher)<>'[3, 3, 3]' then raise exception 'Rolled back transaction emitted work';end if;
  -- Queue metadata follows account lifecycle; registry credentials remain in297.
  delete from public.billing_account_access where subject_user_id=teacher;
+ delete from public.effective_feature_entitlements where subject_user_id=teacher;
+ delete from public.account_plans where subject_user_id=teacher;
  delete from public.users where id=teacher;
  if exists(select 1 from private.repolight_provision_outbox where teacher_id=teacher) then raise exception 'Removed account retained queue metadata';end if;
 end $proof$;
+do $bulk$
+declare i integer; actor uuid; c jsonb; epoch_at bigint;
+begin
+ update private.repolight_settings set managed_provisioning_enabled=true where singleton;
+ select epoch into epoch_at from private.repolight_provision_control where singleton;
+ for i in 1..40 loop
+  actor:=('f298b000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid;
+  insert into public.users(id,role) values(actor,'student');
+  insert into private.repolight_provision_outbox(teacher_id,source_revision,eligibility_epoch,state) values(actor,'[0,1,1]',epoch_at,'ineligible');
+ end loop;
+ update private.repolight_settings set legacy_plan_access_enabled=true where singleton;
+ if (select count(*) from private.repolight_provision_outbox where state='ineligible')<>40 then raise exception 'Gate change performed unbounded row reset';end if;
+ c:=public.repolight_provision_outbox_v1('claim');
+ if (select count(*) from private.repolight_provision_outbox where state='ineligible')<>15 then raise exception 'Denial repair exceeded25';end if;
+ delete from private.repolight_provision_outbox;
+ for i in 1..40 loop
+  actor:=('f298b000-0000-4000-8000-'||lpad(i::text,12,'0'))::uuid;
+  insert into private.repolight_provision_outbox(teacher_id,source_revision,eligibility_epoch,state,attempts,lease_token,lease_expires_at)
+   values(actor,'[0,1,1]',epoch_at,'processing',3,gen_random_uuid(),clock_timestamp()-interval '1 second');
+ end loop;
+ c:=public.repolight_provision_outbox_v1('claim');
+ if c is not null or (select count(*) from private.repolight_provision_outbox where state='failed')<>25
+ or (select count(*) from private.repolight_provision_outbox where state='processing')<>15 then raise exception 'Exhaustion repair exceeded25';end if;
+end $bulk$;
 rollback;

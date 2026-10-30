@@ -39,6 +39,8 @@ do $$begin
  if not exists(select 1 from pg_roles where rolname='authenticated') then create role authenticated;end if;
  if not exists(select 1 from pg_roles where rolname='service_role') then create role service_role;end if;
 end$$;
+create table private.repolight_settings(singleton boolean primary key default true check(singleton));
+insert into private.repolight_settings default values;
 create table private.registry_test_access(allowed boolean);
 insert into private.registry_test_access values(true);
 -- Stub only this independent boundary; full integration must replay296.
@@ -47,6 +49,10 @@ create function public.get_repolight_analysis_access_v1(p_subject_user_id uuid) 
 $$;
 SQL
 registry_sql < "$registry_root/supabase/migrations/297_repolight_managed_registry.sql"
+registry_sql <<'SQL'
+do $$begin if exists(select 1 from private.repolight_settings where managed_provisioning_enabled) then raise exception 'Managed provisioning default must be off';end if;end$$;
+update private.repolight_settings set managed_provisioning_enabled=true where singleton;
+SQL
 registry_sql < "$registry_root/scripts/check-repolight-managed-registry-database.sql"
 registry_sql <<'SQL'
 create table private.registry_test_candidates(label text primary key,candidate jsonb);

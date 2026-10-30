@@ -16,11 +16,13 @@ PSQL=(psql -X -v ON_ERROR_STOP=1 -h "$PROOF_DIR" -U postgres -d postgres)
 "${PSQL[@]}" >"$PROOF_DIR/proof.log" <<'SQL'
 create role anon;create role authenticated;create role service_role;
 create schema private;
-create table private.repolight_settings(singleton boolean primary key default true check(singleton),billing_access_enabled boolean default false);
+create table private.repolight_settings(singleton boolean primary key default true check(singleton),billing_access_enabled boolean default false,legacy_plan_access_enabled boolean default false,managed_provisioning_enabled boolean default false);
 insert into private.repolight_settings default values;
 create table private.stripe_billing_settings(singleton boolean primary key default true check(singleton),sandbox_enabled boolean default false,provider_mode text default 'test');
 insert into private.stripe_billing_settings default values;
 create table public.users(id uuid primary key,role text);
+create table public.account_plans(subject_user_id uuid primary key references public.users(id),revision bigint not null,plan_key text not null,management_source text not null);
+create table public.effective_feature_entitlements(subject_user_id uuid,feature_key text,revision bigint,enabled boolean,source text,starts_at timestamptz,expires_at timestamptz);
 create table public.billing_account_access(subject_user_id uuid primary key references public.users(id),
  revision bigint not null,account_plan_revision bigint not null,entitlement_revision bigint,
  starts_at timestamptz not null,access_ends_at timestamptz not null,updated_at timestamptz default clock_timestamp());

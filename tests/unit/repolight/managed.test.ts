@@ -61,7 +61,7 @@ describe('managed RepoLight credentials', () => {
   })
   it('persists before egress and sends only strict provision hash fields then attests before activating', async () => {
     const f = fixture(), result = await f.registry.ensure(teacher), row = f.rows[0]
-    expect(f.store.prepare).toHaveBeenCalledOnce(); expect(f.store.activate).toHaveBeenCalledOnce()
+    expect(f.store.prepare).toHaveBeenCalledTimes(2); expect(f.store.activate).toHaveBeenCalledOnce()
     expect(f.requests[0].url).toBe(config().apiOrigin + '/api/v2/managed/provision')
     const body = JSON.parse(f.requests[0].body!)
     expect(Object.keys(body).sort()).toEqual(['keyId', 'operationRef', 'schemaVersion', 'secretHash', 'tenantRef'])
@@ -81,7 +81,7 @@ describe('managed RepoLight credentials', () => {
     expect(f.rows[0].state).toBe('pending')
     await registry.ensure(teacher)
     expect(f.requests[0].body).toBe(f.requests[1].body)
-    expect(f.store.prepare).toHaveBeenCalledOnce()
+    expect(f.store.prepare).toHaveBeenCalledTimes(3)
   })
   it('requires allowed independently of the dormant enforcement flag and makes no external calls when denied', async () => {
     const f = fixture(); f.eligibility(false)
@@ -93,6 +93,13 @@ describe('managed RepoLight credentials', () => {
     const registry = createManagedRepoLightRegistry(f.store, { config, fetchImpl: (async (...args: Parameters<typeof fetch>) => { const result = await original(...args); f.eligibility(false); return result }) as typeof fetch })
     await expect(registry.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
     expect(f.rows[0].state).toBe('pending'); expect(f.store.activate).not.toHaveBeenCalled()
+  })
+  it('reauthorizes a resumed pending provision at the DB gate before HTTP', async () => {
+    const f = fixture(); f.rows.push(prepareManagedRepoLightRecord(teacher, config()))
+    f.store.prepare = vi.fn().mockRejectedValue(new Error('managed gate disabled'))
+    await expect(f.registry.ensure(teacher)).rejects.toThrow('managed gate disabled')
+    expect(f.fetchImpl).not.toHaveBeenCalled(); expect(f.store.activate).not.toHaveBeenCalled()
+    expect(f.rows[0].state).toBe('pending')
   })
   it('preserves a pending operation rather than sending it to a changed host', async () => {
     const f = fixture(); f.rows.push(prepareManagedRepoLightRecord(teacher, config()))
@@ -145,7 +152,7 @@ describe('managed RepoLight credentials', () => {
     expect(result.connection.connectionRef).toBe(first.connection.connectionRef)
     expect(result.connection.apiKey).toBe(decryptManagedRepoLightKey(pending, config()))
     expect(f.store.prepareRotation).toHaveBeenCalledOnce()
-    expect(f.store.prepare).toHaveBeenCalledOnce()
+    expect(f.store.prepare).toHaveBeenCalledTimes(2)
     expect(vi.mocked(f.store.access).mock.calls).toHaveLength(accessCalls)
     expect(f.rows[0].state).toBe('retired'); expect(f.rows[1].state).toBe('ready')
     const attempts = f.requests.filter(entry => entry.url.endsWith('/rotate'))
