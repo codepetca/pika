@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Three-account Home pilot acceptance reconciliation
-
-Recorded exact production1da699/schema292 and the retained dedicated three-account
-Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
-code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
-scoped state matched one owned/one joined per reciprocal account, no Control
-membership and unchanged plans/providers. Corrected stale current-state and
-preparation-only wording; private identities/codes/content stay outside Git.
-Kept production replay, classwork/manual-return and direct API negatives distinct
-from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
-provider/cohort change or epic exit; live-provider/expansion holds remain.
-Docs-only focused checks and independent review precede normal main merge.
-
 ## 2026-10-24 — Manual grader label owner-read regression
 
 The dedicated pilot saved manual scores, then owner readback failed503 because
@@ -473,6 +460,29 @@ Verification and independent review remain with the coordinating task.
 Rebased the previously reviewed required-username change onto current main. Preserved
 upstream journal history and the prior local preparation evidence; focused verification
 is recorded in the task handoff. No migration, provider or production action.
+
+## 2026-10-29 — Managed RepoLight plan integration
+
+Prepared managed per-owner workspace provisioning, Pro/Max/trial entitlement,
+expiry-safe report access, subscription outbox and versioned offering source.
+AI and rollout gates remain off; no hosted migration or deployment. Independent
+reviews and isolated replay001–298 pass; focused 5,352 tests pass (one skip).
+Cross-service handler contract passed with in-memory synthetic stores; real
+DB-backed end-to-end and controlled activation remain outstanding. RepoLight
+service implementation is at worktree `repolight/pika-managed-provisioning`.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 ## 2026-10-29 — RepoLight plan policy
 
