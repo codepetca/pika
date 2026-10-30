@@ -1,9 +1,11 @@
 # Managed RepoLight connection source
 
-This source slice adds a private provisioning registry and server adapter. It is
-dormant: existing environment-configured connections, reports and cleanup remain
-on their current adapters. No hosted migration, credential creation or rollout
-has occurred. Migration 297 depends on the eligibility contract in 296.
+This source adds a private provisioning registry and server adapter. The managed
+path is disabled by default; when enabled, eligible analysis requests provision
+a workspace automatically, and saved managed locators resolve through the
+registry. Legacy environment-configured connections retain their original path.
+No hosted migration, credential creation or rollout has occurred. Migration 297
+depends on the eligibility contract in 296.
 
 `createManagedRepoLightRegistry(store, options)` exposes:
 
@@ -67,29 +69,25 @@ an 8-second default operation timeout (maximum 15 seconds), and logs no response
 
 ## Required integration before rollout
 
-1. Replay 296+297 in the owned disposable full Pika schema, generate database
-   types using the established tool, and supply the exact typed RPC wrappers to
-   `createManagedRepoLightDatabase`. The source adapter deliberately accepts an
-   injected RPC transport rather than casting missing names into generated types.
-   Update the closed migration inventory/profile and schema-resource audit for
-   this private operational table. Do not manually edit generated types.
-2. Invoke `ensure` automatically from the authenticated eligible teacher feature
-   entry/begin path. For immediate setup after successful subscription/trial,
-   commit a provisioning outbox intent with the plan event and process it in a
-   bounded existing worker after commit. This slice adds no event hooks, worker,
-   manual setup UI, scheduler or automatic entitlement activation.
-3. Resolve saved run/cleanup connection references through the registry while
-   retaining the existing environment resolver for old locators. Saved lookups
-   require exact actor/resource/lifecycle authorization before credential use.
-   Never silently move an uncertain create to a different subject or installation.
+1. The combined isolated full-schema replay and generated type check cover 296
+   and 297. Complete the closed migration inventory and schema-resource audit for
+   this private operational table before rollout.
+2. Eligible begin requests call `ensure` automatically; no separate RepoLight
+   login or setup UI is needed. This is first-use provisioning, not immediate
+   provisioning at subscription or trial start. Eager provisioning requires a
+   durable plan-event outbox and bounded worker; neither is implemented here.
+3. Saved run/cleanup references resolve through the registry, retaining the
+   environment resolver for old locators. Lookups require exact actor/resource/
+   lifecycle authorization before credential use; uncertain creates are never
+   silently moved to another subject or installation.
 4. Recheck new-analysis eligibility inside begin/authorize SQL and immediately
    before HTTP. Provision locks settings → account-plan-subject → effective
    feature → registry owner → workspace. Rotation takes owner → workspace and
    never acquires plan locks. Recheck timed access after blocking locks. The
    unavoidable transaction-commit-to-HTTP gap remains a boundary; a provisioning
    credential alone never authorizes new analysis.
-5. Route credential recovery to the authorized service-maintenance operation;
-   resume a pending rotation when cleanup sees `repolight_managed_pending`.
+5. Saved-locator resolution resumes a matching pending rotation idempotently,
+   including after access expires, using the retained control configuration.
    Keep report/cleanup usable after downgrade. The service credential still has
    create scope; Pika must keep its entitlement gate on every new create.
 
