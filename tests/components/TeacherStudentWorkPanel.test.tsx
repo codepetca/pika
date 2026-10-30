@@ -2292,7 +2292,7 @@ describe('TeacherStudentWorkPanel', () => {
       inspectorWidth: 50,
     })
   })
-  it('opens configured repository review and explicitly appends acknowledged feedback without saving grades or sending comments',async()=>{
+  it.each(['ready', 'access_required'])('opens repository review and explicitly appends acknowledged feedback when state is %s',async state=>{
     const assignmentId = '10000000-0000-4000-8000-000000000001'
     const studentId = '20000000-0000-4000-8000-000000000001'
     const docId = '30000000-0000-4000-8000-000000000001'
@@ -2305,7 +2305,7 @@ describe('TeacherStudentWorkPanel', () => {
     const pendingImport = createDeferred<{ok:boolean;json:()=>Promise<unknown>}>()
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async (input:RequestInfo | URL,init?:RequestInit)=>{
       const url = String(input)
-      if (url.endsWith('/repolight/runs')) return {ok:true,json:async()=>({state:'ready',source,run})}
+      if (url.endsWith('/repolight/runs')) return {ok:true,json:async()=>({state,source,run})}
       if (url.endsWith('/report')) return {ok:true,json:async()=>({run,report:{reportDigest:'a'.repeat(64),bundle:repoLightFixture.bundle}})}
       if (url.endsWith('/import')) {
         const body = JSON.parse(String(init?.body))
@@ -2320,8 +2320,13 @@ describe('TeacherStudentWorkPanel', () => {
     expect(disclosure).toHaveAttribute('aria-expanded','false')
     expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url])=>String(url).includes('/repolight/'))).toBe(false)
     fireEvent.click(disclosure)
-    await screen.findByRole('button',{name:'Analyze repository'})
-    expect(screen.getByText('No username supplied; repository overview.')).toBeInTheDocument()
+    if (state === 'ready') {
+      await screen.findByRole('button',{name:'Analyze repository'})
+      expect(screen.getByText('No username supplied; repository overview.')).toBeInTheDocument()
+    } else {
+      await screen.findByText('Repository analysis requires an eligible plan or trial.')
+      expect(screen.queryByRole('button',{name:'Analyze repository'})).not.toBeInTheDocument()
+    }
     fireEvent.click(screen.getByRole('button',{name:'View report'}))
     const dialog = await screen.findByRole('dialog',{name:'Repository report'})
     await within(dialog).findByLabelText('Report feedback')
@@ -2353,6 +2358,7 @@ describe('TeacherStudentWorkPanel', () => {
     ['disabled','Repository analysis is disabled.'],
     ['not_configured','Repository analysis is not configured.'],
     ['unavailable','Repository review is unavailable.'],
+    ['access_required','Repository analysis requires an eligible plan or trial.'],
   ])('keeps analysis commands absent when repository configuration is %s',async(state,copy)=>{
     const work = makeStudentWork('student-1',{graded:false,repoUrl:'https://github.com/fixture/project'})
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation(async(input:RequestInfo | URL)=>({ok:true,json:async()=>String(input).endsWith('/repolight/runs') ? {state,source:{available:false,repositoryUrl:null,githubUsername:null,usernameProvenance:'none',requirementId:null,period:null,periodDefaulted:false,notice:null},run:null} : String(input).includes('/history') ? {history:[]} : work}))

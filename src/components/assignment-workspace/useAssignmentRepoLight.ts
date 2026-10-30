@@ -64,7 +64,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
       try {
         const loadedContext = repoLightContextReplySchema.parse(await read(base))
         const context = selectedRequirementId && boundSelection.current !== owner ? {...loadedContext,run:null} : loadedContext
-        allowAdvance = !paused && context.state === 'ready'
+        allowAdvance = !paused && (context.state === 'ready' || context.state === 'access_required')
         set({context,error:'',busy:false})
         if (valid() && context.run && ['queued','submitting','running'].includes(context.run.status)) timer = setTimeout(() => {void poll(context.run!)},delay)
       } catch (caught) {set({error:message(caught),busy:false})}
@@ -111,7 +111,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
 
   async function importFeedback(scopeKey: string,text: string) {
     const run = current.context?.run
-    if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.context?.state !== 'ready' || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
+    if (ownerRef.current !== owner || !access.current.active || access.current.paused || !['ready', 'access_required'].includes(current.context?.state ?? '') || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
     if (isFeedbackImported(scopeKey,text)) return
     const acceptedPreviewKey = previewKey(scopeKey)
     const session = beginImport()

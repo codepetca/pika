@@ -512,3 +512,35 @@ credential provisioning, application promotion, live cleanup and rollout-gate
 activation are separate actions with their own applicable authority. Keep new
 Analyze off until source, native tests, erasure contract and approved credentials
 are complete; report local/test acceptance separately from hosted operation.
+
+## Managed provisioning and plan access (implementation in progress)
+
+Pika's Pro and Max offerings and an active Pro trial include public-repository
+analysis (SUB-17). Pika automatically creates a dedicated managed RepoLight
+workspace for an eligible classroom owner; it must not require a separate
+RepoLight login or share a workspace among teachers. AI remains independently
+disabled. This section is an implementation contract, not an activation receipt.
+
+The Pika server persists an opaque tenant reference, operation ID and encrypted
+analysis credential before provisioning. An installation-scoped control-plane
+credential authenticates the provisioning request. The request contains the key
+ID and SHA-256 of its secret, not the plaintext secret. RepoLight atomically
+creates the managed workspace and scoped key, returns the same binding on an
+exact replay, and rejects conflicting reuse. Pika verifies the returned workspace,
+installation and required scopes before activating a connection. Failures and
+uncertain responses require durable retry without exposing credentials or
+creating duplicate workspaces. Retain old bound credentials until their existing
+subject cleanup is complete; rotate or revoke through reviewed lifecycle paths.
+
+The classroom owner's server-side effective entitlement governs creation of new
+analyses. Include active Pro/Max paid access, the active Pro trial and any valid
+renewal grace, and stop new work at the actual access end or effective downgrade.
+Reconcile retries can create remote work and must be denied after access ends.
+Preserve access to completed reports and feedback and permit required erasure;
+expiry must not delete a workspace, report or classroom work. Entitlement checks
+must fail closed on missing, inconsistent or pending records and must not rely on
+browser claims or the sandbox-only billing access RPC. Existing versioned paid
+offerings retain their terms; newly published offerings explicitly carry the
+benefit. The managed registry, eligibility gate, billing lifecycle and service
+contract require integrated tests before activation; do not change pilot, billing,
+AI or production settings merely by deploying dormant implementation.
