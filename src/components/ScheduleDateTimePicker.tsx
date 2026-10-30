@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, type Ref } from 'react'
+import { useId, useState, type Ref } from 'react'
 import { Calendar } from 'lucide-react'
 import { format, isValid, parseISO } from 'date-fns'
 import { Button, Input } from '@/ui'
@@ -54,6 +54,7 @@ export function ScheduleDateTimePicker({
 }: ScheduleDateTimePickerProps) {
   const dateInputId = useId()
   const timeInputId = useId()
+  const [editingDate, setEditingDate] = useState(false)
   const parsedDate = date ? parseISO(date) : null
   const readableDate = parsedDate && isValid(parsedDate) ? format(parsedDate, 'EEE MMM d, yyyy') : ''
   const contextToneClass =
@@ -89,10 +90,12 @@ export function ScheduleDateTimePicker({
               value={date}
               min={minDate}
               onChange={(e) => onDateChange(e.target.value)}
+              onFocus={() => setEditingDate(true)}
+              onBlur={() => setEditingDate(false)}
               onClick={(e) => {
                 try { e.currentTarget.showPicker?.() } catch { /* Native input remains usable. */ }
               }}
-              className="peer !absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              className={`!absolute inset-0 h-full w-full cursor-pointer rounded-control border bg-surface px-3 py-2 text-sm text-text-default outline-none ${editingDate ? 'border-primary ring-foundation ring-focus opacity-100' : 'border-border opacity-0'}`}
             />
             <Input
               type="text"
@@ -101,9 +104,9 @@ export function ScheduleDateTimePicker({
               readOnly
               tabIndex={-1}
               aria-hidden="true"
-              className="pointer-events-none pr-10 peer-focus-visible:border-primary peer-focus-visible:ring-foundation peer-focus-visible:ring-focus"
+              className={`pointer-events-none pr-10 ${editingDate ? 'opacity-0' : ''}`}
             />
-            <Calendar className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" aria-hidden="true" />
+            <Calendar className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted ${editingDate ? 'opacity-0' : ''}`} aria-hidden="true" />
           </div>
         </div>
 

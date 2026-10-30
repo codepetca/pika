@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Three-account Home pilot acceptance reconciliation
-
-Recorded exact production1da699/schema292 and the retained dedicated three-account
-Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
-code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
-scoped state matched one owned/one joined per reciprocal account, no Control
-membership and unchanged plans/providers. Corrected stale current-state and
-preparation-only wording; private identities/codes/content stay outside Git.
-Kept production replay, classwork/manual-return and direct API negatives distinct
-from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
-provider/cohort change or epic exit; live-provider/expansion holds remain.
-Docs-only focused checks and independent review precede normal main merge.
-
 ## 2026-10-24 — Manual grader label owner-read regression
 
 The dedicated pilot saved manual scores, then owner readback failed503 because
@@ -496,6 +483,7 @@ light/dark verification are in progress; publication and rollout remain separate
 ## 2026-10-30 — Test and assignment settings menus
 
 Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
+
 ## 2026-10-30 Scheduling date display
 
 - Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
