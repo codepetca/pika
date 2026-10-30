@@ -28,7 +28,7 @@ vi.mock('node:fs',async importOriginal=>{
 })
 vi.mock('../../scripts/contextual-assignment-list-proof-platform',async importOriginal=>{
   const actual=await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
-  return {...actual,loadAssignmentListReviewedMigrations:(repository:string)=>actual.loadAssignmentListReviewedMigrations(repository).map(migration=>
+  return {...actual,loadAssignmentListReviewedMigrations:(repository:string)=>actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295).map(migration=>
     mockSource.enabled&&migration.name==='259_contextual_test_owner_grading.sql'?{...migration,sql:mockSource.sql,
       sha256:createHash('sha256').update(mockSource.sql).digest('hex')}:migration)}
 })

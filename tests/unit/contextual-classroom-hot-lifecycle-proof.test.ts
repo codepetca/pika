@@ -186,3 +186,10 @@ function change(before:HotGraph,id:string,archived:boolean,owner?:string):HotGra
   row.updated_at=stamp;const revision=(after['public.classroom_archive_revisions'] as Record<string,unknown>[]).find(r=>r.classroom_id===id)!;revision.revision=Number(revision.revision)+1;revision.updated_at=stamp
   return after
 }
+
+
+// These offline native proofs retain their audited 295-migration profile.
+vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
+  return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295) }
+})

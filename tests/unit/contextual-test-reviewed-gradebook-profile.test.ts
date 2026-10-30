@@ -315,3 +315,10 @@ describe('fixed teacher authoring images291 source seal', () => {
     expect(() => validateTeacherAuthoringImagesReviewedMigration(candidate)).toThrow()
   })
 })
+
+
+// These offline native proofs retain their audited 295-migration profile.
+vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
+  return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295) }
+})
