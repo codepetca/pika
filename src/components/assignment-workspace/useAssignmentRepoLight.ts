@@ -9,8 +9,8 @@ type RecordState = {owner: string; targetOwner: string; context: RepoLightContex
 const message = (caught: unknown) => caught instanceof Error && !caught.message.startsWith('[') ? caught.message.replaceAll('_',' ') : 'Repository review is unavailable. Try refreshing its status.'
 const post = (body: unknown): RequestInit => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
 
-export function useAssignmentRepoLight({classroomId,assignmentId,studentId,active,paused,selectedRequirementId,beginImport}: {
-  classroomId: string; assignmentId: string; studentId: string; active: boolean; paused: boolean; selectedRequirementId?: string
+export function useAssignmentRepoLight({classroomId,assignmentId,studentId,active,discover = false,paused,selectedRequirementId,beginImport}: {
+  classroomId: string; assignmentId: string; studentId: string; active: boolean; discover?: boolean; paused: boolean; selectedRequirementId?: string
   beginImport: () => RepositoryFeedbackImportSession
 }) {
   const targetOwner = JSON.stringify([classroomId,assignmentId,studentId])
@@ -33,12 +33,11 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
 
   useEffect(() => {alive.current = true;return () => {alive.current = false;generation.current += 1}},[])
   useEffect(() => {
-    if (!active) return
+    if (!active && !discover) return
     const cycle = ++generation.current
     let live = true
     let timer: ReturnType<typeof setTimeout> | undefined
     let delay = 2000
-    let allowAdvance = false
     const controller = new AbortController()
     const valid = () => live && alive.current && generation.current === cycle && ownerRef.current === owner
     const set = (value: Partial<RecordState>) => {if (valid()) setRecord(previous => ({...(previous.owner === owner ? previous : {owner,targetOwner,context:null,report:null,busy:false,error:''}),...value,owner,targetOwner}))}
@@ -51,7 +50,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
         let next = repoLightRunReplySchema.parse(await read(`${base}/${run.id}`)).run
         if (next.id !== run.id) throw new Error('Repository run changed. Reopen its review.')
         if (!valid()) return
-        if (next.canAdvance && allowAdvance && access.current.active && !access.current.paused) {
+        if (next.canAdvance && access.current.active && !access.current.paused) {
           next = repoLightRunReplySchema.parse(await fetchJSON(`${base}/${run.id}/advance`,{init:{...post({}),signal:controller.signal},errorMessage:'Could not advance repository analysis.'})).run
           if (next.id !== run.id) throw new Error('Repository run changed. Reopen its review.')
         }
@@ -64,14 +63,13 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
       try {
         const loadedContext = repoLightContextReplySchema.parse(await read(base))
         const context = selectedRequirementId && boundSelection.current !== owner ? {...loadedContext,run:null} : loadedContext
-        allowAdvance = !paused && (context.state === 'ready' || context.state === 'access_required')
         set({context,error:'',busy:false})
-        if (valid() && context.run && ['queued','submitting','running'].includes(context.run.status)) timer = setTimeout(() => {void poll(context.run!)},delay)
+        if (active && valid() && context.run && ['queued','submitting','running'].includes(context.run.status)) timer = setTimeout(() => {void poll(context.run!)},delay)
       } catch (caught) {set({error:message(caught),busy:false})}
     }
     void load()
     return () => {live = false;generation.current += 1;controller.abort();if (timer) clearTimeout(timer)}
-  },[active,paused,owner,targetOwner,base,refresh,selectedRequirementId])
+  },[active,discover,paused,owner,targetOwner,base,refresh,selectedRequirementId])
 
   async function analyze() {
     const chosen = current.context?.source.repositoryChoices.some(choice => choice.requirementId === selectedRequirementId)
@@ -111,7 +109,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
 
   async function importFeedback(scopeKey: string,text: string) {
     const run = current.context?.run
-    if (ownerRef.current !== owner || !access.current.active || access.current.paused || !['ready', 'access_required'].includes(current.context?.state ?? '') || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
+    if (ownerRef.current !== owner || !access.current.active || access.current.paused || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
     if (isFeedbackImported(scopeKey,text)) return
     const acceptedPreviewKey = previewKey(scopeKey)
     const session = beginImport()
