@@ -27,16 +27,21 @@ RepoLight; the Pika user UUID stays inside Pika.
 Each queue row coalesces one account's monotonically ordered billing/plan/
 entitlement revisions. A newer revision clears the old lease, so an old worker
 cannot acknowledge it. A90-second lease permits recovery after process death;
-each revision has at most three attempts, with a five-minute retry delay.
-Expired third leases and terminal non-retryable failures remain inspectable as
-`failed`. Identical billing replays and recovery scans cannot restart exhausted
-work. A relevant database rollout-gate change increments one private epoch row.
-Claims repair at most25 old-epoch denials and25 exhausted leases at a time;
+each burst has at most three attempts, with a five-minute retry delay. Transient
+errors and expired third leases then enter a durable cooldown:1h,2h,4h,8h,16h,
+then24h for later bursts. The round counter saturates at six. The same eligible
+revision can recover automatically after an outage without another plan event.
+Identical billing replays and gate epoch changes cannot shorten a pending
+cooldown. Explicit non-retryable failures remain inspectable as `failed`.
+A relevant database rollout-gate change increments one private epoch row.
+Claims repair at most25 old-epoch denials and25 interrupted third leases at a time;
 there is no bulk queue reset in a settings transaction. A processing worker
 retains its claim epoch, so a late denial remains discoverable even when the
 gate change commits between its epoch read and denial write. This allows an
-unchanged plan to become eligible after rollout. Failed operations
+unchanged plan to become eligible after rollout. Non-retryable failed operations
 need explicit maintenance; the worker does not rotate or replace credentials.
+Every resumed burst still crosses current eligibility before provider work;
+expiry stops new provisioning and preserves saved report/cleanup credentials.
 
 The authenticated `/api/cron/repolight-provision` route uses `CRON_SECRET` and
 has one daily Vercel Hobby-compatible schedule. It processes at most ten claims
@@ -45,7 +50,11 @@ four-second provider request deadlines, and acknowledgement reserve inside the
 route's60-second maximum. It reports `empty`, `batch_limit`, or `time_limit`;
 the latter two can indicate remaining backlog. Daily recovery can therefore take
 multiple runs after an extended outage or larger rollout; successful activation
-also gets the immediate kick. There is no unlimited retry or background loop.
+also gets the immediate kick. Retryable outages remain queued with bounded
+bursts/cooldowns; there is no busy retry loop. Once cooldown reaches24h, recovery
+can take an additional daily run after the provider recovers, and backlog can
+extend that delay. Open-ended eligible legacy accounts retain this bounded
+recovery schedule until success or loss of eligibility.
 
 Saved report reads, cleanup credentials, expiry, and AI controls are independent
 of this queue. Deleting an account cascades its queue metadata;297 deliberately

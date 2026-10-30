@@ -16,6 +16,7 @@ create table private.repolight_provision_outbox (
  source_revision text not null,eligibility_epoch bigint not null,
  state text not null default 'pending' check(state in('pending','processing','ready','ineligible','failed')),
  attempts integer not null default 0 check(attempts between 0 and 3),
+ retry_round smallint not null default 0 check(retry_round between 0 and 6),
  lease_token uuid,lease_expires_at timestamptz,next_attempt_at timestamptz not null default clock_timestamp(),
  error_code text check(error_code ~ '^[a-z_]{1,64}$'),updated_at timestamptz not null default clock_timestamp(),
  check((state='processing')=(lease_token is not null and lease_expires_at is not null)),
@@ -25,6 +26,15 @@ alter table private.repolight_provision_outbox enable row level security;
 revoke all on private.repolight_provision_outbox from public,anon,authenticated,service_role;
 create index repolight_provision_outbox_due on private.repolight_provision_outbox(next_attempt_at,teacher_id) where state in('pending','processing');
 create index repolight_provision_outbox_denied_epoch on private.repolight_provision_outbox(eligibility_epoch,teacher_id) where state='ineligible';
+
+-- Three transient/uncertain attempts form one bounded burst. Retryable work
+-- remains durable until success or loss of eligibility; bursts back off at
+-- 1h,2h,4h,8h,16h,24h, with a saturating counter and no busy retry loop.
+create function private.repolight_provision_retry_delay_v1(p_round integer)
+returns interval language sql immutable set search_path='' as $$
+ select least(24,1 << least(5,greatest(0,p_round))) * interval '1 hour'
+$$;
+revoke all on function private.repolight_provision_retry_delay_v1(integer) from public,anon,authenticated,service_role;
 
 create function private.repolight_provision_revision_v1(p_subject uuid)
 returns text language sql stable set search_path='' as $$
@@ -41,7 +51,7 @@ returns void language sql set search_path='' as $$
  insert into private.repolight_provision_outbox(teacher_id,source_revision,eligibility_epoch)
  select p_teacher,p_revision,epoch from private.repolight_provision_control where singleton and p_revision is not null
  on conflict(teacher_id) do update set source_revision=excluded.source_revision,eligibility_epoch=excluded.eligibility_epoch,
- state='pending',attempts=0,lease_token=null,lease_expires_at=null,next_attempt_at=clock_timestamp(),error_code=null,updated_at=clock_timestamp()
+ state='pending',attempts=0,retry_round=0,lease_token=null,lease_expires_at=null,next_attempt_at=clock_timestamp(),error_code=null,updated_at=clock_timestamp()
  -- A delayed recovery snapshot cannot replace a newer committed plan hint.
  where ((excluded.source_revision::jsonb->>1)::bigint,(excluded.source_revision::jsonb->>0)::bigint,
   (excluded.source_revision::jsonb->>2)::bigint) >
@@ -126,8 +136,9 @@ begin
    select teacher_id from private.repolight_provision_outbox where (teacher is null or teacher_id=teacher) and attempts>=3
     and (state='pending' or state='processing' and lease_expires_at<=clock_timestamp())
    order by next_attempt_at,teacher_id limit 25 for update skip locked
-  ) update private.repolight_provision_outbox q set state='failed',lease_token=null,lease_expires_at=null,
-   error_code='repolight_provision_attempts_exhausted',updated_at=clock_timestamp() from exhausted where q.teacher_id=exhausted.teacher_id;
+  ) update private.repolight_provision_outbox q set state='pending',attempts=0,retry_round=least(6,q.retry_round+1),
+   lease_token=null,lease_expires_at=null,next_attempt_at=clock_timestamp()+private.repolight_provision_retry_delay_v1(q.retry_round),
+   error_code='repolight_provision_retry_cooldown',updated_at=clock_timestamp() from exhausted where q.teacher_id=exhausted.teacher_id;
   select * into r from private.repolight_provision_outbox
    where (teacher is null or teacher_id=teacher) and attempts<3
     and (state='pending' and next_attempt_at<=clock_timestamp() or state='processing' and lease_expires_at<=clock_timestamp())
@@ -142,10 +153,13 @@ begin
   if outcome is null or outcome not in('ready','ineligible','retry','failed') or (code is not null and code !~ '^[a-z_]{1,64}$') then raise exception using errcode='22023',message='repolight_provision_invalid_request';end if;
   update private.repolight_provision_outbox set
    state=case when outcome='ineligible' and eligibility_epoch<current_epoch then 'pending'
-    when outcome='retry' then case when attempts<3 then 'pending' else 'failed' end else outcome end,
-   attempts=case when outcome='ineligible' and eligibility_epoch<current_epoch then 0 else attempts end,
+    when outcome='retry' then 'pending' else outcome end,
+   attempts=case when outcome='ineligible' and eligibility_epoch<current_epoch or outcome='retry' and attempts>=3 then 0 else attempts end,
+   retry_round=case when outcome='retry' and attempts>=3 then least(6,retry_round+1) else retry_round end,
    lease_token=null,lease_expires_at=null,
-   next_attempt_at=case when outcome='ineligible' and eligibility_epoch<current_epoch then clock_timestamp() else clock_timestamp()+interval '5 minutes' end,
+   next_attempt_at=case when outcome='ineligible' and eligibility_epoch<current_epoch then clock_timestamp()
+    when outcome='retry' and attempts>=3 then clock_timestamp()+private.repolight_provision_retry_delay_v1(retry_round)
+    else clock_timestamp()+interval '5 minutes' end,
    error_code=code,updated_at=clock_timestamp()
    where teacher_id=(p_payload->>'teacherId')::uuid and state='processing'
     and lease_token=(p_payload->>'leaseToken')::uuid and lease_expires_at>clock_timestamp();
