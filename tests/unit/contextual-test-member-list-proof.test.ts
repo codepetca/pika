@@ -160,7 +160,7 @@ describe('finite member Test list fixture', () => {
   })
 })
 describe('actual-source member migration profiles (offline)', () => {
-  const current = loadAssignmentListReviewedMigrations(process.cwd())
+  const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295)
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
   it('reproduces actual canonical-before292 keys while preserving the installed291 source profile', () => {
     const before = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 291))
@@ -411,11 +411,11 @@ describe('finite member SDK manifest', () => {
 
 describe('complete reviewed268 source profile (offline)', () => {
   it.each([263, 264, 265, 266, 267, 268])('accepts exact complete source profile %i', count => {
-    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, count)
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295).slice(0, count)
     expect(() => validateTestMemberListReviewedMigrations(migrations)).not.toThrow()
   })
   it.each([263, 264, 265, 266, 267, 268].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))('rejects altered migration $number: $defect', ({ number, defect }) => {
-    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295).map(migration => ({ ...migration }))
     const tail = migrations[number - 1]
     if (defect === 'name') tail.name = `${number}_unknown.sql`
     if (defect === 'digest') tail.sha256 = 'f'.repeat(64)
@@ -424,7 +424,7 @@ describe('complete reviewed268 source profile (offline)', () => {
     expect(() => validateTestMemberListReviewedMigrations(migrations)).toThrow()
   })
   it('rejects a contiguous unknown289 source tail', () => {
-    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).map(migration => ({ ...migration }))
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295).map(migration => ({ ...migration }))
     migrations.push({ name: '289_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
     expect(() => validateTestMemberListReviewedMigrations(migrations)).toThrow()
   })

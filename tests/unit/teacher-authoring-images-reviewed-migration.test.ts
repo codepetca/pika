@@ -24,7 +24,7 @@ describe('additive291 source and exact catalog admission', () => {
   })
 
   it('keeps historical source prefixes and rejects an unknown295 tail', () => {
-    const migrations = loadAssignmentListReviewedMigrations(process.cwd())
+    const migrations = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295)
     expect(migrations).toHaveLength(295)
     for (const count of [281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294]) {
       expect(() => validateLifecycleServicesReviewedMigrations(migrations.slice(0, count))).not.toThrow()

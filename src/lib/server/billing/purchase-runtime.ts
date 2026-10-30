@@ -21,12 +21,12 @@ export function createBillingPurchaseRuntime(config: BillingPurchaseConfig): Bil
   const service = createCheckoutService({
     store, provider: createStripeCheckoutProvider(createStripeCheckoutPort(stripe)),
     stripeAccount: config.stripeAccount, returnOrigin: config.appOrigin,
-    validateOffering: validateLaunchCheckoutOffering,
+    validateOffering: offering => validateLaunchCheckoutOffering(offering, config.catalogRelease),
   })
   return {
     ...service,
     listCatalog: () => listLaunchPurchaseCatalog({
-      stripeAccount: config.stripeAccount,
+      stripeAccount: config.stripeAccount, release: config.catalogRelease,
       listOfferings: () => store.listOfferings({ stripe_account: config.stripeAccount }),
     }),
   }

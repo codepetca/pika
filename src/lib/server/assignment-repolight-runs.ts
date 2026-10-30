@@ -7,6 +7,8 @@ import { createRepoLightClient, prepareRepoLightCreate, canonicalRepoLightJson, 
 import type { RepoLightRpcSourceContract } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 import { assignmentSummary } from './repolight-assignment-summary'
+import { ensureRepoLightConnection, resolveSavedRepoLightConnection, validateManagedRepoLightConfiguration, type RepoLightConnectionDependencies } from './repolight-connections'
+import { ManagedRepoLightError } from './repolight-managed'
 
 type Contract = RepoLightRpcSourceContract
 type Reply = PromiseLike<{ data: unknown; error: { code?: string; message?: string } | null }>
@@ -17,7 +19,7 @@ export type RepoLightDatabase = {
   advance(args: Contract['advance_assignment_repolight_run_v1']['Args']): Reply
   importFeedback(args: Contract['import_assignment_repolight_feedback_v1']['Args']): Reply
 }
-export type RepoLightDependencies = { database?: RepoLightDatabase; config?: () => RepoLightConfig; clientFactory?: typeof createRepoLightClient; fetchImpl?: typeof fetch; now?: () => Date }
+export type RepoLightDependencies = RepoLightConnectionDependencies & { database?: RepoLightDatabase; config?: () => RepoLightConfig; clientFactory?: typeof createRepoLightClient; fetchImpl?: typeof fetch; now?: () => Date }
 export function repoLightDatabase(deps: RepoLightDependencies): RepoLightDatabase {
   if (deps.database) return deps.database
   const db = getServiceRoleClient()
@@ -39,6 +41,7 @@ export function toRepoLightRpcJson(value: unknown): Json {
 export async function repoLightRpc(reply: Reply): Promise<unknown> {
   const { data, error } = await reply
   if (error) {
+    if (error.code === 'P2961') throw new ApiError(403, 'repolight_analysis_access_required')
     const status = error.code === '42501' ? 403 : error.code === 'P0002' ? 404 : ['40001', '55000'].includes(error.code ?? '') ? 409 : error.code === '22023' ? 400 : 503
     throw new ApiError(status, status === 403 ? 'Forbidden' : status === 404 ? 'repolight_unavailable' : status === 409 ? 'repolight_state_changed' : 'repolight_unavailable')
   }
@@ -71,8 +74,10 @@ function writesAllowed(source: RepoLightRunRow['source_json']) {
 export function repoLightRunView(row: RepoLightRunRow, sourceCurrent: boolean, now = new Date()): RepoLightRunView {
   const active = ['queued', 'submitting', 'running'].includes(row.status)
   const ready = (!row.next_retry_at || Date.parse(row.next_retry_at) <= now.getTime()) && (!row.lease_expires_at || Date.parse(row.lease_expires_at) <= now.getTime())
+  const analysisAllowed = row.analysis_id !== null || (row.connection_json.connectionRef.startsWith('pika_managed_')
+    ? row.analysis_access?.allowed === true : !row.analysis_access?.enforced || row.analysis_access.allowed)
   return { id: row.id, status: sourceCurrent ? row.status : 'stale' as const, sourceCurrent,
-    canAdvance: !row.detached && sourceCurrent && writesAllowed(row.source_json) && active && ready,
+    canAdvance: analysisAllowed && !row.detached && sourceCurrent && writesAllowed(row.source_json) && active && ready,
     canImport: !row.detached && sourceCurrent && writesAllowed(row.source_json) && row.status === 'completed',
     reportAvailable: row.status === 'completed', errorCode: row.error_code, nextRetryAt: row.next_retry_at }
 }
@@ -91,25 +96,40 @@ export async function loadAssignmentRepoLightSource(actorId: string, target: Rep
 }
 export async function getAssignmentRepoLightContext(actorId: string, target: RepoLightTarget, deps: RepoLightDependencies = {}) {
   const loaded = await loadAssignmentRepoLightSource(actorId, target, deps)
-  let state: 'disabled' | 'not_configured' | 'ready' | 'unavailable' = 'not_configured'
-  try { const config = (deps.config ?? parseRepoLightConfig)(); state = !config.enabled ? 'disabled' : (resolveRepoLightConnection(config, actorId), 'ready') } catch { state = 'not_configured' }
+  let state: RepoLightContextReply['state'] = 'not_configured'
+  try {
+    const config = (deps.config ?? parseRepoLightConfig)()
+    if (!config.enabled) state = 'disabled'
+    else if (config.managedEnabled) {
+      validateManagedRepoLightConfiguration(config, deps)
+      state = loaded.analysis_access?.allowed === true ? 'ready' : 'access_required'
+    } else state = (resolveRepoLightConnection(config, actorId), 'ready')
+  } catch { state = 'not_configured' }
+  if (state === 'ready' && loaded.analysis_access?.enforced && !loaded.analysis_access.allowed) state = 'access_required'
   let source: RepoLightSourceSummary
   try { source = resolveAssignmentRepoLightSource(loaded.source, {}, deps.now?.()).summary }
   catch (error) { source = { repositoryChoices: assignmentRepoLightRepositoryChoices(loaded.source), available: false, repositoryUrl: null, githubUsername: null, usernameProvenance: 'none', requirementId: null, period: null, periodDefaulted: false, notice: error instanceof ApiError && error.statusCode === 400 ? error.message : 'repolight_source_unavailable' } }
   if (!writesAllowed(loaded.source)) source = { ...source, available: false, notice: 'repolight_source_read_only' }
-  const latest = loaded.latest_run ? parseRepoLightRun(loaded.latest_run, actorId, target) : null
+  const latest = loaded.latest_run ? parseRepoLightRun({ ...loaded.latest_run, ...(loaded.analysis_access ? { analysis_access: loaded.analysis_access } : {}) }, actorId, target) : null
   return { state, source, run: latest ? repoLightRunView(latest, same(latest.source_json, loaded.source), deps.now?.()) : null } satisfies RepoLightContextReply
 }
 export async function beginAssignmentRepoLightRun(actorId: string, target: RepoLightTarget, input: BeginRepoLightRequest, deps: RepoLightDependencies = {}) {
   const loaded = await loadAssignmentRepoLightSource(actorId, target, deps)
   if (!writesAllowed(loaded.source)) throw new ApiError(409, 'repolight_source_read_only')
-  let config, connection
-  try { config = (deps.config ?? parseRepoLightConfig)(); if (!config.enabled) throw new Error(); connection = resolveRepoLightConnection(config, actorId) } catch { throw new ApiError(503, 'repolight_not_configured') }
+  let config: RepoLightConfig
+  try { config = (deps.config ?? parseRepoLightConfig)(); if (!config.enabled) throw new Error() } catch { throw new ApiError(503, 'repolight_not_configured') }
   const selected = resolveAssignmentRepoLightSource(loaded.source, input, deps.now?.())
+  if (config.managedEnabled && loaded.analysis_access?.allowed !== true) throw new ApiError(403, 'repolight_analysis_access_required')
+  let connection
+  try { ({ connection } = await ensureRepoLightConnection(config, actorId, deps)) }
+  catch (error) {
+    if (error instanceof ManagedRepoLightError && error.code === 'repolight_managed_ineligible') throw new ApiError(403, 'repolight_analysis_access_required')
+    throw new ApiError(503, 'repolight_not_configured')
+  }
   const row = parseRepoLightRun(await repoLightRpc(repoLightDatabase(deps).begin({ p_actor_id: actorId, p_assignment_id: target.assignmentId, p_student_id: target.studentId, p_request_id: input.requestId,
     p_connection: { connectionRef: connection.connectionRef, workspaceRef: connection.workspaceRef, installationRef: connection.installationRef }, p_request: toRepoLightRpcJson(selected.request), p_expected_source: toRepoLightRpcJson(loaded.source) })), actorId, target, input.requestId)
   if (!same(row.request_json, selected.request) || !same(row.source_json, loaded.source) || !same(row.connection_json, { connectionRef: connection.connectionRef, workspaceRef: connection.workspaceRef, installationRef: connection.installationRef })) throw new ApiError(503, 'repolight_invalid_storage')
-  return repoLightRunView(row, true, deps.now?.())
+  return repoLightRunView({ ...row, analysis_access: loaded.analysis_access }, true, deps.now?.())
 }
 export async function readAssignmentRepoLightRun(actorId: string, target: RepoLightTarget, runId: string, includeReport: boolean, deps: RepoLightDependencies = {}) {
   const value = await repoLightRpc(repoLightDatabase(deps).read({ p_actor_id: actorId, p_assignment_id: target.assignmentId, p_student_id: target.studentId, p_run_id: runId, p_include_report: includeReport }))
@@ -132,22 +152,43 @@ export async function getAssignmentRepoLightReport(actorId: string, target: Repo
 export async function advanceAssignmentRepoLightRun(actorId: string, target: RepoLightTarget, runId: string, deps: RepoLightDependencies = {}) {
   const prior = await readAssignmentRepoLightRun(actorId, target, runId, false, deps)
   if (prior.detached) throw new ApiError(409, 'repolight_detached_read_only')
-  let config, connection
-  try { config = (deps.config ?? parseRepoLightConfig)(); connection = resolveRepoLightConnection(config, actorId, prior.connection_json.connectionRef) }
+  let resolved
+  try { resolved = await resolveSavedRepoLightConnection(actorId, prior.connection_json.connectionRef, deps) }
   catch { throw new ApiError(503, 'repolight_not_configured') }
+  const { connection, apiOrigin } = resolved
   if (connection.workspaceRef !== prior.connection_json.workspaceRef || connection.installationRef !== prior.connection_json.installationRef) throw new ApiError(503, 'repolight_not_configured')
-  if (!config.enabled && !prior.analysis_id && prior.attempt_count === 0) throw new ApiError(503, 'repolight_disabled')
+  let enabled = false, managedEnabled = false
+  try { const config = (deps.config ?? parseRepoLightConfig)(); enabled = config.enabled; managedEnabled = config.managedEnabled === true }
+  catch { if (!prior.analysis_id) throw new ApiError(503, 'repolight_not_configured') }
+  const requireManagedAccess = managedEnabled || prior.connection_json.connectionRef.startsWith('pika_managed_')
+  let analysisAccess = prior.analysis_access
+  const checkManagedAccess = (current: RepoLightRunRow) => {
+    if (!current.analysis_id && requireManagedAccess && current.analysis_access?.allowed !== true) throw new ApiError(403, 'repolight_analysis_access_required')
+  }
+  checkManagedAccess(prior)
+  if (!enabled && !prior.analysis_id && prior.attempt_count === 0) throw new ApiError(503, 'repolight_disabled')
   const db = repoLightDatabase(deps)
   const args = { p_actor_id: actorId, p_assignment_id: target.assignmentId, p_student_id: target.studentId, p_run_id: runId }
   let row = parseRepoLightRun(await repoLightRpc(db.advance({ ...args, p_action: 'claim', p_payload: {} })), actorId, target, runId)
-  if (!row.lease_token || ['completed', 'failed', 'stale'].includes(row.status)) return repoLightRunView(row, prior.source_current!, deps.now?.())
+  if (!row.lease_token || ['completed', 'failed', 'stale'].includes(row.status)) return repoLightRunView({ ...row, analysis_access: analysisAccess }, prior.source_current!, deps.now?.())
   const lease = { leaseToken: row.lease_token, leaseGeneration: row.lease_generation }
   const transition = async (action: Contract['advance_assignment_repolight_run_v1']['Args']['p_action'], payload: Record<string, unknown> = {}) => {
     row = parseRepoLightRun(await repoLightRpc(db.advance({ ...args, p_action: action, p_payload: toRepoLightRpcJson({ ...lease, ...payload }) })), actorId, target, runId)
     return row
   }
-  const authorize = () => transition('authorize')
-  const transport = (deps.clientFactory ?? createRepoLightClient)(connection, { apiOrigin: config.apiOrigin!, enabled: config.enabled,
+  const authorize = async () => {
+    const authorized = await transition('authorize')
+    // The transition RPC returns the persisted row, while the owner-bound read
+    // adds current eligibility. Do not mistake missing transition metadata for
+    // an access grant (or make all managed creates permanently unavailable).
+    if (!authorized.analysis_id && requireManagedAccess) {
+      const current = await readAssignmentRepoLightRun(actorId, target, runId, false, deps)
+      checkManagedAccess(current)
+      analysisAccess = current.analysis_access
+    }
+    return authorized
+  }
+  const transport = (deps.clientFactory ?? createRepoLightClient)(connection, { apiOrigin, enabled,
     fetchImpl: async (input, init) => { await authorize(); return (deps.fetchImpl ?? fetch)(input, init) } })
   try {
     await authorize()
@@ -168,7 +209,7 @@ export async function advanceAssignmentRepoLightRun(actorId: string, target: Rep
     if (!(error instanceof RepoLightClientError)) throw error
     await transition('retry', { errorCode: error.code, retryable: error.retryable })
   }
-  return repoLightRunView(row, true, deps.now?.())
+  return repoLightRunView({ ...row, analysis_access: analysisAccess }, true, deps.now?.())
 }
 
 /** Bound untrusted teacher request bytes after authentication/ownership, before schema parsing. */

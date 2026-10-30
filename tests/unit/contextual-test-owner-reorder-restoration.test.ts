@@ -70,7 +70,7 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
     vi.doMock('../../scripts/contextual-assignment-list-proof-platform', async () => {
       const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
       const observer = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-revocations')>('../../scripts/contextual-assignment-list-proof-revocations')
-      return { ...actual, createAssignmentListNativeAdapters: () => ({
+      return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295), createAssignmentListNativeAdapters: () => ({
         async canonicalSnapshot(request: unknown) {
           canonicalRequests.push(structuredClone(request)); events.push(canonicalRequests.length === 1 ? 'before' : 'after')
           if (canonicalRequests.length === 1) return { ...canonical }

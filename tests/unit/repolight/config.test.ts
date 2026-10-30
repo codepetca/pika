@@ -5,6 +5,12 @@ const entry = { connectionRef: 'connection-1', teacherId, workspaceRef: 'custome
 const configured = (extra = {}) => ({ NODE_ENV: 'production', PIKA_REPOLIGHT_ENABLED: 'true', REPOLIGHT_API_URL: 'https://reports.example.test', REPOLIGHT_TEACHER_CONNECTIONS_JSON: JSON.stringify([entry]), ...extra })
 describe('RepoLight operator configuration', () => {
   it('defaults off without a fallback connection', () => { expect(parseRepoLightConfig({}).enabled).toBe(false); expect(() => resolveRepoLightConnection(parseRepoLightConfig({}), teacherId)).toThrow() })
+  it('accepts managed setup without per-teacher pilot credentials and rejects malformed managed flags', () => {
+    expect(parseRepoLightConfig(configured({ PIKA_REPOLIGHT_MANAGED_ENABLED: 'true', REPOLIGHT_TEACHER_CONNECTIONS_JSON: '[]' })))
+      .toMatchObject({ enabled: true, managedEnabled: true, connections: [] })
+    expect(() => parseRepoLightConfig(configured({ PIKA_REPOLIGHT_MANAGED_ENABLED: 'TRUE' }))).toThrow()
+    expect(() => parseRepoLightConfig(configured({ REPOLIGHT_TEACHER_CONNECTIONS_JSON: '[]' }))).toThrow()
+  })
   it('binds exact teacher/ref and retains inactive rotation entries', () => {
     const config = parseRepoLightConfig(configured({ REPOLIGHT_TEACHER_CONNECTIONS_JSON: JSON.stringify([entry, { ...entry, connectionRef: 'old', active: false }]) }))
     expect(resolveRepoLightConnection(config, teacherId).connectionRef).toBe('connection-1')

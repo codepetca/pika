@@ -5,7 +5,7 @@ import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION, CLASSROOM_ADMISSION_RE
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 
-const current = loadAssignmentListReviewedMigrations(process.cwd())
+const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295)
 const sha256 = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
 describe('inactive classroom admission294 exact reviewed source profile', () => {

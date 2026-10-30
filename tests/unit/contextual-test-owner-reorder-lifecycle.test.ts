@@ -349,7 +349,7 @@ describe.sequential('actual original lifecycle with offline platform faults', ()
     })
     vi.doMock('../../scripts/contextual-assignment-list-proof-platform', async () => {
       const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
-      return { ...actual, createAssignmentListNativeAdapters: () => ({
+      return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295), createAssignmentListNativeAdapters: () => ({
         async canonicalSnapshot(request: unknown) {
           canonicalRequests.push(structuredClone(request)); events.push(canonicalRequests.length === 1 ? 'canonical-before' : 'canonical-after')
           const value = { ...canonical, ...(changedField ? { [changedField]: changedField === 'rowDigests'
@@ -709,4 +709,11 @@ describe('complete reviewed268 source profile (offline)', () => {
     migrations.push({ name: '289_unknown.sql', sql: 'select 1;', sha256: testOwnerDigest('select 1;') })
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
+})
+
+
+// These offline native proofs retain their audited 295-migration profile.
+vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
+  return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295) }
 })

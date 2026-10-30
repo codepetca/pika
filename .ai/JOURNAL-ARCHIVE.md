@@ -50515,6 +50515,7 @@ Final receipt review/CI/main merge pending; production477 and activation/provide
 holds unchanged. Pilot still requires selected operator/cohort and authorization.
 
 <!-- pika-session-log-archive-batch:082067655fcf78400f7ec9a0e3d674340abe0001acda090f7f848317fbd58d9f -->
+<!-- pika-session-log-archive-batch:6713339ec4055d79c28fe08bad5a0b6a065f630787db7552bd98d86b9583b72c -->
 ## 2026-10-24 — Assessment diagnostic privacy cleanup
 
 Owner approved orchestration; journal-derived product feedback stays unchanged.
@@ -50538,3 +50539,36 @@ helper still emitting document trees; compatibility review found no regressions.
 One remediation batch replaces both patch-helper logs with browser-safe fixed
 warnings and strengthens aggregate reconstruction diagnostics tests/guard.
 Targeted review and exact-head CI remain required before readiness/merge.
+
+<!-- pika-session-log-archive-batch:7a3565e40863b84820226e2a68f08e499205e1cb9310faf1773fb10e21b918c1 -->
+## 2026-10-24 — Three-account Home pilot acceptance reconciliation
+
+Recorded exact production1da699/schema292 and the retained dedicated three-account
+Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
+code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
+scoped state matched one owned/one joined per reciprocal account, no Control
+membership and unchanged plans/providers. Corrected stale current-state and
+preparation-only wording; private identities/codes/content stay outside Git.
+Kept production replay, classwork/manual-return and direct API negatives distinct
+from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
+provider/cohort change or epic exit; live-provider/expansion holds remain.
+Docs-only focused checks and independent review precede normal main merge.
+
+<!-- pika-session-log-archive-batch:bf81a00133142e15b9c0f7bff3b7e4a38d3f6ef2af15f2b88388ef257d25208d -->
+## 2026-10-24 — Manual grader label owner-read regression
+
+The dedicated pilot saved manual scores, then owner readback failed503 because
+the strict detail schema treated graded_by as an actor UUID. Installed manual
+writer223 stores teacher text; existing grading/list contracts already accept
+text. Align only this metadata field, retaining owner/member UUID checks and
+strict shape/size guards. No migration, stored-data repair or authorization change.
+An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
+AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
+focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
+independent review and exact-head CI follow. Both pilot sessions remain signed
+in; Return/learner feedback remain pending compatible release and readback.
+No production, cohort, provider, plan or schema change; growth stays frozen.
+First CI caught the prior pilot summary's changed controls marker; restored
+the accurate established Controls unchanged prefix without reverting admission
+or provider state. Runtime grader fix unchanged; targeted docs regression and
+independent delta review precede the next stable-SHA CI.

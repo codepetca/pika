@@ -1,7 +1,7 @@
 import { validateIndependentCalendarPostDatesReviewedMigration } from './independent-calendar-post-dates-reviewed-migration'
 import { validateClassroomAdmissionRegistryReviewedMigration } from './classroom-admission-registry-reviewed-migration'
 import { validateTeacherAuthoringImagesReviewedMigration } from './teacher-authoring-images-reviewed-migration'
-/** Exact source-only271–295 extension. This does not grant migration, native
+/** Exact source-only271–298 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
 import { validateAnnouncementPostDateReviewedMigration } from './announcement-post-date-reviewed-migration'
@@ -35,7 +35,7 @@ export const LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS = Object.freeze([
 
 export function validateLifecycleServicesReviewedMigrations(migrations: readonly { name: string; sql: string; sha256: string }[]) {
   validateAssignmentListMigrationChain(migrations)
-  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
+  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
   for (const seal of LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS) {
     // Data API282 has its own validator; attendance283 follows that exact slot.
     const number = Number(seal.name.slice(0, 3))
@@ -58,4 +58,15 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
   if (migrations.length >= 293) validateRepoLightReportServiceReviewedMigration(migrations[292])
   if (migrations.length >= 294) validateClassroomAdmissionRegistryReviewedMigration(migrations[293])
   if (migrations.length >= 295) validateIndependentCalendarPostDatesReviewedMigration(migrations[294])
+  for (const [index, name, digest] of [
+    [295, '296_repolight_analysis_access.sql', '63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'],
+    [296, '297_repolight_managed_registry.sql', '8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'],
+    [297, '298_repolight_provision_outbox.sql', '47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf'],
+  ] as const) {
+    if (migrations.length <= index) continue
+    const migration = migrations[index]
+    assert.equal(migration.name, name)
+    assert.equal(migration.sha256, digest)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), digest)
+  }
 }

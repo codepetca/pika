@@ -6,7 +6,7 @@ const connectionSchema = z.object({
   apiKey: z.string().regex(/^rl_v2_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.[A-Za-z0-9_-]{43}$/), active: z.boolean().default(true),
 }).strict()
 export type RepoLightConnection = z.infer<typeof connectionSchema>
-export type RepoLightConfig = { enabled: boolean; apiOrigin: string | null; connections: RepoLightConnection[] }
+export type RepoLightConfig = { enabled: boolean; apiOrigin: string | null; connections: RepoLightConnection[]; managedEnabled?: boolean }
 export class RepoLightConfigError extends Error {
   readonly code = 'repolight_not_configured'
   constructor() { super('RepoLight is not configured.'); this.name = 'RepoLightConfigError' }
@@ -21,7 +21,8 @@ function validateRepoLightOrigin(raw: string, mode: string | undefined): string 
 export function parseRepoLightConfig(env: Record<string, string | undefined> = process.env): RepoLightConfig {
   try {
     const flag = env.PIKA_REPOLIGHT_ENABLED ?? 'false'
-    if (!['true', 'false'].includes(flag)) throw new RepoLightConfigError()
+    const managedFlag = env.PIKA_REPOLIGHT_MANAGED_ENABLED ?? 'false'
+    if (!['true', 'false'].includes(flag) || !['true', 'false'].includes(managedFlag)) throw new RepoLightConfigError()
     const raw = env.REPOLIGHT_TEACHER_CONNECTIONS_JSON ?? '[]'
     if (Buffer.byteLength(raw) > 262144) throw new RepoLightConfigError()
     const connections = z.array(connectionSchema).max(100).parse(JSON.parse(raw))
@@ -35,8 +36,8 @@ export function parseRepoLightConfig(env: Record<string, string | undefined> = p
       if (teacherEntries.some(entry => entry.workspaceRef !== connection.workspaceRef || entry.installationRef !== connection.installationRef)) throw new RepoLightConfigError()
     }
     const apiOrigin = env.REPOLIGHT_API_URL ? validateRepoLightOrigin(env.REPOLIGHT_API_URL, env.NODE_ENV) : null
-    if (flag === 'true' && (!apiOrigin || !connections.length)) throw new RepoLightConfigError()
-    return { enabled: flag === 'true', apiOrigin, connections }
+    if (flag === 'true' && (!apiOrigin || (managedFlag !== 'true' && !connections.length))) throw new RepoLightConfigError()
+    return { enabled: flag === 'true', apiOrigin, connections, managedEnabled: managedFlag === 'true' }
   } catch { throw new RepoLightConfigError() }
 }
 export function resolveRepoLightConnection(config: RepoLightConfig, teacherId: string, connectionRef?: string): RepoLightConnection {

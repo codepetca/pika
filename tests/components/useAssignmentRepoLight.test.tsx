@@ -7,8 +7,8 @@ const runId = '11111111-1111-4111-8111-111111111111'
 const source = {available:true,repositoryUrl:'https://github.com/sample-student/sky-hop',githubUsername:null,usernameProvenance:'none',requirementId:null,period:null,periodDefaulted:true,notice:null}
 const run = {id:runId,status:'completed',sourceCurrent:true,canAdvance:false,canImport:true,reportAvailable:true,errorCode:null,nextRetryAt:null}
 const reply = (payload: unknown,ok = true) => ({ok,json:async()=>payload})
-function Harness({studentId = 'student-1',active = true,paused = false,selectedRequirementId,accept = vi.fn(),finish = vi.fn()}: {studentId?:string;active?:boolean;paused?:boolean;selectedRequirementId?:string;accept?:ReturnType<typeof vi.fn>;finish?:ReturnType<typeof vi.fn>}) {
-  const state = useAssignmentRepoLight({classroomId:'classroom-1',assignmentId:'assignment-1',studentId,active,paused,selectedRequirementId,beginImport:()=>({expectedDocUpdatedAt:'2026-10-24T10:00:00Z',accept,finish})})
+function Harness({studentId = 'student-1',active = true,discover = false,paused = false,selectedRequirementId,accept = vi.fn(),finish = vi.fn()}: {studentId?:string;active?:boolean;discover?:boolean;paused?:boolean;selectedRequirementId?:string;accept?:ReturnType<typeof vi.fn>;finish?:ReturnType<typeof vi.fn>}) {
+  const state = useAssignmentRepoLight({classroomId:'classroom-1',assignmentId:'assignment-1',studentId,active,discover,paused,selectedRequirementId,beginImport:()=>({expectedDocUpdatedAt:'2026-10-24T10:00:00Z',accept,finish})})
   return <div><span>{state.context?.state || 'unread'}</span><span>{state.run?.status}</span><span role="status">{state.error}</span><button onClick={()=>{void state.analyze()}}>Analyze</button><button onClick={()=>{void state.openReport()}}>Report</button><button onClick={()=>{void state.importFeedback('repository','Reviewed append text.').catch(()=>undefined)}}>Import</button>{state.report && <p>Report loaded</p>}</div>
 }
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();vi.useRealTimers()})
@@ -32,6 +32,17 @@ describe('useAssignmentRepoLight',()=>{
     const posts = fetchMock.mock.calls.filter(([,options])=>options?.method === 'POST').map(([,options])=>JSON.parse(String(options?.body)))
     expect(posts[0].requestId).toBe(posts[1].requestId)
     expect(posts[0]).not.toHaveProperty('githubUsername')
+  })
+
+  it('discovers a saved run without advancing it until the section is open',async()=>{
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']})
+    const running = {...run,status:'running',canAdvance:true,reportAvailable:false,canImport:false}
+    const fetchMock = vi.fn(async(url:string)=>reply(url.endsWith('/runs') ? {state:'disabled',source,run:running} : {run:running}))
+    vi.stubGlobal('fetch',fetchMock)
+    await act(async()=>{render(<Harness active={false} discover />)})
+    expect(screen.getByText('running')).toBeInTheDocument()
+    await act(async()=>{await vi.advanceTimersByTimeAsync(30000)})
+    expect(fetchMock.mock.calls).toHaveLength(1)
   })
 
   it('uses the acknowledged document revision and report digest, preserving import IDs after a lost response',async()=>{
@@ -165,9 +176,20 @@ describe('useAssignmentRepoLight',()=>{
     fireEvent.click(screen.getByText('Report'))
     await screen.findByText('Report loaded')
     fireEvent.click(screen.getByText('Analyze'))
-    fireEvent.click(screen.getByText('Import'))
     await act(async()=>{})
     expect(fetchMock.mock.calls.some(([,options])=>(options as RequestInit | undefined)?.method === 'POST')).toBe(false)
+  })
+
+  it.each(['access_required', 'disabled', 'not_configured', 'unavailable'].flatMap(state => [true, false].map(canAdvance => [state, canAdvance] as const)))('honors server continuation permission with %s (canAdvance=%s)',async (state, canAdvance)=>{
+    vi.useFakeTimers({toFake:['setTimeout','clearTimeout']})
+    const activeRun = {...run,status:'running',canAdvance,reportAvailable:false,canImport:false}
+    const fetchMock = vi.fn(async(url:string,_options?:RequestInit)=>reply(url.endsWith('/runs') ? {state,source,run:activeRun} : {run:activeRun}))
+    vi.stubGlobal('fetch',fetchMock)
+    await act(async()=>{render(<Harness />)})
+    expect(screen.getByText(state)).toBeInTheDocument()
+    await act(async()=>{fireEvent.click(screen.getByText('Analyze'));await vi.advanceTimersByTimeAsync(2000)})
+    expect(fetchMock.mock.calls.filter(([url])=>url.endsWith('/advance'))).toHaveLength(canAdvance ? 1 : 0)
+    expect(fetchMock.mock.calls.filter(([url,options])=>url.endsWith('/runs') && options?.method === 'POST')).toHaveLength(0)
   })
 
   it('allows cached GETs while mutations are paused and never advances or imports',async()=>{

@@ -9,11 +9,15 @@ import { createOfflineTestLearnerRepository } from '../helpers/test-learner-nati
 const learnerOffline = createOfflineTestLearnerRepository(process.cwd())
 afterAll(learnerOffline.dispose)
 const mocks = vi.hoisted(() => ({ spawn: vi.fn(), execFile: vi.fn(), inventory: vi.fn(),
-  snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
+  historicalHotProfile: false, snapshotSqlReads: false, sourceDrift: false, driftMigration: '249_contextual_test_draft_owner_save.sql', socketInode: 2, sqlFileCache: new Map<string, string>() }))
 vi.mock('node:child_process', async importOriginal => ({ ...await importOriginal<typeof import('node:child_process')>(), spawn: mocks.spawn, execFile: mocks.execFile, execFileSync: vi.fn() }))
 vi.mock('node:fs', async importOriginal => {
   const actual = await importOriginal<typeof import('node:fs')>()
-  return { ...actual, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? path : actual.realpathSync(path),
+  return { ...actual, readdirSync: ((...args: Parameters<typeof actual.readdirSync>) => {
+    const result = actual.readdirSync(...args)
+    return mocks.historicalHotProfile && String(args[0]).endsWith('/supabase/migrations')
+      ? result.filter(entry => !/^29[678]_/.test(String(entry))) : result
+  }) as typeof actual.readdirSync, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? path : actual.realpathSync(path),
     readFileSync: ((path, options) => {
       // Offline transport tests use immutable fixture bytes, but still execute every source-hash guard.
       if (mocks.snapshotSqlReads && typeof path === 'string' && options === 'utf8'
@@ -221,6 +225,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(learnerManifest)), absoluteDeadline: Date.now() + 900000 })
   }
   const hotFactory = () => {
+    mocks.historicalHotProfile = true
     hotManifest = buildClassroomHotLifecycleNativeContractsManifest(original, head, repository)
     return createClassroomHotLifecycleNativeContracts({ repository, reviewedHead: head, original,
       capturedResources: resources, containerId: resources.find(r => r.name === `supabase_db_${project}`)!.id,
@@ -236,7 +241,7 @@ describe('native persistent-session transport with offline child mocks', () => {
       acceptedManifestSha256: testOwnerDigest(JSON.stringify(diagnosticManifest)), absoluteDeadline: Date.now() + 900000 })
   }
   beforeEach(() => {
-    mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
+    mocks.historicalHotProfile = false; mocks.snapshotSqlReads = true; mocks.sourceDrift = false; mocks.sqlFileCache.clear()
     vi.clearAllMocks(); children.length = 0; terminations.length = 0; sqlControls.length = 0; hangingSetup = false; failContender = false; terminationConfirmed = true
     serviceExecute = true; fixtureChanged = false; catalogChanged = false; restorationFails = false; publicGrant = false
     setupExit = false; malformedSetup = false; stderrChunks = []; createManifest = undefined; discardManifest = undefined; publicationManifest = undefined
@@ -1090,4 +1095,11 @@ describe('native persistent-session transport with offline child mocks', () => {
     await expect(factory().probeSnapshotPrivilegeDrift(callback)).rejects.toThrow()
     expect(callback).not.toHaveBeenCalled(); expect(mocks.spawn).not.toHaveBeenCalled()
   })
+})
+
+
+// These offline native proofs retain their audited 295-migration profile.
+vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
+  return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295) }
 })
