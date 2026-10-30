@@ -1,5 +1,7 @@
 'use client'
 
+import { Settings, Trash2 } from 'lucide-react'
+import { TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import { createContext, useContext, useEffect, useInsertionEffect, useRef, useState, useCallback, type ComponentProps } from 'react'
 import type { Assignment, ClassDay } from '@/types'
 import { AssignmentForm } from '@/components/AssignmentForm'
@@ -991,11 +993,6 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
-        footer={assignment && onRequestDelete ? (
-          <Button type="button" variant="danger" onClick={activeInput(onRequestDelete)} disabled={creating || saving || releasing || discarding}>
-            Delete assignment
-          </Button>
-        ) : undefined}
         contentClassName="!overflow-hidden !p-0"
       >
         <AssignmentEditorBody
@@ -1017,6 +1014,15 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           onInstructionsMarkdownChange={activeInput(handleInstructionsMarkdownChange)}
           onInstructionsConversionWarningChange={activeInput(setMarkdownWarning)}
           onDueAtChange={activeInput(handleDueAtChange)}
+          settingsAction={assignment && onRequestDelete ? (
+            <TeacherWorkSurfaceMenuButton
+              label={<><Settings className="h-4 w-4" aria-hidden="true" /> Settings</>}
+              variant="secondary" className="w-full" menuAriaLabel="Assignment settings" menuPlacement="up" menuAlign="end"
+              disabled={creating || saving || releasing || discarding}
+              interactionActive={isOpen && !showInstructionsPreview && !showCreateScheduleModal && !showPostNowConfirm && !showRevertToDraftConfirm}
+              items={[{ id: 'delete', label: 'Delete assignment', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, onSelect: activeInput(onRequestDelete) }]}
+            />
+          ) : undefined}
           onPreviewInstructions={activeInput(() => {
             cancelTitleFocus()
             setShowInstructionsPreview(true)

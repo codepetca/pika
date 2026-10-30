@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
-import { Button } from '@/ui'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import type {
   AssessmentEditorSummaryUpdate,
@@ -129,11 +128,6 @@ export function TeacherTestAuthoringDialog({
       panelClassName="!p-0"
       contentClassName="!overflow-hidden !p-0"
       tall
-      footer={test && onRequestDelete ? (
-        <Button type="button" variant="danger" onClick={onRequestDelete} disabled={isClosing || isPreparingPublish}>
-          Delete test
-        </Button>
-      ) : undefined}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden">
         <ClassroomBlueprintDraftSource
@@ -159,6 +153,7 @@ export function TeacherTestAuthoringDialog({
               draftPristineCheckRef.current = check
             }}
             onRequestTestPreview={onRequestPreview}
+            onRequestDelete={onRequestDelete}
             showInlineDeleteAction={false}
             testQuestionLayout="split"
             initialSplitView={initialView}

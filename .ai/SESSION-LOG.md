@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Assessment diagnostic privacy cleanup
-
-Owner approved orchestration; journal-derived product feedback stays unchanged.
-Three disjoint GPT-6.1 Sol/high implementation workers migrated Assignment/Test
-API and document/helper diagnostics; coordinator owns shared allowlist, guard,
-integration and review. Replaced140 raw server error logs plus one fixed Test
-publication log; browser history warning no longer carries an entry ID. Cleanup
-retry records use fixed stage descriptions instead of provider/database messages.
-Synthetic red/green coverage:35 Assignment boundaries,26 Test assertions and47
-helper cases. Scoped regressions pass242/288/127 tests respectively. Source
-comparison finds no unexpected logic deltas; durable diagnostic changes and
-literal operation branches reviewed separately. No UI/schema/dependency/query/
-authorization changes, production actions or historical log deletion. Remaining
-logging inventory/vendor controls stay open. Focused gate, independent review and
-stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
-Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
-Worker token/effective-model and coordinator active-time telemetry unavailable.
-PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
-TypeScript and lint. Independent privacy review found an immediate JSON-patch
-helper still emitting document trees; compatibility review found no regressions.
-One remediation batch replaces both patch-helper logs with browser-safe fixed
-warnings and strengthens aggregate reconstruction diagnostics tests/guard.
-Targeted review and exact-head CI remain required before readiness/merge.
-
 ## 2026-10-24 — Three-account Home pilot acceptance reconciliation
 
 Recorded exact production1da699/schema292 and the retained dedicated three-account
@@ -516,3 +492,7 @@ summaries to revision-checked private drafts while the page remains open. No AI,
 grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
 component and executor checks, policy checks, and synthetic teacher desktop/mobile
 light/dark verification are in progress; publication and rollout remain separate.
+
+## 2026-10-30 — Test and assignment settings menus
+
+Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
