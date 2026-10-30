@@ -61,7 +61,7 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
   for (const [index, name, digest] of [
     [295, '296_repolight_analysis_access.sql', '63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'],
     [296, '297_repolight_managed_registry.sql', '8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'],
-    [297, '298_repolight_provision_outbox.sql', '6822ef983ebd68d1b87ec3bb26abd6b55eeed698841d297523cf26be3956398f'],
+    [297, '298_repolight_provision_outbox.sql', '47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf'],
   ] as const) {
     if (migrations.length <= index) continue
     const migration = migrations[index]
