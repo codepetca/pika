@@ -154,7 +154,13 @@ async function mutate(request: Request, command: 'upsert' | 'assign', requireId 
     if (error.code === '22023') throw new ApiError(400, 'Invalid attendance schedule')
     throw new ApiError(503, 'Attendance schedules are temporarily unavailable')
   }
-  return NextResponse.json(z.object({ id: id.nullable(), revision: z.number().int().safe().positive() }).strict().parse(data))
+  const parsed = z.object({ id: id.nullable(), revision: z.number().int().safe().positive() }).strict().safeParse(data)
+  if (!parsed.success || parsed.data.revision !== input.expected_revision + 1
+    || (command === 'assign' && parsed.data.id !== scheduleId)
+    || (command === 'upsert' && (!parsed.data.id || (scheduleId && parsed.data.id !== scheduleId)))) {
+    throw new ApiError(503, 'Attendance schedules are temporarily unavailable')
+  }
+  return NextResponse.json(parsed.data)
 }
 
 export const POST = withErrorHandler('PostTeacherAttendanceSchedule', request => mutate(request, 'upsert'))

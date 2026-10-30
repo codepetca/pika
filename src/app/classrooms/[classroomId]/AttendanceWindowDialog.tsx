@@ -320,7 +320,7 @@ function AttendanceWindowDialogContent({
             {schedules.map((schedule) => (
               <div key={schedule.id ?? 'regular'} className={`flex items-center gap-2 rounded-control border p-3 ${selectedId === schedule.id ? 'border-primary bg-surface' : 'border-border bg-surface-2'}`}>
                 <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3">
-                  <input type="radio" name="attendance-schedule" checked={selectedId === schedule.id} disabled={saving} onChange={() => setSelectedId(schedule.id)} />
+                  <Input type="radio" name="attendance-schedule" className="h-4 min-h-0 w-4 shrink-0 p-0" checked={selectedId === schedule.id} disabled={saving} onChange={() => setSelectedId(schedule.id)} />
                   <span><span className="block text-sm font-medium text-text-default">{schedule.name}{schedule.id === null ? ' · Default' : ''}</span><span className="block text-sm text-text-muted">{schedule.policy ? formatTeacherAttendancePolicyHours(schedule.policy) : 'Set up timing'}</span></span>
                 </label>
                 <IconButton type="button" variant="ghost" label={`Edit ${schedule.name} settings`} icon={Settings2} disabled={saving} onClick={() => editSchedule(schedule)} />

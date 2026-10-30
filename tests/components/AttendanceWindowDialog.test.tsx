@@ -42,6 +42,15 @@ describe('AttendanceWindowDialog', () => {
     expect(JSON.parse(String(vi.mocked(fetch).mock.calls[2][1]?.body))).toEqual({ classroom_id: classroomId, window_start: '2026-08-18', window_end: '2026-08-18' })
   })
 
+  it('exposes one checked option in the labeled schedule group', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules))
+    renderDialog()
+    const group = await screen.findByRole('group', { name: 'Attendance schedule' })
+    expect(group).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /Regular schedule/ })).toBeChecked()
+    expect(screen.getByRole('radio', { name: /Assembly/ })).not.toBeChecked()
+  })
+
   it('selects a schedule with the keyboard', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(response(schedules))
     const user = userEvent.setup()
