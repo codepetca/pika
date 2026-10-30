@@ -13,6 +13,8 @@ export function classroomTestQuotaProofCatalog(
   canonicalTables: readonly string[],
   migrations: readonly { name: string; sql: string; sha256: string }[],
 ): readonly string[] {
+  // Source seals alone do not review the later schema's preservation catalog.
+  assert(migrations.length <= 295, 'Unreviewed quota proof catalog migration profile')
   assert(canonicalTables.length > 0 && canonicalTables.length <= 1024)
   assert(canonicalTables.every(name => /^(public|private|storage)\.[a-z_0-9]+$/.test(name)))
   assert.equal(new Set(canonicalTables).size, canonicalTables.length)
