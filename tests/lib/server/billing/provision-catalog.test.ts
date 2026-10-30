@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { launchCatalog } from '@/lib/billing/launch-catalog'
+import { launchCatalog, repolightCatalog, REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import {
   CatalogProvisioningError,
   provisionLaunchCatalog,
@@ -43,7 +43,7 @@ function fixture() {
       data: prices.get(lookupKey) ?? [], hasMore: false,
     })),
     createPrice: vi.fn().mockImplementation(async (params: Record<string, unknown>) => {
-      const variant = launchCatalog.find(item => item.catalogKey === params.lookup_key)
+      const variant = [...launchCatalog, ...repolightCatalog].find(item => item.catalogKey === params.lookup_key)
       if (!variant) throw new Error('unexpected fixture')
       const price = priceFor(variant)
       prices.set(variant.catalogKey, [price])
@@ -89,6 +89,18 @@ describe('test-only launch catalog provisioning', () => {
       transfer_lookup_key: false,
       unit_amount: 900,
     }), `pika-catalog:${launchCatalog[0].offeringVersionId}`)
+  })
+
+  it('registers a distinct unavailable release with explicit RepoLight benefits', async () => {
+    const { ports, registrations } = fixture()
+    const result = await provision(ports, { releaseTag: REPOLIGHT_CATALOG_RELEASE_TAG, releaseVersionBase: 24 })
+    expect(result.releaseTag).toBe(REPOLIGHT_CATALOG_RELEASE_TAG)
+    expect(registrations.map(r => r.features.repolight_analysis)).toEqual([
+      false, false, false, false, true, true, true, true, true, true, true, true,
+    ])
+    expect(registrations.every(r => !r.availability.is_available)).toBe(true)
+    expect(result.bindings.every(b => !launchCatalog.some(old => old.offeringVersionId === b.offeringVersionCatalogId))).toBe(true)
+    expect(ports.createPrice).toHaveBeenCalledTimes(12)
   })
 
   it('reuses an exact verified price after a database registration failure', async () => {

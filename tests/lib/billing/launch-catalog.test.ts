@@ -4,6 +4,8 @@ import {
   getLaunchCatalogVariant,
   getLaunchCatalogVariantByKey,
   launchCatalog,
+  repolightCatalog,
+  REPOLIGHT_CATALOG_RELEASE_TAG,
   launchTrial,
   toLaunchPlanKey,
   toLegacyPlanKey,
@@ -37,6 +39,22 @@ describe('launch catalog', () => {
           })
         }
       }
+    }
+  })
+
+  it('preserves the historical release and gives each new offering a distinct identity', () => {
+    expect(repolightCatalog).toHaveLength(12)
+    for (let i = 0; i < launchCatalog.length; i++) {
+      const old = launchCatalog[i], current = repolightCatalog[i]
+      expect(old.releaseTag).toBe('launch-2026-09-26')
+      expect(old.repolightAnalysis).toBeUndefined()
+      expect(current).toMatchObject({ plan: old.plan, currency: old.currency, interval: old.interval,
+        unitAmountCents: old.unitAmountCents, activeClassroomCap: old.activeClassroomCap,
+        releaseTag: REPOLIGHT_CATALOG_RELEASE_TAG, repolightAnalysis: old.plan !== 'basic' })
+      expect(current.catalogKey).not.toBe(old.catalogKey)
+      expect(current.offeringVersionId).not.toBe(old.offeringVersionId)
+      expect(getLaunchCatalogVariantByKey(old.catalogKey)).toBe(old)
+      expect(getLaunchCatalogVariantByKey(current.catalogKey)).toBe(current)
     }
   })
 

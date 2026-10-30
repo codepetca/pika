@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getLaunchCatalogVariantByKey } from '@/lib/billing/launch-catalog'
+import { getLaunchCatalogVariantByKey, REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import { CheckoutOfferingSchema, type CheckoutOffering } from '@/lib/server/billing/checkout-contracts'
 import type { BillingCatalogItem } from '@/lib/server/billing/purchase-handlers'
 
@@ -20,7 +20,7 @@ export async function listLaunchPurchaseCatalog(input: {
   const response = z.object({ items: z.array(CheckoutOfferingSchema).max(100) }).strict()
     .parse(await input.listOfferings())
   const seen = new Set<string>()
-  const result: BillingCatalogItem[] = []
+  const result = new Map<string, { item: BillingCatalogItem; isCurrent: boolean }>()
   for (const offering of response.items) {
     if (offering.stripe_account !== input.stripeAccount) throw new Error('Billing catalog account mismatch')
     const match = validateLaunchCheckoutOffering(offering)
@@ -28,12 +28,16 @@ export async function listLaunchPurchaseCatalog(input: {
     if (seen.has(match.lookupKey)) throw new Error('Billing catalog has conflicting available versions')
     seen.add(match.lookupKey)
     const variant = getLaunchCatalogVariantByKey(match.lookupKey)!
-    result.push({
+    const selection = `${variant.plan}:${variant.currency}:${variant.interval}`
+    const isCurrent = variant.releaseTag === REPOLIGHT_CATALOG_RELEASE_TAG
+    const existing = result.get(selection)
+    if (existing && (existing.isCurrent || !isCurrent)) continue
+    result.set(selection, { isCurrent, item: {
       offeringVersionId: offering.offering_version_id,
       plan: variant.plan, name: variant.displayName,
       currency: variant.currency, interval: variant.interval,
       unitAmount: variant.unitAmountCents, classroomLimit: variant.activeClassroomCap,
-    })
+    } })
   }
-  return result
+  return [...result.values()].map(entry => entry.item)
 }
