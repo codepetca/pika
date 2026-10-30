@@ -16,7 +16,7 @@ vi.mock('node:fs', async importOriginal => {
   return { ...actual, readdirSync: ((...args: Parameters<typeof actual.readdirSync>) => {
     const result = actual.readdirSync(...args)
     return mocks.historicalHotProfile && String(args[0]).endsWith('/supabase/migrations')
-      ? result.filter(entry => !/^29[67]_/.test(String(entry))) : result
+      ? result.filter(entry => !/^29[678]_/.test(String(entry))) : result
   }) as typeof actual.readdirSync, realpathSync: (path: string) => path === '/private/tmp/pika-test-native-docker.sock' ? path : actual.realpathSync(path),
     readFileSync: ((path, options) => {
       // Offline transport tests use immutable fixture bytes, but still execute every source-hash guard.
