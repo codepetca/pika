@@ -5,8 +5,12 @@ import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom, assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 import { BaraAttendanceCanaryError } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceScopeMode } from '@/lib/server/bara-attendance-scope'
+import { getBaraAttendanceCanaryScope } from '@/lib/server/bara-attendance-canary'
+import { getBaraAttendanceIntegrationState } from '@/lib/server/bara-attendance-client'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
-import { loadTeacherAttendancePolicy } from '@/lib/server/bara-attendance-policy'
+import { attendancePolicyRowSchema, loadTeacherAttendancePolicy, toTeacherAttendancePolicy } from '@/lib/server/bara-attendance-policy'
+import { authorizeSharedAttendancePolicyActor } from '@/lib/server/contextual-attendance-policy'
 import { teacherAttendancePolicyUpdateSchema } from '@/lib/validations/teacher-attendance-policy'
 
 export const dynamic = 'force-dynamic'
@@ -38,7 +42,8 @@ const storedTimingSchema = z.object({
 }).strict()
 
 async function access(classroomId: string, write: boolean) {
-  const user = await requireRole('teacher')
+  const admission = await authorizeSharedAttendancePolicyActor()
+  const user = admission.mode === 'shared' ? admission.user : await requireRole('teacher')
   // The schedule tables are introduced by migration 296; generated types are
   // refreshed after the separately authorized database migration.
   const supabase: any = getServiceRoleClient()
@@ -51,18 +56,44 @@ async function access(classroomId: string, write: boolean) {
     if (error instanceof BaraAttendanceCanaryError) throw new ApiError(error.code === 'disabled' ? 404 : 503, 'Attendance is unavailable for this classroom')
     throw error
   }
-  return { user, supabase }
+  return { user, supabase, shared: admission.mode === 'shared' }
 }
 
 export const GET = withErrorHandler('GetTeacherAttendanceSchedules', async (request) => {
   const input = querySchema.parse(Object.fromEntries(new URL(request.url).searchParams))
-  const { supabase } = await access(input.classroom_id, false)
-  const [policy, definitions, assignment] = await Promise.all([
-    loadTeacherAttendancePolicy({ supabase, classroomId: input.classroom_id }),
-    supabase.from('attendance_named_schedules').select('id, name, policy').eq('classroom_id', input.classroom_id).order('name'),
-    supabase.from('attendance_day_schedules').select('schedule_id').eq('classroom_id', input.classroom_id).eq('class_date', input.date).maybeSingle(),
-  ])
-  if (definitions.error || assignment.error) throw new ApiError(503, 'Attendance schedules are temporarily unavailable')
+  const { supabase, user, shared } = await access(input.classroom_id, false)
+  let policy: Awaited<ReturnType<typeof loadTeacherAttendancePolicy>>
+  let definitions: { data: unknown; error: unknown }
+  let assignment: { data: unknown; error: unknown }
+  if (shared) {
+    const integration = getBaraAttendanceIntegrationState()
+    if (integration !== 'ready') throw new ApiError(integration === 'disabled' ? 404 : 503, 'Attendance is unavailable for this classroom')
+    const mode = getBaraAttendanceScopeMode()
+    const canary = mode === 'exact_canary' ? getBaraAttendanceCanaryScope() : null
+    if (canary && canary.state !== 'ready') throw new ApiError(canary.state === 'disabled' ? 404 : 503, 'Attendance is unavailable for this classroom')
+    const result = await supabase.rpc('read_attendance_schedules_for_owner_v1', {
+      p_actor_id: user.id, p_classroom_id: input.classroom_id, p_scope_mode: mode, p_date: input.date,
+      p_canary_actor_id: canary?.teacherId ?? null, p_canary_classroom_id: canary?.classroomId ?? null,
+    }).abortSignal(AbortSignal.timeout(10_000))
+    const snapshot = z.object({ actor_id: id, classroom_id: id, scope_mode: z.enum(['exact_canary', 'teacher_entitlements']), date,
+      status: z.enum(['ready', 'forbidden', 'archived', 'blocked', 'disabled']), policy: attendancePolicyRowSchema.nullable(),
+      schedules: z.array(z.object({ id, name: z.string(), policy: storedTimingSchema }).strict()), selected_id: id.nullable(),
+    }).strict().safeParse(result.data)
+    if (result.error || !snapshot.success || snapshot.data.actor_id !== user.id || snapshot.data.classroom_id !== input.classroom_id
+      || snapshot.data.scope_mode !== mode || snapshot.data.date !== input.date) throw new ApiError(503, 'Attendance schedules are temporarily unavailable')
+    if (snapshot.data.status !== 'ready') throw new ApiError(snapshot.data.status === 'disabled' ? 404 : snapshot.data.status === 'blocked' ? 503 : 403, 'Attendance is unavailable for this classroom')
+    if (snapshot.data.policy && snapshot.data.policy.classroom_id !== input.classroom_id) throw new ApiError(503, 'Attendance schedules are temporarily unavailable')
+    policy = snapshot.data.policy ? toTeacherAttendancePolicy(snapshot.data.policy) : null
+    definitions = { data: snapshot.data.schedules, error: null }
+    assignment = { data: snapshot.data.selected_id ? { schedule_id: snapshot.data.selected_id } : null, error: null }
+  } else {
+    [policy, definitions, assignment] = await Promise.all([
+      loadTeacherAttendancePolicy({ supabase, classroomId: input.classroom_id }),
+      supabase.from('attendance_named_schedules').select('id, name, policy').eq('classroom_id', input.classroom_id).order('name'),
+      supabase.from('attendance_day_schedules').select('schedule_id').eq('classroom_id', input.classroom_id).eq('class_date', input.date).maybeSingle(),
+    ])
+    if (definitions.error || assignment.error) throw new ApiError(503, 'Attendance schedules are temporarily unavailable')
+  }
   if (!policy) return NextResponse.json({ schedules: [], selectedId: null })
   const rowsResult = z.array(z.object({ id, name: z.string().min(1).max(80), policy: storedTimingSchema }).strict()).safeParse(definitions.data)
   const selectionResult = z.object({ schedule_id: id }).strict().nullable().safeParse(assignment.data)
@@ -117,6 +148,7 @@ async function mutate(request: Request, command: 'upsert' | 'assign', requireId 
     p_expected_revision: input.expected_revision,
   })
   if (error) {
+    if (error.message?.includes('attendance_schedule_limit')) throw new ApiError(409, 'A classroom can have up to 100 named schedules')
     if (error.code === '40001' || error.code === '23514' || error.code === '23505') throw new ApiError(409, 'Attendance schedule changed or is already open; refresh and try again')
     if (error.code === '42501') throw new ApiError(403, 'Attendance schedule access denied')
     if (error.code === '22023') throw new ApiError(400, 'Invalid attendance schedule')

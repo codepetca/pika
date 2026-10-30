@@ -2,15 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET, POST, PUT } from '@/app/api/teacher/attendance/schedules/route'
 
-const { requireRole, ownership, access, loadPolicy, supabase } = vi.hoisted(() => ({
-  requireRole: vi.fn(), ownership: vi.fn(), access: vi.fn(), loadPolicy: vi.fn(),
+const { requireRole, sharedActor, ownership, access, loadPolicy, supabase } = vi.hoisted(() => ({
+  requireRole: vi.fn(), sharedActor: vi.fn(), ownership: vi.fn(), access: vi.fn(), loadPolicy: vi.fn(),
   supabase: { from: vi.fn(), rpc: vi.fn() },
 }))
 vi.mock('@/lib/auth', () => ({ requireRole }))
+vi.mock('@/lib/server/contextual-attendance-policy', () => ({ authorizeSharedAttendancePolicyActor: sharedActor }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => supabase }))
 vi.mock('@/lib/server/classrooms', () => ({ assertTeacherOwnsClassroom: ownership, assertTeacherCanMutateClassroom: ownership }))
-vi.mock('@/lib/server/bara-attendance-scope', () => ({ assertBaraAttendanceClassroomAccess: access }))
-vi.mock('@/lib/server/bara-attendance-policy', () => ({ loadTeacherAttendancePolicy: loadPolicy }))
+vi.mock('@/lib/server/bara-attendance-scope', () => ({ assertBaraAttendanceClassroomAccess: access, getBaraAttendanceScopeMode: () => 'teacher_entitlements' }))
+vi.mock('@/lib/server/bara-attendance-client', () => ({ getBaraAttendanceIntegrationState: () => 'ready' }))
+vi.mock('@/lib/server/bara-attendance-policy', async (importOriginal) => ({ ...(await importOriginal<typeof import('@/lib/server/bara-attendance-policy')>()), loadTeacherAttendancePolicy: loadPolicy }))
 
 const classroom = '20000000-0000-4000-8000-000000000002'
 const schedule = '30000000-0000-4000-8000-000000000003'
@@ -26,6 +28,7 @@ describe('teacher attendance schedules', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     requireRole.mockResolvedValue({ id: 'teacher', role: 'teacher' })
+    sharedActor.mockResolvedValue({ mode: 'existing' })
     ownership.mockResolvedValue({ ok: true, classroom: { archived_at: null } })
     loadPolicy.mockResolvedValue(policy)
     access.mockResolvedValue({ state: 'ready' })
@@ -56,6 +59,30 @@ describe('teacher attendance schedules', () => {
       policy: { ...policy, sessionStartsLocal: '10:00', sessionEndsLocal: '09:00' } }))
     expect(response.status).toBe(400)
     expect(supabase.rpc).not.toHaveBeenCalled()
+  })
+  it('reads schedules for an admitted owner in one authorized database snapshot', async () => {
+    const actorId = '40000000-0000-4000-8000-000000000004'
+    sharedActor.mockResolvedValue({ mode: 'shared', user: { id: actorId, role: 'student' } })
+    supabase.rpc.mockReturnValue({ abortSignal: async () => ({ error: null, data: {
+      actor_id: actorId, classroom_id: classroom, scope_mode: 'teacher_entitlements', date: '2026-11-03', status: 'ready',
+      policy: { classroom_id: classroom, timezone: 'America/Toronto', opens_local: '09:00:00', closes_local: '10:00:00', close_day_offset: 0,
+        entry_opens_minutes_before: 10, present_grace_minutes: 5, entry_closes_minutes_before_end: 0, absent_minutes_before_end: 0,
+        enabled: true, policy_revision: 3, updated_at: policy.updatedAt },
+      schedules: [{ id: schedule, name: 'Short day', policy: named }], selected_id: schedule,
+    } }) })
+    const result = await GET(new NextRequest(`http://localhost/api/teacher/attendance/schedules?classroom_id=${classroom}&date=2026-11-03`))
+    expect(result.status).toBe(200)
+    expect(await result.json()).toMatchObject({ selectedId: schedule, schedules: [{ id: null }, { id: schedule }] })
+    expect(supabase.from).not.toHaveBeenCalled()
+    expect(requireRole).not.toHaveBeenCalled()
+  })
+  it('allows an admitted classroom owner with a student account label to select a schedule', async () => {
+    sharedActor.mockResolvedValue({ mode: 'shared', user: { id: 'teacher', role: 'student' } })
+    const response = await PUT(request('PUT', { classroom_id: classroom, date: '2026-11-03', schedule_id: schedule, expected_revision: 3 }))
+    expect(response.status).toBe(200)
+    expect(requireRole).not.toHaveBeenCalled()
+    expect(ownership).toHaveBeenCalledWith('teacher', classroom, { supabase })
+    expect(supabase.rpc).toHaveBeenCalledWith('mutate_attendance_schedule_v1', expect.objectContaining({ p_teacher_id: 'teacher' }))
   })
   it('does not disclose schedules to an unauthorized teacher', async () => {
     ownership.mockResolvedValue({ ok: false, status: 403, error: 'Forbidden' })

@@ -84,6 +84,53 @@ describe('AttendanceWindowDialog', () => {
     expect(body).toMatchObject({ classroom_id: classroomId, id: 'alternate', name: 'Assembly', expected_revision: 3, policy: { sessionStartsLocal: '10:15' } })
   })
 
+  it('retries delivery after creating a schedule without creating it twice', async () => {
+    const created = { id: 'short-day', name: 'Short day', policy }
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(response(schedules))
+      .mockResolvedValueOnce(response({ id: created.id, revision: 4 }))
+      .mockRejectedValueOnce(new Error('network'))
+      .mockResolvedValueOnce(response(delivery))
+      .mockResolvedValueOnce(response({ ...schedules, schedules: [...schedules.schedules, created] }))
+    renderDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Add schedule' }))
+    fireEvent.change(screen.getByLabelText('Schedule name*'), { target: { value: created.name } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('delivery was not confirmed')
+    expect(screen.getByLabelText('Schedule name*')).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry delivery' }))
+    expect(await screen.findByRole('radio', { name: /Short day/ })).toBeInTheDocument()
+    const posts = vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url) === '/api/teacher/attendance/schedules' && init?.method === 'POST')
+    expect(posts).toHaveLength(1)
+    expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url) === '/api/teacher/attendance/sync')).toHaveLength(2)
+  })
+
+  it('retains a newly created schedule in the picker after delivery fails and Back is pressed', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockResolvedValueOnce(response({ id: 'short-day', revision: 4 })).mockRejectedValueOnce(new Error('network'))
+    renderDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Add schedule' }))
+    fireEvent.change(screen.getByLabelText('Schedule name*'), { target: { value: 'Short day' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+    await screen.findByRole('alert')
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+    expect(screen.getByRole('radio', { name: /Short day/ })).toBeInTheDocument()
+  })
+
+  it('loads the persisted schedule after closing and reopening following a delivery failure', async () => {
+    const created = { id: 'short-day', name: 'Short day', policy }
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockResolvedValueOnce(response({ id: created.id, revision: 4 })).mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce(response({ ...schedules, schedules: [...schedules.schedules, created] }))
+    const dialog = (isOpen: boolean) => <TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date="2026-08-18" isOpen={isOpen} onSaved={vi.fn()} onClose={vi.fn()} /></AppMessageProvider></TooltipProvider>
+    const view = render(dialog(true))
+    fireEvent.click(await screen.findByRole('button', { name: 'Add schedule' }))
+    fireEvent.change(screen.getByLabelText('Schedule name*'), { target: { value: created.name } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+    await screen.findByRole('alert')
+    view.rerender(dialog(false))
+    view.rerender(dialog(true))
+    expect(await screen.findByRole('radio', { name: /Short day/ })).toBeInTheDocument()
+    expect(vi.mocked(fetch).mock.calls.filter(([url, init]) => String(url) === '/api/teacher/attendance/schedules' && init?.method === 'POST')).toHaveLength(1)
+  })
+
   it('allows setting up regular timing when no policy exists', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(response({ schedules: [], selectedId: null })).mockResolvedValueOnce(response({ policy })).mockResolvedValueOnce(response(delivery)).mockResolvedValueOnce(response(schedules))
     renderDialog()

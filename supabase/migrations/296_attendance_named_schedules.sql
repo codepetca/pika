@@ -31,6 +31,44 @@ create trigger attendance_decommission_fence before insert or update on public.a
 create trigger attendance_decommission_fence before insert or update on public.attendance_day_schedules
   for each row execute function public.reject_attendance_write_during_decommission();
 
+-- Authorization, policy and schedule data use the same statement snapshot.
+-- Scope and actor IDs are supplied only by the server, not by clients.
+create function public.read_attendance_schedules_for_owner_v1(
+  p_actor_id uuid, p_classroom_id uuid, p_scope_mode text, p_date date,
+  p_canary_actor_id uuid default null, p_canary_classroom_id uuid default null
+) returns jsonb language sql stable security invoker set search_path = ''
+set lock_timeout = '1s' set statement_timeout = '8s' as $$
+  with authorization as materialized (
+    select public.read_attendance_policy_for_owner_v1(
+      p_actor_id,p_classroom_id,p_scope_mode,p_canary_actor_id,p_canary_classroom_id) as value
+  ), decision as materialized (
+    select value, case when p_date is null or not isfinite(p_date)
+      or p_date < date '0001-01-01' or p_date > date '9999-12-31'
+      then 'blocked' else value->>'status' end as status
+    from authorization
+  ), schedule_rows as materialized (
+    select s.id,s.name,s.policy from public.attendance_named_schedules s, decision d
+    where d.status='ready' and s.classroom_id=p_classroom_id
+    order by s.name,s.id limit 101
+  ), payload as materialized (
+    select jsonb_build_object(
+      'actor_id',p_actor_id,'classroom_id',p_classroom_id,'scope_mode',p_scope_mode,
+      'date',case when isfinite(p_date) then to_char(p_date,'YYYY-MM-DD') else null end,
+      'status',d.status,'policy',case when d.status='ready' then d.value->'policy' else null end,
+      'schedules',case when d.status='ready' then
+        coalesce((select jsonb_agg(jsonb_build_object('id',r.id,'name',r.name,'policy',r.policy) order by r.name,r.id)
+          from schedule_rows r),'[]'::jsonb) else '[]'::jsonb end,
+      'selected_id',case when d.status='ready' then
+        (select a.schedule_id from public.attendance_day_schedules a
+          where a.classroom_id=p_classroom_id and a.class_date=p_date) else null end
+    ) as value, (select count(*) from schedule_rows) as row_count from decision d
+  )
+  select case when row_count > 100 or octet_length(convert_to(value::text,'UTF8')) > 65536
+    then null else value end from payload;
+$$;
+revoke all on function public.read_attendance_schedules_for_owner_v1(uuid,uuid,text,date,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.read_attendance_schedules_for_owner_v1(uuid,uuid,text,date,uuid,uuid) to service_role;
+
 create function public.mutate_attendance_schedule_v1(
   p_teacher_id uuid, p_classroom_id uuid, p_command text, p_schedule_id uuid,
   p_date date, p_name text, p_policy jsonb, p_expected_revision bigint
@@ -55,6 +93,14 @@ begin
   select * into v_classroom from public.classrooms where id = p_classroom_id for update;
   if not found or v_classroom.teacher_id is distinct from p_teacher_id or v_classroom.archived_at is not null then
     raise exception using errcode = '42501', message = 'attendance_classroom_forbidden';
+  end if;
+  if coalesce(public.is_classroom_archive_maintenance_mode('restore'),false)
+    or coalesce(public.is_classroom_archive_maintenance_mode('compaction'),false)
+    or coalesce(pg_catalog.current_setting('pika.identity_mapping',true),'off')='on'
+    or coalesce(pg_catalog.current_setting('pika.classroom_purge_finalize',true),'off')='on'
+    or coalesce(pg_catalog.current_setting('pika.course_blueprint_purge_finalize',true),'off')='on'
+    or coalesce(pg_catalog.current_setting('pika.student_purge_finalize',true),'off')='on' then
+    raise exception using errcode='55000',message='attendance_schedule_write_fenced';
   end if;
   perform public.guard_classroom_purge_lifecycle(p_classroom_id);
   if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtextextended(p_teacher_id::text,13220260823)) then
@@ -104,6 +150,9 @@ begin
       raise exception using errcode = '22023', message = 'attendance_schedule_invalid';
     end if;
     if p_schedule_id is null then
+      if (select count(*) from public.attendance_named_schedules where classroom_id=p_classroom_id) >= 100 then
+        raise exception using errcode = '23514', message = 'attendance_schedule_limit';
+      end if;
       insert into public.attendance_named_schedules(classroom_id,name,policy)
         values(p_classroom_id,btrim(p_name),p_policy) returning id into v_id;
     else

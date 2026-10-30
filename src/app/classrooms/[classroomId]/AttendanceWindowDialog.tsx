@@ -70,6 +70,7 @@ function AttendanceWindowDialogContent({
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [editing, setEditing] = useState<Schedule | 'new' | null>(null)
   const [name, setName] = useState('')
+  const [pendingDelivery, setPendingDelivery] = useState<{ policy: TeacherAttendancePolicy; regular: boolean } | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -117,6 +118,7 @@ function AttendanceWindowDialogContent({
       setAppliedId(result.selectedId)
       setRevision(result.schedules.find((schedule) => schedule.id === null)?.policy?.revision ?? null)
       setEditing(null)
+      setPendingDelivery(null)
     } catch (reason) {
       if (current()) setError(reason instanceof Error ? reason.message : 'Attendance settings are temporarily unavailable')
     } finally {
@@ -142,6 +144,7 @@ function AttendanceWindowDialogContent({
     setAbsentMinutesBeforeEnd(policy?.absentMinutesBeforeEnd ?? 0)
     setEnabled(policy?.enabled ?? true)
     setError('')
+    setPendingDelivery(null)
     setEditing(schedule)
   }
 
@@ -228,6 +231,16 @@ function AttendanceWindowDialogContent({
     setSaving(true)
     setError('')
     try {
+      if (pendingDelivery) {
+        let synced = false
+        try { synced = await syncSchedule(pendingDelivery.policy) } catch { /* Keep the saved timing available for retry. */ }
+        if (!current()) return
+        if (!synced) { setError('Timing saved, but schedule delivery was not confirmed.'); return }
+        if (pendingDelivery.regular) onSaved(pendingDelivery.policy, true)
+        showMessage({ text: 'Attendance timing saved', tone: 'success' })
+        await loadPolicy()
+        return
+      }
       const fields = {
         session_starts_local: sessionStartsLocal, session_ends_local: sessionEndsLocal,
         session_end_day_offset: sessionEndDayOffset, entry_opens_minutes_before: entryOpensMinutesBefore,
@@ -242,7 +255,11 @@ function AttendanceWindowDialogContent({
         const policy = parseTeacherAttendancePolicy(response, classroomId)
         if (!policy) throw new Error('Attendance settings are temporarily unavailable')
         invalidateTeacherAttendancePolicy(classroomId)
-        if (current()) setRevision(policy.revision)
+        if (current()) {
+          setRevision(policy.revision)
+          setSchedules((items) => items.map((item) => item.id === null ? { ...item, policy } : item))
+          setPendingDelivery({ policy, regular: true })
+        }
         let synced = false
         try { synced = await syncSchedule(policy) } catch { /* Preserve the saved timing and report delivery failure. */ }
         if (!current()) return
@@ -252,11 +269,17 @@ function AttendanceWindowDialogContent({
         const base = editing === 'new' ? schedules.find((item) => item.id === null)?.policy : editing.policy
         if (!base) throw new Error('Set up regular attendance timing first.')
         const policy = { ...base, sessionStartsLocal, sessionEndsLocal, sessionEndDayOffset, entryOpensMinutesBefore, presentGraceMinutes, entryClosesMinutesBeforeEnd, absentMinutesBeforeEnd, enabled }
-        const result = await fetchJSON<{ revision: number }>('/api/teacher/attendance/schedules', {
+        const result = await fetchJSON<{ id: string; revision: number }>('/api/teacher/attendance/schedules', {
           init: { method: editing === 'new' ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ classroom_id: classroomId, ...(editing === 'new' ? {} : { id: editing.id }), name: name.trim(), policy, expected_revision: revision }) },
           errorMessage: 'Could not save attendance schedule',
         })
-        if (current()) setRevision(result.revision)
+        if (current()) {
+          const saved = { id: result.id, name: name.trim(), policy }
+          setRevision(result.revision)
+          setSchedules((items) => [...items.filter((item) => item.id !== saved.id), saved])
+          setEditing(saved)
+          setPendingDelivery({ policy, regular: false })
+        }
         let synced = false
         try { synced = await syncSchedule(policy) } catch { /* Report unconfirmed delivery. */ }
         if (!current()) return
@@ -319,6 +342,7 @@ function AttendanceWindowDialogContent({
             void savePolicy()
           }}
         >
+          <fieldset disabled={Boolean(pendingDelivery)} className="space-y-4">
           {editing === 'new' || editing.id !== null ? (
             <FormField label="Schedule name" required><Input value={name} disabled={saving} onChange={(event) => setName(event.target.value)} /></FormField>
           ) : null}
@@ -425,6 +449,7 @@ function AttendanceWindowDialogContent({
           {timingValidationError ? (
             <p role="alert" className="text-sm text-danger">{timingValidationError}</p>
           ) : null}
+          </fieldset>
           {error ? (
             <p role="alert" className="rounded-control border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
               {error}
@@ -432,9 +457,9 @@ function AttendanceWindowDialogContent({
           ) : null}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" disabled={saving} onClick={() => { setEditing(null); setError('') }}>Back</Button>
+            <Button type="button" variant="secondary" disabled={saving} onClick={() => { setEditing(null); setPendingDelivery(null); setError('') }}>Back</Button>
             <Button type="submit" variant="primary" loading={saving} disabled={Boolean(validationError) || ((editing === 'new' || editing.id !== null) && !name.trim())}>
-              Save timing
+              {pendingDelivery ? 'Retry delivery' : 'Save timing'}
             </Button>
           </div>
         </form>
