@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { launchCatalog } from '@/lib/billing/launch-catalog'
+import { launchCatalog, repolightCatalog } from '@/lib/billing/launch-catalog'
 import { listLaunchPurchaseCatalog, validateLaunchCheckoutOffering } from '@/lib/server/billing/purchase-catalog'
 import type { CheckoutOffering } from '@/lib/server/billing/checkout-contracts'
 
@@ -21,6 +21,18 @@ describe('available launch purchase catalog', () => {
     expect(items.filter(item => item.plan === 'max').every(item => item.classroomLimit === 12)).toBe(true)
     expect(items.filter(item => item.plan === 'pro').every(item => item.name === 'Pro' && item.classroomLimit === 5)).toBe(true)
     expect(JSON.stringify(items)).not.toMatch(/price_fixture|provisional|grading/)
+  })
+  it('prefers the new release for purchases while still validating historical offerings', async () => {
+    const old = offering(4)
+    const current = { ...old, offering_version_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      catalog_key: repolightCatalog[4].catalogKey, stripe_price_id: 'price_current' }
+    expect(validateLaunchCheckoutOffering(old)).not.toBeNull()
+    expect(validateLaunchCheckoutOffering(current)).not.toBeNull()
+    for (const items of [[old, current], [current, old]]) {
+      const result = await listLaunchPurchaseCatalog({ stripeAccount: 'acct_fixture', listOfferings: async () => ({ items }) })
+      expect(result).toHaveLength(1)
+      expect(result[0].offeringVersionId).toBe(current.offering_version_id)
+    }
   })
   it.each(['unit_amount', 'classroom_limit'] as const)('rejects a changed %s even with the valid catalog key', field => {
     const candidate = offering()
