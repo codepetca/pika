@@ -13590,6 +13590,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      repolight_provision_outbox_v1: {
+        Args: { p_action: string; p_payload?: Json }
+        Returns: Json
+      }
       requeue_pal_event_outbox: {
         Args: { p_outbox_id: string }
         Returns: boolean
