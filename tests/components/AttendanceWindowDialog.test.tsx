@@ -1,14 +1,121 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AttendanceWindowDialog } from '@/app/classrooms/[classroomId]/AttendanceWindowDialog'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 
-vi.mock('@/lib/timezone', () => ({
-  getTodayInToronto: () => '2026-08-17',
-}))
-
+vi.mock('@/lib/timezone', () => ({ getTodayInToronto: () => '2026-08-17' }))
 const classroomId = '10000000-0000-4000-8000-000000000001'
+const policy = {
+  classroomId, timezone: 'America/Toronto', sessionStartsLocal: '08:45', sessionEndsLocal: '09:45',
+  sessionEndDayOffset: 0, entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
+  entryClosesMinutesBeforeEnd: 0, absentMinutesBeforeEnd: 0, enabled: true,
+  revision: 3, updatedAt: '2026-08-17T12:00:00.000Z',
+}
+const schedules = { schedules: [
+  { id: null, name: 'Regular schedule', policy },
+  { id: 'alternate', name: 'Assembly', policy: { ...policy, sessionStartsLocal: '10:00', sessionEndsLocal: '11:00' } },
+], selectedId: null }
+const delivery = { roster: { outcome: 'applied', revision: 4 }, schedule: { outcome: 'applied', revision: 4 } }
+function response(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+}
+function renderDialog(date = '2026-08-18') {
+  const onSaved = vi.fn()
+  const onClose = vi.fn()
+  render(<TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date={date} isOpen onSaved={onSaved} onClose={onClose} /></AppMessageProvider></TooltipProvider>)
+  return { onSaved, onClose }
+}
+
+describe('AttendanceWindowDialog', () => {
+  beforeEach(() => vi.stubGlobal('fetch', vi.fn()))
+  afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+  it('loads schedules for the selected date and applies the chosen schedule only after delivery', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockResolvedValueOnce(response({ id: 'alternate', revision: 4 })).mockResolvedValueOnce(response(delivery))
+    const { onSaved, onClose } = renderDialog()
+    fireEvent.click(await screen.findByRole('radio', { name: /Assembly/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply schedule' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(onSaved).toHaveBeenCalledWith(policy, true)
+    expect(String(vi.mocked(fetch).mock.calls[0][0])).toContain('date=2026-08-18')
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body))).toEqual({ classroom_id: classroomId, date: '2026-08-18', schedule_id: 'alternate', expected_revision: 3 })
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[2][1]?.body))).toEqual({ classroom_id: classroomId, window_start: '2026-08-18', window_end: '2026-08-18' })
+  })
+
+  it('selects a schedule with the keyboard', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules))
+    const user = userEvent.setup()
+    renderDialog()
+    const regular = await screen.findByRole('radio', { name: /Regular schedule/ })
+    regular.focus()
+    await user.keyboard('{ArrowDown}')
+    expect(screen.getByRole('radio', { name: /Assembly/ })).toBeChecked()
+  })
+
+  it('reports unconfirmed delivery and does not claim selection was applied', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockResolvedValueOnce(response({ id: 'alternate', revision: 4 })).mockRejectedValueOnce(new Error('network'))
+    const { onSaved, onClose } = renderDialog()
+    fireEvent.click(await screen.findByRole('radio', { name: /Assembly/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply schedule' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('delivery was not confirmed')
+    expect(onSaved).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('retries delivery for an already selected schedule without writing the assignment', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response({ ...schedules, selectedId: 'alternate' })).mockResolvedValueOnce(response(delivery))
+    const { onClose } = renderDialog()
+    expect(await screen.findByRole('radio', { name: /Assembly/ })).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Apply schedule' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(2)
+    expect(vi.mocked(fetch).mock.calls[1][0]).toBe('/api/teacher/attendance/sync')
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body))).toMatchObject({ window_start: '2026-08-18', window_end: '2026-08-18' })
+  })
+
+  it('edits an alternative with the current revision and reloads the picker', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockResolvedValueOnce(response({ id: 'alternate', revision: 4 })).mockResolvedValueOnce(response(delivery)).mockResolvedValueOnce(response(schedules))
+    renderDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Assembly settings' }))
+    fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '10:15' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+    await screen.findByRole('radio', { name: /Assembly/ })
+    const body = JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body))
+    expect(body).toMatchObject({ classroom_id: classroomId, id: 'alternate', name: 'Assembly', expected_revision: 3, policy: { sessionStartsLocal: '10:15' } })
+  })
+
+  it('allows setting up regular timing when no policy exists', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response({ schedules: [], selectedId: null })).mockResolvedValueOnce(response({ policy })).mockResolvedValueOnce(response(delivery)).mockResolvedValueOnce(response(schedules))
+    renderDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
+    expect(screen.getByLabelText('Session starts*')).toHaveValue('09:00')
+    fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
+    await screen.findByRole('radio', { name: /Regular schedule/ })
+    expect(JSON.parse(String(vi.mocked(fetch).mock.calls[1][1]?.body))).toMatchObject({ classroom_id: classroomId, expected_revision: null })
+  })
+
+  it('prevents invalid timing and requires a name for a new schedule', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules))
+    renderDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Add schedule' }))
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeDisabled()
+    fireEvent.change(screen.getByLabelText('Schedule name*'), { target: { value: 'Short day' } })
+    fireEvent.change(screen.getByLabelText('Session ends*'), { target: { value: '08:00' } })
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeDisabled()
+    expect(screen.getByText('Session end must be after session start.')).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledOnce()
+  })
+})
+
+import { act } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+
+
+
+
+
+
+
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -35,12 +142,17 @@ function savedPolicy(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function renderDialog(onSaved = vi.fn(), onClose = vi.fn()) {
+function scheduleResponse(value: { policy: ReturnType<typeof savedPolicy> | null }) {
+  return jsonResponse({ schedules: value.policy ? [{ id: null, name: 'Regular schedule', policy: value.policy }] : [], selectedId: null })
+}
+
+function renderTimingDialog(onSaved = vi.fn(), onClose = vi.fn()) {
   const dialog = (isOpen: boolean) => (
     <TooltipProvider>
       <AppMessageProvider>
         <AttendanceWindowDialog
           classroomId={classroomId}
+          date="2026-08-17"
           isOpen={isOpen}
           onSaved={onSaved}
           onClose={onClose}
@@ -56,7 +168,7 @@ function renderDialog(onSaved = vi.fn(), onClose = vi.fn()) {
   }
 }
 
-describe('AttendanceWindowDialog', () => {
+describe('AttendanceWindowDialog timing regressions', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
   })
@@ -68,13 +180,14 @@ describe('AttendanceWindowDialog', () => {
 
   it('starts with durable defaults, saves the policy, and syncs the next 90 days', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: null }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: null }))
       .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
       .mockResolvedValueOnce(jsonResponse({
         roster: { outcome: 'applied', revision: 1 },
         schedule: { outcome: 'applied', revision: 1 },
       }))
-    const { onSaved, onClose } = renderDialog()
+    const { onSaved, onClose } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     expect(await screen.findByLabelText('Session starts*')).toHaveValue('09:00')
     expect(screen.getByRole('button', { name: 'Save timing' })).toBeEnabled()
@@ -84,8 +197,7 @@ describe('AttendanceWindowDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
-    expect(onClose).toHaveBeenCalledOnce()
-    expect(screen.getByText('Attendance timing saved')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
 
     const policyWrite = vi.mocked(fetch).mock.calls[1]
     expect(policyWrite[0]).toBe('/api/teacher/attendance/policy')
@@ -113,7 +225,7 @@ describe('AttendanceWindowDialog', () => {
 
   it('loads an existing policy and sends its revision with an overnight update', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ revision: 4 }) }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy({ revision: 4 }) }))
       .mockResolvedValueOnce(jsonResponse({
         policy: savedPolicy({
           sessionStartsLocal: '23:30',
@@ -126,7 +238,8 @@ describe('AttendanceWindowDialog', () => {
         roster: { outcome: 'applied', revision: 1 },
         schedule: { outcome: 'applied', revision: 2 },
       }))
-    const { onSaved } = renderDialog()
+    const { onSaved } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     expect(await screen.findByLabelText('Session starts*')).toHaveValue('08:45')
     fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '23:30' } })
@@ -145,13 +258,14 @@ describe('AttendanceWindowDialog', () => {
 
   it('re-enables a disabled automatic policy with its current revision', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ enabled: false, revision: 7 }) }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy({ enabled: false, revision: 7 }) }))
       .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ enabled: true, revision: 8 }) }))
       .mockResolvedValueOnce(jsonResponse({
         roster: { outcome: 'applied', revision: 1 },
         schedule: { outcome: 'applied', revision: 2 },
       }))
-    const { onSaved } = renderDialog()
+    const { onSaved } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     const automaticToggle = await screen.findByRole('checkbox', {
       name: 'Open and close QR attendance automatically',
@@ -169,8 +283,9 @@ describe('AttendanceWindowDialog', () => {
   })
 
   it('uses concise timing guidance and option-specific end-day tooltips', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
-    renderDialog()
+    vi.mocked(fetch).mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
+    renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     await screen.findByDisplayValue('08:45')
 
@@ -192,8 +307,9 @@ describe('AttendanceWindowDialog', () => {
   })
 
   it('hard-clamps timing rules to the approved bounds', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
-    renderDialog()
+    vi.mocked(fetch).mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
+    renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     const opens = await screen.findByLabelText('QR opens before start (min)')
     const grace = screen.getByLabelText('Grace period before late (min)')
@@ -217,9 +333,10 @@ describe('AttendanceWindowDialog', () => {
   })
 
   it('replaces the selected zero value and hides native number steppers', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+    vi.mocked(fetch).mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
     const user = userEvent.setup()
-    renderDialog()
+    renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     const numericInputs = [
       await screen.findByLabelText('QR opens before start (min)'),
@@ -251,23 +368,25 @@ describe('AttendanceWindowDialog', () => {
 
   it('keeps the saved policy and reports recovery when immediate sync is unavailable', async () => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
       .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ revision: 2 }) }))
       .mockResolvedValueOnce(jsonResponse({ error: 'Attendance is temporarily unavailable' }, 503))
-    const { onSaved, onClose } = renderDialog()
+    const { onSaved, onClose } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     await screen.findByDisplayValue('08:45')
     fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
 
     await waitFor(() => expect(onSaved).toHaveBeenCalledOnce())
-    expect(onClose).toHaveBeenCalledOnce()
-    expect(screen.getByText('Hours saved; schedule delivery not confirmed')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('Timing saved, but schedule delivery was not confirmed.')).toBeInTheDocument()
     expect(onSaved).toHaveBeenCalledWith(savedPolicy({ revision: 2 }), false)
   })
 
   it('blocks an invalid same-day window before any write', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: null }))
-    renderDialog()
+    vi.mocked(fetch).mockResolvedValueOnce(scheduleResponse({ policy: null }))
+    renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     await screen.findByLabelText('Session starts*')
     fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '10:00' } })
@@ -279,8 +398,9 @@ describe('AttendanceWindowDialog', () => {
   })
 
   it('blocks sessions over 12 hours and allows the exact boundary', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ policy: null }))
-    renderDialog()
+    vi.mocked(fetch).mockResolvedValueOnce(scheduleResponse({ policy: null }))
+    renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
 
     await screen.findByLabelText('Session starts*')
     fireEvent.change(screen.getByLabelText('Session starts*'), { target: { value: '19:59' } })
@@ -297,13 +417,13 @@ describe('AttendanceWindowDialog', () => {
   })
 
   it('rejects a policy response for another classroom or with extra fields', async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({
+    vi.mocked(fetch).mockResolvedValueOnce(scheduleResponse({
       policy: savedPolicy({
         classroomId: '20000000-0000-4000-8000-000000000002',
         providerId: 'must-not-reach-the-browser-contract',
       }),
     }))
-    renderDialog()
+    renderTimingDialog()
 
     expect(await screen.findByRole('heading', { name: 'Attendance hours unavailable' })).toBeInTheDocument()
     expect(screen.queryByLabelText('Session starts*')).not.toBeInTheDocument()
@@ -315,29 +435,32 @@ describe('AttendanceWindowDialog', () => {
     { roster: { outcome: 'not_required', revision: 0 }, schedule: { outcome: 'not_required', revision: 0 } },
   ])('does not call an unacknowledged schedule delivery successful: %j', async (delivery) => {
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
       .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ revision: 2 }) }))
       .mockResolvedValueOnce(jsonResponse(delivery))
-    const { onSaved } = renderDialog()
+    const { onSaved } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
     await screen.findByLabelText('Session starts*')
     fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(savedPolicy({ revision: 2 }), false))
-    expect(screen.getByText('Hours saved; schedule delivery not confirmed')).toBeInTheDocument()
+    expect(screen.getByText('Timing saved, but schedule delivery was not confirmed.')).toBeInTheDocument()
     expect(screen.queryByText('Attendance timing saved')).not.toBeInTheDocument()
   })
 
   it('ignores a late save after reopening and leaves the new form usable', async () => {
     let finishSave!: (response: Response) => void
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishSave = resolve }))
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', revision: 3 }) }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy({ sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', revision: 3 }) }))
       .mockResolvedValueOnce(jsonResponse({ roster: { outcome: 'duplicate', revision: 1 }, schedule: { outcome: 'duplicate', revision: 2 } }))
-    const { onSaved, onClose, rerenderDialog } = renderDialog()
+    const { onSaved, onClose, rerenderDialog } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
     await screen.findByLabelText('Session starts*')
     fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
     rerenderDialog(false)
     rerenderDialog(true)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
     expect(await screen.findByDisplayValue('14:00')).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Save timing' })).toBeEnabled()
     await act(async () => { finishSave(jsonResponse({ policy: savedPolicy({ revision: 2 }) })) })
@@ -351,16 +474,17 @@ describe('AttendanceWindowDialog', () => {
     let finishSave!: (response: Response) => void
     let finishSync!: (response: Response) => void
     vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy() }))
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy() }))
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishSave = resolve }))
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishSync = resolve }))
-    const { onSaved, onClose } = renderDialog()
+    const { onSaved, onClose } = renderTimingDialog()
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
     await screen.findByLabelText('Session starts*')
     fireEvent.click(screen.getByRole('button', { name: 'Save timing' }))
     fireEvent.keyDown(document, { key: 'Escape' })
     fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
     expect(onClose).not.toHaveBeenCalled()
-    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Back' })).toBeDisabled()
     await act(async () => { finishSave(jsonResponse({ policy: savedPolicy({ revision: 2 }) })) })
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(3))
     fireEvent.keyDown(document, { key: 'Escape' })
@@ -368,19 +492,20 @@ describe('AttendanceWindowDialog', () => {
     expect(onClose).not.toHaveBeenCalled()
     await act(async () => { finishSync(jsonResponse({ error: 'Unavailable' }, 503)) })
     expect(onSaved).toHaveBeenCalledWith(savedPolicy({ revision: 2 }), false)
-    expect(onClose).toHaveBeenCalledOnce()
+    expect(onClose).not.toHaveBeenCalled()
   })
 
   it('ignores a late load from a previous opening', async () => {
     let finishRead!: (response: Response) => void
     vi.mocked(fetch)
       .mockImplementationOnce(() => new Promise<Response>((resolve) => { finishRead = resolve }))
-      .mockResolvedValueOnce(jsonResponse({ policy: savedPolicy({ sessionStartsLocal: '14:00', sessionEndsLocal: '15:00' }) }))
-    const { rerenderDialog } = renderDialog()
+      .mockResolvedValueOnce(scheduleResponse({ policy: savedPolicy({ sessionStartsLocal: '14:00', sessionEndsLocal: '15:00' }) }))
+    const { rerenderDialog } = renderTimingDialog()
     rerenderDialog(false)
     rerenderDialog(true)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
     await screen.findByDisplayValue('14:00')
-    await act(async () => { finishRead(jsonResponse({ policy: savedPolicy() })) })
+    await act(async () => { finishRead(scheduleResponse({ policy: savedPolicy() })) })
     expect(screen.getByLabelText('Session starts*')).toHaveValue('14:00')
   })
 })

@@ -35,6 +35,7 @@ export interface BaraAttendanceClassDay {
   isClassDay: boolean
   occurrenceRef: string
   frozenCutoffs?: BaraAttendanceCutoffSnapshot
+  policy?: BaraAttendanceWindowPolicy
 }
 
 export interface BuildBaraScheduleSnapshotInput {
@@ -140,23 +141,25 @@ export function materializeBaraAttendanceSchedule(
       includedRefs.add(day.occurrenceRef)
       if (day.frozenCutoffs) return day.frozenCutoffs
 
+      const policy = day.policy ?? input.policy
+      validatePolicy(policy)
       const sessionStartsAt = materializeLocalInstant(
-        day.date, input.policy.sessionStartsAtLocal, input.policy.timezone,
+        day.date, policy.sessionStartsAtLocal, policy.timezone,
       )
       const sessionEndsAt = materializeLocalInstant(
-        input.policy.sessionEndDayOffset === 1 ? nextCalendarDate(day.date) : day.date,
-        input.policy.sessionEndsAtLocal, input.policy.timezone,
+        policy.sessionEndDayOffset === 1 ? nextCalendarDate(day.date) : day.date,
+        policy.sessionEndsAtLocal, policy.timezone,
       )
       const cutoff: BaraAttendanceCutoffSnapshot = {
         occurrence_ref: day.occurrenceRef,
         date: day.date,
-        accepts_at: shiftMinutes(sessionStartsAt, -input.policy.entryOpensMinutesBefore),
-        stops_accepting_at: shiftMinutes(sessionEndsAt, -input.policy.entryClosesMinutesBeforeEnd),
+        accepts_at: shiftMinutes(sessionStartsAt, -policy.entryOpensMinutesBefore),
+        stops_accepting_at: shiftMinutes(sessionEndsAt, -policy.entryClosesMinutesBeforeEnd),
         session_starts_at: sessionStartsAt,
         session_ends_at: sessionEndsAt,
-        present_through_at: shiftMinutes(sessionStartsAt, input.policy.presentGraceMinutes),
-        absent_at: shiftMinutes(sessionEndsAt, -input.policy.absentMinutesBeforeEnd),
-        policy_revision: input.policy.policyRevision,
+        present_through_at: shiftMinutes(sessionStartsAt, policy.presentGraceMinutes),
+        absent_at: shiftMinutes(sessionEndsAt, -policy.absentMinutesBeforeEnd),
+        policy_revision: policy.policyRevision,
       }
       if (!(Date.parse(cutoff.accepts_at) <= Date.parse(cutoff.session_starts_at)
         && Date.parse(cutoff.session_starts_at) <= Date.parse(cutoff.present_through_at)

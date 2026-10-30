@@ -527,23 +527,28 @@ describe('TeacherAttendanceTab', () => {
     expect(body).not.toHaveClass('divide-y')
   })
 
-  it('keeps saved hours on past, current, and future dates, separate from the QR window', async () => {
+  it('shows the selected date occurrence hours and falls back to regular hours when unavailable', async () => {
     const fetchMock = mockCombinedFetch()
+    const original = fetchMock.getMockImplementation()!
+    fetchMock.mockImplementation((input) => {
+      const url = String(input)
+      if (url.startsWith('/api/teacher/attendance/session?')) {
+        const date = new URL(url, 'http://localhost').searchParams.get('date')
+        const session = combinedAttendanceView().session
+        return mockJson(combinedAttendanceView({ classDate: date!, session: date === '2026-05-07'
+          ? { ...session, sessionStartsAt: '2026-05-07T15:00:00Z', sessionEndsAt: '2026-05-07T16:00:00Z' }
+          : date === '2026-05-08' ? { ...session, sessionStartsAt: null, sessionEndsAt: null } : session }))
+      }
+      return original(input)
+    })
     render(<TooltipProvider><AppMessageProvider>
       <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
     </AppMessageProvider></TooltipProvider>)
-    const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
-    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
-    expect(hours).not.toHaveTextContent('8:45')
-    expect(hours).toHaveClass('bg-success-bg', 'text-success')
-    expect(hours).not.toHaveClass('bg-page')
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Wed May 6')
+    expect(await screen.findByRole('button', { name: 'Attendance hours, 9:00 AM to 10:00 AM' })).toHaveTextContent('9:00 AM - 10:00 AM')
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Thu May 7')
-    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
+    expect(await screen.findByRole('button', { name: 'Attendance hours, 11:00 AM to 12:00 PM' })).toHaveTextContent('11:00 AM - 12:00 PM')
     fireEvent.click(screen.getByRole('button', { name: 'Next day' }))
-    expect(screen.getByRole('button', { name: 'Select Daily date' })).toHaveTextContent('Fri May 8')
-    expect(hours).toHaveTextContent('2:00 PM - 3:00 PM')
+    expect(await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toHaveTextContent('2:00 PM - 3:00 PM')
     expect(fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/teacher/attendance/policy?'))).toHaveLength(1)
   })
 
@@ -558,7 +563,7 @@ describe('TeacherAttendanceTab', () => {
       <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
     </AppMessageProvider></TooltipProvider>)
 
-    const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
+    const hours = await screen.findByRole('button', { name: 'Attendance hours, 9:00 AM to 10:00 AM' })
     expect(hours).toHaveClass('bg-surface')
     expect(hours).not.toHaveClass('bg-success-bg', 'text-success')
   })
@@ -571,13 +576,14 @@ describe('TeacherAttendanceTab', () => {
       <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
     </AppMessageProvider></TooltipProvider>)
 
-    const hours = await screen.findByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })
+    const hours = await screen.findByRole('button', { name: 'Attendance hours, 9:00 AM to 10:00 AM' })
     expect(hours).toHaveClass('bg-surface')
     expect(hours).not.toHaveClass('bg-success-bg', 'text-success')
   })
 
   it('shows a policy read failure as unavailable, not as unset hours', async () => {
-    const fetchMock = mockCombinedFetch()
+    const base = combinedAttendanceView()
+    const fetchMock = mockCombinedFetch(combinedAttendanceView({ session: { ...base.session, sessionStartsAt: null, sessionEndsAt: null } }))
     const original = fetchMock.getMockImplementation()!
     fetchMock.mockImplementation((input) => String(input).startsWith('/api/teacher/attendance/policy?')
       ? mockJson({ error: 'Unavailable' }, false) : original(input))
@@ -594,7 +600,7 @@ describe('TeacherAttendanceTab', () => {
     render(<TooltipProvider><AppMessageProvider>
       <TeacherAttendanceTab classroom={{ ...classroom, archived_at: '2026-05-06T12:00:00Z' }} attendanceEnabled />
     </AppMessageProvider></TooltipProvider>)
-    expect(await screen.findByText('8:45 AM - 10:00 AM')).toBeVisible()
+    expect(await screen.findByText('9:00 AM - 10:00 AM')).toBeVisible()
     expect(fetchMock.mock.calls.some(([url]) => String(url).startsWith('/api/teacher/attendance/policy?'))).toBe(false)
     expect(screen.queryByText(/Attendance hours could not be loaded/)).not.toBeInTheDocument()
   })
@@ -855,7 +861,7 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(screen.getByRole('menuitemcheckbox', { name: /Close attendance/ })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitemcheckbox', { name: /Close attendance|Open attendance/ })).not.toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: /Edit attendance/ })).toBeInTheDocument()
     await user.keyboard('{Escape}')
 
@@ -1128,6 +1134,7 @@ describe('TeacherAttendanceTab', () => {
       if (url.startsWith('/api/teacher/attendance/policy?')) {
         return mockJson({ policy: null })
       }
+      if (url.startsWith('/api/teacher/attendance/schedules?')) return mockJson({ schedules: [], selectedId: null })
       throw new Error(`Unhandled fetch: ${url}`)
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -1154,8 +1161,9 @@ describe('TeacherAttendanceTab', () => {
     )
 
     await user.click(timingTrigger)
-    expect(await screen.findByRole('heading', { name: 'Attendance timing' })).toBeInTheDocument()
-    expect(await screen.findByLabelText('Session starts*')).toHaveValue('09:00')
+    expect(await screen.findByRole('heading', { name: 'Attendance schedules' })).toBeInTheDocument()
+    await user.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
+    expect(screen.getByLabelText('Session starts*')).toHaveValue('09:00')
   })
 
   it('dismisses the selected log workspace before opening the attendance batch dialog', async () => {
@@ -1184,7 +1192,7 @@ describe('TeacherAttendanceTab', () => {
     expect(screen.getByRole('columnheader', { name: /^Log/ })).toBeInTheDocument()
   })
 
-  it('sends row and session commands through the authoritative Attendance routes', async () => {
+  it('sends row corrections without offering a session override', async () => {
     const fetchMock = mockCombinedCommandFetch()
     const user = userEvent.setup()
 
@@ -1216,18 +1224,8 @@ describe('TeacherAttendanceTab', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'More actions' }))
-    await user.click(screen.getByRole('menuitemcheckbox', { name: /Close attendance/ }))
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
-    })
-    const sessionCall = fetchMock.mock.calls.find(([input, init]) => (
-      String(input) === '/api/teacher/attendance/session' && init?.method === 'POST'
-    ))
-    expect(JSON.parse(String(sessionCall?.[1]?.body))).toMatchObject({
-      classroom_id: classroom.id,
-      date: '2026-05-06',
-      command: 'close',
-    })
+    expect(screen.queryByRole('menuitemcheckbox', { name: /Close attendance|Open attendance/ })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([input, init]) => String(input) === '/api/teacher/attendance/session' && init?.method === 'POST')).toBe(false)
   })
 
   it('reconciles a committed mark in the background while keeping controls responsive', async () => {
@@ -1316,75 +1314,7 @@ describe('TeacherAttendanceTab', () => {
     })
   })
 
-  it('releases a pending session action when background confirmation reports terminal failure', async () => {
-    let attendanceReadCount = 0
-    const initialAttendance = combinedAttendanceView()
-    const failedAttendance = combinedAttendanceView({
-      session: {
-        ...initialAttendance.session,
-        commandFailed: true,
-      },
-    })
-    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input)
-      if (url.startsWith('/api/teacher/logs?')) {
-        return mockJson({
-          logs: initialAttendance.students.map((student) => ({
-            student_id: student.studentId,
-            student_email: `${student.studentId}@example.com`,
-            student_first_name: student.firstName,
-            student_last_name: student.lastName,
-            entry: null,
-            history_preview: [],
-          })),
-        })
-      }
-      if (url.startsWith('/api/teacher/attendance/session?')) {
-        attendanceReadCount += 1
-        return mockJson(attendanceReadCount >= 10 ? failedAttendance : initialAttendance)
-      }
-      if (url === '/api/teacher/attendance/session' && init?.method === 'POST') {
-        return mockJson({ outcome: 'pending' })
-      }
-      throw new Error(`Unhandled fetch: ${url}`)
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    render(
-      <TooltipProvider>
-        <AppMessageProvider>
-          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
-        </AppMessageProvider>
-      </TooltipProvider>,
-    )
-
-    fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
-    const stopButton = screen.getByRole('menuitemcheckbox', { name: /Close attendance/ })
-    vi.useFakeTimers()
-    await act(async () => {
-      fireEvent.click(stopButton)
-      await Promise.resolve()
-      await Promise.resolve()
-    })
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(5_250)
-    })
-    expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
-
-    await act(async () => {
-      await vi.advanceTimersByTimeAsync(3_000)
-    })
-
-    expect(attendanceReadCount).toBe(10)
-    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
-    expect(screen.getByRole('menuitemcheckbox', { name: /Close attendance/ })).toBeEnabled()
-    expect(appMessageMock.showMessage).toHaveBeenCalledWith({
-      text: 'Attendance could not be closed',
-      tone: 'warning',
-    })
-  })
-
-  it('disables session actions while the authoritative view owns a pending command', async () => {
+  it('keeps QR disabled and offers no session override while a command is pending', async () => {
     const base = combinedAttendanceView()
     const pendingView = combinedAttendanceView({
       session: { ...base.session, pendingCommand: true },
@@ -1418,7 +1348,7 @@ describe('TeacherAttendanceTab', () => {
     )
 
     fireEvent.click(await screen.findByRole('button', { name: 'More actions' }))
-    expect(screen.getByRole('menuitemcheckbox', { name: /Close attendance/ })).toBeDisabled()
+    expect(screen.queryByRole('menuitemcheckbox', { name: /Close attendance|Open attendance/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Show attendance QR' })).toBeDisabled()
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
   })
