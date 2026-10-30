@@ -197,12 +197,21 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
       return finish(pending, config)
     },
     /** Saved locator lookup retains erasure access after entitlement or rollout
-     * loss. It never provisions and must follow parent lifecycle authorization. */
+     * loss. After parent lifecycle authorization it may resume an existing saved
+     * rotation, but never allocates a rotation or provisions a new workspace. */
     async resolveSaved(teacherId: string, connectionRef: string): Promise<{ connection: RepoLightConnection; apiOrigin: string }> {
       if (!uuid.safeParse(teacherId).success || !ref.safeParse(connectionRef).success) throw failure('repolight_managed_invalid_request')
       const saved = record(await store.read(teacherId, connectionRef), teacherId, connectionRef)
       const row = record(await store.read(teacherId), teacherId)
       if (saved.workspaceRef === null || row.workspaceRef !== saved.workspaceRef || row.installationRef !== saved.installationRef || row.apiOrigin !== saved.apiOrigin || row.tenantRef !== saved.tenantRef) throw failure('repolight_managed_invalid_storage')
+      if (row.state === 'pending') {
+        if (row.operationKind !== 'rotate' || !['ready', 'retired'].includes(saved.state)) throw failure('repolight_managed_pending', true)
+        let config: ManagedRepoLightConfig
+        try { config = options.config() }
+        catch { throw failure('repolight_managed_recovery_unavailable', true) }
+        const recovered = await finish(row, config)
+        return { connection: { ...recovered.connection, connectionRef: saved.connectionRef }, apiOrigin: recovered.apiOrigin }
+      }
       const resolved = connection(row, (options.keyring ?? options.config)())
       return { connection: { ...resolved, connectionRef: saved.connectionRef }, apiOrigin: row.apiOrigin }
     },

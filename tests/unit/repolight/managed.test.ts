@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { describe, expect, it, vi } from 'vitest'
 import { createManagedRepoLightRegistry, decryptManagedRepoLightKey, parseManagedRepoLightConfig, parseManagedRepoLightKeyring, prepareManagedRepoLightRecord, type ManagedRepoLightConfig, type ManagedRepoLightRecord, type ManagedRepoLightStore } from '@/lib/server/repolight-managed'
 import { createManagedRepoLightDatabase } from '@/lib/server/repolight-managed-database'
+import { createRepoLightClient } from '@/lib/server/repolight-client'
 
 const teacher = '11111111-1111-4111-8111-111111111111', other = '22222222-2222-4222-8222-222222222222'
 const key = Buffer.alloc(32, 1).toString('base64url'), control = Buffer.alloc(32, 2).toString('base64url')
@@ -28,6 +29,7 @@ function fixture() {
     requests.push({ url, body: init?.body as string | undefined, authorization })
     if (url.endsWith('/connection')) return json({ schemaVersion: '1.0', workspaceRef: 'workspace-1', installationRef: 'pika-installation', scopes: ['analyses:create', 'analyses:read', 'analyses:erase'] })
     const body = JSON.parse(init!.body as string)
+    if (url.endsWith('/erasures')) return json({ ...body, status: 'erased', absenceVerified: true })
     return json({ schemaVersion: '1.0', workspaceRef: 'workspace-1', installationRef: 'pika-installation', keyId: body.keyId })
   }) as unknown as typeof fetch
   const registry = createManagedRepoLightRegistry(store, { config, fetchImpl })
@@ -131,15 +133,75 @@ describe('managed RepoLight credentials', () => {
     expect(saved.connection.workspaceRef).toBe(first.connection.workspaceRef)
     await expect(f.registry.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
   })
-  it('retries an uncertain rotation with identical bytes and blocks old-key lookup while rotation is pending', async () => {
+  it('resumes an uncertain rotation during saved cleanup lookup after expiry and creation pause, without allocating another operation', async () => {
     const f = fixture(), first = await f.registry.ensure(teacher), original = f.fetchImpl
     let fail = true
     const registry = createManagedRepoLightRegistry(f.store, { config, fetchImpl: (async (...args: Parameters<typeof fetch>) => { const response = await original(...args); if (String(args[0]).endsWith('/rotate') && fail) { fail = false; throw new Error('uncertain') }; return response }) as typeof fetch })
     await expect(registry.rotate(teacher)).rejects.toThrow()
-    await expect(registry.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_pending' })
-    await registry.rotate(teacher)
+    const pending = { ...f.rows[1] }, accessCalls = vi.mocked(f.store.access).mock.calls.length
+    f.eligibility(false)
+    const recovery = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), enabled: false }), fetchImpl: f.fetchImpl })
+    const result = await recovery.resolveSaved(teacher, first.connection.connectionRef)
+    expect(result.connection.connectionRef).toBe(first.connection.connectionRef)
+    expect(result.connection.apiKey).toBe(decryptManagedRepoLightKey(pending, config()))
+    expect(f.store.prepareRotation).toHaveBeenCalledOnce()
+    expect(f.store.prepare).toHaveBeenCalledOnce()
+    expect(vi.mocked(f.store.access).mock.calls).toHaveLength(accessCalls)
+    expect(f.rows[0].state).toBe('retired'); expect(f.rows[1].state).toBe('ready')
     const attempts = f.requests.filter(entry => entry.url.endsWith('/rotate'))
     expect(attempts).toHaveLength(2); expect(attempts[0].body).toBe(attempts[1].body)
+    const erase = { schemaVersion: '1.0' as const, operationRef: other, installationRef: first.connection.installationRef, subjectRef: 'existing-subject' }
+    await expect(createRepoLightClient(result.connection, { apiOrigin: result.apiOrigin, fetchImpl: f.fetchImpl }).eraseSubject(erase)).resolves.toEqual({ ...erase, status: 'erased', absenceVerified: true })
+    expect(f.requests.find(entry => entry.url.endsWith('/erasures'))?.authorization).toBe(`Bearer ${result.connection.apiKey}`)
+    const count = f.requests.length
+    await recovery.resolveSaved(teacher, first.connection.connectionRef)
+    expect(f.requests).toHaveLength(count)
+    await expect(recovery.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_disabled' })
+    await expect(f.registry.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
+  })
+  it('retains a pending rotation and blocks cleanup safely when control configuration is unavailable', async () => {
+    const f = fixture(), first = await f.registry.ensure(teacher)
+    f.rows.push(prepareManagedRepoLightRecord(teacher, config(), f.rows[0]))
+    const count = f.requests.length
+    const registry = createManagedRepoLightRegistry(f.store, { config: () => { throw new Error('private control configuration') }, keyring: config, fetchImpl: f.fetchImpl })
+    await expect(registry.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_recovery_unavailable', retryable: true, message: 'Managed repository reports are unavailable.' })
+    expect(f.requests).toHaveLength(count); expect(f.rows[1].state).toBe('pending')
+    expect(f.store.activate).toHaveBeenCalledOnce(); expect(f.store.prepareRotation).not.toHaveBeenCalled()
+  })
+  it.each(['owner', 'tenant', 'workspace', 'installation', 'origin'])('refuses saved rotation recovery for mismatched %s before egress', async mismatch => {
+    const f = fixture(), first = await f.registry.ensure(teacher)
+    const previous = { ...f.rows[0] }
+    const pending = prepareManagedRepoLightRecord(teacher, config(), previous)
+    if (mismatch === 'owner') pending.teacherId = other
+    if (mismatch === 'tenant') pending.tenantRef = 'foreign-tenant'
+    if (mismatch === 'workspace') pending.workspaceRef = 'foreign-workspace'
+    if (mismatch === 'installation') pending.installationRef = 'foreign-installation'
+    if (mismatch === 'origin') pending.apiOrigin = 'https://foreign.example.test'
+    f.store.read = vi.fn(async (_id, ref) => ref ? previous : pending)
+    const count = f.requests.length
+    const registry = createManagedRepoLightRegistry(f.store, { config, fetchImpl: f.fetchImpl })
+    await expect(registry.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_invalid_storage' })
+    expect(f.requests).toHaveLength(count); expect(f.store.prepareRotation).not.toHaveBeenCalled()
+  })
+  it.each(['origin', 'installation'])('does not forward a saved recovery operation to changed control %s configuration', async mismatch => {
+    const f = fixture(), first = await f.registry.ensure(teacher)
+    f.rows.push(prepareManagedRepoLightRecord(teacher, config(), f.rows[0]))
+    const count = f.requests.length
+    const registry = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), ...(mismatch === 'origin' ? { apiOrigin: 'https://new.example.test' } : { installationRef: 'new-installation' }) }), fetchImpl: f.fetchImpl })
+    await expect(registry.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_configuration_changed' })
+    expect(f.requests).toHaveLength(count); expect(f.rows[1].state).toBe('pending')
+  })
+  it('retains a pending cleanup recovery when its replay reports a different workspace', async () => {
+    const f = fixture(), first = await f.registry.ensure(teacher)
+    f.rows.push(prepareManagedRepoLightRecord(teacher, config(), f.rows[0]))
+    const registry = createManagedRepoLightRegistry(f.store, { config, fetchImpl: (async () => json({ schemaVersion: '1.0', workspaceRef: 'foreign-workspace', installationRef: f.rows[1].installationRef, keyId: f.rows[1].keyId })) as typeof fetch })
+    await expect(registry.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_invalid_response' })
+    expect(f.store.activate).toHaveBeenCalledOnce(); expect(f.rows[1].state).toBe('pending')
+  })
+  it('does not turn an unfinished initial provision into saved cleanup recovery', async () => {
+    const f = fixture(), pending = prepareManagedRepoLightRecord(teacher, config()); f.rows.push(pending)
+    await expect(f.registry.resolveSaved(teacher, pending.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_invalid_storage' })
+    expect(f.requests).toHaveLength(0); expect(f.store.activate).not.toHaveBeenCalled()
   })
   it('maps database failure to a safe category without exposing provider or storage details', async () => {
     const call = vi.fn(async () => ({ data: null, error: { code: '42501', message: 'secret upstream details' } }))
