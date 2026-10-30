@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
+import { validateTestMemberListReviewedMigrations } from '../../scripts/check-contextual-test-member-list-lifecycle'
+import { validateTestOwnerReorderReviewedMigrations } from '../../scripts/check-contextual-test-owner-reorder-lifecycle'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 
@@ -32,6 +34,14 @@ describe('RepoLight 296–297 closed source profile', () => {
     expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 295))).not.toThrow()
     expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 296))).toThrow('Unreviewed quota proof catalog')
     expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain)).toThrow('Unreviewed quota proof catalog')
+  })
+
+  it('keeps native member and reorder profiles closed to the actual inventory', () => {
+    for (const validate of [validateTestMemberListReviewedMigrations, validateTestOwnerReorderReviewedMigrations]) {
+      expect(() => validate(chain.slice(0, 295))).not.toThrow()
+      expect(() => validate(chain.slice(0, 296))).toThrow()
+      expect(() => validate(chain)).toThrow()
+    }
   })
 
   it('rejects missing, reordered and unknown tails', () => {
