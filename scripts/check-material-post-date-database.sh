@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# The 295 extension also requires its exact reviewed source seal in the preflight below.
+# The 296 extension also requires its exact reviewed source seal in the preflight below.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 295)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,295,'Material post date proof target must be exactly295'); validateLifecycleServicesReviewedMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 296)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,296,'Material post date proof target must be exactly296'); validateLifecycleServicesReviewedMigrations(migrations);"
 meta_image="$(resolve_material_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-material-post-date.XXXXXX)"
@@ -118,7 +118,7 @@ if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then
   tail -25 "$scratch/replay.log" >&2
   exit 1
 fi
-echo 'PASS replay001–295.'
+echo 'PASS replay001–296.'
 for proof in check-material-release-scheduling-database.sql check-independent-calendar-post-dates-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-contextual-material-owner-writes-database.sql check-teacher-authoring-images-database.sql; do
   if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
     tail -25 "$scratch/$proof.log" >&2
@@ -153,4 +153,4 @@ done
 awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { print ""; blank_lines -= 1 }; print }' "$scratch/generated.ts" > "$scratch/normalized.ts"
 verify_source || { echo 'Baseline must remain unchanged' >&2; exit 1; }
 cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts" || { echo 'Generated types differ from the replay schema' >&2; exit 1; }
-echo 'PASS isolated295 replay, rollback behavior, generated-type equality and unchanged shared schema.'
+echo 'PASS isolated296 replay, rollback behavior, generated-type equality and unchanged shared schema.'

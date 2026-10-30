@@ -1,3 +1,4 @@
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION } from '../../scripts/attendance-named-schedules-reviewed-migration'
 import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION, CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
@@ -225,10 +226,11 @@ describe('actual-source member migration profiles (offline)', () => {
     const changed = { ...before, rowDigests: JSON.stringify(Object.fromEntries(complete.map(name => [name, name === table ? 'changed' : 'whole-row-digest']))) }
     expect(() => validateTestMemberListCanonicalCheckpoint(changed, before)).toThrow()
   })
-  it('reproduces the former exact257 rejection of the complete current295 chain', () => {
-    expect(current).toHaveLength(295)
+  it('reproduces the former exact257 rejection of the complete current296 chain', () => {
+    expect(current).toHaveLength(296)
     expect(current[293]).toMatchObject(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
-    expect(current.at(-1)).toMatchObject(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(current[294]).toMatchObject(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(current.at(-1)).toMatchObject(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION)
     expect(current[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(() => assert.equal(current.length, 257)).toThrow()
     expect(current[255]).toMatchObject({ name: '256_contextual_test_owner_workflow.sql',

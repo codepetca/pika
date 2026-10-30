@@ -76,6 +76,17 @@ describe('teacher attendance schedules', () => {
     expect(supabase.from).not.toHaveBeenCalled()
     expect(requireRole).not.toHaveBeenCalled()
   })
+  it('does not disclose schedules when the contextual snapshot denies access', async () => {
+    const actorId = '40000000-0000-4000-8000-000000000004'
+    sharedActor.mockResolvedValue({ mode: 'shared', user: { id: actorId, role: 'student' } })
+    supabase.rpc.mockReturnValue({ abortSignal: async () => ({ error: null, data: {
+      actor_id: actorId, classroom_id: classroom, scope_mode: 'teacher_entitlements', date: '2026-11-03',
+      status: 'forbidden', policy: null, schedules: [], selected_id: null,
+    } }) })
+    const result = await GET(new NextRequest(`http://localhost/api/teacher/attendance/schedules?classroom_id=${classroom}&date=2026-11-03`))
+    expect(result.status).toBe(403)
+    expect(supabase.from).not.toHaveBeenCalled()
+  })
   it('allows an admitted classroom owner with a student account label to select a schedule', async () => {
     sharedActor.mockResolvedValue({ mode: 'shared', user: { id: 'teacher', role: 'student' } })
     const response = await PUT(request('PUT', { classroom_id: classroom, date: '2026-11-03', schedule_id: schedule, expected_revision: 3 }))

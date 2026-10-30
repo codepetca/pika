@@ -40,7 +40,7 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
+  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
     const start = runner.indexOf('[[ "$source_version" =~')
     const end = runner.indexOf('registry=', start)
     expect(start).toBeGreaterThan(-1); expect(end).toBeGreaterThan(start)
@@ -48,14 +48,14 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it('executes the complete current295 manifest and seals the exact reviewed extension', () => {
+  it('executes the complete current296 manifest and seals the exact reviewed extension', () => {
     const result = runManifest()
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout.trim().split('\n')).toHaveLength(302)
+    expect(result.stdout.trim().split('\n')).toHaveLength(303)
     expect(result.stdout).toContain(`${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.sha256}  supabase/migrations/${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.name}`)
   })
 
-  it.each(['tampered293', 'renamed293', 'renamed294', 'renamed295', 'unknown296', 'historicalDirtyTree', 'tampered294', 'tampered295', 'tamperedAdmissionProof', 'tamperedBuilder'] as const)('executes manifest compatibility rules for %s', defect => {
+  it.each(['tampered293', 'renamed293', 'renamed294', 'renamed295', 'tampered296', 'renamed296', 'missing296', 'unknown297', 'historicalDirtyTree', 'tampered294', 'tampered295', 'tamperedAdmissionProof', 'tamperedBuilder'] as const)('executes manifest compatibility rules for %s', defect => {
     const repository = mkdtempSync(join(tmpdir(), 'pika-home-reviewed-profile-'))
     try {
       mkdirSync(join(repository, 'supabase')); mkdirSync(join(repository, 'scripts'))
@@ -70,7 +70,10 @@ describe('isolated home visibility proof runner source contracts', () => {
       if (defect === 'renamed293') renameSync(reviewed, join(migrations, '293_unreviewed.sql'))
       if (defect === 'renamed294') renameSync(join(migrations, '294_classroom_experience_admission_registry.sql'), join(migrations, '294_unreviewed.sql'))
       if (defect === 'renamed295') renameSync(join(migrations, '295_independent_calendar_post_dates.sql'), join(migrations, '295_unreviewed.sql'))
-      if (defect === 'unknown296') writeFileSync(join(migrations, '296_unreviewed.sql'), 'select 1;\n')
+      if (defect === 'tampered296') appendFileSync(join(migrations, '296_attendance_named_schedules.sql'), '\n-- unreviewed\n')
+      if (defect === 'renamed296') renameSync(join(migrations, '296_attendance_named_schedules.sql'), join(migrations, '296_unreviewed.sql'))
+      if (defect === 'missing296') rmSync(join(migrations, '296_attendance_named_schedules.sql'))
+      if (defect === 'unknown297') writeFileSync(join(migrations, '297_unreviewed.sql'), 'select 1;\n')
       if (defect === 'tampered295') appendFileSync(join(migrations, '295_independent_calendar_post_dates.sql'), '\n-- unreviewed calendar bytes\n')
       if (defect === 'tampered294') appendFileSync(join(migrations, '294_classroom_experience_admission_registry.sql'), '\n-- actual dirty-tree migration bytes\n')
       if (defect === 'tamperedAdmissionProof') appendFileSync(join(repository, 'scripts/check-classroom-admission-registry-contention.mjs'), '\n// actual dirty-tree proof bytes\n')
@@ -106,8 +109,8 @@ ${guard}`], {
     expect(runner).toContain('drop schema public cascade; drop schema private cascade; create schema public;')
   })
 
-  it('validates a contiguous full295 inventory and seals SQL/proof bytes before and after execution', () => {
-    for (const token of ["assert.equal(paths.length, 295", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
+  it('validates a contiguous full296 inventory and seals SQL/proof bytes before and after execution', () => {
+    for (const token of ["assert.equal(paths.length, 296", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
       expect(runner).toContain(token)
     }
     expect(runner).not.toContain('validateLifecycleServicesReviewedMigrations')
@@ -115,7 +118,7 @@ ${guard}`], {
 
   it('runs recovery contracts only through the same owned offline clone and retained evidence', () => {
     expect(runner).toContain('sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1')
-    expect(runner.indexOf("echo 'PASS isolated replay001–295.'")).toBeLessThan(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"'))
+    expect(runner.indexOf("echo 'PASS isolated replay001–296.'")).toBeLessThan(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"'))
     expect(runner.indexOf('sql < "$root/scripts/check-classroom-home-recovery-database.sql"')).toBeLessThan(runner.lastIndexOf('verify_source ||'))
     expect(runner).not.toMatch(/recovery.*(?:source_id|supabase_db_pika).*psql/)
   })

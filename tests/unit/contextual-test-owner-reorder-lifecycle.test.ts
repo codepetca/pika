@@ -1,3 +1,4 @@
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION } from '../../scripts/attendance-named-schedules-reviewed-migration'
 import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
@@ -84,10 +85,11 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
     if (defect === 'counter-digest') migrations[100].sha256 = 'f'.repeat(64)
     expect(() => validateTestOwnerReorderReviewedMigrations(migrations)).toThrow()
   })
-  it('binds the complete current295 inventory rather than dropping its additive tail', () => {
-    expect(current).toHaveLength(295)
+  it('binds the complete current296 inventory rather than dropping its additive tail', () => {
+    expect(current).toHaveLength(296)
     expect(current[293]).toMatchObject(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
-    expect(current.at(-1)).toMatchObject(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(current[294]).toMatchObject(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(current.at(-1)).toMatchObject(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION)
     expect(current[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     const manifest = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd())
     expect(manifest.sql.migrationManifestSha256).toBe(draftSaveMigrationManifestSha256(process.cwd()))

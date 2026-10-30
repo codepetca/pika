@@ -1,3 +1,4 @@
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION } from '../../scripts/attendance-named-schedules-reviewed-migration'
 import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import * as platform from '../../scripts/contextual-assignment-list-proof-platform'
@@ -54,9 +55,10 @@ describe('finite deletion proof source, never native acceptance',()=>{
     expect(testOwnerDeletionSnapshotSql(f)).toContain('public.test_attempt_history')
   })
   it('seals actual262 bytes and admits only eight registered source frames plus sixteen schedules',()=>{
-    const m=plan();expect(m.migrations).toHaveLength(295);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
+    const m=plan();expect(m.migrations).toHaveLength(296);expect(m.contracts.frames).toHaveLength(8);expect(m.concurrency.schedules).toHaveLength(16)
     expect(m.migrations[293]).toEqual(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
-    expect(m.migrations.at(-1)).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(m.migrations[294]).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(m.migrations.at(-1)).toEqual(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION)
     expect(m.migrations[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.contracts.frames.length+2*m.concurrency.schedules.length).toBe(40)
     expect(m.caps).toMatchObject({sqlBytes:524288,responseBytes:8388608,requestMs:12000,totalMs:180000,dispatches:40})
