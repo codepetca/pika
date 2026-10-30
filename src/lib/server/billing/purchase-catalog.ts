@@ -6,7 +6,7 @@ import type { BillingCatalogItem } from '@/lib/server/billing/purchase-handlers'
 /** Match immutable release identity as well as every approved commercial field. */
 export function validateLaunchCheckoutOffering(offering: CheckoutOffering): { lookupKey: string } | null {
   const variant = getLaunchCatalogVariantByKey(offering.catalog_key)
-  if (!variant || variant.legacyPlan !== offering.plan_key
+  if (!variant || variant.releaseTag !== REPOLIGHT_CATALOG_RELEASE_TAG || variant.legacyPlan !== offering.plan_key
     || variant.currency !== offering.currency || variant.interval !== offering.interval
     || variant.unitAmountCents !== offering.unit_amount
     || variant.activeClassroomCap !== offering.classroom_limit) return null

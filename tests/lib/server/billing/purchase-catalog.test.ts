@@ -4,7 +4,7 @@ import { listLaunchPurchaseCatalog, validateLaunchCheckoutOffering } from '@/lib
 import type { CheckoutOffering } from '@/lib/server/billing/checkout-contracts'
 
 function offering(index = 0): CheckoutOffering {
-  const variant = launchCatalog[index]
+  const variant = repolightCatalog[index]
   return {
     offering_version_id: `aaaaaaaa-aaaa-4aaa-8aaa-${String(index + 1).padStart(12, '0')}`,
     catalog_key: variant.catalogKey, plan_key: variant.legacyPlan,
@@ -16,17 +16,18 @@ function offering(index = 0): CheckoutOffering {
 describe('available launch purchase catalog', () => {
   it('maps all12 immutable variants to public names without provider references or provisional promises', async () => {
     const items = await listLaunchPurchaseCatalog({ stripeAccount: 'acct_fixture',
-      listOfferings: async () => ({ items: launchCatalog.map((_, index) => offering(index)) }) })
+      listOfferings: async () => ({ items: repolightCatalog.map((_, index) => offering(index)) }) })
     expect(items).toHaveLength(12)
     expect(items.filter(item => item.plan === 'max').every(item => item.classroomLimit === 12)).toBe(true)
     expect(items.filter(item => item.plan === 'pro').every(item => item.name === 'Pro' && item.classroomLimit === 5)).toBe(true)
     expect(JSON.stringify(items)).not.toMatch(/price_fixture|provisional|grading/)
   })
-  it('prefers the new release for purchases while still validating historical offerings', async () => {
-    const old = offering(4)
-    const current = { ...old, offering_version_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      catalog_key: repolightCatalog[4].catalogKey, stripe_price_id: 'price_current' }
-    expect(validateLaunchCheckoutOffering(old)).not.toBeNull()
+  it('allows only the new release for fresh purchases', async () => {
+    const current = offering(4)
+    const old = { ...current, offering_version_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      catalog_key: launchCatalog[4].catalogKey, stripe_price_id: 'price_historical' }
+    expect(validateLaunchCheckoutOffering(old)).toBeNull()
+    expect(await listLaunchPurchaseCatalog({ stripeAccount: 'acct_fixture', listOfferings: async () => ({ items: [old] }) })).toEqual([])
     expect(validateLaunchCheckoutOffering(current)).not.toBeNull()
     for (const items of [[old, current], [current, old]]) {
       const result = await listLaunchPurchaseCatalog({ stripeAccount: 'acct_fixture', listOfferings: async () => ({ items }) })
