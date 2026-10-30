@@ -17,8 +17,10 @@ The runtime requires `PIKA_REPOLIGHT_MANAGED_ENABLED=true` and valid297 control
 and encryption configuration. The database separately requires
 `private.repolight_settings.managed_provisioning_enabled=true` (default false).
 Neither setting replaces296's exact current entitlement proof. Recovery scans
-up to25 active billing access revisions per claim to discover accounts predating
-gate activation. Legacy identity roles do not determine eligibility. The opaque
+up to25 active billing/trial or eligible legacy Plus/Pro account revisions per
+claim to discover accounts predating gate activation. Legacy discovery requires
+the independent legacy-access gate; account-plan changes also emit hints.
+Legacy identity roles do not determine eligibility. The opaque
 registry operation and tenant references are the only tenant bindings sent to
 RepoLight; the Pika user UUID stays inside Pika.
 
@@ -28,8 +30,12 @@ cannot acknowledge it. A90-second lease permits recovery after process death;
 each revision has at most three attempts, with a five-minute retry delay.
 Expired third leases and terminal non-retryable failures remain inspectable as
 `failed`. Identical billing replays and recovery scans cannot restart exhausted
-work. A relevant database rollout-gate change can reset `ineligible` hints,
-allowing an unchanged plan to become eligible after rollout. Failed operations
+work. A relevant database rollout-gate change increments one private epoch row.
+Claims repair at most25 old-epoch denials and25 exhausted leases at a time;
+there is no bulk queue reset in a settings transaction. A processing worker
+retains its claim epoch, so a late denial remains discoverable even when the
+gate change commits between its epoch read and denial write. This allows an
+unchanged plan to become eligible after rollout. Failed operations
 need explicit maintenance; the worker does not rotate or replace credentials.
 
 The authenticated `/api/cron/repolight-provision` route uses `CRON_SECRET` and
@@ -47,11 +53,25 @@ retains cleanup credentials. The worker invokes `registry.ensure`, which checks
 exact current eligibility before allocation and activation and resumes the same
 durable encrypted operation after an uncertain provider result.
 
+Migration297 places the default-off managed provisioning switch under the same
+billing-settings → RepoLight-settings → account/feature → owner lock order as
+eligibility. New and resumed provisions cross prepare immediately before HTTP,
+and activation checks the switch again. A committed disable therefore fences
+waiting prepare/activation calls. SQL authorization commits before HTTP; a
+disable can still win between authorization and the network send, so the remote
+workspace may be allocated while local activation is denied. Its exact pending
+operation/key stays durable for recovery. No SQL transaction spans HTTP.
+Interrupted rotations and saved cleanup credentials remain recoverable while
+provisioning and analysis access are disabled.
+
 `bash scripts/check-repolight-provision-outbox.sh` replays actual298 into a fresh
 native PostgreSQL cluster with minimal prerequisite tables and a private Unix
 socket. It verifies queue transaction, gate, lease/revision, retry, ACL, and
 account-removal contracts. It neither applies a migration to shared Supabase
 nor replaces combined296–298 replay, generated-schema checks, or registry/provider
-contract tests. Runtime/API tests cover safe failure persistence, cron auth,
+contract tests. The combined offline proof now replays actual001–298, checks
+role-neutral legacy discovery/plan changes and disabled rotation recovery, and
+runs two-session late-denial/epoch and prepare/activation cutoff interleavings.
+Runtime/API tests cover safe failure persistence, cron auth,
 sequential batch/deadline bounds, and post-commit ordering. Hosted activation and
 provider behavior remain untested by this source-only change.

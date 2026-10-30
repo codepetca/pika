@@ -155,6 +155,13 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
     finally { controller.abort(); if (timer) clearTimeout(timer) }
   }
   async function finish(row: ManagedRepoLightRecord, config: ManagedRepoLightConfig) {
+    if (row.operationKind === 'provision') {
+      // Resume also crosses the current SQL provisioning gate under the ordered
+      // settings/account/owner locks. HTTP follows the committed authorization;
+      // a later disable can race that send, but activation is checked again.
+      const authorized = record(await store.prepare(row), row.teacherId)
+      if (!same(row, authorized)) throw failure('repolight_managed_pending', true)
+    }
     const provisioned = await provision(row, config)
     const ready: ManagedRepoLightRecord = { ...row, workspaceRef: provisioned.workspaceRef, state: 'ready' }
     const resolved = connection(ready, config)

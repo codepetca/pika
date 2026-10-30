@@ -30,7 +30,7 @@ source_version="$(docker exec "$source_container" psql -U postgres -d postgres -
 # The 295 extension also requires its exact reviewed source seal in the preflight below.
 # No application ACLs or singleton data survive the full application replay.
 ((10#$source_version >= 234 && 10#$source_version <= 295)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,297,'RepoLight access proof target must be exactly297'); validateLifecycleServicesReviewedMigrations(migrations.slice(0,295)); assert.equal(migrations[295].name,'296_repolight_analysis_access.sql'); assert.equal(migrations[295].sha256,'63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'); assert.equal(migrations[296].name,'297_repolight_managed_registry.sql'); assert.equal(migrations[296].sha256,'18b23cf1f5dfeb7fc138c30a11807a059bde9a00c03063a6193805515196c222');"
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,298,'RepoLight access proof target must be exactly298'); validateLifecycleServicesReviewedMigrations(migrations.slice(0,295)); assert.equal(migrations[295].name,'296_repolight_analysis_access.sql'); assert.equal(migrations[295].sha256,'63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'); assert.equal(migrations[296].name,'297_repolight_managed_registry.sql'); assert.equal(migrations[296].sha256,'8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'); assert.equal(migrations[297].name,'298_repolight_provision_outbox.sql'); assert.equal(migrations[297].sha256,'6822ef983ebd68d1b87ec3bb26abd6b55eeed698841d297523cf26be3956398f');"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -118,8 +118,8 @@ if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then
   tail -25 "$scratch/replay.log" >&2
   exit 1
 fi
-echo 'PASS replay001–297.'
-for proof in check-repolight-database.sql check-repolight-analysis-access-database.sql check-subscription-prorated-upgrades-database.sql; do
+echo 'PASS replay001–298.'
+for proof in check-repolight-database.sql check-repolight-analysis-access-database.sql check-subscription-prorated-upgrades-database.sql check-repolight-provision-combined.sql; do
   if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
     tail -25 "$scratch/$proof.log" >&2
     exit 1
@@ -128,6 +128,8 @@ done
 echo 'PASS rollback-only RepoLight compatibility and access contracts.'
 node "$root/scripts/check-repolight-analysis-access-contention.mjs" "$clone_id" "$$:$token" > "$scratch/contention.log" 2>&1 || { tail -30 "$scratch/contention.log" >&2; exit 1; }
 echo 'PASS two-session plan and exact-expiry contention.'
+node "$root/scripts/check-repolight-provision-contention.mjs" "$clone_id" "$$:$token" > "$scratch/provision-contention.log" 2>&1 || { tail -30 "$scratch/provision-contention.log" >&2; exit 1; }
+echo 'PASS provisioning epoch and cutoff contention.'
 meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.repolight-analysis-access.owner=$$:$token" --network "container:$clone_id" --memory=512m --cpus=1 --pids-limit=128 -e PG_META_DB_HOST=127.0.0.1 -e PG_META_DB_PASSWORD=disposable-material-check -e PG_META_GENERATE_TYPES=typescript -e PG_META_GENERATE_TYPES_INCLUDED_SCHEMAS=public -e PG_META_GENERATE_TYPES_DETECT_ONE_TO_ONE_RELATIONSHIPS=true "$meta_image")"
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
 [[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]] || exit 1
@@ -137,4 +139,4 @@ awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { pri
 verify_source || { echo 'Baseline must remain unchanged' >&2; exit 1; }
 if [[ "$mode" == --write-types ]]; then cp "$scratch/normalized.ts" "$root/src/types/database.generated.ts"; fi
 cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts" || { echo 'Generated types differ from the replay schema' >&2; exit 1; }
-echo 'PASS isolated297 replay, rollback behavior, generated-type equality and unchanged shared schema.'
+echo 'PASS isolated298 replay, rollback behavior, generated-type equality and unchanged shared schema.'
