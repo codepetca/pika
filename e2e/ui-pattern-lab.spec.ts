@@ -1738,7 +1738,7 @@ test.describe('teacher Pattern Lab', () => {
     await page.getByRole('button', { name: 'Edit posted material example' }).click()
     await date.fill('2099-01-01')
     await date.focus()
-    await expect(dialog.getByText(/Post makes it available now; Schedule delays release/)).toBeVisible()
+    await expect(dialog.getByText(/Post makes it available now; Schedule delays release/)).toHaveCount(0)
     await testInfo.attach('material-future-post-date', {
       body: await dialog.screenshot({ path: testInfo.outputPath('material-future-post-date.png'), animations: 'disabled' }), contentType: 'image/png',
     })
@@ -1971,7 +1971,7 @@ test('changes a published announcement post date on explicit Save', async ({ pag
   await page.getByText(announcement.title, { exact: true }).click()
   await date.fill('2099-01-01')
   await date.focus()
-  await expect(page.getByText(/Post makes it available now; Schedule delays release/)).toBeVisible()
+  await expect(page.getByText(/Post makes it available now; Schedule delays release/)).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath('teacher-future-post-date.png') })
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(date).toHaveCount(0)

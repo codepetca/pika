@@ -50538,3 +50538,17 @@ helper still emitting document trees; compatibility review found no regressions.
 One remediation batch replaces both patch-helper logs with browser-safe fixed
 warnings and strengthens aggregate reconstruction diagnostics tests/guard.
 Targeted review and exact-head CI remain required before readiness/merge.
+
+<!-- pika-session-log-archive-batch:4fcc050e7303ff49cdeb991afebc98ebf9944c49d4827aaa3204df8ae1eb95fa -->
+## 2026-10-24 — Three-account Home pilot acceptance reconciliation
+
+Recorded exact production1da699/schema292 and the retained dedicated three-account
+Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
+code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
+scoped state matched one owned/one joined per reciprocal account, no Control
+membership and unchanged plans/providers. Corrected stale current-state and
+preparation-only wording; private identities/codes/content stay outside Git.
+Kept production replay, classwork/manual-return and direct API negatives distinct
+from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
+provider/cohort change or epic exit; live-provider/expansion holds remain.
+Docs-only focused checks and independent review precede normal main merge.

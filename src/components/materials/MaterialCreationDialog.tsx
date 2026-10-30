@@ -126,8 +126,7 @@ function MaterialEditor({
             <p role="status" className="text-xs text-text-muted">{isScheduled && releasedAt
               ? `Scheduled for ${formatInTimeZone(releasedAt, 'America/Toronto', 'EEE MMM d, h:mm a')} (Toronto)`
               : isExisting ? isDraft ? 'Draft' : 'Posted' : 'Not posted'}</p>
-            <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}
-              hint="Places this material on the calendar. Post makes it available now; Schedule delays release.">
+            <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}>
               <Input type="date" value={postDate} min="0001-01-01"
                 disabled={disabled} onChange={(event) => setPostDate(event.target.value)} />
             </FormField>
