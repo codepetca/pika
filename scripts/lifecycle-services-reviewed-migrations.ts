@@ -62,4 +62,14 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
   if (migrations.length >= 295) validateIndependentCalendarPostDatesReviewedMigration(migrations[294])
   if (migrations.length >= 296) validateAttendanceNamedSchedulesReviewedMigration(migrations[295])
   if (migrations.length >= 297) validateClassroomPublicAutoAdmissionReviewedMigration(migrations[296])
+  for (const [index, name, digest] of [
+    [295, '296_repolight_analysis_access.sql', '63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'],
+    [296, '297_repolight_managed_registry.sql', '18b23cf1f5dfeb7fc138c30a11807a059bde9a00c03063a6193805515196c222'],
+  ] as const) {
+    if (migrations.length <= index) continue
+    const migration = migrations[index]
+    assert.equal(migration.name, name)
+    assert.equal(migration.sha256, digest)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), digest)
+  }
 }
