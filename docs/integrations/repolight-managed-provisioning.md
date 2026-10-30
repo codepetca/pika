@@ -75,3 +75,12 @@ runs two-session late-denial/epoch and prepare/activation cutoff interleavings.
 Runtime/API tests cover safe failure persistence, cron auth,
 sequential batch/deadline bounds, and post-commit ordering. Hosted activation and
 provider behavior remain untested by this source-only change.
+
+## Catalog rollout
+
+New checkout requests use the historical launch catalog until the separately
+controlled `BILLING_REPOLIGHT_CATALOG_ENABLED` setting is explicitly enabled.
+Enable it only after the new immutable RepoLight catalog variants are provisioned
+and verified. The switch affects fresh checkout selection, not already reserved
+checkout attempts or purchased offering versions. It does not enable billing,
+RepoLight analysis, provisioning, or AI by itself.

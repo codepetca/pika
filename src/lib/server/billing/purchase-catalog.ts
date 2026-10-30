@@ -1,12 +1,14 @@
 import { z } from 'zod'
-import { getLaunchCatalogVariantByKey, REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
+import { getLaunchCatalogVariantByKey, LAUNCH_CATALOG_RELEASE_TAG, REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import { CheckoutOfferingSchema, type CheckoutOffering } from '@/lib/server/billing/checkout-contracts'
 import type { BillingCatalogItem } from '@/lib/server/billing/purchase-handlers'
 
 /** Match immutable release identity as well as every approved commercial field. */
-export function validateLaunchCheckoutOffering(offering: CheckoutOffering): { lookupKey: string } | null {
+export type PurchaseCatalogRelease = typeof LAUNCH_CATALOG_RELEASE_TAG | typeof REPOLIGHT_CATALOG_RELEASE_TAG
+
+export function validateLaunchCheckoutOffering(offering: CheckoutOffering, release: PurchaseCatalogRelease = LAUNCH_CATALOG_RELEASE_TAG): { lookupKey: string } | null {
   const variant = getLaunchCatalogVariantByKey(offering.catalog_key)
-  if (!variant || variant.releaseTag !== REPOLIGHT_CATALOG_RELEASE_TAG || variant.legacyPlan !== offering.plan_key
+  if (!variant || variant.releaseTag !== release || variant.legacyPlan !== offering.plan_key
     || variant.currency !== offering.currency || variant.interval !== offering.interval
     || variant.unitAmountCents !== offering.unit_amount
     || variant.activeClassroomCap !== offering.classroom_limit) return null
@@ -15,6 +17,7 @@ export function validateLaunchCheckoutOffering(offering: CheckoutOffering): { lo
 
 export async function listLaunchPurchaseCatalog(input: {
   stripeAccount: string
+  release?: PurchaseCatalogRelease
   listOfferings(): Promise<unknown>
 }): Promise<BillingCatalogItem[]> {
   const response = z.object({ items: z.array(CheckoutOfferingSchema).max(100) }).strict()
@@ -23,7 +26,7 @@ export async function listLaunchPurchaseCatalog(input: {
   const result = new Map<string, { item: BillingCatalogItem; isCurrent: boolean }>()
   for (const offering of response.items) {
     if (offering.stripe_account !== input.stripeAccount) throw new Error('Billing catalog account mismatch')
-    const match = validateLaunchCheckoutOffering(offering)
+    const match = validateLaunchCheckoutOffering(offering, input.release)
     if (!match) continue
     if (seen.has(match.lookupKey)) throw new Error('Billing catalog has conflicting available versions')
     seen.add(match.lookupKey)
