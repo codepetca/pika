@@ -48,4 +48,45 @@ begin
   perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome',case when p in('plus','pro') then 'ready' else 'ineligible' end));
  end loop;
 end $proof$;
+do $retry$
+declare actor uuid:='f2980000-0000-4000-8000-000000000002';c jsonb;candidate jsonb;pending jsonb;due timestamptz;fingerprint text;i integer;
+begin
+ insert into public.users(id,email,role) values(actor,'retry-repolight298@example.invalid','student');
+ perform public.set_account_plan_v1(gen_random_uuid(),actor,'plus','test:provision298','fixture',coalesce((select revision from public.account_plans where subject_user_id=actor),0));
+ candidate:=jsonb_build_object('teacherId',actor,'tenantRef','opaque298-retry','operationRef',gen_random_uuid(),'keyId',gen_random_uuid(),'secretHash',repeat('b',64),'connectionRef','connection298-retry','apiOrigin','https://reports.example.test','installationRef','installation298','encryptedKey',jsonb_build_object('ciphertext','encrypted'),'operationKind','provision','expectedKeyId',null,'state','pending','workspaceRef',null);
+ fingerprint:=private.repolight_provision_revision_v1(actor);
+ for i in 1..3 loop
+  c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',actor));
+  if (c->>'attempt')::int<>i then raise exception 'Retry burst attempt differs';end if;
+  pending:=public.prepare_repolight_managed_connection_v1(actor,candidate);
+  if pending is distinct from candidate then raise exception 'Retry allocated another operation';end if;
+  perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','retry','errorCode','repolight_managed_timeout'));
+  if i<3 then update private.repolight_provision_outbox set next_attempt_at=clock_timestamp()-interval '1 second' where teacher_id=actor;end if;
+ end loop;
+ select next_attempt_at into due from private.repolight_provision_outbox where teacher_id=actor;
+ if due<clock_timestamp()+interval '59 minutes' or public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',actor)) is not null then raise exception 'Three transient failures lost cooldown';end if;
+ -- Epoch changes and unchanged revision replays cannot bypass the cooldown.
+ update private.repolight_settings set legacy_plan_access_enabled=false where singleton;
+ update private.repolight_settings set legacy_plan_access_enabled=true where singleton;
+ update public.account_plans set updated_at=clock_timestamp() where subject_user_id=actor;
+ if public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',actor)) is not null
+ or (select next_attempt_at from private.repolight_provision_outbox where teacher_id=actor) is distinct from due
+ or (select source_revision from private.repolight_provision_outbox where teacher_id=actor) is distinct from fingerprint then raise exception 'Replay/epoch bypassed same-revision cooldown';end if;
+ -- After the cooldown the same eligible revision automatically resumes its
+ -- exact saved key and operation, without another plan event or owner action.
+ update private.repolight_provision_outbox set next_attempt_at=clock_timestamp()-interval '1 second' where teacher_id=actor;
+ c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',actor));
+ if (c->>'attempt')::int<>1 or public.prepare_repolight_managed_connection_v1(actor,candidate) is distinct from pending then raise exception 'Same revision did not recover automatically';end if;
+ perform public.activate_repolight_managed_connection_v1(actor,pending,'workspace298-retry');
+ perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','ready'));
+ -- Deadline remains authoritative on a later retry, independent of the queue.
+ update public.effective_feature_entitlements set starts_at=clock_timestamp()-interval '1 day',expires_at=clock_timestamp()-interval '1 second' where subject_user_id=actor and feature_key='classrooms.create';
+ begin perform public.prepare_repolight_managed_connection_v1(actor,candidate);raise exception 'Expired retry authorized provider work';exception when insufficient_privilege then null;end;
+ if public.read_repolight_managed_connection_v1(actor)->>'state'<>'ready' then raise exception 'Expiry removed saved credentials';end if;
+ -- Retry counters and schedules saturate instead of overflowing or hammering.
+ for i in 0..6 loop
+  if private.repolight_provision_retry_delay_v1(i)>interval '24 hours' or private.repolight_provision_retry_delay_v1(i)<interval '1 hour' then raise exception 'Retry delay outside bounded range';end if;
+ end loop;
+ if private.repolight_provision_retry_delay_v1(0)<>interval '1 hour' or private.repolight_provision_retry_delay_v1(6)<>interval '24 hours' then raise exception 'Retry delay endpoints differ';end if;
+end $retry$;
 rollback;

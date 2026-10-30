@@ -49,11 +49,14 @@ begin
  c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher));
  if (c->>'attempt')::int<>3 then raise exception 'Third retry was not claimed';end if;
  perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','retry','errorCode','repolight_managed_timeout'));
- if (select state from private.repolight_provision_outbox where teacher_id=teacher)<>'failed'
- or public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher)) is not null then raise exception 'Bounded retries exhausted incorrectly';end if;
- -- The identical revision is terminal even on reconciliation scans.
+ if (select state from private.repolight_provision_outbox where teacher_id=teacher)<>'pending'
+ or (select retry_round from private.repolight_provision_outbox where teacher_id=teacher)<>1
+ or (select attempts from private.repolight_provision_outbox where teacher_id=teacher)<>0
+ or (select next_attempt_at from private.repolight_provision_outbox where teacher_id=teacher)<clock_timestamp()+interval '59 minutes'
+ or public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher)) is not null then raise exception 'Transient burst did not enter bounded cooldown';end if;
+ -- Replays cannot reset the same revision's durable cooldown.
  update public.billing_account_access set updated_at=clock_timestamp() where subject_user_id=teacher;
- if (select state from private.repolight_provision_outbox where teacher_id=teacher)<>'failed' then raise exception 'Replay reset exhausted work';end if;
+ if (select retry_round from private.repolight_provision_outbox where teacher_id=teacher)<>1 or public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher)) is not null then raise exception 'Replay reset transient cooldown';end if;
  update public.effective_feature_entitlements set revision=3 where subject_user_id=teacher;
  update public.account_plans set revision=3 where subject_user_id=teacher;
  update public.billing_account_access set revision=3,account_plan_revision=3,entitlement_revision=3 where subject_user_id=teacher;
@@ -68,6 +71,16 @@ begin
  c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher));
  if c is null or (c->>'attempt')::int<>1 then raise exception 'Billing gate activation lost retroactive eligibility';end if;
  perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','ready'));
+ update private.repolight_provision_outbox set state='pending',attempts=0 where teacher_id=teacher;
+ c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher));
+ -- A ready row's future retry timestamp is irrelevant once explicitly seeded due.
+ if c is null then
+  update private.repolight_provision_outbox set next_attempt_at=clock_timestamp()-interval '1 second' where teacher_id=teacher;
+  c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher));
+ end if;
+ perform public.repolight_provision_outbox_v1('finish',c-'attempt'||jsonb_build_object('outcome','failed','errorCode','repolight_managed_invalid_storage'));
+ if public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',teacher)) is not null
+ or (select state from private.repolight_provision_outbox where teacher_id=teacher)<>'failed' then raise exception 'Nonretryable failure was automatically revived';end if;
  -- Transaction rollback cannot lose billing success or emit phantom work.
  begin
   update public.effective_feature_entitlements set revision=4 where subject_user_id=teacher;
@@ -104,7 +117,17 @@ begin
    values(actor,'[0,1,1]',epoch_at,'processing',3,gen_random_uuid(),clock_timestamp()-interval '1 second');
  end loop;
  c:=public.repolight_provision_outbox_v1('claim');
- if c is not null or (select count(*) from private.repolight_provision_outbox where state='failed')<>25
+ if c is not null or (select count(*) from private.repolight_provision_outbox where state='pending' and attempts=0 and retry_round=1 and next_attempt_at>clock_timestamp()+interval '59 minutes')<>25
  or (select count(*) from private.repolight_provision_outbox where state='processing')<>15 then raise exception 'Exhaustion repair exceeded25';end if;
+ actor:='f298b000-0000-4000-8000-000000000001';
+ update private.repolight_provision_outbox set state='processing',attempts=3,retry_round=6,
+  lease_token=gen_random_uuid(),lease_expires_at=clock_timestamp()-interval '1 second' where teacher_id=actor;
+ c:=public.repolight_provision_outbox_v1('claim',jsonb_build_object('teacherId',actor));
+ if c is not null or not exists(select 1 from private.repolight_provision_outbox where teacher_id=actor
+  and state='pending' and attempts=0 and retry_round=6 and next_attempt_at>clock_timestamp()+interval '23 hours 59 minutes'
+  and next_attempt_at<=clock_timestamp()+interval '24 hours') then raise exception 'Long outage retry cap did not saturate';end if;
+ perform private.enqueue_repolight_provision_v1(actor,'[0,2,2]');
+ if not exists(select 1 from private.repolight_provision_outbox where teacher_id=actor and state='pending' and attempts=0 and retry_round=0
+  and source_revision='[0,2,2]' and next_attempt_at<=clock_timestamp()) then raise exception 'New revision failed to reset cooldown';end if;
 end $bulk$;
 rollback;
