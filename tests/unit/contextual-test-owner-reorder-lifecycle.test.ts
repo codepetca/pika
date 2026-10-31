@@ -1,4 +1,4 @@
-import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION } from '../../scripts/attendance-named-schedules-reviewed-migration'
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION, ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES } from '../../scripts/attendance-named-schedules-reviewed-migration'
 import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
@@ -34,7 +34,7 @@ const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(name
 const catalog = testOwnerReorderTableCatalogFromCanonical(canonical, loadAssignmentListReviewedMigrations(process.cwd()))
 const graph = () => ({ ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(table => [table, []])),
   __bulk_tests: [], __bulk_setup: [], __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
-    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments', ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES, ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort()
+    'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments', ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES, ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES, ...ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES].sort()
     .map(table => ({ table, fingerprint: 'unchanged' })) })
 
 describe('closed reorder lifecycle exact actual-source profiles', () => {
