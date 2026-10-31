@@ -6,9 +6,8 @@ creating or editing new, draft, posted and scheduled announcements.
 
 **Post** publishes now, including when the calendar date is in the future.
 **Save** changes placement while retaining publication/scheduling state.
-**Schedule** separately selects a future release time. The field hint names this
-distinction, and choosing a future calendar day never changes Post/Save into
-Schedule. Drafts remain unpublished.
+**Schedule** separately selects a future release time. Choosing a future calendar
+day never changes Post/Save into Schedule. Drafts remain unpublished.
 
 Creation saves the displayed date even when today's default is untouched.
 Publication changes also preserve the displayed date for legacy undated rows;

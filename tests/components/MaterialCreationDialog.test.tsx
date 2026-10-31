@@ -254,7 +254,7 @@ describe('Material scheduling', () => {
     const handlers = { ...props(), isExisting: true, isDraft: false, releasedAt: '2026-10-03T12:00:00Z' }
     const view = render(<MaterialCreationDialog {...handlers} />, { wrapper: TooltipProvider })
     fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-01-01' } })
-    expect(screen.getByText(/Post makes it available now; Schedule delays release/)).toBeVisible()
+    expect(screen.queryByText(/Post makes it available now; Schedule delays release/)).not.toBeInTheDocument()
     expect(handlers.onSave).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Save', exact: true }))
     expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, '2099-01-01')

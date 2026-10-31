@@ -268,7 +268,7 @@ describe('announcement markdown rendering', () => {
     fireEvent.click(await screen.findByText('bring notes'))
     fireEvent.change(screen.getByLabelText('Calendar date (Toronto)'), { target: { value: '2099-01-01' } })
     expect(patches).toEqual([])
-    expect(screen.getByText(/Post makes it available now; Schedule delays release/)).toBeVisible()
+    expect(screen.queryByText(/Post makes it available now; Schedule delays release/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Save', exact: true }))
     await screen.findByRole('alert')
     expect(patches).toEqual([{ posted_on: '2099-01-01' }])
