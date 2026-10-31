@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Manual grader label owner-read regression
-
-The dedicated pilot saved manual scores, then owner readback failed503 because
-the strict detail schema treated graded_by as an actor UUID. Installed manual
-writer223 stores teacher text; existing grading/list contracts already accept
-text. Align only this metadata field, retaining owner/member UUID checks and
-strict shape/size guards. No migration, stored-data repair or authorization change.
-An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
-AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
-focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
-independent review and exact-head CI follow. Both pilot sessions remain signed
-in; Return/learner feedback remain pending compatible release and readback.
-No production, cohort, provider, plan or schema change; growth stays frozen.
-First CI caught the prior pilot summary's changed controls marker; restored
-the accurate established Controls unchanged prefix without reverting admission
-or provider state. Runtime grader fix unchanged; targeted docs regression and
-independent delta review precede the next stable-SHA CI.
-
-## 2026-10-24 — RepoLight integration foundation (in progress)
-
-Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
-
 ## 2026-10-24 — RepoLight publication approved
 
 Owner approved branch publication and main merge after required CI. Product code
@@ -504,3 +482,7 @@ Prepared date-specific named QR attendance schedules, replacing the proposed man
 ## 2026-10-30 — Local named-schedule migration
 
 Applied local migrations 293–295. Migration 296 initially failed on a reserved SQL alias; corrected the alias and reviewed-source hashes, then applied 296 with renewed authorization. Verified local migration history, database objects and access controls; focused checks passed (4,489 tests). The rollback-only synthetic database harness passed on a temporary isolated copy, which was removed afterward.
+
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
