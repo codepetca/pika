@@ -11,47 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Manual grader label owner-read regression
-
-The dedicated pilot saved manual scores, then owner readback failed503 because
-the strict detail schema treated graded_by as an actor UUID. Installed manual
-writer223 stores teacher text; existing grading/list contracts already accept
-text. Align only this metadata field, retaining owner/member UUID checks and
-strict shape/size guards. No migration, stored-data repair or authorization change.
-An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
-AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
-focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
-independent review and exact-head CI follow. Both pilot sessions remain signed
-in; Return/learner feedback remain pending compatible release and readback.
-No production, cohort, provider, plan or schema change; growth stays frozen.
-First CI caught the prior pilot summary's changed controls marker; restored
-the accurate established Controls unchanged prefix without reverting admission
-or provider state. Runtime grader fix unchanged; targeted docs regression and
-independent delta review precede the next stable-SHA CI.
-
-## 2026-10-24 — RepoLight integration foundation (in progress)
-
-Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
-
-## 2026-10-24 — RepoLight publication approved
-
-Owner approved branch publication and main merge after required CI. Product code
-remains reviewed36ca8cd70; only continuity evidence refreshed. Local5892tests,
-native/HTTP/archive/browser and final reviews pass. Analyze OFF;293 unapplied
-shared/prod. Publish draft, mark stable head ready, require PR Gate; no deployment
-or production promotion. Optional AI stays RepoLight-owner-only and disabled.
-
-## 2026-10-24 — RepoLight CI compatibility remediation
-
-PR1681 held as draft after40154111852: full coverage found two stale292
-proof-target assertions and CURRENT receipt-label drift;22,346tests passed.
-Both isolated runners now admit only the sealed293 target through the existing
-closed validators, retain historical sources and reject changed/renamed293/294.
-CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
-and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
-offline native replays and targeted independent review tracked in PR evidence.
-Shared/prod293 remains unapplied; Analyze OFF. No provider activation.
-
 ## 2026-10-24 — Complete current-chain native proof audit
 
 Caught the remaining Home visibility292 cutoff before merge; PR1681 held as
@@ -497,3 +456,19 @@ Risk profile: none. No production changes or migration are part of this edit.
 
 - Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
 - Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
+
+## 2026-10-30 — Named attendance schedules
+
+Prepared date-specific named QR attendance schedules, replacing the proposed manual open override. Regular policy remains the default; migration 296 adds guarded storage and sync source tracking. Focused tests and fixture visual checks are in progress. Local migrations 293–296 require separate explicit authorization; database replay, independent review, and release remain outstanding.
+
+## 2026-10-30 — Local named-schedule migration
+
+Applied local migrations 293–295. Migration 296 initially failed on a reserved SQL alias; corrected the alias and reviewed-source hashes, then applied 296 with renewed authorization. Verified local migration history, database objects and access controls; focused checks passed (4,489 tests). The rollback-only synthetic database harness passed on a temporary isolated copy, which was removed afterward.
+
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
+
+## 2026-10-31 — Named schedule proof catalog
+
+Updated the sealed test-member-list canonical catalog to include both reviewed migration-296 attendance tables while preserving predecessor profiles. The catalog and proof unit suites pass; the failed PR database lane requires rerun on the reviewed head.

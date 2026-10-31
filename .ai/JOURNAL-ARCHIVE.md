@@ -50553,3 +50553,46 @@ Kept production replay, classwork/manual-return and direct API negatives distinc
 from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
 provider/cohort change or epic exit; live-provider/expansion holds remain.
 Docs-only focused checks and independent review precede normal main merge.
+
+<!-- pika-session-log-archive-batch:7fe83197f6327ad4e7723444fe357e47264830eff3c4fdd18a6857377493202f -->
+## 2026-10-24 — Manual grader label owner-read regression
+
+The dedicated pilot saved manual scores, then owner readback failed503 because
+the strict detail schema treated graded_by as an actor UUID. Installed manual
+writer223 stores teacher text; existing grading/list contracts already accept
+text. Align only this metadata field, retaining owner/member UUID checks and
+strict shape/size guards. No migration, stored-data repair or authorization change.
+An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
+AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
+focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
+independent review and exact-head CI follow. Both pilot sessions remain signed
+in; Return/learner feedback remain pending compatible release and readback.
+No production, cohort, provider, plan or schema change; growth stays frozen.
+First CI caught the prior pilot summary's changed controls marker; restored
+the accurate established Controls unchanged prefix without reverting admission
+or provider state. Runtime grader fix unchanged; targeted docs regression and
+independent delta review precede the next stable-SHA CI.
+
+## 2026-10-24 — RepoLight integration foundation (in progress)
+
+Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
+
+<!-- pika-session-log-archive-batch:dfc47bff91dc923cebe31565e172de6284bf74942e02016560fc9f1e1d036a5f -->
+## 2026-10-24 — RepoLight publication approved
+
+Owner approved branch publication and main merge after required CI. Product code
+remains reviewed36ca8cd70; only continuity evidence refreshed. Local5892tests,
+native/HTTP/archive/browser and final reviews pass. Analyze OFF;293 unapplied
+shared/prod. Publish draft, mark stable head ready, require PR Gate; no deployment
+or production promotion. Optional AI stays RepoLight-owner-only and disabled.
+
+## 2026-10-24 — RepoLight CI compatibility remediation
+
+PR1681 held as draft after40154111852: full coverage found two stale292
+proof-target assertions and CURRENT receipt-label drift;22,346tests passed.
+Both isolated runners now admit only the sealed293 target through the existing
+closed validators, retain historical sources and reject changed/renamed293/294.
+CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
+and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
+offline native replays and targeted independent review tracked in PR evidence.
+Shared/prod293 remains unapplied; Analyze OFF. No provider activation.

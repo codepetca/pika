@@ -1,4 +1,5 @@
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from '../../scripts/classroom-admission-registry-reviewed-migration'
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES } from '../../scripts/attendance-named-schedules-reviewed-migration'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { AssignmentListLifecycleAdapters } from '../../scripts/contextual-assignment-list-proof-lifecycle'
@@ -25,11 +26,11 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
     let failure: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListLifecycleError | undefined
     let resources: import('../../scripts/contextual-assignment-list-proof-lifecycle').AssignmentListResource[] = []
     const events: string[] = [], canonicalRequests: unknown[] = [], fieldReads: string[] = []
-    const names = [...TEST_OWNER_REORDER_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets', 'public.future_unrelated_table', ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort()
+    const names = [...TEST_OWNER_REORDER_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets', 'public.future_unrelated_table', ...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES, ...ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES].sort()
     const canonical = { rowDigests: JSON.stringify(Object.fromEntries(names.map(n => [n, { count: 0, digest: 'a'.repeat(32) }]))),
       guard168Metadata: '{}', settings: '{}', cronJobs: '[]', resources: '[]' }
     const graph = { ...Object.fromEntries(TEST_OWNER_REORDER_SNAPSHOT_TABLES.map(t => [t, []])), __bulk_tests: [], __bulk_setup: [],
-      // Reviewed additions through294 participate in isolated preservation;
+      // Reviewed additions through296 participate in isolated preservation;
       // the historical canonical pre/post snapshot remains exact.
       __nontarget_fingerprints: [...names, 'private.attendance_decommission_delete_capabilities',
         'private.attendance_participant_associations', 'private.attendance_override_event_generations', 'private.attendance_pointer_mutations', 'private.attendance_override_mutations', 'public.teacher_authoring_image_references', 'private.classroom_home_hidden_enrollments', ...REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES].sort()
@@ -203,5 +204,6 @@ describe.sequential('reorder adopter preserves exact parent restoration', () => 
     ('denies corrupted %s at the live exact-restoration boundary', corruption => run('pending-fulfilled', undefined, false, corruption))
   it('retains restoration verification failure after ambiguous settlement', () => run('pending-rejected', undefined, true))
   it.each(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES)('rejects changed294 table %s in the real restoration closure', table => run('pending-fulfilled', `registry:${table}`))
+  it.each(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES)('rejects changed296 table %s in the real restoration closure', table => run('pending-fulfilled', `registry:${table}`))
   it.each(['rowDigests', 'guard168Metadata', 'settings', 'cronJobs', 'resources'])('retains exact canonical %s comparison after restoration', field => run('pending-fulfilled', field))
 })

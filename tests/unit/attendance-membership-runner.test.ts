@@ -36,7 +36,7 @@ function sealedReplayPreflight(path: string, repository = process.cwd()) {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -57,7 +57,7 @@ describe('isolated attendance membership database proof', () => {
       expect(result.status, result.stderr).toBe(0)
     })
 
-  it.each(['tampered293', 'renamed293', 'tampered294', 'renamed294', 'missing294', 'tampered295', 'renamed295', 'missing295', 'unknown296'] as const)('rejects %s before any clone or replay using the actual runner preflight', defect => {
+  it.each(['tampered293', 'renamed293', 'tampered294', 'renamed294', 'missing294', 'tampered295', 'renamed295', 'missing295', 'tampered296', 'renamed296', 'missing296', 'unknown297'] as const)('rejects %s before any clone or replay using the actual runner preflight', defect => {
     const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-reviewed-profile-'))
     try {
       mkdirSync(join(repository, 'supabase'))
@@ -72,7 +72,10 @@ describe('isolated attendance membership database proof', () => {
       if (defect === 'tampered295') appendFileSync(join(migrations, '295_independent_calendar_post_dates.sql'), '\n-- unreviewed\n')
       if (defect === 'renamed295') renameSync(join(migrations, '295_independent_calendar_post_dates.sql'), join(migrations, '295_unreviewed.sql'))
       if (defect === 'missing295') rmSync(join(migrations, '295_independent_calendar_post_dates.sql'))
-      if (defect === 'unknown296') writeFileSync(join(migrations, '296_unreviewed.sql'), 'select 1;\n')
+      if (defect === 'tampered296') appendFileSync(join(migrations, '296_attendance_named_schedules.sql'), '\n-- unreviewed\n')
+      if (defect === 'renamed296') renameSync(join(migrations, '296_attendance_named_schedules.sql'), join(migrations, '296_unreviewed.sql'))
+      if (defect === 'missing296') rmSync(join(migrations, '296_attendance_named_schedules.sql'))
+      if (defect === 'unknown297') writeFileSync(join(migrations, '297_unreviewed.sql'), 'select 1;\n')
       for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
         const result = sealedReplayPreflight(path, repository)
         expect(result.status, `${path} must fail closed for ${defect}`).not.toBe(0)
@@ -146,7 +149,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert.equal(migrations.length,295")
+    expect(source).toContain("assert.equal(migrations.length,296")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {
@@ -174,7 +177,7 @@ describe('isolated attendance membership database proof', () => {
 describe('isolated material and announcement post-date proof target', () => {
   it('requires scheduling, post-date, owner-write and image rollback proofs before exact metadata comparison', () => {
     const source = runner('scripts/check-material-post-date-database.sh')
-    expect(source).toContain('assert.equal(migrations.length,295')
+    expect(source).toContain('assert.equal(migrations.length,296')
     expect(source).toContain('validateLifecycleServicesReviewedMigrations(migrations)')
     const proof = source.indexOf('check-material-release-scheduling-database.sql check-independent-calendar-post-dates-database.sql check-material-post-date-database.sql check-announcement-post-date-database.sql check-contextual-material-owner-writes-database.sql check-teacher-authoring-images-database.sql; do')
     expect(proof).toBeGreaterThan(-1)

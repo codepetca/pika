@@ -148,11 +148,9 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(contextBar).toHaveClass('grid', 'relative', 'z-floating')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     const showQr = within(contextBar).getByRole('button', { name: 'Show attendance QR' })
-    const closeAttendance = within(contextBar).getByRole('button', { name: 'Stop QR check-in' })
     expect(showQr).toBeEnabled()
-    expect(closeAttendance).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Show attendance QR' })).toBe(showQr)
-    expect(within(primaryControl).getByRole('button', { name: 'Stop QR check-in' })).toBe(closeAttendance)
+    expect(within(primaryControl).queryByRole('button', { name: 'Stop QR check-in' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('checkbox')).toHaveLength(3)
     const studentActions = within(primaryControl).getByRole('button', {
       name: 'Student actions (select students to enable)',
@@ -187,11 +185,8 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(within(trailingActions).getByRole('button', { name: 'Refresh attendance' })).toBeEnabled()
 
     fireEvent.click(attendanceHours)
-    expect(await screen.findByRole('dialog', { name: 'Attendance timing' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Attendance schedules' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-
-    fireEvent.focus(closeAttendance)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Stop QR check-in')
 
   })
 
@@ -403,52 +398,19 @@ describe('TeacherLiveAttendanceTab', () => {
     expect(screen.getByRole('separator', { name: 'Resize Check-in column' })).toBeInTheDocument()
   })
 
-  it('groups the date and immediate session command in the center action cluster', async () => {
-    const scheduledView = attendanceView({
-      session: {
-        ...attendanceView().session,
-        state: 'scheduled',
-        revision: 1,
-      },
-    })
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(jsonResponse(scheduledView))
-      .mockResolvedValueOnce(jsonResponse({ outcome: 'applied' }))
-      .mockResolvedValueOnce(jsonResponse(attendanceView({
-        session: {
-          ...scheduledView.session,
-          state: 'open',
-          revision: 2,
-        },
-      })))
-
+  it('groups date navigation without offering a session override', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse(attendanceView({
+      session: { ...attendanceView().session, state: 'scheduled' },
+    })))
     renderTab()
     await screen.findByText('Ada')
-
-    const contextBar = screen.getByTestId('attendance-context-bar')
     const primaryControl = screen.getByTestId('attendance-primary-control')
     expect(within(primaryControl).getByRole('button', { name: 'Previous day' })).toBeEnabled()
     expect(within(primaryControl).getByRole('button', { name: 'Go to today' })).toHaveTextContent('Aug 17')
     expect(within(primaryControl).getByRole('button', { name: 'Next day' })).toBeEnabled()
-
-    const openAttendance = within(contextBar).getByRole('button', { name: 'Open QR check-in' })
-    expect(openAttendance).toBeEnabled()
-    expect(openAttendance).toHaveTextContent('')
-    expect(within(primaryControl).getByRole('button', { name: 'Open QR check-in' })).toBe(openAttendance)
-    expect(screen.queryByText('Open QR check-in')).not.toBeInTheDocument()
-
-    fireEvent.focus(openAttendance)
-    expect(await screen.findByRole('tooltip')).toHaveTextContent('Open QR check-in')
-    fireEvent.click(openAttendance)
-
-    await waitFor(() => expect(screen.getByText('Attendance opened')).toBeInTheDocument())
-    const commandWrite = vi.mocked(fetch).mock.calls[1]
-    expect(commandWrite[0]).toBe('/api/teacher/attendance/session')
-    expect(JSON.parse(String(commandWrite[1]?.body))).toMatchObject({
-      classroom_id: classroom.id,
-      date: '2026-08-17',
-      command: 'open',
-    })
+    expect(screen.queryByRole('button', { name: 'Open QR check-in' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Stop QR check-in' })).not.toBeInTheDocument()
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) => String(url) === '/api/teacher/attendance/session' && init?.method === 'POST')).toBe(false)
   })
 
   it('loads a Pika-owned QR presentation only when requested and copies its exact entry URL', async () => {
