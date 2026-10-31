@@ -116,7 +116,9 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
     ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 292)) : authoringImages
   const repoLight = migrations.length >= 293
     ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 293)) : homeVisibility
-  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, expected]
+  const admission = migrations.length >= 294
+    ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 294)) : repoLight
+  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, admission, expected]
   assert(accepted.some(profile => JSON.stringify([...catalog].sort()) === JSON.stringify(profile)), 'Unreviewed member-list canonical catalog')
   return classroomTestQuotaProofCatalog(catalog, migrations)
 }

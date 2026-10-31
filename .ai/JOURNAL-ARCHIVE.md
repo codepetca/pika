@@ -50576,3 +50576,23 @@ independent delta review precede the next stable-SHA CI.
 ## 2026-10-24 — RepoLight integration foundation (in progress)
 
 Task01a15c49-e31b-7060-8c2b-a7d1bc347706 owns codex/repolight-integration. Public repo reports only; Pika keeps marks/comments/Return. Added canonical contract/client and source-only293 foundation;73 focused source/client/policy tests pass. Owned ephemeral native replay/types, portable archive/provider cleanup adoption, routes/UI/visuals/review remain pending. No sharedlocal/production migration, credentials or provider activated. See docs/integrations/repolight.md; coordinator plan lives in RepoLight docs/REVIVAL-PLAN.md.
+
+<!-- pika-session-log-archive-batch:dfc47bff91dc923cebe31565e172de6284bf74942e02016560fc9f1e1d036a5f -->
+## 2026-10-24 — RepoLight publication approved
+
+Owner approved branch publication and main merge after required CI. Product code
+remains reviewed36ca8cd70; only continuity evidence refreshed. Local5892tests,
+native/HTTP/archive/browser and final reviews pass. Analyze OFF;293 unapplied
+shared/prod. Publish draft, mark stable head ready, require PR Gate; no deployment
+or production promotion. Optional AI stays RepoLight-owner-only and disabled.
+
+## 2026-10-24 — RepoLight CI compatibility remediation
+
+PR1681 held as draft after40154111852: full coverage found two stale292
+proof-target assertions and CURRENT receipt-label drift;22,346tests passed.
+Both isolated runners now admit only the sealed293 target through the existing
+closed validators, retain historical sources and reject changed/renamed293/294.
+CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
+and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
+offline native replays and targeted independent review tracked in PR evidence.
+Shared/prod293 remains unapplied; Analyze OFF. No provider activation.

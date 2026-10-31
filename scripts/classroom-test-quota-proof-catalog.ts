@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from './repolight-report-service-reviewed-migration'
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES } from './attendance-named-schedules-reviewed-migration'
 
 // Externally reviewed schema addition, never inferred from the fixture being checked.
 const quotaMigration = '253_classroom_test_tier_caps.sql'
@@ -31,7 +32,8 @@ export function classroomTestQuotaProofCatalog(
   const hasHomeVisibility = migrations.length >= 292 || migrations.some(migration => migration.name.startsWith('292_'))
   const hasRepoLight = migrations.length >= 293 || migrations.some(migration => migration.name.startsWith('293_'))
   const hasAdmissionRegistry = migrations.length >= 294 || migrations.some(migration => migration.name.startsWith('294_'))
-  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership || hasAuthoringImages || hasHomeVisibility || hasRepoLight || hasAdmissionRegistry) validateLifecycleServicesReviewedMigrations(migrations)
+  const hasNamedSchedules = migrations.length >= 296 || migrations.some(migration => migration.name.startsWith('296_'))
+  if (hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership || hasAuthoringImages || hasHomeVisibility || hasRepoLight || hasAdmissionRegistry || hasNamedSchedules) validateLifecycleServicesReviewedMigrations(migrations)
   const expected = [...new Set([...canonicalTables, quotaTable,
     ...(hasDecommission ? ['private.attendance_decommission_delete_capabilities'] : []),
     ...(hasMembership ? ['private.attendance_participant_associations', 'private.attendance_override_event_generations'] : []),
@@ -40,7 +42,8 @@ export function classroomTestQuotaProofCatalog(
     ...(hasAuthoringImages ? ['public.teacher_authoring_image_references'] : []),
     ...(hasHomeVisibility ? ['private.classroom_home_hidden_enrollments'] : []),
     ...(hasRepoLight ? REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES : []),
-    ...(hasAdmissionRegistry ? CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES : [])])].sort()
+    ...(hasAdmissionRegistry ? CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES : []),
+    ...(hasNamedSchedules ? ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
 }

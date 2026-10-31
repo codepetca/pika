@@ -7,6 +7,10 @@ export const ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION = Object.freeze({
   name: '296_attendance_named_schedules.sql',
   sha256: '4a640c6bd6f1217314387b2122861f286986cd4c07e6a7f1be9b149388e5c917',
 })
+export const ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES = Object.freeze([
+  'public.attendance_day_schedules',
+  'public.attendance_named_schedules',
+] as const)
 
 export function validateAttendanceNamedSchedulesReviewedMigration(migration: { name: string; sql: string; sha256: string }) {
   assert(migration, 'Reviewed attendance named schedules migration absent')
