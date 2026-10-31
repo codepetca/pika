@@ -1,3 +1,4 @@
+import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION } from '../../scripts/attendance-named-schedules-reviewed-migration'
 import { INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION } from '../../scripts/independent-calendar-post-dates-reviewed-migration'
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION } from '../../scripts/classroom-admission-registry-reviewed-migration'
 import { createHash, randomUUID } from 'node:crypto'
@@ -35,9 +36,10 @@ const target = (m: ReturnType<typeof plan>, phase: 'contracts' | 'concurrency'):
 describe('fixed recovery260 profile reuses the closed native engine', () => {
   it('binds complete260 inventory, real observed identities and fixed finite SQL', () => {
     const m = plan()
-    expect(m.migrations).toHaveLength(295); expect(m.nativeVerified).toBe(false)
+    expect(m.migrations).toHaveLength(296); expect(m.nativeVerified).toBe(false)
     expect(m.migrations[293]).toEqual(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
-    expect(m.migrations.at(-1)).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(m.migrations[294]).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
+    expect(m.migrations.at(-1)).toEqual(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION)
     expect(m.migrations[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(m.contracts.checks).toHaveLength(13); expect(m.concurrency.schedules).toHaveLength(10)
     expect(m.setup).not.toMatch(/\b(?:insert|update|delete|commit)\b/i)

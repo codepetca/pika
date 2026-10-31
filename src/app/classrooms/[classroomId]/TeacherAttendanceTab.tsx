@@ -224,14 +224,16 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
   const [classroomQrOpen, setClassroomQrOpen] = useState(false)
   useEffect(() => { setClassroomQrOpen(false) }, [classroom.id, classroomQrAvailable])
-  const hoursActionLabel = hours.label
-    ? `Attendance hours, ${hours.label.replace(' - ', ' to ')}`
+  const occurrenceStart = formatTeacherAttendanceTime(attendance.view?.session.sessionStartsAt ?? null)
+  const occurrenceEnd = formatTeacherAttendanceTime(attendance.view?.session.sessionEndsAt ?? null)
+  const qrTimeLabel = occurrenceStart && occurrenceEnd ? `${occurrenceStart} - ${occurrenceEnd}` : hours.label ?? (classroom.archived_at ? attendance.windowLabel : null)
+  const hoursActionLabel = qrTimeLabel
+    ? `Attendance hours, ${qrTimeLabel.replace(' - ', ' to ')}`
     : hours.state === 'error'
       ? 'Attendance hours unavailable'
       : hours.state === 'loading'
         ? 'Loading attendance hours'
         : 'Set attendance hours'
-  const qrTimeLabel = hours.label ?? (classroom.archived_at ? attendance.windowLabel : null)
   const manualTimeLabel = manualAttendance.settings.sessionStartsLocal
     && manualAttendance.settings.sessionEndsLocal
     ? formatManualAttendanceRange(
@@ -733,17 +735,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   const moreActions: TeacherWorkSurfaceActionItem[] = [
-    ...(attendanceEnabled && attendance.attendanceReady && attendance.sessionAction ? [{
-      id: `${attendance.sessionAction.command}-attendance`,
-      label: attendance.sessionAction.command === 'open' ? 'Open attendance' : 'Close attendance',
-      description: attendance.sessionAction.command === 'open'
-        ? 'Allow QR check-ins for this date'
-        : 'Stop accepting QR check-ins',
-      checked: attendance.sessionState === 'open',
-      checkedRole: 'menuitemcheckbox' as const,
-      disabled: Boolean(attendance.activeCommand) || attendance.sessionPending,
-      onSelect: () => void attendance.submitSessionCommand(attendance.sessionAction!.command),
-    }] : []),
     ...(showAttendance ? [{
       id: 'edit-attendance-time',
       label: 'Edit time',
@@ -1413,6 +1404,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       />
       {attendanceEnabled ? (
         <AttendanceWindowDialog
+          date={selectedDate}
           key={classroom.id}
           classroomId={classroom.id}
           isOpen={attendance.attendanceHoursOpen}

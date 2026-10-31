@@ -6,7 +6,6 @@ import {
   ChevronDown,
   ClipboardCopy,
   Clock3,
-  DoorClosed,
   DoorOpen,
   QrCode as QrCodeIcon,
   RefreshCw,
@@ -202,8 +201,8 @@ export function TeacherLiveAttendanceTab({
     attendanceHoursOpen, setAttendanceHoursOpen,
     students, selectedIds, toggleSelect, toggleSelectAll, allSelected, someSelected,
     clearSelection, selectedCount, pendingStudentIds, selectedHasPendingStudent,
-    failedStudentCount, sessionState, sessionAction, windowLabel, hasUnconfirmedView,
-    sessionContextLabel, loadView, submitSessionCommand, submitMarks, resetCheckIns,
+    failedStudentCount, sessionState, windowLabel, hasUnconfirmedView,
+    sessionContextLabel, loadView, submitMarks, resetCheckIns,
     loadQrPresentation, openQrPresentation, copyQrLink,
   } = attendance
   const [{ column: sortColumn, direction: sortDirection, status: sortStatus }, setSortState] = useState<{
@@ -279,15 +278,6 @@ export function TeacherLiveAttendanceTab({
       icon: <QrCodeIcon className="h-4 w-4" aria-hidden="true" />,
       disabled: Boolean(activeCommand) || localSessionPending,
       onSelect: openQrPresentation,
-    }] : []),
-    ...(sessionAction ? [{
-      id: `${sessionAction.command}-attendance`,
-      label: sessionAction.label,
-      icon: sessionAction.command === 'open'
-        ? <DoorOpen className="h-4 w-4" aria-hidden="true" />
-        : <DoorClosed className="h-4 w-4" aria-hidden="true" />,
-      disabled: Boolean(activeCommand) || localSessionPending,
-      onSelect: () => void submitSessionCommand(sessionAction.command),
     }] : []),
     ...mobileUtilityActions,
   ]
@@ -414,26 +404,6 @@ export function TeacherLiveAttendanceTab({
                 onClick={openQrPresentation}
               >
                 <QrCodeIcon className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </Tooltip>
-          ) : null}
-          {sessionAction ? (
-            <Tooltip content={sessionAction.label}>
-              <Button
-                type="button"
-                size="sm"
-                variant={sessionAction.command === 'open' ? 'primary' : 'secondary'}
-                className="hidden h-9 w-9 px-0 sm:inline-flex"
-                aria-label={sessionAction.label}
-                loading={activeCommand === `session:${sessionAction.command}`}
-                disabled={Boolean(activeCommand) || localSessionPending}
-                onClick={() => void submitSessionCommand(sessionAction.command)}
-              >
-                {sessionAction.command === 'open' ? (
-                  <DoorOpen className="h-4 w-4" aria-hidden="true" />
-                ) : (
-                  <DoorClosed className="h-4 w-4" aria-hidden="true" />
-                )}
               </Button>
             </Tooltip>
           ) : null}
@@ -773,6 +743,7 @@ export function TeacherLiveAttendanceTab({
         ) : null}
       </ContentDialog>
       <AttendanceWindowDialog
+          date={selectedDate}
         classroomId={classroom.id}
         isOpen={attendanceHoursOpen}
         onClose={() => setAttendanceHoursOpen(false)}
