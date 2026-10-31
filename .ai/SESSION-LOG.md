@@ -493,3 +493,7 @@ existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
 Teacher desktop/mobile and light/dark checks cover future-date editing; student
 view is unaffected because this text appears only in teacher editors.
 Risk profile: none. No production changes or migration are part of this edit.
+## 2026-10-30 Scheduling date display
+
+- Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
+- Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.

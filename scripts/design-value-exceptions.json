@@ -488,18 +488,6 @@
       ]
     },
     {
-      "file": "src/components/ScheduleDateTimePicker.tsx",
-      "reviewBy": "phase-3-scheduling",
-      "values": [
-        {
-          "kind": "raw-color-class",
-          "count": 2,
-          "fingerprint": "5b9c422177b72590",
-          "reason": "legacy-visual-value"
-        }
-      ]
-    },
-    {
       "file": "src/components/SortableClassroomRow.tsx",
       "reviewBy": "phase-2-design-foundation-debt",
       "values": [
