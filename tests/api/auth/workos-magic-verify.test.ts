@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
+const admission = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/server/verified-classroom-auto-admission', () => ({ tryEnsureVerifiedClassroomAdmission: admission }))
+
 const mocks = vi.hoisted(() => ({
   saveSession: vi.fn(),
   createSession: vi.fn(),
@@ -77,6 +80,8 @@ describe('POST /api/auth/workos/magic/verify', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
+    expect(admission).toHaveBeenCalledWith('pika-user-1')
+    expect(mocks.createSession.mock.invocationCallOrder[0]).toBeLessThan(admission.mock.invocationCallOrder[0])
     expect(data.redirectUrl).toBe('/attendance/check-in/token-123')
     expect(data).not.toHaveProperty('baraHandoff')
   })
@@ -148,5 +153,6 @@ describe('POST /api/auth/workos/magic/verify', () => {
     expect(mocks.resolvePikaUser).not.toHaveBeenCalled()
     expect(mocks.saveSession).not.toHaveBeenCalled()
     expect(mocks.createSession).not.toHaveBeenCalled()
+    expect(admission).not.toHaveBeenCalled()
   })
 })

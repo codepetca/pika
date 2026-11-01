@@ -50596,3 +50596,28 @@ CURRENT restores recorded DB/control/attendance labels within17k. SourceSQL293
 and app behavior unchanged. Local37runner/profile and83receipt tests pass; actual
 offline native replays and targeted independent review tracked in PR evidence.
 Shared/prod293 remains unapplied; Analyze OFF. No provider activation.
+
+<!-- pika-session-log-archive-batch:50d0d00f35aa1671000faa5906eaa349fe99fe768f2619931a211c11da09fc46 -->
+## 2026-10-24 — Complete current-chain native proof audit
+
+Caught the remaining Home visibility292 cutoff before merge; PR1681 held as
+draft and40155285541 cancelled. Home manifest now requires the exact293 seal
+while retaining historical dirty-tree manifests and all clone/source guards.
+76unit tests/types/lint/syntax pass. Real293Home replay, rollback/recovery,
+two-session contention and generated types pass; shared fingerprints unchanged.
+Audit of159direct scripts,20package aliases,282reachable files and120shell
+scripts found no remaining current-chain cutoffs. NoSQL/app/flag changes.
+Final targeted review and exact-head CI remain required; Analyze OFF.
+
+## 2026-10-24 — RepoLight warning-level SQL lint correction
+
+User approved one further fix batch and eighth independent review (30-minute
+extension) before rerunning CI and conditional main merge. Cleanup discovery
+initializes its empty array with an explicit JSONB cast; both current migration293
+seals refreshed to b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052.
+An owned offline001–293 replay reproduces SQLSTATE42804 with the original initializer;
+the corrected schema is warning-free across569public/private PL/pgSQL functions
+using CLI2.103.0's query. Home rollback/recovery and real two-session contention
+pass; generated types and canonical-preservation checks retained. Required local
+focused checks, targeted review and exact-head PR Gate remain merge prerequisites.
+No shared/prod migration or provider activation; Analyze OFF.

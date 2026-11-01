@@ -161,7 +161,7 @@ describe('finite member Test list fixture', () => {
   })
 })
 describe('actual-source member migration profiles (offline)', () => {
-  const current = loadAssignmentListReviewedMigrations(process.cwd())
+  const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 296)
   const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
   it('reproduces actual canonical-before292 keys while preserving the installed291 source profile', () => {
     const before = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 291))

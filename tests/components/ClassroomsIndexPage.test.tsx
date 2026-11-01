@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ClassroomsIndexPage from '@/app/classrooms/page'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from '@/app/classrooms/StudentClassroomsIndex'
+import { ClassroomAdmissionOffer, ClassroomAdmissionOfferUnavailable } from '@/app/classrooms/ClassroomAdmissionOffer'
 import type { ReactElement } from 'react'
 
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), teacher: vi.fn(), from: vi.fn(), redirect: vi.fn(), display: vi.fn(),
   homeAdmission: vi.fn(), experienceAdmission: vi.fn(), home: vi.fn(), visibility: vi.fn(), creation: vi.fn(),
+  autoEnabled: vi.fn(), registryConfigured: vi.fn(), eligibility: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mocks.user }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from }) }))
@@ -21,7 +23,8 @@ vi.mock('@/app/classrooms/TeacherClassroomsIndex', () => ({ TeacherClassroomsInd
 vi.mock('@/app/classrooms/StudentClassroomsIndex', () => ({ StudentClassroomsIndex: () => null }))
 vi.mock('@/lib/server/classrooms', () => ({ hydrateClassroomRecords: (data: unknown) => data, classroomStudentRecord: (data: unknown) => data }))
 vi.mock('@/lib/server/contextual-classroom-home', () => ({ isContextualClassroomHomeAdmitted: mocks.homeAdmission, loadContextualClassroomHome: mocks.home }))
-vi.mock('@/lib/server/classroom-experience-admission', () => ({ resolveClassroomExperienceAdmission: mocks.experienceAdmission }))
+vi.mock('@/lib/server/classroom-experience-admission', () => ({ resolveClassroomExperienceAdmission: mocks.experienceAdmission, isClassroomExperienceRegistryConfigured: mocks.registryConfigured }))
+vi.mock('@/lib/server/verified-classroom-auto-admission', () => ({ isVerifiedClassroomAutoAdmissionEnabled: mocks.autoEnabled, canRequestVerifiedClassroomAdmission: mocks.eligibility }))
 vi.mock('@/lib/server/classroom-home-visibility', () => ({ readClassroomHomeVisibility: mocks.visibility }))
 vi.mock('@/lib/server/classroom-home-creation', () => ({ loadClassroomHomeCreationAccess: mocks.creation }))
 
@@ -47,6 +50,9 @@ describe('classroom index required server reads', () => {
     mocks.redirect.mockImplementation(() => { throw new Error('REDIRECT') })
     mocks.homeAdmission.mockReturnValue(false)
     mocks.experienceAdmission.mockReturnValue({ status: 'not-admitted' })
+    mocks.autoEnabled.mockReturnValue(false)
+    mocks.registryConfigured.mockReturnValue(true)
+    mocks.eligibility.mockResolvedValue(false)
   })
 
   it('passes a generic failure status for a failed teacher list', async () => {
@@ -101,6 +107,43 @@ describe('classroom index required server reads', () => {
     expect(await indexProps()).toEqual({ initialClassrooms: [], initialReadError: false })
   })
 
+  it('offers explicit admission only for a server-eligible actor and retains the existing Home', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    try {
+      mocks.autoEnabled.mockReturnValue(true)
+      mocks.eligibility.mockResolvedValue(true)
+      mocks.from.mockReturnValue(query(success([])))
+      const shell = await ClassroomsIndexPage() as ReactElement<{ children: ReactElement[] }>
+      expect(shell.props.children.some(child => child?.type === ClassroomAdmissionOffer)).toBe(true)
+      expect(shell.props.children.some(child => child?.type === StudentClassroomsIndex)).toBe(true)
+      expect(mocks.eligibility).toHaveBeenCalledExactlyOnceWith('owner-id')
+    } finally { vi.unstubAllEnvs() }
+  })
+
+  it('hides the offer when the server eligibility decision is false, including exclusion or prior grant', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    try {
+      mocks.autoEnabled.mockReturnValue(true)
+      mocks.eligibility.mockResolvedValue(false)
+      mocks.from.mockReturnValue(query(success([])))
+      const shell = await ClassroomsIndexPage() as ReactElement<{ children: ReactElement[] }>
+      expect(shell.props.children.some(child => child?.type === ClassroomAdmissionOffer)).toBe(false)
+      expect(shell.props.children.some(child => child?.type === ClassroomAdmissionOfferUnavailable)).toBe(false)
+    } finally { vi.unstubAllEnvs() }
+  })
+
+  it('shows only a generic no-action status when eligibility is unavailable', async () => {
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_ENABLED', 'true')
+    try {
+      mocks.autoEnabled.mockReturnValue(true)
+      mocks.eligibility.mockRejectedValue(new Error('private detail'))
+      mocks.from.mockReturnValue(query(success([])))
+      const shell = await ClassroomsIndexPage() as ReactElement<{ children: ReactElement[] }>
+      expect(shell.props.children.some(child => child?.type === ClassroomAdmissionOffer)).toBe(false)
+      expect(shell.props.children.some(child => child?.type === ClassroomAdmissionOfferUnavailable)).toBe(true)
+    } finally { vi.unstubAllEnvs() }
+  })
+
   it('keeps the unauthenticated redirect ahead of classroom reads', async () => {
     mocks.user.mockResolvedValue(null)
     await expect(ClassroomsIndexPage()).rejects.toThrow('REDIRECT')
@@ -127,6 +170,7 @@ describe('classroom index required server reads', () => {
       contextualHome: { joined: [{ id: 'visible', enrollment_id: 'membership-a' }], hidden: [{ id: 'hidden', enrollment_id: 'membership-b' }], canCreate: true, canImportBlueprint: role === 'teacher' },
     })
     expect(mocks.teacher).not.toHaveBeenCalled()
+    expect(mocks.eligibility).not.toHaveBeenCalled()
   })
 
   it('does not fall back to a role-based list when live persistence is unavailable', async () => {

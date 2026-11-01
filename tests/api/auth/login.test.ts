@@ -306,6 +306,25 @@ describe('POST /api/auth/login', () => {
       })
     })
 
+    it('keeps sign-in working when enabled admission is unavailable', async () => {
+      vi.stubEnv('PIKA_CLASSROOM_VERIFIED_AUTO_ADMISSION_ENABLED', 'true')
+      try {
+        ;(mockSupabaseClient.from as any) = vi.fn(() => ({
+          select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({
+            data: { id: 'user-1', email: 'test@example.com', role: 'student', password_hash: 'hashed_ValidPassword123', auth_credential_version: 1 }, error: null,
+          }) })) })),
+        }))
+        const response = await POST(new NextRequest('http://localhost:3000/api/auth/login', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: 'test@example.com', password: 'ValidPassword123' }),
+        }))
+        expect(response.status).toBe(200)
+        expect(createSession).toHaveBeenCalledOnce()
+      } finally {
+        vi.unstubAllEnvs()
+      }
+    })
+
     it('should create session and return success for teacher', async () => {
       const mockFrom = vi.fn(() => ({
         select: vi.fn(() => ({

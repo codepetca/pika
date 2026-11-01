@@ -60,9 +60,9 @@ const profiles: SourceProfile[] = [
 ]
 afterEach(() => vi.restoreAllMocks())
 
-describe.each(profiles)('$name reviewed296 source profile (offline)', ({ name, validate }) => {
-  it('accepts the complete actual reviewed296 source chain', () => {
-    expect(current).toHaveLength(296)
+describe.each(profiles)('$name reviewed297 source profile (offline)', ({ name, validate }) => {
+  it('accepts the complete actual reviewed297 source chain', () => {
+    expect(current).toHaveLength(297)
     expect(current[281]).toMatchObject(DATA_API_GRANTS_REVIEWED_MIGRATION)
     expect(current[283]).toMatchObject(MATERIAL_RELEASE_SCHEDULING_REVIEWED_MIGRATION)
     expect(current[284]).toMatchObject(ATTENDANCE_MEMBERSHIP_ADOPTION_REVIEWED_MIGRATION)
@@ -144,7 +144,7 @@ describe('fixed Data API282 reviewed migration seal', () => {
 })
 
 describe('reviewed285 offline learner prefix helper', () => {
-  it.each([257, 258] as const)('preserves the explicit historical%i prefix after validating actual296', count => {
+  it.each([257, 258] as const)('preserves the explicit historical%i prefix after validating actual297', count => {
     const offline = createOfflineTestLearnerRepository(repository, count)
     try {
       expect(platform.loadAssignmentListReviewedMigrations(offline.repository)).toEqual(current.slice(0, count))
