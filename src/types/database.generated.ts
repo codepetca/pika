@@ -12002,6 +12002,10 @@ export type Database = {
         Args: { p_items: Json }
         Returns: Json
       }
+      ensure_verified_classroom_admission_v1: {
+        Args: { p_actor_id: string; p_bootstrap_manifest_sha256: string }
+        Returns: Json
+      }
       fail_assignment_ai_grading_item_and_release_usage_with_lease_v1: {
         Args: {
           p_attempt_count: number
@@ -13283,6 +13287,10 @@ export type Database = {
         Args: { p_actor_id: string; p_operation_id: string }
         Returns: Json
       }
+      read_verified_classroom_auto_admission_eligibility_v1: {
+        Args: { p_actor_id: string; p_bootstrap_manifest_sha256: string }
+        Returns: Json
+      }
       reconcile_managed_storage_json_references: {
         Args: never
         Returns: number
@@ -14278,6 +14286,10 @@ export type Database = {
           p_valid_from: string
           p_valid_until: string
         }
+        Returns: Json
+      }
+      set_classroom_auto_admission_enabled_v1: {
+        Args: { p_enabled: boolean }
         Returns: Json
       }
       set_classroom_calendar_day_v1: {

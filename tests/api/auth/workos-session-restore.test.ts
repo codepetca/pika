@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
+const admission = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/server/verified-classroom-auto-admission', () => ({ tryEnsureVerifiedClassroomAdmission: admission }))
+
 const mocks = vi.hoisted(() => ({
   withAuth: vi.fn(),
   findLinkedPikaUser: vi.fn(),
@@ -50,6 +53,8 @@ describe('POST /api/auth/workos/session/restore', () => {
     const response = await POST(request({ next: '/teacher/calendar?view=month' }))
 
     expect(response.status).toBe(200)
+    expect(admission).toHaveBeenCalledWith('pika-user-1')
+    expect(mocks.createSession.mock.invocationCallOrder[0]).toBeLessThan(admission.mock.invocationCallOrder[0])
     expect(await response.json()).toEqual({ redirectUrl: '/teacher/calendar?view=month' })
     expect(mocks.createSession).toHaveBeenCalledWith(
       'pika-user-1',
@@ -71,6 +76,7 @@ describe('POST /api/auth/workos/session/restore', () => {
     })
     expect((await POST(request({ next: '/classrooms' }))).status).toBe(401)
     expect(mocks.createSession).not.toHaveBeenCalled()
+    expect(admission).not.toHaveBeenCalled()
   })
 
   it('fails closed when no exact Pika identity link exists', async () => {

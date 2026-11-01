@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { saveSession } from '@workos-inc/authkit-nextjs'
 import { createSession } from '@/lib/auth'
+import { tryEnsureVerifiedClassroomAdmission } from '@/lib/server/verified-classroom-auto-admission'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { resolvePikaUserFromWorkOS } from '@/lib/server/workos-identity'
 import { verifyWorkOSMagicAuth } from '@/lib/server/workos-magic-auth'
@@ -45,6 +46,7 @@ export const POST = withErrorHandler('VerifyWorkOSMagicAuth', async (request: Ne
     workosUserId: authResponse.user.id,
   })
   await clearPendingWorkOSMagicAuth()
+  await tryEnsureVerifiedClassroomAdmission(pikaUser.id)
 
   const nextPath = safePikaPath(pending.nextPath)
   return NextResponse.json(

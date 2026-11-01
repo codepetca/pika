@@ -11,30 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — Complete current-chain native proof audit
-
-Caught the remaining Home visibility292 cutoff before merge; PR1681 held as
-draft and40155285541 cancelled. Home manifest now requires the exact293 seal
-while retaining historical dirty-tree manifests and all clone/source guards.
-76unit tests/types/lint/syntax pass. Real293Home replay, rollback/recovery,
-two-session contention and generated types pass; shared fingerprints unchanged.
-Audit of159direct scripts,20package aliases,282reachable files and120shell
-scripts found no remaining current-chain cutoffs. NoSQL/app/flag changes.
-Final targeted review and exact-head CI remain required; Analyze OFF.
-
-## 2026-10-24 — RepoLight warning-level SQL lint correction
-
-User approved one further fix batch and eighth independent review (30-minute
-extension) before rerunning CI and conditional main merge. Cleanup discovery
-initializes its empty array with an explicit JSONB cast; both current migration293
-seals refreshed to b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052.
-An owned offline001–293 replay reproduces SQLSTATE42804 with the original initializer;
-the corrected schema is warning-free across569public/private PL/pgSQL functions
-using CLI2.103.0's query. Home rollback/recovery and real two-session contention
-pass; generated types and canonical-preservation checks retained. Required local
-focused checks, targeted review and exact-head PR Gate remain merge prerequisites.
-No shared/prod migration or provider activation; Analyze OFF.
-
 ## 2026-10-24 — RepoLight legacy archive inventory correction
 
 Owner approved one additional proof-only fix batch and ninth targeted review,
@@ -452,6 +428,7 @@ existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
 Teacher desktop/mobile and light/dark checks cover future-date editing; student
 view is unaffected because this text appears only in teacher editors.
 Risk profile: none. No production changes or migration are part of this edit.
+
 ## 2026-10-30 Scheduling date display
 
 - Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
@@ -472,3 +449,7 @@ Updated generated database types and the classroom resource inventory for named 
 ## 2026-10-31 — Named schedule proof catalog
 
 Updated the sealed test-member-list canonical catalog to include both reviewed migration-296 attendance tables while preserving predecessor profiles. The catalog and proof unit suites pass; the failed PR database lane requires rerun on the reviewed head.
+
+## 2026-11-01 — Verified public classroom admission
+
+Prepared default-off verified-account admission, an explicit existing-session recovery action, and migration 297 with protected exclusion and growth-stop serialization. Isolated database replay and concurrency tests, representative mocked UI checks, and targeted proof-catalog checks were run; production activation, provider readiness and account-deletion lifecycle remain separate.

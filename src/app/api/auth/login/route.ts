@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { verifyPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
+import { tryEnsureVerifiedClassroomAdmission } from '@/lib/server/verified-classroom-auto-admission'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { loginSchema } from '@/lib/validations/auth'
 import {
@@ -54,6 +55,8 @@ export const POST = withErrorHandler('Login', async (request: NextRequest) => {
   await createSession(user.id, user.email, user.role, {
     expectedCredentialVersion: user.auth_credential_version,
   })
+
+  await tryEnsureVerifiedClassroomAdmission(user.id)
 
   const redirectUrl = '/classrooms'
 

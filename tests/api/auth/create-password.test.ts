@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server'
 
 const HANDOFF = 'handoff-token-abcdefghijklmnopqrstuvwxyz1234567890'
 const generationMocks = vi.hoisted(() => ({ inspectLatestAuthHandoff: vi.fn(), consumeSignupPasswordHandoff: vi.fn() }))
+const admission = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/server/verified-classroom-auto-admission', () => ({ tryEnsureVerifiedClassroomAdmission: admission }))
 const rateLimitMocks = vi.hoisted(() => ({ consumeAuthRequestRateLimits: vi.fn() }))
 const authMocks = vi.hoisted(() => ({ createSession: vi.fn(async () => {}) }))
 const cryptoMocks = vi.hoisted(() => ({ hashPassword: vi.fn(async (password: string) => `hash_${password}`) }))
@@ -69,6 +71,7 @@ describe('POST /api/auth/create-password', () => {
     generationMocks.inspectLatestAuthHandoff.mockResolvedValue({ handoff: null, error: null })
     expect((await POST(request())).status).toBe(401)
     expect(cryptoMocks.hashPassword).not.toHaveBeenCalled()
+    expect(admission).not.toHaveBeenCalled()
   })
 
   it('atomically consumes the observed generation before creating a session', async () => {
@@ -79,6 +82,8 @@ describe('POST /api/auth/create-password', () => {
       passwordHash: 'hash_Password123', expectedCredentialVersion: 1,
     })
     expect(authMocks.createSession).toHaveBeenCalledWith(validHandoff.user_id, 'user@example.com', 'student', { expectedCredentialVersion: 1 })
+    expect(admission).toHaveBeenCalledWith(validHandoff.user_id)
+    expect(authMocks.createSession.mock.invocationCallOrder[0]).toBeLessThan(admission.mock.invocationCallOrder[0])
   })
 
   it('does not create a session when a resend or sibling winner invalidates the handoff during hashing', async () => {

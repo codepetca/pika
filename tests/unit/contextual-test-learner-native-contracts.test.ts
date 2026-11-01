@@ -35,10 +35,10 @@ describe('closed learner native profile source', () => {
     expect(projection.migrations[257]).toEqual({ name: '258_student_test_session_status_projection.sql',
       sha256: '7e251740234687bfc9a429e9268e1edb6b331016474a96f3a2a0fe82e718737f' })
     const current = testLearnerNativePlan(original, observed, 'b'.repeat(40), process.cwd())
-    expect(current.migrations).toHaveLength(296)
+    expect(current.migrations).toHaveLength(297)
     expect(current.migrations[293]).toEqual(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
     expect(current.migrations[294]).toEqual(INDEPENDENT_CALENDAR_POST_DATES_REVIEWED_MIGRATION)
-    expect(current.migrations.at(-1)).toEqual(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION)
+    expect(current.migrations[295]).toEqual(ATTENDANCE_NAMED_SCHEDULES_REVIEWED_MIGRATION)
     expect(current.migrations[291]).toMatchObject(CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION)
     expect(current.migrations[257]).toEqual(projection.migrations[257])
     expect(current.migrations[258]).toEqual({ name: '259_contextual_test_owner_grading.sql',
