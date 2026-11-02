@@ -3,8 +3,9 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TeacherClassroomView } from '@/app/classrooms/[classroomId]/TeacherClassroomView'
 import { TEACHER_ASSIGNMENTS_SELECTION_EVENT, TEACHER_GRADE_UPDATED_EVENT } from '@/lib/events'
-import type { Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
+import type { ClassDay, Classroom, ClassworkMaterial, SurveyWithStats } from '@/types'
 import { TooltipProvider } from '@/ui'
+import { ClassDaysProvider } from '@/contexts/ClassDaysContext'
 
 const mockAssignmentModalRender = vi.fn()
 const mockExecuteRepoLightBatch = vi.fn()
@@ -459,6 +460,7 @@ vi.mock('@/lib/gradebook-cache', () => ({
 
 vi.mock('@/lib/class-days-client', () => ({
   fetchClassDaysForClassroom: (...args: any[]) => mockFetchClassDaysForClassroom(...args),
+  invalidateClassDaysForClassroom: vi.fn(),
 }))
 
 vi.mock('@/hooks/use-window-size', () => ({
@@ -1181,6 +1183,65 @@ describe('TeacherClassroomView', () => {
       expect.any(Number),
     )
     expect(consoleError).toHaveBeenCalledWith('Error loading class days:', expect.any(Error))
+  })
+
+  it('shows classwork before pending class days and supplies the schedule when it arrives', async () => {
+    const pendingDays = createDeferred<ClassDay[]>()
+    const days: ClassDay[] = [{ date: '2026-11-02', is_class_day: true, prompt_text: null }]
+    mockFetchClassDaysForClassroom.mockReturnValueOnce(pendingDays.promise)
+
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    expect(await screen.findByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual([])
+    await act(async () => { pendingDays.resolve(days); await pendingDays.promise })
+    await waitFor(() => expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual(days))
+  })
+
+  it('shares the provider read and displays classwork before its schedule arrives', async () => {
+    const pendingDays = createDeferred<ClassDay[]>()
+    const days: ClassDay[] = [{ date: '2026-11-02', is_class_day: true, prompt_text: null }]
+    mockFetchClassDaysForClassroom.mockReturnValueOnce(pendingDays.promise)
+    render(<ClassDaysProvider classroomId={classroom.id}><TeacherClassroomView classroom={classroom} selectedAssignmentId={null} /></ClassDaysProvider>)
+
+    expect(await screen.findByRole('button', { name: 'Assignment One' })).toBeInTheDocument()
+    expect(mockFetchClassDaysForClassroom).toHaveBeenCalledTimes(1)
+    expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual([])
+    await act(async () => { pendingDays.resolve(days); await pendingDays.promise })
+    await waitFor(() => expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual(days))
+    expect(mockFetchClassDaysForClassroom).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps provider-backed classwork visible when the pending schedule fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let rejectDays!: (error: Error) => void
+    mockFetchClassDaysForClassroom.mockReturnValueOnce(new Promise<ClassDay[]>((_, reject) => { rejectDays = reject }))
+    render(<ClassDaysProvider classroomId={classroom.id}><TeacherClassroomView classroom={classroom} selectedAssignmentId={null} /></ClassDaysProvider>)
+
+    const assignment = await screen.findByRole('button', { name: 'Assignment One' })
+    expect(mockFetchClassDaysForClassroom).toHaveBeenCalledTimes(1)
+    await act(async () => { rejectDays(new Error('Class days unavailable')) })
+    expect(assignment.isConnected).toBe(true)
+    expect(screen.queryByText("Classwork couldn't load")).not.toBeInTheDocument()
+    expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual([])
+  })
+
+  it('does not publish late class days from a previous classroom into the assignment modal', async () => {
+    const replacement = { ...classroom, id: 'classroom-2', title: 'Chemistry' }
+    const oldDays = createDeferred<ClassDay[]>()
+    const newDays = [{ date: '2026-11-03', is_class_day: true, prompt_text: null }]
+    mockFetchClassDaysForClassroom.mockImplementation((id: string) => id === classroom.id ? oldDays.promise : Promise.resolve(newDays))
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key.startsWith('teacher-assignments:')) return Promise.resolve({ assignments: [makeAssignmentSummary('assignment-1', 'Assignment One')] })
+      if (key.startsWith('teacher-materials:')) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-surveys:')) return Promise.resolve({ surveys: [] })
+      throw new Error(`Unexpected request ${key}`)
+    })
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    view.rerender(<TeacherClassroomView classroom={replacement} selectedAssignmentId={null} />)
+    await waitFor(() => expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual(newDays))
+    await act(async () => { oldDays.resolve([{ date: '2026-11-02', is_class_day: true, prompt_text: null }]); await oldDays.promise })
+    expect(mockAssignmentModalRender.mock.calls.at(-1)![0].classDays).toEqual(newDays)
   })
 
   it('ignores stale teacher classwork loads after switching classrooms', async () => {

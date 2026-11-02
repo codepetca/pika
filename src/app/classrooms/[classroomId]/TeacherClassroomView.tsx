@@ -105,7 +105,6 @@ import type {
   AssignmentAiGradingRunSummary,
   AssignmentStats,
   AssignmentStatus,
-  ClassDay,
   ClassworkMaterial,
   Survey,
   SurveyWithStats,
@@ -120,7 +119,7 @@ import {
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
 import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
-import { fetchClassDaysForClassroom } from '@/lib/class-days-client'
+import { useClassDays } from '@/hooks/useClassDays'
 import { CLASSWORK_MATERIALS_UPDATED_EVENT } from '@/lib/events'
 import { isScheduleIsoInFuture } from '@/lib/scheduling'
 import { formatInTimeZone } from 'date-fns-tz'
@@ -600,7 +599,7 @@ export function TeacherClassroomView({
   const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [surveys, setSurveys] = useState<SurveyWithStats[]>([])
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
-  const [classDays, setClassDays] = useState<ClassDay[]>([])
+  const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
   const [classworkLoadError, setClassworkLoadError] = useState(false)
@@ -753,7 +752,7 @@ export function TeacherClassroomView({
     setLoading(true)
     setClassworkLoadError(false)
     try {
-      const [assignmentsData, materialsData, surveysData, classDaysData] = await Promise.all([
+      const [assignmentsData, materialsData, surveysData] = await Promise.all([
         fetchCachedJSON<TeacherAssignmentsResponse>(
           `teacher-assignments:${classroom.id}`,
           `/api/teacher/assignments?classroom_id=${classroom.id}`,
@@ -769,16 +768,11 @@ export function TeacherClassroomView({
           `/api/teacher/surveys?classroom_id=${classroom.id}`,
           { errorMessage: 'Failed to load surveys', ttlMs: 20_000 },
         ),
-        fetchClassDaysForClassroom(classroom.id).catch((err) => {
-          console.error('Error loading class days:', err)
-          return []
-        }),
       ])
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
       setSurveys(surveysData.surveys || [])
-      setClassDays(classDaysData)
       setLoadedClassroomId(classroom.id)
       setHasLoadedOnce(true)
       setClassworkLoadError(false)
@@ -805,7 +799,6 @@ export function TeacherClassroomView({
     setAssignments([])
     setMaterials([])
     setSurveys([])
-    setClassDays([])
     setAssignmentInstructionsMode('visual')
     setLoadedClassroomId(null)
     setHasLoadedOnce(false)
