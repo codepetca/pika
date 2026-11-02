@@ -18,6 +18,7 @@ interface MarkdownAuthoringEditorProps extends Pick<MarkdownContentEditorProps,
   fillHeight?: boolean
   statusContent?: ReactNode
   controlsClassName?: string
+  showModeControl?: boolean
   visualContent?: TiptapContent
   onVisualContentChange?: (content: TiptapContent) => void
 }
@@ -26,15 +27,15 @@ interface MarkdownAuthoringEditorProps extends Pick<MarkdownContentEditorProps,
 export function MarkdownAuthoringEditor({
   label, mode, onModeChange, markdown, onMarkdownChange, onConversionWarningChange,
   onBlur, placeholder, disabled = false, editable = true, interactionActive = true,
-  className, fillHeight = false, statusContent, controlsClassName, imageUpload, imageInline, visualContent, onVisualContentChange,
+  className, fillHeight = false, statusContent, controlsClassName, showModeControl = true, imageUpload, imageInline, visualContent, onVisualContentChange,
 }: MarkdownAuthoringEditorProps) {
   const inactive = disabled || !editable || !interactionActive
 
   return (
     <div className={cn('flex min-w-0 flex-col gap-2', fillHeight && 'min-h-0 flex-1')}>
-      <div className={cn('modal-controls-row flex items-center justify-end gap-2', controlsClassName)}>
+      {(showModeControl || statusContent) && <div className={cn('modal-controls-row flex items-center justify-end gap-2', controlsClassName)}>
         {statusContent}
-        <SegmentedControl
+        {showModeControl && <SegmentedControl
           ariaLabel={`${label} editing mode`}
           value={mode}
           onChange={(next) => { if (!inactive) onModeChange(next) }}
@@ -42,8 +43,8 @@ export function MarkdownAuthoringEditor({
             { value: 'visual', label: 'Write', disabled: inactive },
             { value: 'markdown', label: 'Markdown', disabled: inactive },
           ]}
-        />
-      </div>
+        />}
+      </div>}
       {mode === 'markdown' ? (
         <FormField label={`${label} Markdown`} hideLabel collapseHiddenLabel
           className={fillHeight ? 'flex min-h-0 flex-1 flex-col' : undefined}>

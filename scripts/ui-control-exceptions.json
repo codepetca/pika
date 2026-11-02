@@ -2,6 +2,17 @@
   "version": 1,
   "entries": [
     {
+      "file": "src/components/assessment/AutoGrowingTextarea.tsx",
+      "reviewBy": "phase-3-tests",
+      "controls": [
+        {
+          "kind": "textarea",
+          "count": 1,
+          "reason": "native-textarea"
+        }
+      ]
+    },
+    {
       "file": "src/components/assignment-workspace/AssignmentRepositoryReport.tsx",
       "reviewBy": "phase-3-assignments",
       "controls": [
@@ -18,7 +29,7 @@
       "controls": [
         {
           "kind": "textarea",
-          "count": 4,
+          "count": 2,
           "reason": "native-textarea"
         }
       ]
@@ -664,11 +675,6 @@
           "kind": "input:radio",
           "count": 1,
           "reason": "native-input-capability"
-        },
-        {
-          "kind": "textarea",
-          "count": 4,
-          "reason": "native-textarea"
         }
       ]
     },

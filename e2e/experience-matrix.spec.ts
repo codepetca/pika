@@ -2887,6 +2887,7 @@ test('shows publication language only at the publish transition', async ({ page 
               }],
             },
           },
+          editingPolicy: { structureLocked: false },
         }),
       })
       return
@@ -2980,6 +2981,19 @@ test('shows publication language only at the publish transition', async ({ page 
   const authoringDialog = page.getByRole('dialog', { name: 'Edit test' })
   await expect(authoringDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
   await expect(authoringDialog.getByText('Ready to publish?', { exact: true })).toBeVisible()
+  await expect(authoringDialog.getByTestId('test-editor-details-pane').getByText('Questions', { exact: true })).toHaveCount(0)
+  const points = authoringDialog.getByTestId('test-question-actionbar')
+  await expect(points.getByRole('spinbutton', { name: 'Points' })).toHaveValue('1')
+  await expect(points.getByLabel('Total points: 1')).toBeVisible()
+  await expect(points.getByRole('spinbutton', { name: 'Points' })).toBeEnabled()
+  await points.getByRole('spinbutton', { name: 'Points' }).fill('3')
+  await expect(points.getByLabel('Total points: 3')).toBeVisible()
+  await points.getByRole('spinbutton', { name: 'Points' }).fill('1')
+  await expect(points.getByLabel('Total points: 1')).toBeVisible()
+  await testInfo.attach('test-editor-points-total', {
+    body: await authoringDialog.screenshot({ path: testInfo.outputPath('test-editor-points-total.png'), animations: 'disabled' }),
+    contentType: 'image/png',
+  })
   await expect(authoringDialog.getByText(/Failed to load assessment draft|Unhandled Test publication fixture route/)).toHaveCount(0)
   await authoringDialog.getByRole('button', { name: 'Publish' }).click()
   await page.getByRole('menuitem', { name: 'Publish today', exact: true }).click()

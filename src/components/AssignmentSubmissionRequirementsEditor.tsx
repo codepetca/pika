@@ -293,7 +293,7 @@ export function AssignmentSubmissionRequirementsEditor({
                   icon: <RequirementIcon type={option.type} />,
                   onSelect: () => addRequirement(option.type),
                 }))}
-                variant="success"
+                variant="primary"
                 size="sm"
                 disabled={disabled}
                 menuPlacement="down"

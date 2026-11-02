@@ -157,6 +157,15 @@ export function CreationModalContextHeader({ itemType, classroomName, spacious =
   )
 }
 
+/** Compact context above the title in split authoring dialogs. */
+export function CreationModalContextLabel({ itemType, classroomName }: {
+  itemType: 'Assignment' | 'Material' | 'Test' | 'Survey'
+  classroomName?: string
+}) {
+  const label = classroomName ? `${itemType} · ${classroomName}` : itemType
+  return <p className="mr-12 truncate text-sm text-text-muted lg:mr-0" title={label}>{label}</p>
+}
+
 /** An accessible title input and its settings share the existing controls' height. */
 export function CreationModalTitleField({ children, actions, error }: Pick<FormFieldProps, 'children' | 'error'> & { actions?: ReactNode }) {
   return <div className="modal-title-field flex items-start gap-2">

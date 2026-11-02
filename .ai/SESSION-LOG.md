@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
-
-Owner explicitly overrode task workflow review-budget/low-usage stops through
-completion; keep independent review, strict CI and normal merge/rollout controls.
-Nine targeted reviews are recorded; next delta receives actual tenth review.
-Shared proof catalogue now includes ten literal tables from sealed293; member
-proof retains explicit292 admission and rejects partial/unknown catalogues.
-Historical unit profiles stay pinned; complete293 preservation includes private
-state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
-now fingerprint the same complete source-defined family; assertions unchanged.
-CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
---disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
-config-process heap diagnostics added; no environment/heap dumps, assertion,
-project, timeout or compiler change. Full browser gate still required.
-Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
-upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
-SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
-CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
-
 ## 2026-10-25 — RepoLight rebase after green CI
 
 CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
@@ -428,3 +409,7 @@ Approved responsiveness plan; worktree `codex/site-responsiveness` at base ebe91
 ## 2026-11-02 — Teacher Classwork cold loading
 
 PR1718 merged to main as 0507966c; exact-head CI passed on retry after one unrelated UiGallery timeout. In `codex/classwork-cold-load`, teacher Classwork reuses the classroom class-days provider without blocking its three-list snapshot; the standalone fallback hides another classroom's schedule immediately. Paired synthetic browser probe holding class-days 500ms: median list readiness 545→37ms (5 samples/version), one request per source; no production latency claim. Focused component/context tests pass 105. UI matrix, focused checks and independent review pending. Evidence: `/tmp/pika-classdays-paired.0haTTl`.
+
+## 2026-11-02 Test editor grading notes
+
+Made answer key and sample solution fields grow with their content and container width; moved Add reference beside the test title and removed the enclosing reference panel, and placed test/classroom context above the title, and aligned question number, points and add action in the toolbar. Extended the compact context label to assignment, material and survey editors and moved survey question actions into the toolbar, and placed the shared icon-labelled Write/Markdown control in each editor’s details pane. Aligned editor primary and add actions on the shared primary color. Updated Pattern Lab with shared auto-growing grading notes and assignment/survey settings examples. Shared test reference cards between the editor and Pattern Lab, retaining local-only placeholder behavior. Applied the reviewed read-only total beside question points in the test editor, with immediate valid-draft updates and full-modal visual checks. Focused component tests and Playwright checks cover the editor.

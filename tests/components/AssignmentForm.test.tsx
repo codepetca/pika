@@ -128,11 +128,8 @@ describe('AssignmentForm', () => {
     const toolbar = await within(content).findByRole('toolbar', { name: 'Formatting options' })
     const actions = screen.getByTestId('assignment-editor-primary-actions')
 
-    const header = screen.getByTitle('Health for Life').closest('.modal-context-row')!
-    expect(header).toHaveTextContent('Assignment')
-    expect(header.parentElement).toBe(details.parentElement)
-    expect(details).not.toContainElement(header)
-    expect(header.nextElementSibling).toBe(details)
+    const header = screen.getByTitle('Assignment · Health for Life')
+    expect(details).toContainElement(header)
     expect(details).toContainElement(screen.getByRole('textbox', { name: 'Title' }))
     expect(details).toContainElement(screen.getByRole('button', { name: 'Preview' }))
     expect(details).toContainElement(screen.getByRole('button', { name: 'Configure required submissions' }))
