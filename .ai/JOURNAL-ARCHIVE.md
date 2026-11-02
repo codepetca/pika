@@ -50676,3 +50676,17 @@ Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
 upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
 SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
 CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
+
+<!-- pika-session-log-archive-batch:76b27cf7c5fdaf6aa67d8135a3f62cf1c75f2dd28325047751bd60bdf5ba1dd8 -->
+## 2026-10-25 — RepoLight rebase after green CI
+
+CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
+SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
+(#1684 selected-inspector refresh after Return), creating continuity conflicts.
+Rebased feature commits; only CURRENT/archive conflicts required resolution.
+Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
+receipt and all held controls. No new deployment/query/provider authority.
+SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
+reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
+that equivalence; new-head CI still reruns the actual proof. Focused checks and
+one targeted main-sync review precede ready; task stop override remains active.

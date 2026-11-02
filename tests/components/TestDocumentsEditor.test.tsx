@@ -12,6 +12,18 @@ describe('TestDocumentsEditor', () => {
     vi.unstubAllGlobals()
   })
 
+  it('keeps reference actions accessible while respecting read-only mode', () => {
+    const openMock = vi.spyOn(window, 'open').mockImplementation(() => null)
+    render(<TestDocumentsEditor testId="test-1" isEditable={false} documents={[
+      { id: 'reference-1', title: 'Field guide', source: 'link', url: 'https://example.com/guide' },
+    ]} />)
+    expect(screen.getByRole('button', { name: 'Edit Field guide' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Refresh Field guide' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Remove Field guide' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Field guide' }))
+    expect(openMock).toHaveBeenCalledWith('https://example.com/guide', '_blank', 'noopener,noreferrer')
+  })
+
   it('shows rejected SVG uploads inside the open dialog without uploading', () => {
     uploadFileDirectly.mockClear()
     render(<TestDocumentsEditor testId="test-1" isEditable />)

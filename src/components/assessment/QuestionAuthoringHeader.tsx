@@ -1,25 +1,20 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Code, Pencil } from 'lucide-react'
-import { SaveStatus, SegmentedControl, type SaveStatusState } from '@/ui'
+import { SaveStatus, type SaveStatusState } from '@/ui'
 
 interface QuestionAuthoringHeaderProps {
   questionNumber: number
   points?: ReactNode
   navigation: ReactNode
+  actions?: ReactNode
   status: SaveStatusState
-  mode: 'edit' | 'markdown'
-  onModeChange: (mode: 'edit' | 'markdown') => void
-  writeDisabled?: boolean
-  markdownDisabled?: boolean
   testId?: string
 }
 
 /** Shared test/survey question context and navigation; draft ownership stays with each workspace. */
 export function QuestionAuthoringHeader({
-  questionNumber, points, navigation, status, mode, onModeChange,
-  writeDisabled = false, markdownDisabled = false, testId,
+  questionNumber, points, navigation, actions, status, testId,
 }: QuestionAuthoringHeaderProps) {
   return (
     <div data-testid={testId} className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 px-3 py-3 sm:min-h-[76px] sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:px-4 sm:py-4">
@@ -32,17 +27,7 @@ export function QuestionAuthoringHeader({
       </div>
       <div className="modal-question-controls-tail col-start-2 row-start-1 flex items-center justify-self-end gap-2 pr-14 sm:col-start-3">
         <SaveStatus presentation="indicator" status={status} />
-        <SegmentedControl
-          ariaLabel="Authoring mode"
-          value={mode}
-          onChange={onModeChange}
-          iconOnly
-          className="bg-transparent p-0"
-          options={[
-            { value: 'edit', label: 'Write', tooltip: 'Write', icon: <Pencil className="h-4 w-4" aria-hidden="true" />, disabled: writeDisabled },
-            { value: 'markdown', label: 'Markdown', tooltip: 'Markdown', icon: <Code className="h-4 w-4" aria-hidden="true" />, disabled: markdownDisabled },
-          ]}
-        />
+        {actions}
       </div>
     </div>
   )

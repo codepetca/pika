@@ -88,6 +88,13 @@ for (const mobile of [false, true]) {
       await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
       await expect(dialog.getByRole('textbox', { name: 'Prompt', exact: true })).toContainText(questions[0].question_text)
       await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/)
+      if (mobile) {
+        const closeBounds = (await dialog.getByRole('button', { name: 'Close survey editor' }).boundingBox())!
+        const titleBounds = (await dialog.getByRole('textbox', { name: 'Title', exact: true }).boundingBox())!
+        const settingsBounds = (await dialog.getByRole('button', { name: 'Settings', exact: true }).boundingBox())!
+        expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
+        expect(settingsBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
+      }
       const capture = async (state: string) => {
         await testInfo.attach(state, { body: await dialog.screenshot({ path: testInfo.outputPath(`${state}.png`), animations: 'disabled' }), contentType: 'image/png' })
         if (mobile) {

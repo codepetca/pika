@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, ListPlus, Plus, Settings, Text, Trash2 } from 'lucide-react'
-import { CreationModalContextHeader, CreationModalTitleField, CreationModalShell } from '@/components/creation/CreationModalShell'
+import { ChevronLeft, ChevronRight, Code2, Copy, Eye, FileText, GripVertical, Link2, Plus, Settings, Text, Trash2 } from 'lucide-react'
+import { TestDocumentCard } from '@/components/assessment/TestDocumentCard'
+import { AutoGrowingTextarea } from '@/components/assessment/AutoGrowingTextarea'
+import { AuthoringModeControl } from '@/components/creation/AuthoringModeControl'
+import { CreationModalContextLabel, CreationModalTitleField, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { TeacherTestPreviewPage } from '@/components/TeacherTestPreviewPage'
 import type { ExamDocumentItem } from '@/components/ExamDocumentWorkspace'
 import { MarkdownContentEditor } from '@/components/editor'
@@ -110,6 +113,7 @@ export function TestEditSplitPattern() {
   const [references, setReferences] = useState<ReferenceDraft[]>(SAMPLE_REFERENCES)
   const [textReferenceEditor, setTextReferenceEditor] = useState<TextReferenceEditorDraft | null>(null)
   const [textReferenceError, setTextReferenceError] = useState('')
+  const [placeholderReferenceEditor, setPlaceholderReferenceEditor] = useState<ReferenceDraft | null>(null)
   const [correctOptions, setCorrectOptions] = useState(SAMPLE_QUESTION_TYPES.map(() => 0))
   const [draggingOption, setDraggingOption] = useState<number | null>(null)
   const [results, setResults] = useState('after-return')
@@ -122,7 +126,6 @@ export function TestEditSplitPattern() {
   const previewButtonRef = useRef<HTMLButtonElement>(null)
   const previewActiveRef = useRef(false)
   const previewStartedFullscreenRef = useRef<Element | null>(null)
-  const referenceHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
   const optionHandleRefs = useRef<Array<HTMLButtonElement | null>>([])
 
   useEffect(() => {
@@ -154,6 +157,7 @@ export function TestEditSplitPattern() {
     setReferences(SAMPLE_REFERENCES)
     setTextReferenceEditor(null)
     setTextReferenceError('')
+    setPlaceholderReferenceEditor(null)
     setCorrectOptions(SAMPLE_QUESTION_TYPES.map(() => 0))
     setDraggingOption(null)
     setResults('after-return')
@@ -299,17 +303,6 @@ export function TestEditSplitPattern() {
     }
     setTextReferenceEditor(null)
     setTextReferenceError('')
-    setChanged(true)
-  }
-
-  function moveReference(fromIndex: number, toIndex: number) {
-    if (fromIndex === toIndex) return
-    setReferences((current) => {
-      const next = [...current]
-      const [moved] = next.splice(fromIndex, 1)
-      next.splice(toIndex, 0, moved)
-      return next
-    })
     setChanged(true)
   }
 
@@ -514,23 +507,10 @@ export function TestEditSplitPattern() {
             data-testid="test-editor-details-pane"
             className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-3 sm:p-4 lg:overflow-y-auto"
           >
-            <CreationModalContextHeader itemType="Test" classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning" />
+            <CreationModalContextLabel itemType="Test" classroomName="Health for Life · Period 2 · Community, wellbeing and lifelong learning" />
             <CreationModalTitleField
               error={titleError}
-            >
-              <Input
-                value={title}
-                placeholder="Title"
-                onChange={(event) => {
-                  setTitle(event.target.value)
-                  setChanged(true)
-                }}
-              />
-            </CreationModalTitleField>
-
-            <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
-              <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
-                <p className="truncate text-sm font-medium leading-5 text-text-default">Reference Docs</p>
+              actions={
                 <Tooltip content="Add reference" side="left">
                   <span className="inline-flex shrink-0">
                     <SplitButton
@@ -551,113 +531,46 @@ export function TestEditSplitPattern() {
                     />
                   </span>
                 </Tooltip>
-              </div>
+              }
+            >
+              <Input
+                value={title}
+                placeholder="Title"
+                onChange={(event) => {
+                  setTitle(event.target.value)
+                  setChanged(true)
+                }}
+              />
+            </CreationModalTitleField>
+
+            <div role="group" aria-label="Reference Docs">
               {references.length > 0 ? (
-                <div className="divide-y divide-border border-t border-border">
-                  {references.map((reference, index) => (
-                    <div
+                <div className="space-y-2">
+                  {references.map((reference) => (
+                    <TestDocumentCard
                       key={reference.id}
-                      draggable={references.length > 1}
-                      onDragStart={(event) => event.dataTransfer.setData('text/plain', String(index))}
-                      onDragOver={(event) => event.preventDefault()}
-                      onDrop={(event) => {
-                        event.preventDefault()
-                        const fromIndex = Number(event.dataTransfer.getData('text/plain'))
-                        if (Number.isInteger(fromIndex)) moveReference(fromIndex, index)
+                      title={reference.label}
+                      isLink={reference.type === 'link'}
+                      canOpen={false}
+                      disabled={false}
+                      refreshDisabled
+                      onRefresh={() => {}}
+                      onEdit={() => reference.type === 'text' ? editTextReference(reference) : setPlaceholderReferenceEditor(reference)}
+                      onOpen={() => {}}
+                      onRemove={() => {
+                        setReferences((current) => current.filter((item) => item.id !== reference.id))
+                        setChanged(true)
                       }}
-                      className="grid grid-cols-[2.75rem_1.5rem_minmax(0,1fr)_2.75rem] items-center gap-1 px-1 py-1"
-                    >
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        ref={(element) => { referenceHandleRefs.current[index] = element }}
-                        className="flex h-11 w-11 cursor-grab items-center justify-center rounded text-text-muted transition-colors hover:bg-surface-hover hover:text-text-default disabled:cursor-default disabled:opacity-50"
-                        disabled={references.length < 2}
-                        aria-label={`Reorder ${reference.label}; use Up and Down arrow keys`}
-                        aria-keyshortcuts="ArrowUp ArrowDown"
-                        onKeyDown={(event) => {
-                          const nextIndex = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : index
-                          if (nextIndex === index || nextIndex < 0 || nextIndex >= references.length) return
-                          event.preventDefault()
-                          moveReference(index, nextIndex)
-                          window.requestAnimationFrame(() => referenceHandleRefs.current[nextIndex]?.focus())
-                        }}
-                      >
-                        <GripVertical className="h-4 w-4" aria-hidden="true" />
-                      </Button>
-                      <span className="flex items-center justify-center text-text-muted" aria-label={`${reference.type} reference type`}>
-                        <ReferenceIcon type={reference.type} />
-                      </span>
-                      {reference.type === 'text' ? (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="min-h-11 min-w-0 justify-start px-2 text-left"
-                          aria-label={`Edit ${reference.label}`}
-                          onClick={() => editTextReference(reference)}
-                        >
-                          <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium">{reference.label}</span>
-                            <span className="block truncate text-xs text-text-muted">{reference.content}</span>
-                          </span>
-                        </Button>
-                      ) : (
-                        <Input
-                          value={reference.label}
-                          aria-label={`${reference.type} reference label`}
-                          onChange={(event) => {
-                            setReferences((current) => current.map((item) => (
-                              item.id === reference.id ? { ...item, label: event.target.value } : item
-                            )))
-                            setChanged(true)
-                          }}
-                        />
-                      )}
-                      <Tooltip content="Remove">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-11 w-11 p-0 text-danger"
-                          aria-label={`Remove ${reference.label}`}
-                          onClick={() => {
-                            setReferences((current) => current.filter((item) => item.id !== reference.id))
-                            setChanged(true)
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" aria-hidden="true" />
-                        </Button>
-                      </Tooltip>
-                    </div>
+                    />
                   ))}
                 </div>
               ) : null}
               {references.some((reference) => reference.type !== 'text') ? (
-                <p className="border-t border-border px-3 py-2 text-xs text-text-muted">Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.</p>
+                <p className="px-3 py-2 text-xs text-text-muted">Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.</p>
               ) : null}
             </div>
 
-            <div className="rounded-md border border-border bg-surface px-3 py-2">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-sm font-medium text-text-default">Questions</p>
-                <p className="text-xs text-text-muted">{questions.length} total · {totalPoints} points</p>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant={authoringView === 'code' ? 'subtle' : 'surface'}
-              size="sm"
-              fullWidth
-              aria-pressed={authoringView === 'code'}
-              onClick={toggleAuthoringView}
-              className="justify-start"
-            >
-              <Code2 className="h-4 w-4" aria-hidden="true" />
-              Markdown
-            </Button>
+            <AuthoringModeControl ariaLabel="Test editing mode" value={authoringView === 'questions' ? 'write' : 'markdown'} onChange={(next) => { if ((next === 'write') !== (authoringView === 'questions')) toggleAuthoringView() }} />
 
             <div className="mt-1 shrink-0 lg:mt-auto">
               <div className="mb-2 grid grid-cols-2 gap-2">
@@ -772,9 +685,30 @@ export function TestEditSplitPattern() {
             ) : (
               <>
                 <div data-testid="test-question-actionbar" className="modal-question-controls-row grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]">
-                  <div className="col-start-1 row-start-2 text-xs text-text-muted lg:row-start-1 flex items-center gap-2"><SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} /><p>
-                    {isMultipleChoice ? 'Multiple choice' : 'Open response'}
-                  </p></div>
+                  <div className="col-start-1 row-start-2 flex min-w-0 items-center gap-2 lg:row-start-1">
+                    <SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} />
+                    <strong className="shrink-0 text-base text-text-default">Q{selectedQuestion}</strong>
+                    <div className="relative w-24 shrink-0">
+                      <label htmlFor="pattern-test-question-points" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</label>
+                      <Input
+                        id="pattern-test-question-points"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={points[questionIndex]}
+                        hasError={Boolean(pointsError)}
+                        aria-invalid={pointsError ? 'true' : undefined}
+                        onChange={(event) => {
+                          setPoints((current) => current.map((value, index) => index === questionIndex ? event.target.value : value))
+                          setChanged(true)
+                        }}
+                        className="w-full pl-12 pr-2 text-right"
+                      />
+                    </div>
+                    <span className="shrink-0 whitespace-nowrap text-xs text-text-muted" aria-label={`Total points: ${totalPoints}`}>
+                      / {totalPoints} total
+                    </span>
+                  </div>
                   <div role="group" aria-label="Question navigation" className="col-span-2 col-start-1 row-start-1 flex items-center justify-self-center gap-1 lg:col-span-1 lg:col-start-2">
                     <Button
                       type="button"
@@ -818,25 +752,8 @@ export function TestEditSplitPattern() {
                     </Button>
                   </div>
                   <div role="group" aria-label="Question actions" className="modal-question-controls-tail col-start-2 row-start-2 flex items-center justify-self-end gap-1 lg:col-start-3 lg:row-start-1">
-                    <div className="relative w-24 shrink-0">
-                      <label htmlFor="pattern-test-question-points" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</label>
-                      <Input
-                        id="pattern-test-question-points"
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={points[questionIndex]}
-                        hasError={Boolean(pointsError)}
-                        aria-invalid={pointsError ? 'true' : undefined}
-                        onChange={(event) => {
-                          setPoints((current) => current.map((value, index) => index === questionIndex ? event.target.value : value))
-                          setChanged(true)
-                        }}
-                        className="w-full pl-12 pr-2 text-right"
-                      />
-                    </div>
                     <TeacherWorkSurfaceIconMenuButton
-                      icon={<ListPlus className="h-5 w-5" aria-hidden="true" />}
+                      icon={<Plus className="h-5 w-5" aria-hidden="true" />}
                       ariaLabel="Question actions"
                       tooltip="Question actions"
                       menuAriaLabel="Question actions"
@@ -975,25 +892,25 @@ export function TestEditSplitPattern() {
                   </div>
                 </div>
                 <FormField label="Answer key" hint="Used for teacher and AI-assisted grading.">
-                  <textarea
+                  <AutoGrowingTextarea
                     value={answerKeys[questionIndex]}
                     aria-label="Answer key"
                     onChange={(event) => {
                       setAnswerKeys((current) => current.map((value, index) => index === questionIndex ? event.target.value : value))
                       setChanged(true)
                     }}
-                    className="min-h-24 w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="min-h-24 w-full resize-none overflow-hidden rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </FormField>
                 <FormField label="Sample solution" hint="Shown to students when the test is returned.">
-                  <textarea
+                  <AutoGrowingTextarea
                     value={sampleSolutions[questionIndex]}
                     aria-label="Sample solution"
                     onChange={(event) => {
                       setSampleSolutions((current) => current.map((value, index) => index === questionIndex ? event.target.value : value))
                       setChanged(true)
                     }}
-                    className="min-h-28 w-full resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="min-h-28 w-full resize-none overflow-hidden rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </FormField>
               </div>
@@ -1004,6 +921,20 @@ export function TestEditSplitPattern() {
           </div>
         </div>
       </CreationModalShell>
+
+      <DialogPanel isOpen={open && placeholderReferenceEditor !== null} onClose={() => setPlaceholderReferenceEditor(null)} maxWidth="max-w-lg" ariaLabelledBy="pattern-placeholder-reference-title">
+        <h4 id="pattern-placeholder-reference-title" className="text-base font-semibold text-text-default">Edit document</h4>
+        <div className="mt-4 space-y-3">
+          <FormField label="Document title" required><Input value={placeholderReferenceEditor?.label || ''} onChange={(event) => setPlaceholderReferenceEditor((current) => current ? { ...current, label: event.target.value } : null)} /></FormField>
+          <p className="text-xs text-text-muted">This reference is a Pattern Lab placeholder.</p>
+          <Button type="button" disabled={!placeholderReferenceEditor?.label.trim()} onClick={() => {
+            if (!placeholderReferenceEditor) return
+            setReferences((current) => current.map((item) => item.id === placeholderReferenceEditor.id ? placeholderReferenceEditor : item))
+            setPlaceholderReferenceEditor(null)
+            setChanged(true)
+          }}>Save changes</Button>
+        </div>
+      </DialogPanel>
 
       <DialogPanel
         isOpen={open && textReferenceEditor !== null}

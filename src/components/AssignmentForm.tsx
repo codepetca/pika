@@ -4,7 +4,8 @@ import { useEffect, useState, type ReactNode, type RefObject } from 'react'
 import { Eye } from 'lucide-react'
 import { Button, FormField, IconButton, Input } from '@/ui'
 import { MarkdownAuthoringEditor } from '@/components/editor'
-import { CreationModalContextHeader, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { AuthoringModeControl } from '@/components/creation/AuthoringModeControl'
+import { CreationModalContextLabel, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 import { DateActionBar } from '@/components/DateActionBar'
 import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
@@ -93,6 +94,7 @@ export function AssignmentForm({
         editable={!disabled}
         interactionActive={interactionActive}
         fillHeight={fillHeight}
+        showModeControl={!desktopSplit}
         statusContent={saveStatusContent}
         imageUpload={classroomId ? (file, signal) => uploadMarkdownImage(classroomId, file, signal) : undefined}
         className="rounded-control border border-border-strong"
@@ -104,13 +106,13 @@ export function AssignmentForm({
     return (
       <div
         data-testid="assignment-editor-split"
-        className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden"
+        className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden"
       >
-        <CreationModalContextHeader itemType="Assignment" classroomName={classroomName} spacious />
         <div
           data-testid="assignment-editor-details-pane"
-          className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto"
+          className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto"
         >
+          <CreationModalContextLabel itemType="Assignment" classroomName={classroomName} />
           <FormField
             className="modal-title-field"
             label="Title"
@@ -130,6 +132,7 @@ export function AssignmentForm({
             />
           </FormField>
 
+          <AuthoringModeControl ariaLabel="Instructions editing mode" value={mode === 'visual' ? 'write' : 'markdown'} onChange={(next) => setMode(next === 'write' ? 'visual' : 'markdown')} writeDisabled={disabled || !interactionActive} markdownDisabled={disabled || !interactionActive} />
           {statusContent}
           {extraFields}
           {error && <p className="text-sm text-warning">{error}</p>}
@@ -177,7 +180,7 @@ export function AssignmentForm({
 
         <div
           data-testid="assignment-editor-content-pane"
-          className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden"
+          className="flex min-h-96 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden"
         >
           {editor}
         </div>

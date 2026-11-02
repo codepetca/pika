@@ -1,6 +1,7 @@
 'use client'
 
-import { CreationModalContextHeader, CreationModalTitleField } from '@/components/creation/CreationModalShell'
+import { AuthoringModeControl } from '@/components/creation/AuthoringModeControl'
+import { CreationModalContextLabel, CreationModalTitleField } from '@/components/creation/CreationModalShell'
 
 import {
   forwardRef,
@@ -985,8 +986,8 @@ export function TeacherSurveyWorkspace({
   return (
     <div data-testid="survey-split-layout" className="relative grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
       <div data-testid="survey-editor-details-pane" className="flex min-h-0 min-w-0 flex-col bg-surface-2 lg:overflow-hidden">
-        <CreationModalContextHeader spacious itemType="Survey" classroomName={classroomName} />
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
+          <CreationModalContextLabel itemType="Survey" classroomName={classroomName} />
           <CreationModalTitleField error={titleError} actions={(
             <div className="flex items-center gap-1">
               <TeacherWorkSurfaceIconMenuButton icon={<Settings className="h-4 w-4" aria-hidden="true" />} ariaLabel="Settings" tooltip="Settings" variant="ghost" menuAriaLabel="Survey settings" menuPlacement="down" menuAlign="end" disabled={metadataDisabled} items={[
@@ -1003,6 +1004,7 @@ export function TeacherSurveyWorkspace({
 
           {error ? <p className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger" role="alert">{error}</p> : null}
           {surveyMarkdownDirty ? <p className="text-xs text-warning">Markdown edits not applied</p> : null}
+          <AuthoringModeControl ariaLabel="Survey editing mode" value={surveyEditMode === 'markdown' ? 'markdown' : 'write'} onChange={(next) => { const mode = next === 'write' ? 'edit' : 'markdown'; if (mode !== surveyEditMode) void navigate(() => { setSurveyEditMode(mode); setSurveyMarkdownError(''); setSurveyMarkdownInfo('') }) }} writeDisabled={busy || surveyMarkdownDirty} markdownDisabled={busy} />
           <div className="mt-1 shrink-0 lg:mt-auto">
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" variant={surveyEditMode === 'preview' ? 'subtle' : 'secondary'} size="sm" fullWidth disabled={busy || surveyEditMode === 'markdown'} aria-pressed={surveyEditMode === 'preview'} onClick={() => { void navigate(() => setSurveyEditMode((current) => current === 'preview' ? 'edit' : 'preview')) }}><Eye className="h-4 w-4" aria-hidden="true" />{surveyEditMode === 'preview' ? 'Back to editor' : 'Preview'}</Button>
@@ -1016,10 +1018,7 @@ export function TeacherSurveyWorkspace({
           testId="survey-question-actionbar"
           questionNumber={selectedIndex >= 0 ? selectedIndex + 1 : questions.length + 1}
           status={titleError ? 'error' : titleSaving || busy ? 'saving' : titleDirty || newQuestionDirty || surveyMarkdownDirty ? 'unsaved' : questionStatus}
-          mode={surveyEditMode === 'markdown' ? 'markdown' : 'edit'}
-          onModeChange={(mode) => { if (mode !== surveyEditMode) void navigate(() => { setSurveyEditMode(mode); setSurveyMarkdownError(''); setSurveyMarkdownInfo('') }) }}
-          writeDisabled={busy || surveyMarkdownDirty}
-          markdownDisabled={busy}
+          actions={surveyEditMode === 'edit' && <TeacherWorkSurfaceIconMenuButton icon={<Plus className="h-6 w-6" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="primary" menuPlacement="down" menuAlign="end" disabled={isReadOnly || busy || surveyMarkdownDirty || questionStatus === 'saving'} className="h-11 w-11 p-0" items={actionItems} />}
           navigation={<div role="group" aria-label="Question navigation" className="flex items-center gap-1">
             <Tooltip content="Previous question"><Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={busy || selectedIndex <= 0} onClick={() => selectQuestion(questions[selectedIndex - 1].id)} className="h-11 w-11 p-0 text-text-muted"><ChevronLeft className="h-4 w-4" aria-hidden="true" /></Button></Tooltip>
             {selectedQuestion ? <Input type="number" min="1" max={questions.length} value={numberDraft} aria-label="Question number" disabled={busy} onChange={(event) => setNumberDraft(event.target.value)} onBlur={() => {
@@ -1033,7 +1032,7 @@ export function TeacherSurveyWorkspace({
           </div>}
         />
         {showCloseButton && <DialogCloseButton label="Close survey editor" disabled={busy} onClose={() => { void closeEditor() }} className="sm:right-4 sm:top-4" />}
-        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 pb-24 sm:p-4 sm:pb-24 lg:overflow-y-auto">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
           {surveyEditMode === 'markdown' ? (
             <Card tone="panel" padding="md" className="flex min-h-96 flex-1 flex-col gap-3">
               <div className="modal-controls-row flex flex-wrap items-center justify-between gap-3">
@@ -1123,9 +1122,6 @@ export function TeacherSurveyWorkspace({
           )}
         </div>
       </div>
-      {surveyEditMode === 'edit' && <div className="absolute bottom-4 right-4 z-local-menu">
-        <TeacherWorkSurfaceIconMenuButton icon={<Plus className="h-6 w-6" aria-hidden="true" />} ariaLabel="Question actions" tooltip="Question actions" menuAriaLabel="Question actions" variant="success" menuPlacement="up" menuAlign="end" disabled={isReadOnly || busy || surveyMarkdownDirty || questionStatus === 'saving'} className="h-14 w-14 rounded-full shadow-lg" items={actionItems} />
-      </div>}
 
       <ConfirmDialog isOpen={deleteConfirmOpen} title="Delete survey?" description={`${survey.title}\n\nThis cannot be undone.`} confirmLabel={statusChanging ? 'Deleting...' : 'Delete'} cancelLabel="Cancel" confirmVariant="danger" isConfirmDisabled={statusChanging} isCancelDisabled={statusChanging} onCancel={() => (statusChanging ? null : setDeleteConfirmOpen(false))} onConfirm={() => { void deleteSurvey() }} />
     </div>

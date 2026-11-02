@@ -1,6 +1,7 @@
 'use client'
 
-import { CreationModalContextHeader, CreationModalTitleField } from '@/components/creation/CreationModalShell'
+import { AuthoringModeControl } from '@/components/creation/AuthoringModeControl'
+import { CreationModalContextLabel, CreationModalTitleField } from '@/components/creation/CreationModalShell'
 
 import {
   useCallback,
@@ -651,6 +652,11 @@ export function TestDetailPanel({
       ),
     [questions]
   )
+  const draftPoints = Number(pointsDraft)
+  const selectedSavedPoints = selectedQuestion?.points ?? (selectedQuestion?.question_type === 'open_response' ? DEFAULT_OPEN_RESPONSE_POINTS : DEFAULT_MULTIPLE_CHOICE_POINTS)
+  const displayedTotalPoints = selectedQuestion && isStructureEditable && pointsDraft.trim() && Number.isFinite(draftPoints) && draftPoints > 0
+    ? totalQuestionPoints - selectedSavedPoints + draftPoints
+    : totalQuestionPoints
   const areAllQuestionsExpanded =
     questions.length > 0 && questions.every((question) => expandedQuestionIds.includes(question.id))
   const clampedSummaryDetailMarkdownWidthPercent = useMemo(
@@ -2301,21 +2307,10 @@ export function TestDetailPanel({
   const testsSplitPanel = (
     <div data-testid="test-split-layout" className="relative grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
       <div data-testid="test-editor-details-pane" className="flex min-w-0 flex-col bg-surface-2 lg:min-h-0 lg:overflow-hidden">
-        <CreationModalContextHeader spacious itemType="Test" classroomName={classroomName} />
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
-          <CreationModalTitleField>
-            <Input
-              value={isGeneratedAssessmentTitle(editTitle) ? '' : editTitle}
-              placeholder={titleGeneratedLabel}
-              disabled={!isEditable}
-              onChange={(event) => handleTitleDraftChange(event.target.value)}
-              onBlur={() => { void handleTitleSave(editTitle) }}
-            />
-          </CreationModalTitleField>
-
-          <div role="group" aria-label="Reference Docs" className="rounded-lg border border-border-strong bg-surface">
-            <div className="flex items-center justify-between gap-3 py-1 pl-3 pr-2">
-              <p className="truncate text-sm font-medium leading-5 text-text-default">Reference Docs</p>
+          <CreationModalContextLabel itemType="Test" classroomName={classroomName} />
+          <CreationModalTitleField
+            actions={
               <TeacherWorkSurfaceIconMenuButton
                 icon={<Plus className="h-7 w-7" aria-hidden="true" />}
                 ariaLabel="Add reference"
@@ -2332,28 +2327,30 @@ export function TestDetailPanel({
                   { id: 'text', label: 'Markdown text', onSelect: () => setExternalDocumentAddRequest({ id: Date.now(), mode: 'text' }) },
                 ]}
               />
-            </div>
-            <div className={documents.length > 0 ? 'border-t border-border p-2' : 'px-2 pb-2'}>
-              <TestDocumentsEditor
-          key={documentEditorScopeKey}
-                testId={testAssessment.id}
-                documents={documents}
-                apiBasePath={apiBasePath}
-                isEditable={isEditable && !hasPendingMarkdownImport}
-                onDocumentsChange={handleDocumentsChange}
-                addButtonPlacement="none"
-                externalAddRequest={externalDocumentAddRequest}
-                onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
-              />
-            </div>
-          </div>
+            }
+          >
+            <Input
+              value={isGeneratedAssessmentTitle(editTitle) ? '' : editTitle}
+              placeholder={titleGeneratedLabel}
+              disabled={!isEditable}
+              onChange={(event) => handleTitleDraftChange(event.target.value)}
+              onBlur={() => { void handleTitleSave(editTitle) }}
+            />
+          </CreationModalTitleField>
 
-          <div className="rounded-md border border-border bg-surface px-3 py-2">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-medium text-text-default">Questions</p>
-              <p className="text-xs text-text-muted">{questions.length} total · {totalQuestionPoints} points</p>
-            </div>
-          </div>
+          <TestDocumentsEditor
+            key={documentEditorScopeKey}
+            testId={testAssessment.id}
+            documents={documents}
+            apiBasePath={apiBasePath}
+            isEditable={isEditable && !hasPendingMarkdownImport}
+            onDocumentsChange={handleDocumentsChange}
+            addButtonPlacement="none"
+            externalAddRequest={externalDocumentAddRequest}
+            onExternalAddRequestHandled={() => setExternalDocumentAddRequest(null)}
+          />
+
+          <AuthoringModeControl ariaLabel="Test editing mode" value={splitView === 'edit' ? 'write' : 'markdown'} onChange={(next) => { if ((next === 'write' ? 'edit' : 'markdown') !== splitView) toggleSplitMarkdown() }} writeDisabled={hasPendingMarkdownImport || markdownSaving} markdownDisabled={markdownSaving} />
 
           <div className="mt-1 shrink-0 lg:mt-auto">
             {publicationError ? <p role="alert" className="mb-2 text-sm text-danger">{publicationError}</p> : null}
@@ -2412,31 +2409,59 @@ export function TestDetailPanel({
           testId="test-question-actionbar"
           questionNumber={selectedQuestionIndex + 1}
           status={markdownSaving ? 'saving' : hasPendingMarkdownImport ? 'unsaved' : saveStatus}
-          mode={splitView}
-          onModeChange={(mode) => { if (mode !== splitView) toggleSplitMarkdown() }}
-          writeDisabled={hasPendingMarkdownImport || markdownSaving}
-          markdownDisabled={markdownSaving}
           points={selectedQuestion ? (
-            <div className="relative w-24 shrink-0">
-              <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</span>
-              <FormField label="Points" hideLabel collapseHiddenLabel>
-              <Input
-                id="test-split-question-points"
-                type="number"
-                min="1"
-                step="1"
-                value={pointsDraft}
-                disabled={!isStructureEditable || splitView === 'markdown'}
-                aria-invalid={Boolean(pointsError)}
-                aria-describedby={pointsError ? 'test-split-points-error' : undefined}
-                onChange={(event) => setPointsDraft(event.target.value)}
-                onBlur={applySplitPoints}
-                onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitPoints() } }}
-                className="w-full pl-12 pr-2 text-right"
-              />
-              </FormField>
+            <div className="flex min-w-0 items-center gap-2">
+              <div className="relative w-24 shrink-0">
+                <span aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-xs text-text-muted">Points</span>
+                <FormField label="Points" hideLabel collapseHiddenLabel>
+                  <Input
+                    id="test-split-question-points"
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={pointsDraft}
+                    disabled={!isStructureEditable || splitView === 'markdown'}
+                    aria-invalid={Boolean(pointsError)}
+                    aria-describedby={pointsError ? 'test-split-points-error' : undefined}
+                    onChange={(event) => setPointsDraft(event.target.value)}
+                    onBlur={applySplitPoints}
+                    onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); applySplitPoints() } }}
+                    className="w-full pl-12 pr-2 text-right"
+                  />
+                </FormField>
+              </div>
+              <span className="shrink-0 whitespace-nowrap text-xs text-text-muted" aria-label={`Total points: ${displayedTotalPoints}`}>
+                / {displayedTotalPoints} total
+              </span>
             </div>
           ) : null}
+          actions={splitView === 'edit' && <div>
+                  <TeacherWorkSurfaceIconMenuButton
+                    key={documentEditorScopeKey}
+                    exitMotion="opacity"
+                    interactionActive={documentsOwnerKey === documentEditorScopeKey && !loading && !isClosing && !isPreparingPublish && !openingTestPreview}
+                    icon={<Plus className="h-6 w-6" aria-hidden="true" />}
+                    ariaLabel="Question actions"
+                    tooltip="Question actions"
+                    disabled={hasPendingMarkdownImport || markdownSaving}
+                    menuAriaLabel="Question actions"
+                    variant="primary"
+                    menuPlacement="down"
+                    menuAlign="end"
+                    className="h-11 w-11 p-0"
+                    items={[
+                      { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('multiple_choice') },
+                      { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('open_response') },
+                      ...(selectedQuestion?.question_type === 'open_response' ? [{ id: 'code-response', label: 'Code response', icon: <Code2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, checked: selectedQuestion.response_monospace === true, checkedRole: 'menuitemcheckbox' as const, disabled: !isStructureEditable, onSelect: () => {
+                        if (!flushSplitEditor()) return
+                        const latestQuestion = pendingDraftRef.current?.questions.find((question) => question.id === selectedQuestion.id) ?? selectedQuestion
+                        handleQuestionChange({ ...latestQuestion, response_monospace: !latestQuestion.response_monospace })
+                      } }] : []),
+                      { id: 'duplicate', label: 'Duplicate question', icon: <Copy className="h-4 w-4" aria-hidden="true" />, dividerBefore: selectedQuestion?.question_type !== 'open_response', disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (!selectedQuestion || !flushSplitEditor()) return; handleDuplicateQuestion(selectedQuestion.id); setSelectedQuestionIndex(selectedQuestionIndex + 1) } },
+                      { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (selectedQuestion) handleQuestionDelete(selectedQuestion.id) } },
+                    ]}
+                  />
+                </div>}
           navigation={<div role="group" aria-label="Question navigation" className="flex items-center gap-1">
             <Button type="button" variant="ghost" size="sm" aria-label="Previous question" disabled={selectedQuestionIndex <= 0} onClick={() => selectSplitQuestion(selectedQuestionIndex - 1)} className="h-11 w-11 p-0 text-text-muted">
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
@@ -2468,7 +2493,7 @@ export function TestDetailPanel({
         ) : (
           <>
             {pointsError ? <p id="test-split-points-error" role="alert" className="text-sm text-danger">{pointsError}</p> : null}
-            <div className="min-h-0 flex-1 space-y-3 p-3 pb-24 sm:p-4 sm:pb-24 lg:overflow-y-auto">
+            <div className="min-h-0 flex-1 space-y-3 p-3 sm:p-4 lg:overflow-y-auto">
               {selectedQuestion ? (
                 <TestQuestionEditor
                   ref={splitQuestionEditorRef}
@@ -2490,33 +2515,7 @@ export function TestDetailPanel({
           </>
         )}
       </div>
-      {splitView === 'edit' && <div className="absolute bottom-4 right-4 z-local-menu">
-        <TeacherWorkSurfaceIconMenuButton
-          key={documentEditorScopeKey}
-          exitMotion="opacity"
-          interactionActive={documentsOwnerKey === documentEditorScopeKey && !loading && !isClosing && !isPreparingPublish && !openingTestPreview}
-          icon={<Plus className="h-6 w-6" aria-hidden="true" />}
-          ariaLabel="Question actions"
-          tooltip="Question actions"
-          disabled={hasPendingMarkdownImport || markdownSaving}
-          menuAriaLabel="Question actions"
-          variant="success"
-          menuPlacement="up"
-          menuAlign="end"
-          className="h-14 w-14 rounded-full shadow-lg"
-          items={[
-            { id: 'mc', label: 'Add multiple-choice question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('multiple_choice') },
-            { id: 'open', label: 'Add open-response question', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: !isStructureEditable || hasPendingMarkdownImport, onSelect: () => addSplitQuestion('open_response') },
-            ...(selectedQuestion?.question_type === 'open_response' ? [{ id: 'code-response', label: 'Code response', icon: <Code2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, checked: selectedQuestion.response_monospace === true, checkedRole: 'menuitemcheckbox' as const, disabled: !isStructureEditable, onSelect: () => {
-              if (!flushSplitEditor()) return
-              const latestQuestion = pendingDraftRef.current?.questions.find((question) => question.id === selectedQuestion.id) ?? selectedQuestion
-              handleQuestionChange({ ...latestQuestion, response_monospace: !latestQuestion.response_monospace })
-            } }] : []),
-            { id: 'duplicate', label: 'Duplicate question', icon: <Copy className="h-4 w-4" aria-hidden="true" />, dividerBefore: selectedQuestion?.question_type !== 'open_response', disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (!selectedQuestion || !flushSplitEditor()) return; handleDuplicateQuestion(selectedQuestion.id); setSelectedQuestionIndex(selectedQuestionIndex + 1) } },
-            { id: 'delete', label: 'Delete question', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, disabled: !selectedQuestion || !isStructureEditable, onSelect: () => { if (selectedQuestion) handleQuestionDelete(selectedQuestion.id) } },
-          ]}
-        />
-      </div>}
+
     </div>
   )
 

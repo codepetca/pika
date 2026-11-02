@@ -127,10 +127,7 @@ for (const role of ['teacher', 'student'] as const) {
     expect(Math.abs(closeBounds.y - dialogBounds.y - inset)).toBeLessThanOrEqual(1)
     expect(Math.abs(dialogBounds.x + dialogBounds.width - closeBounds.x - closeBounds.width - inset)).toBeLessThanOrEqual(1)
     const assignmentModes = dialog.getByRole('group', { name: 'Instructions editing mode' })
-    if (info.project.metadata.viewport === 'desktop') {
-      const modes = (await assignmentModes.boundingBox())!
-      expect(Math.abs(modes.y + modes.height / 2 - closeBounds.y - closeBounds.height / 2)).toBeLessThanOrEqual(2)
-    }
+    await expect(dialog.getByTestId('assignment-editor-details-pane')).toContainText('Markdown')
     await assignmentModes.getByRole('button', { name: 'Markdown' }).click()
     await dialog.getByRole('textbox', { name: 'Instructions Markdown', exact: true }).fill(source)
     await capture('teacher-assignment-markdown')
@@ -346,10 +343,12 @@ test('prototypes survey editing with accessible split panes and local authoring 
   await expect(content.getByRole('textbox', { name: 'Question 1 option E' })).toHaveValue('')
   await expectNoOverflow()
   if (testInfo.project.metadata.viewport === 'mobile') {
-    const panel = (await dialog.boundingBox())!, context = (await details.locator('.modal-context-row').boundingBox())!
+    const contextLabel = details.getByTitle('Survey · Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+    await contextLabel.scrollIntoViewIfNeeded()
+    const panel = (await dialog.boundingBox())!, context = (await contextLabel.boundingBox())!
     expect(context.y).toBeGreaterThanOrEqual(panel.y)
     const corner = (await dialog.getByRole('button', { name: 'Close survey edit prototype' }).boundingBox())!
-    const classroom = (await details.locator('.modal-context-row [title]').boundingBox())!
+    const classroom = context
     expect(classroom.x + classroom.width).toBeLessThanOrEqual(corner.x - 4)
   }
   await capture('survey-edit-multiple-choice')
@@ -809,29 +808,15 @@ for (const role of ['teacher', 'student'] as const) {
 }
 
 async function expectEditorContext(dialog: Locator, itemType: string, testInfo: TestInfo) {
-  const context = dialog.locator('.modal-context-row')
-  await expect(context.getByText(itemType, { exact: true })).toBeVisible()
-  const classroom = context.locator('[title]')
-  await expect(classroom).toHaveAttribute('title', 'Health for Life · Period 2 · Community, wellbeing and lifelong learning')
-  await expect(classroom).toHaveText('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
-  expect(await classroom.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
-  expect(await classroom.evaluate(element => getComputedStyle(element).maskImage)).toContain('linear-gradient')
+  const context = dialog.getByTitle(`${itemType} · Health for Life · Period 2 · Community, wellbeing and lifelong learning`)
+  await expect(context).toBeVisible()
   const contextBounds = (await context.boundingBox())!
   const titleBounds = (await dialog.getByRole('textbox', { name: 'Title', exact: true }).boundingBox())!
-  expect(titleBounds.y).toBeGreaterThanOrEqual(contextBounds.y + contextBounds.height + 10)
+  expect(titleBounds.y).toBeGreaterThanOrEqual(contextBounds.y + contextBounds.height)
   const closeBounds = (await dialog.locator('[data-dialog-close]').boundingBox())!
-  const panelBounds = (await dialog.boundingBox())!
-  expect(closeBounds.y - panelBounds.y).toBeLessThanOrEqual(17)
-  if (testInfo.project.metadata.viewport === 'desktop' && ['Assignment', 'Material'].includes(itemType)) {
-    const controls = (await dialog.locator('.modal-controls-row').first().boundingBox())!
-    expect(Math.abs(closeBounds.y + closeBounds.height / 2 - controls.y - controls.height / 2)).toBeLessThanOrEqual(2)
-  }
   if (testInfo.project.metadata.viewport === 'mobile') {
-    const classroomBounds = (await classroom.boundingBox())!
-    // The classroom fade leaves visual space while its box ends at the close slot.
-    expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual(closeBounds.x)
-    // The second-row input can use the full details width below the corner X.
-    expect(titleBounds.y).toBeGreaterThan(closeBounds.y + closeBounds.height)
+    expect(contextBounds.x + contextBounds.width).toBeLessThanOrEqual(closeBounds.x)
+    expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
   }
 }
 
@@ -1075,15 +1060,12 @@ test.describe('teacher Pattern Lab', () => {
     const contentBounds = (await contentPane.boundingBox())!
     const save = (await status.boundingBox())!
     const dismiss = (await close.boundingBox())!
-    const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
-    expect(Math.abs(detailsBounds.y - contextBounds.y - contextBounds.height)).toBeLessThanOrEqual(1)
     expect(dismiss.y + dismiss.height <= save.y || dismiss.x >= save.x + save.width).toBe(true)
     expect(dismiss.width).toBeGreaterThanOrEqual(44)
     expect(dismiss.height).toBeGreaterThanOrEqual(44)
     if (testInfo.project.metadata.viewport === 'desktop') {
       expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
-      const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
-      expect(Math.abs(contentBounds.y - contextBounds.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThanOrEqual(1)
       expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
       const actionsBounds = (await primaryActions.boundingBox())!
       const detailsPaddingBottom = await detailsPane.evaluate((element) => parseFloat(getComputedStyle(element).paddingBottom))
@@ -1174,21 +1156,16 @@ test.describe('teacher Pattern Lab', () => {
 
     const modalFrame = (await dialog.boundingBox())!, xBounds = (await close.boundingBox())!
     if (testInfo.project.metadata.viewport === 'desktop') {
-      const modeBounds = (await contentPane.getByRole('group', { name: 'Instructions editing mode' }).boundingBox())!
-      expect(Math.abs(xBounds.y + xBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
-      const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
-      expect(Math.abs(contextBounds.y + contextBounds.height / 2 - modeBounds.y - modeBounds.height / 2)).toBeLessThanOrEqual(2)
+      const modeBounds = (await detailsPane.getByRole('group', { name: 'Instructions editing mode' }).boundingBox())!
       expect(modeBounds.x + modeBounds.width).toBeLessThanOrEqual(xBounds.x - 4)
     } else {
-      const classroomBounds = (await dialog.locator('.modal-context-row [title]').boundingBox())!
+      const classroomBounds = (await dialog.getByTitle('Assignment · Health for Life · Period 2 · Community, wellbeing and lifelong learning').boundingBox())!
       expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual(xBounds.x)
     }
     expect(xBounds.y - modalFrame.y).toBeLessThanOrEqual(17)
     await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Field observations')
     await expect(contentPane.locator('[role="status"][aria-live="polite"]')).toHaveText('Saved')
     await expect(close).toBeVisible()
-    const contextHeaderBounds = (await dialog.locator('.modal-context-row').boundingBox())!
-    expect(Math.abs((await detailsPane.boundingBox())!.y - contextHeaderBounds.y - contextHeaderBounds.height)).toBeLessThanOrEqual(1)
     await expect(detailsPane.getByRole('button', { name: 'Preview', exact: true })).toBeVisible()
     await expect(detailsPane.getByRole('button', { name: 'Tue Sep 1' })).toBeVisible()
     await expect(detailsPane.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
@@ -1201,8 +1178,7 @@ test.describe('teacher Pattern Lab', () => {
     const toolbarBounds = (await toolbar.boundingBox())!
     if (testInfo.project.metadata.viewport === 'desktop') {
       expect(contentBounds.x).toBeGreaterThanOrEqual(detailsBounds.x + detailsBounds.width - 1)
-      const contextBounds = (await dialog.locator('.modal-context-row').boundingBox())!
-      expect(Math.abs(contentBounds.y - contextBounds.y)).toBeLessThanOrEqual(1)
+      expect(Math.abs(contentBounds.y - detailsBounds.y)).toBeLessThanOrEqual(1)
       expect(contentBounds.width).toBeGreaterThan(detailsBounds.width)
       expect(toolbarBounds.x).toBeGreaterThanOrEqual(contentBounds.x)
       expect(toolbarBounds.y).toBeGreaterThanOrEqual(contentBounds.y)
@@ -1234,7 +1210,9 @@ test.describe('teacher Pattern Lab', () => {
     const primaryActionBounds = (await primaryActions.boundingBox())!
     expect(Math.abs(primaryActionBounds.y + primaryActionBounds.height - (detailsBoundsAfterLayout.y + detailsBoundsAfterLayout.height - detailsPaddingBottom))).toBeLessThanOrEqual(2)
     expect(Math.abs(previewBounds.x - primaryActionBounds.x)).toBeLessThanOrEqual(1)
-    expect(Math.abs(previewBounds.width - primaryActionBounds.width)).toBeLessThanOrEqual(1)
+    const settingsBounds = (await detailsPane.getByRole('button', { name: 'Settings', exact: true }).boundingBox())!
+    expect(Math.abs(previewBounds.width - settingsBounds.width)).toBeLessThanOrEqual(1)
+    expect(Math.abs(settingsBounds.x + settingsBounds.width - primaryActionBounds.x - primaryActionBounds.width)).toBeLessThanOrEqual(1)
     const dateBounds = (await primaryActions.getByRole('button', { name: 'Tue Sep 1' }).boundingBox())!
     const postControlBounds = (await primaryActions.getByRole('button', { name: 'Post', exact: true }).locator('..').boundingBox())!
     expect(Math.abs(dateBounds.width - postControlBounds.width)).toBeLessThanOrEqual(2)
@@ -1256,8 +1234,15 @@ test.describe('teacher Pattern Lab', () => {
     await openPatternLab(page, testInfo, 'teacher')
     await page.getByRole('button', { name: 'Open test edit prototype' }).click()
     const dialog = page.getByRole('dialog', { name: 'Edit Test', exact: true })
-    await expectEditorContext(dialog, 'Test', testInfo)
     const detailsPane = dialog.getByTestId('test-editor-details-pane')
+    const context = detailsPane.getByTitle('Test · Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+    await expect(context).toBeVisible()
+    expect((await context.boundingBox())!.y).toBeLessThan((await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!.y)
+    if (testInfo.project.metadata.viewport === 'mobile') {
+      const titleBounds = (await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!
+      const closeBounds = (await dialog.getByRole('button', { name: 'Close test edit prototype' }).boundingBox())!
+      expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
+    }
     const contentPane = dialog.getByTestId('test-editor-content-pane')
     const actionbar = contentPane.getByTestId('test-question-actionbar')
     const questionNavigation = contentPane.getByRole('group', { name: 'Question navigation' })
@@ -1289,25 +1274,21 @@ test.describe('teacher Pattern Lab', () => {
     await expect(settings).toBeFocused()
     const references = detailsPane.getByRole('group', { name: 'Reference Docs' })
     await expect(references.getByRole('button', { name: 'Edit Wetland field notes' })).toBeVisible()
-    const addReference = references.getByRole('button', { name: 'Add reference' })
+    const addReference = detailsPane.getByRole('button', { name: 'Add reference' })
     await addReference.click()
     await expect(page.getByRole('menuitem', { name: 'Link' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'PDF' })).toBeVisible()
     await expect(page.getByRole('menuitem', { name: 'Text' })).toBeVisible()
     await page.getByRole('menuitem', { name: 'Link' }).click()
-    await expect(references.getByRole('textbox', { name: 'link reference label' })).toHaveValue('Link reference 2')
+    await expect(references.getByText('Link reference 2', { exact: true })).toBeVisible()
+    await expect(references.getByRole('button', { name: 'Refresh Link reference 2' })).toBeDisabled()
+    await expect(references.getByRole('button', { name: 'Open Link reference 2' })).toBeDisabled()
     await expect(references.getByRole('button', { name: 'Remove Link reference 2' })).toBeVisible()
-    const referenceHandle = references.getByRole('button', { name: /Reorder Wetland field notes/ })
-    await referenceHandle.focus()
-    await referenceHandle.press('ArrowDown')
-    await expect(references.locator('[draggable]').first().getByRole('textbox', { name: 'link reference label' })).toBeVisible()
-    await expect(referenceHandle).toBeFocused()
-    await referenceHandle.press('ArrowUp')
-    await expect(references.locator('[draggable]').first().getByRole('button', { name: 'Edit Wetland field notes' })).toBeVisible()
+    await expect(references.getByRole('button', { name: 'Open Wetland field notes' })).toBeDisabled()
     await addReference.click()
     await page.getByRole('menuitem', { name: 'PDF' }).click()
     await expect(references.getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
-    await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
+    await expect(actionbar.getByLabel('Total points: 22')).toBeVisible()
     const questionActions = actionbar.getByRole('button', { name: 'Question actions' })
     await questionActions.click()
     await expect(page.getByRole('menuitem', { name: 'Add multiple-choice question' })).toBeVisible()
@@ -1326,6 +1307,12 @@ test.describe('teacher Pattern Lab', () => {
     await expect(toolbar).toBeVisible()
     await expect(editor).toContainText('Which observation best supports')
     await expect(contentPane.getByRole('spinbutton', { name: 'Points' })).toHaveValue('1')
+    await expect(detailsPane.getByText('Questions', { exact: true })).toHaveCount(0)
+    const pointsInput = contentPane.getByRole('spinbutton', { name: 'Points' })
+    await pointsInput.fill('2')
+    await expect(actionbar.getByLabel('Total points: 23')).toBeVisible()
+    await pointsInput.fill('1')
+    await expect(actionbar.getByLabel('Total points: 22')).toBeVisible()
     const questionNumber = contentPane.getByRole('spinbutton', { name: 'Question number' })
     await expect(questionNumber).toHaveValue('1')
     await expect(contentPane.getByRole('button', { name: 'Previous question' })).toBeDisabled()
@@ -1398,9 +1385,10 @@ test.describe('teacher Pattern Lab', () => {
     } else {
       expect(contentBounds.y).toBeGreaterThanOrEqual(detailsBounds.y + detailsBounds.height - 1)
       expect(Math.abs(contentBounds.x - detailsBounds.x)).toBeLessThan(1)
-      const contextBounds = (await detailsPane.locator('.modal-context-row').boundingBox())!
+      await context.scrollIntoViewIfNeeded()
+      const contextBounds = (await context.boundingBox())!
       expect(contextBounds.y).toBeGreaterThanOrEqual((await dialog.boundingBox())!.y)
-      const classroomBounds = (await detailsPane.locator('.modal-context-row [title]').boundingBox())!
+      const classroomBounds = contextBounds
       expect(classroomBounds.x + classroomBounds.width).toBeLessThanOrEqual((await close.boundingBox())!.x - 4)
     }
 
@@ -1439,13 +1427,13 @@ test.describe('teacher Pattern Lab', () => {
 
     await questionActions.click()
     await page.getByRole('menuitem', { name: 'Duplicate question' }).click()
-    await expect(detailsPane.getByText('9 total · 23 points')).toBeVisible()
+    await expect(actionbar.getByLabel('Total points: 23')).toBeVisible()
     await expect(questionNumber).toHaveValue('2')
-    await expect(contentPane.getByText('Multiple choice', { exact: true })).toBeVisible()
+    await expect(actionbar.getByText('Q2', { exact: true })).toBeVisible()
     await expect(contentPane.getByRole('textbox', { name: 'Question 2 prompt' })).toContainText('(copy)')
     await questionActions.click()
     await page.getByRole('menuitem', { name: 'Delete question' }).click()
-    await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
+    await expect(actionbar.getByLabel('Total points: 22')).toBeVisible()
     await questionNumber.fill('1')
     await questionNumber.press('Enter')
 
@@ -1470,7 +1458,7 @@ test.describe('teacher Pattern Lab', () => {
     await markdownEditor.fill(originalMarkdown)
     await contentPane.getByRole('button', { name: 'Apply Markdown' }).click()
     await expect(detailsPane.getByRole('textbox', { name: 'Title' })).toHaveValue('Wetland field study')
-    await codeMode.click()
+    await detailsPane.getByRole('button', { name: 'Write', exact: true }).click()
 
     await editor.fill('Updated wetland question.')
     await expect(dialog.locator('[role="status"][aria-live="polite"]')).toHaveText('Unsaved')
@@ -1522,12 +1510,12 @@ test.describe('teacher Pattern Lab', () => {
 
     await questionActions.click()
     await page.getByRole('menuitem', { name: 'Add open-response question' }).click()
-    await expect(detailsPane.getByText('9 total · 27 points')).toBeVisible()
+    await expect(actionbar.getByLabel('Total points: 27')).toBeVisible()
     await expect(questionNumber).toHaveValue('9')
-    await expect(contentPane.getByText('Open response', { exact: true })).toBeVisible()
+    await expect(actionbar.getByText('Q9', { exact: true })).toBeVisible()
     await questionActions.click()
     await page.getByRole('menuitem', { name: 'Delete question' }).click()
-    await expect(detailsPane.getByText('8 total · 22 points')).toBeVisible()
+    await expect(actionbar.getByLabel('Total points: 22')).toBeVisible()
 
     const titleInput = detailsPane.getByRole('textbox', { name: 'Title' })
     await titleInput.fill('')
@@ -1546,7 +1534,7 @@ test.describe('teacher Pattern Lab', () => {
     const testDialog = page.getByRole('dialog', { name: 'Edit Test', exact: true })
     const details = testDialog.getByTestId('test-editor-details-pane')
     const references = details.getByRole('group', { name: 'Reference Docs' })
-    await references.getByRole('button', { name: 'Add reference' }).click()
+    await details.getByRole('button', { name: 'Add reference' }).click()
     await page.getByRole('menuitem', { name: 'Text' }).click()
     const documentDialog = page.getByRole('dialog', { name: 'Add Document' })
     await expect(documentDialog.getByRole('textbox', { name: 'Document title' })).toBeFocused()
@@ -1564,7 +1552,7 @@ test.describe('teacher Pattern Lab', () => {
     await documentDialog.getByRole('button', { name: 'Add text' }).click()
     await expect(documentDialog).toBeHidden()
     const editReference = references.getByRole('button', { name: 'Edit Wetland notes' })
-    await expect(editReference).toContainText('Count native species')
+    await expect(references.getByText('Wetland notes', { exact: true })).toBeVisible()
     await editReference.click()
     const editDialog = page.getByRole('dialog', { name: 'Edit document' })
     await expect(editDialog.getByRole('textbox', { name: 'Document title' })).toHaveValue('Wetland notes')
@@ -1575,7 +1563,7 @@ test.describe('teacher Pattern Lab', () => {
     await expect(editDialog.getByRole('textbox', { name: 'Document text' })).toContainText('Record water depth')
     await editDialog.getByRole('textbox', { name: 'Document text' }).fill('## Field notes\n### Document 2\n- Count native species\n- Record water temperature')
     await editDialog.getByRole('button', { name: 'Save' }).click()
-    await expect(editReference).toContainText('Record water temperature')
+    await expect(editReference).toBeVisible()
     await testInfo.attach('test-text-reference-list', {
       body: await testDialog.screenshot({ path: testInfo.outputPath('test-text-reference-list.png'), animations: 'disabled' }),
       contentType: 'image/png',
@@ -1586,7 +1574,7 @@ test.describe('teacher Pattern Lab', () => {
     await markdown.fill((await markdown.inputValue()).replace('Title: Wetland field study', 'Title: Wetland field study revised'))
     await testDialog.getByRole('button', { name: 'Apply Markdown' }).click()
     await expect(details.getByRole('textbox', { name: 'Title' })).toHaveValue('Wetland field study revised')
-    await details.getByRole('button', { name: 'Markdown', exact: true }).click()
+    await details.getByRole('button', { name: 'Write', exact: true }).click()
     await details.getByRole('button', { name: 'Preview', exact: true }).click()
     const preview = page.getByRole('region', { name: 'Teacher test preview' })
     const documentsPane = preview.getByRole('region', { name: 'Test documents' })

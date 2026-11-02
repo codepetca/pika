@@ -1053,7 +1053,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
                   onPrimaryClick={() => {
                     void handleTriggerPrimaryAction()
                   }}
-                  variant={effectivePrimaryAction === 'post' ? 'success' : 'primary'}
+                  variant="primary"
                   size="md"
                   disabled={creating || releasing || saving || !currentAssignment}
                   className="w-full shadow-sm"

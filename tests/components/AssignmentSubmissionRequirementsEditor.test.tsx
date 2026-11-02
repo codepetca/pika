@@ -76,6 +76,7 @@ describe('AssignmentSubmissionRequirementsEditor', () => {
 
     const group = screen.getByRole('group', { name: 'Submission Requirement' })
     const addRequirement = within(group).getByRole('button', { name: 'Add submission requirement' })
+    expect(addRequirement).toHaveClass('bg-primary-solid')
     expect(within(group).getAllByRole('button')).toEqual([addRequirement])
 
     fireEvent.click(addRequirement)
