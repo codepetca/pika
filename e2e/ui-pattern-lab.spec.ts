@@ -816,6 +816,7 @@ async function expectEditorContext(dialog: Locator, itemType: string, testInfo: 
   const closeBounds = (await dialog.locator('[data-dialog-close]').boundingBox())!
   if (testInfo.project.metadata.viewport === 'mobile') {
     expect(contextBounds.x + contextBounds.width).toBeLessThanOrEqual(closeBounds.x)
+    expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
   }
 }
 
@@ -1237,6 +1238,11 @@ test.describe('teacher Pattern Lab', () => {
     const context = detailsPane.getByTitle('Test · Health for Life · Period 2 · Community, wellbeing and lifelong learning')
     await expect(context).toBeVisible()
     expect((await context.boundingBox())!.y).toBeLessThan((await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!.y)
+    if (testInfo.project.metadata.viewport === 'mobile') {
+      const titleBounds = (await detailsPane.getByRole('textbox', { name: 'Title' }).boundingBox())!
+      const closeBounds = (await dialog.getByRole('button', { name: 'Close test edit prototype' }).boundingBox())!
+      expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
+    }
     const contentPane = dialog.getByTestId('test-editor-content-pane')
     const actionbar = contentPane.getByTestId('test-question-actionbar')
     const questionNavigation = contentPane.getByRole('group', { name: 'Question navigation' })

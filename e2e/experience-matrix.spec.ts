@@ -2982,6 +2982,14 @@ test('shows publication language only at the publish transition', async ({ page 
   await expect(authoringDialog.getByRole('button', { name: 'Publish' })).toBeVisible()
   await expect(authoringDialog.getByText('Ready to publish?', { exact: true })).toBeVisible()
   await expect(authoringDialog.getByTestId('test-editor-details-pane').getByText('Questions', { exact: true })).toHaveCount(0)
+  if (viewport === 'mobile') {
+    const details = authoringDialog.getByTestId('test-editor-details-pane')
+    const titleBounds = (await details.getByRole('textbox', { name: 'Title' }).boundingBox())!
+    const referenceBounds = (await details.getByRole('button', { name: 'Add reference' }).boundingBox())!
+    const closeBounds = (await authoringDialog.getByRole('button', { name: 'Close test editor' }).boundingBox())!
+    expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
+    expect(referenceBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
+  }
   const points = authoringDialog.getByTestId('test-question-actionbar')
   await expect(points.getByRole('spinbutton', { name: 'Points' })).toHaveValue('1')
   await expect(points.getByLabel('Total points: 1')).toBeVisible()

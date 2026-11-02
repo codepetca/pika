@@ -163,7 +163,7 @@ export function CreationModalContextLabel({ itemType, classroomName }: {
   classroomName?: string
 }) {
   const label = classroomName ? `${itemType} · ${classroomName}` : itemType
-  return <p className="mr-12 truncate text-sm text-text-muted lg:mr-0" title={label}>{label}</p>
+  return <p className="mr-12 flex min-h-11 min-w-0 items-center text-sm text-text-muted lg:mr-0 lg:min-h-0" title={label}><span className="truncate">{label}</span></p>
 }
 
 /** An accessible title input and its settings share the existing controls' height. */

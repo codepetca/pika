@@ -2,9 +2,16 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { CreationModalContextHeader, CreationModalShell, CreationModalTitleField, CreationModalTopRow } from '@/components/creation/CreationModalShell'
+import { CreationModalContextHeader, CreationModalContextLabel, CreationModalShell, CreationModalTitleField, CreationModalTopRow } from '@/components/creation/CreationModalShell'
 
 describe('CreationModalShell', () => {
+  it('keeps the full compact context available and reserves the mobile close target', () => {
+    const label = 'Test · Health for Life · Period 2'
+    render(<CreationModalContextLabel itemType="Test" classroomName="Health for Life · Period 2" />)
+    expect(screen.getByTitle(label)).toHaveTextContent(label)
+    expect(screen.getByTitle(label)).toHaveClass('min-h-11')
+  })
+
   it('retains the complete classroom name and supports an item without classroom context', () => {
     const classroomName = 'Health for Life · Period 2 · Community, wellbeing and lifelong learning'
     const { rerender } = render(<CreationModalContextHeader itemType="Material" classroomName={classroomName} />)
