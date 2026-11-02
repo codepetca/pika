@@ -12,6 +12,7 @@ import {
 } from '@/lib/events'
 
 const realGradesOwner = vi.hoisted(() => ({ enabled: false }))
+const realSurveyCache = vi.hoisted(() => ({ enabled: false }))
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
@@ -262,7 +263,7 @@ vi.mock('@/lib/request-cache', async (importOriginal) => {
       ? actual.fetchJSONWithCache(...args) : mockFetchJSONWithCache(...args),
     invalidateCachedJSON: (key: string) => realGradesOwner.enabled && key.startsWith('student-grades:')
       ? actual.invalidateCachedJSON(key) : mockInvalidateCachedJSON(key),
-    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
+    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => (realGradesOwner.enabled && args[0].startsWith('student-grades:')) || (realSurveyCache.enabled && args[0].includes('-surveys:'))
       ? actual.prefetchJSON(...args) : mockPrefetchJSON(...args),
   }
 })
@@ -539,6 +540,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
   beforeEach(() => {
     realGradesOwner.enabled = false
+    realSurveyCache.enabled = false
     retainedAnnouncementsOwner.enabled = false
     mockTeacherAnnouncementsTabProps.mockClear()
     window.localStorage.clear()
@@ -1407,8 +1409,65 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     await new Promise((resolve) => setTimeout(resolve, 400))
 
     expect(
-      mockPrefetchJSON.mock.calls.some(([key]) => String(key).includes('assignments')),
+      mockPrefetchJSON.mock.calls.some(([key]) => String(key).includes('assignments') || String(key).includes('-surveys:')),
     ).toBe(false)
+  })
+
+  it.each(['teacher', 'student'] as const)('prefetches %s surveys on Classwork intent but not idle', async (role) => {
+    if (role === 'teacher') renderClient({ initialTab: 'daily' })
+    else renderStudentClient({ initialTab: 'today' })
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(mockPrefetchJSON.mock.calls.some(([key]) => String(key).includes('-surveys:'))).toBe(false)
+
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Classwork' }))
+    const prefetch = mockPrefetchJSON.mock.calls.find(([key]) => key === `${role}-surveys:classroom-1`)
+    expect(prefetch?.[2]).toBe(20_000)
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"surveys":[]}'))
+    try {
+      await expect(prefetch![1]()).resolves.toEqual({ surveys: [] })
+      expect(fetchSpy).toHaveBeenCalledWith(`/api/${role}/surveys?classroom_id=classroom-1`)
+    } finally {
+      fetchSpy.mockRestore()
+    }
+  })
+
+  it.each([{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }])('skips survey intent on constrained connections: %o', (connection) => {
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: connection })
+    try {
+      renderStudentClient({ initialTab: 'today' })
+      fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Classwork' }))
+      expect(mockPrefetchJSON.mock.calls.some(([key]) => String(key).includes('-surveys:'))).toBe(false)
+    } finally {
+      delete (navigator as Navigator & { connection?: unknown }).connection
+    }
+  })
+
+  it('deduplicates repeated survey intent with an active Classwork read', async () => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    const key = 'student-surveys:classroom-1'
+    cache.invalidateCachedJSON(key)
+    realSurveyCache.enabled = true
+    let resolveSurvey!: (response: Response) => void
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => String(url).includes('/api/student/surveys?')
+      ? new Promise<Response>(resolve => { resolveSurvey = resolve })
+      : Promise.resolve(new Response('{}')))
+    const view = renderStudentClient({ initialTab: 'today' })
+    try {
+      const button = screen.getByRole('button', { name: 'Go Classwork' })
+      fireEvent.mouseEnter(button)
+      fireEvent.focus(button)
+      const activeFetcher = vi.fn(async () => ({ surveys: [{ id: 'unexpected' }] }))
+      const activeRead = cache.fetchJSONWithCache(key, activeFetcher, 20_000)
+      await act(async () => { resolveSurvey(new Response('{"surveys":[{"id":"survey-1"}]}')) })
+      await expect(activeRead).resolves.toEqual({ surveys: [{ id: 'survey-1' }] })
+      expect(activeFetcher).not.toHaveBeenCalled()
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/student/surveys?'))).toHaveLength(1)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      realSurveyCache.enabled = false
+      cache.invalidateCachedJSON(key)
+    }
   })
 
   it('falls back from the legacy quizzes tab to the default student tab', async () => {

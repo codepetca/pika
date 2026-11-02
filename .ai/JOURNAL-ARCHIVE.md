@@ -50621,3 +50621,18 @@ using CLI2.103.0's query. Home rollback/recovery and real two-session contention
 pass; generated types and canonical-preservation checks retained. Required local
 focused checks, targeted review and exact-head PR Gate remain merge prerequisites.
 No shared/prod migration or provider activation; Analyze OFF.
+
+<!-- pika-session-log-archive-batch:68f8d24678634ff9e0f30690001d7171448e4782b71cebba5f1802c845914131 -->
+## 2026-10-24 — RepoLight legacy archive inventory correction
+
+Owner approved one additional proof-only fix batch and ninth targeted review,
+then exact-head CI and conditional main merge. The legacy archive check now
+counts RepoLight's three resources/revision triggers when its table family is
+installed, matching the existing archive-v2 compatibility condition. Strict
+inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
+Owned offline293 replay passes the actual archive lifecycle, compaction/races,
+Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
+clone setup; no shared mutation. Home recovery/contention, warning lint across
+569functions, generated types and canonical aggregate fingerprints pass.
+Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
+review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.

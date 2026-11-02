@@ -541,7 +541,7 @@ export function TeacherLessonCalendarTab({
         const data = await fetchCachedJSON<{ tests?: TestAssessment[] }>(
           `teacher-tests:${requestedClassroomId}`,
           `/api/teacher/tests?classroom_id=${requestedClassroomId}`,
-          { errorMessage: 'Failed to load tests', ttlMs: 20_000 },
+          { errorMessage: 'Failed to load tests', ttlMs: 0 },
         )
         if (!isCurrentLoad()) return
         setTests(data.tests || [])

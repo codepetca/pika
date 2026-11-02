@@ -132,6 +132,73 @@ describe('TestDetailPanel', () => {
     return fetchMock
   }
 
+  it('starts results alongside detail after the draft and ignores stale responses', async () => {
+    const pending = new Map<string, ReturnType<typeof createDeferred<Response>>>()
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      const response = createDeferred<Response>()
+      pending.set(url, response)
+      return response.promise
+    })
+    const stats = { total_students: 1, responded: 1, questions_count: 0 }
+    const first = makeTestWithStats({ id: 'first', stats })
+    const second = makeTestWithStats({ id: 'second', stats })
+    const view = render(<TestDetailPanel test={first} classroomId={first.classroom_id} onTestUpdate={vi.fn()} />)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/teacher/tests/first/draft'])
+    await act(async () => {
+      pending.get('/api/teacher/tests/first/draft')!.resolve(jsonResponse({ draft: { version: 1, content: { questions: [] } } }))
+    })
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/teacher/tests/first/draft', '/api/teacher/tests/first', '/api/teacher/tests/first/results',
+    ])
+    view.rerender(<TestDetailPanel test={second} classroomId={second.classroom_id} onTestUpdate={vi.fn()} />)
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      '/api/teacher/tests/first/draft', '/api/teacher/tests/first', '/api/teacher/tests/first/results', '/api/teacher/tests/second/draft',
+    ])
+    await act(async () => {
+      pending.get('/api/teacher/tests/second/draft')!.resolve(jsonResponse({ draft: { version: 1, content: { questions: [createMockTestQuestion({ id: 'current-q', question_text: 'Current question' })] } } }))
+    })
+    expect(fetchMock.mock.calls.map(([url]) => url).slice(-2)).toEqual(['/api/teacher/tests/second', '/api/teacher/tests/second/results'])
+    await act(async () => {
+      pending.get('/api/teacher/tests/second')!.resolve(jsonResponse({ test: { documents: [] } }))
+      pending.get('/api/teacher/tests/second/results')!.resolve(jsonResponse({ results: [] }))
+    })
+    expect(await screen.findByText('Current question')).toBeInTheDocument()
+    await act(async () => {
+      pending.get('/api/teacher/tests/first')!.resolve(jsonResponse({ test: { documents: [] } }))
+      pending.get('/api/teacher/tests/first/results')!.resolve(jsonResponse({ results: [] }))
+    })
+    expect(screen.getByText('Current question')).toBeInTheDocument()
+  })
+
+  it('skips results without responses', async () => {
+    const draft = createDeferred<Response>()
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => url.endsWith('/draft') ? draft.promise : Promise.resolve(jsonResponse({ test: { documents: [] } })))
+    const test = makeTestWithStats({ id: 'no-results' })
+    render(<TestDetailPanel test={test} classroomId={test.classroom_id} onTestUpdate={vi.fn()} />)
+    await act(async () => { draft.resolve(jsonResponse({ draft: { version: 1, content: { questions: [] } } })) })
+    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(['/api/teacher/tests/no-results/draft', '/api/teacher/tests/no-results'])
+  })
+
+  it('handles results rejecting while detail is pending', async () => {
+    const detail = createDeferred<Response>()
+    const results = createDeferred<Response>()
+    const fetchMock = global.fetch as unknown as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation((url: string) => {
+      if (url.endsWith('/draft')) return Promise.resolve(jsonResponse({ draft: { version: 1, content: { questions: [] } } }))
+      return url.endsWith('/results') ? results.promise : detail.promise
+    })
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const test = makeTestWithStats({ id: 'failure', stats: { total_students: 1, responded: 1, questions_count: 0 } })
+    render(<TestDetailPanel test={test} classroomId={test.classroom_id} onTestUpdate={vi.fn()} />)
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/failure'))
+    await act(async () => { results.reject(new Error('Results unavailable')) })
+    await act(async () => { detail.resolve(jsonResponse({ test: { documents: [] } })) })
+    expect(await screen.findByText('Results unavailable')).toBeInTheDocument()
+    expect(errorLog).toHaveBeenCalled()
+  })
+
   it('replaces the standalone date field with the publication menu in the split editor', async () => {
     const test = makeTestWithStats({ status: 'draft' })
     mockFetchForTest(sampleQuestions)
@@ -638,6 +705,7 @@ describe('TestDetailPanel', () => {
     fetchMock.mockImplementation((url: string) => {
       if (url.endsWith('/api/teacher/tests/test-stale/draft')) return staleDraft.promise
       if (url.endsWith('/api/teacher/tests/test-current/draft')) return currentDraft.promise
+      if (url.endsWith('/api/teacher/tests/test-stale') || url.endsWith('/api/teacher/tests/test-current')) return Promise.resolve(jsonResponse({ test: { documents: [] } }))
       throw new Error(`Unexpected fetch: ${url}`)
     })
 
