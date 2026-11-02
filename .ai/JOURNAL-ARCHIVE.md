@@ -50636,3 +50636,23 @@ clone setup; no shared mutation. Home recovery/contention, warning lint across
 569functions, generated types and canonical aggregate fingerprints pass.
 Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
 review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
+
+<!-- pika-session-log-archive-batch:f94638ce9328d3ab1fdc75250527f3c93be8141fce1e4d9ad5c5df3d8bbf4735 -->
+## 2026-10-25 — Refresh the grading inspector after Return
+
+The dedicated-account manual canary exposed a stale revision after a successful
+Return. Refresh the open learner inspector only when the acknowledgement marks
+that learner returned/already returned, before awaiting list refresh. Existing
+read fences, dirty-form handling and revision-conflict refusal remain intact.
+RED component regression reproduced unchanged inspector; focused owner/controller
+141 checks pass. Synthetic real-parent/controller browser flow saves and sends
+with the refreshed revision without document reload; teacher/student desktop/
+mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
+comment into view; existing learner recovery coverage is unchanged. Two initial
+driver failures (modal accessibility scope, then same-document navigation counted
+as reload) are retained; corrected semantic/time-origin checks pass unchanged
+app code. CI browser inventory retains all prior cases and adds this scenario.
+Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
+normal reload recovery; this automatic-refresh fix still requires review/CI/main
+merge and separately authorized compatible release. Same3cohort/schema/plans and
+provider holds remain, with no production action or live-provider call.

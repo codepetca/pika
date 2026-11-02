@@ -131,7 +131,7 @@ export function useClassDays(classroomId: string): ClassDay[] {
   const hasContext = context !== null
 
   // Fallback state for when not wrapped in provider
-  const [fallbackClassDays, setFallbackClassDays] = useState<ClassDay[]>([])
+  const [fallbackSnapshot, setFallbackSnapshot] = useState<{ classroomId: string; classDays: ClassDay[] } | null>(null)
 
   useEffect(() => {
     // Skip fetching if we have context - provider handles it
@@ -150,7 +150,7 @@ export function useClassDays(classroomId: string): ClassDay[] {
         }
         const nextClassDays = await fetchClassDaysForClassroom(classroomId)
         if (isActive && currentLoadSequence === loadSequence) {
-          setFallbackClassDays(nextClassDays)
+          setFallbackSnapshot({ classroomId, classDays: nextClassDays })
         }
       } catch (err) {
         if (isActive && currentLoadSequence === loadSequence) {
@@ -174,5 +174,5 @@ export function useClassDays(classroomId: string): ClassDay[] {
   }, [classroomId, hasContext])
 
   // Return context data if available, otherwise fallback
-  return hasContext ? context.classDays : fallbackClassDays
+  return hasContext ? context.classDays : fallbackSnapshot?.classroomId === classroomId ? fallbackSnapshot.classDays : []
 }

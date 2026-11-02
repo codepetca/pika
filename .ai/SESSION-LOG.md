@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — Refresh the grading inspector after Return
-
-The dedicated-account manual canary exposed a stale revision after a successful
-Return. Refresh the open learner inspector only when the acknowledgement marks
-that learner returned/already returned, before awaiting list refresh. Existing
-read fences, dirty-form handling and revision-conflict refusal remain intact.
-RED component regression reproduced unchanged inspector; focused owner/controller
-141 checks pass. Synthetic real-parent/controller browser flow saves and sends
-with the refreshed revision without document reload; teacher/student desktop/
-mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
-comment into view; existing learner recovery coverage is unchanged. Two initial
-driver failures (modal accessibility scope, then same-document navigation counted
-as reload) are retained; corrected semantic/time-origin checks pass unchanged
-app code. CI browser inventory retains all prior cases and adds this scenario.
-Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
-normal reload recovery; this automatic-refresh fix still requires review/CI/main
-merge and separately authorized compatible release. Same3cohort/schema/plans and
-provider holds remain, with no production action or live-provider call.
-
 ## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
 
 Owner explicitly overrode task workflow review-budget/low-usage stops through
@@ -443,3 +424,7 @@ Prepared default-off verified-account admission, an explicit existing-session re
 ## 2026-11-02 — Classroom responsiveness in progress
 
 Approved responsiveness plan; worktree `codex/site-responsiveness` at base ebe91cab. Teacher Test detail/results overlap only after draft succeeds; Classwork surveys prefetch on intent; teacher/student Calendar Tests reads keep in-flight dedup but no settled cache. Controlled synthetic probes: Test editor median 724→531 ms with 200 ms mocked reads (8 samples); Classwork hover teacher 497→117 ms and student 431→88 ms with 400 ms survey delay (4 samples), no idle survey requests. Not production evidence. Focused component tests pass; browser matrix and full checks/review remain in progress. Probe receipts under `/tmp/pika-responsiveness-probe.bGoLmS` and `/tmp/pika-classwork-probe.zesg5l`. Do not prefetch Tests until mutation invalidation races are resolved. Goal tracker remained blocked after approval; app controls resume status.
+
+## 2026-11-02 — Teacher Classwork cold loading
+
+PR1718 merged to main as 0507966c; exact-head CI passed on retry after one unrelated UiGallery timeout. In `codex/classwork-cold-load`, teacher Classwork reuses the classroom class-days provider without blocking its three-list snapshot; the standalone fallback hides another classroom's schedule immediately. Paired synthetic browser probe holding class-days 500ms: median list readiness 545→37ms (5 samples/version), one request per source; no production latency claim. Focused component/context tests pass 105. UI matrix, focused checks and independent review pending. Evidence: `/tmp/pika-classdays-paired.0haTTl`.
