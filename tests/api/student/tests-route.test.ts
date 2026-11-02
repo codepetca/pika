@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/student/tests/route'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 
 vi.mock('@/lib/supabase', () => ({
@@ -27,6 +28,101 @@ const mockSupabaseClient = { from: vi.fn() }
 describe('GET /api/student/tests', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+  })
+
+  it('starts both status reads before either finishes', async () => {
+    const pending: Record<string, (value: unknown) => void> = {}
+    const starts: string[] = []
+    mockSupabaseClient.from = vi.fn(() => {
+      let status = ''
+      const builder: any = {
+        select: () => builder,
+        eq: (column: string, value: string) => { if (column === 'status') status = value; return builder },
+        order: () => builder,
+        then: (resolve: (value: unknown) => void) => { starts.push(status); pending[status] = resolve },
+      }
+      return builder
+    })
+    const request = GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    await vi.waitFor(() => expect(starts).toEqual(['active', 'closed']))
+    pending.closed({ data: [], error: null })
+    pending.active({ data: [], error: null })
+    expect((await request).status).toBe(200)
+    expect(mockSupabaseClient.from).toHaveBeenCalledTimes(2)
+  })
+
+  it('does not read tests when classroom access is denied', async () => {
+    vi.mocked(assertStudentCanAccessClassroom).mockResolvedValueOnce({ ok: false, error: 'Forbidden', status: 403 } as any)
+    const response = await GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(403)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('prioritizes the active migration response over a rejected closed read', async () => {
+    mockSupabaseClient.from = vi.fn(() => {
+      let status = ''
+      const builder: any = {
+        select: () => builder,
+        eq: (column: string, value: string) => { if (column === 'status') status = value; return builder },
+        order: () => builder,
+        then: (resolve: (value: unknown) => void, reject: (reason: unknown) => void) => {
+          if (status === 'active') resolve({ data: null, error: { code: 'PGRST205' } })
+          else reject(new Error('closed read failed'))
+        },
+      }
+      return builder
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ tests: [], migration_required: true })
+  })
+
+  it('returns the active failure without waiting for a stalled closed read', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = vi.fn(() => {
+      let status = ''
+      const builder: any = {
+        select: () => builder,
+        eq: (column: string, value: string) => { if (column === 'status') status = value; return builder },
+        order: () => builder,
+        then: (resolve: (value: unknown) => void) => {
+          if (status === 'active') resolve({ data: null, error: privateDiagnosticError })
+        },
+      }
+      return builder
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(500)
+    expectContentFreeDiagnostic(log.mock.calls, 'test.student_list_active')
+    log.mockRestore()
+  })
+
+  it('handles an active thenable rejection without waiting for the closed read', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockSupabaseClient.from = vi.fn(() => {
+      let status = ''
+      const builder: any = { select: () => builder,
+        eq: (column: string, value: string) => { if (column === 'status') status = value; return builder },
+        order: () => builder,
+        then: () => { if (status === 'active') throw new Error('active thenable failed') },
+      }
+      return builder
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(500)
+    log.mockRestore()
+  })
+
+  it('handles a synchronous closed builder failure after an active migration response', async () => {
+    let calls = 0
+    mockSupabaseClient.from = vi.fn(() => {
+      if (++calls === 2) throw new Error('closed builder failed')
+      const builder: any = { select: () => builder, eq: () => builder, order: () => builder,
+        then: (resolve: (value: unknown) => void) => resolve({ data: null, error: { code: 'PGRST205' } }) }
+      return builder
+    })
+    const response = await GET(new NextRequest('http://localhost/api/student/tests?classroom_id=classroom-1'))
+    expect(await response.json()).toEqual({ tests: [], migration_required: true })
   })
 
   it('returns 500 instead of a partial list when reading closed tests fails', async () => {

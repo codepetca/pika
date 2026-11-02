@@ -135,6 +135,15 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
 
   const supabase = getServiceRoleClient()
 
+  // Observe roster failures immediately, but preserve tests-read error precedence.
+  // Promise.resolve also safely assimilates a rejecting thenable.
+  const rosterRead = Promise.resolve()
+    .then(() => getClassroomStudentIds(supabase, classroomId))
+    .then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => ({ ok: false as const, error }),
+    )
+
   const { data: tests, error: testsError } = await supabase
     .from('tests')
     .select('*')
@@ -150,7 +159,9 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
-  const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)
+  const rosterOutcome = await rosterRead
+  if (!rosterOutcome.ok) throw rosterOutcome.error
+  const classroomStudentsResult = rosterOutcome.value
   if (classroomStudentsResult.error) {
     logServerError('test.list_enrollments', classroomStudentsResult.error)
     return NextResponse.json({ error: 'Failed to fetch classroom enrollments' }, { status: 500 })
