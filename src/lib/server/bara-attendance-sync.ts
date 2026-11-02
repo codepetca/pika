@@ -320,6 +320,24 @@ export async function syncTeacherAttendanceSources(input: {
       })
     }
   }
+  // Definitions and day selections participate in the source token checked by
+  // staging. A concurrent edit therefore rejects this snapshot instead of
+  // publishing a mixture of revisions.
+  const [assignmentResult, definitionResult] = await Promise.all([
+    input.supabase.from('attendance_day_schedules').select('class_date, schedule_id')
+      .eq('classroom_id', input.classroomId).gte('class_date', input.windowStart).lte('class_date', windowEnd),
+    input.supabase.from('attendance_named_schedules').select('id, policy').eq('classroom_id', input.classroomId),
+  ])
+  if (assignmentResult.error || definitionResult.error) throw new BaraAttendanceSyncError('migration_required')
+  const assignmentRows = z.array(z.object({ class_date: z.string().date(), schedule_id: z.string().uuid() }).strict()).safeParse(assignmentResult.data)
+  const definitionRows = z.array(z.object({ id: z.string().uuid(), policy: z.object({
+    session_starts_local: z.string(), session_ends_local: z.string(), session_end_day_offset: z.union([z.literal(0), z.literal(1)]),
+    entry_opens_minutes_before: z.number(), present_grace_minutes: z.number(),
+    entry_closes_minutes_before_end: z.number(), absent_minutes_before_end: z.number(),
+  }).strict() }).strict()).safeParse(definitionResult.data)
+  if (!assignmentRows.success || !definitionRows.success) throw new BaraAttendanceSyncError('invalid_source')
+  const assignmentByDate = new Map(assignmentRows.data.map(row => [row.class_date, row.schedule_id]))
+  const definitionsById = new Map(definitionRows.data.map(row => [row.id, row.policy]))
   const materializedSchedule = materializeBaraAttendanceSchedule({
     installationRef,
     rosterRef: prepared.data.roster_ref,
@@ -343,6 +361,19 @@ export async function syncTeacherAttendanceSources(input: {
       date: classDay.date,
       isClassDay: prepared.data.policy.enabled && classDay.is_class_day,
       occurrenceRef: classDay.occurrence_ref ?? 'occurrence_inactive',
+      policy: (() => {
+        const scheduleId = assignmentByDate.get(classDay.date)
+        if (!scheduleId) return undefined
+        const selected = definitionsById.get(scheduleId)
+        if (!selected) throw new BaraAttendanceSyncError('invalid_source')
+        return {
+          timezone: prepared.data.policy.timezone,
+          sessionStartsAtLocal: selected.session_starts_local, sessionEndsAtLocal: selected.session_ends_local,
+          sessionEndDayOffset: selected.session_end_day_offset, entryOpensMinutesBefore: selected.entry_opens_minutes_before,
+          presentGraceMinutes: selected.present_grace_minutes, entryClosesMinutesBeforeEnd: selected.entry_closes_minutes_before_end,
+          absentMinutesBeforeEnd: selected.absent_minutes_before_end, policyRevision: prepared.data.policy.policy_revision,
+        }
+      })(),
       frozenCutoffs: classDay.occurrence_ref
         ? cutoffsByRef.get(classDay.occurrence_ref)
         : undefined,

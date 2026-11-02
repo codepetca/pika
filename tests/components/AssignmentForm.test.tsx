@@ -7,6 +7,14 @@ import { SaveStatus, TooltipProvider } from '@/ui'
 // AssignmentModal composes this form and retires controls through interactionActive;
 // these focused modal/mode and keyboard checks cover that inherited contract.
 describe('AssignmentForm', () => {
+  it('places settings beside preview in the split editor', () => {
+    render(<AssignmentForm desktopSplit title="Essay" instructionsMarkdown="" dueAt=""
+      onTitleChange={vi.fn()} onInstructionsMarkdownChange={vi.fn()} onDueAtChange={vi.fn()}
+      onPreviewInstructions={vi.fn()} settingsAction={<button>Settings</button>} />)
+    expect(screen.getByRole('button', { name: 'Preview' }).parentElement)
+      .toContainElement(screen.getByRole('button', { name: 'Settings' }))
+  })
+
   it('keeps mode selection and panel dismissal separate in a compact modal', () => {
     const onClose = vi.fn(), onChange = vi.fn()
     render(<CreationModalShell isOpen title="Edit Assignment" titleId="compact-assignment" closeLabel="Close assignment" onClose={onClose}>

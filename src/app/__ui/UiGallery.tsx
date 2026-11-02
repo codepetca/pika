@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/AppHeader'
 import { AssignmentRepoLightPattern } from './AssignmentRepoLightPattern'
 import { RepositoryReportCleanupPattern } from './RepositoryReportCleanupPattern'
 import { ClassroomsReadRecoveryPattern } from './ClassroomsReadRecoveryPattern'
+import { ClassroomAdmissionOfferPattern } from './ClassroomAdmissionOfferPattern'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
@@ -686,6 +687,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
         <SettingsSwitchMotionPattern />
         <TooltipAdoptionPattern role={role} />
         <ClassroomsReadRecoveryPattern role={role} />
+        <ClassroomAdmissionOfferPattern role={role} />
         <PatternSection
           id="dialog-entry-preview"
           eyebrow="Experimental · dialog entry"

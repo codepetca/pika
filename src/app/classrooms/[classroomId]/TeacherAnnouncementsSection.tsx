@@ -913,8 +913,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
             className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
             placeholder="Write an announcement..."
           />
-          <FormField label="Calendar date (Toronto)" error={!validNewPostDate ? 'Choose a valid date.' : undefined}
-            hint="Places this announcement on the calendar. Post makes it available now; Schedule delays release.">
+          <FormField label="Calendar date (Toronto)" error={!validNewPostDate ? 'Choose a valid date.' : undefined}>
             <Input type="date" value={newPostDate} min="0001-01-01" disabled={saving}
               onChange={event => setNewPostDate(event.target.value)} />
           </FormField>
@@ -1076,8 +1075,7 @@ export function TeacherAnnouncementsSection({ classroom, className, isActive = t
                       rows={6}
                       className="max-h-[50vh] min-h-[10rem] w-full resize-y overflow-y-auto rounded-md border border-border bg-surface-2 px-3 py-2 text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                     />
-                      <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}
-                        hint="Places this announcement on the calendar. Post makes it available now; Schedule delays release.">
+                      <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}>
                         <Input type="date" value={editPostDate} min="0001-01-01"
                           disabled={saving} onChange={(event) => setEditPostDate(event.target.value)} />
                       </FormField>

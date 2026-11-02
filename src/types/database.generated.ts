@@ -1603,6 +1603,39 @@ export type Database = {
           },
         ]
       }
+      attendance_day_schedules: {
+        Row: {
+          class_date: string
+          classroom_id: string
+          schedule_id: string
+        }
+        Insert: {
+          class_date: string
+          classroom_id: string
+          schedule_id: string
+        }
+        Update: {
+          class_date?: string
+          classroom_id?: string
+          schedule_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_day_schedules_classroom_id_class_date_fkey"
+            columns: ["classroom_id", "class_date"]
+            isOneToOne: true
+            referencedRelation: "class_days"
+            referencedColumns: ["classroom_id", "date"]
+          },
+          {
+            foreignKeyName: "attendance_day_schedules_classroom_id_schedule_id_fkey"
+            columns: ["classroom_id", "schedule_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_named_schedules"
+            referencedColumns: ["classroom_id", "id"]
+          },
+        ]
+      }
       attendance_decommission_operations: {
         Row: {
           actor_principal_ref: string
@@ -1888,6 +1921,35 @@ export type Database = {
             columns: ["teacher_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_named_schedules: {
+        Row: {
+          classroom_id: string
+          id: string
+          name: string
+          policy: Json
+        }
+        Insert: {
+          classroom_id: string
+          id?: string
+          name: string
+          policy: Json
+        }
+        Update: {
+          classroom_id?: string
+          id?: string
+          name?: string
+          policy?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_named_schedules_classroom_id_fkey"
+            columns: ["classroom_id"]
+            isOneToOne: false
+            referencedRelation: "classrooms"
             referencedColumns: ["id"]
           },
         ]
@@ -11940,6 +12002,10 @@ export type Database = {
         Args: { p_items: Json }
         Returns: Json
       }
+      ensure_verified_classroom_admission_v1: {
+        Args: { p_actor_id: string; p_bootstrap_manifest_sha256: string }
+        Returns: Json
+      }
       fail_assignment_ai_grading_item_and_release_usage_with_lease_v1: {
         Args: {
           p_attempt_count: number
@@ -12851,6 +12917,19 @@ export type Database = {
         Args: { p_actor_id: string; p_classroom_id: string; p_cutoff: string }
         Returns: Json
       }
+      mutate_attendance_schedule_v1: {
+        Args: {
+          p_classroom_id: string
+          p_command: string
+          p_date: string
+          p_expected_revision: number
+          p_name: string
+          p_policy: Json
+          p_schedule_id: string
+          p_teacher_id: string
+        }
+        Returns: Json
+      }
       mutate_gradebook_for_owner_v1: {
         Args: {
           p_action: string
@@ -13128,6 +13207,17 @@ export type Database = {
         Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
+      read_attendance_schedules_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_canary_actor_id?: string
+          p_canary_classroom_id?: string
+          p_classroom_id: string
+          p_date: string
+          p_scope_mode: string
+        }
+        Returns: Json
+      }
       read_attendance_session_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -13195,6 +13285,10 @@ export type Database = {
       }
       read_repolight_purge_cleanup_subjects_v1: {
         Args: { p_actor_id: string; p_operation_id: string }
+        Returns: Json
+      }
+      read_verified_classroom_auto_admission_eligibility_v1: {
+        Args: { p_actor_id: string; p_bootstrap_manifest_sha256: string }
         Returns: Json
       }
       reconcile_managed_storage_json_references: {
@@ -14192,6 +14286,10 @@ export type Database = {
           p_valid_from: string
           p_valid_until: string
         }
+        Returns: Json
+      }
+      set_classroom_auto_admission_enabled_v1: {
+        Args: { p_enabled: boolean }
         Returns: Json
       }
       set_classroom_calendar_day_v1: {

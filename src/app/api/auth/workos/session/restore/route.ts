@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAuth } from '@workos-inc/authkit-nextjs'
 import { createSession } from '@/lib/auth'
+import { tryEnsureVerifiedClassroomAdmission } from '@/lib/server/verified-classroom-auto-admission'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { findLinkedPikaUserFromWorkOS } from '@/lib/server/workos-identity'
 import { requireWorkOSMagicAuthPilot, safePikaPath } from '@/lib/server/workos-pilot'
@@ -24,6 +25,8 @@ export const POST = withErrorHandler('RestoreWorkOSSession', async (request: Nex
     workosUserId: workosUser.id,
     recordAuthenticationEvent: false,
   })
+
+  await tryEnsureVerifiedClassroomAdmission(pikaUser.id)
 
   return NextResponse.json(
     { redirectUrl: safePikaPath(input.next) },

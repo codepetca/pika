@@ -5,12 +5,12 @@ import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION, CLASSROOM_ADMISSION_RE
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 
-const current = loadAssignmentListReviewedMigrations(process.cwd())
+const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 296)
 const sha256 = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
 describe('inactive classroom admission294 exact reviewed source profile', () => {
   it('seals the final source and four literal whole-row catalog tables', () => {
-    expect(current).toHaveLength(295)
+    expect(current).toHaveLength(296)
     expect(current[293]).toMatchObject(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION)
     expect(sha256(current[293].sql)).toBe(CLASSROOM_ADMISSION_REGISTRY_REVIEWED_MIGRATION.sha256)
     expect([...current[293].sql.matchAll(/^create table (private\.[a-z_]+)/gm)].map(match => match[1]).sort())
@@ -32,8 +32,8 @@ describe('inactive classroom admission294 exact reviewed source profile', () => 
     expect(() => validateClassroomAdmissionRegistryReviewedMigration(candidate)).toThrow()
     expect(() => validateLifecycleServicesReviewedMigrations([...current.slice(0,293),candidate])).toThrow()
   })
-  it('rejects an unknown contiguous296 extension without widening the closed profile', () => {
+  it('rejects an unknown contiguous297 extension without widening the closed profile', () => {
     const sql = 'select 1;'
-    expect(() => validateLifecycleServicesReviewedMigrations([...current,{name:'296_unknown.sql',sql,sha256:sha256(sql)}])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...current,{name:'297_unknown.sql',sql,sha256:sha256(sql)}])).toThrow()
   })
 })

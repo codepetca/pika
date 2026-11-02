@@ -24,6 +24,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     testQuestionLayout,
     initialSplitView,
     onRequestClose,
+    onRequestDelete,
     onRequestPublish,
     onRequestUnpublish,
     canUnpublish,
@@ -37,6 +38,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     testQuestionLayout?: string
     initialSplitView?: string
     onRequestClose?: () => void
+    onRequestDelete?: () => void
     onRequestPublish?: () => void
     onRequestUnpublish?: () => void
     canUnpublish?: boolean
@@ -51,6 +53,7 @@ vi.mock('@/components/TestDetailPanel', () => ({
     onDraftFlushReady?.(draftFlush)
     onDraftPristineCheckReady?.(draftPristineCheck)
     return <div data-classroom-name={classroomName} data-testid="test-authoring-detail" data-question-layout={testQuestionLayout} data-editor-view={initialSplitView}>
+      {onRequestDelete && <button onClick={onRequestDelete}>Mock delete</button>}
       <button onClick={onRequestClose} disabled={isClosing}>{isClosing ? 'Saving...' : 'Close'}</button>
       {assessment.status === 'draft' && <button onClick={onRequestPublish}>Publish</button>}
       {onRequestUnpublish && <button onClick={onRequestUnpublish} disabled={!canUnpublish}>Unpublish</button>}
@@ -320,6 +323,6 @@ describe('TeacherTestAuthoringDialog', () => {
 it('requests deletion from the test editor', () => {
   const onRequestDelete = vi.fn()
   renderDialog({ onRequestDelete })
-  fireEvent.click(screen.getByRole('button', { name: 'Delete test' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Mock delete' }))
   expect(onRequestDelete).toHaveBeenCalledOnce()
 })

@@ -54,6 +54,12 @@ export function isClassroomExperienceRegistryConfigured(): boolean {
   return configuredSource()?.version === 2
 }
 
+/** Strictly parse the same registry selector used by classroom admission reads. */
+export function classroomExperienceRegistryBootstrapManifest(): string | null {
+  const configuration = configuredSource()
+  return configuration?.version === 2 ? configuration.bootstrapManifestSha256 : null
+}
+
 function configuredSource(): z.infer<typeof admissionConfigSchema> | undefined {
   const raw = process.env[admissionVariable]
   if (raw === undefined) return undefined

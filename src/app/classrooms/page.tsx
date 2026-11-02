@@ -11,7 +11,9 @@ import { AppShell } from '@/components/AppShell'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from './StudentClassroomsIndex'
 import { isContextualClassroomHomeAdmitted, loadContextualClassroomHome } from '@/lib/server/contextual-classroom-home'
-import { resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { isClassroomExperienceRegistryConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { canRequestVerifiedClassroomAdmission, isVerifiedClassroomAutoAdmissionEnabled } from '@/lib/server/verified-classroom-auto-admission'
+import { ClassroomAdmissionOffer, ClassroomAdmissionOfferUnavailable } from './ClassroomAdmissionOffer'
 import { readClassroomHomeVisibility } from '@/lib/server/classroom-home-visibility'
 import { loadClassroomHomeCreationAccess } from '@/lib/server/classroom-home-creation'
 import type { ClassroomHomePresentation } from '@/lib/contracts/classroom-home'
@@ -29,7 +31,8 @@ export default async function ClassroomsIndexPage() {
 
   const supabase = getServiceRoleClient()
 
-  if ((await isContextualClassroomHomeAdmitted(user))
+  const contextualHomeAdmitted = await isContextualClassroomHomeAdmitted(user)
+  if (contextualHomeAdmitted
     && (await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
     const displayInfo = await getUserDisplayInfo(user, supabase)
     let initialClassrooms: Classroom[] = []
@@ -62,6 +65,22 @@ export default async function ClassroomsIndexPage() {
     )
   }
 
+  // Advisory display only; the explicit POST rechecks verified identity, exclusion
+  // and both policy switches atomically. Existing contextual users never see it.
+  let admissionOffer: 'eligible' | 'unavailable' | null = null
+  if (isVerifiedClassroomAutoAdmissionEnabled()
+    && process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED === 'true'
+    && isClassroomExperienceRegistryConfigured()) {
+    try {
+      if (await canRequestVerifiedClassroomAdmission(user.id)) admissionOffer = 'eligible'
+    } catch {
+      admissionOffer = 'unavailable'
+    }
+  }
+  const offer = admissionOffer === 'eligible'
+    ? <ClassroomAdmissionOffer density={user.role} />
+    : admissionOffer === 'unavailable' ? <ClassroomAdmissionOfferUnavailable density={user.role} /> : null
+
   if (user.role === 'teacher') {
     const [{ data: classrooms, error }, displayInfo] = await Promise.all([
       listActiveTeacherClassrooms(supabase, user.id),
@@ -70,6 +89,7 @@ export default async function ClassroomsIndexPage() {
 
     return (
       <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+        {offer}
         <TeacherClassroomsIndex
           initialClassrooms={error ? [] : hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
           initialReadError={Boolean(error)}
@@ -91,6 +111,7 @@ export default async function ClassroomsIndexPage() {
   if (enrollmentError) {
     return (
       <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+        {offer}
         <StudentClassroomsIndex initialClassrooms={[]} initialReadError studentId={user.id} />
       </AppShell>
     )
@@ -101,6 +122,7 @@ export default async function ClassroomsIndexPage() {
   if (classroomIds.length === 0) {
     return (
       <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+        {offer}
         <StudentClassroomsIndex initialClassrooms={[]} studentId={user.id} />
         {palAvailable ? <StudentPalAmbientSurfaces scopeKey="classrooms-index" /> : null}
       </AppShell>
@@ -116,6 +138,7 @@ export default async function ClassroomsIndexPage() {
 
   return (
     <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }}>
+      {offer}
       <StudentClassroomsIndex
         initialClassrooms={classroomError ? [] : hydrateClassroomRecords((classrooms || []).map(classroomStudentRecord))}
         initialReadError={Boolean(classroomError)}

@@ -65,12 +65,15 @@ const prepared = {
   ],
 }
 
-function client(rpc: ReturnType<typeof vi.fn>, rows: unknown[] = []) {
-  const lte = vi.fn().mockResolvedValue({ data: rows, error: null })
-  const gte = vi.fn(() => ({ lte }))
-  const eq = vi.fn(() => ({ gte }))
-  const select = vi.fn(() => ({ eq }))
-  return { rpc, from: vi.fn(() => ({ select })) }
+function client(rpc: ReturnType<typeof vi.fn>, rows: unknown[] = [], assignments: unknown[] = [], definitions: unknown[] = []) {
+  return { rpc, from: vi.fn((table: string) => ({
+    select: () => ({ eq: () => table === 'attendance_named_schedules'
+      ? Promise.resolve({ data: definitions, error: null })
+      : { gte: () => ({ lte: () => Promise.resolve({
+          data: table === 'attendance_occurrence_mappings' ? rows : assignments, error: null,
+        }) }) },
+    }),
+  })) }
 }
 
 describe('Pika attendance source snapshot sync', () => {
@@ -170,6 +173,28 @@ describe('Pika attendance source snapshot sync', () => {
       'deliver:roster.snapshot',
       'deliver:schedule.snapshot',
     ])
+  })
+
+  it('stages the selected named timing for its class date', async () => {
+    const scheduleId = '70000000-0000-4000-8000-000000000007'
+    const rpc = vi.fn(async (name: string, args: Record<string, any>) => {
+      if (name === 'prepare_attendance_snapshot_v1') return { data: prepared, error: null }
+      if (name === 'stage_attendance_roster_snapshot_v1') return { data: { outbox_id: outboxOne, idempotency_key: 'roster', revision: 2, status: 'pending' }, error: null }
+      if (name === 'stage_attendance_timing_schedule_v1') {
+        expect(args.p_message.occurrences[0]).toMatchObject({ accepts_at: '2026-11-03T03:20:00.000Z', stops_accepting_at: '2026-11-03T04:20:00.000Z' })
+        expect(args.p_cutoffs[0]).toMatchObject({ policy_revision: 3 })
+        return { data: { outbox_id: outboxTwo, idempotency_key: 'schedule', revision: 4, status: 'pending' }, error: null }
+      }
+      throw new Error(`unexpected rpc ${name}`)
+    })
+    deliverBaraAttendanceMessage.mockResolvedValueOnce({ outcome: 'applied', revision: 2 }).mockResolvedValueOnce({ outcome: 'applied', revision: 4 })
+    await syncTeacherAttendanceSources({
+      supabase: client(rpc, [], [{ class_date: '2026-11-02', schedule_id: scheduleId }], [{ id: scheduleId, policy: {
+        session_starts_local: '22:30', session_ends_local: '23:30', session_end_day_offset: 0,
+        entry_opens_minutes_before: 10, present_grace_minutes: 5, entry_closes_minutes_before_end: 10, absent_minutes_before_end: 0,
+      } }]), teacherId, classroomId, windowStart: '2026-11-02', windowEnd: '2026-11-03', integrationState: 'ready',
+      verifiedActor: { workosSubject: 'user_teacher', displayName: 'Teacher One' },
+    })
   })
 
   it('rejects a provider-shaped subject in place of an opaque principal mapping', async () => {

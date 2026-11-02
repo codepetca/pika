@@ -12,9 +12,8 @@ civil date from 0001–9999, including past and future dates.
 The editor always saves the displayed calendar date, even when today's default
 is left unchanged. Reopening a draft or changing release timing keeps that date.
 
-The field is available for new, draft, posted and scheduled materials. Its hint
-explains calendar placement versus release timing. Published materials remain
-accessible in Classwork; their placement in the student calendar follows the
+The field is available for new, draft, posted and scheduled materials. Published
+materials remain accessible in Classwork; their placement in the student calendar follows the
 classroom's existing Calendar Visibility horizon. Current-week, one-week-ahead
 and unrestricted horizons apply in Week, Month, All and presentation views.
 An unconfirmed or failed horizon read hides calendar posts until recovered;

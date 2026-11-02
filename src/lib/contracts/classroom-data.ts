@@ -84,6 +84,23 @@ export const CLASSROOM_ACTOR_REFERENCE_COLUMNS = {
 // bounded smoke-only evidence instead cascades with an authorized tenant delete.
 // Keeping every live FK explicit prevents schema audit from misclassifying it.
 export const ATTENDANCE_PROVIDER_OWNED_REFERENCES = [
+  // Named schedules extend the existing provider-owned attendance policy.
+  // Decommission drains both tables; classroom archives do not import them.
+  {
+    child_table: 'attendance_named_schedules',
+    parent_table: 'classrooms',
+    child_columns: ['classroom_id'],
+  },
+  {
+    child_table: 'attendance_day_schedules',
+    parent_table: 'class_days',
+    child_columns: ['classroom_id', 'class_date'],
+  },
+  {
+    child_table: 'attendance_day_schedules',
+    parent_table: 'attendance_named_schedules',
+    child_columns: ['classroom_id', 'schedule_id'],
+  },
   {
     child_table: 'attendance_integration_smoke_runs',
     parent_table: 'classrooms',

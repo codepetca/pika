@@ -23,7 +23,7 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-((10#$source_version >= 234 && 10#$source_version <= 295)) || exit 1
+((10#$source_version >= 234 && 10#$source_version <= 297)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"
@@ -79,7 +79,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Seal the exact dirty-tree SQL inventory, rather than asserting a reviewed SHA.
-# This validates contiguous001–295 and binds all migration and proof bytes.
+# This validates contiguous001–297 and binds all migration and proof bytes.
 manifest() {
   node - "$root" <<'NODE'
 const assert = require('node:assert/strict')
@@ -88,9 +88,9 @@ const { readFileSync, readdirSync } = require('node:fs')
 const { join } = require('node:path')
 const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
-assert.equal(paths.length, 295, 'Expected exactly295 migrations')
+assert.equal(paths.length, 297, 'Expected exactly297 migrations')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
-// Preserve the reviewed293 pin and require the exact admission294/calendar295 tails.
+// Preserve the reviewed293 pin and require the exact admission294/calendar295/attendance296 tails.
 const reviewed293 = '293_repolight_report_service.sql'
 assert.equal(paths[292], reviewed293, 'Unreviewed migration 293 filename')
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', reviewed293))).digest('hex'), 'b03d4dccd88ecbbf06d103b57c0cee97fccd6b07f13dfc2b0a4ed438fd68d052', 'Unreviewed migration 293 source')
@@ -98,7 +98,11 @@ assert.equal(paths[293], '294_classroom_experience_admission_registry.sql', 'Unr
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[293]))).digest('hex'), '908ac8f3765426eb2ab93258206c1f2c10b0fa8299d118821414a1f4ebeaf197', 'Unreviewed migration 294 source')
 assert.equal(paths[294], '295_independent_calendar_post_dates.sql', 'Unreviewed migration 295 filename')
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[294]))).digest('hex'), '7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3', 'Unreviewed migration 295 source')
-for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
+assert.equal(paths[295], '296_attendance_named_schedules.sql', 'Unreviewed migration 296 filename')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[295]))).digest('hex'), '4a640c6bd6f1217314387b2122861f286986cd4c07e6a7f1be9b149388e5c917', 'Unreviewed migration 296 source')
+assert.equal(paths[296], '297_classroom_public_auto_admission.sql', 'Unreviewed migration 297 filename')
+assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[296]))).digest('hex'), 'e7ee574ff2cb2d97deec109b4bbea49a564a892a3db8a7748db21a92745a5be1', 'Unreviewed migration 297 source')
+for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-public-auto-admission.sql', 'scripts/check-classroom-public-auto-admission-native-catalog.sql', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
 NODE
@@ -130,7 +134,20 @@ done
 manifest > "$scratch/replay-manifest.sha256"
 cmp -s "$scratch/source-manifest.sha256" "$scratch/replay-manifest.sha256" || { echo 'Source changed before replay.' >&2; exit 1; }
 if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then tail -25 "$scratch/replay.log" >&2; exit 1; fi
-echo 'PASS isolated replay001–295.'
+echo 'PASS isolated replay001–297.'
+# Native 297 coverage uses the real users table. Adapt only fixture identities;
+# the isolated synthetic contract remains unchanged and is sealed in manifest.
+if ! sql < "$root/scripts/check-classroom-public-auto-admission-native-catalog.sql" > "$scratch/auto-catalog.log" 2>&1; then tail -25 "$scratch/auto-catalog.log" >&2; exit 1; fi
+node - "$root/scripts/check-classroom-public-auto-admission.sql" > "$scratch/auto-native.sql" <<'NODE'
+const fs=require('node:fs'); let s=fs.readFileSync(process.argv[2],'utf8')
+const a='insert into public.users(id,email_verified_at)',b="  case when n = 74 then null else now() end"
+if (!s.includes(a) || !s.includes(b) || s.split(a).length!==2 || s.split(b).length!==2) process.exit(1)
+s=s.replace(a,'insert into public.users(id,email,role,email_verified_at)').replace(b,"  'pika-auto-' || n || '@example.invalid', 'student', case when n = 74 then null else now() end")
+process.stdout.write(s)
+NODE
+if ! sql < "$scratch/auto-native.sql" > "$scratch/auto-native.log" 2>&1; then tail -25 "$scratch/auto-native.log" >&2; exit 1; fi
+echo 'PASS native 297 catalog, ACL, RLS and rollback-only admission contracts.'
+
 if ! sql < "$root/scripts/check-classroom-home-visibility-database.sql" > "$scratch/behavior.log" 2>&1; then tail -25 "$scratch/behavior.log" >&2; exit 1; fi
 echo 'PASS rollback-only home visibility contracts.'
 if ! sql < "$root/scripts/check-classroom-home-recovery-database.sql" > "$scratch/recovery.log" 2>&1; then tail -25 "$scratch/recovery.log" >&2; exit 1; fi
@@ -157,7 +174,7 @@ meta_id="$(docker create --pull=never --name "$meta_name" --label "pika.home-vis
 docker start -a "$meta_id" > "$scratch/generated.ts" 2> "$scratch/meta.log"
 [[ "$(docker inspect "$meta_id" --format '{{.State.ExitCode}}')" == 0 ]] || exit 1
 (( $(wc -c < "$scratch/generated.ts") <= 8388608 )) || exit 1
-for rpc in read_classroom_home_visibility_v1: set_classroom_home_visibility_v1: read_classroom_experience_admission_v2: commit_classroom_experience_admission_batch_v2: read_classroom_experience_admission_operation_v2:; do grep -Fq "$rpc" "$scratch/generated.ts"; done
+for rpc in read_classroom_home_visibility_v1: set_classroom_home_visibility_v1: read_classroom_experience_admission_v2: commit_classroom_experience_admission_batch_v2: read_classroom_experience_admission_operation_v2: ensure_verified_classroom_admission_v1: set_classroom_auto_admission_enabled_v1: read_verified_classroom_auto_admission_eligibility_v1:; do grep -Fq "$rpc" "$scratch/generated.ts"; done
 awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { print ""; blank_lines -= 1 }; print }' "$scratch/generated.ts" > "$scratch/normalized.ts"
 manifest > "$scratch/final-manifest.sha256"
 cmp -s "$scratch/source-manifest.sha256" "$scratch/final-manifest.sha256" || { echo 'Source changed during proof.' >&2; exit 1; }

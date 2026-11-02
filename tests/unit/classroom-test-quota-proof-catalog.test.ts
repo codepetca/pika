@@ -31,7 +31,7 @@ const profiles = [
 
 describe('externally sealed Test quota proof table addition', () => {
   it('includes all four sealed294 tables and preserves the explicit historical293 catalog', async () => {
-    const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295)
     const introduced = [...current[293].sql.matchAll(/^create table ((?:public|private)\.[a-z_]+)/gm)].map(match => match[1]).sort()
     expect(introduced).toEqual([...CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES].sort())
     expect(introduced).toHaveLength(4)

@@ -30,6 +30,7 @@ interface AssignmentFormProps {
   error?: string
   titleInputRef?: RefObject<HTMLInputElement>
   onBlur?: () => void
+  settingsAction?: ReactNode
   topRowActions?: ReactNode
   statusContent?: ReactNode
   saveStatusContent?: ReactNode
@@ -57,6 +58,7 @@ export function AssignmentForm({
   error,
   titleInputRef,
   onBlur,
+  settingsAction,
   topRowActions,
   statusContent,
   saveStatusContent,
@@ -133,20 +135,23 @@ export function AssignmentForm({
           {error && <p className="text-sm text-warning">{error}</p>}
 
           <div className="mt-auto space-y-2">
-            {onPreviewInstructions && (
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                fullWidth
-                className="shrink-0"
-                onClick={onPreviewInstructions}
-                disabled={disabled}
-              >
-                <Eye className="h-4 w-4" aria-hidden="true" />
-                Preview
-              </Button>
-            )}
+            <div className={settingsAction ? 'grid grid-cols-2 gap-2' : undefined}>
+              {onPreviewInstructions && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  fullWidth
+                  className="shrink-0"
+                  onClick={onPreviewInstructions}
+                  disabled={disabled}
+                >
+                  <Eye className="h-4 w-4" aria-hidden="true" />
+                  Preview
+                </Button>
+              )}
+              {settingsAction}
+            </div>
 
             <div
               data-testid="assignment-editor-primary-actions"

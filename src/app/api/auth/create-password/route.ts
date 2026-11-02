@@ -4,6 +4,7 @@ import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { hashHandoffToken, hashPassword } from '@/lib/crypto'
 import { createSession } from '@/lib/auth'
+import { tryEnsureVerifiedClassroomAdmission } from '@/lib/server/verified-classroom-auto-admission'
 import { withErrorHandler, ApiError } from '@/lib/api-handler'
 import { createPasswordSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
@@ -72,6 +73,8 @@ export const POST = withErrorHandler('CreatePassword', async (request: NextReque
   await createSession(handoff.user_id, handoff.email, handoff.role, {
     expectedCredentialVersion: credentialVersion,
   })
+
+  await tryEnsureVerifiedClassroomAdmission(handoff.user_id)
 
   const redirectUrl = '/classrooms'
 

@@ -291,11 +291,28 @@ describe('classroom data inventory', () => {
     expect(audit.untracked_tables).not.toContain('attendance_participant_mappings')
     expect(audit.untracked_tables).not.toContain('attendance_roster_mappings')
     expect(audit.untracked_tables).not.toContain('attendance_window_policies')
+    expect(audit.untracked_tables).not.toContain('attendance_named_schedules')
+    expect(audit.untracked_tables).not.toContain('attendance_day_schedules')
     expect(audit.untracked_tables).not.toContain('attendance_integration_inbox')
     expect(audit.untracked_tables).not.toContain('attendance_session_projection')
     expect(audit.untracked_tables).not.toContain('attendance_record_projection')
     expect(ATTENDANCE_PROVIDER_OWNED_REFERENCES).toEqual(
       expect.arrayContaining([
+        {
+          child_table: 'attendance_named_schedules',
+          parent_table: 'classrooms',
+          child_columns: ['classroom_id'],
+        },
+        {
+          child_table: 'attendance_day_schedules',
+          parent_table: 'class_days',
+          child_columns: ['classroom_id', 'class_date'],
+        },
+        {
+          child_table: 'attendance_day_schedules',
+          parent_table: 'attendance_named_schedules',
+          child_columns: ['classroom_id', 'schedule_id'],
+        },
         {
           child_table: 'attendance_integration_inbox',
           parent_table: 'classrooms',

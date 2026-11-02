@@ -74,6 +74,18 @@ describe('Bara attendance schedule materialization', () => {
     })
   })
 
+  it('uses a selected schedule for one date while retaining the regular schedule for other days', () => {
+    const result = materializeBaraAttendanceSchedule({ ...base, classDays: [
+      { date: '2026-03-06', isClassDay: true, occurrenceRef: 'occurrence_regular' },
+      { date: '2026-03-09', isClassDay: true, occurrenceRef: 'occurrence_special',
+        policy: { ...base.policy, sessionStartsAtLocal: '08:30', sessionEndsAtLocal: '09:00' } },
+    ] })
+    expect(result.cutoffs.map(day => [day.date, day.session_starts_at, day.session_ends_at])).toEqual([
+      ['2026-03-06', '2026-03-06T14:00:00.000Z', '2026-03-06T14:30:00.000Z'],
+      ['2026-03-09', '2026-03-09T12:30:00.000Z', '2026-03-09T13:00:00.000Z'],
+    ])
+  })
+
   it('omits non-class days and dates outside the declared reconciliation window', () => {
     const snapshot = buildBaraScheduleSnapshot({
       ...base,

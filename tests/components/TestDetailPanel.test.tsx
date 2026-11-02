@@ -150,6 +150,16 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('menuitem', { name: 'Schedule test' })).toBeInTheDocument()
   })
 
+  it('requests deletion from the split editor settings menu', async () => {
+    const test = makeTestWithStats({ status: 'draft' })
+    const onRequestDelete = vi.fn()
+    mockFetchForTest(sampleQuestions)
+    render(<TestDetailPanel test={test} classroomId={test.classroom_id} onTestUpdate={vi.fn()} onRequestDelete={onRequestDelete} testQuestionLayout="split" />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete test' }))
+    expect(onRequestDelete).toHaveBeenCalledOnce()
+  })
+
   describe('actual split Question actions lifetime', () => {
     function props() {
       return { test: makeTestWithStats({ assessment_type: 'test', status: 'draft' }), classroomId: 'classroom-1', onTestUpdate: vi.fn(), onDraftSummaryChange: vi.fn(), testQuestionLayout: 'split' as const }

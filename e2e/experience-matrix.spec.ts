@@ -555,6 +555,20 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     })
   })
 
+  await page.route('**/api/teacher/attendance/schedules?**', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ schedules: [{ id: null, name: 'Regular schedule', policy: {
+        classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, timezone: 'America/Toronto',
+        sessionStartsLocal: '09:00', sessionEndsLocal: '10:00', sessionEndDayOffset: 0,
+        entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
+        entryClosesMinutesBeforeEnd: 10, absentMinutesBeforeEnd: 0,
+        enabled: true, revision: 1, updatedAt: '2026-08-17T12:00:00.000Z',
+      } }], selectedId: null }),
+    })
+  })
+
   await page.goto('/e2e-fixtures/teacher-live-attendance', { waitUntil: 'domcontentloaded' })
 
   const contextBar = page.getByTestId('attendance-context-bar')
@@ -640,7 +654,7 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     await primaryControl.getByRole('button', { name: 'Attendance actions' }).click()
     const sessionActionsMenu = page.getByRole('menu', { name: 'Attendance actions' })
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Show attendance QR' })).toBeVisible()
-    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Stop QR check-in' })).toBeVisible()
+    await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Stop QR check-in' })).toHaveCount(0)
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Attendance hours' })).toBeVisible()
     await expect(sessionActionsMenu.getByRole('menuitem', { name: 'Refresh attendance' })).toBeVisible()
     await page.keyboard.press('Escape')
@@ -727,13 +741,13 @@ test('keeps the Attendance roster compact with inline status controls', async ({
     await expect(trailingActions.getByRole('button', { name: 'Refresh attendance' })).toBeVisible()
     await attendanceHours.click()
   }
-  await expect(page.getByRole('dialog', { name: 'Attendance timing' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Attendance schedules' })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`attendance-${viewport}-hours-dialog.png`),
     animations: 'disabled',
   })
   if (viewport === 'mobile') {
-    await page.getByRole('button', { name: 'Save timing' }).scrollIntoViewIfNeeded()
+    await page.getByRole('button', { name: 'Apply schedule' }).scrollIntoViewIfNeeded()
     await page.screenshot({
       path: testInfo.outputPath(`attendance-${viewport}-hours-dialog-actions.png`),
       fullPage: true,
@@ -884,12 +898,12 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
         integration: attendanceConfigured ? 'ready' : 'not_configured',
         session: {
           state: attendanceConfigured ? attendanceSessionState : 'not_scheduled',
-          opensAt: attendanceConfigured ? '2026-08-29T12:45:00.000Z' : null,
-          closesAt: attendanceConfigured ? '2026-08-29T14:00:00.000Z' : null,
-          sessionStartsAt: attendanceConfigured ? '2026-08-29T13:00:00.000Z' : null,
-          sessionEndsAt: attendanceConfigured ? '2026-08-29T14:00:00.000Z' : null,
-          presentThroughAt: attendanceConfigured ? '2026-08-29T13:10:00.000Z' : null,
-          absentAt: attendanceConfigured ? '2026-08-29T14:00:00.000Z' : null,
+          opensAt: attendanceConfigured ? '2026-08-29T17:50:00.000Z' : null,
+          closesAt: attendanceConfigured ? '2026-08-29T18:50:00.000Z' : null,
+          sessionStartsAt: attendanceConfigured ? '2026-08-29T18:00:00.000Z' : null,
+          sessionEndsAt: attendanceConfigured ? '2026-08-29T19:00:00.000Z' : null,
+          presentThroughAt: attendanceConfigured ? '2026-08-29T18:05:00.000Z' : null,
+          absentAt: attendanceConfigured ? '2026-08-29T19:00:00.000Z' : null,
           revision: attendanceConfigured ? 1 : null,
           pendingCommand: false,
           commandFailed: false,
@@ -1254,7 +1268,7 @@ test('combines Daily logs and entitled Attendance in one teacher work surface', 
   await expect(page.getByRole('button', { name: 'Mark Student 01 Alpha01 present' })).toBeEnabled()
   await expect(page.getByRole('button', { name: 'Check in for attendance' })).toBeEnabled()
   await contextBar.getByRole('button', { name: 'More actions' }).click()
-  await expect(page.getByRole('menuitemcheckbox', { name: 'Open attendance' })).toBeVisible()
+  await expect(page.getByRole('menuitemcheckbox', { name: 'Open attendance' })).toHaveCount(0)
   await page.keyboard.press('Escape')
   await page.screenshot({
     path: testInfo.outputPath(`daily-attendance-${viewport}-scheduled.png`),
@@ -1930,6 +1944,82 @@ test('shows integrated attendance marks and restores optimistically', async ({ p
   await expect(restoredLate).toBeEnabled()
 })
 
+test('creates and selects a named attendance schedule for a class day', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  await page.clock.setFixedTime(new Date('2026-08-31T18:30:00Z'))
+  const selectedDate = '2026-08-31'
+  const namedId = 'a0000000-0000-4000-8000-000000000001'
+  let revision = 1
+  let selectedId: string | null = null
+  let namedPolicy: Record<string, unknown> | null = null
+  const writes: Array<{ method: string; body: Record<string, unknown> }> = []
+  const regularPolicy = () => ({
+    classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, timezone: 'America/Toronto',
+    sessionStartsLocal: '14:00', sessionEndsLocal: '15:00', sessionEndDayOffset: 0,
+    entryOpensMinutesBefore: 10, presentGraceMinutes: 5,
+    entryClosesMinutesBeforeEnd: 10, absentMinutesBeforeEnd: 0,
+    enabled: true, revision, updatedAt: '2026-08-31T18:00:00Z',
+  })
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url())
+    const method = route.request().method()
+    let body: unknown
+    let status = 200
+    if (url.pathname.endsWith('/class-days')) {
+      body = { class_days: [{ id: 'day-1', classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID, date: selectedDate, prompt_text: null, is_class_day: true }] }
+    } else if (url.pathname === '/api/teacher/attendance/policy') {
+      body = { policy: regularPolicy() }
+    } else if (url.pathname === '/api/teacher/attendance/schedules') {
+      if (method === 'POST') {
+        const request = route.request().postDataJSON() as Record<string, unknown>
+        writes.push({ method, body: request })
+        namedPolicy = { ...regularPolicy(), ...request.policy as Record<string, unknown> }
+        revision += 1
+        body = { id: namedId, revision }
+      } else if (method === 'PUT') {
+        const request = route.request().postDataJSON() as Record<string, unknown>
+        writes.push({ method, body: request })
+        selectedId = request.schedule_id as string | null
+        revision += 1
+        body = { id: selectedId, revision }
+      } else {
+        body = { schedules: [
+          { id: null, name: 'Regular schedule', policy: regularPolicy() },
+          ...(namedPolicy ? [{ id: namedId, name: 'Short day', policy: { ...namedPolicy, revision } }] : []),
+        ], selectedId }
+      }
+    } else if (url.pathname === '/api/teacher/attendance/sync') {
+      body = { roster: { outcome: 'applied', revision }, schedule: { outcome: 'applied', revision } }
+    } else if (url.pathname === '/api/teacher/attendance/session') {
+      body = { classroomId: ATTENDANCE_FIXTURE_CLASSROOM_ID, classDate: url.searchParams.get('date'), integration: 'ready',
+        session: { state: 'not_scheduled', opensAt: null, closesAt: null, sessionStartsAt: null, sessionEndsAt: null,
+          presentThroughAt: null, absentAt: null, revision: null, pendingCommand: false, commandFailed: false },
+        sync: { state: 'current', confirmedAt: null }, students: [] }
+    } else if (url.pathname === '/api/teacher/logs') body = { logs: [] }
+    else if (url.pathname === '/api/teacher/log-summary') body = { summary_status: 'no_logs', summary: null }
+    else { status = 404; body = { error: 'Fixture route unavailable' } }
+    await route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/e2e-fixtures/teacher-daily-attendance', { waitUntil: 'domcontentloaded' })
+  await page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Attendance schedules' })
+  await expect(dialog.getByRole('radio', { name: /Regular schedule/ })).toBeChecked()
+  await dialog.getByRole('button', { name: 'Add schedule' }).click()
+  await page.getByLabel('Schedule name*').fill('Short day')
+  await page.getByLabel('Session starts*').fill('14:15')
+  await page.getByLabel('Session ends*').fill('14:55')
+  await page.getByRole('button', { name: 'Save timing' }).click()
+  await expect(dialog.getByRole('radio', { name: /Short day/ })).toBeVisible()
+  await dialog.getByRole('radio', { name: /Short day/ }).check()
+  await dialog.getByRole('button', { name: 'Apply schedule' }).click()
+  await expect(dialog).toBeHidden()
+  expect(writes).toHaveLength(2)
+  expect(writes[0]).toMatchObject({ method: 'POST', body: { name: 'Short day', expected_revision: 1, policy: { sessionStartsLocal: '14:15', sessionEndsLocal: '14:55' } } })
+  expect(writes[1]).toMatchObject({ method: 'PUT', body: { classroom_id: ATTENDANCE_FIXTURE_CLASSROOM_ID, date: selectedDate, schedule_id: namedId, expected_revision: 2 } })
+  await page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' }).click()
+  await expect(page.getByRole('radio', { name: /Short day/ })).toBeChecked()
+})
+
 test('shows saved classroom hours across dates and delivery failures', async ({ page }, testInfo) => {
   const { viewport } = getExperienceMetadata(testInfo)
   await applyProjectTheme(page, testInfo)
@@ -1956,6 +2046,9 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
         policy = { ...policy, revision: policy.revision + 1 }
       } else if (policyReadFails) status = 503
       body = status === 200 ? { policy } : { error: 'Attendance settings are temporarily unavailable' }
+    } else if (url.pathname === '/api/teacher/attendance/schedules') {
+      if (policyReadFails) status = 503
+      body = status === 200 ? { schedules: [{ id: null, name: 'Regular schedule', policy }], selectedId: null } : { error: 'Attendance settings are temporarily unavailable' }
     } else if (url.pathname === '/api/teacher/attendance/sync') {
       status = 503
       body = { error: 'Attendance schedule is temporarily unavailable' }
@@ -1985,17 +2078,18 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await page.getByRole('button', { name: 'Next day' }).click()
   await expect(page.getByRole('button', { name: 'Select Daily date' })).toContainText('Tue Sep 1')
   await openHours('Attendance hours, 2:00 PM to 3:00 PM')
+  await page.getByRole('button', { name: 'Edit Regular schedule settings' }).click()
   await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
   await expect(page.getByLabel('Session ends*')).toHaveValue('15:00')
   await capture('future-date-dialog')
   await page.getByRole('button', { name: 'Save timing' }).click()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Edit Regular schedule' })).toBeVisible()
   await page.getByRole('button', { name: 'Close dialog', exact: true }).click({ position: { x: 2, y: 2 } })
-  await expect(page.getByRole('heading', { name: 'Attendance timing' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Edit Regular schedule' })).toBeVisible()
   finishSave()
-  await expect(page.getByRole('alert').filter({ hasText: 'last save did not confirm schedule delivery' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeVisible()
+  await expect(page.getByRole('alert').filter({ hasText: 'Timing saved, but schedule delivery was not confirmed' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Retry delivery' })).toBeVisible()
   await capture('saved-delivery-unconfirmed')
   policyReadFails = true
   await page.reload({ waitUntil: 'domcontentloaded' })
@@ -2006,6 +2100,7 @@ test('shows saved classroom hours across dates and delivery failures', async ({ 
   await capture('dialog-read-failure')
   policyReadFails = false
   await page.getByRole('button', { name: 'Try again' }).click()
+  await page.getByRole('button', { name: 'Edit Regular schedule settings' }).click()
   await expect(page.getByLabel('Session starts*')).toHaveValue('14:00')
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Attendance hours, 2:00 PM to 3:00 PM' })).toBeFocused()

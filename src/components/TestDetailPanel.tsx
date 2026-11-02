@@ -2363,12 +2363,13 @@ export function TestDetailPanel({
                 menuAriaLabel="Test settings"
                 menuPlacement="up"
                 menuAlign="end"
-                disabled={!isEditable}
+                disabled={isClosing || isPreparingPublish || (!isEditable && !onRequestDelete)}
                 className="w-full"
                 items={[
                   {
                     id: 'show-results',
                     label: 'Show results after return',
+                    disabled: !isEditable,
                     checked: draftShowResults,
                     checkedRole: 'menuitemradio',
                     onSelect: () => handleResultsVisibilityChange(true),
@@ -2376,10 +2377,12 @@ export function TestDetailPanel({
                   {
                     id: 'hide-results',
                     label: 'Keep results hidden',
+                    disabled: !isEditable,
                     checked: !draftShowResults,
                     checkedRole: 'menuitemradio',
                     onSelect: () => handleResultsVisibilityChange(false),
                   },
+                  ...(onRequestDelete ? [{ id: 'delete', label: 'Delete test', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, dividerBefore: true, destructive: true, onSelect: onRequestDelete }] : []),
                 ]}
               />
             </div>
