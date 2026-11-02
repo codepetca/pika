@@ -1587,6 +1587,26 @@ function ClassroomPageContent({
     runPrefetch()
   }, [availableTabs, classroom.id, isTeacher])
 
+  const handleTabIntent = useCallback((tab: string) => {
+    prefetchTabData(tab)
+    if (tab !== 'assignments' || !availableTabs.includes(tab)) return
+    const connection = (navigator as Navigator & {
+      connection?: { saveData?: boolean; effectiveType?: string }
+    }).connection
+    if (connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g') return
+
+    const role = isTeacher ? 'teacher' : 'student'
+    prefetchJSON(
+      `${role}-surveys:${classroom.id}`,
+      async () => {
+        const response = await fetch(`/api/${role}/surveys?classroom_id=${classroom.id}`)
+        if (!response.ok) throw new Error('Prefetch failed')
+        return response.json()
+      },
+      20_000,
+    )
+  }, [availableTabs, classroom.id, isTeacher, prefetchTabData])
+
   useEffect(() => {
     const idleCallback = (window as any).requestIdleCallback as ((cb: () => void, opts?: { timeout: number }) => number) | undefined
     if (idleCallback) {
@@ -1816,7 +1836,7 @@ function ClassroomPageContent({
       role={classroomRole}
       activeTab={activeTab}
       onTabChange={handleTabChange}
-      onTabIntent={prefetchTabData}
+      onTabIntent={handleTabIntent}
       updateSearchParams={navigateInClassroom}
       palEnabled={palEnabled}
       featureVisibility={featureVisibility}

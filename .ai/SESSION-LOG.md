@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-24 — RepoLight legacy archive inventory correction
-
-Owner approved one additional proof-only fix batch and ninth targeted review,
-then exact-head CI and conditional main merge. The legacy archive check now
-counts RepoLight's three resources/revision triggers when its table family is
-installed, matching the existing archive-v2 compatibility condition. Strict
-inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
-Owned offline293 replay passes the actual archive lifecycle, compaction/races,
-Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
-clone setup; no shared mutation. Home recovery/contention, warning lint across
-569functions, generated types and canonical aggregate fingerprints pass.
-Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
-review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
-
 ## 2026-10-25 — Refresh the grading inspector after Return
 
 The dedicated-account manual canary exposed a stale revision after a successful
@@ -453,3 +439,7 @@ Updated the sealed test-member-list canonical catalog to include both reviewed m
 ## 2026-11-01 — Verified public classroom admission
 
 Prepared default-off verified-account admission, an explicit existing-session recovery action, and migration 297 with protected exclusion and growth-stop serialization. Isolated database replay and concurrency tests, representative mocked UI checks, and targeted proof-catalog checks were run; production activation, provider readiness and account-deletion lifecycle remain separate.
+
+## 2026-11-02 — Classroom responsiveness in progress
+
+Approved responsiveness plan; worktree `codex/site-responsiveness` at base ebe91cab. Teacher Test detail/results overlap only after draft succeeds; Classwork surveys prefetch on intent; teacher/student Calendar Tests reads keep in-flight dedup but no settled cache. Controlled synthetic probes: Test editor median 724→531 ms with 200 ms mocked reads (8 samples); Classwork hover teacher 497→117 ms and student 431→88 ms with 400 ms survey delay (4 samples), no idle survey requests. Not production evidence. Focused component tests pass; browser matrix and full checks/review remain in progress. Probe receipts under `/tmp/pika-responsiveness-probe.bGoLmS` and `/tmp/pika-classwork-probe.zesg5l`. Do not prefetch Tests until mutation invalidation races are resolved. Goal tracker remained blocked after approval; app controls resume status.
