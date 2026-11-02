@@ -50656,3 +50656,23 @@ Reconciled actual #1683 production receipt/source6eacd7540 and manual canary wit
 normal reload recovery; this automatic-refresh fix still requires review/CI/main
 merge and separately authorized compatible release. Same3cohort/schema/plans and
 provider holds remain, with no production action or live-provider call.
+
+<!-- pika-session-log-archive-batch:d63addb2e72e6086247a0841698d1adeeaa303e755050d222d52ac6059ea1083 -->
+## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
+
+Owner explicitly overrode task workflow review-budget/low-usage stops through
+completion; keep independent review, strict CI and normal merge/rollout controls.
+Nine targeted reviews are recorded; next delta receives actual tenth review.
+Shared proof catalogue now includes ten literal tables from sealed293; member
+proof retains explicit292 admission and rejects partial/unknown catalogues.
+Historical unit profiles stay pinned; complete293 preservation includes private
+state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
+now fingerprint the same complete source-defined family; assertions unchanged.
+CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
+--disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
+config-process heap diagnostics added; no environment/heap dumps, assertion,
+project, timeout or compiler change. Full browser gate still required.
+Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
+upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
+SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
+CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.

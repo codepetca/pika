@@ -53,7 +53,15 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
       .order('position', { ascending: false })
   }
 
-  const { data: activeTests, error: activeError } = await fetchByStatus('active')
+  // Start both authorized reads together, while handling the active result first.
+  // Settle the closed read immediately so a rejection cannot go unhandled when
+  // the active read fails or requires a migration response.
+  const activeRead = fetchByStatus('active')
+  const closedRead = fetchByStatus('closed').then(
+    (value) => ({ ok: true, value } as const),
+    (error: unknown) => ({ ok: false, error } as const),
+  )
+  const { data: activeTests, error: activeError } = await activeRead
 
   if (activeError) {
     if (activeError.code === 'PGRST205') {
@@ -63,7 +71,9 @@ export const GET = withErrorHandler('GetStudentTests', async (request, context) 
     return NextResponse.json({ error: 'Failed to fetch tests' }, { status: 500 })
   }
 
-  const { data: closedTests, error: closedError } = await fetchByStatus('closed')
+  const closedResult = await closedRead
+  if (!closedResult.ok) throw closedResult.error
+  const { data: closedTests, error: closedError } = closedResult.value
 
   if (closedError) {
     logServerError('test.student_list_closed', closedError)
