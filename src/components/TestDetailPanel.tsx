@@ -1073,7 +1073,8 @@ export function TestDetailPanel({
     loadRequestIdRef.current = requestId
     setLoading(true)
     try {
-      // Bypass fetchJSONWithCache for selected assessment freshness; request ids guard stale responses.
+      // Bypass fetchJSONWithCache for selected assessment freshness; the draft
+      // read may create or repair a draft that the detail read uses.
       const draftRes = await fetch(`${apiBasePath}/${testAssessment.id}/draft`)
       const draftData = await draftRes.json()
       if (!isCurrentLoadRequest(requestId, scope)) return
@@ -1095,8 +1096,18 @@ export function TestDetailPanel({
       setStructureLocked(draftData.editingPolicy?.structureLocked !== false)
       applyServerDraft(normalizedDraft)
 
-      // Bypass fetchJSONWithCache so test documents always follow the selected test.
-      const detailRes = await fetch(`${apiBasePath}/${testAssessment.id}`)
+      // Bypass fetchJSONWithCache for fresh selected-assessment data. Results
+      // read persisted questions and responses, not the assessment draft.
+      // Attach a rejection handler immediately while detail is being processed.
+      const detailRequest = fetch(`${apiBasePath}/${testAssessment.id}`)
+      // Bypass fetchJSONWithCache so results reflect the selected assessment.
+      const resultsRequest = hasResponses
+        ? fetch(`${apiBasePath}/${testAssessment.id}/results`).then(
+            (response) => ({ response }),
+            (error) => ({ error })
+          )
+        : null
+      const detailRes = await detailRequest
       if (detailRes?.ok) {
         const detailData = await detailRes.json()
         if (!isCurrentLoadRequest(requestId, scope)) return
@@ -1105,8 +1116,9 @@ export function TestDetailPanel({
       }
 
       if (hasResponses) {
-        // Bypass fetchJSONWithCache so results always follow the selected assessment.
-        const resultsRes = await fetch(`${apiBasePath}/${testAssessment.id}/results`)
+        const result = await resultsRequest!
+        if ('error' in result) throw result.error
+        const resultsRes = result.response
         const resultsData = await resultsRes.json()
         if (!isCurrentLoadRequest(requestId, scope)) return
         setResults(resultsData.results || [])

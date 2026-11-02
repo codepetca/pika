@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpers/diagnostics'
 import { NextRequest } from 'next/server'
 import { GET, POST } from '@/app/api/teacher/tests/route'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 const mockGetClassroomStudentIds = vi.hoisted(() => vi.fn())
 
@@ -114,6 +115,76 @@ describe('GET /api/teacher/tests', () => {
       totalStudents: 0,
       error: null,
     })
+  })
+
+  it('starts the roster while the tests read is pending', async () => {
+    let resolveTests!: (value: { data: never[]; error: null }) => void
+    const tests = new Promise<{ data: never[]; error: null }>((resolve) => { resolveTests = resolve })
+    const builder: any = { select: () => builder, eq: () => builder, order: () => builder, then: tests.then.bind(tests) }
+    mockSupabaseClient.from = vi.fn(() => builder)
+    const response = GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    await vi.waitFor(() => expect(mockSupabaseClient.from).toHaveBeenCalledWith('tests'))
+    await vi.waitFor(() => expect(mockGetClassroomStudentIds).toHaveBeenCalledOnce())
+    resolveTests({ data: [], error: null })
+    expect((await response).status).toBe(200)
+    expect(mockGetClassroomStudentIds).toHaveBeenCalledOnce()
+  })
+
+  it('does not start either read when ownership is denied', async () => {
+    vi.mocked(assertTeacherOwnsClassroom).mockResolvedValueOnce({ ok: false, status: 403, error: 'Forbidden' })
+    mockSupabaseClient.from = vi.fn()
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(403)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+    expect(mockGetClassroomStudentIds).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    [{ code: 'PGRST205' }, 200, { tests: [], migration_required: true }],
+    [{ code: 'OTHER' }, 500, { error: 'Failed to fetch tests' }],
+  ])('prioritizes tests errors over a rejected roster read', async (error, status, body) => {
+    mockGetClassroomStudentIds.mockRejectedValueOnce(new Error('roster failed'))
+    const builder: any = { select: () => builder, eq: () => builder, order: () => builder,
+      then: (resolve: (value: unknown) => void) => resolve({ data: null, error }) }
+    mockSupabaseClient.from = vi.fn(() => builder)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(status)
+    expect(await response.json()).toEqual(body)
+  })
+
+  it('returns a tests error without waiting for a slow roster', async () => {
+    let rejectRoster!: (error: Error) => void
+    mockGetClassroomStudentIds.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectRoster = reject }))
+    const builder: any = { select: () => builder, eq: () => builder, order: () => builder,
+      then: (resolve: (value: unknown) => void) => resolve({ data: null, error: { code: 'OTHER' } }) }
+    mockSupabaseClient.from = vi.fn(() => builder)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(500)
+    rejectRoster(new Error('late roster failure'))
+    await new Promise((resolve) => setTimeout(resolve, 0))
+  })
+
+  it('observes a rejecting roster thenable while the tests query remains pending', async () => {
+    let resolveTests!: (value: { data: never[]; error: null }) => void
+    const tests = new Promise<{ data: never[]; error: null }>((resolve) => { resolveTests = resolve })
+    const builder: any = { select: () => builder, eq: () => builder, order: () => builder, then: tests.then.bind(tests) }
+    mockSupabaseClient.from = vi.fn(() => builder)
+    mockGetClassroomStudentIds.mockReturnValueOnce({ then: (_resolve: unknown, reject: (error: Error) => void) => reject(new Error('roster failure')) })
+    const pending = GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    await vi.waitFor(() => expect(mockGetClassroomStudentIds).toHaveBeenCalledOnce())
+    resolveTests({ data: [], error: null })
+    expect((await pending).status).toBe(500)
+  })
+
+  it('returns a rejected tests query without waiting for a slow roster', async () => {
+    let resolveRoster!: (value: any) => void
+    mockGetClassroomStudentIds.mockReturnValueOnce(new Promise((resolve) => { resolveRoster = resolve }))
+    const rejected = Promise.reject(new Error('tests failure'))
+    const builder: any = { select: () => builder, eq: () => builder, order: () => builder, then: rejected.then.bind(rejected) }
+    mockSupabaseClient.from = vi.fn(() => builder)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(500)
+    resolveRoster({ studentIds: [], studentIdSet: new Set(), totalStudents: 0, error: null })
   })
 
   it('requests tests in descending position order with a descending created_at tie-breaker', async () => {

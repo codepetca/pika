@@ -4,7 +4,7 @@ import { TeacherLessonCalendarTab } from '@/app/classrooms/[classroomId]/Teacher
 import { createMockClassroom } from '../helpers/mocks'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 import { invalidateTeacherLessonPlansForClassroom } from '@/lib/teacher-lesson-plans-client'
-import { invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import type { CalendarSidebarState } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
 import type { LessonPlan } from '@/types'
 import type { ReactNode } from 'react'
@@ -1734,6 +1734,31 @@ describe('TeacherLessonCalendarTab', () => {
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test'))
     await act(async () => { resolveFirst({ ok: true, json: async () => ({ tests: [{ id: 'old-test' }] }) }) })
     expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test')
+  })
+
+  it('shares a pending tests read without retaining it for the next Tests read', async () => {
+    let resolveTests!: (response: { ok: boolean; json: () => Promise<unknown> }) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes(`/tests?classroom_id=${classroom.id}`)) {
+        return new Promise(resolve => { resolveTests = resolve })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
+    })
+    render(<TeacherLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    await waitFor(() => expect(resolveTests).toBeTypeOf('function'))
+
+    const nextFetcher = vi.fn(async () => ({ tests: [{ id: 'fresh-test' }] }))
+    const sharedRead = fetchJSONWithCache(`teacher-tests:${classroom.id}`, nextFetcher, 0)
+    await act(async () => {
+      resolveTests({ ok: true, json: async () => ({ tests: [{ id: 'calendar-test' }] }) })
+      await expect(sharedRead).resolves.toEqual({ tests: [{ id: 'calendar-test' }] })
+    })
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'calendar-test')
+    expect(nextFetcher).not.toHaveBeenCalled()
+
+    await expect(fetchJSONWithCache(`teacher-tests:${classroom.id}`, nextFetcher, 0))
+      .resolves.toEqual({ tests: [{ id: 'fresh-test' }] })
+    expect(nextFetcher).toHaveBeenCalledTimes(1)
   })
   it('refreshes test date metadata after a classroom-scoped teacher update event', async () => {
     let testReads = 0

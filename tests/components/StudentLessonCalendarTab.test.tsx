@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { StudentLessonCalendarTab } from '@/app/classrooms/[classroomId]/StudentLessonCalendarTab'
 import { createMockClassroom } from '../helpers/mocks'
-import { invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { AppMessageProvider } from '@/ui'
 import type { ReactNode } from 'react'
 
@@ -509,6 +509,31 @@ describe('StudentLessonCalendarTab', () => {
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test'))
     await act(async () => { resolveFirst({ ok: true, json: async () => ({ tests: [{ id: 'old-test' }] }) }) })
     expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'second-test')
+  })
+
+  it('shares a pending tests read without retaining it for the next Tests read', async () => {
+    let resolveTests!: (response: { ok: boolean; json: () => Promise<unknown> }) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes(`/tests?classroom_id=${classroom.id}`)) {
+        return new Promise(resolve => { resolveTests = resolve })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) })
+    })
+    render(<StudentLessonCalendarTab classroom={classroom} showTests />, { wrapper: Wrapper })
+    await waitFor(() => expect(resolveTests).toBeTypeOf('function'))
+
+    const nextFetcher = vi.fn(async () => ({ tests: [{ id: 'fresh-test' }] }))
+    const sharedRead = fetchJSONWithCache(`student-tests:${classroom.id}`, nextFetcher, 0)
+    await act(async () => {
+      resolveTests({ ok: true, json: async () => ({ tests: [{ id: 'calendar-test' }] }) })
+      await expect(sharedRead).resolves.toEqual({ tests: [{ id: 'calendar-test' }] })
+    })
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-test-ids', 'calendar-test')
+    expect(nextFetcher).not.toHaveBeenCalled()
+
+    await expect(fetchJSONWithCache(`student-tests:${classroom.id}`, nextFetcher, 0))
+      .resolves.toEqual({ tests: [{ id: 'fresh-test' }] })
+    expect(nextFetcher).toHaveBeenCalledTimes(1)
   })
   it.each([true, false])('allows future reminder navigation only with the permitted Tests source (%s)', async (showTests) => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({

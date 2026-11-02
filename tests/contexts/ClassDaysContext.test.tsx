@@ -395,6 +395,27 @@ describe('ClassDaysProvider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
+  it('never exposes a fallback snapshot from another classroom, including the first render', async () => {
+    const secondLoad = deferred<{ class_days: ClassDay[] }>()
+    vi.mocked(fetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ class_days: [classDay('2026-05-01')] }) } as Response)
+      .mockResolvedValueOnce({ ok: true, json: () => secondLoad.promise } as Response)
+    const observations: Array<{ classroomId: string; dates: string[] }> = []
+    function Probe({ classroomId }: { classroomId: string }) {
+      const days = useClassDays(classroomId)
+      useLayoutEffect(() => { observations.push({ classroomId, dates: days.map((day) => day.date) }) })
+      return <div data-testid="fallback-dates">{days.map((day) => day.date).join(',')}</div>
+    }
+    const view = render(<Probe classroomId="classroom-1" />)
+    await screen.findByText('2026-05-01')
+    view.rerender(<Probe classroomId="classroom-2" />)
+    expect(observations.filter((item) => item.classroomId === 'classroom-2')).toEqual([
+      { classroomId: 'classroom-2', dates: [] },
+    ])
+    await act(async () => { secondLoad.resolve({ class_days: [classDay('2026-06-02')] }) })
+    await screen.findByText('2026-06-02')
+  })
+
   it('does not cache failed class-days responses', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     const fetchMock = vi.mocked(fetch)
