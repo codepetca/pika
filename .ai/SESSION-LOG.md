@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — RepoLight rebase after green CI
-
-CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
-SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
-(#1684 selected-inspector refresh after Return), creating continuity conflicts.
-Rebased feature commits; only CURRENT/archive conflicts required resolution.
-Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
-receipt and all held controls. No new deployment/query/provider authority.
-SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
-reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
-that equivalence; new-head CI still reruns the actual proof. Focused checks and
-one targeted main-sync review precede ready; task stop override remains active.
-
 ## 2026-10-25 — RepoLight local pilot and repeat-click guard
 
 Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
@@ -413,3 +400,7 @@ PR1718 merged to main as 0507966c; exact-head CI passed on retry after one unrel
 ## 2026-11-02 Test editor grading notes
 
 Made answer key and sample solution fields grow with their content and container width; moved Add reference beside the test title and removed the enclosing reference panel, and placed test/classroom context above the title, and aligned question number, points and add action in the toolbar. Extended the compact context label to assignment, material and survey editors and moved survey question actions into the toolbar, and placed the shared icon-labelled Write/Markdown control in each editor’s details pane. Aligned editor primary and add actions on the shared primary color. Updated Pattern Lab with shared auto-growing grading notes and assignment/survey settings examples. Shared test reference cards between the editor and Pattern Lab, retaining local-only placeholder behavior. Applied the reviewed read-only total beside question points in the test editor, with immediate valid-draft updates and full-modal visual checks. Reserved the mobile close target above title controls after independent review. Focused component tests and Playwright checks cover the editor.
+
+## 2026-11-02 — Tests list read overlap
+
+PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list-responsiveness`, the legacy student active/closed Tests reads and legacy teacher Tests/roster reads start concurrently only after authorization; existing error precedence and status ordering remain. Deferred route tests cover authorization, overlap, migration/error precedence and late rejections. Controlled timer-only examples: student 107→62ms for 50ms mocked reads; teacher 203→102ms for 100ms reads. These are not production or database latency measurements; successful requests use the same query count with at most two initial reads in flight. Admitted/shared routes and student exam sessions are unchanged. Exact focused checks, independent security/correctness review and CI pending.
