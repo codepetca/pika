@@ -638,8 +638,11 @@ function ClassroomPageContent({
   const [mountedTabs, setMountedTabs] = useState<Record<string, boolean>>(() => ({
     [activeTab]: true,
   }))
+  const mountedTabsRef = useRef(mountedTabs)
+  mountedTabsRef.current = mountedTabs
   const studentGradesReadRef = useRef<StudentGradesReadHandle>(null)
   const lastTabIntentRef = useRef<Record<string, number>>({})
+  const prefetchedTeacherTestsRef = useRef(new Set<string>())
   const scrollPositionsRef = useRef<Record<string, number>>({})
   const prevActiveTabRef = useRef(activeTab)
   const [studentTestExamMode, setStudentTestExamMode] = useState<{
@@ -1489,6 +1492,18 @@ function ClassroomPageContent({
     }
   }, [activeTab, setRightSidebarOpen])
 
+  // Invalidate before the mounted list and calendar listeners reload, including
+  // when the Tests tab has not mounted yet and only an intent read is pending.
+  useEffect(() => {
+    if (!isTeacher) return
+    const invalidateTests = (event: Event) => {
+      const detail = (event as CustomEvent<{ classroomId?: string }>).detail
+      if (detail?.classroomId === classroom.id) invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+    }
+    window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
+    return () => window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
+  }, [classroom.id, isTeacher])
+
   const prefetchTabData = useCallback((tab: string) => {
     if (!availableTabs.includes(tab)) return
     const now = Date.now()
@@ -1497,6 +1512,18 @@ function ClassroomPageContent({
     lastTabIntentRef.current[tab] = now
 
     const runPrefetch = () => {
+      if (tab === 'tests' && isTeacher && !mountedTabsRef.current.tests && !prefetchedTeacherTestsRef.current.has(classroom.id)) {
+        const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+        if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {
+          prefetchedTeacherTestsRef.current.add(classroom.id)
+          const query = new URLSearchParams({ classroom_id: classroom.id })
+          prefetchJSON(`teacher-tests:${classroom.id}`, async () => {
+            const response = await fetch(`/api/teacher/tests?${query.toString()}`)
+            if (!response.ok) throw new Error('Prefetch failed')
+            return response.json()
+          }, 0)
+        }
+      }
       if (tab === 'assignments') {
         if (isTeacher) {
           prefetchJSON(
