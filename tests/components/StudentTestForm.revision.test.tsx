@@ -158,7 +158,7 @@ it('retains locked answers when submission status is uncertain and checks again 
   expect(textbox).toHaveValue('Retained answer')
   expect(textbox).toBeDisabled()
   expect(onSubmitted).not.toHaveBeenCalled()
-  // A negative read can race a still-committing POST, so it must not unlock retry.
+  // A read without the revision and answers cannot establish a safe retry.
   fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: false } }) })
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check submission status' })) })
   expect(textbox).toBeDisabled()
@@ -213,5 +213,31 @@ it('checks the saved attempt after a hung submission times out without posting a
   expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/respond'))).toHaveLength(1)
   expect(fetchMock.mock.calls[2][0]).toContain('/attempt')
   expect(fetchMock.mock.calls[2][1]?.method || 'GET').toBe('GET')
+  expect(onSubmitted).toHaveBeenCalledTimes(1)
+})
+
+
+it('retries the identical submission after a matching unsubmitted attempt and reconciles a conflict', async () => {
+  const answers = { q1: { question_type: 'open_response', response_text: 'Final answer' } }
+  fetchMock.mockResolvedValueOnce(response(42))
+    .mockRejectedValueOnce(new TypeError('Network error'))
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: false, draft_revision: 42, responses: answers } }) })
+    .mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ error_code: 'test_attempt_revision_conflict' }) })
+    .mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: true, draft_revision: 43, responses: answers } }) })
+  const onSubmitted = vi.fn()
+  render(<StudentTestForm testId="submit-retry" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
+  const textbox = screen.getByRole('textbox')
+  fireEvent.change(textbox, { target: { value: 'Final answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  expect(textbox).toBeDisabled()
+  expect(onSubmitted).not.toHaveBeenCalled()
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Retry submission' })) })
+  const posts = fetchMock.mock.calls.filter(([url]) => url.endsWith('/respond'))
+  expect(posts).toHaveLength(2)
+  expect(JSON.parse(posts[1][1].body)).toEqual(JSON.parse(posts[0][1].body))
+  expect(JSON.parse(posts[1][1].body)).toMatchObject({ expected_revision: 42, responses: answers })
+  expect(fetchMock.mock.calls[4][0]).toContain('/attempt')
+  expect(fetchMock.mock.calls[4][1]?.method || 'GET').toBe('GET')
   expect(onSubmitted).toHaveBeenCalledTimes(1)
 })

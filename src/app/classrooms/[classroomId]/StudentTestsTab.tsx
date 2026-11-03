@@ -328,6 +328,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   const docsInteractionSuppressionUntilRef = useRef(0)
   const sessionStatusInFlightRef = useRef(false)
   const submissionInFlightRef = useRef(false)
+  const sessionGenerationRef = useRef(0)
   const deferredAvailabilityCheckRef = useRef(false)
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
@@ -514,6 +515,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [loadTests])
 
   useEffect(() => {
+    sessionGenerationRef.current += 1
     submissionInFlightRef.current = false
     deferredAvailabilityCheckRef.current = false
     detailRequestIdRef.current += 1
@@ -564,6 +566,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout])
 
   async function handleSelectTest(testId: string) {
+    sessionGenerationRef.current += 1
     submissionInFlightRef.current = false
     deferredAvailabilityCheckRef.current = false
     setSubmissionReceiptTestId(null)
@@ -665,6 +668,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
 
     const testId = selectedTestIdRef.current
+    const generation = sessionGenerationRef.current
     if (!testId || sessionStatusInFlightRef.current) return
 
     sessionStatusInFlightRef.current = true
@@ -675,7 +679,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       })
       const data = await res.json().catch(() => ({}))
 
-      if (selectedTestIdRef.current !== testId || submissionInFlightRef.current) return
+      if (selectedTestIdRef.current !== testId || !focusEnabledRef.current || submissionInFlightRef.current || sessionGenerationRef.current !== generation) return
 
       if (res.status === 404) {
         handleRemoteTestClosure({ message: 'This test is no longer available.' })
@@ -710,6 +714,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [revalidateActiveTestSession])
 
   const handleSubmissionStateChange = useCallback((active: boolean) => {
+    if (active) sessionGenerationRef.current += 1
     submissionInFlightRef.current = active
     if (!active && deferredAvailabilityCheckRef.current) {
       deferredAvailabilityCheckRef.current = false
@@ -1109,6 +1114,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   ])
 
   const performBackToAssessmentList = useCallback(() => {
+    sessionGenerationRef.current += 1
     submissionInFlightRef.current = false
     deferredAvailabilityCheckRef.current = false
     returnFocusTestIdRef.current = selectedTestIdRef.current
@@ -1142,6 +1148,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
 
   function handleTestSubmitted() {
     submissionInFlightRef.current = false
+    focusEnabledRef.current = false
     setSubmissionReceiptTestId(selectedTestIdRef.current)
     setRemoteClosureNotice(null)
     setStartedTestId(null)

@@ -310,6 +310,26 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.getByText('Submitted successfully — your answers were saved.')).toBeInTheDocument()
   })
 
+  it('keeps the submission receipt when an earlier session poll resolves afterwards', async () => {
+    await renderActiveTest()
+    const status = createDeferred<Response>()
+    fetchMock.mockImplementation(async (url: string, options?: RequestInit) => {
+      if (url.endsWith('/session-status')) return status.promise
+      if (url.endsWith('/attempt') && options?.method === 'PATCH') return jsonResponse({ attempt: { draft_revision: 42 } })
+      if (url.endsWith('/respond')) return jsonResponse({ success: true })
+      if (url.endsWith('/focus-events')) return jsonResponse({ success: true, focus_summary: makeFocusSummary() })
+      throw new Error(`Unexpected fetch: ${url}`)
+    })
+    await act(async () => { fireEvent(window, new Event('focus')) })
+    fireEvent.click(screen.getByRole('radio', { name: '4' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+    expect(screen.getByText('Submitted successfully — your answers were saved.')).toBeInTheDocument()
+    await act(async () => { status.resolve(jsonResponse({ can_continue: false, student_status: 'responded', message: 'Your current work has been submitted.' })) })
+    expect(screen.getByText('Submitted successfully — your answers were saved.')).toBeInTheDocument()
+    expect(screen.queryByText('This test is closed.')).not.toBeInTheDocument()
+  })
+
   it('keeps overlapping activity checks coalesced without extending the burst window', async () => {
     await renderActiveTest()
     const pendingStatus = createDeferred<Response>()
