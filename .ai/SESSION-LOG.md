@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-26 Future post dates
-
-Announcements and posted Classwork materials accept future Post date values.
-Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
-today/past dates retain posted_on. A field hint discloses student hiding. No schema
-or dependency changes. Risk none. Reference/reuse: production Material editor and
-Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
-existing scheduling. No new shared UI pattern or unrelated refactor. Composite
-checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
-contracts retained and interaction-tested; no new ARIA widget.
-Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
-material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
-cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
-corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
-student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
-and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
-Material student editing n/a (teacher-only); existing student release API checks
-reused. Capture source equals this candidate's UI files; deterministic fixtures,
-Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
-process secret used. Draft PR and independent review follow; merge/release require
-authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
-
 ## 2026-10-27 Accept the bounded 70-account classroom rollout
 
 Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
@@ -363,3 +341,7 @@ PR 1727 remains draft pending focused checks and exact-head review.
 ## 2026-11-03 List order toggle
 
 - Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
+
+## 2026-11-03 — Student Test submission reassurance
+
+Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.

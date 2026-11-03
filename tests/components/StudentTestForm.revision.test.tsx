@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
+// UiGallery's StudentTestAttemptPattern uses this production form for its interactive fixture.
 import { StudentTestForm } from '@/components/StudentTestForm'
 import { createMockTestQuestion } from '../helpers/mocks'
 
@@ -97,7 +98,7 @@ it('flushes the latest pending draft with a blur save on genuine unmount', async
 })
 
 it('forces a final draft save before submission even when the answer was already autosaved', async () => {
-  fetchMock.mockResolvedValueOnce(response(42)).mockResolvedValueOnce(response(43)).mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+  fetchMock.mockResolvedValueOnce(response(42)).mockResolvedValueOnce(response(43)).mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
   const onSubmitted = vi.fn()
   render(<StudentTestForm testId="revision-submit-success" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Final answer' } })
@@ -109,5 +110,108 @@ it('forces a final draft save before submission even when the answer was already
   expect(bodyAt(fetchMock, 1)).toMatchObject({ trigger: 'blur', expected_revision: 42 })
   expect(fetchMock.mock.calls[2][0]).toContain('/respond')
   expect(bodyAt(fetchMock, 2)).toMatchObject({ expected_revision: 43 })
+  expect(onSubmitted).toHaveBeenCalledTimes(1)
+})
+
+it('keeps the final answer visible and locked while submission is pending', async () => {
+  let finishSubmit!: (value: { ok: boolean; json: () => Promise<object> }) => void
+  fetchMock.mockResolvedValueOnce(response(42)).mockReturnValueOnce(new Promise(resolve => { finishSubmit = resolve }))
+  const onSubmitted = vi.fn()
+  const onSubmissionStateChange = vi.fn()
+  render(<StudentTestForm testId="submit-pending" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} onSubmissionStateChange={onSubmissionStateChange} />)
+  const textbox = screen.getByRole('textbox')
+  fireEvent.change(textbox, { target: { value: 'My final answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  expect(textbox).toBeVisible()
+  expect(textbox).toHaveValue('My final answer')
+  expect(textbox).toBeDisabled()
+  expect(onSubmissionStateChange).toHaveBeenCalledWith(true)
+  expect(onSubmitted).not.toHaveBeenCalled()
+  await act(async () => { finishSubmit({ ok: true, json: async () => ({ success: true }) }) })
+  expect(onSubmitted).toHaveBeenCalledTimes(1)
+})
+
+it('confirms an ambiguous submission from the server before reporting success', async () => {
+  fetchMock.mockResolvedValueOnce(response(42)).mockRejectedValueOnce(new TypeError('Network error')).mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: true, responses: { q1: { question_type: 'open_response', response_text: 'Final answer' } } } }) })
+  const onSubmitted = vi.fn()
+  render(<StudentTestForm testId="submit-ambiguous" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Final answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    expect.stringContaining('/attempt'), expect.stringContaining('/respond'), expect.stringContaining('/attempt'),
+  ])
+  expect(fetchMock.mock.calls[2][1]?.method || 'GET').toBe('GET')
+  expect(onSubmitted).toHaveBeenCalledTimes(1)
+})
+
+it('retains locked answers when submission status is uncertain and checks again before reporting success', async () => {
+  fetchMock.mockResolvedValueOnce(response(42)).mockRejectedValueOnce(new TypeError('Network error')).mockRejectedValueOnce(new TypeError('Network error'))
+  const onSubmitted = vi.fn()
+  render(<StudentTestForm testId="submit-unconfirmed" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
+  const textbox = screen.getByRole('textbox')
+  fireEvent.change(textbox, { target: { value: 'Retained answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  expect(screen.getByText(/We could not confirm your submission/i)).toBeInTheDocument()
+  expect(textbox).toHaveValue('Retained answer')
+  expect(textbox).toBeDisabled()
+  expect(onSubmitted).not.toHaveBeenCalled()
+  // A negative read can race a still-committing POST, so it must not unlock retry.
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: false } }) })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check submission status' })) })
+  expect(textbox).toBeDisabled()
+  expect(onSubmitted).not.toHaveBeenCalled()
+  fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: true, responses: { q1: { question_type: 'open_response', response_text: 'Retained answer' } } } }) })
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Check submission status' })) })
+  expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/respond'))).toHaveLength(1)
+  expect(onSubmitted).toHaveBeenCalledTimes(1)
+})
+
+
+it('does not report a receipt when the submitted answers differ from the displayed answers', async () => {
+  fetchMock.mockResolvedValueOnce(response(42)).mockRejectedValueOnce(new TypeError('Network error')).mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: true, responses: { q1: { question_type: 'open_response', response_text: 'Different answer' } } } }) })
+  const onSubmitted = vi.fn()
+  render(<StudentTestForm testId="submit-mismatch" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
+  const textbox = screen.getByRole('textbox')
+  fireEvent.change(textbox, { target: { value: 'My final answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  expect(onSubmitted).not.toHaveBeenCalled()
+  expect(textbox).toHaveValue('My final answer')
+  expect(textbox).toBeDisabled()
+  expect(screen.getByText(/does not match the answers shown here/i)).toBeInTheDocument()
+})
+
+it('does not report success when a pending submission resolves after unmount', async () => {
+  let finishSubmit!: (value: { ok: boolean; json: () => Promise<object> }) => void
+  fetchMock.mockResolvedValueOnce(response(42)).mockReturnValueOnce(new Promise(resolve => { finishSubmit = resolve }))
+  const onSubmitted = vi.fn()
+  const view = render(<StudentTestForm testId="submit-unmounted" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Final answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  view.unmount()
+  await act(async () => { finishSubmit({ ok: true, json: async () => ({ success: true }) }) })
+  expect(onSubmitted).not.toHaveBeenCalled()
+})
+
+it('checks the saved attempt after a hung submission times out without posting again', async () => {
+  fetchMock.mockResolvedValueOnce(response(42)).mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+    options.signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+  })).mockResolvedValueOnce({ ok: true, json: async () => ({ attempt: { is_submitted: true, responses: { q1: { question_type: 'open_response', response_text: 'Final answer' } } } }) })
+  const onSubmitted = vi.fn()
+  render(<StudentTestForm testId="submit-timeout" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
+  fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Final answer' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+  await act(async () => { await vi.advanceTimersByTimeAsync(29_999) })
+  expect(onSubmitted).not.toHaveBeenCalled()
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+  expect(fetchMock.mock.calls.filter(([url]) => url.endsWith('/respond'))).toHaveLength(1)
+  expect(fetchMock.mock.calls[2][0]).toContain('/attempt')
+  expect(fetchMock.mock.calls[2][1]?.method || 'GET').toBe('GET')
   expect(onSubmitted).toHaveBeenCalledTimes(1)
 })

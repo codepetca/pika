@@ -307,6 +307,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   const [isWindowCompliantStable, setIsWindowCompliantStable] = useState(true)
   const [activeDoc, setActiveDoc] = useState<ExamDocumentItem | null>(null)
   const [remoteClosureNotice, setRemoteClosureNotice] = useState<RemoteClosureNotice | null>(null)
+  const [submissionReceiptTestId, setSubmissionReceiptTestId] = useState<string | null>(null)
   const selectedTestIdRef = useRef<string | null>(null)
   const focusSessionIdRef = useRef<string | null>(null)
   const focusEventQueueRef = useRef<{
@@ -326,6 +327,8 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   const lastExamFormInteractionAtRef = useRef(0)
   const docsInteractionSuppressionUntilRef = useRef(0)
   const sessionStatusInFlightRef = useRef(false)
+  const submissionInFlightRef = useRef(false)
+  const deferredAvailabilityCheckRef = useRef(false)
   const listRequestIdRef = useRef(0)
   const detailRequestIdRef = useRef(0)
   const testsRegionRef = useRef<HTMLDivElement>(null)
@@ -511,6 +514,8 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [loadTests])
 
   useEffect(() => {
+    submissionInFlightRef.current = false
+    deferredAvailabilityCheckRef.current = false
     detailRequestIdRef.current += 1
     setScheduledSelectionId(null)
     selectedTestIdRef.current = null
@@ -559,6 +564,9 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [clearPendingBlurTimeout, clearPendingNonCompliantTimeout])
 
   async function handleSelectTest(testId: string) {
+    submissionInFlightRef.current = false
+    deferredAvailabilityCheckRef.current = false
+    setSubmissionReceiptTestId(null)
     const scheduled = tests.find(test => test.id === testId && isTestScheduledForFuture(test, getTodayInToronto()))
     if (scheduled) {
       detailRequestIdRef.current += 1
@@ -653,7 +661,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [classroom.id, requestedTestId, isActive, focusEnabled, loadedTestsScope, loading, tests])
 
   const revalidateActiveTestSession = useCallback(async () => {
-    if (!focusEnabledRef.current) return
+    if (!focusEnabledRef.current || submissionInFlightRef.current) return
     if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return
 
     const testId = selectedTestIdRef.current
@@ -667,7 +675,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
       })
       const data = await res.json().catch(() => ({}))
 
-      if (selectedTestIdRef.current !== testId) return
+      if (selectedTestIdRef.current !== testId || submissionInFlightRef.current) return
 
       if (res.status === 404) {
         handleRemoteTestClosure({ message: 'This test is no longer available.' })
@@ -694,7 +702,19 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }, [apiBasePath, handleRemoteTestClosure])
 
   const handleAvailabilityLoss = useCallback(() => {
+    if (submissionInFlightRef.current) {
+      deferredAvailabilityCheckRef.current = true
+      return
+    }
     void revalidateActiveTestSession()
+  }, [revalidateActiveTestSession])
+
+  const handleSubmissionStateChange = useCallback((active: boolean) => {
+    submissionInFlightRef.current = active
+    if (!active && deferredAvailabilityCheckRef.current) {
+      deferredAvailabilityCheckRef.current = false
+      void revalidateActiveTestSession()
+    }
   }, [revalidateActiveTestSession])
 
   const postFocusEvent = useCallback(async (
@@ -1089,6 +1109,8 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   ])
 
   const performBackToAssessmentList = useCallback(() => {
+    submissionInFlightRef.current = false
+    deferredAvailabilityCheckRef.current = false
     returnFocusTestIdRef.current = selectedTestIdRef.current
     setDetailError(false)
     detailRequestIdRef.current += 1
@@ -1119,14 +1141,14 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   }
 
   function handleTestSubmitted() {
+    submissionInFlightRef.current = false
+    setSubmissionReceiptTestId(selectedTestIdRef.current)
     setRemoteClosureNotice(null)
+    setStartedTestId(null)
+    setSelectedTest(current => current ? { ...current, test: { ...current.test, student_status: 'responded' } } : current)
     notifications?.decrementActiveTestsCount()
     void loadTests({ forceRefresh: true })
 
-    // Reload selected assessment details to get updated status/feedback.
-    if (selectedTestIdRef.current) {
-      void handleSelectTest(selectedTestIdRef.current)
-    }
   }
 
   function handleRequestStartTest(testId: string) {
@@ -1633,7 +1655,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                           />
                         ) : hasResponded ? (
                           <div className="p-4 bg-success-bg rounded-lg text-center">
-                            <p className="text-success font-medium">Response Submitted</p>
+                            <p role="status" className="text-success font-medium">{submissionReceiptTestId === selectedTestId ? 'Submitted successfully — your answers were saved.' : 'Response Submitted'}</p>
                             {selectedTest.test.status !== 'closed' ? (
                               <p className="text-sm text-text-muted mt-1">
                                 Results will be available after this test is closed and returned by your teacher.
@@ -1654,6 +1676,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                             isInteractionLocked={showNotMaximizedWarning}
                             apiBasePath={apiBasePath}
                             onAvailabilityLoss={handleAvailabilityLoss}
+                            onSubmissionStateChange={handleSubmissionStateChange}
                             onSubmitted={handleTestSubmitted}
                           />
                         )}
@@ -1824,7 +1847,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                     />
                   ) : hasResponded ? (
                     <Card tone="muted" padding="md">
-                      <p className="font-medium text-success">Response Submitted</p>
+                      <p role="status" className="font-medium text-success">{submissionReceiptTestId === selectedTestId ? 'Submitted successfully — your answers were saved.' : 'Response Submitted'}</p>
                       {selectedTest.test.status !== 'closed' ? (
                         <p className="mt-1 text-sm text-text-muted">
                           Results will be available after this test is closed and returned by your teacher.
@@ -1844,6 +1867,7 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
                       enableDraftAutosave
                       isInteractionLocked={showNotMaximizedWarning}
                       apiBasePath={apiBasePath}
+                      onSubmissionStateChange={handleSubmissionStateChange}
                       onSubmitted={handleTestSubmitted}
                     />
                   )}

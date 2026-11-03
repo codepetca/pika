@@ -28,6 +28,7 @@ interface Props {
   isInteractionLocked?: boolean
   apiBasePath?: string
   onAvailabilityLoss?: () => void
+  onSubmissionStateChange?: (active: boolean) => void
   onSubmitted: () => void
 }
 
@@ -53,6 +54,7 @@ export function StudentTestForm({
   isInteractionLocked = false,
   apiBasePath = '/api/student/tests',
   onAvailabilityLoss,
+  onSubmissionStateChange,
   onSubmitted,
 }: Props) {
   if (!testId) {
@@ -71,6 +73,11 @@ export function StudentTestForm({
   const [loadingSaved, setLoadingSaved] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [checkingSubmission, setCheckingSubmission] = useState(false)
+  const [submissionUncertain, setSubmissionUncertain] = useState(false)
+  const [submissionMismatch, setSubmissionMismatch] = useState(false)
+  const submissionUncertainRef = useRef(false)
+  const mountedRef = useRef(true)
   const [error, setError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [autosaveAnnouncement, setAutosaveAnnouncement] = useState('')
@@ -79,6 +86,11 @@ export function StudentTestForm({
   const [flagAnnouncement, setFlagAnnouncement] = useState('')
   const [showFlaggedWarning, setShowFlaggedWarning] = useState(false)
   const shouldAutosave = enableDraftAutosave && !previewMode
+
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -97,6 +109,16 @@ export function StudentTestForm({
       data-testid="student-test-action-footer"
       className="rounded-xl border border-border bg-surface p-4 shadow-sm"
     >
+      {submitting && (
+        <div role="status" aria-live="polite" className="mb-3 rounded-lg border border-border bg-surface-2 p-4 text-sm text-text-default">
+          {submissionUncertain ? (
+            <div className="space-y-3">
+              <p>{checkingSubmission ? 'Checking whether your submission was received…' : submissionMismatch ? 'A submission was found, but it does not match the answers shown here. Please ask your teacher for help.' : 'We could not confirm your submission. Your answers are still shown here. Please check again or ask your teacher for help.'}</p>
+              {!checkingSubmission && <Button type="button" onClick={() => { void checkSubmission() }}>Check submission status</Button>}
+            </div>
+          ) : 'Submitting your answers… Please keep this page open.'}
+        </div>
+      )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           {shouldAutosave && (
@@ -236,7 +258,7 @@ export function StudentTestForm({
     const scope = draftScopeRef.current
     setLoadingSaved(true)
     try {
-      const res = await fetch(`${apiBasePath}/${testId}/attempt`, { cache: 'no-store' })
+      const res = await fetch(`${apiBasePath}/${testId}/attempt`, { method: 'GET', cache: 'no-store' })
       const data = await res.json()
       if (draftScopeRef.current !== scope) return
       const revision = data.attempt?.draft_revision
@@ -451,9 +473,51 @@ export function StudentTestForm({
     }
   }
 
+  function finishSubmission() {
+    if (!mountedRef.current) return
+    submissionUncertainRef.current = false
+    onSubmissionStateChange?.(false)
+    pendingResponsesRef.current = null
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
+    clearFlaggedQuestions(testId)
+    setFlaggedQuestions([])
+    onSubmitted()
+  }
+
+  async function checkSubmission() {
+    const scope = draftScopeRef.current
+    setCheckingSubmission(true)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 10_000)
+    try {
+      // Reconciliation must read current authoritative state, not a cached attempt.
+      const response = await fetch(`${apiBasePath}/${testId}/attempt`, { method: 'GET', cache: 'no-store', signal: controller.signal })
+      const data = await response.json()
+      if (!mountedRef.current || draftScopeRef.current !== scope) return
+      if (response.ok && data.attempt?.is_submitted === true && data.attempt.responses && typeof data.attempt.responses === 'object') {
+        const saved = normalizeTestResponses(data.attempt.responses)
+        const shown = normalizeTestResponses(responses)
+        const savedKeys = Object.keys(saved).sort()
+        const shownKeys = Object.keys(shown).sort()
+        const matches = JSON.stringify(savedKeys) === JSON.stringify(shownKeys)
+          && shownKeys.every(key => JSON.stringify(saved[key]) === JSON.stringify(shown[key]))
+        if (matches) {
+          setSubmissionUncertain(false)
+          finishSubmission()
+          return
+        }
+        setSubmissionMismatch(true)
+      }
+    } catch { /* The outcome remains unknown; preserve the answers. */ }
+    finally { clearTimeout(timeout); if (mountedRef.current && draftScopeRef.current === scope) setCheckingSubmission(false) }
+  }
+
   async function handleSubmit() {
     const scope = draftScopeRef.current
     setSubmitting(true)
+    onSubmissionStateChange?.(true)
+    setShowConfirm(false)
     setError('')
     setPreviewSubmitMessage('')
 
@@ -467,21 +531,31 @@ export function StudentTestForm({
         const saved = await saveDraft(responses, { trigger: 'blur', force: true })
         if (!saved) return
       }
-      if (draftScopeRef.current !== scope) return
+      if (!mountedRef.current || draftScopeRef.current !== scope) return
       if (scope.conflicted || !Number.isSafeInteger(scope.revision) || Number(scope.revision) < 1) {
         throw new Error('Reload the test before submitting. Your answers are still here.')
       }
 
-      const res = await fetch(`${apiBasePath}/${testId}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          responses,
-          expected_revision: scope.revision,
-        }),
-      })
-      const data = await res.json()
-      if (draftScopeRef.current !== scope) return
+      let res: Response
+      let data: any
+      const submitController = new AbortController()
+      const submitTimeout = setTimeout(() => submitController.abort(), 30_000)
+      try {
+        res = await fetch(`${apiBasePath}/${testId}/respond`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          signal: submitController.signal,
+          body: JSON.stringify({ responses, expected_revision: scope.revision }),
+        })
+        data = await res.json()
+        if (res.status >= 500 || (res.ok && data.success !== true)) throw new Error('Submission outcome unknown')
+      } catch {
+        if (!mountedRef.current || draftScopeRef.current !== scope) return
+        submissionUncertainRef.current = true
+        setSubmissionUncertain(true)
+        await checkSubmission()
+        return
+      } finally { clearTimeout(submitTimeout) }
+      if (!mountedRef.current || draftScopeRef.current !== scope) return
       if (data.error_code === 'test_attempt_revision_conflict') {
         scope.conflicted = true
         setRevisionConflict(true)
@@ -490,20 +564,22 @@ export function StudentTestForm({
       if (!res.ok) {
         throw new Error(data.error || 'Failed to submit response')
       }
-      // Clear flagged questions on successful submission
-      clearFlaggedQuestions(testId)
-      setFlaggedQuestions([])
-      onSubmitted()
+      finishSubmission()
     } catch (err: any) {
-      if (draftScopeRef.current !== scope) return
+      if (!mountedRef.current || draftScopeRef.current !== scope) return
       const message = err?.message || 'Failed to submit response'
       if (isAssessmentAvailabilityError(message)) {
         onAvailabilityLoss?.()
       }
       setError(message)
     } finally {
-      if (draftScopeRef.current === scope) {
-        setSubmitting(false)
+      if (mountedRef.current && draftScopeRef.current === scope) {
+        // An ambiguous response may still be committing. Keep answers locked
+        // until an authoritative read confirms submission.
+        if (!submissionUncertainRef.current) {
+          setSubmitting(false)
+          onSubmissionStateChange?.(false)
+        }
         setShowConfirm(false)
         setShowFlaggedWarning(false)
       }
