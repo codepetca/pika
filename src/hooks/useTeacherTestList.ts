@@ -59,7 +59,7 @@ export function useTeacherTestList({
     [hasCurrentTests, tests],
   )
 
-  const loadTests = useCallback(async (canonicalTitleTestId?: string) => {
+  const loadTests = useCallback(async (canonicalTitleTestId?: string, preserveSummary = false) => {
     const requestId = latestRequestIdRef.current + 1
     latestRequestIdRef.current = requestId
     const requestedClassroomId = classroomId
@@ -69,7 +69,7 @@ export function useTeacherTestList({
     )
 
     setLoading(true)
-    setSummaryState(null)
+    setSummaryState(current => preserveSummary && current?.classroomId === requestedClassroomId ? current : null)
     setErrorState((current) => current?.classroomId === requestedClassroomId ? null : current)
     if (progressive && loadedTestsClassroomIdRef.current !== requestedClassroomId) {
       const query = new URLSearchParams({ classroom_id: requestedClassroomId })
@@ -134,7 +134,7 @@ export function useTeacherTestList({
   const retryTests = useCallback(async () => {
     invalidateCachedJSON(`teacher-tests:${classroomId}`)
     invalidateCachedJSON(`teacher-tests-summary:${classroomId}`)
-    await loadTests()
+    await loadTests(undefined, true)
   }, [classroomId, loadTests])
 
   useEffect(() => {

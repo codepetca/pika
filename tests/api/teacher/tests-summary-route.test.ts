@@ -10,9 +10,16 @@ vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1'
 vi.mock('@/lib/server/contextual-test-list-read', () => ({ authorizeSharedTestListReadActor: vi.fn(async () => ({ mode: 'legacy' })) }))
 vi.mock('@/lib/server/classrooms', () => ({ assertTeacherOwnsClassroom: vi.fn(async () => ({ ok: true })) }))
 
-const request = () => new NextRequest('http://localhost/api/teacher/tests/summary?classroom_id=classroom-1')
+const classroomId = '11111111-1111-4111-8111-111111111111'
+const request = () => new NextRequest(`http://localhost/api/teacher/tests/summary?classroom_id=${classroomId}`)
 describe('teacher Tests summary', () => {
   beforeEach(() => { vi.clearAllMocks() })
+  it.each(['', '?classroom_id=', '?classroom_id=not-a-uuid'])('rejects invalid classroom query %s before ownership and data reads', async (query) => {
+    const response = await GET(new NextRequest(`http://localhost/api/teacher/tests/summary${query}`))
+    expect(response.status).toBe(400)
+    expect(assertTeacherOwnsClassroom).not.toHaveBeenCalled()
+    expect(from).not.toHaveBeenCalled()
+  })
   it('denies shared admission and non-owners before reading tests', async () => {
     vi.mocked(authorizeSharedTestListReadActor).mockResolvedValueOnce({ mode: 'shared', user: { id: 'teacher-1' } } as never)
     expect((await GET(request())).status).toBe(404)
@@ -22,7 +29,7 @@ describe('teacher Tests summary', () => {
     expect(from).not.toHaveBeenCalled()
   })
   it('returns fast list fields without reading roster or statistics', async () => {
-    const tests = [{ id: 'test-1', classroom_id: 'classroom-1', title: 'Published', status: 'active', documents: [] }]
+    const tests = [{ id: 'test-1', classroom_id: classroomId, title: 'Published', status: 'active', documents: [] }]
     from.mockImplementation((table: string) => {
       if (table !== 'tests') throw new Error(`unexpected ${table}`)
       const pending = Promise.resolve({ data: tests, error: null })
@@ -39,7 +46,7 @@ describe('teacher Tests summary', () => {
   it('uses the saved draft overlay for titles', async () => {
     from.mockImplementation((table: string) => {
       const value = table === 'tests'
-        ? [{ id: 'test-1', classroom_id: 'classroom-1', title: 'Old', status: 'draft', documents: [] }]
+        ? [{ id: 'test-1', classroom_id: classroomId, title: 'Old', status: 'draft', documents: [] }]
         : [{ assessment_id: 'test-1', content: { title: 'Draft title', show_results: true, question_identity_version: 1, questions: [] } }]
       const pending = Promise.resolve({ data: value, error: null })
       const query: any = { select: () => query, eq: () => query, order: () => query, in: () => query, then: pending.then.bind(pending) }

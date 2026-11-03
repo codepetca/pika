@@ -7,6 +7,7 @@ import { authorizeSharedTestListReadActor } from '@/lib/server/contextual-test-l
 import { chunkValues } from '@/lib/server/query-chunks'
 import { validateTestDraftContent } from '@/lib/validations/assessment-drafts'
 import { normalizeTestDocuments } from '@/lib/test-documents'
+import { contextualTestListQuerySchema } from '@/lib/validations/contextual-test-list-read'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -16,8 +17,7 @@ export const GET = withErrorHandler('GetTeacherTestSummary', async (request) => 
   const actor = await authorizeSharedTestListReadActor()
   if (actor.mode === 'shared') return NextResponse.json({ error: 'Unavailable' }, { status: 404 })
   const user = await requireRole('teacher')
-  const classroomId = new URL(request.url).searchParams.get('classroom_id')
-  if (!classroomId) return NextResponse.json({ error: 'classroom_id is required' }, { status: 400 })
+  const { classroomId } = contextualTestListQuerySchema.parse({ classroomId: new URL(request.url).searchParams.get('classroom_id') })
   const ownership = await assertTeacherOwnsClassroom(user.id, classroomId)
   if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   const supabase = getServiceRoleClient()

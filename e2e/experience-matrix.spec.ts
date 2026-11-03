@@ -4483,11 +4483,28 @@ test('keeps teacher Tests visible when statistics fail', async ({ page }, testIn
   await applyProjectTheme(page, testInfo)
   const row = { id: TEST_GRADING_FIXTURE_TEST_ID, classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
     title: 'Synthetic Unit Test', status: 'active', position: 0, documents: [] }
-  await page.route('**/api/teacher/tests/summary?**', route => route.fulfill({ json: { tests: [row] } }))
-  await page.route('**/api/teacher/tests?**', route => route.fulfill({ status: 500, json: { error: 'Unavailable' } }))
+  let summaryCalls = 0
+  let fullCalls = 0
+  let releaseRetry!: () => void
+  const retryPending = new Promise<void>(resolve => { releaseRetry = resolve })
+  await page.route('**/api/teacher/tests/summary?**', async route => {
+    summaryCalls += 1
+    if (summaryCalls > 1) await retryPending
+    await route.fulfill({ json: { tests: [row] } })
+  })
+  await page.route('**/api/teacher/tests?**', async route => {
+    fullCalls += 1
+    if (fullCalls > 1) await retryPending
+    await route.fulfill({ status: 500, json: { error: 'Unavailable' } })
+  })
   await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
   await expect(page.getByText('Test statistics could not be loaded.')).toBeVisible()
   await expect(page.getByLabel('Submitted count unavailable')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Retry' })).toBeEnabled()
   await page.screenshot({ path: testInfo.outputPath('progressive-tests-failed.png'), animations: 'disabled' })
+  await page.getByRole('button', { name: 'Retry' }).click()
+  await expect(page.getByRole('button', { name: 'Synthetic Unit Test', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Submitted count loading')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('progressive-tests-retry.png'), animations: 'disabled' })
+  releaseRetry()
 })
