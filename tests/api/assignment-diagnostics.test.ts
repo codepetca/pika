@@ -13,6 +13,8 @@ import { GET as history } from '@/app/api/assignment-docs/[id]/history/route'
 import { POST as restore } from '@/app/api/assignment-docs/[id]/restore/route'
 import { expectContentFreeDiagnostic, privateDiagnosticError } from '../helpers/diagnostics'
 
+const mockListRequirements = vi.hoisted(() => vi.fn())
+
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => client) }))
 vi.mock('@/lib/auth', () => ({
   requireRole: vi.fn(async (role: string) => ({ id: role === 'teacher' ? currentTeacherId : `${role}-1`, role })),
@@ -29,6 +31,7 @@ vi.mock('@/lib/server/assignment-ai-grading-runs', () => ({
 }))
 vi.mock('@/lib/server/assignment-submission-artifacts', () => ({
   loadAssignmentSubmissionRequirements: vi.fn(async () => []),
+  loadAssignmentSubmissionRequirementsForList: mockListRequirements,
   loadAssignmentSubmissionArtifactsForDocs: vi.fn(async () => {
     if (artifactFailure) throw privateDiagnosticError
     return []
@@ -123,6 +126,7 @@ async function expectFailure(response: Response, error: string, event: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  mockListRequirements.mockResolvedValue(new Map())
   vi.spyOn(console, 'error').mockImplementation(() => {})
   replies.clear()
   currentTeacherId = 'teacher-1'
@@ -145,15 +149,19 @@ describe('assignment route diagnostic privacy', () => {
   })
 
   it('keeps teacher list roster failures content-free', async () => {
-    queue('assignments', ok([]))
+    queue('assignments', ok([assignment()]))
+    mockListRequirements.mockRejectedValueOnce(privateDiagnosticError)
     rosterResult.error = privateDiagnosticError
     await expectFailure(await teacherList(request()), 'Failed to fetch classroom enrollments', 'assignment.list_enrollments')
+    expect(mockListRequirements).toHaveBeenCalledOnce()
   })
 
   it('keeps teacher list document failures content-free', async () => {
     queue('assignments', ok([assignment()]))
     queue('assignment_docs', failed())
+    mockListRequirements.mockRejectedValueOnce(privateDiagnosticError)
     await expectFailure(await teacherList(request()), 'Failed to fetch assignment stats', 'assignment.list_documents')
+    expect(mockListRequirements).toHaveBeenCalledOnce()
   })
 
   it.each([

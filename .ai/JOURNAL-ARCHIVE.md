@@ -50690,3 +50690,8 @@ SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
 reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
 that equivalence; new-head CI still reruns the actual proof. Focused checks and
 one targeted main-sync review precede ready; task stop override remains active.
+
+<!-- pika-session-log-archive-batch:5efa7f30635d13e9dc989fe5220e4873555333c0c2fbeb4155aec93fe2b0595d -->
+## 2026-10-25 — RepoLight local pilot and repeat-click guard
+
+Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
