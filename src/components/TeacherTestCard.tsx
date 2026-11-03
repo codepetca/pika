@@ -10,10 +10,12 @@ import {
   getTeacherTestListDisplayStatus,
 } from '@/lib/tests'
 import { Button, IconButton, Tooltip } from '@/ui'
-import type { TestAssessmentWithStats } from '@/types'
+import type { TestAssessment, TestAssessmentWithStats } from '@/types'
 
 interface TeacherTestCardProps {
-  test: TestAssessmentWithStats
+  test: TestAssessment | TestAssessmentWithStats
+  statsPending?: boolean
+  statsUnavailable?: boolean
   isReadOnly: boolean
   isDragDisabled?: boolean
   editMode: boolean
@@ -25,6 +27,8 @@ interface TeacherTestCardProps {
 
 export function TeacherTestCard({
   test,
+  statsPending = false,
+  statsUnavailable = false,
   isReadOnly,
   isDragDisabled = false,
   editMode,
@@ -53,11 +57,12 @@ export function TeacherTestCard({
   const displayStatus = getTeacherTestListDisplayStatus(test)
   const statusLabel = getAssessmentStatusLabel(displayStatus, 'test')
   const statusBadgeClass = getTestStatusBadgeClass(displayStatus)
-  const totalStudents = test.stats.total_students || 0
-  const submittedCount = test.stats.submitted ?? test.stats.responded ?? 0
-  const openAccessCount = test.stats.open_access ?? (test.status === 'active' ? totalStudents : 0)
+  const stats = 'stats' in test ? test.stats : undefined
+  const totalStudents = stats?.total_students || 0
+  const submittedCount = stats?.submitted ?? stats?.responded ?? 0
+  const openAccessCount = stats?.open_access ?? (test.status === 'active' ? totalStudents : 0)
   const closedAccessCount =
-    test.stats.closed_access ?? Math.max(totalStudents - openAccessCount, 0)
+    stats?.closed_access ?? Math.max(totalStudents - openAccessCount, 0)
 
   return (
     <TeacherWorkItemCardFrame
@@ -96,6 +101,7 @@ export function TeacherTestCard({
         <button
           type="button"
           onClick={onSelect}
+          disabled={statsPending}
           className="min-w-0 text-left"
           aria-label={editMode ? `Open ${test.title}` : test.title}
         >
@@ -103,7 +109,11 @@ export function TeacherTestCard({
             {test.title}
           </h3>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-            <span>{submittedCount}/{totalStudents} submitted</span>
+            {statsPending ? <>
+              <span aria-label={statsUnavailable ? 'Submitted count unavailable' : 'Submitted count loading'}>—/— submitted</span>
+              <span aria-label={statsUnavailable ? 'Open count unavailable' : 'Open count loading'}>— open</span>
+              <span aria-label={statsUnavailable ? 'Closed count unavailable' : 'Closed count loading'}>— closed</span>
+            </> : <><span>{submittedCount}/{totalStudents} submitted</span>
             <span className="inline-flex items-center gap-1" aria-label={`${openAccessCount} open`}>
               {openAccessCount}
               <Unlock className="h-3.5 w-3.5 text-success" aria-hidden="true" />
@@ -111,15 +121,15 @@ export function TeacherTestCard({
             <span className="inline-flex items-center gap-1" aria-label={`${closedAccessCount} closed`}>
               {closedAccessCount}
               <Lock className="h-3.5 w-3.5 text-danger" aria-hidden="true" />
-            </span>
+            </span></>}
           </div>
         </button>
 
         <div className="flex items-center justify-start gap-2 sm:flex-col sm:items-center sm:justify-center sm:px-4 sm:text-center">
           <span
-            className={`inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold ${statusBadgeClass}`}
+            className={`inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold ${statsPending && !isDraft ? 'bg-surface-2 text-text-muted' : statusBadgeClass}`}
           >
-            {statusLabel}
+            {statsPending && !isDraft ? (statsUnavailable ? 'Access unavailable' : 'Checking access') : statusLabel}
           </span>
         </div>
 

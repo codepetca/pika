@@ -4442,3 +4442,52 @@ test.describe('Assignment Return revision continuity', () => {
     await verifyAssignmentReturnRefresh(page, info)
   })
 })
+
+test('shows teacher Tests before statistics finish', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  let release!: () => void
+  const waitForStats = new Promise<void>(resolve => { release = resolve })
+  let summaryCalls = 0
+  let fullCalls = 0
+  const row = { id: TEST_GRADING_FIXTURE_TEST_ID, classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+    title: 'Synthetic Unit Test', status: 'active', position: 0, documents: [] }
+  await page.route('**/api/teacher/tests/summary?**', async route => {
+    summaryCalls += 1
+    await route.fulfill({ json: { tests: [row] } })
+  })
+  await page.route('**/api/teacher/tests?**', async route => {
+    fullCalls += 1
+    await waitForStats
+    await route.fulfill({ json: { tests: [{ ...row, stats: { total_students: 30, responded: 12,
+      submitted: 10, open_access: 20, closed_access: 10, questions_count: 3 } }] } })
+  })
+  const startedAt = Date.now()
+  await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
+  const pending = page.getByRole('button', { name: 'Synthetic Unit Test', exact: true })
+  await expect(pending).toBeVisible()
+  await expect(pending).toBeDisabled()
+  await expect(page.getByLabel('Submitted count loading')).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('progressive-tests-pending.png'), animations: 'disabled' })
+  const titleMs = Date.now() - startedAt
+  await page.waitForTimeout(500) // Controlled synthetic statistics delay, not a production measurement.
+  release()
+  await expect(pending).toBeEnabled()
+  console.info(`Synthetic Tests timing: title=${titleMs}ms complete=${Date.now() - startedAt}ms; requests=2`)
+  await expect(page.getByText('10/30 submitted')).toBeVisible()
+  expect(summaryCalls).toBe(1)
+  expect(fullCalls).toBe(1)
+  await page.screenshot({ path: testInfo.outputPath('progressive-tests-loaded.png'), animations: 'disabled' })
+})
+
+test('keeps teacher Tests visible when statistics fail', async ({ page }, testInfo) => {
+  await applyProjectTheme(page, testInfo)
+  const row = { id: TEST_GRADING_FIXTURE_TEST_ID, classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+    title: 'Synthetic Unit Test', status: 'active', position: 0, documents: [] }
+  await page.route('**/api/teacher/tests/summary?**', route => route.fulfill({ json: { tests: [row] } }))
+  await page.route('**/api/teacher/tests?**', route => route.fulfill({ status: 500, json: { error: 'Unavailable' } }))
+  await page.goto('/e2e-fixtures/teacher-test-grading?view=list', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByText('Test statistics could not be loaded.')).toBeVisible()
+  await expect(page.getByLabel('Submitted count unavailable')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeEnabled()
+  await page.screenshot({ path: testInfo.outputPath('progressive-tests-failed.png'), animations: 'disabled' })
+})

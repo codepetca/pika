@@ -570,11 +570,13 @@ export function TeacherTestsTab({
     isSnapshotReady,
     loadTests,
     retryTests,
+    summaryTests,
   } = useTeacherTestList({
     classroomId: classroom.id,
     selectedTestId,
     selectedTestDraftSummary,
     apiBasePath,
+    progressive: testExperienceMode === 'existing',
   })
   const handleRetryTests = useCallback(() => {
     testsRegionRef.current?.focus()
@@ -3097,7 +3099,27 @@ export function TeacherTestsTab({
     </DndContext>
   )
 
-  const summaryContent = !hasTestsSnapshot ? (
+  const summaryContent = !hasTestsSnapshot && summaryTests && summaryTests.length > 0 ? (
+    <div className="space-y-3">
+      {testsLoadError ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
+          <span>Test statistics could not be loaded.</span>
+          <Button type="button" variant="secondary" size="sm" onClick={handleRetryTests}>Retry</Button>
+        </div>
+      ) : <RefreshingIndicator label="Loading test statistics" />}
+      <DndContext>
+        <SortableContext items={summaryTests.map(test => test.id)} strategy={verticalListSortingStrategy}>
+          <TeacherWorkItemList>
+            {summaryTests.map(test => (
+              <TeacherTestCard key={test.id} test={test} statsPending statsUnavailable={!!testsLoadError} isReadOnly editMode={false}
+                onSelect={() => {}} onRequestPreview={() => handleOpenSavedTestPreview({ testId: test.id, title: test.title })}
+                onRequestDelete={() => {}} />
+            ))}
+          </TeacherWorkItemList>
+        </SortableContext>
+      </DndContext>
+    </div>
+  ) : !hasTestsSnapshot ? (
     testsLoadError ? (
       <PageState
         kind="error"

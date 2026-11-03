@@ -1,4 +1,6 @@
 import { render, screen } from '@testing-library/react'
+import { DndContext } from '@dnd-kit/core'
+import { SortableContext } from '@dnd-kit/sortable'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
@@ -29,5 +31,19 @@ describe('TeacherTestCard Preview', () => {
     await user.keyboard('{Enter}')
     expect(onRequestPreview).toHaveBeenCalledOnce()
     expect(onSelect).not.toHaveBeenCalled()
+  })
+})
+
+describe('TeacherTestCard', () => {
+  it('exposes unknown counts and prevents opening the workspace before statistics load', () => {
+    const test = createMockTest({ title: 'Test title', status: 'active' })
+    render(<DndContext><SortableContext items={[test.id]}><TeacherTestCard test={test} statsPending isReadOnly editMode={false}
+      onSelect={vi.fn()} onRequestPreview={vi.fn()} onRequestDelete={vi.fn()} /></SortableContext></DndContext>, { wrapper: TooltipProvider })
+    expect(screen.getByRole('button', { name: 'Test title' })).toBeDisabled()
+    expect(screen.getByLabelText('Submitted count loading')).toHaveTextContent('—/—')
+    expect(screen.getByLabelText('Open count loading')).toHaveTextContent('—')
+    expect(screen.getByLabelText('Closed count loading')).toHaveTextContent('—')
+    expect(screen.getByText('Checking access')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Preview Test title' })).toBeEnabled()
   })
 })

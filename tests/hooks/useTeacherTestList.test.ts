@@ -33,6 +33,8 @@ describe('useTeacherTestList', () => {
   beforeEach(() => {
     invalidateCachedJSON('teacher-tests:classroom-1')
     invalidateCachedJSON('teacher-tests:classroom-2')
+    invalidateCachedJSON('teacher-tests-summary:classroom-1')
+    invalidateCachedJSON('teacher-tests-summary:classroom-2')
     fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
   })
@@ -40,8 +42,32 @@ describe('useTeacherTestList', () => {
   afterEach(() => {
     invalidateCachedJSON('teacher-tests:classroom-1')
     invalidateCachedJSON('teacher-tests:classroom-2')
+    invalidateCachedJSON('teacher-tests-summary:classroom-1')
+    invalidateCachedJSON('teacher-tests-summary:classroom-2')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('discards a late summary after switching classrooms', async () => {
+    let finishOld!: (value: unknown) => void
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/summary?') && url.includes('classroom-1')) return new Promise(resolve => { finishOld = resolve })
+      if (url.includes('/summary?')) return Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'new', title: 'New classroom' })] }) })
+      return new Promise(() => {})
+    })
+    const { result, rerender } = renderHook(({ classroomId }) => useTeacherTestList({ classroomId, selectedTestId: null, selectedTestDraftSummary: null, progressive: true }), { initialProps: { classroomId: 'classroom-1' } })
+    rerender({ classroomId: 'classroom-2' })
+    await waitFor(() => expect(result.current.summaryTests?.[0]?.title).toBe('New classroom'))
+    await act(async () => { finishOld({ ok: true, json: async () => ({ tests: [makeTest({ title: 'Old classroom' })] }) }) })
+    expect(result.current.summaryTests?.[0]?.title).toBe('New classroom')
+  })
+
+  it('does not request a summary when progressive mode is disabled', async () => {
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ tests: [] }) })
+    const { result } = renderHook(() => useTeacherTestList({ classroomId: 'classroom-1', selectedTestId: null, selectedTestDraftSummary: null, progressive: false }))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/teacher/tests?classroom_id=classroom-1')
   })
 
   it('loads tests for the current classroom', async () => {

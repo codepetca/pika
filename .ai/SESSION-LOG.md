@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — Controlled RepoLight connection and blank-login regression
-
-User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
-attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
-redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
-Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
-Normal controlled student join/repository save/submit PASS. Teacher overview exposed
-own undefined optional GitHub metadata; mapper now omits absent fields. Regression
-failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
-and source release pending; no report/import/grade/sent-feedback acceptance claimed.
-Private connection/pilot receipts remain outside Git.
-
 ## 2026-10-25 RepoLight contextual-owner report admission
 
 Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
@@ -385,3 +373,7 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 ## 2026-11-02 — Teacher Tests intent prefetch
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared an uncommitted legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.

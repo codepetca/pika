@@ -1498,7 +1498,10 @@ function ClassroomPageContent({
     if (!isTeacher) return
     const invalidateTests = (event: Event) => {
       const detail = (event as CustomEvent<{ classroomId?: string }>).detail
-      if (detail?.classroomId === classroom.id) invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+      if (detail?.classroomId === classroom.id) {
+        invalidateCachedJSON(`teacher-tests:${classroom.id}`)
+        invalidateCachedJSON(`teacher-tests-summary:${classroom.id}`)
+      }
     }
     window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
     return () => window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
@@ -1517,8 +1520,9 @@ function ClassroomPageContent({
         if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {
           prefetchedTeacherTestsRef.current.add(classroom.id)
           const query = new URLSearchParams({ classroom_id: classroom.id })
-          prefetchJSON(`teacher-tests:${classroom.id}`, async () => {
-            const response = await fetch(`/api/teacher/tests?${query.toString()}`)
+          const summary = testExperienceMode === 'existing'
+          prefetchJSON(`${summary ? 'teacher-tests-summary' : 'teacher-tests'}:${classroom.id}`, async () => {
+            const response = await fetch(`/api/teacher/tests${summary ? '/summary' : ''}?${query.toString()}`)
             if (!response.ok) throw new Error('Prefetch failed')
             return response.json()
           }, 0)
@@ -1612,7 +1616,7 @@ function ClassroomPageContent({
     }
 
     runPrefetch()
-  }, [availableTabs, classroom.id, isTeacher])
+  }, [availableTabs, classroom.id, isTeacher, testExperienceMode])
 
   const handleTabIntent = useCallback((tab: string) => {
     prefetchTabData(tab)

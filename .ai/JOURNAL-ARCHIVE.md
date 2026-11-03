@@ -50725,3 +50725,16 @@ metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
 released to both coordinated Pika tasks. Connection provisioning and hosted
 integration acceptance remain pending. Standalone inventory diagnostic limitation
 is tracked in the integration guide/PR; no passing claim for that command.
+
+<!-- pika-session-log-archive-batch:5f2291637338eb5cf7e95d543528bbfb28db368c0d9bada6ac1da09f4132830e -->
+## 2026-10-25 — Controlled RepoLight connection and blank-login regression
+
+User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
+attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
+redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
+Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
+Normal controlled student join/repository save/submit PASS. Teacher overview exposed
+own undefined optional GitHub metadata; mapper now omits absent fields. Regression
+failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
+and source release pending; no report/import/grade/sent-feedback acceptance claimed.
+Private connection/pilot receipts remain outside Git.
