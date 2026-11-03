@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Accept the bounded 70-account classroom rollout
-
-Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
-and schema293 into the dated70-account acceptance receipt. Retained actual
-signed-in versus isolated/source-qualified boundaries, exact roster checks,
-selected academic preservation and compatible recovery constraints. PPZ keeps
-Tests/native attendance off/no policy/mapping/manual log unchanged. Original
-observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
-passed7timely samples and final exact70/provider/work readbacks. Timed process
-exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
-historical pilot now point to bounded acceptance; wider admission/provider/billing
-holds and incomplete epic/paused goal remain. Documentation only; no live action.
-
 ## 2026-10-27 Prepare wider classroom admission design
 
 Prepared a proposal for one durable service-owned admission source, exact70
@@ -350,3 +337,9 @@ regressions cover multi-page reads, exact boundaries, and later-page failures.
 Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
 7d1c121fb. The rebase preserved the prior source tree and continuity histories;
 PR 1727 remains draft pending focused checks and exact-head review.
+
+## 2026-11-03 — Classwork refresh browser fixture
+
+The Classwork continuity fixture now models summary and full reads separately.
+Its first refresh fails the summary and then exercises the full-read fallback,
+including retained editor, failure, retry, recovery, and controlled navigation.

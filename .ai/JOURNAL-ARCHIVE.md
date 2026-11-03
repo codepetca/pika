@@ -50791,3 +50791,17 @@ reused. Capture source equals this candidate's UI files; deterministic fixtures,
 Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
 process secret used. Draft PR and independent review follow; merge/release require
 authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
+
+<!-- pika-session-log-archive-batch:14631e61ed1d8f637efa797e106f0d81e869005bfb1a4a7eb97139d01d5459b3 -->
+## 2026-10-27 Accept the bounded 70-account classroom rollout
+
+Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
+and schema293 into the dated70-account acceptance receipt. Retained actual
+signed-in versus isolated/source-qualified boundaries, exact roster checks,
+selected academic preservation and compatible recovery constraints. PPZ keeps
+Tests/native attendance off/no policy/mapping/manual log unchanged. Original
+observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
+passed7timely samples and final exact70/provider/work readbacks. Timed process
+exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
+historical pilot now point to bounded acceptance; wider admission/provider/billing
+holds and incomplete epic/paused goal remain. Documentation only; no live action.
