@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { AIOutboundDisabledError, assertAIOutboundEnabled } from '@/lib/grading/providers/ai-outbound-gate'
 import { hasGradableAssignmentSubmission, isBlankAssignmentSubmission } from '@/lib/ai-grading'
 import { parseContentField } from '@/lib/tiptap-content'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
@@ -534,6 +535,22 @@ async function recordMeteredGradexSubmission(opts: {
   }
 }
 
+async function deferStoppedGradexItems(opts: {
+  supabase: ServiceRoleSupabase
+  items: AssignmentAiGradingRunItem[]
+  leaseToken: string
+  leaseFencingEnabled: boolean
+}): Promise<void> {
+  await waitForAllOrThrow(getDueGradexItems(opts.items).map((item) =>
+    updateRunItem(opts.supabase, item.id, opts.leaseToken, opts.leaseFencingEnabled, {
+      status: 'queued', attempt_count: item.attempt_count,
+      next_retry_at: new Date(Date.now() + 30_000).toISOString(),
+      last_error_code: 'ai_outbound_disabled',
+      last_error_message: 'Outbound AI requests are disabled',
+    }),
+  ))
+}
+
 async function submitGradexAssignmentRun(opts: {
   supabase: ServiceRoleSupabase
   assignment: Assignment
@@ -542,11 +559,21 @@ async function submitGradexAssignmentRun(opts: {
   leaseToken: string
   leaseFencingEnabled: boolean
 }): Promise<void> {
-  const config = getGradexConfig()
   let dueItems = getDueGradexItems(opts.items)
   if (dueItems.length === 0) {
     return
   }
+  // A stop defers submission without consuming provider attempts or releasing
+  // reservations. Already-submitted runs continue through the polling path.
+  const deferForStop = () => deferStoppedGradexItems({ ...opts, items: dueItems })
+  try {
+    assertAIOutboundEnabled()
+  } catch (error) {
+    if (!(error instanceof AIOutboundDisabledError)) throw error
+    await deferForStop()
+    return
+  }
+  const config = getGradexConfig()
 
   const { gradexRequest, mappings } = await loadGradexRunInputs({
     supabase: opts.supabase,
@@ -583,6 +610,8 @@ async function submitGradexAssignmentRun(opts: {
 
   let gradexRun: GradexSmokeRunResponse
   try {
+    // Recheck after local preparation and directly before remote submission.
+    assertAIOutboundEnabled()
     gradexRun = await requestGradexJson(config, {
       path: '/api/v1/grading-runs',
       method: 'POST',
@@ -592,6 +621,10 @@ async function submitGradexAssignmentRun(opts: {
       timeoutMs: gradexRequest.settings.request_timeout_ms,
     })
   } catch (error) {
+    if (error instanceof AIOutboundDisabledError) {
+      await deferForStop()
+      return
+    }
     if (isGradexRetryableRequestError(error)) {
       await handleRetryableGradexError({
         supabase: opts.supabase,
@@ -865,6 +898,15 @@ export async function submitOrPollGradexAssignmentRun(opts: {
   leaseToken: string
   leaseFencingEnabled: boolean
 }): Promise<void> {
+  if (!opts.run.gradex_run_id) {
+    try {
+      assertAIOutboundEnabled()
+    } catch (error) {
+      if (!(error instanceof AIOutboundDisabledError)) throw error
+      await deferStoppedGradexItems({ ...opts, leaseFencingEnabled: opts.run.worker_contract_version === 1 || opts.leaseFencingEnabled })
+      return
+    }
+  }
   // Persisted version, never the current rollout flag, owns a running job.
   if (opts.run.worker_contract_version === 1) {
     opts = { ...opts, leaseFencingEnabled: true, items: await filterMeteredGradexSources(opts) }

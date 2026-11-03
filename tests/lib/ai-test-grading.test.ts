@@ -2,7 +2,7 @@
  * Tests for ai-test-grading utility functions.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { describe, it, expect, afterEach, vi } from 'vitest'
 import {
   buildTestOpenResponseReferenceCacheKey,
   normalizeTestOpenResponseReferenceAnswers,
@@ -64,28 +64,29 @@ describe('normalizeTestOpenResponseReferenceAnswers', () => {
 })
 
 describe('getTestOpenResponseGradingModel', () => {
-  const originalEnv = process.env.DEEPSEEK_GRADING_MODEL
+  afterEach(() => vi.unstubAllEnvs())
 
-  afterEach(() => {
-    if (originalEnv === undefined) {
-      delete process.env.DEEPSEEK_GRADING_MODEL
-    } else {
-      process.env.DEEPSEEK_GRADING_MODEL = originalEnv
-    }
+  it('defaults to OpenAI and its default model', () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
+    vi.stubEnv('OPENAI_GRADING_MODEL', '')
+    expect(getTestOpenResponseGradingModel()).toBe('gpt-5-mini')
   })
 
-  it('returns the default model when env var is not set', () => {
-    delete process.env.DEEPSEEK_GRADING_MODEL
+  it('trims the configured OpenAI model', () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+    vi.stubEnv('OPENAI_GRADING_MODEL', '  custom-openai  ')
+    expect(getTestOpenResponseGradingModel()).toBe('custom-openai')
+  })
+
+  it('uses the configured DeepSeek model only when explicitly selected', () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
+    vi.stubEnv('DEEPSEEK_GRADING_MODEL', '  custom-deepseek  ')
+    expect(getTestOpenResponseGradingModel()).toBe('custom-deepseek')
+  })
+
+  it('uses the DeepSeek default when selected without a model', () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
+    vi.stubEnv('DEEPSEEK_GRADING_MODEL', '')
     expect(getTestOpenResponseGradingModel()).toBe('deepseek-flash')
-  })
-
-  it('returns the configured model when env var is set', () => {
-    process.env.DEEPSEEK_GRADING_MODEL = 'gpt-4o'
-    expect(getTestOpenResponseGradingModel()).toBe('gpt-4o')
-  })
-
-  it('trims whitespace from the configured model', () => {
-    process.env.DEEPSEEK_GRADING_MODEL = '  gpt-4o  '
-    expect(getTestOpenResponseGradingModel()).toBe('gpt-4o')
   })
 })

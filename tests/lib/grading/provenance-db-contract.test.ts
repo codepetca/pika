@@ -35,6 +35,7 @@ describe('stored grading provenance matches the database contract', () => {
   const originalKey = process.env.DEEPSEEK_API_KEY
   afterEach(() => {
     process.env.DEEPSEEK_API_KEY = originalKey
+    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   })
 
@@ -46,6 +47,7 @@ describe('stored grading provenance matches the database contract', () => {
   })
 
   it('stores test provenance with only keys the database accepts', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     process.env.DEEPSEEK_API_KEY = 'synthetic-key'
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -63,6 +65,7 @@ describe('stored grading provenance matches the database contract', () => {
       answerKey: 'A function calling itself with a base case.',
     })
 
+    expect(provenance.provider).toBe('deepseek')
     expect(Object.keys(provenance).filter((key) => !TEST_TOP.includes(key))).toEqual([])
     expect(Object.keys(provenance.tokenUsage).filter((key) => !TEST_TOKENS.includes(key))).toEqual([])
   })

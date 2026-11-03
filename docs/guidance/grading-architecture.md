@@ -14,9 +14,21 @@ guides before changing schema or deploying a grading contract.
   an enforced architecture rule.
 - Pika-specific adapters sanitize classroom data, build core inputs, map results
   back to Pika fields, and coordinate durable work.
-- DeepSeek chat completions is the only implemented runtime provider. The
-  default model is `deepseek-flash` (DeepSeek-V4.1-Flash), configurable through
-  `DEEPSEEK_GRADING_MODEL`, and authenticated with `DEEPSEEK_API_KEY`.
+- Grading defaults to OpenAI Responses (`OPENAI_GRADING_MODEL`, default
+  `gpt-5-mini`). `PIKA_AI_GRADING_PROVIDER=deepseek` selects DeepSeek directly;
+  its model defaults to `deepseek-flash` and is configurable through
+  `DEEPSEEK_GRADING_MODEL`. The matching provider API keys must be configured.
+- In OpenAI mode, the router retries the grading request with DeepSeek only if
+  OpenAI returns the documented organization or project hard spend-limit error.
+  Other errors, including ordinary rate limits, do not trigger a provider switch.
+  Configure and enforce the approved $50 monthly limit in the OpenAI project or
+  organization separately; this application does not set or verify that limit.
+  OpenAI documents that enforcement can lag and spend can slightly exceed it.
+- `PIKA_AI_API_ENABLED=false` stops new direct Pika AI provider requests;
+  unset or exact `true` permits them, and any other explicit value fails closed.
+  Environment changes require the hosting platform to deliver updated settings
+  to running instances. Requests already dispatched cannot be recalled. Tier
+  entitlements and this operator control are separate.
 - Assignment and test suggestions persist with bounded versioned provenance.
 - Teacher actions create identity-free review snapshots for offline metrics.
 - Normal grading does not call remote Gradex. The remote Gradex worker remains

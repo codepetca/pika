@@ -1,5 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
+import { AIOutboundDisabledError } from '@/lib/grading/providers/ai-outbound-gate'
+import { getGradingModel } from '@/lib/ai-grading-provider'
 import {
   AssignmentAiGradingError,
   gradeStudentWork,
@@ -64,7 +66,6 @@ import type {
   AssignmentDocHistoryEntry,
 } from '@/types'
 
-const DEFAULT_MODEL = 'deepseek-flash'
 const RETRY_BACKOFF_SECONDS = [15, 60, 180]
 const TIMEOUT_RETRY_BACKOFF_SECONDS = [7, 20, 45]
 const MISSING_ASSIGNMENT_GRADE_FEEDBACK = 'Missing'
@@ -93,11 +94,13 @@ const assignmentAiGradingRunItemEvidenceSchema = z.object({
   next_retry_at: gradingTimestampSchema.nullable(),
 }).passthrough()
 
-export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 4
+// One concurrent wave fits within the route and lease even when the primary
+// adapter retries before the fallback adapter uses its full attempt budget.
+export const ASSIGNMENT_AI_GRADING_RUN_CHUNK_SIZE = 2
 export const ASSIGNMENT_AI_GRADING_ITEM_CONCURRENCY = 2
 export const ASSIGNMENT_AI_GRADING_REQUEST_TIMEOUT_MS = 25_000
 export const ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS = 3
-export const ASSIGNMENT_AI_GRADING_LEASE_SECONDS = 120
+export const ASSIGNMENT_AI_GRADING_LEASE_SECONDS = 210
 
 type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
@@ -152,7 +155,7 @@ type SupabaseSchemaError = {
 }
 
 function getModelAlias(): string {
-  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  return getGradingModel()
 }
 
 function getAssignmentRunModelAlias(): string {
@@ -872,6 +875,17 @@ async function processAssignmentAiRunItem(opts: {
     })
   } catch (error) {
     if (error instanceof AssignmentAiGradingLeaseLostError) throw error
+    if (error instanceof AIOutboundDisabledError) {
+      // Preserve the reservation and attempt count while the operator stop is active.
+      await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {
+        status: 'queued',
+        attempt_count: item.attempt_count,
+        last_error_code: 'ai_outbound_disabled',
+        last_error_message: 'Outbound AI requests are disabled',
+        next_retry_at: new Date(Date.now() + 30_000).toISOString(),
+      })
+      return
+    }
     const message = leaseFencingEnabled ? 'AI grading failed'
       : error instanceof Error ? error.message : 'AI grading failed'
 

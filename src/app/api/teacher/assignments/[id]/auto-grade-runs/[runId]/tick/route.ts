@@ -6,7 +6,7 @@ import { assertTeacherCanMutateAssignment } from '@/lib/server/repo-review'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
-export const maxDuration = 60
+export const maxDuration = 180
 
 export const POST = withErrorHandler('PostTeacherAssignmentAutoGradeRunTick', async (request, context) => {
   const user = await requireRole('teacher')
