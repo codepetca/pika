@@ -3060,6 +3060,16 @@ test('shows teacher test list status from effective student access', async ({ pa
               questions_count: 1,
             },
           },
+          {
+            id: '30000000-0000-4000-8000-000000000015',
+            classroom_id: TEST_GRADING_FIXTURE_CLASSROOM_ID,
+            title: 'Scheduled draft',
+            status: 'draft',
+            test_date: '2099-11-10',
+            position: 2,
+            documents: [],
+            stats: { total_students: 2, responded: 0, submitted: 0, open_access: 0, closed_access: 2, questions_count: 1 },
+          },
         ],
       }),
     })
@@ -3070,6 +3080,9 @@ test('shows teacher test list status from effective student access', async ({ pa
   await expect(page.getByText('Closed for everyone')).toBeVisible()
   await expect(page.getByText('Open', { exact: true })).toBeVisible()
   await expect(page.getByText('Closed', { exact: true })).toBeVisible()
+  await expect(page.getByText('Scheduled draft')).toBeVisible()
+  await expect(page.getByText('Nov 10, 2099')).toBeVisible()
+  await expect(page.getByText('Draft', { exact: true })).toBeVisible()
   await page.screenshot({
     path: testInfo.outputPath(`teacher-test-list-access-${viewport}-${theme}.png`),
     animations: 'disabled',
@@ -4473,7 +4486,7 @@ test('shows teacher Tests before statistics finish', async ({ page }, testInfo) 
   release()
   await expect(pending).toBeEnabled()
   console.info(`Synthetic Tests timing: title=${titleMs}ms complete=${Date.now() - startedAt}ms; requests=2`)
-  await expect(page.getByText('10/30 submitted')).toBeVisible()
+  await expect(page.getByLabel('10 of 30 submitted')).toBeVisible()
   expect(summaryCalls).toBe(1)
   expect(fullCalls).toBe(1)
   await page.screenshot({ path: testInfo.outputPath('progressive-tests-loaded.png'), animations: 'disabled' })

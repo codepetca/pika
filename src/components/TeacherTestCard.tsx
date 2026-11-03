@@ -2,7 +2,8 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Eye, GripVertical, Lock, Trash2, Unlock } from 'lucide-react'
+import { CheckCircle2, Eye, GripVertical, Trash2 } from 'lucide-react'
+import { format, isValid, parseISO } from 'date-fns'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import {
   getAssessmentStatusLabel,
@@ -10,6 +11,7 @@ import {
   getTeacherTestListDisplayStatus,
 } from '@/lib/tests'
 import { Button, IconButton, Tooltip } from '@/ui'
+import { getTodayInToronto } from '@/lib/timezone'
 import type { TestAssessment, TestAssessmentWithStats } from '@/types'
 
 interface TeacherTestCardProps {
@@ -60,9 +62,8 @@ export function TeacherTestCard({
   const stats = 'stats' in test ? test.stats : undefined
   const totalStudents = stats?.total_students || 0
   const submittedCount = stats?.submitted ?? stats?.responded ?? 0
-  const openAccessCount = stats?.open_access ?? (test.status === 'active' ? totalStudents : 0)
-  const closedAccessCount =
-    stats?.closed_access ?? Math.max(totalStudents - openAccessCount, 0)
+  const date = test.test_date ? parseISO(test.test_date) : null
+  const futureDate = date && isValid(date) && test.test_date! > getTodayInToronto() ? date : null
 
   return (
     <TeacherWorkItemCardFrame
@@ -102,30 +103,20 @@ export function TeacherTestCard({
           type="button"
           onClick={onSelect}
           disabled={statsPending}
-          className="min-w-0 text-left"
-          aria-label={editMode ? `Open ${test.title}` : test.title}
+          className={`min-w-0 text-left row-start-1 sm:row-auto sm:col-auto ${showEditActions ? 'col-start-2' : 'col-start-1'}`}
+          aria-label={`${editMode ? `Open ${test.title}` : test.title}${futureDate ? `, test date ${format(futureDate, 'MMMM d, yyyy')}` : ''}`}
         >
           <h3 className={['truncate font-medium', isDraft ? 'text-text-muted' : 'text-text-default'].join(' ')}>
             {test.title}
           </h3>
-          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-muted">
-            {statsPending ? <>
-              <span aria-label={statsUnavailable ? 'Submitted count unavailable' : 'Submitted count loading'}>—/— submitted</span>
-              <span aria-label={statsUnavailable ? 'Open count unavailable' : 'Open count loading'}>— open</span>
-              <span aria-label={statsUnavailable ? 'Closed count unavailable' : 'Closed count loading'}>— closed</span>
-            </> : <><span>{submittedCount}/{totalStudents} submitted</span>
-            <span className="inline-flex items-center gap-1" aria-label={`${openAccessCount} open`}>
-              {openAccessCount}
-              <Unlock className="h-3.5 w-3.5 text-success" aria-hidden="true" />
-            </span>
-            <span className="inline-flex items-center gap-1" aria-label={`${closedAccessCount} closed`}>
-              {closedAccessCount}
-              <Lock className="h-3.5 w-3.5 text-danger" aria-hidden="true" />
-            </span></>}
-          </div>
+          {futureDate ? <span className="mt-1 block text-xs text-text-muted">{format(futureDate, 'MMM d, yyyy')}</span> : null}
         </button>
 
-        <div className="flex items-center justify-start gap-2 sm:flex-col sm:items-center sm:justify-center sm:px-4 sm:text-center">
+        <div className={`row-start-2 flex flex-wrap items-center justify-start gap-2 sm:row-auto sm:col-auto sm:justify-center sm:px-4 ${showEditActions ? 'col-start-2' : 'col-start-1'}`}>
+          <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-text-muted" aria-label={statsPending ? (statsUnavailable ? 'Submitted count unavailable' : 'Submitted count loading') : `${submittedCount} of ${totalStudents} submitted`}>
+            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+            {statsPending ? '—/—' : `${submittedCount}/${totalStudents}`}
+          </span>
           <span
             className={`inline-flex shrink-0 items-center rounded-badge px-2.5 py-1 text-xs font-semibold ${statsPending && !isDraft ? 'bg-surface-2 text-text-muted' : statusBadgeClass}`}
           >
@@ -133,7 +124,7 @@ export function TeacherTestCard({
           </span>
         </div>
 
-        <div className="flex items-center justify-end gap-1">
+        <div className={`row-start-1 flex items-center justify-end gap-1 sm:row-auto sm:col-auto ${showEditActions ? 'col-start-3' : 'col-start-2'}`}>
           <IconButton
             icon={Eye}
             label={`Preview ${test.title}`}
