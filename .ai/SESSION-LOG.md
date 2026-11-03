@@ -11,41 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 RepoLight release and hosted quota stop
-
-1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
-canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
-promotion review passed; all6276parent journal occurrences preserved. Controlled
-Student-labelled owner access and blank-login overview PASS. One hosted analysis
-failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
-assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
-AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
-released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
-GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
-provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
-
-## 2026-10-26 Future post dates
-
-Announcements and posted Classwork materials accept future Post date values.
-Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
-today/past dates retain posted_on. A field hint discloses student hiding. No schema
-or dependency changes. Risk none. Reference/reuse: production Material editor and
-Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
-existing scheduling. No new shared UI pattern or unrelated refactor. Composite
-checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
-contracts retained and interaction-tested; no new ARIA widget.
-Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
-material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
-cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
-corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
-student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
-and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
-Material student editing n/a (teacher-only); existing student release API checks
-reused. Capture source equals this candidate's UI files; deterministic fixtures,
-Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
-process secret used. Draft PR and independent review follow; merge/release require
-authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
-
 ## 2026-10-27 Accept the bounded 70-account classroom rollout
 
 Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
@@ -372,3 +337,16 @@ protect delayed results. Independent review and CI remain pending.
 Prevent invalidated summary reuse, join in-flight full prefetches, fall back
 from non-authorization summary errors, and gate material deep links on complete
 authorized classwork. Real-cache and interaction regressions exercise these paths.
+
+## 2026-11-03 — Teacher Tests statistics pagination
+
+On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
+PostgREST's row cap silently truncating question, attempt, response, and access
+counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
+regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.

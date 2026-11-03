@@ -50727,6 +50727,7 @@ integration acceptance remain pending. Standalone inventory diagnostic limitatio
 is tracked in the integration guide/PR; no passing claim for that command.
 
 <!-- pika-session-log-archive-batch:3328cc702017c7d6bfb47b5ab5ba46f2331e57c850090a3e2243176ae9d2bd0a -->
+<!-- pika-session-log-archive-batch:a96bea1ce6c43ed5c78c8aa1c306bd9faa5a0555d1ff1bd1bfaa37558cbe0619 -->
 ## 2026-10-25 — Controlled RepoLight connection and blank-login regression
 
 User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
@@ -50740,6 +50741,7 @@ and source release pending; no report/import/grade/sent-feedback acceptance clai
 Private connection/pilot receipts remain outside Git.
 
 <!-- pika-session-log-archive-batch:dccc4e7f6aefe990212b4cef1c842274e6eb6a955f0ef57e6088348d154cbd8a -->
+<!-- pika-session-log-archive-batch:107ee1c59e81ea6ff3ffab72241f462d3f421113a7f5239eb79aa7fe6bf0e4e9 -->
 ## 2026-10-25 RepoLight contextual-owner report admission
 
 Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
@@ -50753,3 +50755,39 @@ and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
 a Student-labelled owner and synthetic creation grant; fixture resources removed.
 Route regressions and independent auth/compatibility review precede CI and specific
 owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
+
+<!-- pika-session-log-archive-batch:b4eb0a91f1ff4c78bb154fa0bd7aacb4e1cc954258ba39a8599a4890cb75ad65 -->
+## 2026-10-25 RepoLight release and hosted quota stop
+
+1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
+canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
+promotion review passed; all6276parent journal occurrences preserved. Controlled
+Student-labelled owner access and blank-login overview PASS. One hosted analysis
+failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
+assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
+AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
+released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
+GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
+provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
+
+## 2026-10-26 Future post dates
+
+Announcements and posted Classwork materials accept future Post date values.
+Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
+today/past dates retain posted_on. A field hint discloses student hiding. No schema
+or dependency changes. Risk none. Reference/reuse: production Material editor and
+Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
+existing scheduling. No new shared UI pattern or unrelated refactor. Composite
+checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
+contracts retained and interaction-tested; no new ARIA widget.
+Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
+material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
+cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
+corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
+student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
+and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
+Material student editing n/a (teacher-only); existing student release API checks
+reused. Capture source equals this candidate's UI files; deterministic fixtures,
+Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
+process secret used. Draft PR and independent review follow; merge/release require
+authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
