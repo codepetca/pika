@@ -46,6 +46,11 @@ export function peekCachedJSON<T>(key: string): T | undefined {
   return entry?.value !== undefined && entry.expiresAt > Date.now() ? entry.value as T : undefined
 }
 
+/** Join an existing in-flight full read without starting a second request. */
+export function peekPendingCachedJSON<T>(key: string): Promise<T> | undefined {
+  return cache.get(key)?.pending as Promise<T> | undefined
+}
+
 /** Tokens exist only while a read is active and are invalidated with their key. */
 export function beginCachedJSONRead(key: string): CacheReadToken {
   const token = { key, valid: true }

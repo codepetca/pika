@@ -50738,3 +50738,18 @@ own undefined optional GitHub metadata; mapper now omits absent fields. Regressi
 failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
 and source release pending; no report/import/grade/sent-feedback acceptance claimed.
 Private connection/pilot receipts remain outside Git.
+
+<!-- pika-session-log-archive-batch:dccc4e7f6aefe990212b4cef1c842274e6eb6a955f0ef57e6088348d154cbd8a -->
+## 2026-10-25 RepoLight contextual-owner report admission
+
+Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
+is READY. Overview now loads; pilot stopped before Analyze because report routes
+required global Teacher for admitted contextual owner A. No report/import; AI OFF.
+Draft preparation briefly saved zero marks in Final mode; normal Draft restored
+all synthetic marks/graded/returned fields to null. Production window released
+to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
+shared admission with legacy Teacher fallback, retaining owner/source/lease fences
+and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
+a Student-labelled owner and synthetic creation grant; fixture resources removed.
+Route regressions and independent auth/compatibility review precede CI and specific
+owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.

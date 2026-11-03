@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 RepoLight contextual-owner report admission
-
-Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
-is READY. Overview now loads; pilot stopped before Analyze because report routes
-required global Teacher for admitted contextual owner A. No report/import; AI OFF.
-Draft preparation briefly saved zero marks in Final mode; normal Draft restored
-all synthetic marks/graded/returned fields to null. Production window released
-to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
-shared admission with legacy Teacher fallback, retaining owner/source/lease fences
-and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
-a Student-labelled owner and synthetic creation grant; fixture resources removed.
-Route regressions and independent auth/compatibility review precede CI and specific
-owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
-
 ## 2026-10-25 RepoLight release and hosted quota stop
 
 1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
@@ -380,3 +366,9 @@ Legacy assignment and survey summaries can render before statistics, with explic
 unknown counts and incomplete-list action guards. Shared reads retain their full
 owner-scoped contract and cache; cache invalidation and permission failure guards
 protect delayed results. Independent review and CI remain pending.
+
+## 2026-11-03 — Classwork progressive read review fixes
+
+Prevent invalidated summary reuse, join in-flight full prefetches, fall back
+from non-authorization summary errors, and gate material deep links on complete
+authorized classwork. Real-cache and interaction regressions exercise these paths.

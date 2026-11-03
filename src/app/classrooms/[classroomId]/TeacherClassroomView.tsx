@@ -118,7 +118,7 @@ import {
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
-import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON, peekCachedJSON, primeCachedJSON, beginCachedJSONRead, endCachedJSONRead } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSON, fetchJSONWithCache, invalidateCachedJSON, peekCachedJSON, peekPendingCachedJSON, primeCachedJSON, beginCachedJSONRead, endCachedJSONRead } from '@/lib/request-cache'
 import { ApiError } from '@/lib/api-error'
 import { useClassDays } from '@/hooks/useClassDays'
 import { CLASSWORK_MATERIALS_UPDATED_EVENT } from '@/lib/events'
@@ -791,16 +791,28 @@ export function TeacherClassroomView({
             showPartial(cached.assignments?.length ?? 0, () => setPreviewAssignments(cached.assignments || []))
             return cached
           }
-          const summary = await fetchCachedJSON<{ assignments?: Assignment[]; summary_only?: boolean }>(
-            `teacher-assignments-summary:${classroom.id}`,
-            `/api/teacher/assignments?classroom_id=${classroom.id}&summary=1`,
-            { errorMessage: 'Failed to load assignments', ttlMs: 0 },
-          )
-          showPartial(summary.assignments?.length ?? 0, () => setPreviewAssignments(summary.assignments || []))
-          if (!summary.summary_only) {
-            primeCachedJSON(`teacher-assignments:${classroom.id}`, summary as TeacherAssignmentsResponse, 20_000, assignmentVersion)
-            return summary as TeacherAssignmentsResponse
+          const pending = peekPendingCachedJSON<TeacherAssignmentsResponse>(`teacher-assignments:${classroom.id}`)
+          if (pending) {
+            const full = await pending
+            showPartial(full.assignments?.length ?? 0, () => setPreviewAssignments(full.assignments || []))
+            return full
           }
+          let summary: { assignments?: Assignment[]; summary_only?: boolean } | undefined
+          try {
+            summary = await fetchJSON(`/api/teacher/assignments?classroom_id=${classroom.id}&summary=1`,
+              { errorMessage: 'Failed to load assignments' })
+          } catch (error) {
+            if (error instanceof ApiError && [401, 403, 404].includes(error.statusCode)) throw error
+          }
+          if (!assignmentVersion.valid) throw new Error('Classwork changed while loading')
+          if (summary) {
+            showPartial(summary.assignments?.length ?? 0, () => setPreviewAssignments(summary!.assignments || []))
+            if (!summary.summary_only) {
+              primeCachedJSON(`teacher-assignments:${classroom.id}`, summary as TeacherAssignmentsResponse, 20_000, assignmentVersion)
+              return summary as TeacherAssignmentsResponse
+            }
+          }
+
           const full = await fetchCachedJSON<TeacherAssignmentsResponse>(
             `teacher-assignments:${classroom.id}`,
             `/api/teacher/assignments?classroom_id=${classroom.id}`,
@@ -820,16 +832,28 @@ export function TeacherClassroomView({
             showPartial(cached.surveys?.length ?? 0, () => setPreviewSurveys(cached.surveys || []))
             return cached
           }
-          const summary = await fetchCachedJSON<{ surveys?: Survey[]; summary_only?: boolean }>(
-            `teacher-surveys-summary:${classroom.id}`,
-            `/api/teacher/surveys?classroom_id=${classroom.id}&summary=1`,
-            { errorMessage: 'Failed to load surveys', ttlMs: 0 },
-          )
-          showPartial(summary.surveys?.length ?? 0, () => setPreviewSurveys(summary.surveys || []))
-          if (!summary.summary_only) {
-            primeCachedJSON(`teacher-surveys:${classroom.id}`, summary as TeacherSurveysResponse, 20_000, surveyVersion)
-            return summary as TeacherSurveysResponse
+          const pending = peekPendingCachedJSON<TeacherSurveysResponse>(`teacher-surveys:${classroom.id}`)
+          if (pending) {
+            const full = await pending
+            showPartial(full.surveys?.length ?? 0, () => setPreviewSurveys(full.surveys || []))
+            return full
           }
+          let summary: { surveys?: Survey[]; summary_only?: boolean } | undefined
+          try {
+            summary = await fetchJSON(`/api/teacher/surveys?classroom_id=${classroom.id}&summary=1`,
+              { errorMessage: 'Failed to load surveys' })
+          } catch (error) {
+            if (error instanceof ApiError && [401, 403, 404].includes(error.statusCode)) throw error
+          }
+          if (!surveyVersion.valid) throw new Error('Classwork changed while loading')
+          if (summary) {
+            showPartial(summary.surveys?.length ?? 0, () => setPreviewSurveys(summary!.surveys || []))
+            if (!summary.summary_only) {
+              primeCachedJSON(`teacher-surveys:${classroom.id}`, summary as TeacherSurveysResponse, 20_000, surveyVersion)
+              return summary as TeacherSurveysResponse
+            }
+          }
+
           const full = await fetchCachedJSON<TeacherSurveysResponse>(
             `teacher-surveys:${classroom.id}`,
             `/api/teacher/surveys?classroom_id=${classroom.id}`,
@@ -920,20 +944,27 @@ export function TeacherClassroomView({
   }, [classroom.id, loadAssignments])
 
   useEffect(() => {
+    if (completeClasswork) return
+    setIsMaterialModalOpen(false)
+    setEditMaterial(null)
+    materialUrlOwnerRef.current = null
+  }, [completeClasswork])
+
+  useEffect(() => {
     const owner = isActive && selectedMaterialId ? `${classroom.id}:${selectedMaterialId}` : null
-    if (materialUrlOwnerRef.current && materialUrlOwnerRef.current !== owner) {
+    if (materialUrlOwnerRef.current && (materialUrlOwnerRef.current !== owner || !completeClasswork)) {
       setIsMaterialModalOpen(false)
       setEditMaterial(null)
       materialUrlOwnerRef.current = null
     }
-    if (!owner || loadedClassroomId !== classroom.id) return
+    if (!owner || !completeClasswork || loadedClassroomId !== classroom.id) return
     const selected = materials.find((item) => item.id === selectedMaterialId)
     if (selected) {
       materialUrlOwnerRef.current = owner
       setEditMaterial(selected)
       setIsMaterialModalOpen(true)
     }
-  }, [classroom.id, isActive, loadedClassroomId, materials, selectedMaterialId])
+  }, [classroom.id, isActive, completeClasswork, loadedClassroomId, materials, selectedMaterialId])
 
   const clearMaterialSelection = useCallback(() => {
     updateSearchParams?.((params) => { params.delete('materialId') }, { replace: true })

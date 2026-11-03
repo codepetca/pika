@@ -36,3 +36,16 @@ Legacy cold reads add up to two summary requests and start the full count reads
 after legacy mode is identified. Until all full list data is present, cards,
 creation, editing and reorder are disabled. The shared owner path continues to
 return its existing full response and reuses the existing full cache.
+
+Review remediation: uncached summary reads cannot be joined after a full-list
+invalidation, and a current in-flight full prefetch is joined. Non-permission
+summary failures fall back to the full read. Material deep links wait for the
+complete authorized list and close if that authority is lost. Overlapping
+reloads may issue separate lightweight summaries; no count is synthesized.
+
+Remediation visual check: a synthetic teacher material deep link was captured
+before and after list completion at desktop/mobile in light/dark. The pending
+material button was disabled and the dialog absent; the existing material dialog
+opened after verification, with focus on its title. Captures are under
+`/tmp/classwork-remediation-{desktop-light,mobile-light,desktop-dark,mobile-dark}-{pending,complete}.png`.
+Student remains n/a. These intercepted responses do not establish persistence.
