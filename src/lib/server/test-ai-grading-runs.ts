@@ -785,7 +785,9 @@ async function processQuestionBatch(opts: {
   tickStartedAt: number
 }): Promise<void> {
   const { supabase, run, leaseToken, testTitle, question, items, responsesById, sanitizationContext, tickStartedAt } = opts
-  const model = run.model ?? getTestOpenResponseGradingModel()
+  // A run can outlive a provider switch. Cache identity must match the provider
+  // used for new reference generation, not the historical run model.
+  const model = getTestOpenResponseGradingModel()
   const cacheResolution = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle,
     questionText: String(question.question_text || ''),

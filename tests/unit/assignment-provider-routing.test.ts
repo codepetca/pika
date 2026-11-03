@@ -24,6 +24,25 @@ describe('grading provider routing integration', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
+  it('records unknown aggregate usage when truncated OpenAI usage precedes a fallback', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+    vi.stubEnv('PIKA_AI_API_ENABLED', 'true')
+    vi.stubEnv('OPENAI_API_KEY', 'test')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test')
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'incomplete', incomplete_details: { reason: 'max_output_tokens' },
+        usage: { input_tokens: 10, output_tokens: 100, total_tokens: 110 } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'project_spend_limit_exceeded' } }), { status: 429 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ score_completion: 8,
+        score_thinking: 7, score_workflow: 4, feedback: 'Strength: Clear work.' }) }, finish_reason: 'stop' }],
+        usage: { prompt_tokens: 30, completion_tokens: 20, total_tokens: 50 } })))
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await gradeStudentWork({ assignmentTitle: 'Reflection', instructions: 'Explain your work', studentWork: work })
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(result.provenance).toMatchObject({ provider: 'deepseek', providerRequestCount: 3,
+      tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null } })
+  })
+
   it('does not silently produce heuristic repository feedback when the stop is active', async () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
     vi.stubEnv('PIKA_AI_API_ENABLED', 'false')

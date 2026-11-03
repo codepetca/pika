@@ -17,6 +17,8 @@ export type OpenAiSpendLimitCode = 'organization_spend_limit_exceeded' | 'projec
 export class OpenAiSpendLimitError extends GradingProviderError {
   readonly spendLimitCode: OpenAiSpendLimitCode
   requestCount = 1
+  /** Usage measured on earlier responses, excluding the rejected request. */
+  priorTokenUsage: GradingTokenUsage | null = null
 
   constructor(code: OpenAiSpendLimitCode, statusCode: number) {
     super({ kind: 'config', message: 'OpenAI spend limit exceeded', retryable: false, statusCode })
@@ -49,7 +51,10 @@ export function createOpenAiResponsesProvider(opts: {
         try {
           payload = await fetchPayload(fetchImpl, opts.apiKey, request, request.fallbackMaxOutputTokens)
         } catch (error) {
-          if (error instanceof OpenAiSpendLimitError) error.requestCount = requestCount
+          if (error instanceof OpenAiSpendLimitError) {
+            error.requestCount = requestCount
+            error.priorTokenUsage = tokenUsage
+          }
           throw error
         }
         tokenUsage = addTokenUsage(tokenUsage, readTokenUsage(payload))

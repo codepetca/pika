@@ -51,6 +51,17 @@ describe('OpenAI Responses grading provider', () => {
     },
   )
 
+  it('retains bounded measured usage from a truncated attempt before a spend-limit rejection', async () => {
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: 'incomplete',
+        incomplete_details: { reason: 'max_output_tokens' }, usage: { input_tokens: 10, output_tokens: 100, total_tokens: 110 } })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'project_spend_limit_exceeded', message: marker } }), { status: 429 }))
+    const error = await provider(fetchImpl).generate(request).catch((failure: unknown) => failure)
+    expect(error).toBeInstanceOf(OpenAiSpendLimitError)
+    expect(error).toMatchObject({ requestCount: 2, priorTokenUsage: { inputTokens: 10, outputTokens: 100, totalTokens: 110 } })
+    expect(inspect(error, { depth: null })).not.toContain(marker)
+  })
+
   it.each([
     JSON.stringify({ error: { code: 'insufficient_quota', message: marker } }),
     JSON.stringify({ error: { code: 'project_spend_limit_exceeded_extra', message: marker } }),

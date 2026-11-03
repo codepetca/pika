@@ -37,8 +37,26 @@ describe('grading provider routing', () => {
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'deepseek-model')
     openai.mockRejectedValue(new OpenAiSpendLimitError('project_spend_limit_exceeded', 429))
     deepseek.mockResolvedValue(response)
-    expect(await createGradingProvider().generate(request)).toMatchObject({ providerUsed: 'deepseek', modelUsed: 'deepseek-model' })
+    expect(await createGradingProvider().generate(request)).toMatchObject({ providerUsed: 'deepseek', modelUsed: 'deepseek-model',
+      requestCount: 2, tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null } })
     expect(deepseek).toHaveBeenCalledWith(expect.objectContaining({ model: 'deepseek-model' }))
+  })
+
+  it('does not report partial combined usage as a complete total after a truncated attempt', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+    vi.stubEnv('OPENAI_API_KEY', 'test')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test')
+    const error = new OpenAiSpendLimitError('project_spend_limit_exceeded', 429)
+    error.requestCount = 2
+    error.priorTokenUsage = { inputTokens: 10, outputTokens: 100, totalTokens: 110 }
+    openai.mockRejectedValue(error)
+    deepseek.mockResolvedValue({ ...response, tokenUsage: { inputTokens: 30, outputTokens: 20, totalTokens: 50,
+      cachedInputTokens: 10, reasoningTokens: 5 } })
+    const result = await createGradingProvider().generate(request)
+    expect(result).toMatchObject({ providerUsed: 'deepseek', requestCount: 3,
+      tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null } })
+    expect(result.tokenUsage).not.toHaveProperty('cachedInputTokens')
+    expect(result.tokenUsage).not.toHaveProperty('reasoningTokens')
   })
 
   it('does not switch on an unrelated error', async () => {

@@ -40,7 +40,12 @@ export function createGradingProvider(): StructuredOutputProvider {
       } catch (error) {
         if (!(error instanceof OpenAiSpendLimitError)) throw error
         const result = await createDeepSeekChatProvider({ apiKey: key('DEEPSEEK_API_KEY') }).generate({ ...request, model: deepseekModel })
-        return { ...result, requestCount: result.requestCount + error.requestCount, providerUsed: 'deepseek', modelUsed: deepseekModel }
+        // The rejected OpenAI request reports no usage, so the cross-provider
+        // total is unknown even if earlier and fallback responses were metered.
+        // Provenance's provider/model name the successful output, not the source
+        // of all usage. Do not present DeepSeek-only usage as an operation total.
+        return { ...result, tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null },
+          requestCount: result.requestCount + error.requestCount, providerUsed: 'deepseek', modelUsed: deepseekModel }
       }
     },
   }
