@@ -53,7 +53,7 @@ describe('TeacherTestCard', () => {
     const test = { ...createMockTest({ title: 'Unit Test', status }), stats: { total_students: 2, submitted: 1, responded: 1, questions_count: 3, open_access: open, closed_access: closed } }
     render(<TeacherTestCard test={test} isReadOnly editMode={false}
       onSelect={vi.fn()} onRequestPreview={vi.fn()} onRequestDelete={vi.fn()} />, { wrapper: TooltipProvider })
-    expect(screen.getByLabelText('1 of 2 submitted')).toHaveTextContent('1/2')
+    expect(screen.getByRole('img', { name: '1 of 2 submitted' })).toHaveTextContent('1/2')
     expect(screen.getByText(label)).toBeInTheDocument()
     expect(screen.queryByLabelText('1 open')).not.toBeInTheDocument()
   })

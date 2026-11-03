@@ -113,7 +113,7 @@ export function TeacherTestCard({
         </button>
 
         <div className={`row-start-2 flex flex-wrap items-center justify-start gap-2 sm:row-auto sm:col-auto sm:justify-center sm:px-4 ${showEditActions ? 'col-start-2' : 'col-start-1'}`}>
-          <span className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-text-muted" aria-label={statsPending ? (statsUnavailable ? 'Submitted count unavailable' : 'Submitted count loading') : `${submittedCount} of ${totalStudents} submitted`}>
+          <span role="img" className="inline-flex items-center gap-1 whitespace-nowrap text-xs text-text-muted" aria-label={statsPending ? (statsUnavailable ? 'Submitted count unavailable' : 'Submitted count loading') : `${submittedCount} of ${totalStudents} submitted`}>
             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
             {statsPending ? '—/—' : `${submittedCount}/${totalStudents}`}
           </span>
