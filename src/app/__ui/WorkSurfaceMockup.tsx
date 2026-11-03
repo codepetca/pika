@@ -47,7 +47,7 @@ const WORK_ITEMS = {
     { id: 'field-trip-check', title: 'Field trip check-in', kind: 'Survey', status: 'Draft', detail: '3 questions' },
   ],
   tests: [
-    { id: 'ecosystems-test', title: 'Ecosystems test', kind: 'Test', status: 'Open', detail: '20 points · 3 submissions' },
+    { id: 'ecosystems-test', title: 'Ecosystems test', kind: 'Test', status: 'Open', detail: '20 points · 13 submissions' },
     { id: 'scientific-inquiry', title: 'Scientific inquiry', kind: 'Test', status: 'Closed', detail: '28 submissions' },
     { id: 'scheduled-test', title: 'Scheduled test', kind: 'Test', status: 'Closed', detail: 'Scheduled Nov 10, 2099' },
     { id: 'cells-check', title: 'Cells checkpoint', kind: 'Test', status: 'Draft', detail: '10 points · 8 questions' },
@@ -248,7 +248,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
             <h4 className="mt-1 text-lg font-semibold">{selectedItem.title}</h4>
             <p className="mt-1 text-sm text-text-muted">{selectedItem.detail}</p>
           </div>
-          <span className="text-sm font-medium text-success">{selectedItem.status}</span>
+          <span className={cn('text-sm font-medium', selectedItem.status === 'Closed' ? 'text-danger' : selectedItem.status === 'Draft' ? 'text-text-muted' : 'text-success')}>{selectedItem.status}</span>
         </div>
         <p className="mt-5 text-sm leading-6 text-text-default">Review the selected item before moving into student work. Authoring, preview, Markdown, and lifecycle actions stay contextual to this workspace.</p>
       </Card>

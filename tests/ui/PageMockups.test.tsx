@@ -948,6 +948,7 @@ describe('PageMockups', () => {
     expect(within(workspace).getByRole('button', { name: 'Cells checkpoint, test date November 10, 2099' })).toBeVisible()
     await user.click(within(workspace).getByRole('button', { name: 'Ecosystems test' }))
     expect(within(workspace).getByRole('region', { name: 'Test workspace actions' })).toHaveTextContent('Ecosystems test')
+    expect(within(workspace).getByText('20 points · 13 submissions')).toBeVisible()
     await user.click(within(workspace).getByRole('button', { name: 'Classwork' }))
     await user.click(within(workspace).getByRole('button', { name: 'Tests' }))
     expect(within(workspace).queryByRole('button', { name: 'Edit Tests' })).not.toBeInTheDocument()
