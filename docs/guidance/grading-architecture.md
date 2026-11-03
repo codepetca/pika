@@ -21,9 +21,9 @@ guides before changing schema or deploying a grading contract.
 - In OpenAI mode, the router retries the grading request with DeepSeek only if
   OpenAI returns the documented organization or project hard spend-limit error.
   Other errors, including ordinary rate limits, do not trigger a provider switch.
-  Configure and enforce the approved $50 monthly limit in the OpenAI project or
-  organization separately; this application does not set or verify that limit.
-  OpenAI documents that enforcement can lag and spend can slightly exceed it.
+  This application does not configure or verify an OpenAI spend limit. If one
+  is enabled separately, OpenAI documents that enforcement can lag and spend
+  can slightly exceed it.
 - `PIKA_AI_API_ENABLED=false` stops new direct Pika AI provider requests;
   unset or exact `true` permits them, and any other explicit value fails closed.
   Environment changes require the hosting platform to deliver updated settings
