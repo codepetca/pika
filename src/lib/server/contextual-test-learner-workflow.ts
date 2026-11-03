@@ -3,6 +3,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/auth'
 import { ApiError } from '@/lib/api-error'
+import { retryTestWorkflowBusy, TestWorkflowBusy } from '@/lib/server/test-workflow-busy'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
 import { contextualTestDraftGetRpcEnvelopeSchema } from '@/lib/validations/contextual-test-draft-get'
@@ -48,7 +49,7 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
       timer = setTimeout(abort, Math.max(0, deadline - Date.now())); if (input.signal?.aborted) abort()
     })]) } finally { clearTimeout(timer); if (abort) input.signal?.removeEventListener('abort', abort) }
   }
-  async function run<K extends TestLearnerOperation>(operation: K, payload: Json = {}): Promise<Result<K>> {
+  async function execute<K extends TestLearnerOperation>(operation: K, payload: Json = {}): Promise<Result<K>> {
     if (operation !== 'inspect' && classroomId === null) throw unavailable()
     if (++statements > TEST_LEARNER_RPC_LIMIT) throw unavailable()
     const controller = new AbortController(); const abort = () => controller.abort()
@@ -67,6 +68,7 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
         const statuses: Record<string, number> = { PT400: 400, PT403: 403, PT404: 404, PT409: 409 }
         const status = statuses[envelope.data.error.code]
         if (envelope.data.data !== null || !status) throw unavailable()
+        if (envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_learner_busy') throw new TestWorkflowBusy()
         throw new ApiError(status, { 400: 'Invalid test operation', 403: 'Forbidden', 404: 'Test not found', 409: 'Test access changed; reload and retry' }[status] ?? 'Unable to verify test operation')
       }
       if (envelope.data.status !== undefined && (envelope.data.status < 200 || envelope.data.status >= 300)) throw unavailable()
@@ -117,6 +119,9 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
       return result as Result<K>
     } catch (error) { if (error instanceof ApiError) throw error; throw unavailable() }
     finally { clearTimeout(timer); input.signal?.removeEventListener('abort', abort); controller.abort() }
+  }
+  function run<K extends TestLearnerOperation>(operation: K, payload: Json = {}): Promise<Result<K>> {
+    return retryTestWorkflowBusy(() => execute(operation, payload), within)
   }
   return { deadline, within, run, inspect: () => run('inspect'), get classroomId() { return classroomId } }
 }
@@ -216,16 +221,18 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
     return NextResponse.json({ success: true, focus_summary: summarizeTestFocusEvents(result.focus_events) })
   }
   if (operation === 'detail') {
-    const result = await flow.run('detail'); const { access, status } = statePresentation(result.state)
+    const result = await flow.run('detail')
     const documents = await flow.within(() => resolveTestDocumentUploadContentTypes(result.state.test.documents, result.state.test.classroom_id, client))
     // MIME enrichment can consult Storage for historical uploads. Do not expose
     // its result until current access and the complete source have been rechecked.
-    if (!isDeepStrictEqual(result, await flow.run('detail'))) throw new ApiError(409, 'Test changed; reload and retry')
-    return NextResponse.json({ test: { ...result.state.test, documents, assessment_type: 'test',
-      student_status: status, returned_at: result.state.attempt?.returned_at ?? null, access_state: access.access_state, effective_access: access.effective_access },
-    questions: result.questions, student_status: status, student_responses: (result.state.has_submitted || result.state.attempt?.closed_for_grading_at)
-      && Object.keys(result.submitted_responses).length ? result.submitted_responses : normalizeTestResponses(result.attempt?.responses),
-    draft_revision: result.attempt?.draft_revision ?? null, focus_summary: summarizeTestFocusEvents(result.focus_events) })
+    const current = await flow.run('detail')
+    if (!isDeepStrictEqual(result.state.test.documents, current.state.test.documents)) throw new ApiError(409, 'Test changed; reload and retry')
+    const presentation = statePresentation(current.state)
+    return NextResponse.json({ test: { ...current.state.test, documents, assessment_type: 'test',
+      student_status: presentation.status, returned_at: current.state.attempt?.returned_at ?? null, access_state: presentation.access.access_state, effective_access: presentation.access.effective_access },
+    questions: current.questions, student_status: presentation.status, student_responses: (current.state.has_submitted || current.state.attempt?.closed_for_grading_at)
+      && Object.keys(current.submitted_responses).length ? current.submitted_responses : normalizeTestResponses(current.attempt?.responses),
+    draft_revision: current.attempt?.draft_revision ?? null, focus_summary: summarizeTestFocusEvents(current.focus_events) })
   }
   if (operation === 'results') {
     const { state, ...result } = await flow.run('results'); const { access } = statePresentation(state)

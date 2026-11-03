@@ -78,6 +78,19 @@ describe('contextual owner Test workflow transaction boundary', () => {
   it('does not retry an ambiguous or failed acknowledgement', async () => {
     reply = null; await expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 503 }); expect(network).toHaveBeenCalledTimes(1)
   })
+  it('retries a busy monitoring read but preserves real conflict errors', async () => {
+    vi.useRealTimers()
+    const flow = workflow(); await flow.inspect()
+    let calls = 0
+    network.mockImplementation(async () => {
+      calls++
+      return new Response(JSON.stringify(calls === 1 ? { code: 'PT409', message: 'test_owner_busy' } : witness('results')), { status: calls === 1 ? 400 : 200, headers: { 'Content-Type': 'application/json' } })
+    })
+    await expect(flow.run('results')).resolves.toMatchObject({ operation: 'results' })
+    expect(calls).toBe(2)
+    network.mockImplementation(async () => new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_source_changed' }), { status: 400, headers: { 'Content-Type': 'application/json' } }))
+    await expect(flow.run('results')).rejects.toMatchObject({ statusCode: 409, message: 'Test changed; reload and retry' })
+  })
   it('uses one deadline and aborts a hung installed-SDK request', async () => {
     network.mockImplementation(() => new Promise(() => {}))
     const pending = expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 503 }); await vi.advanceTimersByTimeAsync(30000)

@@ -88,6 +88,38 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     expect(calls()).toEqual(['inspect','detail','detail']); expect(resolveTestDocumentUploadContentTypes).toHaveBeenCalledOnce()
     expect(JSON.stringify(value)).not.toMatch(/correct_option|sample_solution|score|feedback|ai_reference/)
   })
+  it('returns the current attempt when student activity changes during enrichment', async () => {
+    let reads = 0
+    const base = resultFor
+    resultFor = args => {
+      if (args.p_operation !== 'detail' || ++reads === 1) return base(args)
+      return { state: { ...state, attempt: { ...state.attempt, draft_revision: 13 } },
+        attempt: { ...attempt, draft_revision: 13, responses: {} }, questions: [question], submitted_responses: {}, focus_events: [] }
+    }
+    const response = await detail(req(),ctx)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ draft_revision: 13, student_responses: {} })
+  })
+  it('rejects detail if the enriched documents changed during the access recheck', async () => {
+    let reads = 0
+    const base = resultFor
+    resultFor = args => args.p_operation === 'detail' && ++reads === 2
+      ? { state: { ...state, test: { ...state.test, documents: [document] } }, attempt, questions: [question], submitted_responses: {}, focus_events: [] }
+      : base(args)
+    const response = await detail(req(),ctx)
+    expect(response.status).toBe(409)
+    expect(await response.json()).not.toHaveProperty('questions')
+  })
+  it('retries an explicit busy rollback during a student save', async () => {
+    let saves = 0
+    const original = rpc.getMockImplementation()!
+    rpc.mockImplementation((name, args: Args) => {
+      if (args.p_operation === 'save' && ++saves === 1) return { abortSignal: async () => ({ data: null, error: { code: 'PT409', message: 'test_learner_busy' } }) }
+      return original(name, args)
+    })
+    expect((await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)).status).toBe(200)
+    expect(saves).toBe(2)
+  })
   it('does not disclose enriched detail after membership is revoked during Storage work', async () => {
     let detailCalls = 0; errorFor = ({ p_operation }) => p_operation === 'detail' && ++detailCalls === 2 ? 'PT403' : undefined
     const response = await detail(req(),ctx)

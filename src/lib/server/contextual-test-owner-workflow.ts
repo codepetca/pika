@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import { ApiError } from '@/lib/api-error'
+import { retryTestWorkflowBusy, TestWorkflowBusy } from '@/lib/server/test-workflow-busy'
 import type { getServiceRoleClient } from '@/lib/supabase'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import {
@@ -55,6 +56,7 @@ export function createContextualTestOwnerWorkflow(input: {
         const statuses: Record<string, number> = { PT400: 400, PT403: 403, PT404: 404, PT409: 409 }
         const status = statuses[envelope.data.error.code]
         if (envelope.data.data !== null || !status) throw unavailable()
+        if (envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_owner_busy') throw new TestWorkflowBusy()
         const messages: Record<number, string> = { 400: 'Invalid test operation', 403: 'Forbidden', 404: 'Test document or classroom not found', 409: 'Test changed; reload and retry' }
         throw new ApiError(status, messages[status])
       }
@@ -77,7 +79,9 @@ export function createContextualTestOwnerWorkflow(input: {
   return {
     deadline,
     within,
-    async inspect() { return (await execute('inspect')).test },
-    run: execute,
+    async inspect() { return (await retryTestWorkflowBusy(() => execute('inspect'), within)).test },
+    run(operation: TestOwnerOperation, payload: Json = {}) {
+      return operation === 'results' ? retryTestWorkflowBusy(() => execute(operation, payload), within) : execute(operation, payload)
+    },
   }
 }
