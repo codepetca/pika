@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Accept the bounded 70-account classroom rollout
-
-Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
-and schema293 into the dated70-account acceptance receipt. Retained actual
-signed-in versus isolated/source-qualified boundaries, exact roster checks,
-selected academic preservation and compatible recovery constraints. PPZ keeps
-Tests/native attendance off/no policy/mapping/manual log unchanged. Original
-observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
-passed7timely samples and final exact70/provider/work readbacks. Timed process
-exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
-historical pilot now point to bounded acceptance; wider admission/provider/billing
-holds and incomplete epic/paused goal remain. Documentation only; no live action.
-
 ## 2026-10-27 Prepare wider classroom admission design
 
 Prepared a proposal for one durable service-owned admission source, exact70
@@ -345,3 +332,7 @@ PR 1727 remains draft pending focused checks and exact-head review.
 ## 2026-11-03 — Student Test submission reassurance
 
 Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
+
+## 2026-11-03 Investigate test contention
+
+Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Focused checks passed; independent review, database concurrency verification, and production release remain pending.

@@ -32,7 +32,7 @@ export function createContextualTestOwnerWorkflow(input: {
       })])
     } finally { clearTimeout(timer); if (abort) input.signal?.removeEventListener('abort', abort) }
   }
-  async function execute(operation: TestOwnerOperation, payload: Json = {}) {
+  async function execute(operation: TestOwnerOperation, payload: Json = {}, busyRetries = 0): Promise<ReturnType<typeof contextualTestOwnerWitnessSchema.parse>> {
     if (!Number.isFinite(deadline) || Date.now() >= deadline || input.signal?.aborted || ++statements > 16) throw unavailable()
     if (operation !== 'inspect' && !captured) throw unavailable()
     const controller = new AbortController(); const abort = () => controller.abort()
@@ -52,6 +52,22 @@ export function createContextualTestOwnerWorkflow(input: {
       const envelope = contextualTestOwnerRpcEnvelopeSchema.safeParse(raw)
       if (!envelope.success) throw unavailable()
       if (envelope.data.error) {
+        // A returned PostgreSQL busy error confirms the transaction rolled back.
+        // Never retry timeouts, transport failures, or semantic conflicts: a
+        // mutation with an uncertain outcome must not be repeated.
+        if (envelope.data.data === null && envelope.data.status === 409
+          && envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_owner_busy' && busyRetries < 3) {
+          const delay = 40 + Math.floor(Math.random() * 80)
+          if (input.signal?.aborted || Date.now() + delay >= deadline) throw unavailable()
+          await new Promise<void>((resolve, reject) => {
+            const finish = () => { clearTimeout(timer); input.signal?.removeEventListener('abort', abort) }
+            const abort = () => { finish(); reject(unavailable()) }
+            const timer = setTimeout(() => { finish(); resolve() }, delay)
+            input.signal?.addEventListener('abort', abort, { once: true })
+            if (input.signal?.aborted) abort()
+          })
+          return execute(operation, payload, busyRetries + 1)
+        }
         const statuses: Record<string, number> = { PT400: 400, PT403: 403, PT404: 404, PT409: 409 }
         const status = statuses[envelope.data.error.code]
         if (envelope.data.data !== null || !status) throw unavailable()
