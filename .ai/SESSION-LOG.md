@@ -11,6 +11,75 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-24 — RepoLight legacy archive inventory correction
+
+Owner approved one additional proof-only fix batch and ninth targeted review,
+then exact-head CI and conditional main merge. The legacy archive check now
+counts RepoLight's three resources/revision triggers when its table family is
+installed, matching the existing archive-v2 compatibility condition. Strict
+inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
+Owned offline293 replay passes the actual archive lifecycle, compaction/races,
+Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
+clone setup; no shared mutation. Home recovery/contention, warning lint across
+569functions, generated types and canonical aggregate fingerprints pass.
+Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
+review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
+
+## 2026-10-25 — Refresh the grading inspector after Return
+
+The dedicated-account manual canary exposed a stale revision after a successful
+Return. Refresh the open learner inspector only when the acknowledgement marks
+that learner returned/already returned, before awaiting list refresh. Existing
+read fences, dirty-form handling and revision-conflict refusal remain intact.
+RED component regression reproduced unchanged inspector; focused owner/controller
+141 checks pass. Synthetic real-parent/controller browser flow saves and sends
+with the refreshed revision without document reload; teacher/student desktop/
+mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
+comment into view; existing learner recovery coverage is unchanged. Two initial
+driver failures (modal accessibility scope, then same-document navigation counted
+as reload) are retained; corrected semantic/time-origin checks pass unchanged
+app code. CI browser inventory retains all prior cases and adds this scenario.
+Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
+normal reload recovery; this automatic-refresh fix still requires review/CI/main
+merge and separately authorized compatible release. Same3cohort/schema/plans and
+provider holds remain, with no production action or live-provider call.
+
+## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
+
+Owner explicitly overrode task workflow review-budget/low-usage stops through
+completion; keep independent review, strict CI and normal merge/rollout controls.
+Nine targeted reviews are recorded; next delta receives actual tenth review.
+Shared proof catalogue now includes ten literal tables from sealed293; member
+proof retains explicit292 admission and rejects partial/unknown catalogues.
+Historical unit profiles stay pinned; complete293 preservation includes private
+state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
+now fingerprint the same complete source-defined family; assertions unchanged.
+CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
+--disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
+config-process heap diagnostics added; no environment/heap dumps, assertion,
+project, timeout or compiler change. Full browser gate still required.
+Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
+upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
+SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
+CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-25 — RepoLight rebase after green CI
+
+CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
+SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
+(#1684 selected-inspector refresh after Return), creating continuity conflicts.
+Rebased feature commits; only CURRENT/archive conflicts required resolution.
+Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
+receipt and all held controls. No new deployment/query/provider authority.
+SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
+reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
+that equivalence; new-head CI still reruns the actual proof. Focused checks and
+one targeted main-sync review precede ready; task stop override remains active.
+
 ## 2026-10-25 — RepoLight local pilot and repeat-click guard
 
 Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
@@ -80,6 +149,30 @@ AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
 released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
 GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
 provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
+
+## 2026-10-25 — Prepare manual-grader reader compatible release
+
+Owner approved this exact grader-label fix after review and CI, retaining only
+the existing three-account cohort, plans, schema and provider holds. PR1682
+merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
+1683 reconciles only journal ancestry with production1da699fdc, preserving both
+histories and all non-history bytes from reviewed main. Independent cumulative
+compatibility review and exact-head CI precede protected production merge. No
+new provider call, migration, cohort expansion or account change is authorized.
+Both owner and learner sessions remain signed in; Return/feedback wait for the
+compatible READY deployment and fresh readback.
+
+## 2026-10-25 — Approved Return inspector compatible release
+
+Prepare production promotion of reviewed main19b5/PR1684 after the owner approved this exact compatible fix. Only runtime change is selected-inspector refresh after acknowledged Return; existing revision/dirty/write fences remain. Reconcile the two history files while preserving both parents; reuse accepted source/component/browser review477 and complete cumulative promotion review before ready CI. Keep exactly three pilot accounts, schema292, plans and live-provider/expansion holds unchanged. Signed-in no-reload Return/comment canary follows actual READY/source/control verification.
+
+## 2026-10-25 — RepoLight release-note reconciliation
+
+Retained both main and production journal batches to resolve the promotion-note
+conflict. Application and SQL sources are unchanged. Production preview40221093743
+verified001–292 and solepending293; no application. Exact migration approval and
+the independently owned permissions-check window remain required. Release1687
+stays draft pending reconciliation/review/CI; Analyze and paid AI remain OFF.
 
 ## 2026-10-26 Future post dates
 
@@ -288,6 +381,11 @@ All owned clones removed; shared history292 unchanged. One syntax correction was
 caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+## 2026-10-27 — Prepare reviewed main promotion to production
+- Owner authorized main→production and deployment verification. PR1700 batches main9756a9751 from production405ef92cc; no new migrations, API/server changes or dependency changes. Registry/date-order application tree has full CI40563343248 ten-job PASS and clean independent review; operational/provider/admission/billing holds are preserved.
+- Cumulative Sol/high release review found only conflicting continuity history. Terra/medium resolved six archive hunks and retained both parents' entry bodies, occurrence counts and archive markers across SESSION+ARCHIVE. Coordinator independently verifies preservation; payload outside the two journals stays byte-identical to reviewed main. Runtime-platform risk; no fixture, environment, database or provider mutation is part of the release.
+- Initial local release focused gate PASS79files/1210tests plus architecture/UI/design/TypeScript/lint. Resolved-candidate checks and targeted review precede readiness; final exact-head PR Gate and Vercel source/production-alias/read-only smoke verification remain required. Production migration permissions are not requested or consumed.
 
 ## 2026-10-28 — Creation action placement
 
