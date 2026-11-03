@@ -4,7 +4,7 @@ import { GradingProviderError, type StructuredOutputProvider } from '@/lib/gradi
 import { assertAIOutboundEnabled } from '@/lib/grading/providers/ai-outbound-gate'
 
 function providerMode(): 'openai' | 'deepseek' {
-  const mode = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'openai'
+  const mode = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'deepseek'
   if (mode === 'openai' || mode === 'deepseek') return mode
   throw new GradingProviderError({ kind: 'config', message: 'Invalid AI grading provider', retryable: false })
 }

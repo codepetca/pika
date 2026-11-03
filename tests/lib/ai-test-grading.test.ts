@@ -66,10 +66,10 @@ describe('normalizeTestOpenResponseReferenceAnswers', () => {
 describe('getTestOpenResponseGradingModel', () => {
   afterEach(() => vi.unstubAllEnvs())
 
-  it('defaults to OpenAI and its default model', () => {
+  it('defaults to DeepSeek and its default model', () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
-    vi.stubEnv('OPENAI_GRADING_MODEL', '')
-    expect(getTestOpenResponseGradingModel()).toBe('gpt-5-mini')
+    vi.stubEnv('DEEPSEEK_GRADING_MODEL', '')
+    expect(getTestOpenResponseGradingModel()).toBe('deepseek-flash')
   })
 
   it('trims the configured OpenAI model', () => {
@@ -78,7 +78,7 @@ describe('getTestOpenResponseGradingModel', () => {
     expect(getTestOpenResponseGradingModel()).toBe('custom-openai')
   })
 
-  it('uses the configured DeepSeek model only when explicitly selected', () => {
+  it('uses the configured DeepSeek model when selected', () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', '  custom-deepseek  ')
     expect(getTestOpenResponseGradingModel()).toBe('custom-deepseek')

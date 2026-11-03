@@ -20,8 +20,18 @@ const response = { outputText: '{}', tokenUsage: { inputTokens: 1, outputTokens:
 describe('grading provider routing', () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
-  it('uses OpenAI by default and records its actual model', async () => {
+  it('uses DeepSeek by default and records its actual model', async () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test')
+    vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'deepseek-model')
+    deepseek.mockResolvedValue(response)
+    expect(getGradingModel()).toBe('deepseek-model')
+    expect(await createGradingProvider().generate(request)).toMatchObject({ providerUsed: 'deepseek', modelUsed: 'deepseek-model' })
+    expect(openai).not.toHaveBeenCalled()
+  })
+
+  it('uses OpenAI when explicitly selected', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
     vi.stubEnv('OPENAI_API_KEY', 'test')
     vi.stubEnv('OPENAI_GRADING_MODEL', 'openai-model')
     openai.mockResolvedValue(response)
