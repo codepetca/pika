@@ -28,6 +28,7 @@ function buildEmptySubmissionRequirementsTable() {
   const chain: any = {
     select: vi.fn(() => chain),
     eq: vi.fn(() => chain),
+    in: vi.fn(() => chain),
     order: vi.fn(() => chain),
     then: vi.fn((resolve: any) => resolve({ data: [], error: null })),
   }
@@ -142,6 +143,30 @@ describe('GET /api/teacher/assignments', () => {
     const request = new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1')
     const response = await GET(request)
     expect(response.status).toBe(200)
+  })
+
+  it('starts requirements while the roster loads and preserves roster error precedence', async () => {
+    let finishRoster!: (value: unknown) => void
+    mockGetClassroomStudentIds.mockReturnValueOnce(new Promise((resolve) => { finishRoster = resolve }))
+    const mockFrom = vi.fn((table: string) => {
+      if (table === 'assignments') {
+        const builder: any = {}
+        builder.order = vi.fn().mockImplementationOnce(() => builder).mockResolvedValue({ data: [{ id: 'a1' }], error: null })
+        return { select: () => ({ eq: () => builder }) }
+      }
+      if (table === 'assignment_submission_requirements') {
+        const query: any = { select: () => query, in: () => query, then: (resolve: any) => resolve({ data: null, error: { code: '57014', message: 'timeout' } }) }
+        return query
+      }
+      throw new Error(`Unexpected table: ${table}`)
+    })
+    mockSupabaseClient.from = mockFrom
+    const responsePromise = GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1'))
+    await vi.waitFor(() => expect(mockFrom).toHaveBeenCalledWith('assignment_submission_requirements'))
+    finishRoster({ studentIds: [], studentIdSet: new Set(), totalStudents: 0, error: { message: 'roster unavailable' } })
+    const response = await responsePromise
+    expect(response.status).toBe(500)
+    expect(await response.json()).toEqual({ error: 'Failed to fetch classroom enrollments' })
   })
 
   it('counts only submissions that still need to be returned', async () => {
@@ -331,6 +356,7 @@ describe('GET /api/teacher/assignments', () => {
     const data = await response.json()
 
     expect(response.status).toBe(200)
+    expect(mockFrom.mock.calls.filter(([table]) => table === 'assignment_submission_requirements')).toHaveLength(2)
     const statsByAssignmentId = new Map(
       data.assignments.map((assignment: { id: string; stats: unknown }) => [assignment.id, assignment.stats])
     )

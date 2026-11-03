@@ -6,7 +6,7 @@ import type {
   AssignmentSubmissionArtifact,
   AssignmentSubmissionRequirement,
 } from '@/types'
-import { loadChunkedRows } from '@/lib/server/query-chunks'
+import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-chunks'
 import type { TableRow } from '@/types/database'
 import { z } from 'zod'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
@@ -153,6 +153,48 @@ export async function loadAssignmentSubmissionRequirements(
     return (data || []) as AssignmentSubmissionRequirement[]
   } catch (error) {
     if (isMissingAssignmentSubmissionSchemaError(error) && !options.requireDataArray) return []
+    throw error
+  }
+}
+
+/** Load requirements for an already-authorized assignment list. */
+export async function loadAssignmentSubmissionRequirementsForList(
+  supabase: SupabaseClientLike,
+  assignmentIds: string[],
+): Promise<Map<string, AssignmentSubmissionRequirement[]>> {
+  const grouped = new Map(assignmentIds.map((id) => [id, [] as AssignmentSubmissionRequirement[]]))
+  if (grouped.size === 0) return grouped
+
+  try {
+    const chunks = chunkValues([...grouped.keys()], 50)
+    const allRows: AssignmentSubmissionRequirement[] = []
+    // Limit concurrent database requests while avoiding a round trip per chunk.
+    for (let index = 0; index < chunks.length; index += 4) {
+      const results = await Promise.all(chunks.slice(index, index + 4).map((ids) =>
+        loadPagedRows<AssignmentSubmissionRequirement>(
+          () => supabase.from('assignment_submission_requirements').select('*').in('assignment_id', ids),
+          1000,
+          'id',
+        ),
+      ))
+      const errors = results.map((result) => result.error).filter(Boolean)
+      if (errors.length) {
+        if (errors.every(isMissingAssignmentSubmissionSchemaError)) return grouped
+        throw new Error('Failed to load assignment submission requirements')
+      }
+      allRows.push(...results.flatMap((result) => result.rows))
+    }
+    for (const row of allRows) {
+      const requirements = grouped.get(row.assignment_id)
+      if (!requirements) throw new Error('Unexpected assignment submission requirement')
+      requirements.push(row)
+    }
+    for (const requirements of grouped.values()) {
+      requirements.sort((a, b) => a.position - b.position || Date.parse(a.created_at) - Date.parse(b.created_at) || a.id.localeCompare(b.id))
+    }
+    return grouped
+  } catch (error) {
+    if (isMissingAssignmentSubmissionSchemaError(error)) return grouped
     throw error
   }
 }
