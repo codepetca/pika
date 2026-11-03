@@ -50697,6 +50697,7 @@ one targeted main-sync review precede ready; task stop override remains active.
 Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
 
 <!-- pika-session-log-archive-batch:f305d3ba2b5d13f11743e4e6b33f8755255157865070f05ca797b8ff4b225ec5 -->
+<!-- pika-session-log-archive-batch:bdb5ac09c3c99a2073c4435090f842e325d29fbe1db581d77601d8e4f790d54a -->
 ## 2026-10-25 — Reconcile deployed classroom pilot acceptance
 
 Record protected production1685/9a and actual seamless Assignment Return/comment
@@ -50711,3 +50712,16 @@ configuration, production or provider action. Remaining work is candidate-specif
 evidence applicability and separately authorized observed expansion; isolated
 domain proofs and layered recovery are not all-domain/deployed outage evidence.
 Main-only docs review/CI follow; no overall-goal completion or production authority.
+
+<!-- pika-session-log-archive-batch:68f6af9663190db12a03a3afd6e8fdb628fbe540f6e9791d561bda41e61ccc40 -->
+## 2026-10-25 — RepoLight production migration and release
+
+Human approved production293 once plus reviewed1687 and the coordinated lifecycle
+window. Apply40226843818 verified only293/history001–293 and the approved digest.
+Catalog/RLS/ACL/body/trigger/archive checks pass;13renamed originals preserved.
+PR1687 merged dbd1f62c1; Vercel dpl_tCawB6aLRNnQN6FBxw35QinNZtx8 READY on that SHA.
+All10 CI40222687057 jobs and public HTTP boundaries passed. Cohort/provider
+metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
+released to both coordinated Pika tasks. Connection provisioning and hosted
+integration acceptance remain pending. Standalone inventory diagnostic limitation
+is tracked in the integration guide/PR; no passing claim for that command.

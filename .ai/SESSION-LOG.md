@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — RepoLight production migration and release
-
-Human approved production293 once plus reviewed1687 and the coordinated lifecycle
-window. Apply40226843818 verified only293/history001–293 and the approved digest.
-Catalog/RLS/ACL/body/trigger/archive checks pass;13renamed originals preserved.
-PR1687 merged dbd1f62c1; Vercel dpl_tCawB6aLRNnQN6FBxw35QinNZtx8 READY on that SHA.
-All10 CI40222687057 jobs and public HTTP boundaries passed. Cohort/provider
-metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
-released to both coordinated Pika tasks. Connection provisioning and hosted
-integration acceptance remain pending. Standalone inventory diagnostic limitation
-is tracked in the integration guide/PR; no passing claim for that command.
-
 ## 2026-10-25 — Controlled RepoLight connection and blank-login regression
 
 User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
@@ -393,3 +381,7 @@ Batch authorized legacy teacher assignment requirements and overlap them with ro
 ## 2026-11-02 — Teacher Tests query overlap
 
 On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list change that overlaps authorized question and attempt reads while preserving question-first errors. A synthetic one-test/one-student probe with 80 ms delays per read measured 168 ms before and 89 ms after, with six table requests in both successful runs; these are mocked timings, not production measurements. Focused route checks cover overlap, authorization, error precedence and late rejections. Production deployment remains pending.
+
+## 2026-11-02 — Teacher Tests intent prefetch
+
+Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.

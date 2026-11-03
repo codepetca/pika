@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { BrowserTabProvider } from '@/components/BrowserTabBranding'
 import type { Assignment, Classroom, LessonPlan } from '@/types'
 import { DEFAULT_CLASSROOM_FEATURE_VISIBILITY } from '@/lib/classroom-feature-visibility'
+import { useTeacherTestList } from '@/hooks/useTeacherTestList'
 import {
   STUDENT_TEST_EXAM_MODE_CHANGE_EVENT,
   STUDENT_TEST_ROUTE_EXIT_ATTEMPT_EVENT,
@@ -13,6 +14,8 @@ import {
 
 const realGradesOwner = vi.hoisted(() => ({ enabled: false }))
 const realSurveyCache = vi.hoisted(() => ({ enabled: false }))
+const realTestsCache = vi.hoisted(() => ({ enabled: false }))
+const realTestsOwner = vi.hoisted(() => ({ enabled: false }))
 const mockFetchJSONWithCache = vi.hoisted(() => vi.fn())
 const mockInvalidateCachedJSON = vi.hoisted(() => vi.fn())
 const mockPrefetchJSON = vi.hoisted(() => vi.fn())
@@ -162,7 +165,7 @@ vi.mock('@/components/layout', async () => {
           </button>
         ) : null}
         {featureVisibility?.tests !== false ? (
-          <button type="button" onClick={() => onTabChange('tests')}>
+          <button type="button" onMouseEnter={() => onTabIntent?.('tests')} onFocus={() => onTabIntent?.('tests')} onClick={() => onTabChange('tests')}>
             Go Tests
           </button>
         ) : null}
@@ -259,11 +262,12 @@ vi.mock('@/ui', async (importOriginal) => {
 vi.mock('@/lib/request-cache', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/request-cache')>()
   return {
+    fetchCachedJSON: actual.fetchCachedJSON,
     fetchJSONWithCache: (...args: Parameters<typeof actual.fetchJSONWithCache>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
       ? actual.fetchJSONWithCache(...args) : mockFetchJSONWithCache(...args),
-    invalidateCachedJSON: (key: string) => realGradesOwner.enabled && key.startsWith('student-grades:')
+    invalidateCachedJSON: (key: string) => (realGradesOwner.enabled && key.startsWith('student-grades:')) || (realTestsCache.enabled && key.startsWith('teacher-tests:'))
       ? actual.invalidateCachedJSON(key) : mockInvalidateCachedJSON(key),
-    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => (realGradesOwner.enabled && args[0].startsWith('student-grades:')) || (realSurveyCache.enabled && args[0].includes('-surveys:'))
+    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => (realGradesOwner.enabled && args[0].startsWith('student-grades:')) || (realSurveyCache.enabled && args[0].includes('-surveys:')) || (realTestsCache.enabled && args[0].startsWith('teacher-tests:'))
       ? actual.prefetchJSON(...args) : mockPrefetchJSON(...args),
   }
 })
@@ -418,6 +422,7 @@ vi.mock('@/app/classrooms/[classroomId]/StudentAnnouncementsTab', () => ({
 vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
   TeacherTestsTab: (props: any) => {
     mockTeacherTestsTabProps(props)
+    if (realTestsOwner.enabled) return <RealTestsOwner classroomId={props.classroom.id} />
     return (
       <div>
         <button
@@ -430,6 +435,11 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherTestsTab', () => ({
     )
   },
 }))
+
+function RealTestsOwner({ classroomId }: { classroomId: string }) {
+  const { visibleTests } = useTeacherTestList({ classroomId, selectedTestId: null, selectedTestDraftSummary: null })
+  return <div data-testid="real-tests-owner">{visibleTests.map(test => test.title).join(',')}</div>
+}
 vi.mock('@/app/classrooms/[classroomId]/StudentTestsTab', () => ({
   StudentTestsTab: (props: any) => {
     mockStudentTestsTabProps(props)
@@ -541,6 +551,8 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
   beforeEach(() => {
     realGradesOwner.enabled = false
     realSurveyCache.enabled = false
+    realTestsCache.enabled = false
+    realTestsOwner.enabled = false
     retainedAnnouncementsOwner.enabled = false
     mockTeacherAnnouncementsTabProps.mockClear()
     window.localStorage.clear()
@@ -1466,6 +1478,158 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       view.unmount()
       fetchSpy.mockRestore()
       realSurveyCache.enabled = false
+      cache.invalidateCachedJSON(key)
+    }
+  })
+
+  it('shares only a pending teacher Tests intent and invalidates it before an update', async () => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    const key = 'teacher-tests:classroom-1'
+    cache.invalidateCachedJSON(key)
+    realTestsCache.enabled = true
+    let finish!: (response: Response) => void
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => String(url).includes('/api/teacher/tests?')
+      ? new Promise<Response>(resolve => { finish = resolve }) : Promise.resolve(new Response('{}')))
+    const view = renderClient({ initialTab: 'daily' })
+    try {
+      const button = screen.getByRole('button', { name: 'Go Tests' })
+      fireEvent.mouseEnter(button)
+      fireEvent.focus(button)
+      const unexpected = vi.fn(async () => ({ tests: [] }))
+      const pending = cache.fetchJSONWithCache(key, unexpected, 0)
+      expect(unexpected).not.toHaveBeenCalled()
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1)
+      window.dispatchEvent(new CustomEvent('pika:teacherTestsUpdated', { detail: { classroomId: 'classroom-1' } }))
+      const fresh = vi.fn(async () => ({ tests: [{ id: 'fresh' }] }))
+      const freshRead = cache.fetchJSONWithCache(key, fresh, 0)
+      await act(async () => { finish(new Response('{"tests":[{"id":"old"}]}')) })
+      await expect(pending).resolves.toEqual({ tests: [{ id: 'old' }] })
+      await expect(freshRead).resolves.toEqual({ tests: [{ id: 'fresh' }] })
+      expect(fresh).toHaveBeenCalledTimes(1)
+      const after = vi.fn(async () => ({ tests: [] }))
+      await cache.fetchJSONWithCache(key, after, 0)
+      expect(after).toHaveBeenCalledTimes(1)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      realTestsCache.enabled = false
+      cache.invalidateCachedJSON(key)
+    }
+  })
+
+  it('does not reschedule unrelated idle prefetch when Tests mounts', async () => {
+    const idle = vi.fn(() => 1)
+    const original = (window as any).requestIdleCallback
+    ;(window as any).requestIdleCallback = idle
+    try {
+      renderClient({ initialTab: 'daily' })
+      expect(idle).toHaveBeenCalledTimes(1)
+      fireEvent.click(screen.getByRole('button', { name: 'Go Tests' }))
+      await waitFor(() => expect(mockTeacherTestsTabProps).toHaveBeenCalled())
+      expect(idle).toHaveBeenCalledTimes(1)
+    } finally {
+      ;(window as any).requestIdleCallback = original
+    }
+  })
+
+  it('invalidates a pending intent before the mounted Tests listener reloads', async () => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    const key = 'teacher-tests:classroom-1'
+    cache.invalidateCachedJSON(key)
+    realTestsCache.enabled = true
+    realTestsOwner.enabled = true
+    let finishOld!: (response: Response) => void
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      if (!String(url).includes('/api/teacher/tests?')) return Promise.resolve(new Response('{}'))
+      const count = fetchSpy.mock.calls.filter(([input]) => String(input).includes('/api/teacher/tests?')).length
+      return count === 1 ? new Promise<Response>(resolve => { finishOld = resolve })
+        : Promise.resolve(new Response('{"tests":[{"id":"fresh","title":"Fresh"}]}'))
+    })
+    const view = renderClient({ initialTab: 'daily' })
+    try {
+      const button = screen.getByRole('button', { name: 'Go Tests' })
+      fireEvent.mouseEnter(button)
+      fireEvent.click(button)
+      await waitFor(() => expect(screen.getByTestId('real-tests-owner')).toBeInTheDocument())
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1)
+      act(() => window.dispatchEvent(new CustomEvent('pika:teacherTestsUpdated', { detail: { classroomId: 'classroom-1' } })))
+      await waitFor(() => expect(screen.getByTestId('real-tests-owner')).toHaveTextContent('Fresh'))
+      await act(async () => { finishOld(new Response('{"tests":[{"id":"old","title":"Old"}]}')) })
+      expect(screen.getByTestId('real-tests-owner')).toHaveTextContent('Fresh')
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(2)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      realTestsCache.enabled = false
+      realTestsOwner.enabled = false
+      cache.invalidateCachedJSON(key)
+    }
+  })
+
+  it.each([{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }])('skips teacher Tests intent on constrained connections: %o', (connection) => {
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: connection })
+    try {
+      renderClient({ initialTab: 'daily' })
+      fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Tests' }))
+      expect(mockPrefetchJSON.mock.calls.some(([key]) => key === 'teacher-tests:classroom-1')).toBe(false)
+    } finally {
+      delete (navigator as Navigator & { connection?: unknown }).connection
+    }
+  })
+
+  it('does not prefetch Tests for students or an already mounted teacher tab', () => {
+    const student = renderStudentClient({ initialTab: 'today' })
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Tests' }))
+    expect(mockPrefetchJSON.mock.calls.some(([key]) => key === 'teacher-tests:classroom-1')).toBe(false)
+    student.unmount()
+    renderClient({ initialTab: 'tests' })
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Tests' }))
+    expect(mockPrefetchJSON.mock.calls.some(([key]) => key === 'teacher-tests:classroom-1')).toBe(false)
+  })
+
+  it('does not poison the next Tests read when intent fails or settles', async () => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    const key = 'teacher-tests:classroom-1'
+    cache.invalidateCachedJSON(key)
+    realTestsCache.enabled = true
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => Promise.resolve(
+      new Response('{}', { status: String(url).includes('/api/teacher/tests?') ? 500 : 200 }),
+    ))
+    const view = renderClient({ initialTab: 'daily' })
+    try {
+      fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Tests' }))
+      await waitFor(() => expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1))
+      // Allow the failed response and its cache cleanup to settle.
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+      const fresh = vi.fn(async () => ({ tests: [] }))
+      await expect(cache.fetchJSONWithCache(key, fresh, 0)).resolves.toEqual({ tests: [] })
+      expect(fresh).toHaveBeenCalledTimes(1)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      realTestsCache.enabled = false
+      cache.invalidateCachedJSON(key)
+    }
+  })
+
+  it('does not retain a completed Tests intent result for a later list read', async () => {
+    const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
+    const key = 'teacher-tests:classroom-1'
+    cache.invalidateCachedJSON(key)
+    realTestsCache.enabled = true
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"tests":[]}'))
+    const view = renderClient({ initialTab: 'daily' })
+    try {
+      fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Tests' }))
+      await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
+      const read = vi.fn(async () => ({ tests: [] }))
+      await cache.fetchJSONWithCache(key, read, 0)
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1)
+      expect(read).toHaveBeenCalledTimes(1)
+    } finally {
+      view.unmount()
+      fetchSpy.mockRestore()
+      realTestsCache.enabled = false
       cache.invalidateCachedJSON(key)
     }
   })
