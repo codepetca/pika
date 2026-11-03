@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, POST } from '@/app/api/teacher/assignments/route'
 import { NextRequest } from 'next/server'
+import { assertTeacherOwnsClassroom } from '@/lib/server/classrooms'
 
 const mockGetClassroomStudentIds = vi.hoisted(() => vi.fn())
 
@@ -105,6 +106,37 @@ describe('GET /api/teacher/assignments', () => {
       totalStudents: 2,
       error: null,
     })
+  })
+
+  it('rejects a summary for a non-owner before reading rows', async () => {
+    vi.mocked(assertTeacherOwnsClassroom).mockResolvedValueOnce({ ok: false, status: 403, error: 'Forbidden' } as any)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1&summary=1'))
+    expect(response.status).toBe(403)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it.each(['summary=0', 'summary=', 'summary=1&summary=1'])('rejects malformed list mode %s after owner authorization', async (query) => {
+    const response = await GET(new NextRequest(`http://localhost:3000/api/teacher/assignments?classroom_id=c1&${query}`))
+    expect(response.status).toBe(400)
+    expect(assertTeacherOwnsClassroom).toHaveBeenCalled()
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it('denies a non-owner before validating malformed list mode', async () => {
+    vi.mocked(assertTeacherOwnsClassroom).mockResolvedValueOnce({ ok: false, status: 403, error: 'Forbidden' } as any)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1&summary=invalid'))
+    expect(response.status).toBe(403)
+  })
+
+  it('returns an owner summary without loading roster or statistics', async () => {
+    const chain: any = { select: () => chain, eq: () => chain, order: () => chain,
+      then: (resolve: (value: unknown) => void) => resolve({ data: [{ id: 'item-1', title: 'Early item' }], error: null }) }
+    mockSupabaseClient.from = vi.fn(() => chain)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1&summary=1'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ assignments: [{ id: 'item-1', title: 'Early item' }], summary_only: true })
+    expect(mockGetClassroomStudentIds).not.toHaveBeenCalled()
+    expect(mockSupabaseClient.from.mock.calls.map(([table]) => table)).toEqual(['assignments'])
   })
 
   it('should return 400 when classroom_id is missing', async () => {

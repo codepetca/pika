@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  beginCachedJSONRead,
+  endCachedJSONRead,
+  peekCachedJSON,
+  primeCachedJSON,
   fetchCachedJSON,
   fetchJSON,
   fetchJSONWithCache,
@@ -28,6 +32,43 @@ describe('request cache', () => {
 
   afterEach(() => {
     invalidateCachedJSONMatching(TEST_PREFIX)
+  })
+
+  it('never primes a delayed value after direct or prefix invalidation', () => {
+    const direct = `${TEST_PREFIX}prime-direct`
+    const token = beginCachedJSONRead(direct)
+    invalidateCachedJSON(direct)
+    primeCachedJSON(direct, { value: 'stale' }, 60_000, token)
+    expect(peekCachedJSON(direct)).toBeUndefined()
+    const prefix = `${TEST_PREFIX}prime-prefix`
+    const prefixToken = beginCachedJSONRead(prefix)
+    invalidateCachedJSONMatching(TEST_PREFIX)
+    primeCachedJSON(prefix, { value: 'stale' }, 60_000, prefixToken)
+    expect(peekCachedJSON(prefix)).toBeUndefined()
+    const fresh = beginCachedJSONRead(prefix)
+    primeCachedJSON(prefix, { value: 'fresh' }, 60_000, fresh)
+    expect(peekCachedJSON(prefix)).toEqual({ value: 'fresh' })
+    endCachedJSONRead(fresh)
+    expect(fresh.valid).toBe(false)
+    endCachedJSONRead(token)
+    endCachedJSONRead(prefixToken)
+  })
+
+  it('releases read tokens and never lets an invalidated read prime a newer generation', () => {
+    const key = `${TEST_PREFIX}token-lifetime`
+    const old = beginCachedJSONRead(key)
+    invalidateCachedJSON(key)
+    const current = beginCachedJSONRead(key)
+    endCachedJSONRead(old)
+    primeCachedJSON(key, 'stale', 60_000, old)
+    expect(peekCachedJSON(key)).toBeUndefined()
+    primeCachedJSON(key, 'fresh', 60_000, current)
+    expect(peekCachedJSON(key)).toBe('fresh')
+    const deletes = vi.spyOn(Map.prototype, 'delete')
+    endCachedJSONRead(current)
+    expect(deletes).toHaveBeenCalledWith(key)
+    expect(current.valid).toBe(false)
+    deletes.mockRestore()
   })
 
   it('returns cached values within the TTL', async () => {
@@ -176,6 +217,11 @@ describe('request cache', () => {
     }))
 
     await expect(fetchJSON('/api/example', { errorMessage: 'Fallback failure' })).rejects.toThrow('Specific failure')
+  })
+
+  it('preserves authorization status so callers can discard stale content', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 403, json: async () => ({ error: 'Forbidden' }) })))
+    await expect(fetchJSON('/api/example')).rejects.toMatchObject({ statusCode: 403, message: 'Forbidden' })
   })
 
   it('fetchJSON throws fallback errors when error payload is unavailable', async () => {

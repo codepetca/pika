@@ -1,3 +1,4 @@
+import { classworkListModeQuerySchema } from '@/lib/validations/classwork-list-mode'
 import { NextResponse } from 'next/server'
 import { requireRole } from '@/lib/auth'
 import { withErrorHandler } from '@/lib/api-handler'
@@ -103,7 +104,9 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
   const shared = await authorizeSharedSurveyActor()
   if (shared.mode === 'shared') {
     const classroomId = new URL(request.url).searchParams.get('classroom_id') || ''
-    return NextResponse.json(await readContextualSurveyList({ actorId: shared.user.id, classroomId, permission: 'owner' }))
+    const result = await readContextualSurveyList({ actorId: shared.user.id, classroomId, permission: 'owner' })
+    classworkListModeQuerySchema.parse({ summary: new URL(request.url).searchParams.getAll('summary') })
+    return NextResponse.json(result)
   }
   const user = await requireRole('teacher')
   const { searchParams } = new URL(request.url)
@@ -118,6 +121,7 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
     return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
 
+  const { summary } = classworkListModeQuerySchema.parse({ summary: searchParams.getAll('summary') })
   const supabase = getServiceRoleClient()
   const { data: surveys, error: surveysError } = await supabase
     .from('surveys')
@@ -132,6 +136,11 @@ export const GET = withErrorHandler('GetTeacherSurveys', async (request) => {
     }
     console.error('Error fetching surveys:', surveysError)
     return NextResponse.json({ error: 'Failed to fetch surveys' }, { status: 500 })
+  }
+
+  // Summary reads are owner-authorized above and intentionally omit roster and statistics.
+  if (summary.length === 1) {
+    return NextResponse.json({ surveys: surveys || [], summary_only: true })
   }
 
   const classroomStudentsResult = await getClassroomStudentIds(supabase, classroomId)

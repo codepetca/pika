@@ -118,7 +118,8 @@ import {
 } from '@/lib/events'
 import { applyDirection, compareByNameFields, toggleSort as toggleSortState } from '@/lib/table-sort'
 import type { SortDirection } from '@/lib/table-sort'
-import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSONWithCache, invalidateCachedJSON, peekCachedJSON, primeCachedJSON, beginCachedJSONRead, endCachedJSONRead } from '@/lib/request-cache'
+import { ApiError } from '@/lib/api-error'
 import { useClassDays } from '@/hooks/useClassDays'
 import { CLASSWORK_MATERIALS_UPDATED_EVENT } from '@/lib/events'
 import { isScheduleIsoInFuture } from '@/lib/scheduling'
@@ -200,6 +201,7 @@ function TeacherMaterialCard({
   isReadOnly,
   editMode,
   isDragDisabled,
+  pending,
   onOpen,
   onDelete,
 }: {
@@ -207,6 +209,7 @@ function TeacherMaterialCard({
   isReadOnly: boolean
   editMode: boolean
   isDragDisabled: boolean
+  pending: boolean
   onOpen: () => void
   onDelete: () => void
 }) {
@@ -229,7 +232,7 @@ function TeacherMaterialCard({
     <TeacherWorkItemCardFrame
       ref={setNodeRef}
       style={style}
-      onClick={onOpen}
+      onClick={pending ? undefined : onOpen}
       tone={material.is_draft ? 'muted' : 'default'}
       interactive={material.is_draft}
       dragging={isDragging}
@@ -278,6 +281,7 @@ function TeacherMaterialCard({
           }}
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
           aria-label={`Open ${material.title}`}
+          disabled={pending}
         >
           <span className="min-w-0">
             <span className="min-w-0">
@@ -596,9 +600,13 @@ export function TeacherClassroomView({
     selectedAssignmentIdProp !== undefined || selectedSurveyIdProp !== undefined
 
   const [assignments, setAssignments] = useState<AssignmentWithStats[]>([])
+  const [previewAssignments, setPreviewAssignments] = useState<Assignment[]>([])
+  const [previewSurveys, setPreviewSurveys] = useState<Survey[]>([])
   const [materials, setMaterials] = useState<ClassworkMaterial[]>([])
   const [surveys, setSurveys] = useState<SurveyWithStats[]>([])
   const [loadedClassroomId, setLoadedClassroomId] = useState<string | null>(null)
+  const [completeClasswork, setCompleteClasswork] = useState(false)
+  const completeClassworkRef = useRef(false)
   const classDays = useClassDays(classroom.id)
   const [loading, setLoading] = useState(true)
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false)
@@ -751,29 +759,97 @@ export function TeacherClassroomView({
     loadRequestIdRef.current = requestId
     setLoading(true)
     setClassworkLoadError(false)
+    let failed = false
+    const assignmentVersion = beginCachedJSONRead(`teacher-assignments:${classroom.id}`)
+    const materialVersion = beginCachedJSONRead(`teacher-materials:${classroom.id}`)
+    const surveyVersion = beginCachedJSONRead(`teacher-surveys:${classroom.id}`)
+    const changed = () => !assignmentVersion.valid || !materialVersion.valid || !surveyVersion.valid
+    const showPartial = (count: number, update: () => void) => {
+      if (failed || changed() || completeClassworkRef.current || loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+      update()
+      if (count) setLoadedClassroomId(classroom.id)
+    }
+    const observe = <T,>(promise: Promise<T>) => promise.catch((err: unknown) => {
+      if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id &&
+          err instanceof ApiError && [401, 403, 404].includes(err.statusCode)) {
+        setAssignments([]); setMaterials([]); setSurveys([])
+        setPreviewAssignments([]); setPreviewSurveys([])
+        setLoadedClassroomId(null)
+        completeClassworkRef.current = false
+        setCompleteClasswork(false)
+        invalidateCachedJSON(`teacher-assignments:${classroom.id}`)
+        invalidateCachedJSON(`teacher-materials:${classroom.id}`)
+        invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+      }
+      throw err
+    })
     try {
-      const [assignmentsData, materialsData, surveysData] = await Promise.all([
-        fetchCachedJSON<TeacherAssignmentsResponse>(
-          `teacher-assignments:${classroom.id}`,
-          `/api/teacher/assignments?classroom_id=${classroom.id}`,
-          { errorMessage: 'Failed to load assignments', ttlMs: 20_000 },
-        ),
+      const reads = [
+        (async () => {
+          const cached = peekCachedJSON<TeacherAssignmentsResponse>(`teacher-assignments:${classroom.id}`)
+          if (cached) {
+            showPartial(cached.assignments?.length ?? 0, () => setPreviewAssignments(cached.assignments || []))
+            return cached
+          }
+          const summary = await fetchCachedJSON<{ assignments?: Assignment[]; summary_only?: boolean }>(
+            `teacher-assignments-summary:${classroom.id}`,
+            `/api/teacher/assignments?classroom_id=${classroom.id}&summary=1`,
+            { errorMessage: 'Failed to load assignments', ttlMs: 0 },
+          )
+          showPartial(summary.assignments?.length ?? 0, () => setPreviewAssignments(summary.assignments || []))
+          if (!summary.summary_only) {
+            primeCachedJSON(`teacher-assignments:${classroom.id}`, summary as TeacherAssignmentsResponse, 20_000, assignmentVersion)
+            return summary as TeacherAssignmentsResponse
+          }
+          const full = await fetchCachedJSON<TeacherAssignmentsResponse>(
+            `teacher-assignments:${classroom.id}`,
+            `/api/teacher/assignments?classroom_id=${classroom.id}`,
+            { errorMessage: 'Failed to load assignments', ttlMs: 20_000 },
+          )
+          showPartial(full.assignments?.length ?? 0, () => setPreviewAssignments(full.assignments || []))
+          return full
+        })(),
         fetchCachedJSON<TeacherMaterialsResponse>(
           `teacher-materials:${classroom.id}`,
           `/api/teacher/classrooms/${classroom.id}/materials`,
           { errorMessage: 'Failed to load materials', ttlMs: 20_000 },
-        ),
-        fetchCachedJSON<TeacherSurveysResponse>(
-          `teacher-surveys:${classroom.id}`,
-          `/api/teacher/surveys?classroom_id=${classroom.id}`,
-          { errorMessage: 'Failed to load surveys', ttlMs: 20_000 },
-        ),
+        ).then(data => { showPartial(data.materials?.length ?? 0, () => setMaterials(data.materials || [])); return data }),
+        (async () => {
+          const cached = peekCachedJSON<TeacherSurveysResponse>(`teacher-surveys:${classroom.id}`)
+          if (cached) {
+            showPartial(cached.surveys?.length ?? 0, () => setPreviewSurveys(cached.surveys || []))
+            return cached
+          }
+          const summary = await fetchCachedJSON<{ surveys?: Survey[]; summary_only?: boolean }>(
+            `teacher-surveys-summary:${classroom.id}`,
+            `/api/teacher/surveys?classroom_id=${classroom.id}&summary=1`,
+            { errorMessage: 'Failed to load surveys', ttlMs: 0 },
+          )
+          showPartial(summary.surveys?.length ?? 0, () => setPreviewSurveys(summary.surveys || []))
+          if (!summary.summary_only) {
+            primeCachedJSON(`teacher-surveys:${classroom.id}`, summary as TeacherSurveysResponse, 20_000, surveyVersion)
+            return summary as TeacherSurveysResponse
+          }
+          const full = await fetchCachedJSON<TeacherSurveysResponse>(
+            `teacher-surveys:${classroom.id}`,
+            `/api/teacher/surveys?classroom_id=${classroom.id}`,
+            { errorMessage: 'Failed to load surveys', ttlMs: 20_000 },
+          )
+          showPartial(full.surveys?.length ?? 0, () => setPreviewSurveys(full.surveys || []))
+          return full
+        })(),
+      ] as const
+      const [assignmentsData, materialsData, surveysData] = await Promise.all([
+        observe(reads[0]), observe(reads[1]), observe(reads[2]),
       ])
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
+      if (changed()) throw new Error('Classwork changed while loading')
       setAssignments(assignmentsData.assignments || [])
       setMaterials(materialsData.materials || [])
       setSurveys(surveysData.surveys || [])
       setLoadedClassroomId(classroom.id)
+      completeClassworkRef.current = true
+      setCompleteClasswork(true)
       setHasLoadedOnce(true)
       setClassworkLoadError(false)
       window.dispatchEvent(
@@ -782,12 +858,20 @@ export function TeacherClassroomView({
         })
       )
     } catch (err) {
+      failed = true
       if (loadRequestIdRef.current !== requestId || currentClassroomIdRef.current !== classroom.id) return
-      // A failed read cannot replace the last successful snapshot, including an empty list.
+      if (changed() && !completeClassworkRef.current) {
+        setPreviewAssignments([]); setPreviewSurveys([]); setMaterials([])
+        setLoadedClassroomId(null)
+      }
+      // A non-authorization failure cannot replace the last successful snapshot.
       setHasLoadedOnce(true)
       setClassworkLoadError(true)
       console.error('Error loading assignments:', err)
     } finally {
+      endCachedJSONRead(assignmentVersion)
+      endCachedJSONRead(materialVersion)
+      endCachedJSONRead(surveyVersion)
       if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroom.id) {
         setLoading(false)
       }
@@ -797,10 +881,14 @@ export function TeacherClassroomView({
   useEffect(() => {
     loadRequestIdRef.current += 1
     setAssignments([])
+    setPreviewAssignments([])
+    setPreviewSurveys([])
     setMaterials([])
     setSurveys([])
     setAssignmentInstructionsMode('visual')
     setLoadedClassroomId(null)
+    completeClassworkRef.current = false
+    setCompleteClasswork(false)
     setHasLoadedOnce(false)
     setClassworkLoadError(false)
     setSelection({ mode: 'summary' })
@@ -1066,22 +1154,25 @@ export function TeacherClassroomView({
   }, [selection.mode, selectedStudentId, splitPaneViewState.view])
 
   const classworkItems = useMemo(
-    () => buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys),
-    [currentAssignments, currentMaterials, currentSurveys],
+    () => completeClasswork
+      ? buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys)
+      : buildOrderedClassworkItems(previewAssignments, currentMaterials, previewSurveys),
+    [completeClasswork, currentAssignments, currentMaterials, currentSurveys, previewAssignments, previewSurveys],
   )
 
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event
-      if (!over || active.id === over.id || isReordering || isReadOnly || !assignmentEditMode) return
+      if (!over || active.id === over.id || isReordering || isReadOnly || !assignmentEditMode || !completeClasswork) return
 
-      const oldIndex = classworkItems.findIndex((item) => item.id === active.id)
-      const newIndex = classworkItems.findIndex((item) => item.id === over.id)
+      const completeItems = buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys)
+      const oldIndex = completeItems.findIndex((item) => item.id === active.id)
+      const newIndex = completeItems.findIndex((item) => item.id === over.id)
 
       if (oldIndex === -1 || newIndex === -1) return
 
       // Optimistically update local state
-      const reordered = arrayMove(classworkItems, oldIndex, newIndex)
+      const reordered = arrayMove(completeItems, oldIndex, newIndex)
       setAssignments(
         reordered.flatMap((item, position) => (
           item.type === 'assignment'
@@ -1139,13 +1230,13 @@ export function TeacherClassroomView({
         setIsReordering(false)
       }
     },
-    [assignmentEditMode, classroom.id, classworkItems, isReordering, isReadOnly, loadAssignments]
+    [assignmentEditMode, classroom.id, currentAssignments, currentMaterials, currentSurveys, completeClasswork, isReordering, isReadOnly, loadAssignments]
   )
 
   useEffect(() => {
     if (isUrlSelectionControlled) return
     // A current snapshot remains authoritative for navigation during warm reads.
-    if (!hasCurrentClassroomData) return
+    if (!hasCurrentClassroomData || !completeClasswork) return
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     const value = readCookie(cookieName)
     if (!value || value === 'summary') {
@@ -1170,12 +1261,12 @@ export function TeacherClassroomView({
     } else {
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [classroom.id, currentAssignments, currentSurveys, hasCurrentClassroomData, isUrlSelectionControlled, loading])
+  }, [classroom.id, currentAssignments, currentSurveys, completeClasswork, hasCurrentClassroomData, isUrlSelectionControlled, loading])
 
   useEffect(() => {
     if (!isUrlSelectionControlled) return
     // A current snapshot remains authoritative for navigation during warm reads.
-    if (!hasCurrentClassroomData) return
+    if (!hasCurrentClassroomData || !completeClasswork) return
 
     const cookieName = `teacherAssignmentsSelection:${classroom.id}`
     if (selectedSurveyIdProp) {
@@ -1221,7 +1312,7 @@ export function TeacherClassroomView({
       writeCookie(cookieName, value)
       setSelection({ mode: 'assignment', assignmentId: value })
     }
-  }, [classroom.id, currentAssignments, currentSurveys, hasCurrentClassroomData, isUrlSelectionControlled, loading, selectedAssignmentIdProp, selectedSurveyIdProp, updateSearchParams])
+  }, [classroom.id, currentAssignments, currentSurveys, completeClasswork, hasCurrentClassroomData, isUrlSelectionControlled, loading, selectedAssignmentIdProp, selectedSurveyIdProp, updateSearchParams])
 
   useEffect(() => {
     function onSelectionEvent(e: Event) {
@@ -2741,14 +2832,14 @@ export function TeacherClassroomView({
       label: 'Assignment',
       icon: <ClassworkTypeIcon type="assignment" />,
       onSelect: () => setIsCreateModalOpen(true),
-      disabled: isReadOnly,
+      disabled: isReadOnly || !completeClasswork,
     },
     {
       id: 'blueprint-assignment',
       label: 'Draft assignment with Blueprint',
       icon: <Sparkles className="h-4 w-4" aria-hidden="true" />,
       onSelect: () => setIsBlueprintDraftOpen(true),
-      disabled: isReadOnly,
+      disabled: isReadOnly || !completeClasswork,
     },
     {
       id: 'material',
@@ -2758,14 +2849,14 @@ export function TeacherClassroomView({
         setEditMaterial(null)
         setIsMaterialModalOpen(true)
       },
-      disabled: isReadOnly,
+      disabled: isReadOnly || !completeClasswork,
     },
     {
       id: 'survey',
       label: 'Survey',
       icon: <ClassworkTypeIcon type="survey" />,
       onSelect: () => { void createSurveyDraft() },
-      disabled: isReadOnly || creatingSurvey,
+      disabled: isReadOnly || !completeClasswork || creatingSurvey,
     },
   ]
 
@@ -2776,14 +2867,14 @@ export function TeacherClassroomView({
       icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
       checked: assignmentEditMode,
       onSelect: () => setAssignmentEditMode(!assignmentEditMode),
-      disabled: isReadOnly,
+      disabled: isReadOnly || !completeClasswork,
     },
     ...(showMarkdownEditorOption && onOpenMarkdownEditor ? [{
       id: 'edit-markdown',
       label: 'Edit all assignments in Markdown',
       icon: <Code className="h-4 w-4" aria-hidden="true" />,
       onSelect: onOpenMarkdownEditor,
-      disabled: isReadOnly,
+      disabled: isReadOnly || !completeClasswork,
     }] : []),
   ]
 
@@ -2813,7 +2904,7 @@ export function TeacherClassroomView({
               tooltip="New classwork"
               variant="primary"
               items={classworkCreateActions}
-              disabled={isReadOnly}
+              disabled={isReadOnly || !completeClasswork}
               menuAriaLabel="New classwork"
               menuPlacement="down"
               menuAlign="center"
@@ -2868,10 +2959,10 @@ export function TeacherClassroomView({
           <Button type="button" variant="secondary" size="sm" aria-label="Retry assignment" onClick={retrySelectedAssignment}>Retry</Button>
         </div>
       ) : null}
-      {hasCurrentClassroomData && loading ? <RefreshingIndicator label="Refreshing classwork" /> : null}
-      {hasCurrentClassroomData && classworkLoadError ? (
+      {hasCurrentClassroomData && loading ? <RefreshingIndicator label={completeClasswork ? 'Refreshing classwork' : 'Loading remaining classwork'} /> : null}
+      {hasCurrentClassroomData && classworkLoadError && (completeClasswork || classworkItems.length > 0) ? (
         <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-          <span>Classwork could not be refreshed. Showing the last loaded classwork.</span>
+          <span>{completeClasswork ? 'Classwork could not be refreshed. Showing the last loaded classwork.' : 'Some classwork could not load. Retry to see the full list.'}</span>
           <Button type="button" variant="secondary" size="sm" onClick={retryLoadAssignments}>Retry</Button>
         </div>
       ) : null}
@@ -2892,7 +2983,11 @@ export function TeacherClassroomView({
       description="Pika couldn't load this classroom's classwork. Nothing was changed."
       action={<Button onClick={retryLoadAssignments}>Retry</Button>}
     />
-  ) : currentAssignments.length === 0 && currentMaterials.length === 0 && currentSurveys.length === 0 ? (
+  ) : classworkItems.length === 0 && !completeClasswork && loading ? (
+    <PageState kind="loading" title="Loading classwork" />
+  ) : classworkItems.length === 0 && !completeClasswork && classworkLoadError ? (
+    <PageState kind="error" title="Classwork couldn't load" description="Pika couldn't load this classroom's classwork. Nothing was changed." action={<Button onClick={retryLoadAssignments}>Retry</Button>} />
+  ) : classworkItems.length === 0 ? (
     <PageState
       kind="empty"
       title="No classwork yet"
@@ -2921,10 +3016,12 @@ export function TeacherClassroomView({
                 <TeacherMaterialCard
                   key={material.id}
                   material={material}
-                  isReadOnly={isReadOnly}
-                  isDragDisabled={isReordering}
+                  pending={!completeClasswork}
+                  isReadOnly={isReadOnly || !completeClasswork}
+                  isDragDisabled={isReordering || !completeClasswork}
                   editMode={assignmentEditMode}
                   onOpen={() => {
+                    if (!completeClasswork) return
                     setEditMaterial(material)
                     setIsMaterialModalOpen(true)
                   }}
@@ -2939,11 +3036,13 @@ export function TeacherClassroomView({
                 <SortableSurveyCard
                   key={survey.id}
                   survey={survey}
-                  isReadOnly={isReadOnly}
-                  isDragDisabled={isReordering}
+                  pending={!completeClasswork}
+                  countsUnavailable={classworkLoadError}
+                  isReadOnly={isReadOnly || !completeClasswork}
+                  isDragDisabled={isReordering || !completeClasswork}
                   editMode={assignmentEditMode}
-                  onOpen={() => setSelectionAndPersist({ mode: 'survey', surveyId: survey.id })}
-                  onDelete={() => setPendingSurveyDelete(survey)}
+                  onOpen={() => { if (completeClasswork) setSelectionAndPersist({ mode: 'survey', surveyId: survey.id }) }}
+                  onDelete={() => { const full = currentSurveys.find(item => item.id === survey.id); if (full) setPendingSurveyDelete(full) }}
                 />
               )
             }
@@ -2953,17 +3052,20 @@ export function TeacherClassroomView({
               <SortableAssignmentCard
                 key={assignment.id}
                 assignment={assignment}
-                isReadOnly={isReadOnly}
-                isDragDisabled={isReordering}
+                pending={!completeClasswork}
+                countsUnavailable={classworkLoadError}
+                isReadOnly={isReadOnly || !completeClasswork}
+                isDragDisabled={isReordering || !completeClasswork}
                 editMode={assignmentEditMode}
                 onOpen={() => {
+                  if (!completeClasswork) return
                   if (assignment.is_draft || isScheduledAssignment(assignment)) {
                     setEditAssignment(assignment)
                   } else {
                     setSelectionAndPersist({ mode: 'assignment', assignmentId: assignment.id })
                   }
                 }}
-                onEdit={() => setEditAssignment(assignment)}
+                onEdit={() => { if (completeClasswork) setEditAssignment(assignment) }}
                 onDelete={() => setPendingDelete({ id: assignment.id, title: assignment.title })}
               />
             )

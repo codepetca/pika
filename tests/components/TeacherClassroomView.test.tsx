@@ -1,3 +1,4 @@
+import { ApiError } from '@/lib/api-error'
 import { forwardRef, useEffect, useState } from 'react'
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,6 +11,8 @@ import { ClassDaysProvider } from '@/contexts/ClassDaysContext'
 const mockAssignmentModalRender = vi.fn()
 const mockExecuteRepoLightBatch = vi.fn()
 const mockFetchJSONWithCache = vi.fn()
+let useSummaryKeys = false
+const mockCacheTokens = new Map<string, Set<{ key: string; valid: boolean }>>()
 const mockInvalidateCachedJSON = vi.fn()
 const mockInvalidateGradebookForClassroom = vi.fn()
 const mockFetchClassDaysForClassroom = vi.fn()
@@ -221,13 +224,13 @@ vi.mock('@/components/AssignmentModal', () => ({
 }))
 
 vi.mock('@/components/SortableAssignmentCard', () => ({
-  SortableAssignmentCard: ({ assignment, editMode, onOpen, onEdit, onDelete }: any) => (
+  SortableAssignmentCard: ({ assignment, editMode, onOpen, onEdit, onDelete, countsUnavailable }: any) => (
     <div>
       <button type="button" onClick={editMode ? onEdit : onOpen} aria-label={assignment.title}>
         {assignment.title}
       </button>
       <span data-testid={`assignment-count-${assignment.id}`}>
-        {assignment.stats.submitted}/{assignment.stats.total_students}
+        {assignment.stats ? `${assignment.stats.submitted}/${assignment.stats.total_students}` : countsUnavailable ? 'Count unavailable' : 'Loading count'}
       </span>
       {editMode ? (
         <button type="button" onClick={onDelete} aria-label={`Delete ${assignment.title}`}>
@@ -439,7 +442,7 @@ vi.mock('@/lib/request-cache', () => ({
   },
   fetchCachedJSON: (key: string, input: RequestInfo | URL, options?: { ttlMs?: number; errorMessage?: string }) =>
     mockFetchJSONWithCache(
-      key,
+      useSummaryKeys ? key : key.replace('-summary:', ':'),
       async () => {
         const response = await fetch(input)
         const payload = await response.json()
@@ -450,6 +453,16 @@ vi.mock('@/lib/request-cache', () => ({
       },
       options?.ttlMs,
     ),
+  peekCachedJSON: () => undefined,
+  primeCachedJSON: () => undefined,
+  beginCachedJSONRead: (key: string) => {
+    const token = { key, valid: true }; const tokens = mockCacheTokens.get(key) ?? new Set()
+    tokens.add(token); mockCacheTokens.set(key, tokens); return token
+  },
+  endCachedJSONRead: (token: { key: string; valid: boolean }) => {
+    token.valid = false; const tokens = mockCacheTokens.get(token.key); tokens?.delete(token)
+    if (tokens?.size === 0) mockCacheTokens.delete(token.key)
+  },
   fetchJSONWithCache: (...args: any[]) => mockFetchJSONWithCache(...args),
   invalidateCachedJSON: (...args: any[]) => mockInvalidateCachedJSON(...args),
 }))
@@ -714,6 +727,8 @@ describe('TeacherClassroomView', () => {
     clearAssignmentWorkspaceStudentCookie()
     mockFetchClassDaysForClassroom.mockReset()
     mockFetchClassDaysForClassroom.mockResolvedValue([])
+    useSummaryKeys = false
+    mockCacheTokens.clear()
     mockFetchJSONWithCache.mockReset()
     mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
       if (key === `teacher-assignments:${classroom.id}`) {
@@ -1017,6 +1032,133 @@ describe('TeacherClassroomView', () => {
     expect(oldInspector.isConnected).toBe(false)
     await act(async () => rejectList?.(new Error('Late list failure')))
     expect(oldInspector.isConnected).toBe(false)
+  })
+
+  it('shows available classwork before the slowest category and disables reordering until complete', async () => {
+    let finishAssignments!: (value: unknown) => void
+    const assignments = new Promise(resolve => { finishAssignments = resolve })
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments:${classroom.id}`) return assignments
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [makeMaterialSummary('early-material', 'Early material')] })
+      if (key === `teacher-surveys:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      return fetcher()
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />, { wrapper: TooltipProvider })
+    expect(await screen.findByRole('button', { name: 'Open Early material' })).toBeInTheDocument()
+    expect(screen.queryByText('No classwork yet')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(await screen.findByRole('menuitemcheckbox', { name: 'Edit classwork' })).toBeDisabled()
+    await act(async () => finishAssignments({ assignments: [makeAssignmentSummary('late-assignment', 'Late assignment')] }))
+    expect(await screen.findByRole('button', { name: 'Late assignment' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('menuitemcheckbox', { name: 'Edit classwork' }))
+    expect(screen.getByRole('button', { name: 'Drag to reorder material' })).toBeEnabled()
+  })
+
+  it('shows assignment and survey titles with unknown counts before legacy statistics resolve', async () => {
+    useSummaryKeys = true
+    let finishAssignments!: (value: unknown) => void
+    let finishSurveys!: (value: unknown) => void
+    const assignmentFull = new Promise(resolve => { finishAssignments = resolve })
+    const surveyFull = new Promise(resolve => { finishSurveys = resolve })
+    const assignment = makeAssignmentSummary('early-assignment', 'Early assignment')
+    const survey = makeSurveySummary('early-survey', 'Early survey', { status: 'active' })
+    const { stats: _assignmentStats, ...assignmentSummary } = assignment
+    const { stats: _surveyStats, ...surveySummary } = survey
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) return Promise.resolve({ summary_only: true, assignments: [assignmentSummary] })
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ summary_only: true, surveys: [surveySummary] })
+      if (key === `teacher-assignments:${classroom.id}`) return assignmentFull
+      if (key === `teacher-surveys:${classroom.id}`) return surveyFull
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      return Promise.resolve({ class_days: [] })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />, { wrapper: TooltipProvider })
+    expect(await screen.findByRole('button', { name: 'Early assignment' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Early survey' })).toBeInTheDocument()
+    expect(screen.getAllByText('Loading count')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeDisabled()
+    await act(async () => finishAssignments({ assignments: [assignment] }))
+    expect(screen.getByTestId('assignment-count-early-assignment')).toHaveTextContent('1/1')
+    expect(screen.getByText('Loading count')).toBeInTheDocument()
+    await act(async () => finishSurveys({ surveys: [survey] }))
+    await waitFor(() => expect(screen.queryByText('Loading count')).not.toBeInTheDocument())
+    expect(mockFetchJSONWithCache.mock.calls.filter(([key]) => String(key).startsWith('teacher-'))).toHaveLength(5)
+  })
+
+  it('retains summary titles when a legacy full read fails', async () => {
+    useSummaryKeys = true
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { stats: _stats, ...assignment } = makeAssignmentSummary('partial-assignment', 'Partial assignment')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) return Promise.resolve({ summary_only: true, assignments: [assignment] })
+      if (key === `teacher-assignments:${classroom.id}`) return Promise.reject(new Error('Stats unavailable'))
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      return Promise.resolve({ class_days: [] })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    expect(await screen.findByRole('button', { name: 'Partial assignment' })).toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent('Some classwork could not load')
+    expect(screen.getByText('Count unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New classwork' })).toBeDisabled()
+  })
+
+  it('discards a partial snapshot when classwork is invalidated during its read', async () => {
+    useSummaryKeys = true
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let finishFull!: (value: unknown) => void
+    const full = new Promise(resolve => { finishFull = resolve })
+    const assignment = makeAssignmentSummary('old-item', 'Old item')
+    const { stats: _stats, ...summary } = assignment
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) return Promise.resolve({ summary_only: true, assignments: [summary] })
+      if (key === `teacher-assignments:${classroom.id}`) return full
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      return Promise.resolve({ class_days: [] })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    expect(await screen.findByRole('button', { name: 'Old item' })).toBeInTheDocument()
+    for (const token of mockCacheTokens.get(`teacher-assignments:${classroom.id}`) ?? []) token.valid = false
+    await act(async () => finishFull({ assignments: [assignment] }))
+    expect(screen.queryByRole('button', { name: 'Old item' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+  })
+
+  it('clears summary rows if a full read rejects owner access', async () => {
+    useSummaryKeys = true
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let rejectFull!: (reason: Error) => void
+    const full = new Promise((_resolve, reject) => { rejectFull = reject })
+    const { stats: _stats, ...assignment } = makeAssignmentSummary('revoked', 'Revoked item')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) return Promise.resolve({ summary_only: true, assignments: [assignment] })
+      if (key === `teacher-assignments:${classroom.id}`) return full
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      return Promise.resolve({ class_days: [] })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    expect(await screen.findByRole('button', { name: 'Revoked item' })).toBeInTheDocument()
+    await act(async () => rejectFull(new ApiError(403, 'Forbidden')))
+    expect(screen.queryByRole('button', { name: 'Revoked item' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+  })
+
+  it('uses an existing shared full response without issuing a second full request', async () => {
+    useSummaryKeys = true
+    mockFetchJSONWithCache.mockImplementation((key: string, fetcher: () => Promise<unknown>) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) return Promise.resolve({ assignments: [makeAssignmentSummary('shared-assignment', 'Shared assignment')] })
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      return fetcher()
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    expect(await screen.findByRole('button', { name: 'Shared assignment' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New classwork' })).toBeEnabled())
+    const keys = mockFetchJSONWithCache.mock.calls.map(([key]) => key)
+    expect(keys).not.toContain(`teacher-assignments:${classroom.id}`)
+    expect(keys).not.toContain(`teacher-surveys:${classroom.id}`)
   })
 
   it('shows a classwork error and restores the list after retry', async () => {
@@ -1516,6 +1658,7 @@ describe('TeacherClassroomView', () => {
     })
     render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
 
+    await waitFor(() => expect(screen.getByRole('button', { name: 'New classwork' })).toBeEnabled())
     openAddClassworkMenu()
     const guidedAction = screen.getByRole('menuitem', { name: 'Draft assignment with Blueprint' })
     expect(guidedAction).not.toHaveAttribute('aria-disabled', 'true')
