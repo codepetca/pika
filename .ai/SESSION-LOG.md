@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Accept the bounded 70-account classroom rollout
-
-Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
-and schema293 into the dated70-account acceptance receipt. Retained actual
-signed-in versus isolated/source-qualified boundaries, exact roster checks,
-selected academic preservation and compatible recovery constraints. PPZ keeps
-Tests/native attendance off/no policy/mapping/manual log unchanged. Original
-observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
-passed7timely samples and final exact70/provider/work readbacks. Timed process
-exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
-historical pilot now point to bounded acceptance; wider admission/provider/billing
-holds and incomplete epic/paused goal remain. Documentation only; no live action.
-
 ## 2026-10-27 Prepare wider classroom admission design
 
 Prepared a proposal for one durable service-owned admission source, exact70
@@ -196,6 +183,11 @@ All owned clones removed; shared history292 unchanged. One syntax correction was
 caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+## 2026-10-27 — Prepare reviewed main promotion to production
+- Owner authorized main→production and deployment verification. PR1700 batches main9756a9751 from production405ef92cc; no new migrations, API/server changes or dependency changes. Registry/date-order application tree has full CI40563343248 ten-job PASS and clean independent review; operational/provider/admission/billing holds are preserved.
+- Cumulative Sol/high release review found only conflicting continuity history. Terra/medium resolved six archive hunks and retained both parents' entry bodies, occurrence counts and archive markers across SESSION+ARCHIVE. Coordinator independently verifies preservation; payload outside the two journals stays byte-identical to reviewed main. Runtime-platform risk; no fixture, environment, database or provider mutation is part of the release.
+- Initial local release focused gate PASS79files/1210tests plus architecture/UI/design/TypeScript/lint. Resolved-candidate checks and targeted review precede readiness; final exact-head PR Gate and Vercel source/production-alias/read-only smoke verification remain required. Production migration permissions are not requested or consumed.
 
 ## 2026-10-28 — Creation action placement
 
