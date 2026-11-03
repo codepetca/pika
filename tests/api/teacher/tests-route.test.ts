@@ -117,6 +117,100 @@ describe('GET /api/teacher/tests', () => {
     })
   })
 
+  it('starts attempt reads while questions are pending and preserves the result', async () => {
+    mockGetClassroomStudentIds.mockResolvedValueOnce({ studentIds: ['student-1'], studentIdSet: new Set(['student-1']), totalStudents: 1, error: null })
+    let finishQuestions!: (value: unknown) => void
+    const questions = new Promise(resolve => { finishQuestions = resolve })
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      const result = table === 'tests' ? { data: [{ id: 'test-1', status: 'active' }], error: null }
+        : table === 'test_attempts' ? { data: [{ test_id: 'test-1', student_id: 'student-1', is_submitted: true }], error: null }
+          : { data: [], error: null }
+      const pending = table === 'test_questions' ? questions : Promise.resolve(result)
+      const builder: any = { select: () => builder, eq: () => builder, order: () => builder, in: () => builder, then: pending.then.bind(pending) }
+      return builder
+    })
+    const response = GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    await vi.waitFor(() => expect(mockSupabaseClient.from).toHaveBeenCalledWith('test_attempts'))
+    expect(mockSupabaseClient.from).toHaveBeenCalledWith('test_questions')
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('test_responses')
+    finishQuestions({ data: [{ test_id: 'test-1' }], error: null })
+    const result = await response
+    expect(result.status).toBe(200)
+    const body = await result.json()
+    expect(body.tests[0].stats).toMatchObject({ questions_count: 1, submitted: 1, responded: 1 })
+    expect(mockSupabaseClient.from.mock.calls.map(([table]) => table)).toEqual([
+      'tests', 'test_questions', 'test_attempts', 'test_responses', 'test_student_availability', 'assessment_drafts',
+    ])
+  })
+
+  it('returns a question error without waiting for a late rejected attempt', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetClassroomStudentIds.mockResolvedValueOnce({ studentIds: ['student-1'], studentIdSet: new Set(['student-1']), totalStudents: 1, error: null })
+    let rejectAttempts!: (reason: Error) => void
+    const attempts = new Promise((_resolve, reject) => { rejectAttempts = reject })
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      const value = table === 'tests' ? { data: [{ id: 'test-1', status: 'active' }], error: null }
+        : { data: null, error: { code: 'QUESTION_FAILURE' } }
+      const pending = table === 'test_attempts' ? attempts : Promise.resolve(value)
+      const builder: any = { select: () => builder, eq: () => builder, order: () => builder, in: () => builder, then: pending.then.bind(pending) }
+      return builder
+    })
+    try {
+      const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+      expect(response.status).toBe(500)
+      expect(JSON.stringify(log.mock.calls)).toContain('test.list_questions')
+      expect(JSON.stringify(log.mock.calls)).not.toContain('test.list_attempts')
+      rejectAttempts(new Error('late attempt rejection'))
+      await new Promise(resolve => setTimeout(resolve, 0))
+    } finally { log.mockRestore() }
+  })
+
+  it('does not start an attempt read for an empty roster', async () => {
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      const pending = Promise.resolve({ data: table === 'tests' ? [{ id: 'test-1', status: 'active' }] : [], error: null })
+      const builder: any = { select: () => builder, eq: () => builder, order: () => builder, in: () => builder, then: pending.then.bind(pending) }
+      return builder
+    })
+    const result = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(result.status).toBe(200)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalledWith('test_attempts')
+  })
+
+  it('observes an early attempt rejection while questions remain pending', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    mockGetClassroomStudentIds.mockResolvedValueOnce({ studentIds: ['student-1'], studentIdSet: new Set(['student-1']), totalStudents: 1, error: null })
+    let finishQuestions!: (value: unknown) => void
+    const questions = new Promise(resolve => { finishQuestions = resolve })
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      const pending = table === 'test_questions' ? questions : table === 'test_attempts'
+        ? Promise.reject(new Error('attempt failed'))
+        : Promise.resolve({ data: [{ id: 'test-1', status: 'active' }], error: null })
+      const builder: any = { select: () => builder, eq: () => builder, order: () => builder, in: () => builder, then: pending.then.bind(pending) }
+      return builder
+    })
+    try {
+      const pending = GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+      await vi.waitFor(() => expect(mockSupabaseClient.from).toHaveBeenCalledWith('test_attempts'))
+      await new Promise(resolve => setTimeout(resolve, 0))
+      finishQuestions({ data: [], error: null })
+      expect((await pending).status).toBe(500)
+    } finally { log.mockRestore() }
+  })
+
+  it('keeps the missing attempt table fallback', async () => {
+    mockGetClassroomStudentIds.mockResolvedValueOnce({ studentIds: ['student-1'], studentIdSet: new Set(['student-1']), totalStudents: 1, error: null })
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      const value = table === 'tests' ? { data: [{ id: 'test-1', status: 'active' }], error: null }
+        : table === 'test_attempts' ? { data: null, error: { code: 'PGRST205' } } : { data: [], error: null }
+      const pending = Promise.resolve(value)
+      const builder: any = { select: () => builder, eq: () => builder, order: () => builder, in: () => builder, then: pending.then.bind(pending) }
+      return builder
+    })
+    const result = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(result.status).toBe(200)
+    expect((await result.json()).tests[0].stats.submitted).toBe(0)
+  })
+
   it('starts the roster while the tests read is pending', async () => {
     let resolveTests!: (value: { data: never[]; error: null }) => void
     const tests = new Promise<{ data: never[]; error: null }>((resolve) => { resolveTests = resolve })
