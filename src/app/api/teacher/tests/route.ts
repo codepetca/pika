@@ -31,6 +31,9 @@ import { contextualTestCreateRequestSchema, readContextualTestCreateBody, TEST_C
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// Keep each request within the configured PostgREST row cap.
+const TEST_STATS_PAGE_SIZE = 1000
+
 type TestAttemptStatsRow = {
   test_id: string
   student_id: string
@@ -68,6 +71,7 @@ async function loadStudentScopedTestRows<T>(
     supabase,
     table,
     select: columns,
+    pageSize: TEST_STATS_PAGE_SIZE,
     filters: [
       { column: 'test_id', values: testIds },
       { column: 'student_id', values: studentIds },
@@ -83,6 +87,7 @@ async function loadTestQuestionRows(
     supabase,
     table: 'test_questions',
     select: 'test_id',
+    pageSize: TEST_STATS_PAGE_SIZE,
     filters: [{ column: 'test_id', values: testIds }],
   })
 }
@@ -97,6 +102,7 @@ async function loadTestAvailabilityRows(
       supabase,
       table: 'test_student_availability',
       select: 'test_id, student_id, state',
+      pageSize: TEST_STATS_PAGE_SIZE,
       filters: [
         { column: 'test_id', values: testIds },
         { column: 'student_id', values: studentIds },

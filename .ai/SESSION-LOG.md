@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — Controlled RepoLight connection and blank-login regression
-
-User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
-attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
-redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
-Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
-Normal controlled student join/repository save/submit PASS. Teacher overview exposed
-own undefined optional GitHub metadata; mapper now omits absent fields. Regression
-failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
-and source release pending; no report/import/grade/sent-feedback acceptance claimed.
-Private connection/pilot receipts remain outside Git.
-
-## 2026-10-25 RepoLight contextual-owner report admission
-
-Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
-is READY. Overview now loads; pilot stopped before Analyze because report routes
-required global Teacher for admitted contextual owner A. No report/import; AI OFF.
-Draft preparation briefly saved zero marks in Final mode; normal Draft restored
-all synthetic marks/graded/returned fields to null. Production window released
-to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
-shared admission with legacy Teacher fallback, retaining owner/source/lease fences
-and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
-a Student-labelled owner and synthetic creation grant; fixture resources removed.
-Route regressions and independent auth/compatibility review precede CI and specific
-owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
-
 ## 2026-10-25 RepoLight release and hosted quota stop
 
 1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
@@ -385,3 +359,16 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 ## 2026-11-02 — Teacher Tests intent prefetch
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+## 2026-11-03 — Teacher Tests statistics pagination
+
+On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
+PostgREST's row cap silently truncating question, attempt, response, and access
+counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
+regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.
