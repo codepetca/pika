@@ -377,3 +377,16 @@ Start a bounded teacher Tests read on navigation intent, share only in-flight wo
 ## 2026-11-03 — Progressive teacher Tests list
 
 Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
+
+## 2026-11-03 — Teacher Tests statistics pagination
+
+On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
+PostgREST's row cap silently truncating question, attempt, response, and access
+counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
+regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.

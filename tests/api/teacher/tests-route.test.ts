@@ -117,6 +117,69 @@ describe('GET /api/teacher/tests', () => {
     })
   })
 
+  function setupPagedStats(failTable?: string, questionCount = 1001) {
+    const students = Array.from({ length: 40 }, (_, i) => `student-${i}`)
+    const tests = Array.from({ length: 26 }, (_, i) => ({ id: `test-${i}`, status: 'active' }))
+    mockGetClassroomStudentIds.mockResolvedValue({ studentIds: students, studentIdSet: new Set(students), totalStudents: students.length, error: null })
+    const byTable: Record<string, Array<Record<string, unknown>>> = {
+      test_questions: Array.from({ length: questionCount }, (_, i) => ({ id: `q-${String(i).padStart(4, '0')}`, test_id: 'test-0' })),
+      test_attempts: tests.flatMap((test, t) => students.map((student, s) => ({ id: `a-${String(t * 40 + s).padStart(4, '0')}`, test_id: test.id, student_id: student, is_submitted: t !== 0 }))),
+      test_student_availability: tests.flatMap((test, t) => students.map((student, s) => ({ id: `v-${String(t * 40 + s).padStart(4, '0')}`, test_id: test.id, student_id: student, state: 'closed' }))),
+      test_responses: students.flatMap((student, s) => Array.from({ length: 30 }, (_, q) => ({ id: `r-${String(s * 30 + q).padStart(4, '0')}`, test_id: 'test-0', student_id: student, selected_option: 0, response_text: null }))),
+    }
+    const pages: Record<string, number[]> = {}
+    mockSupabaseClient.from = vi.fn((table: string) => {
+      const filters: Record<string, string[]> = {}
+      let start = 0, end = 999
+      const builder: any = {
+        select: () => builder, eq: () => builder,
+        in: (column: string, values: string[]) => { filters[column] = values; return builder },
+        order: (column: string) => { if (byTable[table]) expect(column).toBe('id'); return builder },
+        range: (from: number, to: number) => { start = from; end = to; return builder },
+        then: (resolve: (value: unknown) => unknown, reject: (reason: unknown) => unknown) => {
+          if (table === 'tests') return Promise.resolve({ data: tests, error: null }).then(resolve, reject)
+          if (table === 'assessment_drafts') return Promise.resolve({ data: [], error: null }).then(resolve, reject)
+          ;(pages[table] ??= []).push(start)
+          const rows = byTable[table].filter(row => Object.entries(filters).every(([key, values]) => values.includes(row[key] as string)))
+          const result = failTable === table && start === 1000
+            ? { data: null, error: { code: 'PAGE_FAILED' } }
+            : { data: rows.slice(start, Math.min(end + 1, start + 1000)), error: null }
+          return Promise.resolve(result).then(resolve, reject)
+        },
+      }
+      return builder
+    })
+    return pages
+  }
+
+  it('reads all statistics beyond the PostgREST cap with stable ordering', async () => {
+    const pages = setupPagedStats()
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.tests[0].stats).toMatchObject({ questions_count: 1001, responded: 40, submitted: 0, closed_access: 40 })
+    expect(body.tests[25].stats).toMatchObject({ submitted: 40, closed_access: 40 })
+    for (const table of ['test_questions', 'test_attempts', 'test_responses', 'test_student_availability']) expect(pages[table]).toEqual([0, 1000])
+  })
+
+  it('requests an empty page at an exact 1000-row boundary', async () => {
+    const pages = setupPagedStats(undefined, 1000)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+    expect(response.status).toBe(200)
+    expect((await response.json()).tests[0].stats.questions_count).toBe(1000)
+    expect(pages.test_questions).toEqual([0, 1000])
+  })
+
+  it.each(['test_questions', 'test_attempts', 'test_responses', 'test_student_availability'])('fails instead of returning partial statistics when the second %s page fails', async (table) => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      const pages = setupPagedStats(table)
+      const response = await GET(new NextRequest('http://localhost:3000/api/teacher/tests?classroom_id=classroom-1'))
+      expect(response.status).toBe(500)
+      expect(pages[table]).toEqual([0, 1000])
+    } finally { log.mockRestore() }
+  })
+
   it('starts attempt reads while questions are pending and preserves the result', async () => {
     mockGetClassroomStudentIds.mockResolvedValueOnce({ studentIds: ['student-1'], studentIdSet: new Set(['student-1']), totalStudents: 1, error: null })
     let finishQuestions!: (value: unknown) => void
