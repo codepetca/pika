@@ -50695,3 +50695,19 @@ one targeted main-sync review precede ready; task stop override remains active.
 ## 2026-10-25 — RepoLight local pilot and repeat-click guard
 
 Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
+
+<!-- pika-session-log-archive-batch:f305d3ba2b5d13f11743e4e6b33f8755255157865070f05ca797b8ff4b225ec5 -->
+## 2026-10-25 — Reconcile deployed classroom pilot acceptance
+
+Record protected production1685/9a and actual seamless Assignment Return/comment
+persistence. Reviewed bounded API attempt4 passed34requests: normal email-code
+sessions, reciprocal owner/member reads, contextual read/write/student-target
+denials, Free create403 and one-create/exact-replay without duplication. Scoped
+read-only SQL matched five protected fingerprints; Aowns2/B1/Control0, plans and
+original work unchanged. Exact3cohort/provider24metadata/pageflags pre/post match.
+Earlier failed attempts remain spent. Retain the one new empty synthetic class.
+Reconcile receipt/readiness/roadmap/CURRENT; no runtime, schema, UI, account, plan,
+configuration, production or provider action. Remaining work is candidate-specific
+evidence applicability and separately authorized observed expansion; isolated
+domain proofs and layered recovery are not all-domain/deployed outage evidence.
+Main-only docs review/CI follow; no overall-goal completion or production authority.

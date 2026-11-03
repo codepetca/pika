@@ -11,21 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 — Reconcile deployed classroom pilot acceptance
-
-Record protected production1685/9a and actual seamless Assignment Return/comment
-persistence. Reviewed bounded API attempt4 passed34requests: normal email-code
-sessions, reciprocal owner/member reads, contextual read/write/student-target
-denials, Free create403 and one-create/exact-replay without duplication. Scoped
-read-only SQL matched five protected fingerprints; Aowns2/B1/Control0, plans and
-original work unchanged. Exact3cohort/provider24metadata/pageflags pre/post match.
-Earlier failed attempts remain spent. Retain the one new empty synthetic class.
-Reconcile receipt/readiness/roadmap/CURRENT; no runtime, schema, UI, account, plan,
-configuration, production or provider action. Remaining work is candidate-specific
-evidence applicability and separately authorized observed expansion; isolated
-domain proofs and layered recovery are not all-domain/deployed outage evidence.
-Main-only docs review/CI follow; no overall-goal completion or production authority.
-
 ## 2026-10-25 — RepoLight production migration and release
 
 Human approved production293 once plus reviewed1687 and the coordinated lifecycle
@@ -404,3 +389,7 @@ PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list
 ## 2026-11-02 — Reduce Classwork requirement reads
 
 Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
+
+## 2026-11-02 — Teacher Tests query overlap
+
+On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list change that overlaps authorized question and attempt reads while preserving question-first errors. A synthetic one-test/one-student probe with 80 ms delays per read measured 168 ms before and 89 ms after, with six table requests in both successful runs; these are mocked timings, not production measurements. Focused route checks cover overlap, authorization, error precedence and late rejections. Work is uncommitted and has not been deployed.

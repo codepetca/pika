@@ -170,6 +170,20 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
   const testIds = (tests || []).map((t) => t.id)
   const enrolledStudentIdList = classroomStudentsResult.studentIds
 
+  // Both reads use the authorized, fixed test and roster IDs. Observe attempt
+  // failures immediately while retaining the question read's error precedence.
+  const attemptRead = testIds.length > 0 && enrolledStudentIdList.length > 0
+    ? Promise.resolve().then(() => loadStudentScopedTestRows<TestAttemptStatsRow>(supabase, {
+        table: 'test_attempts',
+        columns: 'test_id, student_id, is_submitted',
+        testIds,
+        studentIds: enrolledStudentIdList,
+      })).then(
+        (value) => ({ ok: true as const, value }),
+        (error: unknown) => ({ ok: false as const, error }),
+      )
+    : null
+
   const questionCountMap: Record<string, number> = {}
   if (testIds.length > 0) {
     const { rows: questionRows, error: questionRowsError } = await loadTestQuestionRows(supabase, testIds)
@@ -190,15 +204,9 @@ export const GET = withErrorHandler('GetTeacherTests', async (request) => {
     const seen: Record<string, Set<string>> = {}
     const submittedSeen: Record<string, Set<string>> = {}
 
-    const {
-      rows: attemptRows,
-      error: attemptRowsError,
-    } = await loadStudentScopedTestRows<TestAttemptStatsRow>(supabase, {
-      table: 'test_attempts',
-      columns: 'test_id, student_id, is_submitted',
-      testIds,
-      studentIds: enrolledStudentIdList,
-    })
+    const attemptOutcome = await attemptRead!
+    if (!attemptOutcome.ok) throw attemptOutcome.error
+    const { rows: attemptRows, error: attemptRowsError } = attemptOutcome.value
 
     if (attemptRowsError && attemptRowsError.code !== 'PGRST205') {
       logServerError('test.list_attempts', attemptRowsError)
