@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-25 RepoLight release and hosted quota stop
-
-1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
-canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
-promotion review passed; all6276parent journal occurrences preserved. Controlled
-Student-labelled owner access and blank-login overview PASS. One hosted analysis
-failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
-assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
-AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
-released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
-GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
-provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
-
 ## 2026-10-26 Future post dates
 
 Announcements and posted Classwork materials accept future Post date values.
@@ -372,3 +359,7 @@ regressions cover multi-page reads, exact boundaries, and later-page failures.
 Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
 7d1c121fb. The rebase preserved the prior source tree and continuity histories;
 PR 1727 remains draft pending focused checks and exact-head review.
+
+## 2026-11-03 List order toggle
+
+- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
