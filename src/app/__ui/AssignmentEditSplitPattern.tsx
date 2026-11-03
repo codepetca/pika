@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
+import { Settings, Trash2 } from 'lucide-react'
 import { AssignmentForm } from '@/components/AssignmentForm'
 import { AssignmentSubmissionRequirementsEditor } from '@/components/AssignmentSubmissionRequirementsEditor'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
+import { TeacherWorkSurfaceMenuButton } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
-import { Button, Card, ContentDialog, SaveStatus, SplitButton } from '@/ui'
+import { Button, Card, ConfirmDialog, ContentDialog, SaveStatus, SplitButton } from '@/ui'
 
 const SAMPLE_INSTRUCTIONS = 'Read the field guide before our next class.\n\nBring one observation and one question to discuss.'
 const SAMPLE_DUE_DATE = '2026-09-01'
@@ -18,6 +20,7 @@ const SAMPLE_REQUIREMENTS: AssignmentSubmissionRequirementDraft[] = [
 export function AssignmentEditSplitPattern() {
   const [open, setOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [title, setTitle] = useState('Field observations')
   const [instructions, setInstructions] = useState(SAMPLE_INSTRUCTIONS)
   const [dueAt, setDueAt] = useState(SAMPLE_DUE_DATE)
@@ -71,6 +74,11 @@ export function AssignmentEditSplitPattern() {
           onInstructionsMarkdownChange={(value) => update(setInstructions, value)}
           onDueAtChange={(value) => update(setDueAt, value)}
           onPreviewInstructions={() => setPreviewOpen(true)}
+          settingsAction={<TeacherWorkSurfaceMenuButton
+            label={<><Settings className="h-4 w-4" aria-hidden="true" /> Settings</>}
+            variant="secondary" className="w-full" menuAriaLabel="Assignment settings" menuPlacement="up" menuAlign="end"
+            items={[{ id: 'delete', label: 'Delete assignment', icon: <Trash2 className="h-4 w-4" aria-hidden="true" />, destructive: true, onSelect: () => setDeleteOpen(true) }]}
+          />}
           saveStatusContent={(
             <div className="flex items-center gap-1">
               <SaveStatus presentation="indicator" status={changed ? 'unsaved' : 'saved'} className={changed ? undefined : 'text-text-muted'} />
@@ -87,7 +95,7 @@ export function AssignmentEditSplitPattern() {
               exitMotion="opacity"
               interactionActive={open && !previewOpen}
               label="Post"
-              variant="success"
+              variant="primary"
               size="md"
               className="w-full shadow-sm"
               toggleAriaLabel="Choose assignment action"
@@ -102,6 +110,8 @@ export function AssignmentEditSplitPattern() {
           )}
         />
       </CreationModalShell>
+
+      <ConfirmDialog isOpen={deleteOpen} title="Delete assignment?" description="This changes only the Pattern Lab example." confirmLabel="Delete example" onCancel={() => setDeleteOpen(false)} onConfirm={() => { setDeleteOpen(false); setOpen(false) }} />
 
       <ContentDialog
         isOpen={open && previewOpen}

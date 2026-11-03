@@ -113,7 +113,7 @@ export function AssignmentCreationPattern() {
               exitMotion="opacity"
               interactionActive={open && !previewOpen && !scheduleOpen}
               label={action}
-              variant={action === 'Post' ? 'success' : 'primary'}
+              variant="primary"
               size="md"
               className="w-full shadow-sm"
               toggleAriaLabel="Choose assignment action"

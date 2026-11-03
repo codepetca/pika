@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { ExternalLink, Pencil, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
-import { CircularProgress, Button, DialogPanel, Input, TabPanel, Tabs } from '@/ui'
+import { Plus, Upload } from 'lucide-react'
+import { Button, DialogPanel, Input, TabPanel, Tabs } from '@/ui'
 import {
   MAX_TEST_DOCUMENT_TEXT_LENGTH,
   TEST_DOCUMENT_ACCEPT,
@@ -12,6 +12,7 @@ import {
   normalizeTestDocuments,
   isValidHttpUrl,
 } from '@/lib/test-documents'
+import { TestDocumentCard } from '@/components/assessment/TestDocumentCard'
 import { readTestFromPayload } from '@/lib/test-api-contract'
 import { uploadFileDirectly } from '@/lib/direct-storage-upload'
 import type { TestDocument } from '@/types'
@@ -430,81 +431,22 @@ export function TestDocumentsEditor({
       {localDocs.length > 0 && (
         <div className="space-y-2">
           {localDocs.map((doc) => (
-            <div
+            <TestDocumentCard
               key={doc.id}
-              className="rounded-lg border border-border bg-surface px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-text-default">{doc.title}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {doc.source === 'link' && (
-                    <>
-                      {doc.synced_at ? (
-                        <span className="text-xs text-text-muted" aria-label={`Synced ${formatCompactRelativeAge(doc.synced_at, nowMs)} ago`}>
-                          {formatCompactRelativeAge(doc.synced_at, nowMs)}
-                        </span>
-                      ) : null}
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="px-2"
-                        onClick={() => {
-                          void syncLinkDocument(doc.id)
-                        }}
-                        disabled={!isEditable || saving || uploading || syncingDocId === doc.id}
-                        aria-label={`Refresh ${doc.title}`}
-                      >
-                        {syncingDocId === doc.id ? <CircularProgress /> : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="px-2"
-                    onClick={() => openEditModal(doc)}
-                    disabled={!isEditable || saving || uploading}
-                    aria-label={`Edit ${doc.title}`}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="px-2"
-                    onClick={() => {
-                      const url = doc.source === 'upload'
-                        ? `${apiBasePath}/${testId}/documents/${doc.id}/file`
-                        : doc.url
-                      if (!url) return
-                      window.open(url, '_blank', 'noopener,noreferrer')
-                    }}
-                    disabled={doc.source !== 'upload' && !doc.url}
-                    aria-label={`Open ${doc.title}`}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="sm"
-                    className="px-2"
-                    onClick={() => {
-                      void handleDelete(doc.id)
-                    }}
-                    disabled={!isEditable || saving || uploading}
-                    aria-label={`Remove ${doc.title}`}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            </div>
+              title={doc.title}
+              isLink={doc.source === 'link'}
+              canOpen={doc.source === 'upload' || Boolean(doc.url)}
+              disabled={!isEditable || saving || uploading}
+              syncing={syncingDocId === doc.id}
+              syncLabel={doc.source === 'link' && doc.synced_at ? formatCompactRelativeAge(doc.synced_at, nowMs) : undefined}
+              onRefresh={() => { void syncLinkDocument(doc.id) }}
+              onEdit={() => openEditModal(doc)}
+              onOpen={() => {
+                const url = doc.source === 'upload' ? `${apiBasePath}/${testId}/documents/${doc.id}/file` : doc.url
+                if (url) window.open(url, '_blank', 'noopener,noreferrer')
+              }}
+              onRemove={() => { void handleDelete(doc.id) }}
+            />
           ))}
         </div>
       )}

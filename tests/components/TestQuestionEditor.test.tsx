@@ -25,6 +25,22 @@ vi.mock('@dnd-kit/utilities', () => ({
 }))
 
 describe('TestQuestionEditor', () => {
+  it.each(['card', 'split'] as const)('sizes %s grading notes on opening and editing', (variant) => {
+    const height = vi.spyOn(HTMLTextAreaElement.prototype, 'scrollHeight', 'get')
+      .mockImplementation(function (this: HTMLTextAreaElement) { return this.value.length > 10 ? 240 : 80 })
+    try {
+      render(<TestQuestionEditor question={createMockTestQuestion({ question_type: 'open_response', answer_key: 'A long answer key', sample_solution: 'A long sample solution' })} questionNumber={1} isEditable variant={variant} onChange={vi.fn()} onDelete={vi.fn()} />)
+      if (variant === 'card') fireEvent.click(screen.getByRole('button', { name: 'Grading Notes Added' }))
+      for (const name of ['Question 1 answer key', 'Question 1 sample solution']) {
+        const field = screen.getByRole('textbox', { name })
+        expect(field).toHaveStyle({ height: '240px' })
+        fireEvent.change(field, { target: { value: 'Short' } })
+        expect(field).toHaveStyle({ height: '80px' })
+      }
+    } finally {
+      height.mockRestore()
+    }
+  })
   it('uses compact WYSIWYG for the prompt and structured option inputs', async () => {
     render(
       <TestQuestionEditor

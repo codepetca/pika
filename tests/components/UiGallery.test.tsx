@@ -155,8 +155,7 @@ describe('UiGallery history preview fixture', () => {
     await user.click(opener)
     const dialog = screen.getByRole('dialog', { name: `New ${kind}` })
     expect(dialog).toHaveClass('h-[90dvh]')
-    expect(within(dialog).getByText(kind, { exact: true })).toBeInTheDocument()
-    expect(within(dialog).getByTitle('Health for Life · Period 2 · Community, wellbeing and lifelong learning')).toHaveTextContent('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+    expect(within(dialog).getByTitle(`${kind} · Health for Life · Period 2 · Community, wellbeing and lifelong learning`)).toHaveTextContent('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
     expect(within(dialog).getByRole('textbox', { name: /^Title(?: \*)?$/ })).toHaveValue(title)
     expect(within(dialog).getByRole('button', { name: 'Preview' })).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: closeLabel }))
@@ -199,20 +198,25 @@ describe('UiGallery history preview fixture', () => {
     expect(settings).toHaveFocus()
   })
 
-  it('supports keyboard reordering in the Test edit prototype reference list', async () => {
+  it('uses the test reference card actions for local Pattern Lab fixtures', async () => {
     const user = userEvent.setup()
     render(<ThemeProvider><TooltipProvider><TestEditSplitPattern /></TooltipProvider></ThemeProvider>)
     await user.click(screen.getByRole('button', { name: 'Open test edit prototype' }))
 
     const references = within(screen.getByRole('dialog', { name: 'Edit Test' })).getByRole('group', { name: 'Reference Docs' })
-    await user.click(within(references).getByRole('button', { name: 'Add reference' }))
+    await user.click(screen.getByRole('button', { name: 'Add reference' }))
     await user.click(screen.getByRole('menuitem', { name: 'Link' }))
     expect(within(references).getByText('Link and PDF rows are placeholders in Pattern Lab; they appear in Preview only after attachment in Pika.')).toBeVisible()
-    const handle = within(references).getByRole('button', { name: /Reorder Wetland field notes/ })
-    handle.focus()
-    await user.keyboard('{ArrowDown}')
-    await waitFor(() => expect(within(references.querySelector('[draggable]')!).getByRole('textbox', { name: 'link reference label' })).toBeVisible())
-    await waitFor(() => expect(handle).toHaveFocus())
+    expect(within(references).getByRole('button', { name: 'Refresh Link reference 2' })).toBeDisabled()
+    expect(within(references).getByRole('button', { name: 'Open Link reference 2' })).toBeDisabled()
+    await user.click(within(references).getByRole('button', { name: 'Edit Link reference 2' }))
+    const edit = screen.getByRole('dialog', { name: 'Edit document' })
+    await user.clear(within(edit).getByRole('textbox', { name: /Document title/ }))
+    await user.type(within(edit).getByRole('textbox', { name: /Document title/ }), 'Updated link')
+    await user.click(within(edit).getByRole('button', { name: 'Save changes' }))
+    expect(within(references).getByText('Updated link')).toBeVisible()
+    await user.click(within(references).getByRole('button', { name: 'Remove Updated link' }))
+    expect(within(references).queryByText('Updated link')).not.toBeInTheDocument()
   })
 
   it('centers the Daily date when relative context is hidden', async () => {

@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Eye } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Button, ContentDialog, DialogPanel, FormField, Input, SaveStatus, SplitButton } from '@/ui'
-import { CreationModalContextHeader, CreationModalShell } from '@/components/creation/CreationModalShell'
+import { AuthoringModeControl } from '@/components/creation/AuthoringModeControl'
+import { CreationModalContextLabel, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { MarkdownAuthoringEditor, RichTextViewer } from '@/components/editor'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
 import { combineScheduleDateTimeToIso, DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, isScheduleIsoInFuture, parseScheduleIsoToParts } from '@/lib/scheduling'
@@ -114,12 +115,13 @@ function MaterialEditor({
         contentClassName="!overflow-hidden !p-0"
         tall
       >
-        <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
-          <CreationModalContextHeader itemType="Material" classroomName={classroomName} spacious />
-          <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-2 lg:min-h-0 lg:overflow-y-auto">
+        <div className="grid h-full min-h-0 w-full auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden">
+          <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto">
+            <CreationModalContextLabel itemType="Material" classroomName={classroomName} />
             <FormField label="Title" required hideLabel collapseHiddenLabel className="modal-title-field">
               <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
             </FormField>
+            <AuthoringModeControl ariaLabel="Material content editing mode" value={mode === 'visual' ? 'write' : 'markdown'} onChange={(next) => setMode(next === 'write' ? 'visual' : 'markdown')} writeDisabled={disabled || previewOpen || scheduleOpen} markdownDisabled={disabled || previewOpen || scheduleOpen} />
             <Button variant="secondary" size="sm" fullWidth disabled={saving} onClick={() => setPreviewOpen(true)}>
               <Eye className="h-4 w-4" aria-hidden="true" />Preview
             </Button>
@@ -134,7 +136,7 @@ function MaterialEditor({
             <div className="shrink-0 lg:mt-auto">
               <SplitButton
                 label={saving ? 'Saving…' : primaryLabel}
-                variant={action === 'post' && (isDraft || isScheduled) ? 'success' : 'primary'}
+                variant="primary"
                 size="md"
                 className="w-full shadow-sm"
                 disabled={disabled}
@@ -153,7 +155,7 @@ function MaterialEditor({
               />
             </div>
           </section>
-          <section aria-label="Material editor" className="flex min-h-96 min-w-0 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden">
+          <section aria-label="Material editor" className="flex min-h-96 min-w-0 flex-col p-3 sm:p-4 lg:col-span-2 lg:col-start-2 lg:row-start-1 lg:min-h-0 lg:overflow-hidden">
             {(conversionWarning || (mode === 'markdown' && sourceDraft.hasLossyConversion)) && (
               <p role="status" className="mb-2 rounded-control bg-warning-bg px-3 py-2 text-sm text-warning">
                 {conversionWarning || `Editing this Markdown simplifies existing rich formatting. ${sourceDraft.warnings.join(' ')}`}
@@ -162,6 +164,7 @@ function MaterialEditor({
             <MarkdownAuthoringEditor
               label="Material content"
               mode={mode}
+              showModeControl={false}
               onModeChange={setMode}
               markdown={markdown}
               onMarkdownChange={changeMarkdown}

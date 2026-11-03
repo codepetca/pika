@@ -5,6 +5,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { ChevronDown, ChevronRight, Copy, GripVertical, Plus, Trash2 } from 'lucide-react'
 import { Button, Input } from '@/ui'
+import { AutoGrowingTextarea } from '@/components/assessment/AutoGrowingTextarea'
 import { MarkdownContentEditor } from '@/components/editor'
 import { QuestionMarkdown } from '@/components/QuestionMarkdown'
 import { defaultPointsForQuestionType } from '@/lib/test-questions'
@@ -478,14 +479,14 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
                     <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Answer Key</p>
                   )}
                   {isStructureEditable ? (
-                    <textarea
+                    <AutoGrowingTextarea
                       value={state.answer_key}
                       onChange={(event) => updateState({ answer_key: event.target.value })}
                       onBlur={() => handleSave()}
                       aria-label={answerKeyLabel}
                       placeholder="Enter an optional answer key for AI-assisted grading..."
                       rows={4}
-                      className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full min-h-[96px] resize-none overflow-hidden rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   ) : (
                     <div className="min-h-[96px] rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default whitespace-pre-wrap">
@@ -497,37 +498,37 @@ export const TestQuestionEditor = forwardRef<TestQuestionEditorHandle, Props>(fu
 
               {variant === 'card' && isStructureEditable ? (
                 <>
-                  <textarea
+                  <AutoGrowingTextarea
                     value={state.answer_key}
                     onChange={(event) => updateState({ answer_key: event.target.value })}
                     onBlur={() => handleSave()}
                     aria-label={answerKeyLabel}
                     placeholder="Enter an optional answer key for AI-assisted grading..."
                     rows={4}
-                    className="w-full min-h-[96px] resize-y rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full min-h-[96px] resize-none overflow-hidden rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                   />
-                  <textarea
+                  <AutoGrowingTextarea
                     value={state.sample_solution}
                     onChange={(event) => updateState({ sample_solution: event.target.value })}
                     onBlur={() => handleSave()}
                     aria-label={sampleSolutionLabel}
                     placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
                     rows={6}
-                    className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full min-h-[128px] resize-none overflow-hidden rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                 </>
               ) : (
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sample Solution</p>
                   {isStructureEditable ? (
-                    <textarea
+                    <AutoGrowingTextarea
                       value={state.sample_solution}
                       onChange={(event) => updateState({ sample_solution: event.target.value })}
                       onBlur={() => handleSave()}
                       aria-label={sampleSolutionLabel}
                       placeholder="Optional sample solution. Coding sample solutions will be shown to students when the returned test is released."
                       rows={6}
-                      className="w-full min-h-[128px] resize-y rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="w-full min-h-[128px] resize-none overflow-hidden rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   ) : (
                     <div className="min-h-[128px] rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm leading-6 text-text-default whitespace-pre-wrap">

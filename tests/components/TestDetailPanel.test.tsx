@@ -546,6 +546,7 @@ describe('TestDetailPanel', () => {
       <TestDetailPanel
         test={makeTestWithStats({ status: 'draft' })}
         classroomId="classroom-1"
+        classroomName="Health for Life"
         onTestUpdate={vi.fn()}
         onRequestClose={vi.fn()}
         showCloseButton={false}
@@ -558,12 +559,14 @@ describe('TestDetailPanel', () => {
     expect(screen.queryByRole('button', { name: 'Close test editor' })).not.toBeInTheDocument()
     expect(await screen.findByTestId('test-split-layout')).toBeInTheDocument()
     const title = within(screen.getByTestId('test-editor-details-pane')).getByRole('textbox', { name: 'Title' })
+    expect(screen.getByTitle('Test · Health for Life')).toBeInTheDocument()
     expect(title.getAttribute('placeholder')).toBeTruthy()
     expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
     expect(screen.getByTestId('test-editor-content-pane')).toContainElement(screen.getByText('Saved'))
-    expect(screen.getByTestId('test-editor-details-pane')).toHaveTextContent('Reference Docs')
+    expect(title.closest('.modal-title-field')).toContainElement(screen.getByRole('button', { name: 'Add reference' }))
     expect(screen.getByTestId('test-question-actionbar')).toHaveTextContent('Q1')
-    expect(within(screen.getByTestId('test-question-actionbar')).getByRole('button', { name: 'Write' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(screen.getByTestId('test-question-actionbar')).getByRole('button', { name: 'Question actions' })).toBeInTheDocument()
+    expect(within(screen.getByTestId('test-editor-details-pane')).getByRole('button', { name: 'Write' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Insert image' })).toBeInTheDocument()
     expect(screen.queryByRole('textbox', { name: 'Question 2 prompt' })).not.toBeInTheDocument()
@@ -615,7 +618,7 @@ describe('TestDetailPanel', () => {
     expect(screen.getByRole('menuitemcheckbox', { name: 'Code response' })).toHaveAttribute('aria-checked', 'true')
     fireEvent.click(screen.getByRole('menuitem', { name: 'Duplicate question' }))
     expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
-    expect(screen.getByText('3 total · 15 points')).toBeInTheDocument()
+    expect(screen.getByLabelText('Total points: 15')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
     expect(screen.getByTestId('test-markdown-editor')).toBeInTheDocument()
@@ -630,11 +633,15 @@ describe('TestDetailPanel', () => {
     render(<TestDetailPanel test={makeTestWithStats({ status: 'draft' })} classroomId="classroom-1" onTestUpdate={vi.fn()} testQuestionLayout="split" />, { wrapper: Wrapper })
     await screen.findByRole('textbox', { name: 'Question 1 prompt' })
     const points = within(screen.getByTestId('test-question-actionbar')).getByRole('spinbutton', { name: 'Points' })
+    expect(screen.getByLabelText('Total points: 2')).toBeInTheDocument()
+    expect(within(screen.getByTestId('test-editor-details-pane')).queryByText('Questions', { exact: true })).not.toBeInTheDocument()
     fireEvent.change(points, { target: { value: '0' } })
+    expect(screen.getByLabelText('Total points: 2')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
     expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(1)
     expect(screen.getByRole('alert')).toHaveTextContent('Points must be greater than 0')
     fireEvent.change(points, { target: { value: '8' } })
+    expect(screen.getByLabelText('Total points: 9')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next question' }))
     expect(screen.getByRole('spinbutton', { name: 'Question number' })).toHaveValue(2)
     fireEvent.click(screen.getByRole('button', { name: 'Previous question' }))

@@ -10,12 +10,12 @@ import { uploadMarkdownImage } from '@/lib/markdown-image-upload'
 vi.mock('@/lib/markdown-image-upload', () => ({ uploadMarkdownImage: vi.fn() }))
 
 vi.mock('@/components/editor', () => ({
-  MarkdownAuthoringEditor: ({ markdown, onMarkdownChange, visualContent, onVisualContentChange, disabled, mode, onModeChange, statusContent, imageUpload }: any) => (
+  MarkdownAuthoringEditor: ({ markdown, onMarkdownChange, visualContent, onVisualContentChange, disabled, mode, onModeChange, statusContent, imageUpload, showModeControl = true }: any) => (
     <div>
       <div>
         {statusContent}
-        <button onClick={() => onModeChange('visual')}>Write</button>
-        <button onClick={() => onModeChange('markdown')}>Markdown</button>
+        {showModeControl && <><button onClick={() => onModeChange('visual')}>Write</button>
+        <button onClick={() => onModeChange('markdown')}>Markdown</button></>}
       </div>
       {imageUpload && <button onClick={() => void imageUpload(new File(['png'], 'diagram.png', { type: 'image/png' }))}>Upload fixture image</button>}
       <textarea
@@ -61,9 +61,8 @@ describe('Material formatted editing', () => {
     }
     const view = render(<ControlledEditor />, { wrapper: TooltipProvider })
     const details = screen.getByRole('region', { name: 'Material details' })
-    const header = screen.getByTitle('Health for Life').closest('.modal-context-row')!
-    expect(details).not.toContainElement(header)
-    expect(header.nextElementSibling).toBe(details)
+    const header = screen.getByTitle('Material · Health for Life')
+    expect(details).toContainElement(header)
     await user.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
     expect(handlers.onContentChange).not.toHaveBeenCalled()
     const markdown = '# Reading\n\n- First  \n- Second\n'
@@ -87,7 +86,7 @@ describe('Material formatted editing', () => {
     render(<ControlledEditor />, { wrapper: TooltipProvider })
     expect(screen.getByRole('button', { name: 'Write', exact: true })).toBeVisible()
     expect(screen.getByRole('button', { name: 'Markdown', exact: true })).toBeVisible()
-    expect(screen.getByTitle('Health for Life')).toHaveTextContent('Health for Life')
+    expect(screen.getByTitle('Material · Health for Life')).toHaveTextContent('Health for Life')
     const close = screen.getByRole('button', { name: 'Close material modal' })
     expect(close.closest('[data-dialog-close]')).toHaveClass('right-3', 'top-3')
     expect(screen.getByRole('dialog').querySelectorAll('[data-dialog-close]')).toHaveLength(1)

@@ -167,7 +167,7 @@ describe('TeacherSurveyWorkspace', () => {
     fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [makeQuestion(), makeQuestion({ id: 'question-2', question_text: 'Original second question' })] }))
     render(<TeacherSurveyWorkspace classroomName="Health for Life" classroomId="classroom-1" surveyId="survey-1" onBack={vi.fn()} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
     await screen.findByLabelText('Prompt')
-    expect(screen.getByTitle('Health for Life')).toHaveTextContent('Health for Life')
+    expect(screen.getByTitle('Survey · Health for Life')).toHaveTextContent('Health for Life')
     selectQuestion(2)
     await waitFor(() => expect(screen.getByLabelText('Prompt')).toHaveValue('Original second question'))
     questionAction('Add multiple-choice question')
@@ -933,7 +933,7 @@ describe('TeacherSurveyWorkspace', () => {
     const header = await screen.findByTestId('survey-question-actionbar')
     expect(header).toHaveTextContent('Q1')
     expect(header).toContainElement(screen.getByRole('group', { name: 'Question navigation' }))
-    expect(header).toContainElement(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    expect(screen.getByTestId('survey-editor-details-pane')).toContainElement(screen.getByRole('button', { name: 'Markdown', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
     const source = await screen.findByLabelText('Survey markdown editor') as HTMLTextAreaElement
     const pending = source.value + '\n<!-- preserve this unrecognized draft syntax -->\n'

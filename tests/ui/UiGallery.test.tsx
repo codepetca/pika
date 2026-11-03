@@ -54,7 +54,7 @@ describe('UiGallery accessibility contracts', () => {
     render(<TooltipProvider><Pattern /></TooltipProvider>)
     fireEvent.click(screen.getByRole('button', { name: opener }))
     const title = screen.getByRole('textbox', { name: 'Title' })
-    const classroom = screen.getByTitle('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
+    const classroom = screen.getByTitle(`${Pattern === TestEditSplitPattern ? 'Test' : Pattern === SurveyEditSplitPattern ? 'Survey' : 'Assignment'} · Health for Life · Period 2 · Community, wellbeing and lifelong learning`)
     expect(classroom).toHaveTextContent('Health for Life · Period 2 · Community, wellbeing and lifelong learning')
     expect(classroom.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(document.getElementById(title.getAttribute('aria-labelledby')!)).toHaveClass('sr-only')
