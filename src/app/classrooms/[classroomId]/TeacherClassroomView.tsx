@@ -26,6 +26,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
+  ArrowDownUp,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -626,6 +627,7 @@ export function TeacherClassroomView({
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
+  const [reverseClassworkOrder, setReverseClassworkOrder] = useState(false)
   const classworkDragActiveRef = useRef(false)
 
   const sensors = useSensors(
@@ -1068,6 +1070,11 @@ export function TeacherClassroomView({
   const classworkItems = useMemo(
     () => buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys),
     [currentAssignments, currentMaterials, currentSurveys],
+  )
+
+  const displayedClassworkItems = useMemo(
+    () => reverseClassworkOrder ? [...classworkItems].reverse() : classworkItems,
+    [classworkItems, reverseClassworkOrder],
   )
 
   const handleDragEnd = useCallback(
@@ -2771,6 +2778,14 @@ export function TeacherClassroomView({
 
   const classworkUtilityActions: TeacherWorkSurfaceActionItem[] = [
     {
+      id: 'reverse-classwork-order',
+      label: 'Reverse order',
+      icon: <ArrowDownUp className="h-4 w-4" aria-hidden="true" />,
+      checked: reverseClassworkOrder,
+      onSelect: () => setReverseClassworkOrder((current) => !current),
+      disabled: isReordering,
+    },
+    {
       id: 'organize-classwork',
       label: 'Edit classwork',
       icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
@@ -2911,10 +2926,10 @@ export function TeacherClassroomView({
         }}
       >
         <SortableContext
-          items={classworkItems.map((item) => item.id)}
+          items={displayedClassworkItems.map((item) => item.id)}
           strategy={verticalListSortingStrategy}
         >
-          {classworkItems.map((item) => {
+          {displayedClassworkItems.map((item) => {
             if (item.type === 'material') {
               const material = item.material
               return (
