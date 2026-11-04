@@ -405,13 +405,16 @@ describe('TeacherTestsTab', () => {
   const classroom = createMockClassroom()
   const secondClassroom = createMockClassroom({ id: 'classroom-2', title: 'Second Classroom' })
   let fetchMock: ReturnType<typeof vi.fn>
+  let summaryFetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON('teacher-test-detail:test-1')
     fetchMock = vi.fn()
-    vi.stubGlobal('fetch', fetchMock)
+    summaryFetchMock = vi.fn().mockResolvedValue({ ok: false, json: async () => ({}) })
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, init?: RequestInit) => String(input).includes('/tests/summary?')
+      ? summaryFetchMock(input, init) : fetchMock(input, init)))
     setOpenMock.mockReset()
     mockInvalidateGradebookForClassroom.mockClear()
     gradingSaveCallbacks.clear()
@@ -434,6 +437,57 @@ describe('TeacherTestsTab', () => {
       json: async () => ({ tests }),
     })
   }
+
+  it('shows titles with unknown counts while the full list is pending, then enables the real card', async () => {
+    const test = makeTest({ id: 'test-1', title: 'Early Test', status: 'active' })
+    const { stats: _stats, ...summary } = test
+    summaryFetchMock.mockResolvedValue({ ok: true, json: async () => ({ tests: [summary] }) })
+    let finish!: (value: unknown) => void
+    fetchMock.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    renderTab()
+    expect(await screen.findByText('Early Test')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Early Test' })).toBeDisabled()
+    expect(screen.getByLabelText('Submitted count loading')).toHaveTextContent('—/—')
+    expect(screen.getByText('Checking access')).toBeInTheDocument()
+    expect(screen.getByText('Checking access')).toBeInTheDocument()
+    await act(async () => { finish({ ok: true, json: async () => ({ tests: [test] }) }) })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Early Test' })).toBeEnabled())
+    expect(screen.queryByLabelText('Submitted count loading')).not.toBeInTheDocument()
+    expect(summaryFetchMock).toHaveBeenCalledTimes(1)
+    expect(listFetchCalls(fetchMock)).toHaveLength(1)
+  })
+
+  it('retains titles and shows retry when statistics fail', async () => {
+    const { stats: _stats, ...summary } = makeTest({ id: 'test-1', title: 'Visible Test', status: 'active' })
+    summaryFetchMock.mockResolvedValue({ ok: true, json: async () => ({ tests: [summary] }) })
+    let finish!: (value: unknown) => void
+    fetchMock.mockReturnValueOnce(new Promise(resolve => { finish = resolve }))
+    renderTab()
+    await screen.findByText('Visible Test')
+    await act(async () => { finish({ ok: false, json: async () => ({ error: 'Unavailable' }) }) })
+    expect(await screen.findByRole('alert')).toHaveTextContent('Test statistics could not be loaded')
+    expect(screen.getByRole('button', { name: 'Visible Test' })).toBeDisabled()
+    expect(screen.getByLabelText('Submitted count unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
+  })
+
+  it('keeps the chosen order while statistics load and after they arrive', async () => {
+    const tests = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
+    const summaries = tests.map(({ stats: _stats, ...test }) => test)
+    summaryFetchMock.mockResolvedValue({ ok: true, json: async () => ({ tests: summaries }) })
+    let finish!: (value: unknown) => void
+    fetchMock.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    renderTab()
+    await screen.findByText('First')
+    const firstBeforeSecond = () => !!(screen.getByText('First').compareDocumentPosition(screen.getByText('Second')) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(firstBeforeSecond()).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' }))
+    expect(firstBeforeSecond()).toBe(false)
+    await act(async () => { finish({ ok: true, json: async () => ({ tests }) }) })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'First' })).toBeEnabled())
+    expect(firstBeforeSecond()).toBe(false)
+  })
 
   it('shows a retryable error instead of an empty state when the tests list fails', async () => {
     fetchMock
@@ -2195,9 +2249,8 @@ describe('TeacherTestsTab', () => {
     renderTab({ onRequestTestPreview })
 
     expect(await screen.findByText('Unit Test')).toBeInTheDocument()
-    expect(screen.getByText('1/2 submitted')).toBeInTheDocument()
-    expect(screen.getByLabelText('1 open')).toBeInTheDocument()
-    expect(screen.getByLabelText('1 closed')).toBeInTheDocument()
+    expect(screen.getByLabelText('1 of 2 submitted')).toHaveTextContent('1/2')
+    expect(screen.getByText('Open', { exact: true })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Open test' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Close test' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Reopen test' })).not.toBeInTheDocument()
@@ -4262,7 +4315,7 @@ describe('TeacherTestsTab', () => {
       created_at: '2026-04-20T12:00:00.000Z',
     }
 
-    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
         const url = String(input)
 
         if (url === `/api/teacher/tests?classroom_id=${classroom.id}`) {
