@@ -3,6 +3,7 @@ import {
   loadAssignmentSubmissionArtifactsForDoc,
   loadAssignmentSubmissionArtifactsForDocs,
   loadAssignmentSubmissionRequirements,
+  loadAssignmentSubmissionRequirementsForList,
   loadUserGitHubIdentity,
   replaceAssignmentSubmissionRequirements,
 } from '@/lib/server/assignment-submission-artifacts'
@@ -77,6 +78,59 @@ function makeRequirement(
     updated_at: overrides.updated_at ?? '2026-05-01T00:00:00.000Z',
   }
 }
+
+describe('loadAssignmentSubmissionRequirementsForList', () => {
+  it('chunks IDs, pages dense results, and groups requirements in display order', async () => {
+    const ids = Array.from({ length: 51 }, (_, i) => `assignment-${i}`)
+    const rows = Array.from({ length: 1001 }, (_, i) => makeRequirement({
+      id: `req-${String(i).padStart(4, '0')}`,
+      assignment_id: ids[0],
+      position: 1000 - i,
+    }))
+    rows.push(makeRequirement({ id: 'last', assignment_id: ids[50] }))
+    const log = createQueryLog()
+    const supabase = { from: vi.fn(() => mockPagedTable(rows, { table: 'assignment_submission_requirements', log })) }
+
+    const result = await loadAssignmentSubmissionRequirementsForList(supabase, ids)
+    expect(result.get(ids[0])).toHaveLength(1001)
+    expect(result.get(ids[0])?.[0].position).toBe(0)
+    expect(result.get(ids[1])).toEqual([])
+    expect(result.get(ids[50])?.[0].id).toBe('last')
+    expect(log.inCalls.map((call) => call.values.length).sort((a, b) => a - b)).toEqual([1, 50, 50])
+    expect(log.rangeCalls.map(({ from }) => from).sort((a, b) => a - b)).toEqual([0, 0, 1000])
+  })
+
+  it('bounds concurrent chunks while overlapping independent requests', async () => {
+    let active = 0
+    let peak = 0
+    const from = vi.fn(() => ({ select: () => ({ in: () => {
+      const query = {
+        order: () => query,
+        range: async () => {
+        active++
+        peak = Math.max(peak, active)
+        await new Promise((resolve) => setTimeout(resolve, 5))
+        active--
+        return { data: [], error: null }
+        },
+      }
+      return query
+    } }) }))
+    await loadAssignmentSubmissionRequirementsForList({ from }, Array.from({ length: 201 }, (_, i) => `a${i}`))
+    expect(from).toHaveBeenCalledTimes(5)
+    expect(peak).toBe(4)
+  })
+
+  it('skips empty lists and preserves missing-schema fallback while propagating other errors', async () => {
+    const from = vi.fn()
+    expect((await loadAssignmentSubmissionRequirementsForList({ from }, [])).size).toBe(0)
+    expect(from).not.toHaveBeenCalled()
+    const missing = { from: () => mockPagedTable([], { error: { code: '42P01' } }) }
+    expect((await loadAssignmentSubmissionRequirementsForList(missing, ['a'])).get('a')).toEqual([])
+    const failed = { from: () => mockPagedTable([], { error: { code: '57014', message: 'timeout' } }) }
+    await expect(loadAssignmentSubmissionRequirementsForList(failed, ['a'])).rejects.toThrow('Failed to load')
+  })
+})
 
 function makeArtifact(
   overrides: Partial<AssignmentSubmissionArtifact>
