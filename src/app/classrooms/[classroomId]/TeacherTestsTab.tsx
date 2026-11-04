@@ -2246,6 +2246,7 @@ export function TeacherTestsTab({
 
   function handleAllAccessAction(state: 'open' | 'closed') {
     if (!selectedTestWorkspace || isDraftSelectedTest) return
+    setGradingError('')
 
     if (state === 'open') {
       if (selectedTestWorkspace.status === 'draft') return
@@ -3445,6 +3446,7 @@ export function TeacherTestsTab({
         description="Blocks access. Saved work stays available for grading."
         confirmLabel={isBatchUpdatingAccess ? 'Closing...' : 'Close Access'}
         cancelLabel="Cancel"
+        errorMessage={gradingError || undefined}
         isConfirmDisabled={isBatchUpdatingAccess}
         isCancelDisabled={isBatchUpdatingAccess}
         onCancel={() => {
@@ -3464,6 +3466,7 @@ export function TeacherTestsTab({
         description="Allows students to start or continue. Submission state is unchanged."
         confirmLabel={isBatchUpdatingAccess ? 'Opening...' : 'Open Access'}
         cancelLabel="Cancel"
+        errorMessage={gradingError || undefined}
         isConfirmDisabled={isBatchUpdatingAccess}
         isCancelDisabled={isBatchUpdatingAccess}
         onCancel={() => setPendingOpenAccessStudentIds(null)}
