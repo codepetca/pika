@@ -3184,7 +3184,7 @@ export function TeacherClassroomView({
     <>
       <div ref={classworkRegionRef} role="region" aria-label="Classwork" tabIndex={-1} className="h-full min-h-0 outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface">
         <TeacherWorkSurfaceShell
-          state={selection.mode === 'summary' ? 'summary' : 'workspace'}
+          state={selection.mode === 'summary' || !completeClasswork ? 'summary' : 'workspace'}
           primary={primaryButtons}
           actions={[]}
           trailing={undefined}

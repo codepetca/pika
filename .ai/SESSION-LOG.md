@@ -11,49 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Prepare wider classroom admission design
-
-Prepared a proposal for one durable service-owned admission source, exact70
-bootstrap retention and staged expansion/new-user policy. Current Home/API each
-cap100; Bara also selects protocol behavior from admission. The plan requires
-Home/API consumer migration and frozen bootstrap provider-compatibility decisions
-before widening, with current nonadmitted behavior preserved too. New grants use
-atomic approved batches/growth stop; automatic signup stays off until separately
-approved. Rollout stages and exact-source recovery/verification gates are recorded;
-no code, SQL, cohort, plan, production or provider operation performed. Existing70,
-all other holds and paused goal/DeepSeek remain unchanged.
-
-## 2026-10-27 — Scheduled assignment card date order
-- Branch `codex/scheduled-date-card-order`: reuse SortableAssignmentCard; scheduled release now precedes due date. Existing formatting/status/actions unchanged. Other list owners inspected: Tests have a calendar date/manual access but no due date; materials/announcements have no due date; surveys have no scheduling. Student n/a: future assignments hidden.
-- UI brief: approved Classwork/Tests family and Pattern Lab workspace framing; teacher desktop/mobile, light/dark, scheduled/default + keyboard focus; reading order is the primary signal. No new pattern, component, composite behavior, experimental promotion or refactor.
-- Evidence: focused gate 79 files/1,209 tests plus architecture/UI/design/TypeScript/lint PASS; audit PASS. Playwright actual Classwork list via intercepted fixture APIs 4/4 PASS, y-order/no-overflow assertions and all four screenshots visually reviewed. Screenshots `/tmp/pika-date-order-pattern-lab-{desktop,mobile}-{light,dark}.png`; repeatable driver `/tmp/pika-scheduled-date-order.ui-pattern-lab.spec.ts`; logs `/tmp/pika-date-{unit,browser,audit}.log` and `/tmp/pika-scheduled-date-focused.log`. Browser first launch lacked session secret; rerun with generated process-only secret passed.
-- Draft PR#1698 initially paused at the 4% weekly-usage checkpoint. Owner explicitly authorized continuation despite low usage, then PR and merge, on 2026-10-27 in chat 01a17da9-f37c-7872-bbcc-268e37a3f5fd. This task-scoped low-usage waiver persists through completion; ordinary review/check gates remain. DeepSeek stays paused through 2026-12-31. Review ledger starts at 0 launches/waves/fix batches; one Luna/medium reviewer on a fixed SHA. Risk profile none; no epic status change; production promotion excluded.
-- Independent review1: GPT-6 Luna/medium accepted full four-file diff at c9d2b342f; zero findings. CI40537585928: 22,485 tests passed, eight existing skips, one pre-existing CURRENT-format contract failed; all three browser lanes failed before assertions on GHCR image-download rate limits. PR returned to draft before corrections.
-- Remediation batch1 preserves CURRENT's recorded values while putting DB001–293 at the start of its own line and naming the existing unchanged-controls statement, restoring compatibility with the existing attendance guidance test. No application change or rollout action. Source/tests/UI remain identical to the visually verified implementation. Targeted re-review and fresh required CI follow.
-
-## 2026-10-27 — Investigate CI registry throttling for PR1698
-- Owner authorized orchestrated investigation/fix and merge after all required checks pass. Existing task-scoped low-usage waiver retained; no billing/reset/provider-pause change. Risk profile runtime-platform. Branch remains codex/scheduled-date-card-order; PR1698 returned to draft before implementation.
-- Terra/medium handled bounded read-only CLI2.103.0 source/log investigation, then received sole write ownership of workflow, registry-workflow tests and the two CI workflow/runbook docs; coordinator owns integration/log/review/merge. Native execution accepted despite exhausted ordinary allowance; no credential/provider workaround. Investigation accepted after independent manifest verification; worker/coordinator tokens and exact active time unknown, no savings claim.
-- Auth was used correctly; pinned ghcr.io/supabase/postgres:17.6.1.132 repeatedly returns HTTP429, including public manifest requests outside Actions. Official public.ecr.aws mirror is reachable. Coordinator verified ECR and Docker Hub index bytes share sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13; linux/amd64 child9d50688a826cf1455a0e91013160171de73b4d31df1509014e73463fb276a84d. GHCR digest parity could not be checked and is not claimed. Primary sources: pinned CLI internal/utils/docker.go and config/templates/Dockerfile; supabase/postgres .github/workflows/mirror.yml. No live database or image-layer download performed.
-- Plan: restore official CLI-default public ECR, remove unnecessary GHCR permissions/login/cleanup from current CI, preserve historical exact-auth safety contracts, all pinned versions, lanes, commands and gates. Existing obsolete exclusion names are out of this repair scope. Verify targeted tests and focused gate, independent risk-matched review on fixed SHA, then one fresh required native CI run and squash merge only after final PR Gate passes.
-- Terra implementation accepted in five owned files (local-ci test ownership explicitly extended after six stale GHCR expectations surfaced). Targeted registry/auth/workflow/local-runner suites PASS430 tests/4files; coordinator inspected diff and confirmed parser/native auth guards unchanged. No files/edits conflicted. Current ECR plan omits all seven GHCR credential blocks and extra permissions; reconstructed historical GHCR plan keeps exact-auth/drift coverage. No registry layers or databases started locally.
-
-## 2026-10-27 Prepare inactive admission registry
-
-Implemented stage0 source: candidate294 service-only registry, exact atomic/idempotent
-batches and growth stop, request-scoped async reads, shared Home audience and frozen
-bootstrap attendance protocol selection. Existing version1 and70 stay active.
-Isolated001–294 replay/ACL/rollback/committed races/source preservation and genuine
-types pass; first harness import failure retained and fixed. Focused11735 tests
-passed, plus architecture/UI/design/TypeScript/lint. All294 tables join sealed whole-row
-proof catalogs; historical profiles retained. Review found a concurrent growth-stop
-race; one correction gives restrictive stops priority, preserves original replay
-binding and records actual predecessor; four review turns are clean. CI coverage
-passed22623 tests but failed one inherited CURRENT-label assertion. Restored the
-factual production/control receipt labels;83 targeted checks and local build pass.
-Fresh final CI remains pending. No shared
-local/prod migration/import/release/config/provider/account action; goal/DeepSeek paused.
-
 ## 2026-10-27 Admission registry integration with current main
 
 Rebased1699 onto9756a9751, retaining the reviewed294 SQL and registry behavior.
@@ -343,6 +300,7 @@ PR 1727 remains draft pending focused checks and exact-head review.
 The Classwork continuity fixture now models summary and full reads separately.
 Its first refresh fails the summary and then exercises the full-read fallback,
 including retained editor, failure, retry, recovery, and controlled navigation.
+
 ## 2026-11-03 List order toggle
 
 - Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
@@ -354,3 +312,8 @@ Keep answers visible while submitting and show an immediate confirmed receipt. R
 ## 2026-11-03 Investigate test contention
 
 Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
+
+## 2026-11-04 — Classwork access recovery
+
+- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
+- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.

@@ -1370,6 +1370,35 @@ describe('TeacherClassroomView', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
   })
 
+  it.each(['assignment', 'survey'] as const)('shows retry when access is revoked in a selected %s workspace', async (kind) => {
+    useSummaryKeys = true
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    let attempts = 0
+    const assignment = makeAssignmentSummary('selected-assignment', 'Selected assignment')
+    const survey = makeSurveySummary('selected-survey', 'Selected survey')
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) {
+        attempts++
+        return attempts === 2 ? Promise.reject(new ApiError(403, 'Forbidden')) : Promise.resolve({ assignments: [assignment] })
+      }
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ surveys: [survey] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      if (key.startsWith('teacher-assignment-detail:')) return Promise.resolve(makeAssignmentDetails(assignment.id, assignment.title, 'student-1'))
+      return Promise.resolve({ class_days: [] })
+    })
+    const selection = kind === 'assignment' ? { selectedAssignmentId: assignment.id } : { selectedSurveyId: survey.id }
+    const view = render(<TeacherClassroomView classroom={classroom} {...selection} isActive />, { wrapper: TooltipProvider })
+    if (kind === 'survey') await screen.findByTestId('mock-survey-results-pane')
+    else await screen.findByRole('button', { name: 'Edit Selected assignment' })
+    view.rerender(<TeacherClassroomView classroom={classroom} {...selection} isActive={false} />)
+    view.rerender(<TeacherClassroomView classroom={classroom} {...selection} isActive />)
+    expect(await screen.findByRole('alert')).toHaveTextContent("Classwork couldn't load")
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+    if (kind === 'survey') expect(await screen.findByTestId('mock-survey-results-pane')).toBeInTheDocument()
+    else expect(await screen.findByRole('button', { name: 'Edit Selected assignment' })).toBeInTheDocument()
+  })
+
   it('closes a manually opened material when a refresh revokes access', async () => {
     useSummaryKeys = true
     vi.spyOn(console, 'error').mockImplementation(() => {})
