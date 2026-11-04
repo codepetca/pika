@@ -25,8 +25,11 @@ export function validateTarget(db: Container, api: Container, owner: string) {
   assert.notEqual(db.Id, api.Id)
   assert.match(api.Config.Image, /^(?:docker\.io\/)?postgrest\/postgrest(?::|@)/)
   assert.deepEqual(api.NetworkSettings.Ports['3000/tcp'], [{HostIp:'127.0.0.1',HostPort:'54331'}])
+  assert(!api.Config.Env.some(s => /^PG(?!RST_)[A-Z0-9_]+=/.test(s)), 'PostgREST libpq environment overrides are forbidden')
   const uri = api.Config.Env.filter(s => s.startsWith('PGRST_DB_URI=')); assert.equal(uri.length,1)
   const url = new URL(uri[0].slice('PGRST_DB_URI='.length)); assert(['postgres:', 'postgresql:'].includes(url.protocol)); assert.equal(url.pathname, '/postgres')
+  assert.equal(url.search, '', 'PostgREST connection URI query options are forbidden'); assert.equal(url.hash, '', 'PostgREST connection URI fragment is forbidden')
+  assert(url.port === '' || url.port === '5432', 'Unexpected PostgREST database port')
   assert(Object.entries(db.NetworkSettings.Networks).some(([network, details]) => {
     const other = api.NetworkSettings.Networks[network]
     return other && [db.Name.replace(/^\//,''), ...(details.Aliases ?? [])].includes(url.hostname)
@@ -34,8 +37,12 @@ export function validateTarget(db: Container, api: Container, owner: string) {
 }
 const quote = (v: string) => `'${v.replaceAll("'", "''")}'`
 function inspect(id: string): Container { const result = JSON.parse(docker('inspect', id)); assert.equal(result.length,1); return result[0] }
+export function localPsqlArgs(dbId: string): string[] {
+  assert.match(dbId,/^[a-f0-9]{64}$/)
+  return ['exec','-i',dbId,'env','-i','PATH=/usr/local/bin:/usr/bin:/bin','psql','-X','-q','-t','-A','-v','ON_ERROR_STOP=1','-h','/var/run/postgresql','-p','5432','-U','postgres','-d','postgres']
+}
 function sql(dbId: string, command: string): string {
-  const p = spawnSync('docker', ['exec','-i',dbId,'psql','-X','-q','-t','-A','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres'],
+  const p = spawnSync('docker', localPsqlArgs(dbId),
     { input: `set statement_timeout='20s';set lock_timeout='3s';\n${command}\n`, encoding:'utf8', timeout:25000, maxBuffer:1024*1024 })
   if (p.status !== 0) throw new Error(`Disposable database operation failed: ${p.stderr.slice(0,1000)}`)
   return p.stdout.trim()
