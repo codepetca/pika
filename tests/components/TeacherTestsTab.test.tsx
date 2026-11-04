@@ -632,6 +632,29 @@ describe('TeacherTestsTab', () => {
     view.unmount()
   })
 
+  it.each([true, false])('displays and saves a dragged order with reverse=%s', async (reverse) => {
+    const rows = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' }), makeTest({ id: 'test-3', title: 'Third' })]
+    mockTestsResponse(rows)
+    renderTab()
+    await screen.findByText('First')
+    const titles = () => ['First', 'Second', 'Third'].sort((a, b) =>
+      screen.getByText(a).compareDocumentPosition(screen.getByText(b)) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1)
+    expect(titles()).toEqual(['First', 'Second', 'Third'])
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' })).toHaveAttribute('aria-checked', 'true')
+    if (!reverse) fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' }))
+    else fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(titles()).toEqual(reverse ? ['First', 'Second', 'Third'] : ['Third', 'Second', 'First'])
+    toggleTestListControls()
+    fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: rows }) })
+    await dragTests('test-1', 'test-3')
+    const expected = ['test-2', 'test-3', 'test-1']
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/tests/reorder', expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ classroom_id: classroom.id, test_ids: expected }),
+    }))
+  })
+
   it('recovers a shared reorder conflict with a canonical read and no second write', async () => {
     const rows = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
     mockTestsResponse(rows)

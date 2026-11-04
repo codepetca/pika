@@ -43,6 +43,67 @@ describe('contextual learner Test narrow transport', () => {
     rpc.mockImplementation(() => ({ abortSignal: () => Promise.resolve({ data: null, error: { code: '42501', message: 'private' } }) }))
     await expect(flow().inspect()).rejects.toMatchObject({ statusCode: 503 })
   })
+  it('retries only the exact rolled-back busy envelope with identical mutation arguments', async () => {
+    const f = flow(); await f.inspect()
+    const busy = { data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => busy }))
+      .mockImplementationOnce(() => ({ abortSignal: async () => ({ data: witness('save', { conflict: true, attempt }), error: null }) }))
+    await expect(f.run('save', { expected_revision: 10, responses: {} })).resolves.toMatchObject({ conflict: true })
+    expect(rpc).toHaveBeenCalledTimes(3)
+    expect(rpc.mock.calls[1][1]).toEqual(rpc.mock.calls[2][1])
+  })
+  it.each([
+    { data: null, status: 200, error: { code: 'PT409', message: 'test_learner_busy' } },
+    { data: null, status: 409, error: { code: 'PT409', message: 'other' } },
+    { data: null, error: { code: '40001', message: 'test_learner_busy' } },
+    { data: {}, error: { code: 'PT409', message: 'test_learner_busy' } },
+    { data: null, error: { code: 'PT409', message: 'test_learner_busy', extra: true } },
+  ])('does not retry an unproven rollback envelope %#', async envelope => {
+    rpc.mockImplementation(() => ({ abortSignal: async () => envelope }))
+    await expect(flow().inspect()).rejects.toBeDefined(); expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('bounds repeated busy responses and does not retry transport failures', async () => {
+    rpc.mockImplementation(() => ({ abortSignal: async () => ({ data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    vi.useFakeTimers()
+    const exhausted = expect(flow().inspect()).rejects.toMatchObject({ statusCode: 409 })
+    await vi.runAllTimersAsync(); await exhausted; expect(rpc).toHaveBeenCalledTimes(11)
+    vi.useRealTimers()
+    rpc.mockClear(); rpc.mockImplementation(() => ({ abortSignal: async () => { throw new Error('network') } }))
+    await expect(flow().inspect()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('survives a burst and leaves the shared budget for subsequent reads', async () => {
+    vi.useFakeTimers()
+    let calls = 0
+    rpc.mockImplementation((_name, args) => ({ abortSignal: async () => ++calls <= 10
+      ? { data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }
+      : { data: witness(args.p_operation, args.p_operation === 'inspect' ? { access_mode: 'member' } : { attempt }), error: null } }))
+    const f = flow()
+    const discovery = f.inspect(); await vi.runAllTimersAsync(); await discovery
+    await f.run('recover'); await f.run('recover')
+    expect(rpc).toHaveBeenCalledTimes(13)
+  })
+  it('reserves a statement for a detail recheck when the shared budget is nearly spent', async () => {
+    const f = flow(); await f.inspect(); reply = witness('recover', { attempt })
+    for (let i = 0; i < 13; i++) await f.run('recover')
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => ({ data: null, status: 409,
+      error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    await expect(f.run('detail')).rejects.toMatchObject({ statusCode: 409 })
+    expect(rpc).toHaveBeenCalledTimes(15)
+    await f.run('recover'); expect(rpc).toHaveBeenCalledTimes(16)
+    await expect(f.run('recover')).rejects.toMatchObject({ statusCode: 503 })
+    expect(rpc).toHaveBeenCalledTimes(16)
+  })
+  it('does not dispatch a retry when the shared deadline cannot admit the delay', async () => {
+    rpc.mockImplementation(() => ({ abortSignal: async () => ({ data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    const f = createContextualTestLearnerWorkflow({ actorId: actor, testId, supabase: { rpc }, deadline: Date.now() + 5 })
+    await expect(f.inspect()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('does not dispatch another busy retry after cancellation', async () => {
+    const controller = new AbortController()
+    rpc.mockImplementation(() => ({ abortSignal: async () => { queueMicrotask(() => controller.abort()); return { data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } } } }))
+    const f = createContextualTestLearnerWorkflow({ actorId: actor, testId, supabase: { rpc }, signal: controller.signal })
+    await expect(f.inspect()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce()
+  })
   it('bounds a hung transport and clears timers', async () => {
     vi.useFakeTimers(); rpc.mockImplementation(() => ({ abortSignal: () => new Promise(() => {}) }))
     const pending = expect(flow().inspect()).rejects.toMatchObject({ statusCode: 503 }); await vi.advanceTimersByTimeAsync(30000); await pending
