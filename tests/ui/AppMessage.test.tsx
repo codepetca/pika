@@ -112,7 +112,7 @@ describe('AppMessageProvider', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
-  it('animates loading messages with cycling ellipsis dots', () => {
+  it('shows a stable, accessible loading message with a decorative circular indicator', () => {
     vi.useFakeTimers()
 
     render(
@@ -123,16 +123,10 @@ describe('AppMessageProvider', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Show' }))
 
-    expect(screen.getByRole('status')).toHaveTextContent('AI grading in progress.')
-
-    act(() => {
-      vi.advanceTimersByTime(420)
-    })
-    expect(screen.getByRole('status')).toHaveTextContent('AI grading in progress..')
-
-    act(() => {
-      vi.advanceTimersByTime(420)
-    })
-    expect(screen.getByRole('status')).toHaveTextContent('AI grading in progress...')
+    const status = screen.getByRole('status')
+    expect(status).toHaveTextContent(/^AI grading in progress$/)
+    expect(status.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
+    act(() => { vi.advanceTimersByTime(840) })
+    expect(status).toHaveTextContent(/^AI grading in progress$/)
   })
 })

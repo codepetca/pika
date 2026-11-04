@@ -359,7 +359,7 @@ owning control or chooser.
 
 ### AppMessage
 
-`AppMessageProvider` is mounted from the root layout and owns the one-at-a-time message overlay centered in the global title bar. Use it only for short transient feedback such as loading, refreshing, progress, copy, and success notices. Keep validation, blocking errors, empty states, confirmations, and persistent editor save state inline. Loading-tone messages animate a trailing ellipsis, so pass copy without static dots when possible.
+`AppMessageProvider` is mounted from the root layout and owns the one-at-a-time message overlay centered in the global title bar. Use it only for short transient feedback such as loading, refreshing, progress, copy, and success notices. Keep validation, blocking errors, empty states, confirmations, and persistent editor save state inline. Loading-tone messages use the circular progress indicator and trim trailing ellipses.
 
 ```typescript
 type AppMessageTone = 'loading' | 'info' | 'success' | 'warning'

@@ -10,6 +10,7 @@ import { ClassroomAdmissionOfferPattern } from './ClassroomAdmissionOfferPattern
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
+  AppMessageProvider,
   Button,
   Card,
   CircularProgress,
@@ -31,6 +32,7 @@ import {
   Tabs,
   Tooltip,
   cn,
+  useAppMessage,
 } from '@/ui'
 import { useTheme } from '@/contexts/ThemeContext'
 import type { AssignmentDocHistoryEntry, TiptapContent } from '@/types'
@@ -184,6 +186,11 @@ interface Props {
   assignmentControllerFixture?: boolean
   testControllerFixture?: boolean
   createClassroomControllerFixture?: boolean
+}
+
+function AppMessageExample() {
+  const { showMessage } = useAppMessage()
+  return <Button size="sm" onClick={() => showMessage({ text: 'AI grading in progress', tone: 'loading', durationMs: 0 })}>Show header message</Button>
 }
 
 export function UiGallery({ role, assignmentControllerFixture = false, testControllerFixture = false, createClassroomControllerFixture = false }: Props) {
@@ -458,6 +465,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
                   <Spinner size="lg" />
                   <Button size="sm" loading>Creating class</Button>
                   <IconButton icon={Plus} label="Creating classroom" loading />
+                  <AppMessageProvider><AppMessageExample /></AppMessageProvider>
                 </div>
                 <PageState compact kind="loading" title="Loading classroom" />
               </Card>

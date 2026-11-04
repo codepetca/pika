@@ -323,6 +323,8 @@ describe('UiGallery accessibility contracts', () => {
     for (const icon of example.querySelectorAll('svg')) {
       expect(icon).toHaveAttribute('aria-hidden', 'true')
     }
+    fireEvent.click(within(example).getByRole('button', { name: 'Show header message' }))
+    expect(screen.getByTestId('app-message-overlay')).toHaveTextContent('AI grading in progress')
   })
 
   it.each(['teacher', 'student'] as const)('returns focus and confirms only the explicit local action for %s', async (role) => {

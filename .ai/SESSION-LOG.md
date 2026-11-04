@@ -311,3 +311,7 @@ Observed production learner and owner busy errors during class tests. Prepared b
 
 - Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
 - Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
+## 2026-11-04 Header message loading feedback
+
+- Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
+- Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
