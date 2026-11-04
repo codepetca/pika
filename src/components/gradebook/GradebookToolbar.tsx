@@ -40,7 +40,7 @@ export function GradebookScoreDisplayToggle({
   )
 }
 
-export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport, studentGradesVisible, onStudentGradesVisibilityChange, savingStudentGradesVisibility = false, compactZeroWeightAssessments = true, onCompactZeroWeightAssessmentsChange }: {
+export function GradebookToolbar({ preferences, onChange, selectedCount, isReadOnly, classAverage = '—', classMedian = '—', mobileStudentOptions = [], mobileStudentId = '', onMobileStudentChange = () => {}, hasManualChanges = false, undoingManualChanges = false, onUndoManualChanges, onEditCategories, onAddItem, itemsAvailable = true, onCopyEmails, onCopySecondaryEmails, onExport, onExportReports, exportingReports = false, studentGradesVisible, onStudentGradesVisibilityChange, savingStudentGradesVisibility = false, compactZeroWeightAssessments = true, onCompactZeroWeightAssessmentsChange }: {
   preferences: GradebookDisplayPreferences
   onChange: (changes: Partial<GradebookDisplayPreferences>) => void
   selectedCount: number
@@ -59,6 +59,8 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
   onCopyEmails: () => void
   onCopySecondaryEmails?: () => void
   onExport: () => void
+  onExportReports?: () => void
+  exportingReports?: boolean
   studentGradesVisible: boolean
   onStudentGradesVisibilityChange: (visible: boolean) => void
   compactZeroWeightAssessments?: boolean
@@ -120,6 +122,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
       { id: 'compact-zero-weight-assessments', label: 'Compact 0-weight assessments', checked: compactZeroWeightAssessments, disabled: isReadOnly || savingStudentGradesVisibility || !onCompactZeroWeightAssessmentsChange, onSelect: () => onCompactZeroWeightAssessmentsChange?.(!compactZeroWeightAssessments) },
       ...(hasManualChanges ? [{ id: 'undo-overrides', label: 'Undo all overrides', icon: <RotateCcw className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || undoingManualChanges || !onUndoManualChanges, dividerBefore: true, onSelect: () => onUndoManualChanges?.() }] : []),
       { id: 'export', label: 'Export gradebook', dividerBefore: true, onSelect: onExport },
+      { id: 'export-reports', label: exportingReports ? 'Preparing student PDFs…' : selectedCount ? `Export ${selectedCount} selected student PDFs` : 'Export all student PDFs', disabled: exportingReports || !onExportReports, onSelect: () => onExportReports?.() },
      ]} />
     </>}
   />
