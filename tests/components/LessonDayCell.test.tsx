@@ -548,12 +548,9 @@ describe('LessonDayCell agenda', () => {
     expect(screen.queryByRole('button', { name: /edit lesson|add lesson/i })).not.toBeInTheDocument()
   })
 
-  it.each([
-    { editable: true, placeholder: 'No lesson planned' },
-    { editable: false, placeholder: 'No lesson posted' },
-  ])('explains empty class days for editable=$editable', ({ editable, placeholder }) => {
+  it.each([true, false])('leaves empty class days blank for editable=%s', (editable) => {
     renderWithTooltip(<LessonDayCell {...agendaProps} editable={editable} lessonPlan={null} isClassDay={true} />)
-    expect(screen.getByText(placeholder)).toBeInTheDocument()
+    expect(screen.queryByText(/No lesson planned|No lesson posted/)).not.toBeInTheDocument()
     if (editable) {
       fireEvent.click(screen.getByRole('button', { name: 'Add lesson for March 13, 2026' }))
       expect(screen.getByRole('textbox')).toHaveTextContent('')
