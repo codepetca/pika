@@ -11,7 +11,7 @@ import type { Json } from '@/types/database.generated'
 const unavailable = () => new ApiError(503, 'Unable to verify test operation')
 
 /** Admission is owned by the routes. Each service-only transaction independently
- * proves current authority and the fixed parent; acknowledgements are never retried. */
+ * proves current authority and the fixed parent; uncertain acknowledgements are never retried. */
 export function createContextualTestOwnerWorkflow(input: {
   supabase: ReturnType<typeof getServiceRoleClient>; actorId: string; testId: string; deadline?: number; signal?: AbortSignal;
 }) {
@@ -56,8 +56,10 @@ export function createContextualTestOwnerWorkflow(input: {
         // Never retry timeouts, transport failures, or semantic conflicts: a
         // mutation with an uncertain outcome must not be repeated.
         if (envelope.data.data === null && envelope.data.status === 409
-          && envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_owner_busy' && busyRetries < 3) {
-          const delay = 40 + Math.floor(Math.random() * 80)
+          && envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_owner_busy'
+          && busyRetries < 10 && statements < 16 - (operation === 'inspect' ? 2 : 1)) {
+          // Leave room for dependent reads and spread a class burst over a capped window.
+          const delay = 25 + Math.floor(Math.random() * (Math.min(400, 25 * 2 ** busyRetries) + 1))
           if (input.signal?.aborted || Date.now() + delay >= deadline) throw unavailable()
           await new Promise<void>((resolve, reject) => {
             const finish = () => { clearTimeout(timer); input.signal?.removeEventListener('abort', abort) }

@@ -32,7 +32,7 @@ export type TestLearnerRpcClient = { rpc(name: 'test_learner_workflow_v1', args:
 const unavailable = () => new ApiError(503, 'Unable to verify test operation')
 const changed = () => new ApiError(409, 'Test access changed; reload and retry')
 class LearnerBusy extends Error {}
-const BUSY_RETRIES = 2
+const BUSY_RETRIES = 10
 const DETAIL_ATTEMPTS = 3
 type Result<K extends TestLearnerOperation> = z.output<typeof testLearnerResultSchemas[K]>
 
@@ -128,8 +128,12 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
     for (let retry = 0; ; retry++) {
       try { return await runOnce(operation, payload) } catch (error) {
         if (!(error instanceof LearnerBusy)) throw error
-        if (retry >= BUSY_RETRIES) throw changed()
-        const delay = 10 + Math.floor(Math.random() * 21)
+        // Preserve room after discovery for a detail read and its post-enrichment
+        // recheck; a detail read itself retains room for one subsequent check.
+        const reserve = operation === 'inspect' ? 2 : operation === 'detail' ? 1 : 0
+        if (retry >= BUSY_RETRIES || statements >= TEST_LEARNER_RPC_LIMIT - reserve) throw changed()
+        // Spread a class burst over a growing window, capped to bound latency.
+        const delay = 25 + Math.floor(Math.random() * (Math.min(400, 25 * 2 ** retry) + 1))
         if (input.signal?.aborted || Date.now() + delay >= deadline) throw unavailable()
         await new Promise<void>((resolve, reject) => {
           const finish = () => { clearTimeout(timer); input.signal?.removeEventListener('abort', abort) }

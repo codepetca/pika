@@ -64,9 +64,34 @@ describe('contextual learner Test narrow transport', () => {
   })
   it('bounds repeated busy responses and does not retry transport failures', async () => {
     rpc.mockImplementation(() => ({ abortSignal: async () => ({ data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }) }))
-    await expect(flow().inspect()).rejects.toMatchObject({ statusCode: 409 }); expect(rpc).toHaveBeenCalledTimes(3)
+    vi.useFakeTimers()
+    const exhausted = expect(flow().inspect()).rejects.toMatchObject({ statusCode: 409 })
+    await vi.runAllTimersAsync(); await exhausted; expect(rpc).toHaveBeenCalledTimes(11)
+    vi.useRealTimers()
     rpc.mockClear(); rpc.mockImplementation(() => ({ abortSignal: async () => { throw new Error('network') } }))
     await expect(flow().inspect()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('survives a burst and leaves the shared budget for subsequent reads', async () => {
+    vi.useFakeTimers()
+    let calls = 0
+    rpc.mockImplementation((_name, args) => ({ abortSignal: async () => ++calls <= 10
+      ? { data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }
+      : { data: witness(args.p_operation, args.p_operation === 'inspect' ? { access_mode: 'member' } : { attempt }), error: null } }))
+    const f = flow()
+    const discovery = f.inspect(); await vi.runAllTimersAsync(); await discovery
+    await f.run('recover'); await f.run('recover')
+    expect(rpc).toHaveBeenCalledTimes(13)
+  })
+  it('reserves a statement for a detail recheck when the shared budget is nearly spent', async () => {
+    const f = flow(); await f.inspect(); reply = witness('recover', { attempt })
+    for (let i = 0; i < 13; i++) await f.run('recover')
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => ({ data: null, status: 409,
+      error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    await expect(f.run('detail')).rejects.toMatchObject({ statusCode: 409 })
+    expect(rpc).toHaveBeenCalledTimes(15)
+    await f.run('recover'); expect(rpc).toHaveBeenCalledTimes(16)
+    await expect(f.run('recover')).rejects.toMatchObject({ statusCode: 503 })
+    expect(rpc).toHaveBeenCalledTimes(16)
   })
   it('does not dispatch a retry when the shared deadline cannot admit the delay', async () => {
     rpc.mockImplementation(() => ({ abortSignal: async () => ({ data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }) }))

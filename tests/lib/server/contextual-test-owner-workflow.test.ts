@@ -91,11 +91,32 @@ describe('contextual owner Test workflow transaction boundary', () => {
   it('bounds busy retries and does not retry other conflicts or ambiguous failures', async () => {
     network.mockImplementation(async () => new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_busy' }), { status: 409, headers: { 'Content-Type': 'application/json' } }))
     const pending = expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 409 })
-    await vi.advanceTimersByTimeAsync(1000); await pending
-    expect(network).toHaveBeenCalledTimes(4)
+    await vi.advanceTimersByTimeAsync(10000); await pending
+    expect(network).toHaveBeenCalledTimes(11)
     network.mockClear().mockImplementation(async () => new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_changed' }), { status: 409, headers: { 'Content-Type': 'application/json' } }))
     await expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 409 })
     expect(network).toHaveBeenCalledTimes(1)
+  })
+  it('survives ten busy discovery responses and retains the fixed witness for a subsequent operation', async () => {
+    let calls = 0
+    network.mockImplementation(async () => ++calls <= 10
+      ? new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_busy' }), { status: 409, headers: { 'Content-Type': 'application/json' } })
+      : new Response(JSON.stringify(reply), { status: 200, headers: { 'Content-Type': 'application/json' } }))
+    const flow = workflow(); const pending = flow.inspect()
+    await vi.advanceTimersByTimeAsync(10000); expect(await pending).toEqual(test)
+    reply = witness('update'); await flow.run('update', { title: 'Renamed' })
+    expect(network).toHaveBeenCalledTimes(12)
+    expect(JSON.parse(String(network.mock.calls[11][1]?.body))).toMatchObject({ p_expected_test: test, p_classroom_id: classroom })
+  })
+  it('reserves a statement for dependent work and enforces the shared RPC limit', async () => {
+    const flow = workflow(); await flow.inspect(); reply = witness('update')
+    for (let i = 0; i < 13; i++) await flow.run('update')
+    network.mockImplementationOnce(async () => new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_busy' }), { status: 409, headers: { 'Content-Type': 'application/json' } }))
+    await expect(flow.run('update')).rejects.toMatchObject({ statusCode: 409 })
+    expect(network).toHaveBeenCalledTimes(15)
+    await flow.run('update'); expect(network).toHaveBeenCalledTimes(16)
+    await expect(flow.run('update')).rejects.toMatchObject({ statusCode: 503 })
+    expect(network).toHaveBeenCalledTimes(16)
   })
   it('stops a busy retry when the request is aborted', async () => {
     const controller = new AbortController()
