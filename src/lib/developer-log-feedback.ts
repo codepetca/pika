@@ -1,3 +1,4 @@
+import { assertAIOutboundEnabled } from '@/lib/ai-outbound-gate'
 import { withAIRequestDeadline, type AIRequestDeadlineOptions } from '@/lib/ai-request-deadline'
 import { randomUUID } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -127,6 +128,7 @@ export async function callOpenAIForDeveloperFeedback(
 
   const model = getDeveloperFeedbackModel()
   return withAIRequestDeadline(async (signal) => {
+    assertAIOutboundEnabled()
     const res = await fetch('https://api.openai.com/v1/responses', {
       signal,
       method: 'POST',

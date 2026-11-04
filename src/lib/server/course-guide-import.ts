@@ -1,3 +1,4 @@
+import { assertAIOutboundEnabled } from '@/lib/ai-outbound-gate'
 import { buildCourseGuideImportDraft, type CourseGuideImportDraft } from '@/lib/course-guide-import'
 import {
   curriculumImportModelResponseSchema,
@@ -128,6 +129,7 @@ export async function extractCourseGuideImportDraft(
   const fileInput = await buildFileInput(source)
 
   let response: Response
+  assertAIOutboundEnabled()
   try {
     response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',

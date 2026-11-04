@@ -36,6 +36,8 @@ export interface StructuredOutputRequest {
   initialMaxOutputTokens: number
   fallbackMaxOutputTokens: number
   requestTimeoutMs?: number
+  /** Absolute performance.now() deadline shared across all provider attempts. */
+  deadlineMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
   /** Some grading policies require every attempt to stay at the requested effort. */
   allowEffortDowngrade?: boolean
@@ -43,6 +45,9 @@ export interface StructuredOutputRequest {
 
 export interface StructuredOutputResponse {
   outputText: string
+  /** Actual provider and model when a routing provider selected an alternative. */
+  providerUsed?: string
+  modelUsed?: string
   tokenUsage: GradingTokenUsage
   requestCount: number
   /**
@@ -56,4 +61,15 @@ export interface StructuredOutputResponse {
 export interface StructuredOutputProvider {
   readonly id: string
   generate(request: StructuredOutputRequest): Promise<StructuredOutputResponse>
+}
+
+/** Limit each HTTP attempt by both its timeout and the shared monotonic deadline. */
+export function gradingProviderAttemptSignal(request: StructuredOutputRequest): AbortSignal | undefined {
+  const remaining = request.deadlineMs === undefined ? Infinity : request.deadlineMs - performance.now()
+  if (remaining <= 0) {
+    throw new GradingProviderError({ kind: 'timeout', message: 'Grading request timed out', retryable: true })
+  }
+  const perAttempt = request.requestTimeoutMs && request.requestTimeoutMs > 0 ? request.requestTimeoutMs : Infinity
+  const timeout = Math.min(perAttempt, remaining)
+  return Number.isFinite(timeout) ? AbortSignal.timeout(Math.max(1, Math.ceil(timeout))) : undefined
 }

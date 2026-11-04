@@ -18,6 +18,7 @@ export interface GradingPolicy {
   version: string
   model: string
   requestTimeoutMs?: number
+  deadlineMs?: number
   reasoningEffort: 'minimal' | 'low' | 'medium' | 'high'
   allowEffortDowngrade?: boolean
 }
@@ -58,6 +59,7 @@ export async function executeStructuredOutput<TOutput>(opts: {
     initialMaxOutputTokens: opts.output.initialMaxOutputTokens,
     fallbackMaxOutputTokens: opts.output.fallbackMaxOutputTokens,
     requestTimeoutMs: opts.policy.requestTimeoutMs,
+    deadlineMs: opts.policy.deadlineMs,
     reasoningEffort: opts.policy.reasoningEffort,
     allowEffortDowngrade: opts.policy.allowEffortDowngrade,
   })
@@ -73,8 +75,8 @@ export async function executeStructuredOutput<TOutput>(opts: {
   return {
     output,
     execution: {
-      provider: opts.provider.id,
-      model: opts.policy.model,
+      provider: providerResponse.providerUsed ?? opts.provider.id,
+      model: providerResponse.modelUsed ?? opts.policy.model,
       policyVersion: opts.policy.version,
       providerRequestCount: providerResponse.requestCount,
       tokenUsage: providerResponse.tokenUsage,

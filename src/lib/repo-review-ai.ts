@@ -26,18 +26,12 @@ import {
   PIKA_REPO_REVIEW_HEURISTIC_MODEL,
   PIKA_REPO_REVIEW_LOCAL_PROVIDER,
 } from '@/lib/grading/profiles/pika-repo-review'
-import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
+import { createGradingProvider, getGradingModel } from '@/lib/ai-grading-provider'
+import { AIOutboundDisabledError } from '@/lib/grading/providers/ai-outbound-gate'
 import type { RepoReviewEvidenceItem, RepoReviewSemanticBreakdown } from '@/types'
 
-const DEFAULT_MODEL = 'deepseek-flash'
 const REPO_REVIEW_REASONING_EFFORT = 'medium'
 const REPO_REVIEW_REQUEST_TIMEOUT_MS = 25_000
-
-function getDeepSeekKey(): string | null {
-  const key = process.env.DEEPSEEK_API_KEY
-  if (!key) return null
-  return key.trim() || null
-}
 
 export interface RepoReviewFeedbackResult {
   score_completion: number
@@ -221,10 +215,9 @@ export async function classifyAmbiguousRepoReviewChanges(
   items: Array<{ id: string; summary: string }>,
   sanitizationContext?: AiSanitizationContext,
 ): Promise<Record<string, string>> {
-  const apiKey = getDeepSeekKey()
-  if (!apiKey || items.length === 0) return {}
+  if (items.length === 0) return {}
 
-  const model = process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = getGradingModel()
   const providerItems = createProviderRefMap(
     items.map((item) => ({
       localId: item.id,
@@ -233,7 +226,7 @@ export async function classifyAmbiguousRepoReviewChanges(
     'change',
   )
   const providerRefToLocalId = mapProviderRefToLocalId(providerItems)
-  const provider = createDeepSeekChatProvider({ apiKey })
+  const provider = createGradingProvider()
   const classifications: Array<[string, string]> = []
 
   for (let index = 0; index < providerItems.length; index += PIKA_REPO_REVIEW_CLASSIFICATION_BATCH_SIZE) {
@@ -261,15 +254,7 @@ export async function classifyAmbiguousRepoReviewChanges(
 }
 
 export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): Promise<RepoReviewFeedbackResult> {
-  const apiKey = getDeepSeekKey()
-  if (!apiKey) {
-    return sanitizeRepoReviewFeedbackResult(
-      buildHeuristicRepoReviewFeedback(input),
-      input.sanitizationContext,
-    )
-  }
-
-  const model = process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  const model = getGradingModel()
   const sanitizationContext = input.sanitizationContext
   const prompt = buildPikaRepoReviewFeedbackPrompt({
     assignmentTitle: sanitizeAiText(input.assignmentTitle, sanitizationContext),
@@ -293,7 +278,7 @@ export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): P
 
   try {
     const result = await executeStructuredOutput({
-      provider: createDeepSeekChatProvider({ apiKey }),
+      provider: createGradingProvider(),
       policy: {
         version: PIKA_REPO_REVIEW_FEEDBACK_POLICY_VERSION,
         model,
@@ -318,10 +303,11 @@ export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): P
       strengths: parsed.strengths.map(sanitizeAiOutputText),
       concerns: parsed.concerns.map(sanitizeAiOutputText),
       feedback: sanitizeAiOutputText(formattedFeedback),
-      model,
+      model: result.execution.model,
       provenance: buildRepoReviewProvenance(result.execution),
     }
-  } catch {
+  } catch (error) {
+    if (error instanceof AIOutboundDisabledError) throw error
     return sanitizeRepoReviewFeedbackResult(
       buildHeuristicRepoReviewFeedback(input),
       input.sanitizationContext,

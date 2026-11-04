@@ -1,6 +1,8 @@
+import { assertAIOutboundEnabled } from '@/lib/grading/providers/ai-outbound-gate'
 import type { GradingTokenUsage } from '@/lib/grading/contracts'
 import {
   GradingProviderError,
+  gradingProviderAttemptSignal,
   type StructuredOutputProvider,
   type StructuredOutputRequest,
   type StructuredOutputResponse,
@@ -117,6 +119,8 @@ async function fetchPayload(
   reasoningEffortOverride?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<unknown> {
   let response: Response
+  assertAIOutboundEnabled()
+  const signal = gradingProviderAttemptSignal(request)
   try {
     response = await fetchImpl(DEEPSEEK_CHAT_COMPLETIONS_URL, {
       method: 'POST',
@@ -136,9 +140,7 @@ async function fetchPayload(
         max_tokens: maxOutputTokens,
         response_format: { type: 'json_object' },
       }),
-      signal: request.requestTimeoutMs && request.requestTimeoutMs > 0
-        ? AbortSignal.timeout(request.requestTimeoutMs)
-        : undefined,
+      signal,
     })
   } catch (error) {
     const timedOut = isTimeoutError(error)

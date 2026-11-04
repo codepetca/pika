@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as aiGrading from '@/lib/ai-grading'
 
+// These worker cases exercise the existing DeepSeek adapter's error paths.
+beforeEach(() => { vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek') })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 const { mockLoadClassroomAiSanitizationContext, mockSubmitOrPollGradexAssignmentRun, mockSupabaseClient } = vi.hoisted(() => ({
@@ -531,6 +533,17 @@ describe('metered Assignment run lifecycle', () => {
     await tick()
     expect(harness.items[0].status).toBe('failed')
     expect(mockSupabaseClient.rpc).toHaveBeenCalledWith('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1', expect.objectContaining({ p_attempt_count: 3, p_release_reason: 'provider_failed' }))
+  })
+  it('keeps a stopped item queued without consuming an attempt or releasing its reservation', async () => {
+    const { AIOutboundDisabledError } = await import('@/lib/grading/providers/ai-outbound-gate')
+    const harness = setup()
+    vi.spyOn(aiGrading, 'gradeStudentWork').mockRejectedValue(new AIOutboundDisabledError())
+    await tick()
+    expect(harness.items[0]).toMatchObject({
+      status: 'queued', attempt_count: 0, last_error_code: 'ai_outbound_disabled',
+    })
+    expect(new Date(harness.items[0].next_retry_at!).getTime()).toBeGreaterThan(Date.now())
+    expect(mockSupabaseClient.rpc.mock.calls.map(([name]) => name)).not.toContain('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1')
   })
   it.each([
     { code: 'PGRST202', message: 'private missing contract' },

@@ -1,3 +1,4 @@
+import { assertAIOutboundEnabled } from '@/lib/ai-outbound-gate'
 import { withAIRequestDeadline, type AIRequestDeadlineOptions } from '@/lib/ai-request-deadline'
 import type { LogSummaryActionItem } from '@/types'
 import { z } from 'zod'
@@ -156,6 +157,7 @@ export async function callOpenAIForSummary(
   const model = process.env.OPENAI_SUMMARY_MODEL?.trim() || DEFAULT_MODEL
 
   return withAIRequestDeadline(async (signal) => {
+    assertAIOutboundEnabled()
     const res = await fetch('https://api.openai.com/v1/responses', {
       signal,
       method: 'POST',

@@ -2,9 +2,11 @@ import { createHash, randomUUID } from 'node:crypto'
 import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-handler'
-import { DEEPSEEK_MAX_PROVIDER_ATTEMPTS_NO_DOWNGRADE } from '@/lib/grading/providers/deepseek-chat'
+import { AIOutboundDisabledError, assertAIOutboundEnabled } from '@/lib/ai-outbound-gate'
 import {
+  buildTestOpenResponseReferenceCacheKey,
   getTestOpenResponseGradingModel,
+  getTestOpenResponseReferenceFallbackModel,
   isRetryableTestAiGradingError,
   prepareTestOpenResponseGradingContext,
   resolveReusableTestOpenResponseReferenceAnswers,
@@ -38,7 +40,7 @@ export const TEST_AI_GRADING_QUESTION_CONCURRENCY = 2
 export const TEST_AI_GRADING_MICROBATCH_SIZE = 4
 // These five values are one budget and must move together. A tick runs inside the route's
 // `maxDuration` (300s). One provider call can take the request timeout on EACH of the
-// adapter's attempts, so its worst case is two high-effort timeouts, plus
+// adapters' attempts, so its worst case is two OpenAI and two DeepSeek attempts, plus
 // time to persist the result. A tick never starts a call that could not finish and save
 // inside TEST_AI_GRADING_TICK_BUDGET_MS; the lease outlasts the longest call, since it is
 // only renewed around calls, never during them.
@@ -49,10 +51,10 @@ export const TEST_AI_GRADING_REQUEST_TIMEOUT_MS = 60_000
 export const TEST_AI_GRADING_MAX_ATTEMPTS = 3
 const TEST_AI_GRADING_PERSIST_MARGIN_MS = 15_000
 const TEST_AI_GRADING_CALL_RESERVE_MS =
-  TEST_AI_GRADING_REQUEST_TIMEOUT_MS * DEEPSEEK_MAX_PROVIDER_ATTEMPTS_NO_DOWNGRADE + TEST_AI_GRADING_PERSIST_MARGIN_MS
+  TEST_AI_GRADING_REQUEST_TIMEOUT_MS * 4 + TEST_AI_GRADING_PERSIST_MARGIN_MS
 // Below the route's 300s maxDuration, leaving room to refresh the run and respond.
 export const TEST_AI_GRADING_TICK_BUDGET_MS = 270_000
-export const TEST_AI_GRADING_LEASE_SECONDS = 240
+export const TEST_AI_GRADING_LEASE_SECONDS = 285
 
 type ServiceRoleSupabase = ReturnType<typeof getServiceRoleClient>
 
@@ -783,12 +785,15 @@ async function processQuestionBatch(opts: {
   tickStartedAt: number
 }): Promise<void> {
   const { supabase, run, leaseToken, testTitle, question, items, responsesById, sanitizationContext, tickStartedAt } = opts
-  const model = run.model ?? getTestOpenResponseGradingModel()
+  // A run can outlive a provider switch. Cache identity must match the provider
+  // used for new reference generation, not the historical run model.
+  const model = getTestOpenResponseGradingModel()
   const cacheResolution = resolveReusableTestOpenResponseReferenceAnswers({
     testTitle,
     questionText: String(question.question_text || ''),
     maxPoints: Number(question.points ?? 0),
     model,
+    fallbackModel: getTestOpenResponseReferenceFallbackModel(),
     isCodingQuestion: question.response_monospace === true,
     cacheKey: typeof question.ai_reference_cache_key === 'string' ? question.ai_reference_cache_key : null,
     cacheAnswers: question.ai_reference_cache_answers,
@@ -819,14 +824,19 @@ async function processQuestionBatch(opts: {
 
     if (
       context.grading_basis === 'generated_reference' &&
-      context.reference_answers_source === 'generated'
+      context.reference_answers_source === 'generated' &&
+      context.reference_answers_model
     ) {
       const { error: cacheUpdateError } = await supabase
         .from('test_questions')
         .update({
-          ai_reference_cache_key: cacheResolution.expectedCacheKey,
+          ai_reference_cache_key: buildTestOpenResponseReferenceCacheKey({
+            testTitle, questionText: String(question.question_text || ''),
+            maxPoints: Number(question.points ?? 0), model: context.reference_answers_model,
+            isCodingQuestion: question.response_monospace === true,
+          }),
           ai_reference_cache_answers: context.reference_answers,
-          ai_reference_cache_model: context.model,
+          ai_reference_cache_model: context.reference_answers_model,
           ai_reference_cache_generated_at: new Date().toISOString(),
         })
         .eq('id', question.id)
@@ -1038,6 +1048,17 @@ async function processQuestionBatch(opts: {
       }
     } catch (error) {
       if (error instanceof TestAiGradingLeaseLostError) throw error
+      if (error instanceof AIOutboundDisabledError) {
+        // The stop can change after admission or between provider attempts. Restore
+        // only these still-active items, preserving their pre-call retry counts.
+        for (const entry of activeBatchRequests) {
+          await updateRunItem(entry.item.id, leaseToken, {
+            status: 'queued', attempt_count: entry.item.attempt_count,
+            started_at: entry.item.started_at, next_retry_at: null, completed_at: null,
+          })
+        }
+        return
+      }
       for (const entry of activeBatchRequests) {
         await failOrRetryItem({
           item: entry.item,
@@ -1060,6 +1081,14 @@ export async function tickTestAiGradingRun(opts: {
   const run = await fetchTestAiGradingRunRow(supabase, opts.runId)
   if (!run || run.test_id !== opts.testId) {
     throw new Error('Test AI grading run not found')
+  }
+
+  try {
+    assertAIOutboundEnabled()
+  } catch (error) {
+    if (!(error instanceof AIOutboundDisabledError)) throw error
+    const items = await fetchTestAiGradingRunItems(supabase, run.id)
+    return { run: toTestAiGradingRunSummary(run, { items }), claimed: false }
   }
 
   if (!['queued', 'running'].includes(run.status)) {

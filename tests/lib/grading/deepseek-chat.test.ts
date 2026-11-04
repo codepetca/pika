@@ -268,3 +268,20 @@ describe('DeepSeek structured-output request shape', () => {
     expect(result.tokenUsage).toEqual({ inputTokens: null, outputTokens: null, totalTokens: null })
   })
 })
+
+describe('shared operation deadline', () => {
+  it('does not start a truncation retry after the shared deadline', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValueOnce(10).mockReturnValueOnce(101)
+    const timeout = vi.spyOn(AbortSignal, 'timeout')
+    const fetchImpl = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+      choices: [{ message: { content: '{"partial"' }, finish_reason: 'length' }],
+    })))
+    try {
+      await expect(createDeepSeekChatProvider({ apiKey: 'test', fetchImpl }).generate({
+        ...request, requestTimeoutMs: 60_000, deadlineMs: 100,
+      })).rejects.toMatchObject({ kind: 'timeout', retryable: true })
+      expect(fetchImpl).toHaveBeenCalledTimes(1)
+      expect(timeout).toHaveBeenCalledWith(90)
+    } finally { clock.mockRestore(); timeout.mockRestore() }
+  })
+})
