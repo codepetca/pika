@@ -90,11 +90,11 @@ describe('contextual owner Test workflow transaction boundary', () => {
   })
   it('bounds busy retries and does not retry other conflicts or ambiguous failures', async () => {
     network.mockImplementation(async () => new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_busy' }), { status: 409, headers: { 'Content-Type': 'application/json' } }))
-    const pending = expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 409 })
+    const pending = expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 409, message: 'Test is busy. Try again.' })
     await vi.advanceTimersByTimeAsync(10000); await pending
     expect(network).toHaveBeenCalledTimes(11)
     network.mockClear().mockImplementation(async () => new Response(JSON.stringify({ code: 'PT409', message: 'test_owner_changed' }), { status: 409, headers: { 'Content-Type': 'application/json' } }))
-    await expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 409 })
+    await expect(workflow().inspect()).rejects.toMatchObject({ statusCode: 409, message: 'Test changed; reload and retry' })
     expect(network).toHaveBeenCalledTimes(1)
   })
   it('survives ten busy discovery responses and retains the fixed witness for a subsequent operation', async () => {
