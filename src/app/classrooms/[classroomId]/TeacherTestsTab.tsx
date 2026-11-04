@@ -24,7 +24,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import { ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
+import { ArrowDownUp, ChevronDown, ClockAlert, Code, EllipsisVertical, Lock, LogOut, Pencil, Reply, RotateCcw, Sparkles, Trash2, Unlock, X } from 'lucide-react'
 import { Spinner } from '@/components/Spinner'
 import { TeacherTestCard } from '@/components/TeacherTestCard'
 import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDraftDialog'
@@ -480,6 +480,7 @@ export function TeacherTestsTab({
   const { showMessage } = useAppMessage()
   const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [testEditMode, setTestEditMode] = useState(false)
+  const [reverseTestOrder, setReverseTestOrder] = useState(true)
   const testDragActiveRef = useRef(false)
   const [isReorderingTests, setIsReorderingTests] = useState(false)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
@@ -645,6 +646,10 @@ export function TeacherTestsTab({
     })
   )
 
+  const displayedTests = useMemo(
+    () => reverseTestOrder ? visibleTests : [...visibleTests].reverse(),
+    [reverseTestOrder, visibleTests]
+  )
   const selectedTest = useMemo(
     () => visibleTests.find((test) => test.id === selectedTestId) ?? null,
     [selectedTestId, visibleTests]
@@ -1627,11 +1632,12 @@ export function TeacherTestsTab({
         return
       }
 
-      const oldIndex = visibleTests.findIndex((test) => test.id === active.id)
-      const newIndex = visibleTests.findIndex((test) => test.id === over.id)
+      const oldIndex = displayedTests.findIndex((test) => test.id === active.id)
+      const newIndex = displayedTests.findIndex((test) => test.id === over.id)
       if (oldIndex === -1 || newIndex === -1) return
 
-      const reordered = arrayMove(visibleTests, oldIndex, newIndex)
+      const reorderedDisplay = arrayMove(displayedTests, oldIndex, newIndex)
+      const reordered = reverseTestOrder ? reorderedDisplay : reorderedDisplay.reverse()
       const requestedClassroomId = classroom.id
       const requestedMode = testExperienceMode
       const requestId = ++reorderRequestIdRef.current
@@ -1678,6 +1684,8 @@ export function TeacherTestsTab({
       showMessage,
       testEditMode,
       visibleTests,
+      displayedTests,
+      reverseTestOrder,
       testExperienceMode,
       loading,
       hasTestsSnapshot,
@@ -2990,6 +2998,15 @@ export function TeacherTestsTab({
           menuAriaLabel="Tests list actions"
           items={[
             {
+              id: 'reverse-test-order',
+              label: 'Reverse order',
+              icon: <ArrowDownUp className="h-4 w-4" aria-hidden="true" />,
+              checked: reverseTestOrder,
+              disabled: isReorderingTests,
+              checkedRole: 'menuitemcheckbox',
+              onSelect: () => setReverseTestOrder((prev) => !prev),
+            },
+            {
               id: 'edit-tests',
               label: 'Edit Tests',
               icon: <Pencil className="h-4 w-4" aria-hidden="true" />,
@@ -3076,11 +3093,11 @@ export function TeacherTestsTab({
       }}
     >
       <SortableContext
-        items={visibleTests.map((test) => test.id)}
+        items={displayedTests.map((test) => test.id)}
         strategy={verticalListSortingStrategy}
       >
         <TeacherWorkItemList>
-          {visibleTests.map((test) => (
+          {displayedTests.map((test) => (
             <TeacherTestCard
               key={test.id}
               test={test}

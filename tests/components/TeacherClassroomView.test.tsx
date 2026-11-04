@@ -30,6 +30,7 @@ const mockStudentSelectionState = {
   allSelected: false,
   selectedCount: 0,
 }
+let mockClassworkDragEnd: ((event: any) => void) | undefined
 let mockWorkReadPaused = false
 let mockDeferredWorkPanelStudentId: string | null = null
 const mockWorkPanelGradePersistenceState = {
@@ -40,7 +41,7 @@ const mockWorkPanelGradePersistenceState = {
 vi.mock('@/lib/repolight-batch', () => ({ executeRepoLightBatch: (...args: unknown[]) => mockExecuteRepoLightBatch(...args) }))
 
 vi.mock('@dnd-kit/core', () => ({
-  DndContext: ({ children }: any) => <div>{children}</div>,
+  DndContext: ({ children, onDragEnd }: any) => { mockClassworkDragEnd = onDragEnd; return <div>{children}</div> },
   closestCenter: vi.fn(),
   KeyboardSensor: class {},
   PointerSensor: class {},
@@ -49,7 +50,7 @@ vi.mock('@dnd-kit/core', () => ({
 }))
 
 vi.mock('@dnd-kit/sortable', () => ({
-  arrayMove: vi.fn((items) => items),
+  arrayMove: vi.fn((items, from, to) => { const result = [...items]; result.splice(to, 0, result.splice(from, 1)[0]); return result }),
   SortableContext: ({ children }: any) => <div>{children}</div>,
   sortableKeyboardCoordinates: vi.fn(),
   useSortable: vi.fn(() => ({
@@ -1103,6 +1104,35 @@ describe('TeacherClassroomView', () => {
     expect(mockFetchJSONWithCache.mock.calls.filter(([key]) => String(key).startsWith('teacher-'))).toHaveLength(5)
   })
 
+  it('preserves reverse order from the summary through the full classwork load', async () => {
+    useSummaryKeys = true
+    const full = createDeferred<{ assignments: ReturnType<typeof makeAssignmentSummary>[] }>()
+    const assignments = [
+      makeAssignmentSummary('early-first', 'Early first', { position: 0 }),
+      makeAssignmentSummary('early-second', 'Early second', { position: 1 }),
+    ]
+    const summaries = assignments.map(({ stats: _stats, ...item }) => item)
+    mockFetchJSONWithCache.mockImplementation((key: string) => {
+      if (key === `teacher-assignments-summary:${classroom.id}`) return Promise.resolve({ summary_only: true, assignments: summaries })
+      if (key === `teacher-assignments:${classroom.id}`) return full.promise
+      if (key === `teacher-surveys-summary:${classroom.id}`) return Promise.resolve({ surveys: [] })
+      if (key === `teacher-materials:${classroom.id}`) return Promise.resolve({ materials: [] })
+      return Promise.resolve({ class_days: [] })
+    })
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    const first = await screen.findByRole('button', { name: 'Early first' })
+    const second = screen.getByRole('button', { name: 'Early second' })
+    expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    getClassworkOrganizeAction()
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' }))
+    expect(second.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    await act(async () => full.resolve({ assignments }))
+    await waitFor(() => expect(screen.queryByText('Loading count')).not.toBeInTheDocument())
+    const loadedFirst = screen.getByRole('button', { name: 'Early first' })
+    const loadedSecond = screen.getByRole('button', { name: 'Early second' })
+    expect(loadedSecond.compareDocumentPosition(loadedFirst) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
   it('retains summary titles when a legacy full read fails', async () => {
     useSummaryKeys = true
     vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -1804,6 +1834,46 @@ describe('TeacherClassroomView', () => {
 
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
     expect(detailFetchCount).toBe(1)
+  })
+
+  it('reverses the current classwork order without saving a reorder', async () => {
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    const first = await screen.findByRole('button', { name: 'Assignment One' })
+    const second = screen.getByRole('button', { name: 'Assignment Two' })
+    expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    getClassworkOrganizeAction()
+    const toggle = screen.getByRole('menuitemcheckbox', { name: 'Reverse order' })
+    expect(toggle).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(toggle)
+    expect(second.compareDocumentPosition(first) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(fetch).not.toHaveBeenCalledWith(expect.stringContaining('/classwork/reorder'), expect.anything())
+
+    getClassworkOrganizeAction()
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' }))
+    expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('saves a drag in reverse view in the underlying forward order', async () => {
+    vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({}) } as Response)
+    render(<TeacherClassroomView classroom={classroom} selectedAssignmentId={null} />)
+    await screen.findByRole('button', { name: 'Assignment One' })
+    toggleClassworkOrganize()
+    getClassworkOrganizeAction()
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' }))
+    await act(async () => {
+      mockClassworkDragEnd?.({ active: { id: 'assignment-1' }, over: { id: 'assignment-2' } })
+    })
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/classwork/reorder'), expect.objectContaining({
+      body: JSON.stringify({ items: [
+        { type: 'assignment', id: 'assignment-2' },
+        { type: 'assignment', id: 'assignment-1' },
+      ] }),
+    }))
+    const first = screen.getByRole('button', { name: 'Assignment One' })
+    const second = screen.getByRole('button', { name: 'Assignment Two' })
+    expect(first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
   it('keeps Edit classwork and Markdown actions in the summary More menu', async () => {

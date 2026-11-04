@@ -796,7 +796,7 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
               <StudentTestExamples />
             </PatternSection>
 
-            <StudentTestAttemptPattern />
+            <StudentTestAttemptPattern interactive={testControllerFixture} />
             {role === 'student' ? <StudentImageUploadGallery /> : null}
             <HistoryPreviewGallery role={role} />
             <HistoryGraphGallery />

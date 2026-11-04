@@ -88,6 +88,33 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     expect(calls()).toEqual(['inspect','detail','detail']); expect(resolveTestDocumentUploadContentTypes).toHaveBeenCalledOnce()
     expect(JSON.stringify(value)).not.toMatch(/correct_option|sample_solution|score|feedback|ai_reference/)
   })
+  it('repeats the entire detail and enrichment after a concurrent change', async () => {
+    let detailCalls = 0; const base = resultFor
+    resultFor = args => {
+      const value = base(args)
+      if (args.p_operation !== 'detail') return value
+      detailCalls++
+      return { ...(value as object), state: { ...state, test: { ...state.test, title: detailCalls === 1 ? 'Old' : 'New' } } }
+    }
+    vi.mocked(resolveTestDocumentUploadContentTypes).mockResolvedValueOnce([{ title: 'stale' }] as never).mockResolvedValueOnce([])
+    const response = await detail(req(),ctx)
+    expect(response.status).toBe(200); expect(await response.json()).toMatchObject({ test: { title: 'New', documents: [] } })
+    expect(calls()).toEqual(['inspect','detail','detail','detail','detail'])
+    expect(resolveTestDocumentUploadContentTypes).toHaveBeenCalledTimes(2)
+  })
+  it('fails closed after repeated changes and revocation during a retry', async () => {
+    let detailCalls = 0; const base = resultFor
+    resultFor = args => args.p_operation === 'detail' ? { ...(base(args) as object), state: { ...state,
+      test: { ...state.test, title: String(++detailCalls) } } } : base(args)
+    const changed = await detail(req(),ctx)
+    expect(changed.status).toBe(409); expect(await changed.json()).not.toHaveProperty('questions')
+    expect(detailCalls).toBe(6)
+    detailCalls = 0; rpc.mockClear()
+    errorFor = ({ p_operation }) => p_operation === 'detail' && detailCalls === 2 ? 'PT403' : undefined
+    const revoked = await detail(req(),ctx)
+    expect(revoked.status).toBe(403); expect(await revoked.json()).not.toHaveProperty('questions')
+    expect(calls()).toEqual(['inspect','detail','detail','detail'])
+  })
   it('does not disclose enriched detail after membership is revoked during Storage work', async () => {
     let detailCalls = 0; errorFor = ({ p_operation }) => p_operation === 'detail' && ++detailCalls === 2 ? 'PT403' : undefined
     const response = await detail(req(),ctx)

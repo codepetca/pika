@@ -18,7 +18,7 @@ export function StudentTestAttemptPattern({ interactive = false }: { interactive
     <section id="student-test-attempt" className="mx-auto max-w-3xl space-y-3">
       <h3 className="text-base font-semibold text-text-default">Student test answers</h3>
       <p className="text-sm text-text-muted">Production response form, save feedback and recovery controls. Preview uses synthetic answers; interactive verification requires intercepted fixture requests.</p>
-      {submitted ? <p role="status" className="text-success">Response submitted</p> : <StudentTestForm
+      {submitted ? <p role="status" className="text-success">Submitted successfully — your answers were saved.</p> : <StudentTestForm
         testId="pattern-test-attempt" questions={questions} initialDraftRevision={41}
         enableDraftAutosave previewMode={!interactive} apiBasePath="/api/__fixtures/test-attempts"
         onSubmitted={() => setSubmitted(true)}

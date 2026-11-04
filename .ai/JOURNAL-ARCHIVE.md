@@ -50757,6 +50757,21 @@ Route regressions and independent auth/compatibility review precede CI and speci
 owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
 
 <!-- pika-session-log-archive-batch:b4eb0a91f1ff4c78bb154fa0bd7aacb4e1cc954258ba39a8599a4890cb75ad65 -->
+<!-- pika-session-log-archive-batch:4225e6c6d1fe23ab288beea20106439d1eb00b0ca44bfb5f3006149fbc78d5ca -->
+## 2026-10-25 RepoLight contextual-owner report admission
+
+Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
+is READY. Overview now loads; pilot stopped before Analyze because report routes
+required global Teacher for admitted contextual owner A. No report/import; AI OFF.
+Draft preparation briefly saved zero marks in Final mode; normal Draft restored
+all synthetic marks/graded/returned fields to null. Production window released
+to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
+shared admission with legacy Teacher fallback, retaining owner/source/lease fences
+and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
+a Student-labelled owner and synthetic creation grant; fixture resources removed.
+Route regressions and independent auth/compatibility review precede CI and specific
+owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
+
 ## 2026-10-25 RepoLight release and hosted quota stop
 
 1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
@@ -50770,6 +50785,7 @@ released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Publ
 GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
 provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
 
+<!-- pika-session-log-archive-batch:5899edd0118702c7103971cf4aede426da37976f9a56386235cf98436e51acc5 -->
 ## 2026-10-26 Future post dates
 
 Announcements and posted Classwork materials accept future Post date values.
@@ -50793,6 +50809,7 @@ process secret used. Draft PR and independent review follow; merge/release requi
 authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
 
 <!-- pika-session-log-archive-batch:14631e61ed1d8f637efa797e106f0d81e869005bfb1a4a7eb97139d01d5459b3 -->
+<!-- pika-session-log-archive-batch:4f73aea73cdaf39525509adc136d5f601529c76b59f230d80fcdc6c9d5d58fb8 -->
 ## 2026-10-27 Accept the bounded 70-account classroom rollout
 
 Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
