@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from 'react'
 import { cn } from './utils'
+import { CircularProgress } from './CircularProgress'
 
 export type AppMessageTone = 'loading' | 'info' | 'success' | 'warning'
 
@@ -58,24 +59,6 @@ function getDefaultDurationMs(tone: AppMessageTone): number {
 
 function trimStaticEllipsis(text: string) {
   return text.replace(/[\s.。…]+$/, '')
-}
-
-function LoadingMessageText({ text }: { text: string }) {
-  const [dotCount, setDotCount] = useState(1)
-
-  useEffect(() => {
-    const intervalId = window.setInterval(() => {
-      setDotCount((current) => (current >= 3 ? 1 : current + 1))
-    }, 420)
-    return () => window.clearInterval(intervalId)
-  }, [])
-
-  return (
-    <span className="truncate">
-      {trimStaticEllipsis(text)}
-      <span aria-hidden="true">{'.'.repeat(dotCount)}</span>
-    </span>
-  )
 }
 
 export function AppMessageProvider({ children }: { children: ReactNode }) {
@@ -155,12 +138,12 @@ export function AppMessageProvider({ children }: { children: ReactNode }) {
           <div
             data-testid="app-message-pill"
             className={cn(
-              'inline-flex min-h-8 max-w-full items-center truncate rounded-badge border px-3 py-1.5 text-sm font-medium leading-none shadow-elevated',
+              'inline-flex min-h-8 max-w-full items-center gap-2 rounded-badge border px-3 py-1.5 text-sm font-medium leading-5 shadow-elevated',
               toneClassNames[message.tone],
             )}
           >
             {message.tone === 'loading' ? (
-              <LoadingMessageText text={message.text} />
+              <><CircularProgress /><span className="min-w-0 truncate">{trimStaticEllipsis(message.text)}</span></>
             ) : (
               <span className="truncate">{message.text}</span>
             )}
