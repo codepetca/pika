@@ -465,7 +465,6 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
                   <Spinner size="lg" />
                   <Button size="sm" loading>Creating class</Button>
                   <IconButton icon={Plus} label="Creating classroom" loading />
-                  <AppMessageProvider><AppMessageExample /></AppMessageProvider>
                 </div>
                 <PageState compact kind="loading" title="Loading classroom" />
               </Card>
@@ -690,6 +689,15 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
           </div>
           </PatternSection>
         </div>
+
+        <PatternSection
+          id="app-message"
+          eyebrow="Shared feedback"
+          title="Header message"
+          description="The global transient status uses circular activity feedback while work is pending."
+        >
+          <Card tone="panel" padding="md"><AppMessageProvider><AppMessageExample /></AppMessageProvider></Card>
+        </PatternSection>
 
         <TooltipMotionPattern />
         <SettingsSwitchMotionPattern />

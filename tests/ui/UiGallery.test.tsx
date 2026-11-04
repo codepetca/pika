@@ -323,7 +323,7 @@ describe('UiGallery accessibility contracts', () => {
     for (const icon of example.querySelectorAll('svg')) {
       expect(icon).toHaveAttribute('aria-hidden', 'true')
     }
-    fireEvent.click(within(example).getByRole('button', { name: 'Show header message' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Show header message' }))
     expect(screen.getByTestId('app-message-overlay')).toHaveTextContent('AI grading in progress')
   })
 
