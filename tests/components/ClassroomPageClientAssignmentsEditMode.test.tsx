@@ -265,9 +265,9 @@ vi.mock('@/lib/request-cache', async (importOriginal) => {
     fetchCachedJSON: actual.fetchCachedJSON,
     fetchJSONWithCache: (...args: Parameters<typeof actual.fetchJSONWithCache>) => realGradesOwner.enabled && args[0].startsWith('student-grades:')
       ? actual.fetchJSONWithCache(...args) : mockFetchJSONWithCache(...args),
-    invalidateCachedJSON: (key: string) => (realGradesOwner.enabled && key.startsWith('student-grades:')) || (realTestsCache.enabled && key.startsWith('teacher-tests:'))
+    invalidateCachedJSON: (key: string) => (realGradesOwner.enabled && key.startsWith('student-grades:')) || (realTestsCache.enabled && key.startsWith('teacher-tests'))
       ? actual.invalidateCachedJSON(key) : mockInvalidateCachedJSON(key),
-    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => (realGradesOwner.enabled && args[0].startsWith('student-grades:')) || (realSurveyCache.enabled && args[0].includes('-surveys:')) || (realTestsCache.enabled && args[0].startsWith('teacher-tests:'))
+    prefetchJSON: (...args: Parameters<typeof actual.prefetchJSON>) => (realGradesOwner.enabled && args[0].startsWith('student-grades:')) || (realSurveyCache.enabled && args[0].includes('-surveys:')) || (realTestsCache.enabled && args[0].startsWith('teacher-tests'))
       ? actual.prefetchJSON(...args) : mockPrefetchJSON(...args),
   }
 })
@@ -1497,11 +1497,11 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
   it('shares only a pending teacher Tests intent and invalidates it before an update', async () => {
     const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
-    const key = 'teacher-tests:classroom-1'
+    const key = 'teacher-tests-summary:classroom-1'
     cache.invalidateCachedJSON(key)
     realTestsCache.enabled = true
     let finish!: (response: Response) => void
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => String(url).includes('/api/teacher/tests?')
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => String(url).includes('/api/teacher/tests/summary?')
       ? new Promise<Response>(resolve => { finish = resolve }) : Promise.resolve(new Response('{}')))
     const view = renderClient({ initialTab: 'daily' })
     try {
@@ -1511,7 +1511,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       const unexpected = vi.fn(async () => ({ tests: [] }))
       const pending = cache.fetchJSONWithCache(key, unexpected, 0)
       expect(unexpected).not.toHaveBeenCalled()
-      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1)
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests/summary?'))).toHaveLength(1)
       window.dispatchEvent(new CustomEvent('pika:teacherTestsUpdated', { detail: { classroomId: 'classroom-1' } }))
       const fresh = vi.fn(async () => ({ tests: [{ id: 'fresh' }] }))
       const freshRead = cache.fetchJSONWithCache(key, fresh, 0)
@@ -1602,16 +1602,16 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
   it('does not poison the next Tests read when intent fails or settles', async () => {
     const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
-    const key = 'teacher-tests:classroom-1'
+    const key = 'teacher-tests-summary:classroom-1'
     cache.invalidateCachedJSON(key)
     realTestsCache.enabled = true
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => Promise.resolve(
-      new Response('{}', { status: String(url).includes('/api/teacher/tests?') ? 500 : 200 }),
+      new Response('{}', { status: String(url).includes('/api/teacher/tests/summary?') ? 500 : 200 }),
     ))
     const view = renderClient({ initialTab: 'daily' })
     try {
       fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Tests' }))
-      await waitFor(() => expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1))
+      await waitFor(() => expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests/summary?'))).toHaveLength(1))
       // Allow the failed response and its cache cleanup to settle.
       await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
       const fresh = vi.fn(async () => ({ tests: [] }))
@@ -1627,7 +1627,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
 
   it('does not retain a completed Tests intent result for a later list read', async () => {
     const cache = await vi.importActual<typeof import('@/lib/request-cache')>('@/lib/request-cache')
-    const key = 'teacher-tests:classroom-1'
+    const key = 'teacher-tests-summary:classroom-1'
     cache.invalidateCachedJSON(key)
     realTestsCache.enabled = true
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"tests":[]}'))
@@ -1637,7 +1637,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)) })
       const read = vi.fn(async () => ({ tests: [] }))
       await cache.fetchJSONWithCache(key, read, 0)
-      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests?'))).toHaveLength(1)
+      expect(fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/teacher/tests/summary?'))).toHaveLength(1)
       expect(read).toHaveBeenCalledTimes(1)
     } finally {
       view.unmount()

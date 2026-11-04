@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { Code, Eye, MoreVertical, Plus, Users } from 'lucide-react'
+import { TeacherTestCard } from '@/components/TeacherTestCard'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import { TeacherWorkItemList } from '@/components/teacher-work-surface/TeacherWorkItemList'
 import {
@@ -29,6 +30,7 @@ import {
   TableSelectionHeaderCell,
   cn,
 } from '@/ui'
+import type { TestAssessmentWithStats } from '@/types'
 
 type WorkFamily = 'classwork' | 'tests'
 type WorkspaceMode = 'overview' | 'students'
@@ -45,10 +47,34 @@ const WORK_ITEMS = {
     { id: 'field-trip-check', title: 'Field trip check-in', kind: 'Survey', status: 'Draft', detail: '3 questions' },
   ],
   tests: [
-    { id: 'ecosystems-test', title: 'Ecosystems test', kind: 'Test', status: 'Open', detail: '20 points · 3 submissions' },
+    { id: 'ecosystems-test', title: 'Ecosystems test', kind: 'Test', status: 'Open', detail: '20 points · 13 submissions' },
+    { id: 'scientific-inquiry', title: 'Scientific inquiry', kind: 'Test', status: 'Closed', detail: '28 submissions' },
+    { id: 'scheduled-test', title: 'Scheduled test', kind: 'Test', status: 'Closed', detail: 'Scheduled Nov 10, 2099' },
     { id: 'cells-check', title: 'Cells checkpoint', kind: 'Test', status: 'Draft', detail: '10 points · 8 questions' },
   ],
 } as const
+
+const EXAMPLE_TESTS: Record<string, TestAssessmentWithStats> = Object.fromEntries(
+  WORK_ITEMS.tests.map((item, position) => {
+    const submitted = item.id === 'ecosystems-test' ? 13 : item.id === 'scientific-inquiry' ? 28 : 0
+    const isOpen = item.status === 'Open'
+    return [item.id, {
+      id: item.id,
+      classroom_id: 'example-classroom',
+      title: item.title,
+      assessment_type: 'test',
+      status: item.status === 'Draft' ? 'draft' : isOpen ? 'active' : 'closed',
+      test_date: item.id === 'scheduled-test' || item.id === 'cells-check' ? '2099-11-10' : null,
+      opens_at: null,
+      show_results: false,
+      position,
+      created_by: 'example-teacher',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-01-01T00:00:00Z',
+      stats: { total_students: 28, responded: submitted, submitted, open_access: isOpen ? 15 : 0, closed_access: isOpen ? 13 : 28, questions_count: 8 },
+    } satisfies TestAssessmentWithStats]
+  }),
+)
 
 const STUDENTS = [
   { id: 'maya', name: 'Maya Chen', status: 'Submitted', score: '18 / 20' },
@@ -183,7 +209,18 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
 
   const summary = (
     <TeacherWorkItemList>
-      {items.map((item) => (
+      {items.map((item) => family === 'tests' ? (
+        <TeacherTestCard
+          key={item.id}
+          test={EXAMPLE_TESTS[item.id]}
+          isReadOnly={false}
+          isDragDisabled
+          editMode={testEditMode}
+          onSelect={() => openItem(item.id)}
+          onRequestPreview={() => onPrototypeAction(`Preview ${item.title}`)}
+          onRequestDelete={() => onPrototypeAction(`Delete ${item.title}`)}
+        />
+      ) : (
         <TeacherWorkItemCardFrame key={item.id} interactive={false} tone={item.id === selectedItemId ? 'selected' : item.status === 'Draft' ? 'muted' : 'default'}>
           <div className="flex items-start justify-between gap-3">
             <Button type="button" variant="ghost" className="min-w-0 flex-1 justify-start px-0 py-0 text-left text-text-default hover:bg-transparent" onClick={() => openItem(item.id)}>
@@ -211,7 +248,7 @@ export function WorkSurfaceMockup({ onPrototypeAction }: { onPrototypeAction: (a
             <h4 className="mt-1 text-lg font-semibold">{selectedItem.title}</h4>
             <p className="mt-1 text-sm text-text-muted">{selectedItem.detail}</p>
           </div>
-          <span className="text-sm font-medium text-success">{selectedItem.status}</span>
+          <span className={cn('text-sm font-medium', selectedItem.status === 'Closed' ? 'text-danger' : selectedItem.status === 'Draft' ? 'text-text-muted' : 'text-success')}>{selectedItem.status}</span>
         </div>
         <p className="mt-5 text-sm leading-6 text-text-default">Review the selected item before moving into student work. Authoring, preview, Markdown, and lifecycle actions stay contextual to this workspace.</p>
       </Card>

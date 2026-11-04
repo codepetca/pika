@@ -3,7 +3,7 @@ import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { readTestsFromPayload } from '@/lib/test-api-contract'
 import { applyTestSummaryPatchToTest } from '@/lib/test-summary-patch'
-import type { AssessmentEditorSummaryUpdate, TestAssessmentWithStats } from '@/types'
+import type { AssessmentEditorSummaryUpdate, TestAssessment, TestAssessmentWithStats } from '@/types'
 
 type TeacherTestListResponse = {
   tests?: TestAssessmentWithStats[]
@@ -14,6 +14,7 @@ type UseTeacherTestListOptions = {
   selectedTestId: string | null
   selectedTestDraftSummary: AssessmentEditorSummaryUpdate | null
   apiBasePath?: string
+  progressive?: boolean
 }
 
 export type UseTeacherTestListResult = {
@@ -26,6 +27,7 @@ export type UseTeacherTestListResult = {
   isSnapshotReady: () => boolean
   loadTests: () => Promise<void>
   retryTests: () => Promise<void>
+  summaryTests: TestAssessment[] | null
 }
 
 export function useTeacherTestList({
@@ -33,6 +35,7 @@ export function useTeacherTestList({
   selectedTestId,
   selectedTestDraftSummary,
   apiBasePath = '/api/teacher/tests',
+  progressive = false,
 }: UseTeacherTestListOptions): UseTeacherTestListResult {
   const latestRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroomId)
@@ -40,7 +43,9 @@ export function useTeacherTestList({
   const selectedTestDraftSummaryRef = useRef<AssessmentEditorSummaryUpdate | null>(selectedTestDraftSummary)
 
   const [tests, setTests] = useState<TestAssessmentWithStats[]>([])
+  const [summaryState, setSummaryState] = useState<{ classroomId: string; tests: TestAssessment[] } | null>(null)
   const [loadedTestsClassroomId, setLoadedTestsClassroomId] = useState<string | null>(null)
+  const loadedTestsClassroomIdRef = useRef<string | null>(null)
   const [loadedSnapshotRequestId, setLoadedSnapshotRequestId] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [errorState, setErrorState] = useState<{ classroomId: string; message: string } | null>(null)
@@ -54,7 +59,7 @@ export function useTeacherTestList({
     [hasCurrentTests, tests],
   )
 
-  const loadTests = useCallback(async (canonicalTitleTestId?: string) => {
+  const loadTests = useCallback(async (canonicalTitleTestId?: string, preserveSummary = false) => {
     const requestId = latestRequestIdRef.current + 1
     latestRequestIdRef.current = requestId
     const requestedClassroomId = classroomId
@@ -64,7 +69,18 @@ export function useTeacherTestList({
     )
 
     setLoading(true)
+    setSummaryState(current => preserveSummary && current?.classroomId === requestedClassroomId ? current : null)
     setErrorState((current) => current?.classroomId === requestedClassroomId ? null : current)
+    if (progressive && loadedTestsClassroomIdRef.current !== requestedClassroomId) {
+      const query = new URLSearchParams({ classroom_id: requestedClassroomId })
+      void fetchCachedJSON<{ tests?: TestAssessment[] }>(
+        `teacher-tests-summary:${requestedClassroomId}`,
+        `${apiBasePath}/summary?${query.toString()}`,
+        { ttlMs: 0, errorMessage: 'Failed to load test summary' },
+      ).then((data) => {
+        if (isCurrentRequest()) setSummaryState({ classroomId: requestedClassroomId, tests: readTestsFromPayload<TestAssessment>(data) })
+      }).catch(() => {})
+    }
     try {
       const query = new URLSearchParams({ classroom_id: requestedClassroomId })
       const data = await fetchCachedJSON<TeacherTestListResponse>(
@@ -89,6 +105,7 @@ export function useTeacherTestList({
           : loadedTests,
       )
       setLoadedTestsClassroomId(requestedClassroomId)
+      loadedTestsClassroomIdRef.current = requestedClassroomId
       setLoadedSnapshotRequestId(requestId)
       setErrorState(null)
     } catch (error) {
@@ -103,7 +120,7 @@ export function useTeacherTestList({
         setLoading(false)
       }
     }
-  }, [apiBasePath, classroomId])
+  }, [apiBasePath, classroomId, progressive])
 
   // Refresh invalidates latestRequestIdRef synchronously. Tie eligibility to
   // the snapshot actually committed by this render, not a queued loading flag
@@ -116,7 +133,8 @@ export function useTeacherTestList({
 
   const retryTests = useCallback(async () => {
     invalidateCachedJSON(`teacher-tests:${classroomId}`)
-    await loadTests()
+    invalidateCachedJSON(`teacher-tests-summary:${classroomId}`)
+    await loadTests(undefined, true)
   }, [classroomId, loadTests])
 
   useEffect(() => {
@@ -135,6 +153,7 @@ export function useTeacherTestList({
     function handleTestsUpdated(event: Event) {
       const detail = (event as CustomEvent<{ classroomId?: string; canonicalTitleTestId?: string }>).detail
       if (!detail || detail.classroomId !== classroomId) return
+      invalidateCachedJSON(`teacher-tests-summary:${classroomId}`)
       void loadTests(detail.canonicalTitleTestId)
     }
 
@@ -152,5 +171,6 @@ export function useTeacherTestList({
     isSnapshotReady,
     loadTests,
     retryTests,
+    summaryTests: summaryState?.classroomId === classroomId ? summaryState.tests : null,
   }
 }

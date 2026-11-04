@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Admission registry integration with current main
-
-Rebased1699 onto9756a9751, retaining the reviewed294 SQL and registry behavior.
-Resolved continuity conflicts by preserving canonical production/control labels
-and both substantive journal histories. Main's official ECR image transport and
-scheduled-date display changes remain intact; no UI or SQL behavior changed here.
-Earlier GHCR setup failures remain historical. Focused integration checks and a
-proportional independent delta review precede fresh reviewed-head CI. Existing70,
-provider/schema/release holds and paused goal/DeepSeek remain unchanged.
-
 ## 2026-10-27 Restore isolated CI image authentication after quota failures
 
 #1699's current-base build22626 tests, primary SDK and browser matrix passed; five
@@ -268,6 +258,10 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 ## 2026-11-02 — Teacher Tests intent prefetch
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
 
 ## 2026-11-03 — Progressive teacher Classwork prototype
 
