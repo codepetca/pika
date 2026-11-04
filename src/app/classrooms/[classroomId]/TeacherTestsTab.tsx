@@ -652,6 +652,10 @@ export function TeacherTestsTab({
     () => reverseTestOrder ? visibleTests : [...visibleTests].reverse(),
     [reverseTestOrder, visibleTests]
   )
+  const displayedSummaryTests = useMemo(
+    () => reverseTestOrder || !summaryTests ? summaryTests : [...summaryTests].reverse(),
+    [reverseTestOrder, summaryTests]
+  )
   const selectedTest = useMemo(
     () => visibleTests.find((test) => test.id === selectedTestId) ?? null,
     [selectedTestId, visibleTests]
@@ -3125,9 +3129,9 @@ export function TeacherTestsTab({
         </div>
       ) : <RefreshingIndicator label="Loading test statistics" />}
       <DndContext>
-        <SortableContext items={summaryTests.map(test => test.id)} strategy={verticalListSortingStrategy}>
+        <SortableContext items={(displayedSummaryTests ?? []).map(test => test.id)} strategy={verticalListSortingStrategy}>
           <TeacherWorkItemList>
-            {summaryTests.map(test => (
+            {(displayedSummaryTests ?? []).map(test => (
               <TeacherTestCard key={test.id} test={test} statsPending statsUnavailable={!!testsLoadError} isReadOnly editMode={false}
                 onSelect={() => {}} onRequestPreview={() => handleOpenSavedTestPreview({ testId: test.id, title: test.title })}
                 onRequestDelete={() => {}} />

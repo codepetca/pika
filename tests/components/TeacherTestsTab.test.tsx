@@ -471,6 +471,24 @@ describe('TeacherTestsTab', () => {
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled()
   })
 
+  it('keeps the chosen order while statistics load and after they arrive', async () => {
+    const tests = [makeTest({ id: 'test-1', title: 'First' }), makeTest({ id: 'test-2', title: 'Second' })]
+    const summaries = tests.map(({ stats: _stats, ...test }) => test)
+    summaryFetchMock.mockResolvedValue({ ok: true, json: async () => ({ tests: summaries }) })
+    let finish!: (value: unknown) => void
+    fetchMock.mockReturnValue(new Promise(resolve => { finish = resolve }))
+    renderTab()
+    await screen.findByText('First')
+    const firstBeforeSecond = () => !!(screen.getByText('First').compareDocumentPosition(screen.getByText('Second')) & Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(firstBeforeSecond()).toBe(true)
+    fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Reverse order' }))
+    expect(firstBeforeSecond()).toBe(false)
+    await act(async () => { finish({ ok: true, json: async () => ({ tests }) }) })
+    await waitFor(() => expect(screen.getByRole('button', { name: 'First' })).toBeEnabled())
+    expect(firstBeforeSecond()).toBe(false)
+  })
+
   it('shows a retryable error instead of an empty state when the tests list fails', async () => {
     fetchMock
       .mockResolvedValueOnce({
