@@ -11,6 +11,68 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-25 RepoLight contextual-owner report admission
+
+Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
+is READY. Overview now loads; pilot stopped before Analyze because report routes
+required global Teacher for admitted contextual owner A. No report/import; AI OFF.
+Draft preparation briefly saved zero marks in Final mode; normal Draft restored
+all synthetic marks/graded/returned fields to null. Production window released
+to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
+shared admission with legacy Teacher fallback, retaining owner/source/lease fences
+and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
+a Student-labelled owner and synthetic creation grant; fixture resources removed.
+Route regressions and independent auth/compatibility review precede CI and specific
+owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
+
+## 2026-10-25 RepoLight release and hosted quota stop
+
+1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
+canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
+promotion review passed; all6276parent journal occurrences preserved. Controlled
+Student-labelled owner access and blank-login overview PASS. One hosted analysis
+failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
+assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
+AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
+released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
+GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
+provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
+
+## 2026-10-26 Future post dates
+
+Announcements and posted Classwork materials accept future Post date values.
+Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
+today/past dates retain posted_on. A field hint discloses student hiding. No schema
+or dependency changes. Risk none. Reference/reuse: production Material editor and
+Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
+existing scheduling. No new shared UI pattern or unrelated refactor. Composite
+checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
+contracts retained and interaction-tested; no new ARIA widget.
+Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
+material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
+cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
+corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
+student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
+and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
+Material student editing n/a (teacher-only); existing student release API checks
+reused. Capture source equals this candidate's UI files; deterministic fixtures,
+Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
+process secret used. Draft PR and independent review follow; merge/release require
+authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
+
+## 2026-10-27 Accept the bounded 70-account classroom rollout
+
+Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
+and schema293 into the dated70-account acceptance receipt. Retained actual
+signed-in versus isolated/source-qualified boundaries, exact roster checks,
+selected academic preservation and compatible recovery constraints. PPZ keeps
+Tests/native attendance off/no policy/mapping/manual log unchanged. Original
+observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
+passed7timely samples and final exact70/provider/work readbacks. Timed process
+exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
+historical pilot now point to bounded acceptance; wider admission/provider/billing
+holds and incomplete epic/paused goal remain. Documentation only; no live action.
+
 ## 2026-10-27 Prepare wider classroom admission design
 
 Prepared a proposal for one durable service-owned admission source, exact70
@@ -312,6 +374,9 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
 
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
 ## 2026-11-03 — Progressive teacher Classwork prototype
 
 Legacy assignment and survey summaries can render before statistics, with explicit
