@@ -382,6 +382,7 @@ Start a bounded teacher Tests read on navigation intent, share only in-flight wo
 ## 2026-11-03 — Progressive teacher Tests list
 
 Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
+
 ## 2026-11-03 — Progressive teacher Classwork prototype
 
 Legacy assignment and survey summaries can render before statistics, with explicit
@@ -413,6 +414,7 @@ PR 1727 remains draft pending focused checks and exact-head review.
 The Classwork continuity fixture now models summary and full reads separately.
 Its first refresh fails the summary and then exercises the full-read fallback,
 including retained editor, failure, retry, recovery, and controlled navigation.
+
 ## 2026-11-03 List order toggle
 
 - Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
@@ -424,3 +426,8 @@ Keep answers visible while submitting and show an immediate confirmed receipt. R
 ## 2026-11-03 Investigate test contention
 
 Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
+
+## 2026-11-04 — Classwork access recovery
+
+- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
+- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
