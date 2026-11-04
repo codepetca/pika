@@ -1184,7 +1184,7 @@ export function TeacherClassroomView({
 
     observer.observe(node)
     return () => observer.disconnect()
-  }, [selection.mode, selectedStudentId, splitPaneViewState.view])
+  }, [completeClasswork, selection.mode, selectedStudentId, splitPaneViewState.view])
 
   const classworkItems = useMemo(
     () => completeClasswork
