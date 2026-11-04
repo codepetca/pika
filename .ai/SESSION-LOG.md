@@ -312,6 +312,19 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
 
+## 2026-11-03 — Progressive teacher Classwork prototype
+
+Legacy assignment and survey summaries can render before statistics, with explicit
+unknown counts and incomplete-list action guards. Shared reads retain their full
+owner-scoped contract and cache; cache invalidation and permission failure guards
+protect delayed results. Independent review and CI remain pending.
+
+## 2026-11-03 — Classwork progressive read review fixes
+
+Prevent invalidated summary reuse, join in-flight full prefetches, fall back
+from non-authorization summary errors, and gate material deep links on complete
+authorized classwork. Real-cache and interaction regressions exercise these paths.
+
 ## 2026-11-03 — Teacher Tests statistics pagination
 
 On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
@@ -325,6 +338,11 @@ Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
 7d1c121fb. The rebase preserved the prior source tree and continuity histories;
 PR 1727 remains draft pending focused checks and exact-head review.
 
+## 2026-11-03 — Classwork refresh browser fixture
+
+The Classwork continuity fixture now models summary and full reads separately.
+Its first refresh fails the summary and then exercises the full-read fallback,
+including retained editor, failure, retry, recovery, and controlled navigation.
 ## 2026-11-03 List order toggle
 
 - Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.

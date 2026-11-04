@@ -10,13 +10,15 @@ import { Button, Tooltip } from '@/ui'
 import type { Assignment, AssignmentStats } from '@/types'
 
 interface AssignmentWithStats extends Assignment {
-  stats: AssignmentStats
+  stats?: AssignmentStats
 }
 
 interface SortableAssignmentCardProps {
   assignment: AssignmentWithStats
   isReadOnly: boolean
   isDragDisabled?: boolean
+  countsUnavailable?: boolean
+  pending?: boolean
   editMode: boolean
   onOpen: () => void
   onEdit: () => void
@@ -40,6 +42,8 @@ export function SortableAssignmentCard({
   assignment,
   isReadOnly,
   isDragDisabled = false,
+  countsUnavailable = false,
+  pending = false,
   editMode,
   onOpen,
   onEdit,
@@ -67,6 +71,7 @@ export function SortableAssignmentCard({
       ? formatScheduledRelease(assignment.released_at)
       : ''
   const handleCardAction = () => {
+    if (pending) return
     if (editMode) {
       onEdit()
     } else {
@@ -118,6 +123,7 @@ export function SortableAssignmentCard({
           }}
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
           aria-label={editMode ? `Edit ${assignment.title}` : assignment.title}
+          disabled={pending}
         >
           <span className="min-w-0">
             <span className={[
@@ -145,7 +151,7 @@ export function SortableAssignmentCard({
               </span>
             ) : (
               <span className="text-sm text-text-muted">
-                {assignment.stats.submitted}/{assignment.stats.total_students}
+                {assignment.stats ? `${assignment.stats.submitted}/${assignment.stats.total_students}` : countsUnavailable ? 'Count unavailable' : 'Loading count'}
               </span>
             )}
           </span>

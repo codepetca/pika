@@ -1,3 +1,5 @@
+import { ApiError } from '@/lib/api-error'
+
 type CacheEntry = {
   value?: unknown
   expiresAt: number
@@ -5,6 +7,8 @@ type CacheEntry = {
 }
 
 const cache = new Map<string, CacheEntry>()
+type CacheReadToken = { key: string; valid: boolean }
+const activeReadTokens = new Map<string, Set<CacheReadToken>>()
 
 type FetchJSONOptions = {
   init?: RequestInit
@@ -33,7 +37,42 @@ export async function fetchJSON<T>(
 
   const payload = await response.json().catch(() => null) as unknown
 
-  throw new Error(readPayloadError(payload) || options.errorMessage || 'Request failed')
+  throw new ApiError(response.status, readPayloadError(payload) || options.errorMessage || 'Request failed')
+}
+
+/** Read only an unexpired complete value; in-flight requests are not treated as a snapshot. */
+export function peekCachedJSON<T>(key: string): T | undefined {
+  const entry = cache.get(key)
+  return entry?.value !== undefined && entry.expiresAt > Date.now() ? entry.value as T : undefined
+}
+
+/** Join an existing in-flight full read without starting a second request. */
+export function peekPendingCachedJSON<T>(key: string): Promise<T> | undefined {
+  return cache.get(key)?.pending as Promise<T> | undefined
+}
+
+/** Tokens exist only while a read is active and are invalidated with their key. */
+export function beginCachedJSONRead(key: string): CacheReadToken {
+  const token = { key, valid: true }
+  const tokens = activeReadTokens.get(key) ?? new Set<CacheReadToken>()
+  tokens.add(token)
+  activeReadTokens.set(key, tokens)
+  return token
+}
+
+export function endCachedJSONRead(token: CacheReadToken): void {
+  token.valid = false
+  const tokens = activeReadTokens.get(token.key)
+  tokens?.delete(token)
+  if (tokens?.size === 0) activeReadTokens.delete(token.key)
+}
+
+/** Preserve newer or invalidated state when seeding a completed response. */
+export function primeCachedJSON<T>(key: string, value: T, ttlMs: number, token: CacheReadToken): void {
+  if (!token.valid || token.key !== key) return
+  const current = cache.get(key)
+  if (current?.pending || (current?.value !== undefined && current.expiresAt > Date.now())) return
+  cache.set(key, { value, expiresAt: Date.now() + ttlMs })
 }
 
 export async function fetchJSONWithCache<T>(
@@ -109,13 +148,16 @@ export function prefetchJSON<T>(
 }
 
 export function invalidateCachedJSON(key: string) {
+  const tokens = activeReadTokens.get(key)
+  if (tokens) {
+    for (const token of tokens) token.valid = false
+    activeReadTokens.delete(key)
+  }
   cache.delete(key)
 }
 
 export function invalidateCachedJSONMatching(prefix: string) {
-  for (const key of cache.keys()) {
-    if (key.startsWith(prefix)) {
-      cache.delete(key)
-    }
+  for (const key of new Set([...cache.keys(), ...activeReadTokens.keys()])) {
+    if (key.startsWith(prefix)) invalidateCachedJSON(key)
   }
 }

@@ -4246,6 +4246,8 @@ test('retains teacher Classwork student editor and table through background refr
       graded_at: null, returned_at: null, feedback_returned_at: null, teacher_feedback_draft: '' },
   }))
   let listReads = 0
+  let summaryReads = 0
+  let summaryFailures = 0
   let detailReads = 0
   let studentReads = 0
   let releaseRefresh: ((success: boolean) => void) | undefined
@@ -4254,6 +4256,19 @@ test('retains teacher Classwork student editor and table through background refr
     const url = new URL(route.request().url())
     let body: unknown = {}
     if (url.pathname === '/api/teacher/assignments') {
+      if (url.searchParams.get('summary') === '1') {
+        summaryReads += 1
+        // Exercise the real fallback: a failed summary must still try the full read.
+        if (listReads === 1 && summaryFailures === 0) {
+          summaryFailures += 1
+          await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Summary unavailable' }) })
+          return
+        }
+        const { stats: _firstStats, ...firstSummary } = assignment
+        const { stats: _secondStats, ...secondSummary } = nextAssignment
+        await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ assignments: [firstSummary, secondSummary], summary_only: true }) })
+        return
+      }
       listReads += 1
       if (listReads > 1) {
         const success = await new Promise<boolean>((resolve) => { releaseRefresh = resolve })
@@ -4322,6 +4337,8 @@ test('retains teacher Classwork student editor and table through background refr
   await capture('loaded')
   await page.evaluate(() => window.dispatchEvent(new Event('pika-fixture-reactivate-classwork')))
   await expect.poll(() => listReads).toBe(2)
+  expect(summaryReads).toBe(2)
+  expect(summaryFailures).toBe(1)
   await expect.poll(() => detailReads).toBe(originalDetailReads + 1)
   expectedDetailReads = originalDetailReads + 1
   await assertRetained()

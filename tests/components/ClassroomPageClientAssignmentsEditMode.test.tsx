@@ -1443,6 +1443,19 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     }
   })
 
+  it.each([401, 403, 404])('preserves teacher Classwork prefetch denial status %s', async (status) => {
+    renderClient({ initialTab: 'daily' })
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Classwork' }))
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Denied', { status }))
+    try {
+      for (const key of ['teacher-assignments:classroom-1', 'teacher-materials:classroom-1', 'teacher-surveys:classroom-1']) {
+        const prefetch = mockPrefetchJSON.mock.calls.find(([candidate]) => candidate === key)
+        expect(prefetch).toBeDefined()
+        await expect(prefetch![1]()).rejects.toMatchObject({ name: 'ApiError', statusCode: status })
+      }
+    } finally { fetchSpy.mockRestore() }
+  })
+
   it.each([{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }])('skips survey intent on constrained connections: %o', (connection) => {
     Object.defineProperty(navigator, 'connection', { configurable: true, value: connection })
     try {
