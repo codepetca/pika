@@ -69,6 +69,16 @@ function renderCard({
 }
 
 describe('SortableAssignmentCard', () => {
+  it('presents pending survey counts without enabling the card', () => {
+    const onOpen = vi.fn()
+    render(<TooltipProvider><SortableSurveyCard survey={{ ...assignment, status: 'active', stats: undefined } as any}
+      isReadOnly={true} pending editMode={false} onOpen={onOpen} onDelete={vi.fn()} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: 'Assignment One' })).toBeDisabled()
+    expect(screen.getByText('Loading count')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Assignment One' }))
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
   it('places the scheduled release before the due date in the reading order', () => {
     render(<TooltipProvider><SortableAssignmentCard
       assignment={{ ...assignment, released_at: '2099-04-10T12:00:00Z' }}

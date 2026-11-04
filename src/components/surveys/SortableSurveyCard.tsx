@@ -7,12 +7,14 @@ import { GripVertical, Trash2 } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
 import { getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
 import { Button, Tooltip } from '@/ui'
-import type { SurveyWithStats } from '@/types'
+import type { Survey, SurveyWithStats } from '@/types'
 
 interface SortableSurveyCardProps {
-  survey: SurveyWithStats
+  survey: Survey & { stats?: SurveyWithStats['stats'] }
   isReadOnly: boolean
   isDragDisabled?: boolean
+  countsUnavailable?: boolean
+  pending?: boolean
   editMode: boolean
   onOpen: () => void
   onDelete: () => void
@@ -22,6 +24,8 @@ export function SortableSurveyCard({
   survey,
   isReadOnly,
   isDragDisabled = false,
+  countsUnavailable = false,
+  pending = false,
   editMode,
   onOpen,
   onDelete,
@@ -48,7 +52,7 @@ export function SortableSurveyCard({
     <TeacherWorkItemCardFrame
       ref={setNodeRef}
       style={style}
-      onClick={onOpen}
+      onClick={pending ? undefined : onOpen}
       tone={survey.status === 'draft' ? 'muted' : 'default'}
       dragging={isDragging}
       dragTone="neutral"
@@ -89,6 +93,7 @@ export function SortableSurveyCard({
           }}
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
           aria-label={survey.title}
+          disabled={pending}
         >
           <span className="min-w-0">
             <span
@@ -110,7 +115,7 @@ export function SortableSurveyCard({
             </span>
             {survey.status !== 'draft' && (
               <span className="text-sm text-text-muted">
-                {survey.stats.responded}/{survey.stats.total_students}
+                {survey.stats ? `${survey.stats.responded}/${survey.stats.total_students}` : countsUnavailable ? 'Count unavailable' : 'Loading count'}
               </span>
             )}
           </span>

@@ -1523,7 +1523,7 @@ function ClassroomPageContent({
           const summary = testExperienceMode === 'existing'
           prefetchJSON(`${summary ? 'teacher-tests-summary' : 'teacher-tests'}:${classroom.id}`, async () => {
             const response = await fetch(`/api/teacher/tests${summary ? '/summary' : ''}?${query.toString()}`)
-            if (!response.ok) throw new Error('Prefetch failed')
+            if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
             return response.json()
           }, 0)
         }
@@ -1534,7 +1534,7 @@ function ClassroomPageContent({
             `teacher-assignments:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/teacher/assignments?classroom_id=${classroom.id}`)
-              if (!response.ok) throw new Error('Prefetch failed')
+              if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
               return response.json()
             },
             20_000,
@@ -1543,7 +1543,7 @@ function ClassroomPageContent({
             `teacher-materials:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials`)
-              if (!response.ok) throw new Error('Prefetch failed')
+              if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
               return response.json()
             },
             20_000,
@@ -1553,7 +1553,7 @@ function ClassroomPageContent({
             `student-assignments:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/student/assignments?classroom_id=${classroom.id}`)
-              if (!response.ok) throw new Error('Prefetch failed')
+              if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
               return response.json()
             },
             20_000,
@@ -1562,7 +1562,7 @@ function ClassroomPageContent({
             `student-materials:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/student/classrooms/${classroom.id}/materials`)
-              if (!response.ok) throw new Error('Prefetch failed')
+              if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
               return response.json()
             },
             20_000,
@@ -1576,7 +1576,7 @@ function ClassroomPageContent({
             `teacher-announcements:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/teacher/classrooms/${classroom.id}/announcements`)
-              if (!response.ok) throw new Error('Prefetch failed')
+              if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
               return response.json()
             },
             20_000,
@@ -1586,7 +1586,7 @@ function ClassroomPageContent({
             `student-announcements:${classroom.id}`,
             async () => {
               const response = await fetch(`/api/student/classrooms/${classroom.id}/announcements`)
-              if (!response.ok) throw new Error('Prefetch failed')
+              if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
               return response.json()
             },
             20_000,
@@ -1631,7 +1631,7 @@ function ClassroomPageContent({
       `${role}-surveys:${classroom.id}`,
       async () => {
         const response = await fetch(`/api/${role}/surveys?classroom_id=${classroom.id}`)
-        if (!response.ok) throw new Error('Prefetch failed')
+        if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
         return response.json()
       },
       20_000,
