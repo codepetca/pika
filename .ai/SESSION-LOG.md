@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Prepare wider classroom admission design
-
-Prepared a proposal for one durable service-owned admission source, exact70
-bootstrap retention and staged expansion/new-user policy. Current Home/API each
-cap100; Bara also selects protocol behavior from admission. The plan requires
-Home/API consumer migration and frozen bootstrap provider-compatibility decisions
-before widening, with current nonadmitted behavior preserved too. New grants use
-atomic approved batches/growth stop; automatic signup stays off until separately
-approved. Rollout stages and exact-source recovery/verification gates are recorded;
-no code, SQL, cohort, plan, production or provider operation performed. Existing70,
-all other holds and paused goal/DeepSeek remain unchanged.
-
 ## 2026-10-27 Material owner calendar receipt proof correction
 
 Owner explicitly approved one additional correction batch/eighth targeted review,
@@ -239,3 +227,10 @@ Changed confirmed exhausted Test lock contention to â€œTest is busy. Try again.â
 ## 2026-11-04 Calendar empty lesson text
 
 Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+## 2026-11-05 Investigate classroom tab loading
+
+Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
+Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
+content, preserving scoped filtering; local verification and independent review
+remain required before release. Roster intent PR #1745 remains separately owned.

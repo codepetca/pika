@@ -51074,3 +51074,16 @@ passed7timely samples and final exact70/provider/work readbacks. Timed process
 exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
 historical pilot now point to bounded acceptance; wider admission/provider/billing
 holds and incomplete epic/paused goal remain. Documentation only; no live action.
+
+<!-- pika-session-log-archive-batch:31c5398a426b585c84e96967be5ab34515b78d21eb18a25c574ed27e729eab5e -->
+## 2026-10-27 Prepare wider classroom admission design
+
+Prepared a proposal for one durable service-owned admission source, exact70
+bootstrap retention and staged expansion/new-user policy. Current Home/API each
+cap100; Bara also selects protocol behavior from admission. The plan requires
+Home/API consumer migration and frozen bootstrap provider-compatibility decisions
+before widening, with current nonadmitted behavior preserved too. New grants use
+atomic approved batches/growth stop; automatic signup stays off until separately
+approved. Rollout stages and exact-source recovery/verification gates are recorded;
+no code, SQL, cohort, plan, production or provider operation performed. Existing70,
+all other holds and paused goal/DeepSeek remain unchanged.
