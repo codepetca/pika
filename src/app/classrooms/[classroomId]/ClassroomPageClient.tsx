@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { CalendarDays } from 'lucide-react'
 import { AppShell } from '@/components/AppShell'
@@ -643,6 +643,8 @@ function ClassroomPageContent({
   const studentGradesReadRef = useRef<StudentGradesReadHandle>(null)
   const lastTabIntentRef = useRef<Record<string, number>>({})
   const prefetchedTeacherTestsRef = useRef(new Set<string>())
+  const testsPrefetchInstance = useId()
+  const testsSummaryCacheKey = `teacher-tests-summary:${classroom.id}:${user.id}:${testsPrefetchInstance}`
   const scrollPositionsRef = useRef<Record<string, number>>({})
   const prevActiveTabRef = useRef(activeTab)
   const [studentTestExamMode, setStudentTestExamMode] = useState<{
@@ -1501,11 +1503,15 @@ function ClassroomPageContent({
       if (detail?.classroomId === classroom.id) {
         invalidateCachedJSON(`teacher-tests:${classroom.id}`)
         invalidateCachedJSON(`teacher-tests-summary:${classroom.id}`)
+        invalidateCachedJSON(testsSummaryCacheKey)
       }
     }
     window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
-    return () => window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
-  }, [classroom.id, isTeacher])
+    return () => {
+      window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, invalidateTests, true)
+      invalidateCachedJSON(testsSummaryCacheKey)
+    }
+  }, [classroom.id, isTeacher, testsSummaryCacheKey])
 
   const prefetchTabData = useCallback((tab: string) => {
     if (!availableTabs.includes(tab)) return
@@ -1515,17 +1521,17 @@ function ClassroomPageContent({
     lastTabIntentRef.current[tab] = now
 
     const runPrefetch = () => {
-      if (tab === 'tests' && isTeacher && !mountedTabsRef.current.tests && !prefetchedTeacherTestsRef.current.has(classroom.id)) {
+      if (tab === 'tests' && isTeacher && !mountedTabsRef.current.tests && (testExperienceMode === 'existing' || !prefetchedTeacherTestsRef.current.has(classroom.id))) {
         const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
         if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {
-          prefetchedTeacherTestsRef.current.add(classroom.id)
+          if (testExperienceMode !== 'existing') prefetchedTeacherTestsRef.current.add(classroom.id)
           const query = new URLSearchParams({ classroom_id: classroom.id })
           const summary = testExperienceMode === 'existing'
-          prefetchJSON(`${summary ? 'teacher-tests-summary' : 'teacher-tests'}:${classroom.id}`, async () => {
+          prefetchJSON(summary ? testsSummaryCacheKey : `teacher-tests:${classroom.id}`, async () => {
             const response = await fetch(`/api/teacher/tests${summary ? '/summary' : ''}?${query.toString()}`)
             if (!response.ok) throw new ApiError(response.status, 'Prefetch failed')
             return response.json()
-          }, 0)
+          }, summary ? 5_000 : 0)
         }
       }
       if (tab === 'assignments') {
@@ -1616,7 +1622,7 @@ function ClassroomPageContent({
     }
 
     runPrefetch()
-  }, [availableTabs, classroom.id, isTeacher, testExperienceMode])
+  }, [availableTabs, classroom.id, isTeacher, testExperienceMode, testsSummaryCacheKey])
 
   const handleTabIntent = useCallback((tab: string) => {
     prefetchTabData(tab)
@@ -2028,7 +2034,9 @@ function ClassroomPageContent({
                   {mountedTabs.tests && (
                     <TabContentTransition isActive={activeTab === 'tests'}>
                       <TeacherTestsTab
+                        key={user.id}
                         testExperienceMode={testExperienceMode}
+                        summaryCacheKey={testsSummaryCacheKey}
                         classroom={classroom}
                         testsTabClickToken={testsTabClickToken}
                         selectedTestId={testIdParam}

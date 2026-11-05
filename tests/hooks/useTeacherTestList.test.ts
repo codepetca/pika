@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTeacherTestList } from '@/hooks/useTeacherTestList'
 import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
-import { invalidateCachedJSON } from '@/lib/request-cache'
+import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { createMockTest } from '../helpers/mocks'
 import type { TestAssessmentWithStats } from '@/types'
 
@@ -46,6 +46,50 @@ describe('useTeacherTestList', () => {
     invalidateCachedJSON('teacher-tests-summary:classroom-2')
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('removes a provisional summary on authorization denial and ignores a late summary', async () => {
+    let finishSummary!: (value: unknown) => void
+    fetchMock.mockImplementation((url: string) => url.includes('/summary?')
+      ? new Promise(resolve => { finishSummary = resolve })
+      : Promise.resolve({ ok: false, status: 403, json: async () => ({ error: 'Forbidden' }) }))
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { result } = renderHook(() => useTeacherTestList({ classroomId: 'classroom-1', selectedTestId: null, selectedTestDraftSummary: null, progressive: true }))
+    await waitFor(() => expect(result.current.error).toBe('Forbidden'))
+    await act(async () => { finishSummary({ ok: true, json: async () => ({ tests: [makeTest({ title: 'Old title' })] }) }) })
+    expect(result.current.summaryTests).toBeNull()
+    quiet.mockRestore()
+  })
+
+  it('shows a scoped prefetched summary while the full read remains pending', async () => {
+    const key = 'teacher-tests-summary:classroom-1:teacher-1:instance'
+    await fetchJSONWithCache(key, async () => ({ tests: [makeTest({ title: 'Prefetched title' })] }), 5000)
+    fetchMock.mockImplementation(() => new Promise(() => {}))
+    const { result, unmount } = renderHook(() => useTeacherTestList({ classroomId: 'classroom-1', selectedTestId: null, selectedTestDraftSummary: null, progressive: true, summaryCacheKey: key }))
+    await waitFor(() => expect(result.current.summaryTests?.[0]?.title).toBe('Prefetched title'))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(result.current.isSnapshotReady()).toBe(false)
+    unmount()
+    invalidateCachedJSON(key)
+  })
+
+  it('retires a previously loaded snapshot after access is denied', async () => {
+    let fullCalls = 0
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes('/summary?')) return Promise.resolve({ ok: true, json: async () => ({ tests: [] }) })
+      fullCalls++
+      return Promise.resolve(fullCalls === 1
+        ? { ok: true, json: async () => ({ tests: [makeTest({ title: 'Previously visible' })] }) }
+        : { ok: false, status: 403, json: async () => ({ error: 'Forbidden' }) })
+    })
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { result } = renderHook(() => useTeacherTestList({ classroomId: 'classroom-1', selectedTestId: null, selectedTestDraftSummary: null, progressive: true }))
+    await waitFor(() => expect(result.current.visibleTests[0]?.title).toBe('Previously visible'))
+    await act(async () => { await result.current.retryTests() })
+    expect(result.current.hasLoadedSnapshot).toBe(false)
+    expect(result.current.visibleTests).toEqual([])
+    expect(result.current.summaryTests).toBeNull()
+    quiet.mockRestore()
   })
 
   it('discards a late summary after switching classrooms', async () => {
