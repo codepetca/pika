@@ -65,11 +65,16 @@ describe('contextual learner Test narrow transport', () => {
   it('bounds repeated busy responses and does not retry transport failures', async () => {
     rpc.mockImplementation(() => ({ abortSignal: async () => ({ data: null, status: 409, error: { code: 'PT409', message: 'test_learner_busy' } }) }))
     vi.useFakeTimers()
-    const exhausted = expect(flow().inspect()).rejects.toMatchObject({ statusCode: 409 })
+    const exhausted = expect(flow().inspect()).rejects.toMatchObject({ statusCode: 409, message: 'Test is busy. Try again.' })
     await vi.runAllTimersAsync(); await exhausted; expect(rpc).toHaveBeenCalledTimes(11)
     vi.useRealTimers()
     rpc.mockClear(); rpc.mockImplementation(() => ({ abortSignal: async () => { throw new Error('network') } }))
     await expect(flow().inspect()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('keeps access-change conflicts distinct from lock contention', async () => {
+    rpc.mockImplementation(() => ({ abortSignal: async () => ({ data: null, status: 409, error: { code: 'PT409', message: 'test_learner_parent_changed' } }) }))
+    await expect(flow().inspect()).rejects.toMatchObject({ statusCode: 409, message: 'Test access changed; reload and retry' })
+    expect(rpc).toHaveBeenCalledOnce()
   })
   it('survives a burst and leaves the shared budget for subsequent reads', async () => {
     vi.useFakeTimers()

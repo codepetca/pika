@@ -56,8 +56,10 @@ export function createContextualTestOwnerWorkflow(input: {
         // Never retry timeouts, transport failures, or semantic conflicts: a
         // mutation with an uncertain outcome must not be repeated.
         if (envelope.data.data === null && envelope.data.status === 409
-          && envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_owner_busy'
-          && busyRetries < 10 && statements < 16 - (operation === 'inspect' ? 2 : 1)) {
+          && envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_owner_busy') {
+          if (busyRetries >= 10 || statements >= 16 - (operation === 'inspect' ? 2 : 1)) {
+            throw new ApiError(409, 'Test is busy. Try again.')
+          }
           // Leave room for dependent reads and spread a class burst over a capped window.
           const delay = 25 + Math.floor(Math.random() * (Math.min(400, 25 * 2 ** busyRetries) + 1))
           if (input.signal?.aborted || Date.now() + delay >= deadline) throw unavailable()
