@@ -130,7 +130,7 @@ export function useTeacherTestList({
         message: error instanceof Error ? error.message : 'Failed to load tests',
       })
     } finally {
-      if (isCurrentRequest()) {
+      if (latestRequestIdRef.current === requestId && currentClassroomIdRef.current === requestedClassroomId) {
         setLoading(false)
       }
     }
