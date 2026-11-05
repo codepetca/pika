@@ -45,7 +45,9 @@ const resolveReusableTestOpenResponseReferenceAnswers = vi.fn(() => ({
   referenceAnswers: ['Cached reference answer'],
 }))
 vi.mock('@/lib/ai-test-grading', () => ({
+  getTestOpenResponseReferenceFallbackModel: () => 'deepseek-flash',
   getTestOpenResponseGradingModel: () => getTestOpenResponseGradingModel(),
+  buildTestOpenResponseReferenceCacheKey: ({ model }: { model: string }) => `key-${model}`,
   prepareTestOpenResponseGradingContext: (...args: any[]) =>
     prepareTestOpenResponseGradingContext(...args),
   suggestTestOpenResponseGradeWithContext: (...args: any[]) =>
@@ -233,6 +235,7 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
       grading_basis: 'generated_reference',
       reference_answers: ['Generated answer'],
       reference_answers_source: 'generated',
+      reference_answers_model: 'deepseek-flash',
     })
     suggestTestOpenResponseGradeWithContext.mockResolvedValue({
       score: 4,
@@ -253,9 +256,9 @@ describe('POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest', () =>
 
     expect(response.status).toBe(200)
     expect(questionUpdate).toHaveBeenCalledWith(expect.objectContaining({
-      ai_reference_cache_key: 'new-cache-key',
+      ai_reference_cache_key: 'key-deepseek-flash',
       ai_reference_cache_answers: ['Generated answer'],
-      ai_reference_cache_model: 'gpt-5-nano',
+      ai_reference_cache_model: 'deepseek-flash',
     }))
     expect(questionUpdateChain.eq.mock.calls).toEqual([
       ['id', 'question-1'],

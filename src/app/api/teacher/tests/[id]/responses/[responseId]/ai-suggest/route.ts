@@ -5,6 +5,8 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherOwnsTest, validateSelectedTestStudentEnrollment } from '@/lib/server/tests'
 import {
   getTestOpenResponseGradingModel,
+  getTestOpenResponseReferenceFallbackModel,
+  buildTestOpenResponseReferenceCacheKey,
   prepareTestOpenResponseGradingContext,
   resolveReusableTestOpenResponseReferenceAnswers,
   suggestTestOpenResponseGradeWithContext,
@@ -16,9 +18,13 @@ import { createManualTestAiProvenanceToken } from '@/lib/server/test-ai-provenan
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const maxDuration = 300
 
 // POST /api/teacher/tests/[id]/responses/[responseId]/ai-suggest
 export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request, context) => {
+  // Bound both provider operations inside the route lifetime, including setup time.
+  const routeDeadlineMs = performance.now() + 270_000
+  const operationDeadline = () => Math.min(routeDeadlineMs, performance.now() + 130_000)
   const user = await requireRole('teacher')
   const { id: testId, responseId } = await context.params
 
@@ -118,6 +124,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     questionText: String(question.question_text || ''),
     maxPoints: Number(question.points ?? 0),
     model: currentModel,
+    fallbackModel: getTestOpenResponseReferenceFallbackModel(),
     isCodingQuestion: question.response_monospace === true,
     cacheKey:
       typeof question.ai_reference_cache_key === 'string'
@@ -145,18 +152,24 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
       resolvedStrategy: 'single',
     },
     sanitizationContext,
+    deadlineMs: operationDeadline(),
   })
 
   if (
     prepared.grading_basis === 'generated_reference' &&
-    prepared.reference_answers_source === 'generated'
+    prepared.reference_answers_source === 'generated' &&
+    prepared.reference_answers_model
   ) {
     const { error: cacheUpdateError } = await supabase
       .from('test_questions')
       .update({
-        ai_reference_cache_key: referenceCache.expectedCacheKey,
+        ai_reference_cache_key: buildTestOpenResponseReferenceCacheKey({
+          testTitle: access.test.title, questionText: String(question.question_text || ''),
+          maxPoints: Number(question.points ?? 0), model: prepared.reference_answers_model,
+          isCodingQuestion: question.response_monospace === true,
+        }),
         ai_reference_cache_answers: prepared.reference_answers,
-        ai_reference_cache_model: prepared.model,
+        ai_reference_cache_model: prepared.reference_answers_model,
         ai_reference_cache_generated_at: new Date().toISOString(),
       })
       .eq('id', question.id)
@@ -172,7 +185,7 @@ export const POST = withErrorHandler('AiSuggestTeacherTestGrade', async (request
     feature: 'test_ai_suggest',
     requestedStrategy: 'manual',
     resolvedStrategy: 'single',
-  })
+  }, undefined, undefined, operationDeadline())
   const responseRevision = Number(responseRow.revision)
   if (!Number.isSafeInteger(responseRevision) || responseRevision < 1) {
     return NextResponse.json({ error: 'Response revision is unavailable' }, { status: 409 })

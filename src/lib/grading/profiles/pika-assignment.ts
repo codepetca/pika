@@ -4,7 +4,7 @@ import type { GradingProfile } from '@/lib/grading/profiles/types'
 export const PIKA_ASSIGNMENT_GRADING_PROFILE_VERSION = 'pika-assignment-v2'
 export const PIKA_ASSIGNMENT_PROMPT_VERSION = 'pika-assignment-prompt-v4'
 export const PIKA_ASSIGNMENT_RUBRIC_VERSION = 'pika-essay-ctw-v2'
-export const PIKA_ASSIGNMENT_POLICY_VERSION = 'pika-grading-policy-v3'
+export const PIKA_ASSIGNMENT_POLICY_VERSION = 'pika-grading-policy-v4'
 
 // Presentation is the only part of Workflow the grader judges; timeliness and
 // authenticity come from save history in workflow-process.ts.

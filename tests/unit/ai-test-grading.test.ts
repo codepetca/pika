@@ -20,12 +20,14 @@ describe('suggestTestOpenResponseGrade', () => {
   const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     process.env.DEEPSEEK_API_KEY = 'test-key'
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
     process.env.DEEPSEEK_API_KEY = originalApiKey
+    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -341,7 +343,7 @@ describe('suggestTestOpenResponseGrade', () => {
       gradingRequestId: expect.any(String),
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-test-open-response-policy-v8',
+      policyVersion: 'pika-test-open-response-policy-v9',
       promptVersion: 'pika-test-open-response-manual-prompt-v4',
       gradingProfileVersion: 'pika-test-open-response-v1',
       rubricVersion: 'pika-test-open-response-rubric-v1',
@@ -603,12 +605,14 @@ describe('prepared test grading context', () => {
   const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     process.env.DEEPSEEK_API_KEY = 'test-key'
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
     process.env.DEEPSEEK_API_KEY = originalApiKey
+    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -680,12 +684,14 @@ describe('suggestTestOpenResponseGradesBatch', () => {
   const originalApiKey = process.env.DEEPSEEK_API_KEY
 
   beforeEach(() => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     process.env.DEEPSEEK_API_KEY = 'test-key'
     vi.stubGlobal('fetch', vi.fn())
   })
 
   afterEach(() => {
     process.env.DEEPSEEK_API_KEY = originalApiKey
+    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
   })
@@ -978,5 +984,52 @@ describe('open-response reference cache helpers', () => {
     }
 
     expect(manualMetrics.total).toBeGreaterThan(bulkMetrics.total)
+  })
+})
+
+describe('grading provider fallback provenance', () => {
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+
+  it('records the successful model for generated references and grades after spend-limit fallback', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+    vi.stubEnv('OPENAI_API_KEY', 'openai-test')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'deepseek-test')
+    vi.stubEnv('OPENAI_GRADING_MODEL', 'openai-test-model')
+    vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'deepseek-test-model')
+    const limit = () => new Response(JSON.stringify({ error: { code: 'project_spend_limit_exceeded' } }), { status: 429 })
+    const output = (content: string) => new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(limit())
+      .mockResolvedValueOnce(output('{"reference_answers":["Reference"]}'))
+      .mockResolvedValueOnce(limit())
+      .mockResolvedValueOnce(output('{"score":4,"feedback":"Good."}')))
+    const prepared = await prepareTestOpenResponseGradingContext({ testTitle: 'Test', questionText: 'Question', maxPoints: 5 })
+    expect(prepared.reference_answers_model).toBe('deepseek-test-model')
+    const result = await suggestTestOpenResponseGradeWithContext(prepared, 'Answer')
+    expect(result.model).toBe('deepseek-test-model')
+    expect(result.provenance).toMatchObject({ provider: 'deepseek', model: 'deepseek-test-model' })
+  })
+
+  it('reuses only a matching allowed fallback model and matching cache key', () => {
+    const base = { testTitle: 'Test', questionText: 'Question', maxPoints: 5, model: 'openai-model', fallbackModel: 'deepseek-model' }
+    const key = buildTestOpenResponseReferenceCacheKey({ ...base, model: 'deepseek-model' })
+    expect(resolveReusableTestOpenResponseReferenceAnswers({ ...base, cacheKey: key, cacheModel: 'deepseek-model', cacheAnswers: ['Reference'] }).cacheHit).toBe(true)
+    expect(resolveReusableTestOpenResponseReferenceAnswers({ ...base, fallbackModel: null, cacheKey: key, cacheModel: 'deepseek-model', cacheAnswers: ['Reference'] }).cacheHit).toBe(false)
+    expect(resolveReusableTestOpenResponseReferenceAnswers({ ...base, cacheKey: 'wrong', cacheModel: 'deepseek-model', cacheAnswers: ['Reference'] }).cacheHit).toBe(false)
+  })
+})
+
+describe('provider fallback deadline', () => {
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals() })
+  it('does not start DeepSeek after the shared deadline expires during OpenAI', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+    vi.stubEnv('OPENAI_API_KEY', 'openai-test')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'deepseek-test')
+    vi.spyOn(performance, 'now').mockReturnValueOnce(100).mockReturnValue(201)
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code: 'project_spend_limit_exceeded' } }), { status: 429 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const prepared = buildTestOpenResponsePreparedContext({ testTitle: 'Test', questionText: 'Question', maxPoints: 5, answerKey: 'Key' })
+    await expect(suggestTestOpenResponseGradeWithContext(prepared, 'Answer', undefined, 60_000, undefined, 200))
+      .rejects.toMatchObject({ kind: 'timeout', retryable: true })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

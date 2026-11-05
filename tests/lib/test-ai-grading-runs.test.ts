@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { expectContentFreeDiagnostic, privateDiagnosticError } from '../helpers/diagnostics'
 import { inspect } from 'node:util'
+import { AIOutboundDisabledError } from '@/lib/ai-outbound-gate'
 
 const {
   mockLoadClassroomAiSanitizationContext,
@@ -35,7 +36,9 @@ vi.mock('@/lib/server/ai-sanitization', () => ({
 }))
 
 vi.mock('@/lib/ai-test-grading', () => ({
+  getTestOpenResponseReferenceFallbackModel: () => 'deepseek-flash',
   getTestOpenResponseGradingModel: vi.fn(() => 'gpt-5-nano'),
+  buildTestOpenResponseReferenceCacheKey: ({ model }: { model: string }) => `key-${model}`,
   isRetryableTestAiGradingError: vi.fn(() => false),
   prepareTestOpenResponseGradingContext,
   resolveReusableTestOpenResponseReferenceAnswers,
@@ -127,7 +130,7 @@ function buildTickHarness(opts: {
   responseUpdateErrors?: Record<string, { code?: string; message: string }>
   loseLeaseOnFinalize?: boolean
   changeQuestionBeforeFinalize?: boolean
-  questionAnswerKey?: string
+  questionAnswerKey?: string | null
   missingQuestion?: boolean
   referenceCacheError?: unknown
 }) {
@@ -178,7 +181,7 @@ function buildTickHarness(opts: {
     question_text: 'Explain the runtime.',
     points: 5,
     response_monospace: false,
-    answer_key: opts.questionAnswerKey ?? 'Use a hash map.',
+    answer_key: opts.questionAnswerKey === undefined ? 'Use a hash map.' : opts.questionAnswerKey,
     sample_solution: null,
     ai_reference_cache_key: 'cache-key',
     ai_reference_cache_answers: ['Use a hash map.'],
@@ -383,7 +386,10 @@ function buildTickHarness(opts: {
       const cacheUpdateChain = { eq: vi.fn(), error: opts.referenceCacheError ?? null }
       cacheUpdateChain.eq.mockReturnValue(cacheUpdateChain)
       return {
-        update: vi.fn(() => cacheUpdateChain),
+        update: vi.fn((payload: Record<string, unknown>) => {
+          if (!opts.referenceCacheError) Object.assign(question, payload)
+          return cacheUpdateChain
+        }),
         select: vi.fn(() => ({
           eq: vi.fn((field: string, value: string) => ({
             eq: vi.fn(async (innerField: string, innerValue: string) => ({
@@ -420,7 +426,7 @@ function buildTickHarness(opts: {
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { items, responses, run }
+  return { items, responses, run, question }
 }
 
 describe('tickTestAiGradingRun', () => {
@@ -439,6 +445,73 @@ describe('tickTestAiGradingRun', () => {
       referenceAnswers: ['Use a hash map.'],
     })
     prepareTestOpenResponseGradingContext.mockReset().mockResolvedValue(buildPreparedContext())
+  })
+
+  it('leaves queued work untouched while outbound AI is disabled', async () => {
+    vi.stubEnv('PIKA_AI_API_ENABLED', 'false')
+    try {
+      const { items } = buildTickHarness({ responseRows: [{ id: 'response-1', response_text: 'Answer' }] })
+      const result = await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(result.claimed).toBe(false)
+      expect(items[0]).toMatchObject({ status: 'queued', attempt_count: 0 })
+      expect(prepareTestOpenResponseGradingContext).not.toHaveBeenCalled()
+    } finally { vi.unstubAllEnvs() }
+  })
+
+  it('restores the retry count if the stop activates after admission', async () => {
+    const { items } = buildTickHarness({ responseRows: [{ id: 'response-1', response_text: 'Answer' }] })
+    prepareTestOpenResponseGradingContext.mockRejectedValueOnce(new AIOutboundDisabledError())
+    await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+    expect(items[0]).toMatchObject({ status: 'queued', attempt_count: 0 })
+  })
+
+  it('reuses references generated after a legacy run changes providers, even when generation fills the tick', async () => {
+    const { items, run, question } = buildTickHarness({
+      questionAnswerKey: null,
+      responseRows: [
+        { id: 'response-1', response_text: 'Answer one' },
+        { id: 'response-2', response_text: 'Answer two' },
+      ],
+    })
+    run.model = 'deepseek-flash'
+    let now = 0
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now)
+    resolveReusableTestOpenResponseReferenceAnswers.mockImplementation((input) => {
+      const hit = input.cacheKey === `key-${input.model}` && input.cacheModel === input.model
+      return { expectedCacheKey: `key-${input.model}`, cacheHit: hit,
+        referenceAnswers: hit ? input.cacheAnswers : null }
+    })
+    prepareTestOpenResponseGradingContext.mockImplementation(async (input) => {
+      if (!input.referenceAnswers) {
+        // A plausible 20-second reference call leaves too little room for another
+        // worst-case provider operation in this tick.
+        now += 20_000
+        return { ...buildPreparedContext(), grading_basis: 'generated_reference',
+          reference_answers_source: 'generated', reference_answers_model: 'gpt-5-nano',
+          reference_answers: ['New reference'] }
+      }
+      return { ...buildPreparedContext(), grading_basis: 'generated_reference',
+        reference_answers_source: 'provided', reference_answers: input.referenceAnswers }
+    })
+    suggestTestOpenResponseGradeWithContext.mockResolvedValue({
+      score: 4, feedback: 'Good.', model: 'gpt-5-nano', grading_basis: 'generated_reference',
+      reference_answers: ['New reference'], provenance: gradingProvenance,
+    })
+    try {
+      await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(question.ai_reference_cache_key).toBe('key-gpt-5-nano')
+      expect(question.ai_reference_cache_model).toBe('gpt-5-nano')
+      expect(items.map((item) => item.attempt_count)).toEqual([1, 1])
+      expect(suggestTestOpenResponseGradeWithContext).not.toHaveBeenCalled()
+      now = 0
+      await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
+      expect(resolveReusableTestOpenResponseReferenceAnswers).toHaveBeenLastCalledWith(
+        expect.objectContaining({ model: 'gpt-5-nano', cacheModel: 'gpt-5-nano' }),
+      )
+      expect(prepareTestOpenResponseGradingContext.mock.calls[1][0].referenceAnswers).toEqual(['New reference'])
+      expect(items.map((item) => item.status)).toEqual(['completed', 'completed'])
+      expect(suggestTestOpenResponseGradeWithContext).toHaveBeenCalledTimes(2)
+    } finally { clock.mockRestore() }
   })
 
   it('keeps already-completed items completed when a later sibling save fails', async () => {
@@ -529,6 +602,7 @@ describe('tickTestAiGradingRun', () => {
       ...buildPreparedContext(),
       grading_basis: 'generated_reference',
       reference_answers_source: 'generated',
+      reference_answers_model: 'deepseek-flash',
     })
     suggestTestOpenResponseGradesBatchWithContext.mockResolvedValueOnce(['response-1', 'response-2'].map((responseId) => ({
       responseId, score: 5, feedback: 'Correct.', model: 'gpt-5-nano',
@@ -606,7 +680,7 @@ describe('tickTestAiGradingRun', () => {
     let recordedAtPreparation: number | undefined
     prepareTestOpenResponseGradingContext.mockImplementation(async () => {
       recordedAtPreparation = items[0].attempt_count
-      return { ...buildPreparedContext(), grading_basis: 'generated_reference', reference_answers_source: 'generated' }
+      return { ...buildPreparedContext(), grading_basis: 'generated_reference', reference_answers_source: 'generated', reference_answers_model: 'deepseek-flash' }
     })
     suggestTestOpenResponseGradeWithContext.mockResolvedValue({
       score: 5, feedback: 'Correct.', model: 'gpt-5-nano',
@@ -628,7 +702,7 @@ describe('tickTestAiGradingRun', () => {
     const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
     prepareTestOpenResponseGradingContext.mockImplementation(async () => {
       clock.mockReturnValue(140_000)
-      return { ...buildPreparedContext(), grading_basis: 'generated_reference', reference_answers_source: 'generated' }
+      return { ...buildPreparedContext(), grading_basis: 'generated_reference', reference_answers_source: 'generated', reference_answers_model: 'deepseek-flash' }
     })
     await tickTestAiGradingRun({ testId: 'test-1', runId: 'run-1' })
 
@@ -781,6 +855,7 @@ describe('tickTestAiGradingRun', () => {
     const actual = await vi.importActual<typeof import('@/lib/ai-test-grading')>('@/lib/ai-test-grading')
     const privateMarker = 'PRIVATE student@example.invalid code-123456 student-work'
     const originalApiKey = process.env.DEEPSEEK_API_KEY
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     process.env.DEEPSEEK_API_KEY = 'synthetic-key'
     const rows = failure === 'unknown'
       ? [{ response_id: privateMarker, score: 5, feedback: 'Synthetic feedback' }]
@@ -812,6 +887,7 @@ describe('tickTestAiGradingRun', () => {
       expect(JSON.stringify(items)).not.toContain(privateMarker)
       expect(JSON.stringify(result)).not.toContain(privateMarker)
     } finally {
+      vi.unstubAllEnvs()
       process.env.DEEPSEEK_API_KEY = originalApiKey
       suggestTestOpenResponseGradesBatchWithContext.mockReset()
       if (originalImplementation) suggestTestOpenResponseGradesBatchWithContext.mockImplementation(originalImplementation)

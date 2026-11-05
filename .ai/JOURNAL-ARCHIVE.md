@@ -51706,3 +51706,65 @@ scheduled-date display changes remain intact; no UI or SQL behavior changed here
 Earlier GHCR setup failures remain historical. Focused integration checks and a
 proportional independent delta review precede fresh reviewed-head CI. Existing70,
 provider/schema/release holds and paused goal/DeepSeek remain unchanged.
+
+<!-- pika-session-log-archive-batch:f6066c139be4a0c02e39f2e454dc4dabe7e70db97fc28d0bc0037da2d734549a -->
+## 2026-10-27 Restore isolated CI image authentication after quota failures
+
+#1699's current-base build22626 tests, primary SDK and browser matrix passed; five
+other lanes failed ECR image startup in attempts1/3; one serialized attempt2
+failed identically. Kept failed evidence. Normal bounded GHCR Postgres17.6.1.132 pull succeeded
+locally; cache reuse is possible and final CI is still required. Returned draft
+before restoring the previously reviewed GHCR workflow and exact auth/drift tests,
+retaining historical ECR coverage. Registry helper/parser/native guards and every
+noncredential lane step stay unchanged. No SQL, product/UI, version, deadline,
+provider, shared schema, release or70-account configuration changes. Goal/DeepSeek
+remain paused. Targeted checks, focused gate and independent delta review precede
+one stable ready event; no registry fallback or automatic extra retry is added.
+
+## 2026-10-27 Independent calendar post dates
+
+Owner clarified: calendar placement is independent of release, superseding Oct26's
+future-date-as-schedule interpretation (never deployed). PR1695 returned to draft.
+Calendar date defaults today for new posts; past/future edits retain Post/Save.
+Release metadata says Releases; Schedule retains explicit release timing. New,
+draft, posted and scheduled editors retain independent placement. Student lists
+keep published content; every Calendar view applies the server advance horizon
+for announcements/materials, failing closed while unconfirmed. Test exceptions
+remain navigation-only. Existing Material/announcement owners and Pattern Lab
+are reference; reuse FormField/Input/SplitButton, extend feature adapters; no new
+shared visual pattern or dependency. Composite labels/hints/actions and existing
+keyboard/focus contracts retained. Risk none; review high (schema/owner RPCs).
+
+294 adds nullable posted_on and atomic create wrappers. No backfill or historical
+SQL edits. Existing locks/immutable/after-row/ACL guards retained; null mutation
+keys omitted for legacy decoders. Coordinate app/migration rollout; no shared or
+production application authorized. Shared local history292 and normalized schema
+unchanged. Private001–294 replay, rollback/tamper/atomic/date/state/ACL proofs and
+type equality PASS /tmp/pika-material-post-date.Op5td6; all owned clones removed.
+Source seal7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3.
+
+Initial focused5733/175 + static PASS. Added coverage passes175 source/list and175
+interaction tests; corrected browser inventory count and235 regression recheck
+PASS. Final focused gate/review/CI receipts follow in PR1695. Twelve Playwright
+matrix cases PASS across teacher/student1440x900/390x844 light/dark; additional
+new/draft/scheduled editor captures inspected. Evidence /tmp/pika-calendar-post-
+placement-browser, /tmp/pika-calendar-visibility-probe, /tmp/pika-calendar-visibility-
+final and /tmp/pika-post-placement-editor-states-final (desktop-light probes named
+similarly); montage /tmp/pika-calendar-post-placement-matrix.png. Current candidate
+source, synthetic production-owner fixtures, Playwright1.58, localhost3127; calendar
+clock fixed Oct20 for window proof. No live classroom mutation or shared env edit.
+Coordinator edits/API; Sol-medium worker calendar adapter/read tests, Sol-high
+worker SQL/profiles/types; verified deliveries. Weekly remaining82%; DeepSeek pause
+honored. Effective configs, attributable effort/tokens unknown; no savings claim.
+
+Two independent Sol-high full reviews of559ff277e completed their app/compatibility
+and SQL/security scopes, finding one deduplicated blocker: untouched displayed
+dates were omitted during draft/schedule publication changes. Batch1 persists the
+visible date in both editors, including legacy null-date publication transitions.
+Default schedule, draft creation/reopen across midnight and scheduled Post now
+regressions reproduce before correction;217 affected tests, TypeScript and lint
+PASS afterward. Private SQL proof and unchanged visual matrix remain applicable.
+Fresh12 browser editor scenarios PASS across desktop/mobile light/dark; screenshots
+inspected under /tmp/pika-post-date-remediation-browser. Staged audit PASS; composite
+keyboard/focus coverage retained. Default date metadata also respects fixture actions.
+Final focused gate, targeted and cumulative review receipts follow in PR1695.

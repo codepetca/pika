@@ -5,6 +5,16 @@ import {
   gradeRepoReviewFeedback,
 } from '@/lib/repo-review-ai'
 
+vi.mock('@/lib/ai-grading-provider', async () => {
+  const { createDeepSeekChatProvider } = await import('@/lib/grading/providers/deepseek-chat')
+  return {
+    getGradingModel: () => 'deepseek-flash',
+    createGradingProvider: () => process.env.DEEPSEEK_API_KEY
+      ? createDeepSeekChatProvider({ apiKey: process.env.DEEPSEEK_API_KEY })
+      : { id: 'deepseek', generate: async () => { throw new Error('Unconfigured') } },
+  }
+})
+
 describe('repo-review AI egress', () => {
   const originalFetch = global.fetch
   const originalApiKey = process.env.DEEPSEEK_API_KEY
@@ -153,7 +163,7 @@ describe('repo-review AI egress', () => {
       schemaVersion: 'assignment-grading-provenance-v1',
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-repo-review-feedback-policy-v2',
+      policyVersion: 'pika-repo-review-feedback-policy-v3',
       promptVersion: 'pika-repo-review-feedback-prompt-v1',
       gradingProfileVersion: 'pika-repo-review-feedback-v1',
       rubricVersion: 'pika-repo-review-rubric-v1',

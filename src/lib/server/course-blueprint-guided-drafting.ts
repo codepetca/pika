@@ -1,3 +1,4 @@
+import { assertAIOutboundEnabled } from '@/lib/ai-outbound-gate'
 import { z } from 'zod'
 import type { CourseBlueprintDetail, TestDraftContent } from '@/types'
 import { resolveCourseBlueprintAuthoringContext } from '@/lib/course-blueprint-authoring-context'
@@ -211,6 +212,7 @@ async function requestGuidedDraft(args: {
   }
 
   let response: Response
+  assertAIOutboundEnabled()
   try {
     response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',

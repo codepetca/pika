@@ -2,6 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { gradeStudentWork, hasGradableAssignmentSubmission } from '@/lib/ai-grading'
 import { buildAiSanitizationContext } from '@/lib/ai-sanitization'
 
+// Exercise the existing prompt and adapter cases with their original provider;
+// routing itself is covered separately by the provider-router tests.
+vi.mock('@/lib/ai-grading-provider', async () => {
+  const { createDeepSeekChatProvider } = await import('@/lib/grading/providers/deepseek-chat')
+  return {
+    getGradingModel: () => 'deepseek-flash',
+    createGradingProvider: () => createDeepSeekChatProvider({ apiKey: process.env.DEEPSEEK_API_KEY || '' }),
+  }
+})
+
 describe('gradeStudentWork prompt rules', () => {
   const originalApiKey = process.env.DEEPSEEK_API_KEY
 
@@ -48,7 +58,7 @@ describe('gradeStudentWork prompt rules', () => {
     expect(result.grading_profile_version).toBe('pika-assignment-v2')
     expect(result.rubric_version).toBe('pika-essay-ctw-v2')
     expect(result.prompt_version).toBe('pika-assignment-prompt-v4')
-    expect(result.policy_version).toBe('pika-grading-policy-v3')
+    expect(result.policy_version).toBe('pika-grading-policy-v4')
     expect(result.provider).toBe('deepseek')
     expect(result.token_usage).toEqual({
       input_tokens: 120,
@@ -59,7 +69,7 @@ describe('gradeStudentWork prompt rules', () => {
       schemaVersion: 'assignment-grading-provenance-v1',
       provider: 'deepseek',
       model: 'deepseek-flash',
-      policyVersion: 'pika-grading-policy-v3',
+      policyVersion: 'pika-grading-policy-v4',
       promptVersion: 'pika-assignment-prompt-v4',
       gradingProfileVersion: 'pika-assignment-v2',
       rubricVersion: 'pika-essay-ctw-v2',

@@ -42,13 +42,13 @@ import {
   PIKA_TEST_SINGLE_GRADE_OUTPUT,
   resolvePikaTestPromptGuideline,
 } from '@/lib/grading/profiles/pika-test-open-response'
-import { createDeepSeekChatProvider } from '@/lib/grading/providers/deepseek-chat'
+import { createGradingProvider, getGradingModel } from '@/lib/ai-grading-provider'
+import { AIOutboundDisabledError } from '@/lib/ai-outbound-gate'
 import {
   GradingProviderError,
   type StructuredOutputRequest,
 } from '@/lib/grading/providers/types'
 
-const DEFAULT_MODEL = 'deepseek-flash'
 const MAX_REFERENCE_ANSWERS = 3
 const TEST_AI_REASONING_EFFORT = 'medium'
 // 25s was set when a test grade was capped at 220 output tokens. DeepSeek now thinks at
@@ -108,6 +108,7 @@ export interface TestOpenResponsePreparedContext {
   grading_basis: TestAiGradingBasis
   reference_answers: string[]
   reference_answers_source: ReferenceAnswerSource
+  reference_answers_model?: string | null
   answerKey: string | null
   sampleSolution: string | null
   scoreBuckets: number[] | null
@@ -151,22 +152,16 @@ export interface TestOpenResponseBatchSuggestion extends TestOpenResponseSuggest
   responseId: string
 }
 
-function requireDeepSeekKey(): string {
-  const key = process.env.DEEPSEEK_API_KEY
-  const trimmed = key?.trim()
-  if (trimmed) return trimmed
-  throw new TestAiGradingError({
-    kind: 'config',
-    message: 'AI grading is not configured.',
-    retryable: false,
-  })
-}
-
 export function getTestOpenResponseGradingModel(): string {
-  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || DEFAULT_MODEL
+  try {
+    return getGradingModel()
+  } catch (error) {
+    throw toTestAiGradingError(error)
+  }
 }
 
-function toTestAiGradingError(error: unknown): TestAiGradingError {
+function toTestAiGradingError(error: unknown): TestAiGradingError | AIOutboundDisabledError {
+  if (error instanceof AIOutboundDisabledError) return error
   if (error instanceof TestAiGradingError) {
     return error
   }
@@ -215,13 +210,13 @@ function toTestAiGradingError(error: unknown): TestAiGradingError {
 }
 
 async function callProviderForJson(opts: {
-  apiKey: string
   model: string
   systemPrompt: string
   userPrompt: string
   output: StructuredOutputSpec
   parseOutput(outputText: string): unknown
   requestTimeoutMs?: number
+  deadlineMs?: number
   // Calibration tooling varies this to measure what reasoning effort buys.
   // Production leaves it unset and gets TEST_AI_REASONING_EFFORT.
   reasoningEffort?: StructuredOutputRequest['reasoningEffort']
@@ -232,11 +227,12 @@ async function callProviderForJson(opts: {
 }> {
   try {
     const result = await executeStructuredOutput({
-      provider: createDeepSeekChatProvider({ apiKey: opts.apiKey }),
+      provider: createGradingProvider(),
       policy: {
         version: PIKA_TEST_OPEN_RESPONSE_POLICY_VERSION,
         model: opts.model,
         requestTimeoutMs: opts.requestTimeoutMs ?? TEST_AI_REQUEST_TIMEOUT_MS,
+        deadlineMs: opts.deadlineMs,
         reasoningEffort: opts.reasoningEffort ?? TEST_AI_REASONING_EFFORT,
         allowEffortDowngrade: false,
       },
@@ -372,13 +368,14 @@ function logTestPromptTelemetry(input: {
   prepared: TestOpenResponsePreparedContext
   promptMetrics: AiPromptMetrics
   usage: OpenAIResponseUsage
+  model?: string
   responseCount: number
   operation: 'reference_generation' | 'single_grade' | 'batch_grade'
 }) {
   logAiPromptTelemetry({
     feature: input.telemetryContext.feature,
     operation: input.operation,
-    model: input.prepared.model,
+    model: input.model ?? input.prepared.model,
     promptProfile: input.prepared.promptProfile,
     runId: input.telemetryContext.runId ?? null,
     studentId: input.telemetryContext.studentId ?? null,
@@ -424,6 +421,13 @@ export function buildTestOpenResponseReferenceCacheKey(input: {
   return createHash('sha256').update(payload).digest('hex')
 }
 
+// An OpenAI spend-limit fallback may generate references with DeepSeek. Reuse those
+// under their actual identity on later ticks, so a long reference call cannot starve a run.
+export function getTestOpenResponseReferenceFallbackModel(): string | null {
+  const mode = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'deepseek'
+  return mode === 'openai' ? process.env.DEEPSEEK_GRADING_MODEL?.trim() || 'deepseek-flash' : null
+}
+
 export function resolveReusableTestOpenResponseReferenceAnswers(input: {
   testTitle: string
   questionText: string
@@ -433,6 +437,7 @@ export function resolveReusableTestOpenResponseReferenceAnswers(input: {
   cacheKey?: string | null
   cacheAnswers?: unknown
   cacheModel?: string | null
+  fallbackModel?: string | null
 }): TestOpenResponseReferenceCacheResolution {
   const expectedCacheKey = buildTestOpenResponseReferenceCacheKey({
     testTitle: input.testTitle,
@@ -443,7 +448,12 @@ export function resolveReusableTestOpenResponseReferenceAnswers(input: {
   })
 
   const normalizedCacheModel = typeof input.cacheModel === 'string' ? input.cacheModel.trim() : ''
-  if (input.cacheKey !== expectedCacheKey || normalizedCacheModel !== input.model.trim()) {
+  const allowedModels = [input.model.trim(), input.fallbackModel?.trim()].filter(Boolean)
+  const actualCacheKey = buildTestOpenResponseReferenceCacheKey({
+    testTitle: input.testTitle, questionText: input.questionText, maxPoints: input.maxPoints,
+    model: normalizedCacheModel, isCodingQuestion: input.isCodingQuestion,
+  })
+  if (!allowedModels.includes(normalizedCacheModel) || input.cacheKey !== actualCacheKey) {
     return { expectedCacheKey, cacheHit: false, referenceAnswers: null }
   }
 
@@ -459,7 +469,6 @@ export function resolveReusableTestOpenResponseReferenceAnswers(input: {
 }
 
 async function generateReferenceAnswers(opts: {
-  apiKey: string
   model: string
   testTitle: string
   questionText: string
@@ -468,8 +477,9 @@ async function generateReferenceAnswers(opts: {
   promptProfile: TestOpenResponsePromptProfile
   telemetryContext: TestOpenResponseTelemetryContext
   requestTimeoutMs?: number
+  deadlineMs?: number
   sanitizationContext?: AiSanitizationContext | null
-}): Promise<string[]> {
+}): Promise<{ referenceAnswers: string[]; model: string }> {
   const sanitizeOptions = opts.sanitizationContext ?? undefined
   const { systemPrompt, userPrompt } = buildPikaTestReferencePrompt({
     testTitle: sanitizeAiText(opts.testTitle, sanitizeOptions),
@@ -479,24 +489,25 @@ async function generateReferenceAnswers(opts: {
   })
 
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
-  const { parsed, usage } = await callProviderForJson({
-    apiKey: opts.apiKey,
+  const { parsed, usage, execution } = await callProviderForJson({
     model: opts.model,
     systemPrompt,
     userPrompt,
     output: PIKA_TEST_REFERENCE_OUTPUT,
     parseOutput: parsePikaTestReferenceOutput,
     requestTimeoutMs: opts.requestTimeoutMs,
+    deadlineMs: opts.deadlineMs,
   })
 
   const referenceAnswers = normalizeReferenceAnswers(parsed?.reference_answers)
   const previewContext = buildTestOpenResponsePreparedContext({
-    model: opts.model,
+    model: execution.model,
     testTitle: opts.testTitle,
     questionText: opts.questionText,
     maxPoints: opts.maxPoints,
     referenceAnswers,
     referenceAnswersSource: 'generated',
+    referenceAnswersModel: execution.model,
     responseMonospace: opts.isCodingQuestion,
     promptProfile: opts.promptProfile,
     sanitizationContext: opts.sanitizationContext,
@@ -511,7 +522,7 @@ async function generateReferenceAnswers(opts: {
     operation: 'reference_generation',
   })
 
-  return referenceAnswers
+  return { referenceAnswers, model: execution.model }
 }
 
 export function buildTestOpenResponsePreparedContext(input: {
@@ -523,6 +534,7 @@ export function buildTestOpenResponsePreparedContext(input: {
   sampleSolution?: string | null
   referenceAnswers?: string[] | null
   referenceAnswersSource?: ReferenceAnswerSource
+  referenceAnswersModel?: string | null
   responseMonospace?: boolean
   scoreBuckets?: number[] | null
   promptGuidelineOverride?: string | null
@@ -592,6 +604,7 @@ export function buildTestOpenResponsePreparedContext(input: {
     grading_basis: gradingBasis,
     reference_answers: gradingBasis === 'teacher_key' ? [] : normalizedReferenceAnswers,
     reference_answers_source: referenceAnswerSource,
+    reference_answers_model: input.referenceAnswersModel ?? null,
     answerKey,
     sampleSolution,
     scoreBuckets,
@@ -643,12 +656,9 @@ export async function generateTestOpenResponseReferences(input: {
   maxPoints: number
   responseMonospace?: boolean
 }): Promise<TestOpenResponseReferences> {
-  const apiKey = requireDeepSeekKey()
-
   const model = getTestOpenResponseGradingModel()
   const maxPoints = Math.max(0, input.maxPoints)
-  const referenceAnswers = await generateReferenceAnswers({
-    apiKey,
+  const generated = await generateReferenceAnswers({
     model,
     testTitle: input.testTitle,
     questionText: input.questionText,
@@ -663,8 +673,8 @@ export async function generateTestOpenResponseReferences(input: {
   })
 
   return {
-    reference_answers: referenceAnswers,
-    model,
+    reference_answers: generated.referenceAnswers,
+    model: generated.model,
   }
 }
 
@@ -681,6 +691,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
   promptProfile?: TestOpenResponsePromptProfile
   telemetryContext?: TestOpenResponseTelemetryContext
   requestTimeoutMs?: number
+  deadlineMs?: number
   sanitizationContext?: AiSanitizationContext | null
 }): Promise<TestOpenResponsePreparedContext> {
   const model = getTestOpenResponseGradingModel()
@@ -730,10 +741,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
     })
   }
 
-  const apiKey = requireDeepSeekKey()
-
-  const referenceAnswers = await generateReferenceAnswers({
-    apiKey,
+  const generated = await generateReferenceAnswers({
     model,
     testTitle: input.testTitle,
     questionText: input.questionText,
@@ -746,6 +754,7 @@ export async function prepareTestOpenResponseGradingContext(input: {
       resolvedStrategy: 'reference_generation',
     },
     requestTimeoutMs: input.requestTimeoutMs,
+    deadlineMs: input.deadlineMs,
     sanitizationContext: input.sanitizationContext,
   })
 
@@ -755,8 +764,9 @@ export async function prepareTestOpenResponseGradingContext(input: {
     questionText: input.questionText,
     maxPoints,
     sampleSolution,
-    referenceAnswers,
+    referenceAnswers: generated.referenceAnswers,
     referenceAnswersSource: 'generated',
+    referenceAnswersModel: generated.model,
     responseMonospace: input.responseMonospace,
     scoreBuckets: input.scoreBuckets,
     promptGuidelineOverride: input.promptGuidelineOverride,
@@ -786,13 +796,11 @@ export async function suggestTestOpenResponseGradeWithContext(
   telemetryContext?: TestOpenResponseTelemetryContext,
   requestTimeoutMs?: number,
   reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
+  deadlineMs?: number,
 ): Promise<TestOpenResponseSuggestion> {
-  const apiKey = requireDeepSeekKey()
-
   const userPrompt = buildTestOpenResponseSingleUserPrompt(prepared, responseText)
   const promptMetrics = estimatePromptMetrics(prepared.systemPrompt, userPrompt)
   const { parsed, usage, execution } = await callProviderForJson({
-    apiKey,
     model: prepared.model,
     systemPrompt: prepared.systemPrompt,
     userPrompt,
@@ -800,6 +808,7 @@ export async function suggestTestOpenResponseGradeWithContext(
     parseOutput: parsePikaTestSingleGradeOutput,
     requestTimeoutMs,
     reasoningEffort,
+    deadlineMs,
   })
 
   if (telemetryContext) {
@@ -808,6 +817,7 @@ export async function suggestTestOpenResponseGradeWithContext(
       prepared,
       promptMetrics,
       usage,
+      model: execution.model,
       responseCount: 1,
       operation: 'single_grade',
     })
@@ -827,7 +837,7 @@ export async function suggestTestOpenResponseGradeWithContext(
   return {
     score,
     feedback,
-    model: prepared.model,
+    model: execution.model,
     grading_basis: prepared.grading_basis,
     reference_answers: prepared.reference_answers,
     provenance: buildTestGradingProvenance({
@@ -847,7 +857,6 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   requestTimeoutMs?: number,
   reasoningEffort?: StructuredOutputRequest['reasoningEffort'],
 ): Promise<TestOpenResponseBatchSuggestion[]> {
-  const apiKey = requireDeepSeekKey()
   if (responses.length === 0) return []
   // Documented ceilings that nothing enforces are how the previous starvation happened.
   // Past this size the budget clamp gives each response less room, not more. Checked before
@@ -879,7 +888,6 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
   )
   const promptMetrics = estimatePromptMetrics(systemPrompt, userPrompt)
   const { parsed, usage, execution } = await callProviderForJson({
-    apiKey,
     model: prepared.model,
     systemPrompt,
     userPrompt,
@@ -895,6 +903,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
       prepared,
       promptMetrics,
       usage,
+      model: execution.model,
       responseCount: responses.length,
       operation: 'batch_grade',
     })
@@ -945,7 +954,7 @@ export async function suggestTestOpenResponseGradesBatchWithContext(
       responseId: response.responseId,
       score: result.score,
       feedback: result.feedback,
-      model: prepared.model,
+      model: execution.model,
       grading_basis: prepared.grading_basis,
       reference_answers: prepared.reference_answers,
       provenance,

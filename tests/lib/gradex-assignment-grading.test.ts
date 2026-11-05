@@ -120,6 +120,50 @@ describe('Gradex assignment grading processor', () => {
     counts: { requested: 2, processed: status === 'queued' ? 0 : 2, completed: status === 'queued' ? 0 : 1, failed: 0, skipped: 0, pending: status === 'queued' ? 2 : 0 },
     provider: null, model: null, tier: null, policy_version: null, prompt_version: null, items: [] })
 
+  it('defers stopped unsubmitted metered work without consuming attempts or releasing usage', async () => {
+    const { supabase, opts } = meteredSetup()
+    vi.stubEnv('PIKA_AI_API_ENABLED', 'false')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(supabase.itemUpdates).toHaveLength(2)
+    for (const update of supabase.itemUpdates) {
+      expect(update.payload).toMatchObject({ status: 'queued', attempt_count: 0, last_error_code: 'ai_outbound_disabled' })
+      expect(new Date(update.payload.next_retry_at).getTime()).toBeGreaterThan(Date.now())
+    }
+    expect(supabase.client.rpc.mock.calls.map(([name]) => name)).not.toContain('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1')
+    expect(mockBuildPikaAssignmentGradexRunPayload).toHaveBeenCalledTimes(1) // meteredSetup fixture only
+  })
+
+  it('rechecks the stop after durable preparation before sending a submission', async () => {
+    const { supabase, opts } = meteredSetup()
+    const original = supabase.client.rpc.getMockImplementation()!
+    supabase.client.rpc.mockImplementation(async (name, args) => {
+      const result = await original(name, args)
+      if (name === 'prepare_assignment_ai_gradex_submission_v1') process.env.PIKA_AI_API_ENABLED = 'false'
+      return result
+    })
+    vi.stubEnv('PIKA_AI_API_ENABLED', 'true')
+    const fetcher = vi.fn()
+    vi.stubGlobal('fetch', fetcher)
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).not.toHaveBeenCalled()
+    expect(supabase.itemUpdates.filter(({ payload }) => payload.last_error_code === 'ai_outbound_disabled')).toHaveLength(2)
+    expect(supabase.client.rpc.mock.calls.map(([name]) => name)).not.toContain('fail_assignment_ai_grading_item_and_release_usage_with_lease_v1')
+  })
+
+  it('continues polling an already-submitted Gradex run while stopped', async () => {
+    const { opts } = meteredSetup()
+    opts.run.gradex_run_id = 'remote-1'
+    vi.stubEnv('PIKA_AI_API_ENABLED', 'false')
+    const fetcher = vi.fn(async () => jsonResponse(200, remoteRun()))
+    vi.stubGlobal('fetch', fetcher)
+    await submitOrPollGradexAssignmentRun(opts)
+    expect(fetcher).toHaveBeenCalledOnce()
+    expect(String(fetcher.mock.calls[0][0])).toContain('/grading-runs/remote-1')
+  })
+
   it('sends only admitted metered items and their workflow evidence to Gradex', async () => {
     const { supabase, opts } = meteredSetup()
     const original = supabase.client.rpc.getMockImplementation()!

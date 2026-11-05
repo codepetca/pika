@@ -2141,6 +2141,23 @@ describe('TeacherTestsTab', () => {
     expect(listFetchCalls(fetchMock)).toHaveLength(1)
   })
 
+  it('shows a busy error inside the access confirmation so it can be retried', async () => {
+    fetchMock
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }) })
+      .mockResolvedValueOnce(makeResultsResponse({ testStatus: 'active' }))
+      .mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ error: 'Test is busy. Try again.' }) })
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(screen.getByRole('button', { name: 'Close All' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Close Access' }))
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Test is busy. Try again.')
+    const retry = within(dialog).getByRole('button', { name: 'Close Access' })
+    expect(retry).toBeEnabled()
+    await waitFor(() => expect(retry).toHaveFocus())
+  })
+
   it('confirms and closes access for all students from the selected test split button', async () => {
     fetchMock
       .mockResolvedValueOnce({
