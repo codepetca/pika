@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Prepare wider classroom admission design
-
-Prepared a proposal for one durable service-owned admission source, exact70
-bootstrap retention and staged expansion/new-user policy. Current Home/API each
-cap100; Bara also selects protocol behavior from admission. The plan requires
-Home/API consumer migration and frozen bootstrap provider-compatibility decisions
-before widening, with current nonadmitted behavior preserved too. New grants use
-atomic approved batches/growth stop; automatic signup stays off until separately
-approved. Rollout stages and exact-source recovery/verification gates are recorded;
-no code, SQL, cohort, plan, production or provider operation performed. Existing70,
-all other holds and paused goal/DeepSeek remain unchanged.
-
 ## 2026-10-27 Material owner calendar receipt proof correction
 
 Owner explicitly approved one additional correction batch/eighth targeted review,
@@ -239,3 +227,7 @@ Changed confirmed exhausted Test lock contention to “Test is busy. Try again.�
 ## 2026-11-04 Calendar empty lesson text
 
 Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+## 2026-11-05 Test roster intent loading
+
+Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.

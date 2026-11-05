@@ -169,6 +169,9 @@ vi.mock('@/components/layout', async () => {
             Go Tests
           </button>
         ) : null}
+        <button type="button" onMouseEnter={() => onTabIntent?.('roster')} onFocus={() => onTabIntent?.('roster')} onClick={() => onTabChange('roster')}>
+          Go Roster
+        </button>
         <button type="button" onClick={() => onTabChange('announcements')}>
           Go Announcements
         </button>
@@ -1399,6 +1402,35 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     } finally {
       fetchSpy.mockRestore()
     }
+  })
+
+  it('prefetches teacher roster only on intent, preserving the normal cache contract', async () => {
+    renderClient({ initialTab: 'announcements' })
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(mockPrefetchJSON.mock.calls.some(([key]) => String(key).startsWith('teacher-roster:'))).toBe(false)
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Roster' }))
+    const prefetch = mockPrefetchJSON.mock.calls.find(([key]) => key === 'teacher-roster:classroom-1')
+    expect(prefetch?.[2]).toBe(20_000)
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{"roster":[]}'))
+    try {
+      await expect(prefetch![1]()).resolves.toEqual({ roster: [] })
+      expect(fetchSpy).toHaveBeenCalledWith('/api/teacher/classrooms/classroom-1/roster')
+    } finally { fetchSpy.mockRestore() }
+  })
+
+  it.each([{ saveData: true }, { effectiveType: '2g' }, { effectiveType: 'slow-2g' }])('skips roster intent on constrained connections: %o', (connection) => {
+    Object.defineProperty(navigator, 'connection', { configurable: true, value: connection })
+    try {
+      renderClient({ initialTab: 'announcements' })
+      fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Roster' }))
+      expect(mockPrefetchJSON.mock.calls.some(([key]) => String(key).startsWith('teacher-roster:'))).toBe(false)
+    } finally { delete (navigator as Navigator & { connection?: unknown }).connection }
+  })
+
+  it('does not prefetch a teacher roster for a student', () => {
+    renderStudentClient({ initialTab: 'today' })
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'Go Roster' }))
+    expect(mockPrefetchJSON.mock.calls.some(([key]) => String(key).startsWith('teacher-roster:'))).toBe(false)
   })
 
   it('does not prefetch a hidden feature even when stale intent is emitted', async () => {
