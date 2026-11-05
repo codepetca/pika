@@ -2,6 +2,7 @@
 
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+import { usePersistentBoolean } from '@/hooks/usePersistentBoolean'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 import { executeRepoLightBatch, type RepoLightBatchProgress, type RepoLightBatchResult } from '@/lib/repolight-batch'
@@ -635,7 +636,7 @@ export function TeacherClassroomView({
   } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
-  const [reverseClassworkOrder, setReverseClassworkOrder] = useState(false)
+  const [reverseClassworkOrder, setReverseClassworkOrder] = usePersistentBoolean('teacher-classwork:reverse-order:v1', false)
   const classworkDragActiveRef = useRef(false)
 
   const sensors = useSensors(

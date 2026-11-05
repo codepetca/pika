@@ -235,3 +235,7 @@ teacher/classroom view, retry failed or expired intent reads, and discard the
 provisional list on authorization denial. The shared-admission full read remains
 unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
 no production timing or deployment is implied.
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
