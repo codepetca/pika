@@ -118,6 +118,7 @@ const getTestGradingStudentRowId = (studentId: string) => `test-grading-student-
 interface Props {
   classroom: Classroom
   testExperienceMode?: 'existing' | 'shared'
+  summaryCacheKey?: string
   testsTabClickToken?: number
   selectedTestId?: string | null
   selectedTestMode?: WorkspaceTab | null
@@ -429,6 +430,7 @@ function readUnpublishAcknowledgement(
 export function TeacherTestsTab({
   classroom,
   testExperienceMode = 'existing',
+  summaryCacheKey,
   testsTabClickToken = 0,
   selectedTestId: selectedTestIdProp,
   selectedTestMode,
@@ -578,6 +580,7 @@ export function TeacherTestsTab({
     selectedTestDraftSummary,
     apiBasePath,
     progressive: testExperienceMode === 'existing',
+    summaryCacheKey,
   })
   const handleRetryTests = useCallback(() => {
     testsRegionRef.current?.focus()
