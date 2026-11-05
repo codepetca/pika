@@ -249,8 +249,6 @@ export const LessonDayCell = memo(function LessonDayCell({
                     emptyPlaceholder={null}
                   />
                 )
-              ) : !nonClassDay ? (
-                <p className={`text-sm text-text-muted ${canEdit ? 'relative' : ''}`}>{canEdit ? 'No lesson planned' : 'No lesson posted'}</p>
               ) : null}
             </div>
           </div>

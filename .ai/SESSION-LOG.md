@@ -440,6 +440,11 @@ Observed production learner and owner busy errors during class tests. Prepared b
 ## 2026-11-04 — AI provider gate rebase
 
 Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
+
 ## 2026-11-04 Clarify busy Test errors
 
 Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
+
+## 2026-11-04 Calendar empty lesson text
+
+Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
