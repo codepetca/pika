@@ -40,12 +40,12 @@ describe('gradebook report archive', () => {
     expect(first).not.toContain('Second Student')
     expect(first).not.toContain('guardian@example.com')
   })
-  it('does not create a blank page for trailing spacing', async () => {
-    const item = { title: 'Short item', kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
-    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: Array(12).fill(item) }]))
+  it('does not create a trailing page containing only a disclaimer', async () => {
+    const item = { title: 'Short item', kind: 'Classwork' as const, categoryName: 'Term Work', earned: 18, possible: 20, percent: 90, included: true, isZeroWeight: false }
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 90, items: Array(10).fill(item) }]))
     const pages = extractText(Object.values(files)[0])
     expect(pages.length).toBeGreaterThan(0)
-    for (const page of pages) expect(page.text).toMatch(/Short item|progress snapshot/)
+    for (const page of pages) expect(page.text).toContain('Short item')
   })
   it('keeps long multilingual titles and later marks across pages', async () => {
     const title = '中文測驗'.repeat(600)
@@ -82,5 +82,19 @@ describe('gradebook report archive', () => {
     const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: null, items: [item] }]))
     const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
     expect(text).toContain('Does not count toward current grade')
+  })
+  it('exports an excluded assessment with a mixed right-to-left category', async () => {
+    const item = { title: 'Assessment', kind: 'Classwork' as const, categoryName: 'Knowledge and Understanding / ידע והבנה', earned: 18, possible: 20, percent: 90, included: false, isZeroWeight: false }
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: null, items: [item] }]))
+    const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
+    expect(text).toContain(item.categoryName)
+    expect(text).toContain('Does not count toward current grade')
+  })
+  it('wraps ordinary assessment titles at word boundaries when possible', async () => {
+    const item = { title: 'reading '.repeat(30).trim(), kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item] }]))
+    const lines = extractText(Object.values(files)[0]).flatMap((page) => page.text.split('\n')).filter((line) => line.startsWith('reading'))
+    expect(lines.length).toBeGreaterThan(1)
+    for (const line of lines) expect(line.trim()).toMatch(/^(reading\s*)+$/)
   })
 })
