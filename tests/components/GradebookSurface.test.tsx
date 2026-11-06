@@ -298,7 +298,7 @@ describe('Gradebook surface owners', () => {
     expect(new Set(dots.map((dot) => dot.getAttribute('cx'))).size).toBe(1)
     expect(new Set(dots.map((dot) => dot.getAttribute('cy'))).size).toBe(3)
     fireEvent.click(screen.getByRole('button', { name: '1 selected' }))
-    expect(within(screen.getByRole('menu', { name: 'Student actions' })).getByRole('menuitem', { name: 'Copy email 2' })).toBeDisabled()
+    expect(within(screen.getByRole('menu', { name: 'Student actions' })).getByRole('menuitem', { name: 'Copy guardian email' })).toBeDisabled()
   })
 
   it('keeps empty assessment space and keyboard student selection in the matrix', () => {

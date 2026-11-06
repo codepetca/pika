@@ -161,9 +161,9 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                   <div className="space-y-1">
                     <div>One student per line.</div>
                     <div className="font-semibold">
-                      [First name] [Last name] [Email] [<em>ID</em>] [<em>Email 2</em>]
+                      [First name] [Last name] [Email] [<em>ID</em>] [<em>Guardian email</em>]
                     </div>
-                    <div>ID and Email2 are optional</div>
+                    <div>ID and guardian email are optional</div>
                   </div>
                 }
                 variant="ghost"
@@ -208,7 +208,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                 rows={12}
                 aria-invalid={Boolean(parseResult?.errors.length)}
                 aria-describedby={parseResult?.errors.length ? 'roster-format-guidance' : undefined}
-                placeholder="Jane Doe jane@example.com [123456] [jane2@example.com]"
+                placeholder="Jane Doe jane@example.com [123456] [guardian@example.com]"
                 value={input}
                 onChange={(e) => {
                   const nextInput = e.target.value

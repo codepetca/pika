@@ -1349,6 +1349,8 @@ export interface GradebookAssessmentCell {
   assessment_id: string
   assessment_type: GradebookAssessmentType
   earned: number | null
+  /** Unrounded earned points for grade calculations; display uses earned. */
+  calculation_earned?: number | null
   possible: number
   percent: number | null
   is_graded: boolean

@@ -22,7 +22,7 @@ export function useGradebookEmail2(classroomId: string, isActive: boolean) {
       const rows = await loadGradebookEmail2(classroomId)
       if (isCurrent()) setSnapshot({ classroomId, loading: false, rows, error: null })
     } catch (error) {
-      if (isCurrent()) setSnapshot({ classroomId, loading: false, rows: [], error: error instanceof Error ? error.message : 'Could not load Email 2 addresses' })
+      if (isCurrent()) setSnapshot({ classroomId, loading: false, rows: [], error: error instanceof Error ? error.message : 'Could not load guardian email addresses' })
     }
   }, [classroomId])
 

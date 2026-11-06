@@ -3,6 +3,7 @@ import { expectContentFreeDiagnostic, privateDiagnosticError } from '../../helpe
 import { NextRequest } from 'next/server'
 import { GET, PATCH, PUT } from '@/app/api/teacher/gradebook/route'
 import { buildStudentGradesResponse } from '@/lib/student-grades'
+import { buildGradebookStudentReport } from '@/lib/gradebook-report'
 
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn(() => mockSupabaseClient) }))
 vi.mock('@/lib/auth', () => ({ requireRole: vi.fn(async () => ({ id: 'teacher-1' })) }))
@@ -543,6 +544,7 @@ describe('GET /api/teacher/gradebook', () => {
         assessment_id: 'a1',
         assessment_type: 'assignment',
         earned: 24,
+        calculation_earned: 24,
         possible: 30,
         percent: 80,
         is_graded: true,
@@ -564,6 +566,29 @@ describe('GET /api/teacher/gradebook', () => {
     ])
     expect(body.selected_student).not.toHaveProperty('quizzes')
     expect(body.selected_student.tests).toEqual([])
+  })
+
+  it('retains unrounded assignment points for returned-work calculations', async () => {
+    ;(mockSupabaseClient.from as any) = buildMockFrom({
+      assignments: [{ id: 'a1', title: 'Essay', due_at: '2025-01-01T12:00:00.000Z', position: 2, is_draft: false, points_possible: 1, include_in_final: true }],
+      docs: [{ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: 'a1', student_id: 'student-1', score_completion: 2, score_thinking: 0, score_workflow: 0 }],
+    })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))
+    const body = await response.json()
+    expect(body.students[0].assessment_scores[0]).toMatchObject({ earned: 0.07, calculation_earned: 2 / 30, percent: 6.67 })
+  })
+
+  it('uses the same unrounded returned marks in a student report as the student calculation', async () => {
+    mockSupabaseClient.from = buildMockFrom({
+      categories: [{ id: 'term', name: 'Term', percentage: 100, default_assessment_weight: 1, position: 0, is_default: true }],
+      assignments: [1, 2].map((weight) => ({ id: `a${weight}`, title: `Work ${weight}`, due_at: null, position: weight, is_draft: false, points_possible: 1, include_in_final: true, gradebook_weight: weight, gradebook_category_id: 'term' })),
+      docs: [0, 2].map((score, index) => ({ returned_at: '2026-01-02T12:00:00.000Z', assignment_id: `a${index + 1}`, student_id: 'student-1', score_completion: score, score_thinking: 0, score_workflow: 0 })),
+    })
+    const body = await (await GET(new NextRequest('http://localhost:3000/api/teacher/gradebook?classroom_id=c1'))).json()
+    const report = buildGradebookStudentReport({ student: body.students[0], columns: body.assessment_columns, categories: body.categories })
+    const student = buildStudentGradesResponse({ categories: [{ id: 'term', percentage: 100 }], items: [0, 2].map((score, index) => ({ id: `a${index + 1}`, kind: 'Classwork', title: 'Work', earned: score / 30, possible: 1, percent: score / 30 * 100, included: true, href: null, categoryId: 'term', weight: index + 1, returnedAt: '2026-01-02' })) })
+    expect(report.currentPercent).toBe(student.currentPercent)
+    expect(report.currentPercent).toBe(4.44)
   })
 
   it.each([

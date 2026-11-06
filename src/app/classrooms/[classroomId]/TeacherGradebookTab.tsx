@@ -18,12 +18,13 @@ import { average, formatCompactPercent, getAssessmentCell, getStudentDisplayId, 
 import { DEFAULT_GRADEBOOK_PREFERENCES as DEFAULT_PREFERENCES, normalizeGradebookPreferences, downloadGradebookCsv, visibleGradebookAssessments } from '@/lib/gradebook-editor'
 import type { MaximumChangeMode } from '@/lib/gradebook-maximum'
 import { saveGradebookAssessment } from '@/lib/gradebook-save'
-import { getGradebookEmail2Addresses } from '@/lib/gradebook-email'
+import { getGradebookEmail2Addresses, getGuardianRecipient, loadGradebookEmail2 } from '@/lib/gradebook-email'
 import { useGradebookEmail2 } from '@/hooks/useGradebookEmail2'
 import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { normalizeClassroomFeatureVisibility } from '@/lib/classroom-feature-visibility'
+import { buildGradebookStudentReport } from '@/lib/gradebook-report'
 
 type GradebookSection = 'grades' | 'settings'
 type GradebookSortColumn = GradebookIdentityColumn
@@ -54,6 +55,7 @@ export function TeacherGradebookTab({
   const { showMessage } = useAppMessage()
   const email2 = useGradebookEmail2(classroom.id, isActive)
   const [loading, setLoading] = useState(true)
+  const [exportingReports, setExportingReports] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [actionError, setActionError] = useState('')
@@ -237,6 +239,30 @@ export function TeacherGradebookTab({
     () => sortedStudents.filter((student) => selectedIds.has(student.student_id)),
     [selectedIds, sortedStudents],
   )
+  async function exportStudentReports() {
+    const targets = selectedStudents.length ? selectedStudents : sortedStudents
+    if (!targets.length) { showMessage({ text: 'No students to export', tone: 'info' }); return }
+    setExportingReports(true)
+    try {
+      const classroomId = classroom.id
+      const roster = await loadGradebookEmail2(classroomId)
+      const { buildGradebookReportArchive } = await import('@/lib/gradebook-report-pdf')
+      const reports = targets.map((student) => buildGradebookStudentReport({ student, columns: assessmentColumns, categories }))
+      const recipients = targets.map((student) => getGuardianRecipient(roster, student.student_id))
+      const archive = await buildGradebookReportArchive(classroom.title, reports, recipients)
+      if (currentClassroomIdRef.current !== classroomId) return
+      const url = URL.createObjectURL(new Blob([new Uint8Array(archive)], { type: 'application/zip' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'student-gradebook-reports.zip'
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      const issues = recipients.filter((recipient) => recipient.status !== 'Review address').length
+      showMessage({ text: issues ? `${reports.length} reports exported; ${issues} guardian addresses need attention` : `${reports.length} reports exported with guardian address list`, tone: issues ? 'warning' : 'success' })
+    } catch (error) {
+      showMessage({ text: error instanceof Error ? error.message : 'Could not export student reports', tone: 'warning' })
+    } finally { setExportingReports(false) }
+  }
   const selectedStudentEmails = useMemo(
     () => getValidEmailList(selectedStudents.map((student) => student.student_email)),
     [selectedStudents],
@@ -855,9 +881,11 @@ export function TeacherGradebookTab({
       onEditCategories={() => { setDialogError(''); setGradebookEditorOpen(true) }}
       onCopyEmails={() => { void copySelectedEmailsToClipboard() }}
       onCopySecondaryEmails={email2.loading || email2.error ? undefined : () => {
-        void copySelectedEmailsToClipboard(getGradebookEmail2Addresses(email2.rows, selectedIds), 'Email 2 addresses')
+        void copySelectedEmailsToClipboard(getGradebookEmail2Addresses(email2.rows, selectedIds), 'Guardian email addresses')
       }}
       onExport={() => downloadGradebookCsv(students, visibleAssessmentColumns, scoreDisplayMode)}
+      onExportReports={!loading && !loadError && hasCurrentSnapshot && !savingAssessmentKeys.size && !savingScoreKeys.size ? () => { void exportStudentReports() } : undefined}
+      exportingReports={exportingReports}
       studentGradesVisible={studentGradesVisible}
       onStudentGradesVisibilityChange={(visible) => { void updateStudentGradesVisibility(visible) }}
       savingStudentGradesVisibility={savingStudentGradesVisibility}
@@ -999,8 +1027,8 @@ export function TeacherGradebookTab({
             {actionError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{actionError}</div> : null}
             {studentGradesVisibilityError ? <div role="alert" className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">{studentGradesVisibilityError}</div> : null}
             {email2.error ? <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger">
-              <span>Email 2 addresses could not be loaded. Grades are still available.</span>
-              <Button variant="secondary" onClick={() => { void email2.reload() }}>Retry Email 2</Button>
+              <span>Guardian email addresses could not be loaded. Grades are still available.</span>
+              <Button variant="secondary" onClick={() => { void email2.reload() }}>Retry guardian email</Button>
             </div> : null}
           </div> : null
         }
