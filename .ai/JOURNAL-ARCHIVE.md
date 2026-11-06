@@ -51139,3 +51139,12 @@ plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
 ## 2026-10-28 — Update assignment focus test
 
 - Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+<!-- pika-session-log-archive-batch:928bb88e977b553d78667b585380e22bf5932d37755fb21ee95a5168f19243f9 -->
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.
