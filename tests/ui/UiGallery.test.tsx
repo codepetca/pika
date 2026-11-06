@@ -116,7 +116,7 @@ describe('UiGallery accessibility contracts', () => {
   it('PageMockups Calendar routes its dated Test through the example action', () => {
     const onAction = vi.fn()
     render(<ThemeProvider><TooltipProvider><CalendarMockup onPrototypeAction={onAction} /></TooltipProvider></ThemeProvider>)
-    const agenda = screen.getByRole('region', { name: 'Week agenda' })
+    const agenda = screen.getByRole('region', { name: 'Term agenda' })
     fireEvent.click(within(agenda).getByRole('button', { name: 'Test: Ecosystems test' }))
     expect(onAction).toHaveBeenCalledWith('Open Ecosystems test')
     expect(within(agenda).getAllByRole('button', { name: /^Test:/ })).toHaveLength(1)
@@ -124,7 +124,7 @@ describe('UiGallery accessibility contracts', () => {
 
   it('StudentPageMockups Calendar includes the same accessible Test date reference', () => {
     render(<ThemeProvider><TooltipProvider><StudentPageMockup page="calendar" onPrototypeAction={vi.fn()} /></TooltipProvider></ThemeProvider>)
-    expect(within(screen.getByRole('region', { name: 'Week agenda' })).getByRole('button', { name: 'Test: Ecosystems test' })).toBeVisible()
+    expect(within(screen.getByRole('region', { name: 'Term agenda' })).getByRole('button', { name: 'Test: Ecosystems test' })).toBeVisible()
   })
 
   it('StudentPageMockups Calendar keeps agenda lessons read-only and day presentation available', () => {
@@ -132,29 +132,27 @@ describe('UiGallery accessibility contracts', () => {
       <StudentPageMockup page="calendar" onPrototypeAction={vi.fn()} />
     </TooltipProvider></ThemeProvider>)
     const calendar = within(container)
-    const agenda = calendar.getByRole('region', { name: 'Week agenda' })
-    expect(within(agenda).getAllByRole('article')).toHaveLength(7)
+    const agenda = calendar.getByRole('region', { name: 'Term agenda' })
+    expect(within(agenda).getAllByRole('article').length).toBeGreaterThan(7)
     expect(calendar.queryByRole('button', { name: /Edit lesson|Add lesson/ })).not.toBeInTheDocument()
     fireEvent.click(calendar.getByRole('button', { name: 'Open Monday, September 14, 2026' }))
     expect(screen.getByRole('dialog', { name: 'Mon Sep 14, 2026' })).toBeInTheDocument()
   })
 
-  it('PageMockups Calendar demonstrates teacher agenda actions and preserves Month and Term grids', () => {
+  it('PageMockups Calendar demonstrates teacher agenda actions and preserves the Grid view', () => {
     const { container } = render(<ThemeProvider><TooltipProvider>
       <CalendarMockup onPrototypeAction={vi.fn()} />
     </TooltipProvider></ThemeProvider>)
     const mockups = within(container)
-    const agenda = mockups.getByRole('region', { name: 'Week agenda' })
-    expect(within(agenda).getAllByRole('article')).toHaveLength(7)
+    const agenda = mockups.getByRole('region', { name: 'Term agenda' })
+    expect(within(agenda).getAllByRole('article').length).toBeGreaterThan(7)
     expect(within(agenda).getAllByRole('button', { name: /^Edit lesson for / }).length).toBeGreaterThan(0)
     expect(mockups.queryByText('Edit lesson', { exact: true })).not.toBeInTheDocument()
     fireEvent.click(mockups.getByText('Review models of ecological succession.'))
     expect(mockups.queryByText('Review models of ecological succession.')).not.toBeInTheDocument()
-    fireEvent.click(mockups.getByRole('button', { name: 'Month', exact: true }))
-    expect(mockups.queryByRole('region', { name: 'Week agenda' })).not.toBeInTheDocument()
+    fireEvent.click(mockups.getByRole('button', { name: 'Grid', exact: true }))
+    expect(mockups.queryByRole('region', { name: 'Term agenda' })).not.toBeInTheDocument()
     expect(mockups.queryByRole('button', { name: /^Edit lesson for / })).not.toBeInTheDocument()
-    fireEvent.click(mockups.getByRole('button', { name: 'Term', exact: true }))
-    expect(mockups.queryByRole('region', { name: 'Week agenda' })).not.toBeInTheDocument()
   })
 
   it.each(['teacher', 'student'] as const)('keeps AssignmentControllerPattern absent from ordinary %s references', role => {

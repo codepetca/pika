@@ -11,6 +11,81 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-28 — Integrate calendar dates after admission294
+
+Human moved coordination to Teacher vs student login and then directed Do next
+after its1699 merge receipt. Rebased this existing calendar worktree onto actual
+main8d3c6e19; preserve admission294 exact908ac8f3 source and rename unchanged
+calendar SQL7b4d0853 to actual nextfree295. Historical001–293 files unchanged.
+40 feature app/e2e/API/component/lib files match a calculated clean three-way merge
+with main; current main guidance and admission awaits preserved. Combined exact
+profiles/catalogs/runner proofs and genuine metadata are being verified before
+independent integration review and fresh stable-head CI. Prior calendar-only294
+receipts stay historical; current294 means admission only. No shared schema
+application, production release, provider/cohort/account or reset action. Durable
+plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
+
+## 2026-10-28 — Restore hosted browser CI compatibility
+
+- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
+- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
+
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.
+
+## 2026-10-28 Required repository usernames — base refresh
+
+Rebased the previously reviewed required-username change onto current main. Preserved
+upstream journal history and the prior local preparation evidence; focused verification
+is recorded in the task handoff. No migration, provider or production action.
+
+## 2026-10-29 — Delete from assignment and test editors
+
+- Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
+
+## 2026-10-29 — RepoLight required username integration
+
+Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
+journal history and both integration contracts; application and test patches match
+the previously reviewed branch. Focused checks and final PR review follow.
+
+## 2026-10-29 — RepoLight selected-student drafts
+
+Prepared an approval-gated selected-student repository action beside AI Grade.
+It runs individual public reports sequentially and appends matched assignment
+summaries to revision-checked private drafts while the page remains open. No AI,
+grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
+component and executor checks, policy checks, and synthetic teacher desktop/mobile
+light/dark verification are in progress; publication and rollout remain separate.
+
+## 2026-10-30 — Test and assignment settings menus
+
+Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
+
+## 2026-10-30 — Remove calendar-date help text
+
+At the owner’s request, remove the persistent explanatory sentence from new and
+existing announcement editors and the Classwork material editor. Retain the
+Calendar date label, validation and separate Post/Save/Schedule behavior. Reuse
+existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
+Teacher desktop/mobile and light/dark checks cover future-date editing; student
+view is unaffected because this text appears only in teacher editors.
+Risk profile: none. No production changes or migration are part of this edit.
+
+## 2026-10-30 Scheduling date display
+
+- Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
+- Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
+
 ## 2026-10-30 — Named attendance schedules
 
 Prepared date-specific named QR attendance schedules, replacing the proposed manual open override. Regular policy remains the default; migration 296 adds guarded storage and sync source tracking. Focused tests and fixture visual checks are in progress. Local migrations 293–296 require separate explicit authorization; database replay, independent review, and release remain outstanding.
@@ -302,3 +377,6 @@ Added explicit off/scoped/full managed provisioning scope with one-teacher cron 
 
 - Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
 - Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.

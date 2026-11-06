@@ -84,13 +84,15 @@ export function StudentLessonCalendarTab({
   } = useClassDaysContext()
   const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
     const saved = readCookie(`calendarViewMode:${classroom.id}`)
-    return (saved === 'week' || saved === 'month' || saved === 'all') ? saved : 'week'
+    return saved === 'list' || saved === 'week' ? 'list' : 'grid'
   })
   const handleViewModeChange = useCallback((mode: CalendarViewMode) => {
     setViewMode(mode)
     writeCookie(`calendarViewMode:${classroom.id}`, mode)
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(nowInToronto)
+  const [todayRequest, setTodayRequest] = useState(0)
+  const [visibleMonth, setVisibleMonth] = useState('')
   const [maxDate, setMaxDate] = useState<string | null | undefined>(undefined)
 
   // Always fetch the full term - switching views is then instant
@@ -480,25 +482,9 @@ export function StudentLessonCalendarTab({
     setCurrentDate(newDate)
   }, [calendarMaxDate])
 
-  const handlePreviousDate = useCallback(() => {
-    if (viewMode === 'week') {
-      handleDateChange(subWeeks(currentDate, 1))
-    } else if (viewMode === 'month') {
-      handleDateChange(subMonths(currentDate, 1))
-    }
-  }, [currentDate, handleDateChange, viewMode])
-
-  const handleNextDate = useCallback(() => {
-    if (viewMode === 'week') {
-      handleDateChange(addWeeks(currentDate, 1))
-    } else if (viewMode === 'month') {
-      handleDateChange(addMonths(currentDate, 1))
-    }
-  }, [currentDate, handleDateChange, viewMode])
-
-  const handleToday = useCallback(() => {
-    handleDateChange(nowInToronto())
-  }, [handleDateChange])
+  const handlePreviousDate = useCallback(() => {}, [])
+  const handleNextDate = useCallback(() => {}, [])
+  const handleToday = useCallback(() => setTodayRequest(value => value + 1), [])
 
   if (!hasAnySnapshot && failures.length > 0) {
     return (
@@ -530,10 +516,11 @@ export function StudentLessonCalendarTab({
   }
 
   return (
-    <PageLayout bleedX={false} width={viewMode === 'week' ? 'standard' : 'full'}>
+    <PageLayout bleedX={false} width={viewMode === 'list' ? 'standard' : 'full'}>
       <CalendarActionBar
-        className={viewMode === 'week' ? 'sticky top-12 z-sticky-table bg-page' : undefined}
+        className="sticky top-12 z-sticky-table bg-page"
         viewMode={viewMode}
+        visibleMonth={viewMode === 'list' ? visibleMonth : undefined}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
@@ -546,7 +533,7 @@ export function StudentLessonCalendarTab({
         <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />
-          <div className="overflow-hidden rounded-lg bg-surface">
+          <div className="rounded-lg bg-surface">
             <LessonCalendar
               classroom={classroom}
               lessonPlans={currentLessonPlans}
@@ -557,6 +544,8 @@ export function StudentLessonCalendarTab({
               announcements={currentAnnouncements}
               classDays={classDays}
               viewMode={viewMode}
+              todayRequest={todayRequest}
+              onVisibleMonthChange={setVisibleMonth}
               currentDate={currentDate}
               editable={false}
               showHeader={false}

@@ -97,24 +97,19 @@ describe('StudentLessonCalendarTab', () => {
     vi.restoreAllMocks()
   })
 
-  it('preserves student date navigation and Month/All selection without refetching term data', async () => {
+  it('switches student List and Grid without refetching term data', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) })
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
-    const week = screen.getByRole('button', { name: 'Week', exact: true })
-    expect(week).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Go to today' })).toBeInTheDocument()
+    const list = screen.getByRole('button', { name: 'List', exact: true })
+    expect(list).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument()
     const readCount = fetchMock.mock.calls.length
-    week.focus()
-    fireEvent.keyDown(week, { key: 'ArrowRight' })
-    expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'All', exact: true }))
-    expect(screen.getByRole('button', { name: 'All', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('button', { name: 'Next', exact: true })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Go to today' })).not.toBeInTheDocument()
-    fireEvent.click(week)
-    expect(week).toHaveAttribute('aria-pressed', 'true')
+    list.focus()
+    fireEvent.keyDown(list, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(list)
+    expect(list).toHaveAttribute('aria-pressed', 'true')
     expect(fetchMock).toHaveBeenCalledTimes(readCount)
   })
 
@@ -587,7 +582,7 @@ describe('StudentLessonCalendarTab', () => {
     await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-material-ids', 'material-2'))
   })
 
-  it.each(['Week', 'Month', 'All'])('limits published post placement in %s without extending it for Test reminders', async (mode) => {
+  it.each(['List', 'Grid'])('limits published post placement in %s without extending it for Test reminders', async (mode) => {
     const announcement = { is_draft: false, published_at: '2025-01-01T12:00:00Z', scheduled_for: null, created_at: '2025-01-01T12:00:00Z' }
     const material = { is_draft: false, released_at: '2025-01-01T12:00:00Z', created_at: '2025-01-01T12:00:00Z' }
     fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => {

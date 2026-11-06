@@ -271,6 +271,8 @@ function StateBoundary({ state, page, onRetry, children }: { state: FixtureState
 export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student' }) {
   const [teacherPage, setTeacherPage] = useState<TeacherPageId>('daily')
   const [studentPage, setStudentPage] = useState<StudentPageId>('today')
+  const [teacherCalendarVisited, setTeacherCalendarVisited] = useState(false)
+  const [studentCalendarVisited, setStudentCalendarVisited] = useState(false)
   const [state, setState] = useState<FixtureState>('populated')
   useEffect(() => {
     setState((current) => current === 'empty-categories' ? 'populated' : current)
@@ -319,6 +321,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
             value={teacherPage}
             onValueChange={(page) => {
               setTeacherPage(page)
+              if (page === 'calendar') setTeacherCalendarVisited(true)
               if (state === 'empty-categories') setState('populated')
             }}
             items={TEACHER_PAGE_ITEMS}
@@ -337,7 +340,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
                     onPrototypeAction={explain}
                   />
                 ) : null}
-                {item.value === 'calendar' ? <CalendarMockup onPrototypeAction={explain} /> : null}
+                {item.value === 'calendar' && teacherCalendarVisited ? <CalendarMockup onPrototypeAction={explain} /> : null}
                 {item.value === 'announcements' ? <AnnouncementsMockup onPrototypeAction={explain} /> : null}
                 {item.value === 'roster' ? <RosterMockup onPrototypeAction={explain} /> : null}
                 {item.value === 'settings' ? <SettingsMockup onPrototypeAction={explain} /> : null}
@@ -351,7 +354,10 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
           <Tabs<StudentPageId>
             ariaLabel="Student classroom page mockups"
             value={studentPage}
-            onValueChange={setStudentPage}
+            onValueChange={(page) => {
+              setStudentPage(page)
+              if (page === 'calendar') setStudentCalendarVisited(true)
+            }}
             items={STUDENT_PAGE_ITEMS}
             getTabId={(value) => `mockup-student-${value}-tab`}
             getPanelId={(value) => `mockup-student-${value}-panel`}
@@ -359,7 +365,7 @@ export function PageMockups({ role = 'teacher' }: { role?: 'teacher' | 'student'
           {STUDENT_PAGE_ITEMS.map((item) => (
             <section key={item.value} id={`mockup-student-${item.value}-panel`} role="tabpanel" aria-labelledby={`mockup-student-${item.value}-tab`} hidden={studentPage !== item.value} className="scroll-mt-28 rounded-card bg-page p-2 sm:p-4">
               <StateBoundary state={state} page={item.label} onRetry={() => setState('populated')}>
-                <StudentPageMockup page={item.value} onPrototypeAction={explain} />
+                {item.value !== 'calendar' || studentCalendarVisited ? <StudentPageMockup page={item.value} onPrototypeAction={explain} /> : null}
               </StateBoundary>
             </section>
           ))}
@@ -1131,7 +1137,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
 }
 
 export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
-  const [view, setView] = useState<CalendarViewMode>('week')
+  const [view, setView] = useState<CalendarViewMode>('list')
   const [lessonPlans, setLessonPlans] = useState(LESSON_PLANS)
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   const handleContentChange = (lessonDate: string, markdown: string) => setLessonPlans((plans) => {
@@ -1144,34 +1150,32 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
     }
     return [...plans, plan]
   })
-  const advance = (amount: -1 | 1) => setDate((current) => view === 'month' ? (amount < 0 ? subMonths(current, 1) : addMonths(current, 1)) : (amount < 0 ? subWeeks(current, 1) : addWeeks(current, 1)))
-  const label = view === 'week' ? `Week of ${format(date, 'MMM d')}` : view === 'month' ? format(date, 'MMMM yyyy') : CLASSROOM.term_label || 'Term'
   const menuItems: TeacherWorkSurfaceActionItem[] = [
     { id: 'markdown', label: 'Edit calendar in Markdown', onSelect: () => onPrototypeAction('Edit calendar in Markdown') },
   ]
-  return <PageLayout bleedX={false} width={view === 'week' ? 'standard' : 'full'} className="space-y-3">
+  return <PageLayout bleedX={false} width={view === 'list' ? 'standard' : 'full'} className="space-y-3">
     <TeacherWorkSurfaceContextBar
       ariaLabel="Calendar mockup controls"
       context={<span className="hidden truncate sm:inline">Teaching calendar</span>}
       primary={<TeacherWorkSurfaceActionCluster>
-        <DateNavigator joined label={label} showNavigation={view !== 'all'} onPrev={() => advance(-1)} onNext={() => advance(1)} onLabelClick={view === 'all' ? undefined : () => setDate(new Date('2026-09-14T12:00:00'))} labelAriaLabel={view === 'week' ? 'Return to reference week' : 'Return to reference month'} />
+
         <SegmentedControl<CalendarViewMode>
           ariaLabel="Calendar view"
           value={view}
           onChange={setView}
           options={[
-            { value: 'week', label: 'Week' },
-            { value: 'month', label: 'Month' },
-            { value: 'all', label: 'Term' },
+            { value: 'list', label: 'List' },
+            { value: 'grid', label: 'Grid' },
           ]}
         />
+        <Button variant="secondary" size="sm" onClick={() => setDate(new Date('2026-09-14T12:00:00'))}>Today</Button>
       </TeacherWorkSurfaceActionCluster>}
       actions={<MoreMenu label="Calendar" items={menuItems} />}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'week'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
+      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'list'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
     </div>
-    <Description>Week uses the lesson agenda with a date rail and full lesson content. Click the lesson content to edit. Month and Term retain their grids. The date and view toggle share the center cluster; More actions owns Markdown editing.</Description>
+    <Description>List and Grid show the full term. Today returns to the current date; More actions owns Markdown editing.</Description>
   </PageLayout>
 }
 

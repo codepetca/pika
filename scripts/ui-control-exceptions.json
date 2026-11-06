@@ -430,17 +430,6 @@
       ]
     },
     {
-      "file": "src/components/LessonCalendar.tsx",
-      "reviewBy": "phase-3-calendar-announcements",
-      "controls": [
-        {
-          "kind": "button",
-          "count": 6,
-          "reason": "legacy-form-control"
-        }
-      ]
-    },
-    {
       "file": "src/components/LessonDayCell.tsx",
       "reviewBy": "phase-3-calendar-announcements",
       "controls": [

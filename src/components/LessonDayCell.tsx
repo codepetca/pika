@@ -60,6 +60,7 @@ interface LessonDayCellProps {
   compact?: boolean
   plainTextOnly?: boolean
   layout?: 'grid' | 'agenda'
+  denseAgenda?: boolean
   onPresentDay?: () => void
   onEditingStart?: () => void
   onEditingEnd?: () => void
@@ -85,6 +86,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   compact = false,
   plainTextOnly = false,
   layout = 'grid',
+  denseAgenda = false,
   onPresentDay,
   onEditingStart,
   onEditingEnd,
@@ -191,25 +193,25 @@ export const LessonDayCell = memo(function LessonDayCell({
         aria-labelledby={agendaHeadingId}
         aria-describedby={nonClassDay ? `${agendaHeadingId}-status` : undefined}
         className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
-          nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
+          denseAgenda ? 'py-0' : nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
         } ${nonClassDay ? 'bg-surface-3' : ''} ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
       >
         {nonClassDay && <span id={`${agendaHeadingId}-status`} hidden>No class</span>}
-        <div className="flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24">
+        <div className={denseAgenda ? 'w-24 shrink-0' : 'flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24'}>
           <Button
             id={agendaHeadingId}
             variant="ghost"
             size="sm"
             onClick={onPresentDay}
             aria-label={`Open ${format(day, 'EEEE, MMMM d, yyyy')}`}
-            className="flex-col items-start px-0 text-left"
+            className={denseAgenda ? 'justify-start gap-1 px-0 text-left' : 'flex-col items-start px-0 text-left'}
           >
             <span className="text-xs font-medium text-text-muted">{format(day, 'EEE')}</span>
-            <time dateTime={date} aria-current={isToday ? 'date' : undefined} className={`text-xl font-semibold leading-tight ${nonClassDay ? 'text-text-muted' : 'text-text-default'}`}>{format(day, 'd')}</time>
+            <time dateTime={date} aria-current={isToday ? 'date' : undefined} className={`${denseAgenda ? 'text-sm' : 'text-xl'} font-semibold leading-tight ${nonClassDay ? 'text-text-muted' : 'text-text-default'}`}>{format(day, 'd')}</time>
           </Button>
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className={denseAgenda ? 'flex min-w-0 flex-1 flex-wrap items-center gap-x-2' : 'flex min-w-0 flex-1 flex-col gap-3'}>
           <div
             ref={outerRef}
             className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 flex-none break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
@@ -254,7 +256,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           </div>
 
           {(assignments.length > 0 || announcements.length > 0 || tests.length > 0 || materials.length > 0) && (
-            <div className="flex min-w-0 flex-wrap gap-2">
+            <div className={denseAgenda ? 'flex min-w-0 flex-wrap items-center gap-x-1' : 'flex min-w-0 flex-wrap gap-2'}>
               {tests.map(test => (
                 <Button key={test.id} variant="ghost" size="sm" onClick={() => onTestClick?.(test)}
                   className="max-w-full whitespace-normal bg-calendar-assessment-bg px-3 py-2 text-left text-calendar-assessment hover:bg-calendar-assessment-hover">

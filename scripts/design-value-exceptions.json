@@ -445,15 +445,9 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 6,
-          "fingerprint": "e3278fcd20f89a69",
+          "count": 3,
+          "fingerprint": "8d2a0fc9a928b7e8",
           "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 2,
-          "fingerprint": "556991f875e0acb3",
-          "reason": "special-layer"
         }
       ]
     },
