@@ -51087,3 +51087,23 @@ atomic approved batches/growth stop; automatic signup stays off until separately
 approved. Rollout stages and exact-source recovery/verification gates are recorded;
 no code, SQL, cohort, plan, production or provider operation performed. Existing70,
 all other holds and paused goal/DeepSeek remain unchanged.
+
+<!-- pika-session-log-archive-batch:a9529e9195fa6ef124f502ab053a3de9a4e3515280441fd238b42ec8aee51b3d -->
+## 2026-10-27 Material owner calendar receipt proof correction
+
+Owner explicitly approved one additional correction batch/eighth targeted review,
+then existing credits for this fix/review only; no purchase/reset or broader waiver.
+CI40514407721 passed22591coverage cases/8skip, TypeScript/build, both future-date
+native read proofs and cleanup. Its later owner-write proof compared the raw
+posted_on:null column with the deliberately omitted legacy receipt key. PR1695
+returned to draft; no application/SQL migration/ACL/UI change. Batch3 normalizes
+only that missing null in the comparison; strict14/15-key cases and unchanged
+historical identity/lineage/release/calendar date checks cover null and future dates.
+Private replay now records each migration after success and includes the complete
+owner-write rollback proof before metadata equality. Reproduced CI failure in
+owned offline clone /tmp/pika-material-post-date.pgrIwt; corrected full001–294
+replay/proofs/types/shared-schema equality PASS /tmp/pika-material-post-date.rnxlag.
+All owned clones removed; shared history292 unchanged. One syntax correction was
+caught locally before the final private pass. Targeted checks, canonical gate,
+review8 and replacementCI receipts follow in PR1695. No merge/release/migration
+application authorized; prior cumulative45a coverage reused for unchanged sources.
