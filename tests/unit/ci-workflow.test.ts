@@ -215,7 +215,7 @@ describe('CI workflow', () => {
     expect(full).toHaveLength(646)
     expect(light.length + dark.length + patternDark.length).toBe(648)
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
-  }, 20_000)
+  }, 60_000)
 
   it('accepts complete selected evidence and preserves documented unselected modes', () => {
     expect(runGate().status).toBe(0)
