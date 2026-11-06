@@ -29,4 +29,4 @@ create table public.billing_account_access(subject_user_id uuid primary key refe
 SQL
 "${PSQL[@]}" -f "$ROOT/supabase/migrations/300_repolight_provision_outbox.sql" >>"$PROOF_DIR/proof.log"
 "${PSQL[@]}" -f "$ROOT/scripts/check-repolight-provision-outbox.sql" >>"$PROOF_DIR/proof.log"
-echo 'RepoLight disposable queue contracts passed (actual298; minimal prerequisites, no shared DB/provider access)'
+echo 'RepoLight disposable queue contracts passed (actual300; minimal prerequisites, no shared DB/provider access)'

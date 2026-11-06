@@ -51134,3 +51134,8 @@ plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
 
 - PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
 - The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
+
+<!-- pika-session-log-archive-batch:783e947536a9a83ba43b89367464ae246aa44e2339f60c505d5707313afe8abb -->
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
