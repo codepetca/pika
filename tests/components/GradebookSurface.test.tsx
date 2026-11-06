@@ -174,7 +174,7 @@ describe('Gradebook surface owners', () => {
     const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
     const header = screen.getByRole('button', { name: 'Edit A1: Practice' }).closest('th')!
     expect(header).toHaveAttribute('data-compact-zero-weight', 'true')
-    expect(header).toHaveTextContent('0 wt')
+    expect(header).not.toHaveTextContent('0 wt')
     expect(screen.getByRole('button', { name: 'Edit A2: Excluded essay' }).closest('th')).not.toHaveAttribute('data-compact-zero-weight')
     const mark = screen.getByRole('button', { name: 'Edit Demo Student mark for Practice: 0%' })
     expect(mark).toBeEnabled()

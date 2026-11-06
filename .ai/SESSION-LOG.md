@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-27 Material owner calendar receipt proof correction
-
-Owner explicitly approved one additional correction batch/eighth targeted review,
-then existing credits for this fix/review only; no purchase/reset or broader waiver.
-CI40514407721 passed22591coverage cases/8skip, TypeScript/build, both future-date
-native read proofs and cleanup. Its later owner-write proof compared the raw
-posted_on:null column with the deliberately omitted legacy receipt key. PR1695
-returned to draft; no application/SQL migration/ACL/UI change. Batch3 normalizes
-only that missing null in the comparison; strict14/15-key cases and unchanged
-historical identity/lineage/release/calendar date checks cover null and future dates.
-Private replay now records each migration after success and includes the complete
-owner-write rollback proof before metadata equality. Reproduced CI failure in
-owned offline clone /tmp/pika-material-post-date.pgrIwt; corrected full001–294
-replay/proofs/types/shared-schema equality PASS /tmp/pika-material-post-date.rnxlag.
-All owned clones removed; shared history292 unchanged. One syntax correction was
-caught locally before the final private pass. Targeted checks, canonical gate,
-review8 and replacementCI receipts follow in PR1695. No merge/release/migration
-application authorized; prior cumulative45a coverage reused for unchanged sources.
-
 ## 2026-10-28 — Creation action placement
 
 - Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
@@ -235,7 +216,10 @@ teacher/classroom view, retry failed or expired intent reads, and discard the
 provisional list on authorization denial. The shared-admission full read remains
 unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
 no production timing or deployment is implied.
+
 ## 2026-11-05 — Reverse order display preferences
 
 - Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
 - Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
