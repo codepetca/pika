@@ -1,4 +1,4 @@
-import { buildDocumentPDFBytes, loadFontData, registerFont, type DocumentBlock, type FontData, type FontEntry } from 'pdfnative'
+import { buildDocumentPDFBytes, createEncodingContext, DEFAULT_CW, loadFontData, registerFont, wrapText, type DocumentBlock, type FontData, type FontEntry } from 'pdfnative'
 import { zipSync } from 'fflate'
 import type { GradebookStudentReport } from './gradebook-report'
 import type { GuardianRecipient } from './gradebook-email'
@@ -54,6 +54,28 @@ async function reportFonts(text: string): Promise<FontEntry[]> {
   return fonts.map((fontData, index) => ({ fontData, fontRef: `/F${index + 3}`, lang: languages[index] }))
 }
 
+/** Keep the renderer from splitting combining marks or conjuncts across lines. */
+function reportParagraphs(text: string, size: number, fonts: FontEntry[]): DocumentBlock[] {
+  if (typeof Intl.Segmenter !== 'function') throw new Error('This browser cannot safely wrap report text. No reports were downloaded.')
+  const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+  const encoding = createEncodingContext(fonts)
+  const result: DocumentBlock[] = []
+  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left' })
+  for (const paragraph of text.split(/\r\n|\r|\n/)) {
+    let line = ''
+    const fits = (value: string) => encoding.tw(value, size) <= DEFAULT_CW && wrapText(value, DEFAULT_CW, size, encoding).length <= 1
+    for (const { segment } of graphemes.segment(paragraph)) {
+      const candidate = line + segment
+      if (fits(candidate)) { line = candidate; continue }
+      if (!line || !fits(segment)) throw new Error('Report text cannot be wrapped safely. No reports were downloaded.')
+      add(line)
+      line = segment
+    }
+    if (line || !paragraph) add(line)
+  }
+  return result
+}
+
 /** Produce an archive of independent PDFs, never combining students in a report. */
 export async function buildGradebookReportArchive(classroom: string, reports: GradebookStudentReport[], recipients?: GuardianRecipient[]): Promise<Uint8Array> {
   if (recipients && recipients.length !== reports.length) throw new Error('Could not match reports to guardian addresses. No reports were downloaded.')
@@ -67,7 +89,7 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       ...(report.items.length ? report.items.flatMap((item) => [item.title,
         `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}   ${item.earned} / ${item.possible}   (${item.percent.toFixed(1)}%)${item.isZeroWeight ? ' · 0 weight' : item.included ? '' : ' · Not counted'}`]) : ['No returned marks available.'])]
     const fontEntries = await reportFonts(lines.join('\n'))
-    const blocks: DocumentBlock[] = lines.map((line, i) => ({ type: 'paragraph', text: line, fontSize: i === 2 ? 17 : 11, align: 'left' }))
+    const blocks = lines.flatMap((line, i) => reportParagraphs(line, i === 2 ? 17 : 11, fontEntries))
     const pdf = buildDocumentPDFBytes({ blocks, fontEntries }, { tagged: true, direction: 'auto' })
     const filename = `${String(index + 1).padStart(3, '0')} - ${safeFilename(report.studentName)}.pdf`
     files[filename] = pdf

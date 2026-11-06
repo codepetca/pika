@@ -51113,3 +51113,18 @@ application authorized; prior cumulative45a coverage reused for unchanged source
 
 - Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
 - Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.
+
+<!-- pika-session-log-archive-batch:d7a74aad106afbdcf49fd9dffa57f0cfd75a6562044105a95cbc67380019b9dd -->
+## 2026-10-28 — Integrate calendar dates after admission294
+
+Human moved coordination to Teacher vs student login and then directed Do next
+after its1699 merge receipt. Rebased this existing calendar worktree onto actual
+main8d3c6e19; preserve admission294 exact908ac8f3 source and rename unchanged
+calendar SQL7b4d0853 to actual nextfree295. Historical001–293 files unchanged.
+40 feature app/e2e/API/component/lib files match a calculated clean three-way merge
+with main; current main guidance and admission awaits preserved. Combined exact
+profiles/catalogs/runner proofs and genuine metadata are being verified before
+independent integration review and fresh stable-head CI. Prior calendar-only294
+receipts stay historical; current294 means admission only. No shared schema
+application, production release, provider/cohort/account or reset action. Durable
+plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.

@@ -54,4 +54,12 @@ describe('gradebook report archive', () => {
     expect(pages.map((page) => page.text).join('').replace(/\s/g, '').replace(/\d+\/\d+/g, '')).toContain(title)
     expect(pages.at(-1)?.text).toContain('Final item')
   })
+  it('does not wrap inside a Devanagari grapheme or conjunct', async () => {
+    const titles = ['aa' + 'हिन्दी'.repeat(25), 'aa' + 'कृष्ण'.repeat(35)]
+    const item = (title: string) => ({ title, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false })
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: titles.map(item) }]))
+    const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
+    for (const title of titles) expect(text.replace(/\s/g, '')).toContain(title)
+    for (const line of text.split('\n')) expect(line).not.toMatch(/^\p{Mark}/u)
+  })
 })

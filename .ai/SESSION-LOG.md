@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-28 — Integrate calendar dates after admission294
-
-Human moved coordination to Teacher vs student login and then directed Do next
-after its1699 merge receipt. Rebased this existing calendar worktree onto actual
-main8d3c6e19; preserve admission294 exact908ac8f3 source and rename unchanged
-calendar SQL7b4d0853 to actual nextfree295. Historical001–293 files unchanged.
-40 feature app/e2e/API/component/lib files match a calculated clean three-way merge
-with main; current main guidance and admission awaits preserved. Combined exact
-profiles/catalogs/runner proofs and genuine metadata are being verified before
-independent integration review and fresh stable-head CI. Prior calendar-only294
-receipts stay historical; current294 means admission only. No shared schema
-application, production release, provider/cohort/account or reset action. Durable
-plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
-
 ## 2026-10-28 — Restore hosted browser CI compatibility
 
 - PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
@@ -223,3 +209,8 @@ no production timing or deployment is implied.
 
 - Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
 - Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
