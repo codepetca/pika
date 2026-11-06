@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within, type RenderOptions } from '@testing-library/react'
 import { flushSync } from 'react-dom'
 import { createRoot } from 'react-dom/client'
-import { useState, type ReactElement, type ReactNode } from 'react'
+import { useRef, useState, type ReactElement, type ReactNode } from 'react'
+import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { TooltipProvider } from '@/ui'
 import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { Survey, SurveyQuestion } from '@/types'
@@ -140,6 +141,25 @@ describe('TeacherSurveyWorkspace', () => {
     expect(onBack).toHaveBeenCalledOnce()
   })
 
+  it('routes Escape from the containing shell to the changed survey confirmation', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [] }))
+    const onBack = vi.fn()
+    function Shell() {
+      const closeRef = useRef<(() => Promise<void>) | null>(null)
+      return <CreationModalShell isOpen onClose={() => { void closeRef.current?.() }} title="Edit survey" titleId="survey-shell-title" closeLabel="Close survey editor">
+        <TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" showCloseButton={false} onCloseReady={(close) => { closeRef.current = close }} onBack={onBack} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />
+      </CreationModalShell>
+    }
+    render(<Shell />)
+    const title = await screen.findByLabelText('Survey title')
+    fireEvent.change(title, { target: { value: 'Changed survey' } })
+    fireEvent.keyDown(title, { key: 'Escape' })
+    expect(screen.getByRole('dialog', { name: 'Close survey editor?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(title).toHaveValue('Changed survey')
+    expect(onBack).not.toHaveBeenCalled()
+  })
+
   it.each(['loading', 'failed'] as const)('allows the shell and visible close control to dismiss a %s survey', async (state) => {
     fetchMock.mockReturnValue(state === 'loading' ? new Promise(() => {}) : Promise.resolve({ ok: false, json: async () => ({ error: 'Survey unavailable' }) }))
     const onBack = vi.fn()
@@ -187,6 +207,19 @@ describe('TeacherSurveyWorkspace', () => {
     expect(screen.getByLabelText('New question')).toHaveValue('')
     fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
     await waitFor(() => expect(onBack).toHaveBeenCalledTimes(1))
+    expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
+  })
+
+  it('confirms an incomplete new question and keeps it open when it cannot be saved', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ survey: makeSurvey(), questions: [] }))
+    const onBack = vi.fn()
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.change(await screen.findByLabelText('New question'), { target: { value: 'Incomplete question' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    expect(screen.getByRole('dialog', { name: 'Close survey editor?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+    await waitFor(() => expect(screen.getByLabelText('New question')).toHaveValue('Incomplete question'))
+    expect(onBack).not.toHaveBeenCalled()
     expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'POST')).toHaveLength(0)
   })
 
@@ -744,6 +777,10 @@ describe('TeacherSurveyWorkspace', () => {
       fireEvent.change(await screen.findByDisplayValue('Choose a project'), { target: { value: 'Choose your next project' } })
       if (destination === 'Add open-response question' || destination === 'Duplicate question') questionAction(destination)
       else fireEvent.click(screen.getByRole('button', { name: destination, exact: true }))
+      if (destination === 'Close survey editor') {
+        expect(onBack).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+      }
       await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1/questions/question-1', expect.objectContaining({
         method: 'PATCH', body: JSON.stringify({ question_type: 'multiple_choice', question_text: 'Choose your next project', options: ['Game', 'Website'], response_max_chars: 500 }),
       })))
@@ -761,6 +798,32 @@ describe('TeacherSurveyWorkspace', () => {
       expect(fetchMock.mock.calls.filter((call) => call[1]?.method === 'PATCH' && String(call[0]).includes('/questions/'))).toHaveLength(1)
     },
   )
+
+  it('keeps the survey open after close-save fails and retries only after confirmation', async () => {
+    const first = makeQuestion()
+    let attempts = 0
+    const onBack = vi.fn()
+    fetchMock.mockImplementation((_url: string | URL, init?: RequestInit) => {
+      if (init?.method === 'PATCH') {
+        attempts += 1
+        return Promise.resolve(attempts === 1
+          ? { ok: false, json: async () => ({ error: 'Question save failed' }) } as Response
+          : jsonResponse({ question: { ...first, question_text: 'Updated question' } }))
+      }
+      return Promise.resolve(jsonResponse({ survey: makeSurvey(), questions: [first] }))
+    })
+    render(<TeacherSurveyWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onSurveyUpdated={vi.fn()} onSurveyDeleted={vi.fn()} />)
+    fireEvent.change(await screen.findByDisplayValue('Choose a project'), { target: { value: 'Updated question' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+    expect(await screen.findByText('Question save failed')).toBeInTheDocument()
+    expect(onBack).not.toHaveBeenCalled()
+    expect(screen.getByDisplayValue('Updated question')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey editor' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+    await waitFor(() => expect(onBack).toHaveBeenCalledOnce())
+    expect(attempts).toBe(2)
+  })
 
   it('blocks navigation after a failed save and retries on the next explicit navigation', async () => {
     const failedSave = createDeferred<Response>()

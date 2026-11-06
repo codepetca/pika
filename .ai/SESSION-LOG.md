@@ -149,6 +149,10 @@ no production timing or deployment is implied.
 
 - 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
 
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
 ## 2026-11-06 — RepoLight sync after gradebook PDF
 
 Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.

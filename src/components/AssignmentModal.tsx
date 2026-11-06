@@ -252,6 +252,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   const [saving, setSaving] = useState(false)
   const [creating, setCreating] = useState(false)
   const [discarding, setDiscarding] = useState(false)
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
+  const initialEditorValuesRef = useRef<AssignmentEditorValues | null>(null)
   const [showInstructionsPreview, setShowInstructionsPreview] = useState(false)
   const [submissionRequirements, setSubmissionRequirements] = useState<AssignmentSubmissionRequirementDraft[]>([])
 
@@ -333,6 +335,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     }
 
     // Reset state when modal opens
+    setCloseConfirmOpen(false)
     setError('')
 
     if (assignment) {
@@ -369,6 +372,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         dueAt: nextDueAt,
         submissionRequirements: nextRequirements,
       }
+      initialEditorValuesRef.current = lastSavedValuesRef.current
       initialCreateValuesRef.current = null
       setSaveStatus('saved')
     } else {
@@ -388,6 +392,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         dueAt: defaultDueAt,
         submissionRequirements: [],
       }
+      initialEditorValuesRef.current = initialValues
       initialCreateValuesRef.current = initialValues
       lastSavedValuesRef.current = null
       setSaveStatus('saving')
@@ -518,6 +523,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           dueAt: assignmentDueAt,
           submissionRequirements: nextRequirements,
         }
+        initialEditorValuesRef.current = initialCreateValuesRef.current
         setSaveStatus('saved')
 
         // Focus and select title after creation
@@ -984,7 +990,11 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
             setShowInstructionsPreview(false)
             return
           }
-          void handleClose()
+          if (initialEditorValuesRef.current && !areAssignmentEditorValuesEqual(buildEditorValues(), initialEditorValuesRef.current)) {
+            setCloseConfirmOpen(true)
+          } else {
+            void handleClose()
+          }
         }}
         title={modalTitle}
         titleId="assignment-modal-title"
@@ -1132,6 +1142,16 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           className="border-0 bg-transparent p-0 shadow-none"
         />
       </DialogPanel>
+
+      <ConfirmDialog
+        isOpen={isOpen && closeConfirmOpen}
+        title="Close assignment?"
+        description="Your changes will be saved before closing."
+        confirmLabel="Save and close"
+        cancelLabel="Keep editing"
+        onCancel={() => setCloseConfirmOpen(false)}
+        onConfirm={() => { setCloseConfirmOpen(false); void handleClose() }}
+      />
 
       <ConfirmDialog
         isOpen={isOpen && showPostNowConfirm}

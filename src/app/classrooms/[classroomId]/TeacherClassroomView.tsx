@@ -169,6 +169,7 @@ const EMPTY_DOC: TiptapContent = { type: 'doc', content: [] }
 
 interface Props {
   classroom: Classroom
+  recoveryUserId?: string
   onSelectAssignment?: (assignment: { title: string; instructions: TiptapContent | string | null } | null) => void
   onViewModeChange?: (mode: AssignmentViewMode) => void
   onEditModeChange?: (active: boolean) => void
@@ -336,6 +337,7 @@ function TeacherMaterialCard({
 
 function TeacherMaterialDialog({
   classroom,
+  recoveryUserId,
   material,
   isOpen,
   onClose,
@@ -343,32 +345,39 @@ function TeacherMaterialDialog({
   onRequestDelete,
 }: {
   classroom: Classroom
+  recoveryUserId?: string
   material: ClassworkMaterial | null
   isOpen: boolean
   onClose: () => void
   onSaved: (material: ClassworkMaterial) => void
   onRequestDelete: (material: ClassworkMaterial) => void
 }) {
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState<TiptapContent>(EMPTY_DOC)
+  return isOpen ? <TeacherMaterialEditor key={`${classroom.id}:${material?.id ?? 'new'}`} classroom={classroom} recoveryUserId={recoveryUserId} material={material} onClose={onClose} onSaved={onSaved} onRequestDelete={onRequestDelete} /> : null
+}
+
+function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, onSaved, onRequestDelete }: {
+  classroom: Classroom
+  recoveryUserId?: string
+  material: ClassworkMaterial | null
+  onClose: () => void
+  onSaved: (material: ClassworkMaterial) => void
+  onRequestDelete: (material: ClassworkMaterial) => void
+}) {
+  const isOpen = true
+  const [title, setTitle] = useState(material?.title || '')
+  const [content, setContent] = useState<TiptapContent>(material?.content || EMPTY_DOC)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const { showMessage } = useAppMessage()
   const isReadOnly = !!classroom.archived_at
   const isDraft = material?.is_draft ?? true
   const activeSaveOwnerRef = useRef(isOpen)
+  const baseVersion = useRef(material?.updated_at ?? 'new').current
 
   useEffect(() => {
     activeSaveOwnerRef.current = isOpen
     return () => { activeSaveOwnerRef.current = false }
   }, [isOpen])
-
-  useEffect(() => {
-    if (!isOpen) return
-    setTitle(material?.title || '')
-    setContent(material?.content || EMPTY_DOC)
-    setError(null)
-  }, [isOpen, material])
 
   async function saveMaterial(nextDraft: boolean, scheduledFor?: string | null, postedOn?: string) {
     const cleanTitle = title.trim()
@@ -376,6 +385,15 @@ function TeacherMaterialDialog({
       setError('Title is required')
       return
     }
+
+    // Capture exactly the local snapshot submitted by this editor. A later
+    // editor may replace it while the request is in flight.
+    const recoveryKey = recoveryUserId ? `pika:material-recovery:${recoveryUserId}:${classroom.id}:${material?.id ?? 'new'}` : null
+    let submittedRecovery: string | null = null
+    try {
+      const stored = recoveryKey ? sessionStorage.getItem(recoveryKey) : null
+      if (stored && JSON.parse(stored).version === baseVersion) submittedRecovery = stored
+    } catch { /* Recovery is optional when browser storage is unavailable. */ }
 
     setSaving(true)
     setError(null)
@@ -395,6 +413,9 @@ function TeacherMaterialDialog({
       )
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save material')
+      try {
+        if (recoveryKey && submittedRecovery && sessionStorage.getItem(recoveryKey) === submittedRecovery) sessionStorage.removeItem(recoveryKey)
+      } catch { /* Saving succeeded even if browser storage is unavailable. */ }
       if (!activeSaveOwnerRef.current) {
         invalidateCachedJSON(`teacher-materials:${classroom.id}`)
         invalidateCachedJSON(`student-materials:${classroom.id}`)
@@ -413,11 +434,12 @@ function TeacherMaterialDialog({
 
   return (
     <MaterialCreationDialog
-      materialKey={`${classroom.id}:${material?.id ?? 'new'}`}
+      materialKey={recoveryUserId ? `${recoveryUserId}:${classroom.id}:${material?.id ?? 'new'}` : undefined}
       classroomId={classroom.id}
       classroomName={classroom.title}
       isOpen={isOpen}
       isExisting={!!material}
+      recoveryVersion={material?.updated_at ?? 'new'}
       isDraft={isDraft}
       postedOn={material?.posted_on}
       releasedAt={material?.released_at}
@@ -585,6 +607,7 @@ function formatAssignmentAiGradingRunMessage(run: AssignmentAiGradingRunSummary)
 
 export function TeacherClassroomView({
   classroom,
+  recoveryUserId,
   onSelectAssignment,
   onViewModeChange,
   onEditModeChange,
@@ -3381,6 +3404,7 @@ export function TeacherClassroomView({
       />
 
       <TeacherMaterialDialog
+        recoveryUserId={recoveryUserId}
         key={`${classroom.id}:${editMaterial?.id ?? 'new'}`}
         classroom={classroom}
         material={editMaterial}
