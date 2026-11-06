@@ -1297,6 +1297,7 @@ export function TeacherLessonCalendarTab({
               classDays={classDays}
               viewMode={viewMode}
               todayRequest={todayRequest}
+              initialSourcesLoading={isRefreshing}
               onVisibleMonthChange={setVisibleMonth}
               currentDate={currentDate}
               editable={!classroom.archived_at}

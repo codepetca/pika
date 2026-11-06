@@ -28,9 +28,10 @@ vi.mock('@/lib/cookies', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], currentDate, onDateChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], currentDate, onDateChange, initialSourcesLoading }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-initial-sources-loading={String(initialSourcesLoading)}
       data-current-date={currentDate.toISOString().slice(0, 10)}
       data-lesson-count={lessonPlans.length}
       data-assignment-count={assignments.length}
@@ -111,6 +112,20 @@ describe('StudentLessonCalendarTab', () => {
     fireEvent.click(list)
     expect(list).toHaveAttribute('aria-pressed', 'true')
     expect(fetchMock).toHaveBeenCalledTimes(readCount)
+  })
+
+  it('exposes refresh status and forwards source settlement to the student calendar', async () => {
+    classDaysState.isLoading = true
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], materials: [], announcements: [] }) })
+    const view = render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
+    const calendar = await screen.findByTestId('lesson-calendar')
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'true'))
+    expect(screen.getByText('Refreshing calendar')).toBeInTheDocument()
+    classDaysState.isLoading = false
+    view.rerender(<StudentLessonCalendarTab showTests={false} classroom={classroom} />)
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'false'))
+    expect(screen.queryByText('Refreshing calendar')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Calendar workspace' })).toBeInTheDocument()
   })
 
   it('fires all 4 API calls in parallel via Promise.all (#306)', async () => {

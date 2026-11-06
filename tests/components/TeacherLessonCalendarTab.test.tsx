@@ -53,9 +53,10 @@ vi.mock('@/contexts/MarkdownPreferenceContext', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange, initialSourcesLoading }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-initial-sources-loading={String(initialSourcesLoading)}
       data-material-ids={materials.map((material: { id: string }) => material.id).join(',')}
       data-test-count={tests.length}
       data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
@@ -187,6 +188,20 @@ describe('TeacherLessonCalendarTab', () => {
     expect(screen.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(readCount)
+  })
+
+  it('exposes refresh status and forwards source settlement to the teacher calendar', async () => {
+    classDaysState.isLoading = true
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], materials: [], announcements: [] }) })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
+    const calendar = await screen.findByTestId('lesson-calendar')
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'true'))
+    expect(screen.getByText('Refreshing calendar')).toBeInTheDocument()
+    classDaysState.isLoading = false
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'false'))
+    expect(screen.queryByText('Refreshing calendar')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Calendar workspace' })).toBeInTheDocument()
   })
 
   it('does not fetch or display classroom features hidden from teachers', async () => {

@@ -4,6 +4,8 @@ import { LessonCalendar, type CalendarViewMode } from '@/components/LessonCalend
 import { TooltipProvider } from '@/ui'
 import type { Assignment, Classroom, LessonPlan } from '@/types'
 
+vi.mock('@/hooks/use-toronto-today', () => ({ useTorontoToday: () => '2026-04-15' }))
+
 const classroom = {
   id: 'classroom', teacher_id: 'teacher', title: 'Course', class_code: 'CODE',
   theme_color: 'blue', term_label: null, allow_enrollment: true,
@@ -42,4 +44,36 @@ describe('term calendar modes', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Due: Final assignment' }))
     expect(onAssignmentClick).toHaveBeenCalledWith(assignment)
   })
+
+  it('unclamps expanded read-only grid text while keeping plain text', () => {
+    const longText = 'First line\nSecond line\nThird line\nFourth line'
+    render(<TooltipProvider><LessonCalendar classroom={classroom} lessonPlans={[lesson('long', '2026-03-02', longText)]}
+      viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable={false}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} /></TooltipProvider>)
+    const text = screen.getByText(/First line/)
+    expect(text).toHaveClass('line-clamp-3')
+    fireEvent.click(text)
+    expect(text).not.toHaveClass('line-clamp-3')
+    expect(text).toHaveTextContent('Fourth line')
+  })
+
+  it.each([false, true])('centers after initial sources settle unless the user has scrolled (interacted=%s)', interacted => {
+    const props = { classroom, lessonPlans: [], viewMode: 'list' as const,
+      currentDate: new Date('2026-03-15T12:00:00'), editable: false,
+      onDateChange: vi.fn(), onViewModeChange: vi.fn() }
+    const view = render(<TooltipProvider><LessonCalendar {...props} initialSourcesLoading /></TooltipProvider>)
+    const target = view.container.querySelector('[data-calendar-date="2026-04-10"]') as HTMLElement
+    const scroller = target.closest('.overflow-auto') as HTMLElement
+    vi.spyOn(target, 'getBoundingClientRect').mockReturnValue({ top: 300 } as DOMRect)
+    vi.spyOn(scroller, 'getBoundingClientRect').mockReturnValue({ top: 0 } as DOMRect)
+    scroller.scrollTop = 20
+    if (interacted) fireEvent.wheel(scroller)
+    view.rerender(<TooltipProvider><LessonCalendar {...props} initialSourcesLoading={false} /></TooltipProvider>)
+    expect(scroller.scrollTop).toBe(interacted ? 20 : 320)
+    scroller.scrollTop = 40
+    view.rerender(<TooltipProvider><LessonCalendar {...props} initialSourcesLoading /></TooltipProvider>)
+    view.rerender(<TooltipProvider><LessonCalendar {...props} initialSourcesLoading={false} /></TooltipProvider>)
+    expect(scroller.scrollTop).toBe(40)
+  })
+
 })

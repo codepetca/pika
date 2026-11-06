@@ -31,6 +31,7 @@ interface LessonCalendarProps {
   saving?: boolean
   showHeader?: boolean
   todayRequest?: number
+  initialSourcesLoading?: boolean
   onVisibleMonthChange?: (month: string) => void
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
@@ -91,6 +92,7 @@ export function LessonCalendar({
   saving = false,
   showHeader = true,
   todayRequest = 0,
+  initialSourcesLoading = false,
   onVisibleMonthChange,
   onDateChange,
   onViewModeChange,
@@ -220,7 +222,7 @@ export function LessonCalendar({
     if (active?.dataset.calendarMonth) onVisibleMonthChange?.(active.dataset.calendarMonth)
   }, [onVisibleMonthChange, viewMode])
 
-  useEffect(() => {
+  const centerToday = useCallback(() => {
     const target = today < termStart ? termStart : today > termEnd ? termEnd : today
     const key = format(target, 'yyyy-MM-dd')
     const element = calendarRef.current?.querySelector<HTMLElement>(`[data-calendar-date="${key}"]`)
@@ -229,7 +231,21 @@ export function LessonCalendar({
     const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
     scroller.scrollTop += offset - (scroller.clientHeight - element.offsetHeight) / 2
     updateVisibleMonth()
-  }, [viewMode, classroom.id, todayRequest, localTodayRequest, termStart, termEnd, today, updateVisibleMonth])
+  }, [termStart, termEnd, today, updateVisibleMonth])
+  useEffect(() => { centerToday() }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest])
+
+  // Source snapshots may arrive after the first render and change row heights.
+  // Recenter once after the initial load, unless the user has taken control.
+  const initialLoad = useRef({ classroomId: classroom.id, complete: false, interacted: false })
+  if (initialLoad.current.classroomId !== classroom.id) {
+    initialLoad.current = { classroomId: classroom.id, complete: false, interacted: false }
+  }
+  useEffect(() => {
+    if (initialSourcesLoading || initialLoad.current.complete) return
+    initialLoad.current.complete = true
+    if (!initialLoad.current.interacted) centerToday()
+  }, [initialSourcesLoading, centerToday, classroom.id])
+  const markUserInteraction = () => { initialLoad.current.interacted = true }
 
   // Group days into weeks for rendering
   const weeks = useMemo(() => {
@@ -312,7 +328,7 @@ export function LessonCalendar({
           options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
         <Button variant="secondary" size="sm" onClick={() => setLocalTodayRequest(value => value + 1)}>Today</Button>
       </div>}
-      <div ref={scrollRef} onScroll={updateVisibleMonth} className="max-h-screen min-w-0 overflow-auto">
+      <div ref={scrollRef} onScroll={updateVisibleMonth} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className="max-h-screen min-w-0 overflow-auto">
       {viewMode === 'list' ? (
         <div role="region" aria-label="Term agenda" className="min-w-0">
           {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (

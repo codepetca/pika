@@ -545,6 +545,7 @@ export function StudentLessonCalendarTab({
               classDays={classDays}
               viewMode={viewMode}
               todayRequest={todayRequest}
+              initialSourcesLoading={isRefreshing}
               onVisibleMonthChange={setVisibleMonth}
               currentDate={currentDate}
               editable={false}

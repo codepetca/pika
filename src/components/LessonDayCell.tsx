@@ -214,7 +214,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         <div className={denseAgenda ? 'flex min-w-0 flex-1 flex-wrap items-center gap-x-2' : 'flex min-w-0 flex-1 flex-col gap-3'}>
           <div
             ref={outerRef}
-            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 flex-none break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''}`}
+            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 ${denseAgenda ? `max-w-full flex-1 ${hasContent || isEditing ? 'basis-48' : 'basis-0'}` : 'flex-none'} break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''} ${denseAgenda && canEdit ? 'min-w-control' : ''}`}
             onClick={event => {
               if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
             }}
@@ -471,7 +471,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             >
               {hasContent ? (
                 renderPlainText ? (
-                  <div className={`text-[10px] leading-tight text-text-muted whitespace-pre-wrap ${compact || plainTextOnly ? 'line-clamp-3' : ''}`}>{plainText}</div>
+                  <div className={`text-[10px] leading-tight text-text-muted whitespace-pre-wrap ${compact ? 'line-clamp-3' : ''}`}>{plainText}</div>
                 ) : (
                   <LimitedMarkdown content={markdown} className="calendar-lesson-markdown" emptyPlaceholder={null} />
                 )
