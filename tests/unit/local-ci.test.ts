@@ -141,7 +141,7 @@ function combinedDatabaseWorkflow(source = workflow()) {
 // Preserve the reviewed two-job browser generation separately from the family split.
 function combinedDarkWorkflow(source = workflow()) {
   return source.replace(/^  browser-pattern-lab-dark:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, '')
-    .replace('run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark\n',
+    .replace('run: node scripts/ci-browser-dark-partitions.mjs\n',
       'run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark\n')
     .replace('      - browser-pattern-lab-dark\n', '')
     .replace('          BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}\n', '')
@@ -687,8 +687,8 @@ describe('local canonical CI', () => {
   it.each([
     ['missing dark job', (text: string) => text.replace(/^  browser-experience-dark:\n[\s\S]*?(?=^  pr-gate:\n)/m, '')],
     ['renamed dark job', (text: string) => text.replace('  browser-experience-dark:\n', '  renamed-browser-dark:\n')],
-    ['missing dark project', (text: string) => text.replace(' --project=chromium-mobile-dark', '')],
-    ['duplicate light project in dark', (text: string) => text.replace('--project=chromium-desktop-dark --project=chromium-mobile-dark', '--project=chromium-desktop --project=chromium-mobile-dark')],
+    ['missing dark wrapper', (text: string) => text.replace('node scripts/ci-browser-dark-partitions.mjs', 'node scripts/missing.mjs')],
+    ['partial dark command', (text: string) => text.replace('node scripts/ci-browser-dark-partitions.mjs', 'pnpm e2e:ci --project=chromium-desktop-dark')],
     ['dark preflight drift', (text: string) => text.replace('--lane browser-dark', '--lane browser')],
   ])('refuses %s rather than treating a damaged split as historical', (_, mutate) => {
     expect(() => extractWorkflow(mutate(workflow()))).toThrow()
@@ -710,7 +710,7 @@ describe('local canonical CI', () => {
       if (script.startsWith('supabase start ')) { expect(active).toBeNull(); active = lane }
       if (script === 'supabase stop --no-backup') { expect(active).toBe(lane); active = null }
       if (lane === failureLane && mode === 'setup-failure' && script === 'pnpm install --frozen-lockfile') return 1
-      if (script.startsWith('pnpm e2e:ci')) {
+      if (script.startsWith('pnpm e2e:ci') || script === 'node scripts/ci-browser-dark-partitions.mjs') {
         for (const directory of ['playwright-report', 'test-results']) {
           rmSync(join(checkout, directory), { recursive: true, force: true })
           mkdirSync(join(checkout, directory))
@@ -741,7 +741,7 @@ describe('local canonical CI', () => {
         expect(existsSync(join(destination, '.auth'))).toBe(false)
         const report = join(destination, 'error-context-001.md')
         if (mode === 'setup-failure') expect(existsSync(report)).toBe(false)
-        else expect(readFileSync(report, 'utf8')).toBe(job.steps.find(step => step.run?.startsWith('pnpm e2e:ci'))!.run)
+        else expect(readFileSync(report, 'utf8')).toBe(job.steps.find(step => step.name === 'Run combined browser contracts')!.run)
         expect(existsSync(join(destination, 'manifest.json'))).toBe(true)
         expect(existsSync(join(destination, 'playwright-report'))).toBe(false)
       }

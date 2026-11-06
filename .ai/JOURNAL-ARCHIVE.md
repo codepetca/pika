@@ -51252,3 +51252,8 @@ Prepared date-specific named QR attendance schedules, replacing the proposed man
 ## 2026-10-30 — Local named-schedule migration
 
 Applied local migrations 293–295. Migration 296 initially failed on a reserved SQL alias; corrected the alias and reviewed-source hashes, then applied 296 with renewed authorization. Verified local migration history, database objects and access controls; focused checks passed (4,489 tests). The rollback-only synthetic database harness passed on a temporary isolated copy, which was removed afterward.
+
+<!-- pika-session-log-archive-batch:8936d6bbe439cd703d0b4502e60d92d821681b628eed8e118f53de6271dd969a -->
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.

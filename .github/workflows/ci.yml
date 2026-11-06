@@ -1815,7 +1815,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
-        run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark
+        run: node scripts/ci-browser-dark-partitions.mjs
 
       - name: Prepare bounded failure diagnostics
         id: failure-diagnostics
