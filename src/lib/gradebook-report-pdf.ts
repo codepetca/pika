@@ -1,4 +1,4 @@
-import { buildDocumentPDFBytes, createEncodingContext, DEFAULT_CW, loadFontData, registerFont, wrapText, type DocumentBlock, type FontData, type FontEntry } from 'pdfnative'
+import { buildDocumentPDFBytes, createEncodingContext, DEFAULT_CW, inspectDocumentLayout, loadFontData, registerFont, wrapText, type DocumentBlock, type FontData, type FontEntry, type PdfLayoutOptions } from 'pdfnative'
 import { zipSync } from 'fflate'
 import type { GradebookStudentReport } from './gradebook-report'
 import type { GuardianRecipient } from './gradebook-email'
@@ -55,12 +55,12 @@ async function reportFonts(text: string): Promise<FontEntry[]> {
 }
 
 /** Keep the renderer from splitting combining marks or conjuncts across lines. */
-function reportParagraphs(text: string, size: number, fonts: FontEntry[]): DocumentBlock[] {
+function reportParagraphs(text: string, size: number, fonts: FontEntry[], options: { color?: string; keepWithNext?: boolean } = {}): DocumentBlock[] {
   if (typeof Intl.Segmenter !== 'function') throw new Error('This browser cannot safely wrap report text. No reports were downloaded.')
   const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
   const encoding = createEncodingContext(fonts)
   const result: DocumentBlock[] = []
-  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left' })
+  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left', ...options })
   for (const paragraph of text.split(/\r\n|\r|\n/)) {
     let line = ''
     const fits = (value: string) => encoding.tw(value, size) <= DEFAULT_CW && wrapText(value, DEFAULT_CW, size, encoding).length <= 1
@@ -73,8 +73,18 @@ function reportParagraphs(text: string, size: number, fonts: FontEntry[]): Docum
         throw new Error('A right-to-left name or title is too long to display safely. Shorten it and try again. No reports were downloaded.')
       }
       if (!line || !fits(segment)) throw new Error('Report text cannot be wrapped safely. No reports were downloaded.')
-      add(line)
-      line = segment
+      // Prefer a word boundary, while retaining grapheme-safe hard wrapping
+      // for long words and scripts that do not use spaces.
+      let boundary = -1
+      for (const part of graphemes.segment(line)) if (part.segment === ' ') boundary = part.index
+      const remainder = boundary > 0 ? line.slice(boundary + 1) + segment : ''
+      if (boundary > 0 && fits(remainder)) {
+        add(line.slice(0, boundary))
+        line = remainder
+      } else {
+        add(line)
+        line = segment
+      }
     }
     if (line || !paragraph) add(line)
   }
@@ -88,14 +98,66 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
   const manifest: string[][] = [['PDF file', 'Student', 'Guardian email in Pika', 'Status']]
   for (const [index, report] of reports.entries()) {
     if (!report.studentName) throw new Error('A student is missing a name. Add their name before exporting.')
-    const lines = [classroom, `Student: ${report.studentName}`, 'Gradebook report',
-      `Current grade: ${report.currentPercent == null ? 'Not available' : `${report.currentPercent.toFixed(1)}%`}`,
-      'Based on returned work and saved Gradebook marks. This is not an official report card.',
-      ...(report.items.length ? report.items.flatMap((item) => [item.title,
-        `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}   ${item.earned} / ${item.possible}   (${item.percent.toFixed(1)}%)${item.isZeroWeight ? ' · 0 weight' : item.included ? '' : ' · Not counted'}`]) : ['No returned marks available.'])]
-    const fontEntries = await reportFonts(lines.join('\n'))
-    const blocks = lines.flatMap((line, i) => reportParagraphs(line, i === 2 ? 17 : 11, fontEntries))
-    const pdf = buildDocumentPDFBytes({ blocks, fontEntries }, { tagged: true, direction: 'auto' })
+    const itemLines = report.items.map((item) => ({
+      title: item.title,
+      category: `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}`,
+      score: `${item.earned} / ${item.possible} points   |   ${item.percent.toFixed(1)}%`,
+      status: item.included ? '' : 'Does not count toward current grade',
+    }))
+    const fontEntries = await reportFonts([classroom, report.studentName, ...itemLines.flatMap((item) => [item.title, item.category, item.score, item.status])].join('\n'))
+    const blocks: DocumentBlock[] = []
+    const ink = '0.09 0.17 0.23'
+    const muted = '0.32 0.40 0.47'
+    const accent = '0.09 0.42 0.41'
+    const layout: Partial<PdfLayoutOptions> = {
+      pageWidth: 612, pageHeight: 792, tagged: true, direction: 'auto',
+      footerTemplate: { left: 'Pika · Gradebook report', right: 'Page {page} of {pages}', fontSize: 8, color: muted },
+    }
+    const add = (text: string, size: number, color: string, keepWithNext = false) => {
+      blocks.push(...reportParagraphs(text, size, fontEntries, { color, keepWithNext }))
+    }
+    const space = (height: number) => blocks.push({ type: 'spacer', height })
+    add('STUDENT GRADEBOOK REPORT', 10, accent, true)
+    space(5)
+    add(report.studentName, 22, ink, true)
+    add(classroom, 12, muted)
+    space(13)
+    add('CURRENT GRADE', 10, muted, true)
+    add(report.currentPercent == null ? 'Not available' : `${report.currentPercent.toFixed(1)}%`, 25, accent)
+    add('Based on returned work and saved Gradebook marks. This is not an official report card.', 10, muted)
+    space(14)
+    add('Assessment results', 15, ink, true)
+    add('Only returned classwork and tests, and saved Gradebook marks, appear here.', 10, muted, true)
+    space(6)
+    if (itemLines.length === 0) add('No marks are available to show yet.', 11, muted)
+    // Only the current page needs to be remeasured as entries are appended.
+    // All report paragraphs are pre-wrapped into single-line blocks, so each
+    // block corresponds to one entry in the layout inspector's output.
+    let pageBlocks = blocks.slice()
+    const initialPage = inspectDocumentLayout({ blocks: pageBlocks, fontEntries }, layout).pages.at(-1)
+    if (initialPage) pageBlocks = pageBlocks.slice(-initialPage.blocks.length)
+    for (const item of itemLines) {
+      const start = blocks.length
+      add(item.title, 12, ink, true)
+      add(item.category, 10, muted, true)
+      add(`${item.score}${item.status ? `   |   ${item.status}` : ''}`, 10, muted)
+      space(8)
+      const group = blocks.slice(start)
+      const current = [...pageBlocks, ...group]
+      const plan = inspectDocumentLayout({ blocks: current, fontEntries }, layout)
+      const all = plan.pages.flatMap((page) => page.blocks)
+      const firstPage = all[pageBlocks.length]?.page
+      const lastPage = all[pageBlocks.length + group.length - 1]?.page
+      if (firstPage != null && lastPage != null && firstPage !== lastPage
+        && inspectDocumentLayout({ blocks: group, fontEntries }, layout).totalPages === 1) {
+        blocks.splice(start, 0, { type: 'pageBreak' })
+        pageBlocks = group
+      } else {
+        const lastPageSize = plan.pages.at(-1)?.blocks.length ?? 0
+        pageBlocks = lastPageSize ? current.slice(-lastPageSize) : []
+      }
+    }
+    const pdf = buildDocumentPDFBytes({ blocks, fontEntries }, layout)
     const filename = `${String(index + 1).padStart(3, '0')} - ${safeFilename(report.studentName)}.pdf`
     files[filename] = pdf
     if (recipients) manifest.push([filename, report.studentName, recipients[index].email, recipients[index].status])
