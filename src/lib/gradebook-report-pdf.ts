@@ -128,12 +128,15 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       const last = lines.at(-1)
       if (!last || last.type !== 'paragraph') throw new Error('Could not format an assessment. No reports were downloaded.')
       const width = encoding.tw(last.text, size)
-      const spaceWidth = encoding.tw(' ', size)
+      // Nonbreaking spaces keep the padding as one wrap token. Ordinary spaces
+      // make the layout inspector repeatedly measure every padding character.
+      const padding = '\u00a0'
+      const spaceWidth = encoding.tw(padding, size)
       const spaces = Math.max(1, Math.floor((DEFAULT_CW - width - rightWidth) / spaceWidth))
       // Isolate the label so its direction cannot move the numeric mark.
       const label = /[\p{Script=Arabic}\p{Script=Hebrew}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u.test(last.text)
         ? `\u2068${last.text}\u2069` : last.text
-      const text = `${label}${' '.repeat(spaces)}${right}`
+      const text = `${label}${padding.repeat(spaces)}${right}`
       if (encoding.tw(text, size) > DEFAULT_CW || wrapText(text, DEFAULT_CW, size, encoding).length !== 1) {
         throw new Error('An assessment mark cannot be aligned safely. No reports were downloaded.')
       }
