@@ -12,14 +12,14 @@ function registry(deps: RepoLightConnectionDependencies) {
     config: deps.managedConfig ?? parseManagedRepoLightConfig, keyring: parseManagedRepoLightKeyring,
   })
 }
-export function useManagedRepoLightConnection(config: RepoLightConfig, teacherId: string, deps: RepoLightConnectionDependencies) {
+export function shouldUseManagedRepoLightConnection(config: RepoLightConfig, teacherId: string, deps: RepoLightConnectionDependencies) {
   if (!config.managedEnabled) return false
   const managed = (deps.managedConfig ?? parseManagedRepoLightConfig)()
   if (!managed.enabled || managed.apiOrigin !== config.apiOrigin) throw new Error('repolight_not_configured')
   return managed.pilotMode === 'full' || (managed.pilotMode === 'scoped' && managed.pilotTeacherIds?.includes(teacherId) === true)
 }
 export async function ensureRepoLightConnection(config: RepoLightConfig, teacherId: string, deps: RepoLightConnectionDependencies) {
-  if (useManagedRepoLightConnection(config, teacherId, deps)) {
+  if (shouldUseManagedRepoLightConnection(config, teacherId, deps)) {
     return registry(deps).ensure(teacherId)
   }
   return { connection: resolveRepoLightConnection(config, teacherId), apiOrigin: config.apiOrigin! }

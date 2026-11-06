@@ -7,7 +7,7 @@ import { createRepoLightClient, prepareRepoLightCreate, canonicalRepoLightJson, 
 import type { RepoLightRpcSourceContract } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 import { assignmentSummary } from './repolight-assignment-summary'
-import { ensureRepoLightConnection, resolveSavedRepoLightConnection, useManagedRepoLightConnection, type RepoLightConnectionDependencies } from './repolight-connections'
+import { ensureRepoLightConnection, resolveSavedRepoLightConnection, shouldUseManagedRepoLightConnection, type RepoLightConnectionDependencies } from './repolight-connections'
 import { ManagedRepoLightError } from './repolight-managed'
 
 type Contract = RepoLightRpcSourceContract
@@ -100,7 +100,7 @@ export async function getAssignmentRepoLightContext(actorId: string, target: Rep
   try {
     const config = (deps.config ?? parseRepoLightConfig)()
     if (!config.enabled) state = 'disabled'
-    else if (useManagedRepoLightConnection(config, actorId, deps)) {
+    else if (shouldUseManagedRepoLightConnection(config, actorId, deps)) {
       state = loaded.analysis_access?.allowed === true ? 'ready' : 'access_required'
     } else state = (resolveRepoLightConnection(config, actorId), 'ready')
   } catch { state = 'not_configured' }
@@ -119,7 +119,7 @@ export async function beginAssignmentRepoLightRun(actorId: string, target: RepoL
   try { config = (deps.config ?? parseRepoLightConfig)(); if (!config.enabled) throw new Error() } catch { throw new ApiError(503, 'repolight_not_configured') }
   const selected = resolveAssignmentRepoLightSource(loaded.source, input, deps.now?.())
   let managed: boolean
-  try { managed = useManagedRepoLightConnection(config, actorId, deps) } catch { throw new ApiError(503, 'repolight_not_configured') }
+  try { managed = shouldUseManagedRepoLightConnection(config, actorId, deps) } catch { throw new ApiError(503, 'repolight_not_configured') }
   if (managed && loaded.analysis_access?.allowed !== true) throw new ApiError(403, 'repolight_analysis_access_required')
   let connection
   try { ({ connection } = await ensureRepoLightConnection(config, actorId, deps)) }
