@@ -54,7 +54,7 @@ export function parseManagedRepoLightConfig(env: Record<string, string | undefin
     if (env.REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON !== undefined) {
       const raw = env.REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON
       if (Buffer.byteLength(raw) > 1024) throw new Error()
-      pilotTeacherIds = z.array(uuid).min(1).max(10).parse(JSON.parse(raw))
+      pilotTeacherIds = z.array(uuid).length(1).parse(JSON.parse(raw))
       if (new Set(pilotTeacherIds).size !== pilotTeacherIds.length) throw new Error()
     }
     if ((pilotMode === 'scoped') !== (pilotTeacherIds !== undefined)) throw new Error()
@@ -171,9 +171,9 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
     if (config.pilotMode === 'scoped') throw failure('repolight_managed_ineligible')
     throw failure('repolight_managed_disabled')
   }
-  async function finish(row: ManagedRepoLightRecord, config: ManagedRepoLightConfig) {
-    // Covers fresh and resumed provisioning and rotation, including saved lookup recovery.
-    assertPilotScope(row.teacherId, config)
+  async function finish(row: ManagedRepoLightRecord, config: ManagedRepoLightConfig, savedRotationRecovery = false) {
+    // Only saved-locator recovery may replay an existing rotation outside scope.
+    if (!savedRotationRecovery || row.operationKind !== 'rotate') assertPilotScope(row.teacherId, config)
     if (row.operationKind === 'provision') {
       // Resume also crosses the current SQL provisioning gate under the ordered
       // settings/account/owner locks. HTTP follows the committed authorization;
@@ -237,7 +237,7 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
         let config: ManagedRepoLightConfig
         try { config = options.config() }
         catch { throw failure('repolight_managed_recovery_unavailable', true) }
-        const recovered = await finish(row, config)
+        const recovered = await finish(row, config, true)
         return { connection: { ...recovered.connection, connectionRef: saved.connectionRef }, apiOrigin: recovered.apiOrigin }
       }
       const resolved = connection(row, (options.keyring ?? options.config)())

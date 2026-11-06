@@ -140,14 +140,14 @@ describe('managed RepoLight credentials', () => {
     expect(saved.connection.workspaceRef).toBe(first.connection.workspaceRef)
     await expect(f.registry.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
   })
-  it('resumes an uncertain rotation during saved cleanup lookup after expiry and creation pause, without allocating another operation', async () => {
+  it.each(['off', 'scoped'] as const)('resumes an uncertain saved rotation after scope change to %s without allocating another operation', async mode => {
     const f = fixture(), first = await f.registry.ensure(teacher), original = f.fetchImpl
     let fail = true
     const registry = createManagedRepoLightRegistry(f.store, { config, fetchImpl: (async (...args: Parameters<typeof fetch>) => { const response = await original(...args); if (String(args[0]).endsWith('/rotate') && fail) { fail = false; throw new Error('uncertain') }; return response }) as typeof fetch })
     await expect(registry.rotate(teacher)).rejects.toThrow()
     const pending = { ...f.rows[1] }, accessCalls = vi.mocked(f.store.access).mock.calls.length
     f.eligibility(false)
-    const recovery = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), enabled: false }), fetchImpl: f.fetchImpl })
+    const recovery = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), enabled: false, pilotMode: mode, ...(mode === 'scoped' ? { pilotTeacherIds: [other] } : {}) }), fetchImpl: f.fetchImpl })
     const result = await recovery.resolveSaved(teacher, first.connection.connectionRef)
     expect(result.connection.connectionRef).toBe(first.connection.connectionRef)
     expect(result.connection.apiKey).toBe(decryptManagedRepoLightKey(pending, config()))
@@ -227,7 +227,7 @@ describe('managed pilot scope', () => {
     expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'scoped' })).toThrow()
     expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'FULL' })).toThrow()
     expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON: JSON.stringify([teacher]) })).toThrow()
-    for (const value of ['', '[]', '{}', '["bad"]', JSON.stringify([teacher, teacher]), JSON.stringify(Array(11).fill(teacher))]) {
+    for (const value of ['', '[]', '{}', '["bad"]', JSON.stringify([teacher, teacher]), JSON.stringify([teacher, other]), JSON.stringify(Array(11).fill(teacher))]) {
       expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'scoped', REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON: value })).toThrow('Managed repository reports are unavailable.')
     }
   })
@@ -241,13 +241,17 @@ describe('managed pilot scope', () => {
   })
 })
 
-it('keeps saved ready credentials usable outside the pilot but blocks pending rotation recovery', async () => {
+it('recovers only a persisted pending rotation outside the pilot for a saved locator', async () => {
   const f = fixture(), first = await f.registry.ensure(teacher)
   const scoped = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), pilotMode: 'scoped', pilotTeacherIds: [other] }), keyring: config, fetchImpl: f.fetchImpl })
   expect((await scoped.resolveSaved(teacher, first.connection.connectionRef)).connection.apiKey).toBe(first.connection.apiKey)
   f.rows.push(prepareManagedRepoLightRecord(teacher, config(), f.rows[0]))
   const count = f.requests.length
-  await expect(scoped.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
-  expect(f.requests).toHaveLength(count)
-  expect(f.rows[1].state).toBe('pending')
+  const result = await scoped.resolveSaved(teacher, first.connection.connectionRef)
+  expect(result.connection.connectionRef).toBe(first.connection.connectionRef)
+  expect(f.requests.slice(count).filter(r => r.url.endsWith('/rotate'))).toHaveLength(1)
+  expect(f.rows[1].state).toBe('ready')
+  expect(f.store.prepareRotation).not.toHaveBeenCalled()
+  await expect(scoped.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
+  await expect(scoped.rotate(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
 })

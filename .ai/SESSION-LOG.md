@@ -297,4 +297,4 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 
 ## 2026-11-06 — RepoLight managed pilot scope
 
-Added explicit off/scoped/full runtime scope for managed provisioning and rotation, with exact-teacher cron claims and saved credential access. Targeted unit checks and typecheck are recorded in the implementation handoff. No hosted changes or migrations.
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.

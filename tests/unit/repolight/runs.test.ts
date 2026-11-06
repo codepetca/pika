@@ -32,7 +32,7 @@ function managedSetup(allowed = true) {
   const registry = { ensure: vi.fn(async () => ({ connection, apiOrigin: 'https://reports.example.test' })), resolveSaved: vi.fn(async () => ({ connection, apiOrigin: 'https://reports.example.test' })) }
   f.deps.config = () => ({ enabled: true, managedEnabled: true, apiOrigin: 'https://reports.example.test', connections: [] })
   f.deps.managedRegistry = registry
-  f.deps.managedConfig = () => ({ enabled: true, apiOrigin: 'https://reports.example.test', installationRef: connection.installationRef, controlSecret: 'x'.repeat(43), activeEncryptionKeyId: 'key-1', encryptionKeys: { 'key-1': 'y'.repeat(43) } })
+  f.deps.managedConfig = () => ({ enabled: true, apiOrigin: 'https://reports.example.test', installationRef: connection.installationRef, controlSecret: 'x'.repeat(43), activeEncryptionKeyId: 'key-1', encryptionKeys: { 'key-1': 'y'.repeat(43) }, pilotMode: 'full' })
   Object.assign(f.row, { analysis_access: access })
   f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: f.row, analysis_access: access }, error: null }) as never)
   return { ...f, access, registry, connection }
@@ -297,5 +297,42 @@ describe('report-only durable orchestration', () => {
     expect(await importAssignmentRepoLightFeedback(f.actor, f.target, f.row.id, { requestId: uuid(25), scopeKey: 'repository', expectedDocUpdatedAt: '2026-10-24T12:00:00Z', expectedReportDigest: wire.reportDigest, feedbackText: 'Explicit feedback' }, f.deps)).toEqual(receipt)
     expect(f.database.importFeedback.mock.calls[0][0]).toMatchObject({ p_scope_key: 'repository', p_expected_report_digest: wire.reportDigest, p_feedback_text: 'Explicit feedback' })
     expect(f.factory).not.toHaveBeenCalled(); expect(f.database.begin).not.toHaveBeenCalled()
+  })
+})
+
+describe('scoped managed rollout with manual connections', () => {
+  function outsidePilot(manual = true) {
+    const f = setup()
+    const access = { enforced: false, allowed: false, reason: 'expired', source: 'trial', access_ends_at: null, plan_revision: 2 }
+    const managedRegistry = { ensure: vi.fn(), resolveSaved: vi.fn() }
+    f.deps.config = () => ({ enabled: true, managedEnabled: true, apiOrigin: 'https://reports.example.test', connections: manual ? [f.connection] : [] })
+    f.deps.managedConfig = () => ({ enabled: true, apiOrigin: 'https://reports.example.test', installationRef: 'pika-installation', controlSecret: 'x'.repeat(43), activeEncryptionKeyId: 'key-1', encryptionKeys: { 'key-1': 'y'.repeat(43) }, pilotMode: 'scoped', pilotTeacherIds: [uuid(99)] })
+    f.deps.managedRegistry = managedRegistry
+    Object.assign(f.row, { analysis_access: access })
+    f.database.source.mockImplementation(async () => ({ data: { source: f.source, source_fingerprint: digestRepoLightJson(f.source), latest_run: f.row, analysis_access: access }, error: null }) as never)
+    return { ...f, managedRegistry }
+  }
+  it('uses the manual connection for readiness and a new run outside the pilot', async () => {
+    const f = outsidePilot()
+    f.database.begin.mockImplementation(async args => {
+      const prepared = prepareRepoLightCreate({ schemaVersion: '1.0', request: args.p_request, clientBinding: f.row.create_envelope.clientBinding })
+      return { data: { ...f.row, request_json: prepared.envelope.request, create_envelope: prepared.envelope, request_fingerprint: prepared.requestFingerprint }, error: null }
+    })
+    expect((await getAssignmentRepoLightContext(f.actor, f.target, f.deps)).state).toBe('ready')
+    await beginAssignmentRepoLightRun(f.actor, f.target, { requestId: f.row.id }, f.deps)
+    expect(f.database.begin.mock.calls[0][0].p_connection).toEqual(f.row.connection_json)
+    expect(f.managedRegistry.ensure).not.toHaveBeenCalled()
+  })
+  it('reports not configured without a manual connection', async () => {
+    const f = outsidePilot(false)
+    expect((await getAssignmentRepoLightContext(f.actor, f.target, f.deps)).state).toBe('not_configured')
+    await expect(beginAssignmentRepoLightRun(f.actor, f.target, { requestId: f.row.id }, f.deps)).rejects.toMatchObject({ statusCode: 503 })
+    expect(f.managedRegistry.ensure).not.toHaveBeenCalled()
+  })
+  it('continues a saved manual run without requiring managed entitlement', async () => {
+    const f = outsidePilot()
+    await advanceAssignmentRepoLightRun(f.actor, f.target, f.row.id, f.deps)
+    expect(f.remote.createAnalysis).toHaveBeenCalledOnce()
+    expect(f.managedRegistry.resolveSaved).not.toHaveBeenCalled()
   })
 })

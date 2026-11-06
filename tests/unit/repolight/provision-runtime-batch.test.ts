@@ -53,14 +53,14 @@ describe('bounded sequential RepoLight recovery batch', () => {
 
 describe('pilot recovery scope', () => {
   const other = '33333333-3333-4333-8333-333333333333'
-  it('claims only exact pilot teachers, including after an empty candidate', async () => {
+  it('claims only the exact pilot teacher', async () => {
     vi.stubEnv('REPOLIGHT_MANAGED_ROLLOUT_MODE', 'scoped')
-    vi.stubEnv('REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON', JSON.stringify([other, teacherId]))
-    const { rpc } = database([null, claim])
+    vi.stubEnv('REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON', JSON.stringify([teacherId]))
+    const { rpc } = database([claim])
     const result = await drainRepoLightProvisionOutbox({ limit: 10 })
     expect(result).toMatchObject({ processed: 1 })
     const claims = rpc.mock.calls.filter(([, args]) => args.p_action === 'claim')
-    expect(claims.map(([, args]) => args.p_payload)).toEqual([{ teacherId: other }, { teacherId }])
+    expect(claims.map(([, args]) => args.p_payload)).toEqual([{ teacherId }])
     expect(state.ensure).toHaveBeenCalledOnce()
   })
   it('does not create a client or claim for a nonpilot billing kick', async () => {

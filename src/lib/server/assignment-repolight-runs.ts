@@ -7,7 +7,7 @@ import { createRepoLightClient, prepareRepoLightCreate, canonicalRepoLightJson, 
 import type { RepoLightRpcSourceContract } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 import { assignmentSummary } from './repolight-assignment-summary'
-import { ensureRepoLightConnection, resolveSavedRepoLightConnection, validateManagedRepoLightConfiguration, type RepoLightConnectionDependencies } from './repolight-connections'
+import { ensureRepoLightConnection, resolveSavedRepoLightConnection, useManagedRepoLightConnection, type RepoLightConnectionDependencies } from './repolight-connections'
 import { ManagedRepoLightError } from './repolight-managed'
 
 type Contract = RepoLightRpcSourceContract
@@ -100,8 +100,7 @@ export async function getAssignmentRepoLightContext(actorId: string, target: Rep
   try {
     const config = (deps.config ?? parseRepoLightConfig)()
     if (!config.enabled) state = 'disabled'
-    else if (config.managedEnabled) {
-      validateManagedRepoLightConfiguration(config, deps)
+    else if (useManagedRepoLightConnection(config, actorId, deps)) {
       state = loaded.analysis_access?.allowed === true ? 'ready' : 'access_required'
     } else state = (resolveRepoLightConnection(config, actorId), 'ready')
   } catch { state = 'not_configured' }
@@ -119,7 +118,9 @@ export async function beginAssignmentRepoLightRun(actorId: string, target: RepoL
   let config: RepoLightConfig
   try { config = (deps.config ?? parseRepoLightConfig)(); if (!config.enabled) throw new Error() } catch { throw new ApiError(503, 'repolight_not_configured') }
   const selected = resolveAssignmentRepoLightSource(loaded.source, input, deps.now?.())
-  if (config.managedEnabled && loaded.analysis_access?.allowed !== true) throw new ApiError(403, 'repolight_analysis_access_required')
+  let managed: boolean
+  try { managed = useManagedRepoLightConnection(config, actorId, deps) } catch { throw new ApiError(503, 'repolight_not_configured') }
+  if (managed && loaded.analysis_access?.allowed !== true) throw new ApiError(403, 'repolight_analysis_access_required')
   let connection
   try { ({ connection } = await ensureRepoLightConnection(config, actorId, deps)) }
   catch (error) {
@@ -157,10 +158,10 @@ export async function advanceAssignmentRepoLightRun(actorId: string, target: Rep
   catch { throw new ApiError(503, 'repolight_not_configured') }
   const { connection, apiOrigin } = resolved
   if (connection.workspaceRef !== prior.connection_json.workspaceRef || connection.installationRef !== prior.connection_json.installationRef) throw new ApiError(503, 'repolight_not_configured')
-  let enabled = false, managedEnabled = false
-  try { const config = (deps.config ?? parseRepoLightConfig)(); enabled = config.enabled; managedEnabled = config.managedEnabled === true }
+  let enabled = false
+  try { const config = (deps.config ?? parseRepoLightConfig)(); enabled = config.enabled }
   catch { if (!prior.analysis_id) throw new ApiError(503, 'repolight_not_configured') }
-  const requireManagedAccess = managedEnabled || prior.connection_json.connectionRef.startsWith('pika_managed_')
+  const requireManagedAccess = prior.connection_json.connectionRef.startsWith('pika_managed_')
   let analysisAccess = prior.analysis_access
   const checkManagedAccess = (current: RepoLightRunRow) => {
     if (!current.analysis_id && requireManagedAccess && current.analysis_access?.allowed !== true) throw new ApiError(403, 'repolight_analysis_access_required')
