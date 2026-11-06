@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-30 — Remove calendar-date help text
-
-At the owner’s request, remove the persistent explanatory sentence from new and
-existing announcement editors and the Classwork material editor. Retain the
-Calendar date label, validation and separate Post/Save/Schedule behavior. Reuse
-existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
-Teacher desktop/mobile and light/dark checks cover future-date editing; student
-view is unaffected because this text appears only in teacher editors.
-Risk profile: none. No production changes or migration are part of this edit.
-
 ## 2026-10-30 Scheduling date display
 
 - Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
@@ -304,3 +294,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.

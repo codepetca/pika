@@ -544,3 +544,30 @@ offerings retain their terms; newly published offerings explicitly carry the
 benefit. The managed registry, eligibility gate, billing lifecycle and service
 contract require integrated tests before activation; do not change pilot, billing,
 AI or production settings merely by deploying dormant implementation.
+
+### Managed provisioning pilot scope
+
+`REPOLIGHT_MANAGED_ROLLOUT_MODE` is `off` (also the default when absent),
+`scoped`, or `full`. For a controlled pilot set it to `scoped` and set
+`REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON` to a JSON array containing exactly one
+canonical lowercase teacher UUID. Set these in the server environment before
+enabling the runtime and database provisioning gates; never put values in client
+configuration, logs, or source control. Scoped mode requires a valid list; empty,
+malformed, multiple-entry, or oversized lists fail closed. Off and full modes reject a
+present list, so widening requires an explicit configuration change to `full`
+and removal of the list. In full mode the existing plan and database gates govern
+rollout. Configuration changes require a server rollout; in-flight provider calls
+may already have been authorized.
+
+Cron claims the listed teacher explicitly, so other teachers' queued work remains
+unclaimed. Billing kicks outside the list also leave their queue entries untouched.
+The restriction covers new and resumed provisioning and new rotations. Previously ready credentials remain available for authorized report
+and cleanup operations. Saved-locator recovery can replay an exact, already-persisted
+pending rotation even after scope removal or rollout shutdown; it cannot allocate a
+new rotation or provision a workspace. This protects cleanup after a lost response. Teachers outside the pilot continue
+to route through their configured manual connections; without one, readiness
+reports the connection as unavailable. The global `plan_enforcement_enabled`
+gate applies eligibility checks to all connections, including manual connections.
+Leave that gate off during the controlled pilot until its activation is separately
+reviewed and authorized. The pilot scope does not turn on billing, AI, the runtime
+switch, or the database provisioning gate.

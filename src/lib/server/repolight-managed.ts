@@ -18,7 +18,8 @@ export const managedRepoLightRecordSchema = z.object({
 export type ManagedRepoLightRecord = z.infer<typeof managedRepoLightRecordSchema>
 export type ManagedRepoLightConfig = {
   enabled: boolean; apiOrigin: string; installationRef: string; controlSecret: string;
-  activeEncryptionKeyId: string; encryptionKeys: Record<string, string>
+  activeEncryptionKeyId: string; encryptionKeys: Record<string, string>;
+  pilotMode: 'off' | 'scoped' | 'full'; pilotTeacherIds?: string[]
 }
 export type ManagedRepoLightKeyring = Pick<ManagedRepoLightConfig, 'activeEncryptionKeyId' | 'encryptionKeys'>
 export class ManagedRepoLightError extends Error {
@@ -47,8 +48,18 @@ export function parseManagedRepoLightConfig(env: Record<string, string | undefin
     const installationRef = ref.parse(env.REPOLIGHT_MANAGED_INSTALLATION_REF)
     const controlSecret = keyBytes.parse(env.REPOLIGHT_MANAGED_CONTROL_SECRET)
     const keyring = parseManagedRepoLightKeyring(env)
+    // Omission fails closed. Widening requires an explicit full rollout mode.
+    const pilotMode = z.enum(['off', 'scoped', 'full']).parse(env.REPOLIGHT_MANAGED_ROLLOUT_MODE ?? 'off')
+    let pilotTeacherIds: string[] | undefined
+    if (env.REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON !== undefined) {
+      const raw = env.REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON
+      if (Buffer.byteLength(raw) > 1024) throw new Error()
+      pilotTeacherIds = z.array(uuid).length(1).parse(JSON.parse(raw))
+      if (new Set(pilotTeacherIds).size !== pilotTeacherIds.length) throw new Error()
+    }
+    if ((pilotMode === 'scoped') !== (pilotTeacherIds !== undefined)) throw new Error()
     if (!apiOrigin) throw new Error()
-    return { enabled: enabled === 'true', apiOrigin, installationRef, controlSecret, ...keyring }
+    return { enabled: enabled === 'true', apiOrigin, installationRef, controlSecret, ...keyring, pilotMode, ...(pilotTeacherIds ? { pilotTeacherIds } : {}) }
   } catch { throw failure('repolight_managed_not_configured') }
 }
 
@@ -154,7 +165,15 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
     } catch (error) { if (error instanceof ManagedRepoLightError) throw error; throw failure('repolight_managed_unavailable', true) }
     finally { controller.abort(); if (timer) clearTimeout(timer) }
   }
-  async function finish(row: ManagedRepoLightRecord, config: ManagedRepoLightConfig) {
+  function assertPilotScope(teacherId: string, config: ManagedRepoLightConfig) {
+    if (config.pilotMode === 'full') return
+    if (config.pilotMode === 'scoped' && config.pilotTeacherIds?.includes(teacherId)) return
+    if (config.pilotMode === 'scoped') throw failure('repolight_managed_ineligible')
+    throw failure('repolight_managed_disabled')
+  }
+  async function finish(row: ManagedRepoLightRecord, config: ManagedRepoLightConfig, savedRotationRecovery = false) {
+    // Only saved-locator recovery may replay an existing rotation outside scope.
+    if (!savedRotationRecovery || row.operationKind !== 'rotate') assertPilotScope(row.teacherId, config)
     if (row.operationKind === 'provision') {
       // Resume also crosses the current SQL provisioning gate under the ordered
       // settings/account/owner locks. HTTP follows the committed authorization;
@@ -176,6 +195,7 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
       if (!uuid.safeParse(teacherId).success) throw failure('repolight_managed_invalid_request')
       const config = options.config()
       if (!config.enabled) throw failure('repolight_managed_disabled')
+      assertPilotScope(teacherId, config)
       await allowed(teacherId)
       const existing = await store.read(teacherId)
       const row = record(existing ?? await store.prepare(prepareManagedRepoLightRecord(teacherId, config)), teacherId)
@@ -192,6 +212,7 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
     async rotate(teacherId: string): Promise<{ connection: RepoLightConnection; apiOrigin: string }> {
       if (!uuid.safeParse(teacherId).success) throw failure('repolight_managed_invalid_request')
       const config = options.config()
+      assertPilotScope(teacherId, config)
       const current = record(await store.read(teacherId), teacherId)
       if (current.apiOrigin !== config.apiOrigin || current.installationRef !== config.installationRef) throw failure('repolight_managed_configuration_changed')
       if (current.state === 'pending') {
@@ -216,7 +237,7 @@ export function createManagedRepoLightRegistry(store: ManagedRepoLightStore, opt
         let config: ManagedRepoLightConfig
         try { config = options.config() }
         catch { throw failure('repolight_managed_recovery_unavailable', true) }
-        const recovered = await finish(row, config)
+        const recovered = await finish(row, config, true)
         return { connection: { ...recovered.connection, connectionRef: saved.connectionRef }, apiOrigin: recovered.apiOrigin }
       }
       const resolved = connection(row, (options.keyring ?? options.config)())

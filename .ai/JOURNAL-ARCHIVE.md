@@ -51226,3 +51226,14 @@ light/dark verification are in progress; publication and rollout remain separate
 ## 2026-10-30 — Test and assignment settings menus
 
 Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
+
+<!-- pika-session-log-archive-batch:d89bc157d2436173699132e28c4650c3b71cf1396c5effaa2cff833083b3b30f -->
+## 2026-10-30 — Remove calendar-date help text
+
+At the owner’s request, remove the persistent explanatory sentence from new and
+existing announcement editors and the Classwork material editor. Retain the
+Calendar date label, validation and separate Post/Save/Schedule behavior. Reuse
+existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
+Teacher desktop/mobile and light/dark checks cover future-date editing; student
+view is unaffected because this text appears only in teacher editors.
+Risk profile: none. No production changes or migration are part of this edit.

@@ -13,6 +13,7 @@ const claim = { teacherId, leaseToken: '22222222-2222-4222-8222-222222222222', a
 beforeEach(() => {
   state.ensure.mockResolvedValue({})
   vi.stubEnv('PIKA_REPOLIGHT_MANAGED_ENABLED', 'true')
+  vi.stubEnv('REPOLIGHT_MANAGED_ROLLOUT_MODE', 'full')
   vi.stubEnv('REPOLIGHT_API_URL', 'https://repolight.example')
   vi.stubEnv('REPOLIGHT_MANAGED_INSTALLATION_REF', 'fixture')
   vi.stubEnv('REPOLIGHT_MANAGED_CONTROL_SECRET', Buffer.alloc(32, 1).toString('base64url'))
@@ -48,4 +49,41 @@ describe('bounded sequential RepoLight recovery batch', () => {
     expect(await drainRepoLightProvisionOutbox({ limit: 10 })).toMatchObject({ processed: 1, stoppedReason: 'time_limit' })
     expect(actions).toEqual(['claim', 'finish'])
   })
+})
+
+describe('pilot recovery scope', () => {
+  const other = '33333333-3333-4333-8333-333333333333'
+  it('claims only the exact pilot teacher', async () => {
+    vi.stubEnv('REPOLIGHT_MANAGED_ROLLOUT_MODE', 'scoped')
+    vi.stubEnv('REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON', JSON.stringify([teacherId]))
+    const { rpc } = database([claim])
+    const result = await drainRepoLightProvisionOutbox({ limit: 10 })
+    expect(result).toMatchObject({ processed: 1 })
+    const claims = rpc.mock.calls.filter(([, args]) => args.p_action === 'claim')
+    expect(claims.map(([, args]) => args.p_payload)).toEqual([{ teacherId }])
+    expect(state.ensure).toHaveBeenCalledOnce()
+  })
+  it('does not create a client or claim for a nonpilot billing kick', async () => {
+    vi.stubEnv('REPOLIGHT_MANAGED_ROLLOUT_MODE', 'scoped')
+    vi.stubEnv('REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON', JSON.stringify([teacherId]))
+    expect(await drainRepoLightProvisionOutbox({ teacherId: other })).toMatchObject({ processed: 0 })
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
+  })
+  it('rejects malformed scope before creating a client', async () => {
+    vi.stubEnv('REPOLIGHT_MANAGED_ROLLOUT_MODE', 'scoped')
+    vi.stubEnv('REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON', '[]')
+    await expect(drainRepoLightProvisionOutbox()).rejects.toThrow('Managed repository reports are unavailable.')
+    expect(getServiceRoleClient).not.toHaveBeenCalled()
+  })
+})
+
+it('defaults to off before creating a database client', async () => {
+  vi.stubEnv('REPOLIGHT_MANAGED_ROLLOUT_MODE', undefined)
+  expect(await drainRepoLightProvisionOutbox()).toEqual({ status: 'disabled' })
+  expect(getServiceRoleClient).not.toHaveBeenCalled()
+})
+
+it('rejects an empty targeted subject before claiming', async () => {
+  await expect(drainRepoLightProvisionOutbox({ teacherId: '' })).rejects.toThrow('RepoLight provisioning subject is invalid')
+  expect(getServiceRoleClient).not.toHaveBeenCalled()
 })

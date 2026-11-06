@@ -12,8 +12,16 @@ export async function drainRepoLightProvisionOutbox(input: {
 } = {}) {
   if (process.env.PIKA_REPOLIGHT_MANAGED_ENABLED !== 'true') return { status: 'disabled' as const }
   const config = parseManagedRepoLightConfig()
+  if (config.pilotMode === 'off') return { status: 'disabled' as const }
   const limit = input.limit ?? 1
   if (!Number.isInteger(limit) || limit < 1 || limit > 10) throw new Error('RepoLight provisioning batch is invalid')
+  if (input.teacherId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(input.teacherId)) throw new Error('RepoLight provisioning subject is invalid')
+  // Never take a lease for a teacher outside the pilot. The existing RPC can
+  // claim one exact teacher, so cron walks the bounded list without a migration.
+  if (config.pilotTeacherIds && input.teacherId && !config.pilotTeacherIds.includes(input.teacherId)) {
+    return { status: 'ok' as const, processed: 0, outcomes: {}, stoppedReason: 'empty' as const }
+  }
+  const candidates: (string | undefined)[] = input.teacherId ? [input.teacherId] : config.pilotTeacherIds ?? [undefined]
   const db = input.client ?? getServiceRoleClient()
   const deadlineAt = Date.now() + 40_000
   const deliverySignal = AbortSignal.timeout(40_000)
@@ -25,7 +33,7 @@ export async function drainRepoLightProvisionOutbox(input: {
     if (error) throw new Error('RepoLight provisioning outbox is unavailable')
     return data
   }
-  const deps = { enabled: config.enabled, teacherId: input.teacherId,
+  const deps = { enabled: config.enabled,
     registry: createManagedRepoLightRegistry(createManagedRepoLightDatabase((name, args) =>
       db.rpc(name, args).abortSignal(rpcSignal())), { config: () => config, timeoutMs: 4_000 }),
     outbox: {
@@ -35,14 +43,21 @@ export async function drainRepoLightProvisionOutbox(input: {
   }
   let processed = 0
   const outcomes: Record<string, number> = {}
-  for (let i = 0; i < limit; i += 1) {
+  let candidateIndex = 0
+  for (let i = 0; i < limit;) {
     // No parallel provider calls. A last request may consume two4s provider
     // deadlines plus a5s SQL acknowledgement; the route's60s cap has reserve.
     if (Date.now() >= deadlineAt - 10_000) return { status: 'ok' as const, processed, outcomes, stoppedReason: 'time_limit' }
-    const result = await deliverRepoLightProvisionOutbox(deps)
-    if (result.status === 'empty') return { status: 'ok' as const, processed, outcomes, stoppedReason: 'empty' }
+    const result = await deliverRepoLightProvisionOutbox({ ...deps, teacherId: candidates[candidateIndex] })
+    if (config.pilotTeacherIds && !input.teacherId) candidateIndex += 1
+    if (result.status === 'empty') {
+      if (config.pilotTeacherIds && !input.teacherId && candidateIndex < candidates.length) continue
+      return { status: 'ok' as const, processed, outcomes, stoppedReason: 'empty' }
+    }
     processed += 1
+    i += 1
     outcomes[result.status] = (outcomes[result.status] ?? 0) + 1
+    if (candidateIndex >= candidates.length && config.pilotTeacherIds && !input.teacherId) return { status: 'ok' as const, processed, outcomes, stoppedReason: 'empty' }
   }
   return { status: 'ok' as const, processed, outcomes, stoppedReason: 'batch_limit' }
 }
