@@ -3,6 +3,7 @@
 import gradingTableStyles from './test-grading-table.module.css'
 
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
+import { usePersistentBoolean } from '@/hooks/usePersistentBoolean'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 
@@ -118,6 +119,7 @@ const getTestGradingStudentRowId = (studentId: string) => `test-grading-student-
 interface Props {
   classroom: Classroom
   testExperienceMode?: 'existing' | 'shared'
+  summaryCacheKey?: string
   testsTabClickToken?: number
   selectedTestId?: string | null
   selectedTestMode?: WorkspaceTab | null
@@ -429,6 +431,7 @@ function readUnpublishAcknowledgement(
 export function TeacherTestsTab({
   classroom,
   testExperienceMode = 'existing',
+  summaryCacheKey,
   testsTabClickToken = 0,
   selectedTestId: selectedTestIdProp,
   selectedTestMode,
@@ -480,7 +483,7 @@ export function TeacherTestsTab({
   const { showMessage } = useAppMessage()
   const { showGridlines, gridlinesAction } = useStudentTableGridlines()
   const [testEditMode, setTestEditMode] = useState(false)
-  const [reverseTestOrder, setReverseTestOrder] = useState(true)
+  const [reverseTestOrder, setReverseTestOrder] = usePersistentBoolean('teacher-tests:reverse-order:v1', true)
   const testDragActiveRef = useRef(false)
   const [isReorderingTests, setIsReorderingTests] = useState(false)
   const [selectedTestDraftSummary, setSelectedTestDraftSummary] = useState<AssessmentEditorSummaryUpdate | null>(null)
@@ -578,6 +581,7 @@ export function TeacherTestsTab({
     selectedTestDraftSummary,
     apiBasePath,
     progressive: testExperienceMode === 'existing',
+    summaryCacheKey,
   })
   const handleRetryTests = useCallback(() => {
     testsRegionRef.current?.focus()
