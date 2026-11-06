@@ -51107,3 +51107,9 @@ All owned clones removed; shared history292 unchanged. One syntax correction was
 caught locally before the final private pass. Targeted checks, canonical gate,
 review8 and replacementCI receipts follow in PR1695. No merge/release/migration
 application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+<!-- pika-session-log-archive-batch:67520daeaa8bee2558cf07ef3c3e47101971042955198424b89210e67eccfe26 -->
+## 2026-10-28 — Creation action placement
+
+- Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
+- Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.

@@ -49,6 +49,15 @@ describe('buildGradebookStudentReport', () => {
     expect(report.currentPercent).toBe(53.33)
   })
 
+  it('calculates the current grade from unrounded points', () => {
+    const columns = [column('one'), column('two', { weight: 2 })]
+    const assessment_scores = [cell('one', { earned: 0, possible: 1, percent: 0, calculation_earned: 0 }),
+      cell('two', { earned: 0.07, possible: 1, percent: 6.67, calculation_earned: 2 / 30 })]
+    const report = buildGradebookStudentReport({ student: { ...student, assessment_scores }, columns, categories })
+    expect(report.currentPercent).toBe(4.44)
+    expect(report.currentPercent?.toFixed(1)).toBe('4.4')
+  })
+
   it('returns no average when no valid included marks exist and never falls back to email', () => {
     const report = buildGradebookStudentReport({ student: { ...student, student_first_name: null, student_last_name: null, assessment_scores: [cell('bad', { possible: 0 })] }, columns: [column('bad')], categories })
     expect(report).toEqual({ studentName: '', currentPercent: null, items: [] })

@@ -16,7 +16,7 @@ function renderGradebook() {
 async function openCopyMenu() {
   fireEvent.click(await screen.findByRole('checkbox', { name: 'Select Demo Student' }))
   fireEvent.click(screen.getByRole('button', { name: '1 selected' }))
-  await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Copy email 2' })).toBeEnabled())
+  await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Copy guardian email' })).toBeEnabled())
 }
 
 function mockRequests(email: string | null) {
@@ -28,7 +28,7 @@ function mockRequests(email: string | null) {
   return fetchMock
 }
 
-describe('Gradebook Email 2 copy command', () => {
+describe('Gradebook Guardian email copy command', () => {
   it('writes selected prefetched addresses directly from the click without another fetch', async () => {
     const fetchMock = mockRequests('counselor@school.ca')
     const writeText = vi.fn().mockResolvedValue(undefined)
@@ -36,22 +36,22 @@ describe('Gradebook Email 2 copy command', () => {
     renderGradebook()
     await openCopyMenu()
     const calls = fetchMock.mock.calls.length
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy email 2' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy guardian email' }))
     // Synchronous assertion: no awaited network/microtask before clipboard write.
     expect(writeText).toHaveBeenCalledWith('counselor@school.ca')
     expect(fetchMock).toHaveBeenCalledTimes(calls)
-    await screen.findByText('Email 2 addresses copied')
+    await screen.findByText('Guardian email addresses copied')
   })
 
-  it('does not overwrite the clipboard when selected students have no Email 2', async () => {
+  it('does not overwrite the clipboard when selected students have no Guardian email', async () => {
     mockRequests(null)
     const writeText = vi.fn()
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } })
     renderGradebook()
     await openCopyMenu()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy email 2' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy guardian email' }))
     expect(writeText).not.toHaveBeenCalled()
-    expect(screen.getByText('No email 2 addresses for selected students')).toBeInTheDocument()
+    expect(screen.getByText('No guardian email addresses for selected students')).toBeInTheDocument()
   })
 
   it('reports clipboard failure without a false success message', async () => {
@@ -60,9 +60,9 @@ describe('Gradebook Email 2 copy command', () => {
     Object.defineProperty(document, 'execCommand', { configurable: true, value: vi.fn().mockReturnValue(false) })
     renderGradebook()
     await openCopyMenu()
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy email 2' }))
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not copy email 2 addresses')
-    expect(screen.queryByText('Email 2 addresses copied')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Copy guardian email' }))
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not copy guardian email addresses')
+    expect(screen.queryByText('Guardian email addresses copied')).not.toBeInTheDocument()
     expect(document.querySelector('textarea')).toBeNull()
   })
 
@@ -79,7 +79,7 @@ describe('Gradebook Email 2 copy command', () => {
     renderGradebook()
     expect(await screen.findByText('Demo')).toBeInTheDocument()
     expect(await screen.findByRole('alert')).toHaveTextContent('Grades are still available')
-    fireEvent.click(screen.getByRole('button', { name: 'Retry Email 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Retry guardian email' }))
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
     expect(rosterAttempts).toBe(2)
   })

@@ -93,7 +93,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
         </span>}
         items={[
           { id: 'copy-emails', label: 'Copy emails', onSelect: onCopyEmails },
-          { id: 'copy-secondary-emails', label: 'Copy email 2', disabled: !onCopySecondaryEmails, onSelect: () => onCopySecondaryEmails?.() },
+          { id: 'copy-secondary-emails', label: 'Copy guardian email', disabled: !onCopySecondaryEmails, onSelect: () => onCopySecondaryEmails?.() },
         ]}
         disabled={!selectedCount} variant={selectedCount ? 'primary' : 'secondary'}
         menuAriaLabel="Student actions" menuAlign="start"

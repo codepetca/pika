@@ -45,7 +45,9 @@ export function buildGradebookStudentReport(input: {
     // precise percentage (for example, rubric scores on a one-point item).
     const percent = cell.percent != null && Number.isFinite(cell.percent)
       ? cell.percent : cell.earned / cell.possible * 100
-    if (included) calculationItems.push({ earned: percent, possible: 100, weight: column.weight, categoryId: category!.id })
+    const calculationPercent = cell.calculation_earned != null && Number.isFinite(cell.calculation_earned)
+      ? cell.calculation_earned / cell.possible * 100 : percent
+    if (included) calculationItems.push({ earned: calculationPercent, possible: 100, weight: column.weight, categoryId: category!.id })
     items.push({
       title: column.title,
       kind: column.assessment_type === 'assignment' ? 'Classwork' : column.assessment_type === 'test' ? 'Test' : 'Gradebook item',

@@ -772,8 +772,8 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
               },
               {
                 id: 'copy-secondary-emails',
-                label: 'Copy email 2',
-                onSelect: () => onPrototypeAction('Copy email 2'),
+                label: 'Copy guardian email',
+                onSelect: () => onPrototypeAction('Copy guardian email'),
               },
             ]}
             disabled={!selected.length}
