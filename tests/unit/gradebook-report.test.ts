@@ -22,6 +22,13 @@ const student: GradebookStudentSummary = {
 }
 
 describe('buildGradebookStudentReport', () => {
+  it('shows one returned assessment when the other two graded assessments are not returned', () => {
+    const columns = [column('Essay'), column('Letter'), column('Test', { assessment_type: 'test' })]
+    const assessment_scores = [cell('Essay'), cell('Letter', { returned_at: null }), cell('Test', { assessment_type: 'test', returned_at: null })]
+    const report = buildGradebookStudentReport({ student: { ...student, assessment_scores }, columns, categories })
+    expect(report.items.map((item) => item.title)).toEqual(['Essay'])
+    expect(report.currentPercent).toBe(80)
+  })
   it('includes only returned complete work and saved standalone marks, without identity data', () => {
     const columns = [column('returned'), column('unreturned'), column('partial'), column('draft', { is_draft: true }),
       column('draft-test', { assessment_type: 'test', status: 'draft' }), column('saved', { assessment_type: 'item', category_id: 'b' })]

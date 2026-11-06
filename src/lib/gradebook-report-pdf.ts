@@ -55,12 +55,12 @@ async function reportFonts(text: string): Promise<FontEntry[]> {
 }
 
 /** Keep the renderer from splitting combining marks or conjuncts across lines. */
-function reportParagraphs(text: string, size: number, fonts: FontEntry[]): DocumentBlock[] {
+function reportParagraphs(text: string, size: number, fonts: FontEntry[], options: { color?: string; keepWithNext?: boolean } = {}): DocumentBlock[] {
   if (typeof Intl.Segmenter !== 'function') throw new Error('This browser cannot safely wrap report text. No reports were downloaded.')
   const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
   const encoding = createEncodingContext(fonts)
   const result: DocumentBlock[] = []
-  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left' })
+  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left', ...options })
   for (const paragraph of text.split(/\r\n|\r|\n/)) {
     let line = ''
     const fits = (value: string) => encoding.tw(value, size) <= DEFAULT_CW && wrapText(value, DEFAULT_CW, size, encoding).length <= 1
@@ -88,14 +88,43 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
   const manifest: string[][] = [['PDF file', 'Student', 'Guardian email in Pika', 'Status']]
   for (const [index, report] of reports.entries()) {
     if (!report.studentName) throw new Error('A student is missing a name. Add their name before exporting.')
-    const lines = [classroom, `Student: ${report.studentName}`, 'Gradebook report',
-      `Current grade: ${report.currentPercent == null ? 'Not available' : `${report.currentPercent.toFixed(1)}%`}`,
-      'Based on returned work and saved Gradebook marks. This is not an official report card.',
-      ...(report.items.length ? report.items.flatMap((item) => [item.title,
-        `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}   ${item.earned} / ${item.possible}   (${item.percent.toFixed(1)}%)${item.isZeroWeight ? ' · 0 weight' : item.included ? '' : ' · Not counted'}`]) : ['No returned marks available.'])]
-    const fontEntries = await reportFonts(lines.join('\n'))
-    const blocks = lines.flatMap((line, i) => reportParagraphs(line, i === 2 ? 17 : 11, fontEntries))
-    const pdf = buildDocumentPDFBytes({ blocks, fontEntries }, { tagged: true, direction: 'auto' })
+    const itemLines = report.items.map((item) => ({
+      title: item.title,
+      detail: `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}   |   ${item.earned} / ${item.possible} points   |   ${item.percent.toFixed(1)}%${item.included ? '' : '   |   Does not count toward current grade'}`,
+    }))
+    const fontEntries = await reportFonts([classroom, report.studentName, ...itemLines.flatMap((item) => [item.title, item.detail])].join('\n'))
+    const blocks: DocumentBlock[] = []
+    const add = (text: string, size: number, color: string, keepWithNext = false) => {
+      blocks.push(...reportParagraphs(text, size, fontEntries, { color, keepWithNext }))
+    }
+    const space = (height: number) => blocks.push({ type: 'spacer', height })
+    const ink = '0.09 0.17 0.23'
+    const muted = '0.32 0.40 0.47'
+    const accent = '0.09 0.42 0.41'
+    add('STUDENT GRADEBOOK REPORT', 10, accent, true)
+    space(5)
+    add(report.studentName, 22, ink, true)
+    add(classroom, 12, muted)
+    space(13)
+    add('CURRENT GRADE', 10, muted, true)
+    add(report.currentPercent == null ? 'Not available' : `${report.currentPercent.toFixed(1)}%`, 25, accent)
+    add('A snapshot based on returned work and saved Gradebook marks.', 10, muted)
+    space(14)
+    add('Assessment results', 15, ink, true)
+    add('Only returned classwork and tests, and saved Gradebook marks, appear here.', 10, muted, true)
+    space(6)
+    if (itemLines.length === 0) add('No marks are available to show yet.', 11, muted)
+    for (const item of itemLines) {
+      add(item.title, 12, ink, true)
+      add(item.detail, 10, muted)
+      space(8)
+    }
+    space(8)
+    add('This is a progress snapshot, not an official report card.', 9, muted)
+    const pdf = buildDocumentPDFBytes({ blocks, fontEntries }, {
+      pageWidth: 612, pageHeight: 792, tagged: true, direction: 'auto',
+      footerTemplate: { left: 'Pika · Gradebook report', right: 'Page {page} of {pages}', fontSize: 8, color: muted },
+    })
     const filename = `${String(index + 1).padStart(3, '0')} - ${safeFilename(report.studentName)}.pdf`
     files[filename] = pdf
     if (recipients) manifest.push([filename, report.studentName, recipients[index].email, recipients[index].status])

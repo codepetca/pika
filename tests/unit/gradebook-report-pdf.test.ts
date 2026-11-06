@@ -43,7 +43,9 @@ describe('gradebook report archive', () => {
   it('does not create a blank page for trailing spacing', async () => {
     const item = { title: 'Short item', kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
     const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: Array(12).fill(item) }]))
-    expect((await PDFDocument.load(Object.values(files)[0])).getPageCount()).toBe(1)
+    const pages = extractText(Object.values(files)[0])
+    expect(pages.length).toBeGreaterThan(0)
+    for (const page of pages) expect(page.text).toMatch(/Short item|progress snapshot/)
   })
   it('keeps long multilingual titles and later marks across pages', async () => {
     const title = '中文測驗'.repeat(600)
@@ -51,7 +53,8 @@ describe('gradebook report archive', () => {
     const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item, { ...item, title: 'Final item' }] }]))
     const pages = extractText(Object.values(files)[0])
     expect(pages.length).toBeGreaterThan(1)
-    expect(pages.map((page) => page.text).join('').replace(/\s/g, '').replace(/\d+\/\d+/g, '')).toContain(title)
+    const text = pages.map((page) => page.text.replace(/Pika\s*·\s*Gradebook report\s*Page\s*\d+\s*of\s*\d+/g, '')).join('')
+    expect(text.replace(/\s/g, '')).toContain(title)
     expect(pages.at(-1)?.text).toContain('Final item')
   })
   it('does not wrap inside a Devanagari grapheme or conjunct', async () => {
@@ -66,5 +69,18 @@ describe('gradebook report archive', () => {
     const title = 'محمد '.repeat(18) + 'Math 101 (محمد) 2026'
     const item = { title, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
     await expect(buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item] }])).rejects.toThrow('right-to-left name or title is too long')
+  })
+  it('explains which marks appear and labels an unavailable grade', async () => {
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: null, items: [] }]))
+    const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
+    expect(text).toContain('Not available')
+    expect(text).toContain('Only returned classwork and tests, and saved Gradebook marks, appear here.')
+    expect(text).toContain('No marks are available to show yet.')
+  })
+  it('explains when an assessment does not count toward the current grade', async () => {
+    const item = { title: 'Practice', kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: false, isZeroWeight: true }
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: null, items: [item] }]))
+    const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
+    expect(text).toContain('Does not count toward current grade')
   })
 })
