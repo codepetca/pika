@@ -11,6 +11,57 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.
+
+## 2026-10-28 Required repository usernames — base refresh
+
+Rebased the previously reviewed required-username change onto current main. Preserved
+upstream journal history and the prior local preparation evidence; focused verification
+is recorded in the task handoff. No migration, provider or production action.
+
+## 2026-10-29 — Delete from assignment and test editors
+
+- Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
+
+## 2026-10-29 — RepoLight required username integration
+
+Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
+journal history and both integration contracts; application and test patches match
+the previously reviewed branch. Focused checks and final PR review follow.
+
+## 2026-10-29 — RepoLight selected-student drafts
+
+Prepared an approval-gated selected-student repository action beside AI Grade.
+It runs individual public reports sequentially and appends matched assignment
+summaries to revision-checked private drafts while the page remains open. No AI,
+grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
+component and executor checks, policy checks, and synthetic teacher desktop/mobile
+light/dark verification are in progress; publication and rollout remain separate.
+
+## 2026-10-30 — Test and assignment settings menus
+
+Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
+
+## 2026-10-30 — Remove calendar-date help text
+
+At the owner’s request, remove the persistent explanatory sentence from new and
+existing announcement editors and the Classwork material editor. Retain the
+Calendar date label, validation and separate Post/Save/Schedule behavior. Reuse
+existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
+Teacher desktop/mobile and light/dark checks cover future-date editing; student
+view is unaffected because this text appears only in teacher editors.
+Risk profile: none. No production changes or migration are part of this edit.
+
 ## 2026-10-30 Scheduling date display
 
 - Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
@@ -298,3 +349,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 ## 2026-11-06 — RepoLight managed pilot scope
 
 Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks passed; teacher desktop/mobile light/dark material recovery verified locally. Independent review and final PR checks remain.

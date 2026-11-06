@@ -55,6 +55,23 @@ type SurveyDetailPayload = {
   questions: SurveyQuestion[]
 }
 
+function surveyContentKey({ survey, questions }: SurveyDetailPayload) {
+  return JSON.stringify({
+    title: survey.title,
+    status: survey.status,
+    showResults: survey.show_results,
+    dynamicResponses: survey.dynamic_responses,
+    questions: questions.map((question) => ({
+      id: question.id,
+      position: question.position,
+      type: question.question_type,
+      text: question.question_text,
+      options: question.options,
+      maxChars: question.response_max_chars,
+    })),
+  })
+}
+
 type SurveyResultsPayload = {
   results: SurveyQuestionResult[]
   stats: {
@@ -515,6 +532,8 @@ export function TeacherSurveyWorkspace({
   const questionBeforeNewRef = useRef<string | null>(null)
   const [addingQuestion, setAddingQuestion] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
+  const initialDetailRef = useRef<string | null>(null)
   const [statusChanging, setStatusChanging] = useState(false)
   const [titleSaving, setTitleSaving] = useState(false)
   const [responseSettingSaving, setResponseSettingSaving] = useState(false)
@@ -570,6 +589,8 @@ export function TeacherSurveyWorkspace({
       const data = await response.json()
       if (loadRequestIdRef.current !== requestId || currentSurveyIdRef.current !== requestedSurveyId) return
       if (!response.ok) throw new Error(data.error || 'Failed to load survey')
+      initialDetailRef.current = surveyContentKey({ survey: data.survey, questions: data.questions || [] })
+      setCloseConfirmOpen(false)
       setDetail({ survey: data.survey, questions: data.questions || [] })
       setSelectedQuestionId(data.questions?.[0]?.id ?? null)
       setEditingQuestionType(null)
@@ -931,6 +952,17 @@ export function TeacherSurveyWorkspace({
       setError('Apply or undo Markdown edits before closing.')
       return
     }
+    const questionDraft = questionEditorRef.current?.getDraft()
+    const selectedQuestionPayload = selectedQuestion && buildQuestionSavePayload(selectedQuestion.question_type, selectedQuestion.question_text, selectedQuestion.options.join('\n'), String(selectedQuestion.response_max_chars))
+    const changed = titleDraft !== getDisplayAssessmentTitle(survey.title, 'Untitled Survey')
+      || (!selectedQuestion && Boolean(newQuestionText.trim() || newOptionsText.trim()))
+      || questionStatus !== 'saved'
+      || (questionDraft && JSON.stringify(questionDraft) !== JSON.stringify(selectedQuestionPayload))
+      || (activeDetail && surveyContentKey(activeDetail) !== initialDetailRef.current)
+    if (changed) {
+      setCloseConfirmOpen(true)
+      return
+    }
     await navigate(onBack)
   }
 
@@ -1123,6 +1155,7 @@ export function TeacherSurveyWorkspace({
         </div>
       </div>
 
+      <ConfirmDialog isOpen={closeConfirmOpen} title="Close survey editor?" description="Your changes will be saved before closing." confirmLabel="Save and close" cancelLabel="Keep editing" onCancel={() => setCloseConfirmOpen(false)} onConfirm={() => { setCloseConfirmOpen(false); void navigate(onBack) }} />
       <ConfirmDialog isOpen={deleteConfirmOpen} title="Delete survey?" description={`${survey.title}\n\nThis cannot be undone.`} confirmLabel={statusChanging ? 'Deleting...' : 'Delete'} cancelLabel="Cancel" confirmVariant="danger" isConfirmDisabled={statusChanging} isCancelDisabled={statusChanging} onCancel={() => (statusChanging ? null : setDeleteConfirmOpen(false))} onConfirm={() => { void deleteSurvey() }} />
     </div>
   )

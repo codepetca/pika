@@ -101,6 +101,8 @@ describe('Material formatted editing', () => {
     await user.click(screen.getByRole('button', { name: 'Post', exact: true }))
     expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, getTodayInSchedulingTimezone())
     await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+    expect(screen.getByRole('dialog', { name: 'Unsaved changes' })).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }))
     expect(handlers.onClose).toHaveBeenCalledOnce()
   })
 
@@ -359,5 +361,87 @@ describe('Material scheduling', () => {
     await user.click(screen.getByRole('menuitem', { name: 'Save draft' }))
     await user.click(screen.getByRole('button', { name: 'Save draft', exact: true }))
     expect(handlers.onSave).toHaveBeenLastCalledWith(true, undefined, '2099-07-10')
+  })
+})
+
+
+describe('Material local recovery', () => {
+  it('keeps changes across closing and restores them when reopened', async () => {
+    sessionStorage.clear()
+    const user = userEvent.setup()
+    const handlers = props()
+    function Editor() {
+      const [title, setTitle] = useState(handlers.title)
+      const [content, setContent] = useState(handlers.content)
+      return <MaterialCreationDialog {...handlers} materialKey="class:new" recoveryVersion="new" title={title} content={content} onTitleChange={setTitle} onContentChange={setContent} />
+    }
+    const view = render(<Editor />, { wrapper: TooltipProvider })
+    await user.clear(screen.getByPlaceholderText('Title'))
+    await user.type(screen.getByPlaceholderText('Title'), 'Recovered title')
+    await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+    await user.click(screen.getByRole('button', { name: 'Close and keep local changes' }))
+    expect(handlers.onClose).toHaveBeenCalledOnce()
+    view.unmount()
+    render(<Editor />, { wrapper: TooltipProvider })
+    expect(await screen.findByDisplayValue('Recovered title')).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }))
+    expect(sessionStorage.getItem('pika:material-recovery:class:new')).toBeNull()
+  })
+
+  it('writes immediately and isolates account keys in the same tab', () => {
+    sessionStorage.clear()
+    const handlers = props()
+    function Editor() {
+      const [title, setTitle] = useState(handlers.title)
+      return <MaterialCreationDialog {...handlers} materialKey="user-a:class:new" recoveryVersion="new" title={title} onTitleChange={setTitle} />
+    }
+    const view = render(<Editor />, { wrapper: TooltipProvider })
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Immediate edit' } })
+    expect(sessionStorage.getItem('pika:material-recovery:user-a:class:new')).toContain('Immediate edit')
+    view.unmount()
+    render(<MaterialCreationDialog {...handlers} materialKey="user-b:class:new" recoveryVersion="new" />, { wrapper: TooltipProvider })
+    expect(screen.getByPlaceholderText('Title')).toHaveValue('Field guide')
+    expect(sessionStorage.getItem('pika:material-recovery:user-a:class:new')).toContain('Immediate edit')
+  })
+
+  it('warns and prevents keeping local changes when storage fails', async () => {
+    const user = userEvent.setup()
+    const handlers = props()
+    const setItem = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('unavailable') })
+    function Editor() {
+      const [title, setTitle] = useState(handlers.title)
+      return <MaterialCreationDialog {...handlers} materialKey="user:class:new" recoveryVersion="new" title={title} onTitleChange={setTitle} />
+    }
+    try {
+      render(<Editor />, { wrapper: TooltipProvider })
+      await user.type(screen.getByPlaceholderText('Title'), ' updated')
+      expect(screen.getByText(/Local recovery is unavailable/)).toBeVisible()
+      await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+      expect(screen.getByRole('button', { name: 'Close and keep local changes' })).toBeDisabled()
+    } finally { setItem.mockRestore() }
+  })
+
+  it('does not restore a local edit over a newer server version', async () => {
+    sessionStorage.clear()
+    sessionStorage.setItem('pika:material-recovery:class:existing', JSON.stringify({ version: 'old', title: 'Old edit' }))
+    render(<MaterialCreationDialog {...props()} materialKey="class:existing" recoveryVersion="new" />, { wrapper: TooltipProvider })
+    expect(await screen.findByText(/older version/)).toBeVisible()
+    expect(screen.getByPlaceholderText('Title')).toHaveValue('Field guide')
+    expect(sessionStorage.getItem('pika:material-recovery:class:existing')).toContain('Old edit')
+  })
+
+  it('saves edits to posted material without converting it to a draft', async () => {
+    const user = userEvent.setup()
+    const handlers = props()
+    function Editor() {
+      const [title, setTitle] = useState(handlers.title)
+      return <MaterialCreationDialog {...handlers} isExisting isDraft={false} title={title} onTitleChange={setTitle} />
+    }
+    render(<Editor />, { wrapper: TooltipProvider })
+    await user.type(screen.getByPlaceholderText('Title'), ' updated')
+    await user.click(screen.getByRole('button', { name: 'Close material modal' }))
+    await user.click(screen.getByRole('button', { name: 'Save changes' }))
+    expect(handlers.onSave).toHaveBeenCalledWith(false, undefined, getTodayInSchedulingTimezone())
   })
 })
