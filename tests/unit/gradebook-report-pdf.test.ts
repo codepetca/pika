@@ -95,7 +95,7 @@ describe('gradebook report archive', () => {
     const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item] }]))
     const lines = extractText(Object.values(files)[0]).flatMap((page) => page.text.split('\n')).filter((line) => line.startsWith('reading'))
     expect(lines.length).toBeGreaterThan(1)
-    for (const line of lines) expect(line.trim()).toMatch(/^(reading\s*)+$/)
+    for (const line of lines) expect(line.trim()).toMatch(/^(reading\s*)+(?:80\.0%)?$/)
   })
   it('keeps a space and its combining mark together across wrapping', async () => {
     const item = { title: `Start \u0301${'W'.repeat(100)}`, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }

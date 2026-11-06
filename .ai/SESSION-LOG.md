@@ -11,6 +11,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
+
 ## 2026-10-31 — Named schedule proof catalog
 
 Updated the sealed test-member-list canonical catalog to include both reviewed migration-296 attendance tables while preserving predecessor profiles. The catalog and proof unit suites pass; the failed PR database lane requires rerun on the reviewed head.
@@ -302,3 +306,6 @@ Partitioned the dark experience matrix into four fresh-server runs with an exact
 ## 2026-11-06 — Gradebook PDF test timeout
 
 Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+## 2026-11-06 — Parent report score alignment
+
+Aligned percentages with assessment titles and raw scores with category subtitles in the exported parent PDF. Preserved returned-only eligibility and multilingual-safe wrapping; verified a rendered sample and focused PDF tests. Independent review and PR checks follow.

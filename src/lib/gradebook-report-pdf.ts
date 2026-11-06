@@ -55,15 +55,16 @@ async function reportFonts(text: string): Promise<FontEntry[]> {
 }
 
 /** Keep the renderer from splitting combining marks or conjuncts across lines. */
-function reportParagraphs(text: string, size: number, fonts: FontEntry[], options: { color?: string; keepWithNext?: boolean } = {}): DocumentBlock[] {
+function reportParagraphs(text: string, size: number, fonts: FontEntry[], options: { color?: string; keepWithNext?: boolean; maxWidth?: number } = {}): DocumentBlock[] {
   if (typeof Intl.Segmenter !== 'function') throw new Error('This browser cannot safely wrap report text. No reports were downloaded.')
   const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
   const encoding = createEncodingContext(fonts)
   const result: DocumentBlock[] = []
-  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left', ...options })
+  const { maxWidth = DEFAULT_CW, ...paragraphOptions } = options
+  const add = (line: string) => result.push({ type: 'paragraph', text: line, fontSize: size, align: 'left', ...paragraphOptions })
   for (const paragraph of text.split(/\r\n|\r|\n/)) {
     let line = ''
-    const fits = (value: string) => encoding.tw(value, size) <= DEFAULT_CW && wrapText(value, DEFAULT_CW, size, encoding).length <= 1
+    const fits = (value: string) => encoding.tw(value, size) <= maxWidth && wrapText(value, maxWidth, size, encoding).length <= 1
     for (const { segment } of graphemes.segment(paragraph)) {
       const candidate = line + segment
       if (fits(candidate)) { line = candidate; continue }
@@ -101,10 +102,11 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
     const itemLines = report.items.map((item) => ({
       title: item.title,
       category: `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}`,
-      score: `${item.earned} / ${item.possible} points   |   ${item.percent.toFixed(1)}%`,
+      score: `${item.earned} / ${item.possible} points`,
+      percent: `${item.percent.toFixed(1)}%`,
       status: item.included ? '' : 'Does not count toward current grade',
     }))
-    const fontEntries = await reportFonts([classroom, report.studentName, ...itemLines.flatMap((item) => [item.title, item.category, item.score, item.status])].join('\n'))
+    const fontEntries = await reportFonts([classroom, report.studentName, ...itemLines.flatMap((item) => [item.title, item.category, item.score, item.percent, item.status])].join('\n'))
     const blocks: DocumentBlock[] = []
     const ink = '0.09 0.17 0.23'
     const muted = '0.32 0.40 0.47'
@@ -117,6 +119,27 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       blocks.push(...reportParagraphs(text, size, fontEntries, { color, keepWithNext }))
     }
     const space = (height: number) => blocks.push({ type: 'spacer', height })
+    const addPair = (left: string, right: string, size: number, color: string, keepWithNext: boolean) => {
+      const encoding = createEncodingContext(fontEntries)
+      const rightWidth = encoding.tw(right, size)
+      const gap = 16
+      if (rightWidth + gap >= DEFAULT_CW) throw new Error('An assessment mark is too wide to display safely. No reports were downloaded.')
+      const lines = reportParagraphs(left, size, fontEntries, { color, keepWithNext: true, maxWidth: DEFAULT_CW - rightWidth - gap })
+      const last = lines.at(-1)
+      if (!last || last.type !== 'paragraph') throw new Error('Could not format an assessment. No reports were downloaded.')
+      const width = encoding.tw(last.text, size)
+      const spaceWidth = encoding.tw(' ', size)
+      const spaces = Math.max(1, Math.floor((DEFAULT_CW - width - rightWidth) / spaceWidth))
+      // Isolate the label so its direction cannot move the numeric mark.
+      const label = /[\p{Script=Arabic}\p{Script=Hebrew}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u.test(last.text)
+        ? `\u2068${last.text}\u2069` : last.text
+      const text = `${label}${' '.repeat(spaces)}${right}`
+      if (encoding.tw(text, size) > DEFAULT_CW || wrapText(text, DEFAULT_CW, size, encoding).length !== 1) {
+        throw new Error('An assessment mark cannot be aligned safely. No reports were downloaded.')
+      }
+      lines[lines.length - 1] = { ...last, text, direction: 'ltr', keepWithNext }
+      blocks.push(...lines)
+    }
     add('STUDENT GRADEBOOK REPORT', 10, accent, true)
     space(5)
     add(report.studentName, 22, ink, true)
@@ -138,9 +161,9 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
     if (initialPage) pageBlocks = pageBlocks.slice(-initialPage.blocks.length)
     for (const item of itemLines) {
       const start = blocks.length
-      add(item.title, 12, ink, true)
-      add(item.category, 10, muted, true)
-      add(`${item.score}${item.status ? `   |   ${item.status}` : ''}`, 10, muted)
+      addPair(item.title, item.percent, 12, ink, true)
+      addPair(item.category, item.score, 10, muted, Boolean(item.status))
+      if (item.status) add(item.status, 10, muted)
       space(8)
       const group = blocks.slice(start)
       const current = [...pageBlocks, ...group]
