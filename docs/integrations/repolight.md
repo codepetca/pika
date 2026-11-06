@@ -565,6 +565,9 @@ The restriction covers new and resumed provisioning and new rotations. Previousl
 and cleanup operations. Saved-locator recovery can replay an exact, already-persisted
 pending rotation even after scope removal or rollout shutdown; it cannot allocate a
 new rotation or provision a workspace. This protects cleanup after a lost response. Teachers outside the pilot continue
-to use their configured manual connections; without one, readiness reports the
-connection as unavailable. The pilot scope does not turn on billing, AI, the
-runtime switch, or the database provisioning gate.
+to route through their configured manual connections; without one, readiness
+reports the connection as unavailable. The global `plan_enforcement_enabled`
+gate applies eligibility checks to all connections, including manual connections.
+Leave that gate off during the controlled pilot until its activation is separately
+reviewed and authorized. The pilot scope does not turn on billing, AI, the runtime
+switch, or the database provisioning gate.
