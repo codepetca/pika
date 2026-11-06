@@ -30,22 +30,36 @@ describe('RepoLight 298–300 closed source profile', () => {
     },
   )
 
-  it('does not expand native preservation catalog authority', () => {
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 295))).not.toThrow()
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 296))).not.toThrow()
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 297))).not.toThrow()
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 298))).toThrow('Unreviewed quota proof catalog')
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain)).toThrow('Unreviewed quota proof catalog')
+  it('fingerprints the exact new tables and the affected settings and account rows', () => {
+    const before = classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 297))
+    const at298 = classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 298))
+    const at299 = classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 299))
+    const full = classroomTestQuotaProofCatalog(['public.tests'], chain)
+    expect(at298).toEqual(before)
+    expect(at299).toEqual([...before, 'private.repolight_managed_connections'].sort())
+    for (const name of ['private.repolight_settings', 'private.repolight_managed_connections',
+      'private.repolight_provision_control', 'private.repolight_provision_outbox',
+      'private.stripe_billing_settings', 'public.account_plans', 'public.billing_account_access']) expect(full).toContain(name)
+    const sql = 'select 1;'
+    expect(() => classroomTestQuotaProofCatalog(['public.tests'], [...chain, {name:'301_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
+    for (const index of [297, 298, 299]) {
+      const changed = chain.map(entry => ({...entry})); changed[index].sql += '\n'; changed[index].sha256 = hash(changed[index].sql)
+      expect(() => classroomTestQuotaProofCatalog(['public.tests'], changed)).toThrow()
+    }
   })
 
-  it('keeps native member and reorder profiles closed to the actual inventory', () => {
-    for (const validate of [validateTestMemberListReviewedMigrations, validateTestOwnerReorderReviewedMigrations]) {
-      expect(() => validate(chain.slice(0, 295))).not.toThrow()
-      expect(() => validate(chain.slice(0, 296))).not.toThrow()
-      expect(() => validate(chain.slice(0, 297))).not.toThrow()
-      expect(() => validate(chain.slice(0, 298))).toThrow()
-      expect(() => validate(chain)).toThrow()
+  it('admits only the complete sealed reorder tail while member profiles stay closed', () => {
+    expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 297))).not.toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 298))).toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 299))).toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations(chain)).not.toThrow()
+    for (const index of [297, 298, 299]) {
+      const changed = chain.map(entry => ({...entry})); changed[index].sql += '\n'; changed[index].sha256 = hash(changed[index].sql)
+      expect(() => validateTestOwnerReorderReviewedMigrations(changed)).toThrow()
     }
+    const sql = 'select 1;'
+    expect(() => validateTestOwnerReorderReviewedMigrations([...chain, {name:'301_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
+    expect(() => validateTestMemberListReviewedMigrations(chain)).toThrow()
   })
 
   it('rejects missing, reordered and unknown tails', () => {

@@ -100,6 +100,17 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
 })
 
 describe('closed reorder lifecycle source contracts', () => {
+  it('binds the 300 fixture to dormant state and all four exact trigger bindings', () => {
+    const setup = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd()).sql.setup
+    for (const token of ['private.repolight_managed_connections', 'private.repolight_provision_outbox',
+      'private.repolight_provision_control', 'epoch=1', 'not managed_provisioning_enabled',
+      'not plan_enforcement_enabled', 'not legacy_plan_access_enabled', 'not billing_access_enabled',
+      'repolight_provision_billing_hint', 'repolight_provision_plan_hint',
+      'repolight_provision_access_gate_hint', 'repolight_provision_billing_gate_hint',
+      "t.tgenabled='O'", 'not t.tgdeferrable', 'not t.tginitdeferred', 't.tgtype=expected.kind',
+      'p.proname=expected.fn', 'p.prosecdef', 'expected.attrs']) expect(setup).toContain(token)
+  })
+
   it('validates four required RPC arguments and Json return as supplemental AST evidence', () => {
     expect(validateTestOwnerReorderGeneratedTypes(generated, testOwnerDigest(generated))).toBe(true)
     expect(() => validateTestOwnerReorderGeneratedTypes(generated, '0'.repeat(64))).toThrow()
@@ -520,6 +531,22 @@ describe('reorder snapshot/completion admission', () => {
     const missing = graph()
     missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== table)
     expect(() => validateTestOwnerReorderSnapshotCatalog(missing, catalog)).toThrow()
+  })
+  it('requires every added RepoLight, plan and billing whole-row fingerprint', async () => {
+    const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
+    const current300 = actual.loadAssignmentListReviewedMigrations(process.cwd())
+    const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current300)
+    const withTail = graph()
+    withTail.__nontarget_fingerprints = fullCatalog.map(table => ({table, fingerprint:'unchanged'}))
+    expect(validateTestOwnerReorderSnapshotCatalog(withTail, fullCatalog)).toEqual(withTail)
+    for (const table of ['private.repolight_settings', 'private.repolight_managed_connections',
+      'private.repolight_provision_control', 'private.repolight_provision_outbox',
+      'private.stripe_billing_settings', 'public.account_plans', 'public.billing_account_access']) {
+      expect(fullCatalog).toContain(table)
+      const missing = structuredClone(withTail)
+      missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== table)
+      expect(() => validateTestOwnerReorderSnapshotCatalog(missing, fullCatalog)).toThrow()
+    }
   })
   it('requires the whole 297 auto-admission policy fingerprint', () => {
     const table = CLASSROOM_PUBLIC_AUTO_ADMISSION_REVIEWED_TABLES[0]
