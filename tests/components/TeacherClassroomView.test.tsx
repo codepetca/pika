@@ -716,6 +716,7 @@ async function getSelectedStudentAction(
 // Assignment table scroll containment is covered in the experience matrix browser suite.
 describe('TeacherClassroomView', () => {
   beforeEach(() => {
+    localStorage.removeItem('teacher-classwork:reverse-order:v1')
     mockAssignmentModalRender.mockReset()
     mockExecuteRepoLightBatch.mockReset()
     vi.stubGlobal('fetch', vi.fn())
