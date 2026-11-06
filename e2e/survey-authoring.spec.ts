@@ -1,6 +1,8 @@
 import { expect, test } from '@playwright/test'
 import type { SurveyQuestion, SurveyWithStats } from '@/types'
 
+test.setTimeout(120_000)
+
 const classroomId = '30000000-0000-4000-8000-000000000011'
 const teacherId = '30000000-0000-4000-8000-000000000012'
 const surveyId = '30000000-0000-4000-8000-000000000090'
@@ -183,6 +185,12 @@ for (const mobile of [false, true]) {
       await expect(dialog.getByRole('button', { name: 'Close survey editor' })).toBeEnabled()
       await expect(dialog.getByRole('status')).toHaveText('Saved')
       await page.keyboard.press('Escape')
+      const closeConfirmation = page.getByRole('dialog', { name: 'Close survey editor?' })
+      await expect(closeConfirmation.getByText('Your changes will be saved before closing.')).toBeVisible()
+      await closeConfirmation.getByRole('button', { name: 'Keep editing' }).click()
+      await expect(dialog).toBeVisible()
+      await page.keyboard.press('Escape')
+      await closeConfirmation.getByRole('button', { name: 'Save and close' }).click()
       await expect(dialog).toHaveCount(0)
 
       // The real creation menu creates a draft and opens the same authoring surface.
