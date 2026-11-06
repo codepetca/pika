@@ -11,25 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-10-29 — RepoLight required username integration
-
-Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
-journal history and both integration contracts; application and test patches match
-the previously reviewed branch. Focused checks and final PR review follow.
-
-## 2026-10-29 — RepoLight selected-student drafts
-
-Prepared an approval-gated selected-student repository action beside AI Grade.
-It runs individual public reports sequentially and appends matched assignment
-summaries to revision-checked private drafts while the page remains open. No AI,
-grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
-component and executor checks, policy checks, and synthetic teacher desktop/mobile
-light/dark verification are in progress; publication and rollout remain separate.
-
-## 2026-10-30 — Test and assignment settings menus
-
-Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
-
 ## 2026-10-30 — Remove calendar-date help text
 
 At the owner’s request, remove the persistent explanatory sentence from new and
@@ -178,6 +159,23 @@ no production timing or deployment is implied.
 
 - 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
 
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
 ## 2026-11-06 Gradebook student PDF export continuation
 
 - Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
@@ -187,6 +185,7 @@ no production timing or deployment is implied.
 
 - Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
 - Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
 ## 2026-11-06 — Scoped Test native 300 witnesses
 
 Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.

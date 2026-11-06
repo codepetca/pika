@@ -51206,3 +51206,23 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 ## 2026-10-29 — Delete from assignment and test editors
 
 - Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
+
+<!-- pika-session-log-archive-batch:fb4668e7f65fcaa8599ac44c14fcd768e6e32c42a02e220ad4424928390ec494 -->
+## 2026-10-29 — RepoLight required username integration
+
+Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
+journal history and both integration contracts; application and test patches match
+the previously reviewed branch. Focused checks and final PR review follow.
+
+## 2026-10-29 — RepoLight selected-student drafts
+
+Prepared an approval-gated selected-student repository action beside AI Grade.
+It runs individual public reports sequentially and appends matched assignment
+summaries to revision-checked private drafts while the page remains open. No AI,
+grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
+component and executor checks, policy checks, and synthetic teacher desktop/mobile
+light/dark verification are in progress; publication and rollout remain separate.
+
+## 2026-10-30 — Test and assignment settings menus
+
+Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
