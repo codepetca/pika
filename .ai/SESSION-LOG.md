@@ -298,3 +298,7 @@ Raised the survey authoring browser test budget to 120 seconds after repeated CI
 ## 2026-11-06 — Dark browser CI partitions
 
 Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.

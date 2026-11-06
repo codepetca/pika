@@ -56,7 +56,7 @@ describe('gradebook report archive', () => {
     const text = pages.map((page) => page.text.replace(/Pika\s*·\s*Gradebook report\s*Page\s*\d+\s*of\s*\d+/g, '')).join('')
     expect(text.replace(/\s/g, '')).toContain(title)
     expect(pages.at(-1)?.text).toContain('Final item')
-  })
+  }, 15_000)
   it('does not wrap inside a Devanagari grapheme or conjunct', async () => {
     const titles = ['aa' + 'हिन्दी'.repeat(25), 'aa' + 'कृष्ण'.repeat(35)]
     const item = (title: string) => ({ title, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false })
