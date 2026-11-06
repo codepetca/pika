@@ -1,3 +1,4 @@
+import { repoLight300PresenceSql, withRepoLight300Witness } from './repolight-300-proof-witness'
 import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
@@ -39,7 +40,7 @@ export function testOwnerRecoveryNativePlan(original: AssignmentListProofFixture
   })
   assert.notEqual(observed[0].attemptId, observed[1].attemptId)
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([260,261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
+  assert([260,261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300].includes(inventory.length)); validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258]); validateTestOwnerRecoveryReviewedMigration(inventory[259]); if (inventory.length >= 261) validateTestOwnerUnpublicationReviewedMigration(inventory[260])
   if (inventory.length >= 262) validateTestOwnerDeletionReviewedMigration(inventory[261])
   if (inventory.length >= 263) validateTestCalendarDateReviewedMigration(inventory[262])
@@ -75,7 +76,7 @@ if current_database()<>'postgres' or current_user<>'postgres' or to_regprocedure
     ...['tests', 'test_questions', 'test_attempts', 'test_responses', 'test_student_availability', 'test_focus_events', 'test_ai_grading_runs', 'test_ai_grading_run_items']
       .map(table => [`public.${table}`, `${table === 'tests' ? 'id' : 'test_id'}=${tid}`]),
   ]
-  const graph = `jsonb_build_object(${tables.map(([table, predicate]) => `${q(table)},(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`
+  const graph = withRepoLight300Witness(`jsonb_build_object(${tables.map(([table, predicate]) => `${q(table)},(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`, inventory.length===300)
   const snapshot = bounded(`begin read only;set local lock_timeout='1s';set local statement_timeout='8s';select ${graph} as result;rollback;`)
   const presence = `do $presence$ begin if not exists(select 1 from public.classrooms where id=${cid} and teacher_id=${owner} and archived_at is null)
 or not exists(select 1 from public.tests where id=${tid} and classroom_id=${cid} and status='active' and blueprint_archived_at is null and questions_locked_at is not null)
@@ -83,7 +84,7 @@ or ${f.actors.map(a => `not exists(select 1 from public.users where id=${q(a.id)
 or ${observed.map(a => `not exists(select 1 from public.test_attempts where id=${q(a.attemptId)} and test_id=${tid} and student_id=${q(a.actorId)} and draft_revision>0)`).join(' or ')}
 or (select count(*) from public.test_responses where test_id=${tid} and id in (${f.responses.map(r => q(r.id)).join(',')}))<>4
 then raise exception 'Recovery260 fixture presence differs';end if;end;$presence$;`
-  const setup = bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}rollback;`)
+  const setup = bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${inventory.length===300 ? repoLight300PresenceSql() : ''}rollback;`)
   const template = readFileSync(resolve(repository, 'scripts/check-contextual-test-owner-recovery.sql'), 'utf8')
   const marker = '-- owner-recovery-contracts-begin\n', end = '-- owner-recovery-contracts-end'
   assert(template.split(marker).length === 2 && template.split(end).length === 2)
