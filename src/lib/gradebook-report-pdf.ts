@@ -106,17 +106,17 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
     }))
     const fontEntries = await reportFonts([classroom, report.studentName, ...itemLines.flatMap((item) => [item.title, item.category, item.score, item.status])].join('\n'))
     const blocks: DocumentBlock[] = []
+    const ink = '0.09 0.17 0.23'
+    const muted = '0.32 0.40 0.47'
+    const accent = '0.09 0.42 0.41'
     const layout: Partial<PdfLayoutOptions> = {
       pageWidth: 612, pageHeight: 792, tagged: true, direction: 'auto',
-      footerTemplate: { left: 'Pika · Gradebook report', right: 'Page {page} of {pages}', fontSize: 8, color: '0.32 0.40 0.47' },
+      footerTemplate: { left: 'Pika · Gradebook report', right: 'Page {page} of {pages}', fontSize: 8, color: muted },
     }
     const add = (text: string, size: number, color: string, keepWithNext = false) => {
       blocks.push(...reportParagraphs(text, size, fontEntries, { color, keepWithNext }))
     }
     const space = (height: number) => blocks.push({ type: 'spacer', height })
-    const ink = '0.09 0.17 0.23'
-    const muted = '0.32 0.40 0.47'
-    const accent = '0.09 0.42 0.41'
     add('STUDENT GRADEBOOK REPORT', 10, accent, true)
     space(5)
     add(report.studentName, 22, ink, true)
@@ -130,6 +130,12 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
     add('Only returned classwork and tests, and saved Gradebook marks, appear here.', 10, muted, true)
     space(6)
     if (itemLines.length === 0) add('No marks are available to show yet.', 11, muted)
+    // Only the current page needs to be remeasured as entries are appended.
+    // All report paragraphs are pre-wrapped into single-line blocks, so each
+    // block corresponds to one entry in the layout inspector's output.
+    let pageBlocks = blocks.slice()
+    const initialPage = inspectDocumentLayout({ blocks: pageBlocks, fontEntries }, layout).pages.at(-1)
+    if (initialPage) pageBlocks = pageBlocks.slice(-initialPage.blocks.length)
     for (const item of itemLines) {
       const start = blocks.length
       add(item.title, 12, ink, true)
@@ -137,13 +143,18 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       add(`${item.score}${item.status ? `   |   ${item.status}` : ''}`, 10, muted)
       space(8)
       const group = blocks.slice(start)
-      const all = inspectDocumentLayout({ blocks, fontEntries }, layout).pages.flatMap((page) => page.blocks)
-      const placedBefore = blocks.slice(0, start).filter((block) => block.type !== 'pageBreak').length
-      const firstPage = all[placedBefore]?.page
-      const lastPage = all[placedBefore + group.length - 1]?.page
+      const current = [...pageBlocks, ...group]
+      const plan = inspectDocumentLayout({ blocks: current, fontEntries }, layout)
+      const all = plan.pages.flatMap((page) => page.blocks)
+      const firstPage = all[pageBlocks.length]?.page
+      const lastPage = all[pageBlocks.length + group.length - 1]?.page
       if (firstPage != null && lastPage != null && firstPage !== lastPage
         && inspectDocumentLayout({ blocks: group, fontEntries }, layout).totalPages === 1) {
         blocks.splice(start, 0, { type: 'pageBreak' })
+        pageBlocks = group
+      } else {
+        const lastPageSize = plan.pages.at(-1)?.blocks.length ?? 0
+        pageBlocks = lastPageSize ? current.slice(-lastPageSize) : []
       }
     }
     const pdf = buildDocumentPDFBytes({ blocks, fontEntries }, layout)
