@@ -67,6 +67,11 @@ function reportParagraphs(text: string, size: number, fonts: FontEntry[]): Docum
     for (const { segment } of graphemes.segment(paragraph)) {
       const candidate = line + segment
       if (fits(candidate)) { line = candidate; continue }
+      // Independent PDF blocks lose the original bidi context. Refuse a
+      // wrapped RTL/mixed paragraph until it can retain that context safely.
+      if (/[\p{Script=Arabic}\p{Script=Hebrew}\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/u.test(paragraph)) {
+        throw new Error('A right-to-left name or title is too long to display safely. Shorten it and try again. No reports were downloaded.')
+      }
       if (!line || !fits(segment)) throw new Error('Report text cannot be wrapped safely. No reports were downloaded.')
       add(line)
       line = segment

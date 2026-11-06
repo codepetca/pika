@@ -62,4 +62,9 @@ describe('gradebook report archive', () => {
     for (const title of titles) expect(text.replace(/\s/g, '')).toContain(title)
     for (const line of text.split('\n')) expect(line).not.toMatch(/^\p{Mark}/u)
   })
+  it('fails safely when mixed right-to-left text would wrap', async () => {
+    const title = 'محمد '.repeat(18) + 'Math 101 (محمد) 2026'
+    const item = { title, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
+    await expect(buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item] }])).rejects.toThrow('right-to-left name or title is too long')
+  })
 })
