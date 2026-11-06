@@ -1,6 +1,6 @@
 # RepoLight analysis access boundary
 
-Source implementation, 2026-10-29. Migration296 is additive and inactive by
+Source implementation, 2026-10-29. Migration298 (formerly 296) is additive and inactive by
 default. This document does not authorize shared/hosted migration application,
 billing activation, provider provisioning or rollout.
 
@@ -16,7 +16,7 @@ metadata. The server projects configured enforced denial as context
 `state: 'access_required'` and disables `canAdvance` for unknown-create runs;
 known `analysis_id` continuation retains its existing source/lease restrictions.
 The metadata itself is not exposed in classroom API replies. Optional absence
-retains compatibility with the unmodified293 schema/pilot; the296 SQL admission
+retains compatibility with the unmodified293 schema/pilot; the298 SQL admission
 checks remain the actual authority. Missing private settings produce enforced
 `access_unavailable` denial while saved report reads remain available.
 
@@ -71,11 +71,13 @@ each fetch, but no cross-service atomicity or cancellation of already accepted
 jobs is claimed. An unknown response remains a durable subject requiring cleanup;
 expiry does not erase it or permit an unsafe reconciliation POST.
 
-`scripts/check-repolight-analysis-access-database.sh` replays001–296 in an owned,
+The pre-rebase proof replayed the then-current chain through 298. After the main
+sync, `scripts/check-repolight-analysis-access-database.sh` targets 001–300 in an owned,
 network-isolated database, runs rollback-only compatibility/access contracts,
 executes actual two-session contention and compares generated public types.
 `--write-types` regenerates the checked-in types from that disposable schema.
 The shared local stack supplies platform Auth/Storage schema read-only; its
 schema/history/image identity are compared afterward. No shared or hosted
 migrations are applied. The separate exact-source CI profile extensions must be
-integrated with subsequent migrations before the complete branch is CI-ready.
+integrated with subsequent migrations before the complete branch is CI-ready. The
+001–300 replay and generated-type comparison remain pending after resequencing.

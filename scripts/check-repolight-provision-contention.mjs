@@ -115,7 +115,7 @@ try {
   holder.send('commit;');await holder.finish()
   await contender.marker('activation-denied');await contender.finish()
   assert.equal(sql(`select state from private.repolight_managed_connections where teacher_id=${actor};`),'pending')
-  console.log('PASS actual296–298 gate epoch/late-denial and prepare/activation cutoff interleavings.')
+  console.log('PASS actual298–300 gate epoch/late-denial and prepare/activation cutoff interleavings.')
 } finally {
   for(const session of sessions) if(session.child.exitCode===null) session.child.kill('SIGTERM')
 }

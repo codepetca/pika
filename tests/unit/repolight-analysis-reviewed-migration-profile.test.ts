@@ -7,18 +7,18 @@ import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quo
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 
 // Source admission only: this does not authorize migration or native proof execution.
-describe('RepoLight 296–298 closed source profile', () => {
+describe('RepoLight 298–300 closed source profile', () => {
   const chain = loadAssignmentListReviewedMigrations(process.cwd())
   const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
-  it('accepts each exact extension and preserves the historical 295 profile', () => {
-    expect(chain).toHaveLength(298)
-    for (const count of [295, 296, 297, 298]) {
+  it('accepts each exact extension and preserves the historical 297 profile', () => {
+    expect(chain).toHaveLength(300)
+    for (const count of [295, 296, 297, 298, 299, 300]) {
       expect(() => validateLifecycleServicesReviewedMigrations(chain.slice(0, count))).not.toThrow()
     }
   })
 
-  it.each([296, 297, 298].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
+  it.each([298, 299, 300].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
     'rejects changed $number $defect', ({ number, defect }) => {
       const candidate = chain.map(m => ({ ...m }))
       const entry = candidate[number - 1]
@@ -32,24 +32,26 @@ describe('RepoLight 296–298 closed source profile', () => {
 
   it('does not expand native preservation catalog authority', () => {
     expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 295))).not.toThrow()
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 296))).toThrow('Unreviewed quota proof catalog')
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 297))).toThrow('Unreviewed quota proof catalog')
+    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 296))).not.toThrow()
+    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 297))).not.toThrow()
+    expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 298))).toThrow('Unreviewed quota proof catalog')
     expect(() => classroomTestQuotaProofCatalog(['public.tests'], chain)).toThrow('Unreviewed quota proof catalog')
   })
 
   it('keeps native member and reorder profiles closed to the actual inventory', () => {
     for (const validate of [validateTestMemberListReviewedMigrations, validateTestOwnerReorderReviewedMigrations]) {
       expect(() => validate(chain.slice(0, 295))).not.toThrow()
-      expect(() => validate(chain.slice(0, 296))).toThrow()
-      expect(() => validate(chain.slice(0, 297))).toThrow()
+      expect(() => validate(chain.slice(0, 296))).not.toThrow()
+      expect(() => validate(chain.slice(0, 297))).not.toThrow()
+      expect(() => validate(chain.slice(0, 298))).toThrow()
       expect(() => validate(chain)).toThrow()
     }
   })
 
   it('rejects missing, reordered and unknown tails', () => {
-    expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 295), chain[296]])).toThrow()
-    expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 295), chain[296], chain[295]])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 297), chain[298]])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 297), chain[298], chain[297]])).toThrow()
     const sql = 'select 1;'
-    expect(() => validateLifecycleServicesReviewedMigrations([...chain, { name: '299_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...chain, { name: '301_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
   })
 })

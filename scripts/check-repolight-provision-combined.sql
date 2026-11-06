@@ -1,4 +1,4 @@
--- Actual296/297/298 contracts in the owned full-schema offline replay.
+-- RepoLight 298/299/300 contracts in the owned full-schema offline replay.
 begin;
 set local lock_timeout='3s';set local statement_timeout='30s';
 do $proof$

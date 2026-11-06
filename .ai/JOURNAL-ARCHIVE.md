@@ -51129,3 +51129,8 @@ independent integration review and fresh stable-head CI. Prior calendar-only294
 receipts stay historical; current294 means admission only. No shared schema
 application, production release, provider/cohort/account or reset action. Durable
 plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
+
+## 2026-10-28 — Restore hosted browser CI compatibility
+
+- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
+- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.

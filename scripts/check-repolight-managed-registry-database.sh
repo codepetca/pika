@@ -48,7 +48,7 @@ create function public.get_repolight_analysis_access_v1(p_subject_user_id uuid) 
  select jsonb_build_object('allowed',allowed) from private.registry_test_access
 $$;
 SQL
-registry_sql < "$registry_root/supabase/migrations/297_repolight_managed_registry.sql"
+registry_sql < "$registry_root/supabase/migrations/299_repolight_managed_registry.sql"
 registry_sql <<'SQL'
 do $$begin if exists(select 1 from private.repolight_settings where managed_provisioning_enabled) then raise exception 'Managed provisioning default must be off';end if;end$$;
 update private.repolight_settings set managed_provisioning_enabled=true where singleton;

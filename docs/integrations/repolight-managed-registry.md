@@ -4,8 +4,8 @@ This source adds a private provisioning registry and server adapter. The managed
 path is disabled by default; when enabled, eligible analysis requests provision
 a workspace automatically, and saved managed locators resolve through the
 registry. Legacy environment-configured connections retain their original path.
-No hosted migration, credential creation or rollout has occurred. Migration 297
-depends on the eligibility contract in 296.
+No hosted migration, credential creation or rollout has occurred. Migration 299 (formerly 297)
+depends on the eligibility contract in 298 (formerly 296).
 
 `createManagedRepoLightRegistry(store, options)` exposes:
 
@@ -69,8 +69,9 @@ an 8-second default operation timeout (maximum 15 seconds), and logs no response
 
 ## Required integration before rollout
 
-1. The combined isolated full-schema replay and generated type check cover 296
-   and 297. Complete the closed migration inventory and schema-resource audit for
+1. The pre-rebase combined isolated full-schema replay and generated type check covered
+   the registry and eligibility migrations under their former numbers 296 and 297.
+   Repeat these checks for the resequenced 001–300 chain. Complete the closed migration inventory and schema-resource audit for
    this private operational table before rollout.
 2. Eligible begin requests call `ensure` automatically; no separate RepoLight
    login or setup UI is needed. A dormant transactional outbox and bounded
@@ -93,7 +94,7 @@ an 8-second default operation timeout (maximum 15 seconds), and logs no response
    Keep report/cleanup usable after downgrade. The service credential still has
    create scope; Pika must keep its entitlement gate on every new create.
 
-The isolated registry harness replays 297 against a stub eligibility boundary in
+The isolated registry harness targets migration 299 (formerly 297) against a stub eligibility boundary in
 its own networkless disposable container and checks ACLs, duplicate provisioning,
 activation replay, denied activation, cross-owner lookup/workspace denial,
 credential history, rotation after eligibility loss and stale predecessor denial.

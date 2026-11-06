@@ -92,8 +92,8 @@ describe('recovery current297 sealed source profile',()=>{
 })
 
 
-// These offline native proofs retain their audited 295-migration profile.
+// These offline native proofs retain their audited 297-migration profile.
 vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
   const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
-  return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 295) }
+  return { ...actual, loadAssignmentListReviewedMigrations: (repository: string) => actual.loadAssignmentListReviewedMigrations(repository).slice(0, 297) }
 })

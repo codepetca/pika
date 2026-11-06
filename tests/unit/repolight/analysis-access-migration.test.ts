@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
-const migration = readFileSync('supabase/migrations/296_repolight_analysis_access.sql', 'utf8')
+const migration = readFileSync('supabase/migrations/298_repolight_analysis_access.sql', 'utf8')
 const original = readFileSync('supabase/migrations/293_repolight_report_service.sql', 'utf8')
 const body = (sql: string, name: string) => {
   const start = sql.indexOf(`function public.${name}(`)

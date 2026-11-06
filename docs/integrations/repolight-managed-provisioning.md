@@ -1,7 +1,7 @@
 # Automatic managed RepoLight provisioning (source only)
 
-Migration298 depends on296's exact plan/trial/offering entitlement resolver and
-297's encrypted, idempotent managed registry. No migration or configuration in
+Migration300 (formerly 298) depends on298's exact plan/trial/offering entitlement resolver and
+299's encrypted, idempotent managed registry. No migration or configuration in
 this change enables hosted billing, provisioning, analysis, or AI. Billing stays
 sandbox-only and the existing provider/production rollout hold still applies.
 
@@ -13,10 +13,10 @@ subject, captured subscription binding, or validated applied upgrade subject;
 its failure leaves the durable hint
 available for recovery and does not turn billing success into an error.
 
-The runtime requires `PIKA_REPOLIGHT_MANAGED_ENABLED=true` and valid297 control
+The runtime requires `PIKA_REPOLIGHT_MANAGED_ENABLED=true` and valid299 control
 and encryption configuration. The database separately requires
 `private.repolight_settings.managed_provisioning_enabled=true` (default false).
-Neither setting replaces296's exact current entitlement proof. Recovery scans
+Neither setting replaces298's exact current entitlement proof. Recovery scans
 up to25 active billing/trial or eligible legacy Plus/Pro account revisions per
 claim to discover accounts predating gate activation. Legacy discovery requires
 the independent legacy-access gate; account-plan changes also emit hints.
@@ -57,12 +57,12 @@ extend that delay. Open-ended eligible legacy accounts retain this bounded
 recovery schedule until success or loss of eligibility.
 
 Saved report reads, cleanup credentials, expiry, and AI controls are independent
-of this queue. Deleting an account cascades its queue metadata;297 deliberately
+of this queue. Deleting an account cascades its queue metadata;299 deliberately
 retains cleanup credentials. The worker invokes `registry.ensure`, which checks
 exact current eligibility before allocation and activation and resumes the same
 durable encrypted operation after an uncertain provider result.
 
-Migration297 places the default-off managed provisioning switch under the same
+Migration299 places the default-off managed provisioning switch under the same
 billing-settings → RepoLight-settings → account/feature → owner lock order as
 eligibility. New and resumed provisions cross prepare immediately before HTTP,
 and activation checks the switch again. A committed disable therefore fences
@@ -73,15 +73,15 @@ operation/key stays durable for recovery. No SQL transaction spans HTTP.
 Interrupted rotations and saved cleanup credentials remain recoverable while
 provisioning and analysis access are disabled.
 
-`bash scripts/check-repolight-provision-outbox.sh` replays actual298 into a fresh
+`bash scripts/check-repolight-provision-outbox.sh` targets migration300 (formerly 298) in a fresh
 native PostgreSQL cluster with minimal prerequisite tables and a private Unix
 socket. It verifies queue transaction, gate, lease/revision, retry, ACL, and
 account-removal contracts. It neither applies a migration to shared Supabase
-nor replaces combined296–298 replay, generated-schema checks, or registry/provider
-contract tests. The combined offline proof now replays actual001–298, checks
+nor replaces combined298–300 replay, generated-schema checks, or registry/provider
+contract tests. The pre-rebase combined offline proof replayed the then-current 001–298 chain, checked
 role-neutral legacy discovery/plan changes and disabled rotation recovery, and
-runs two-session late-denial/epoch and prepare/activation cutoff interleavings.
-Runtime/API tests cover safe failure persistence, cron auth,
+ran two-session late-denial/epoch and prepare/activation cutoff interleavings.
+A fresh 001–300 replay and type comparison remain pending. Runtime/API tests cover safe failure persistence, cron auth,
 sequential batch/deadline bounds, and post-commit ordering. Hosted activation and
 provider behavior remain untested by this source-only change.
 
