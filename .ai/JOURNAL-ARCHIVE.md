@@ -51148,3 +51148,10 @@ fingerprinted source and digest-validated matched-contributor evidence. Saved
 reports and service contracts are unchanged; unavailable and partial evidence is
 explicit. No migration, publication, deployment, provider or credential changes.
 Verification and independent review remain with the coordinating task.
+
+<!-- pika-session-log-archive-batch:910f08c812a8975c6eb3c723ef78153e5ff6df108468480f775fd414c37b9ec9 -->
+## 2026-10-28 Required repository usernames — base refresh
+
+Rebased the previously reviewed required-username change onto current main. Preserved
+upstream journal history and the prior local preparation evidence; focused verification
+is recorded in the task handoff. No migration, provider or production action.
