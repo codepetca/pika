@@ -422,6 +422,23 @@ describe('Material local recovery', () => {
     } finally { setItem.mockRestore() }
   })
 
+  it('keeps the original version when the server version changes while editing', async () => {
+    sessionStorage.clear()
+    const handlers = props()
+    function Editor({ version }: { version: string }) {
+      const [title, setTitle] = useState(handlers.title)
+      return <MaterialCreationDialog {...handlers} materialKey="user:class:existing" recoveryVersion={version} title={title} onTitleChange={setTitle} />
+    }
+    const view = render(<Editor version="v1" />, { wrapper: TooltipProvider })
+    fireEvent.change(screen.getByPlaceholderText('Title'), { target: { value: 'Unsubmitted edit' } })
+    view.rerender(<Editor version="v2" />)
+    expect(JSON.parse(sessionStorage.getItem('pika:material-recovery:user:class:existing')!).version).toBe('v1')
+    view.unmount()
+    render(<Editor version="v2" />, { wrapper: TooltipProvider })
+    expect(await screen.findByText(/older version/)).toBeVisible()
+    expect(screen.getByPlaceholderText('Title')).toHaveValue('Field guide')
+  })
+
   it('does not restore a local edit over a newer server version', async () => {
     sessionStorage.clear()
     sessionStorage.setItem('pika:material-recovery:class:existing', JSON.stringify({ version: 'old', title: 'Old edit' }))

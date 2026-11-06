@@ -92,6 +92,8 @@ function MaterialEditor({
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const validSchedule = !!scheduleIso && isScheduleIsoInFuture(scheduleIso)
   const recoveryKey = `pika:material-recovery:${materialKey}`
+  const baseVersion = useRef(recoveryVersion).current
+  const recoveryOwner = useRef(crypto.randomUUID()).current
   const baseline = useRef(JSON.stringify({ title, content, postDate: initialPostDate, action: isScheduled ? 'preserve' : 'post', scheduleDate: initialSchedule?.date ?? getDefaultScheduleDateInSchedulingTimezone(), scheduleTime: initialSchedule?.time ?? DEFAULT_SCHEDULE_TIME }))
   const [recoveryReady, setRecoveryReady] = useState(false)
   const [recoveryProblem, setRecoveryProblem] = useState<string | null>(null)
@@ -108,7 +110,7 @@ function MaterialEditor({
     if (!recoveryReady || readOnly || staleRecovery || !materialKey) return
     try {
       if (JSON.stringify(next) === baseline.current) sessionStorage.removeItem(recoveryKey)
-      else sessionStorage.setItem(recoveryKey, JSON.stringify({ version: recoveryVersion, ...next }))
+      else sessionStorage.setItem(recoveryKey, JSON.stringify({ version: baseVersion, owner: recoveryOwner, ...next }))
     } catch {
       setRecoveryProblem('Local recovery is unavailable. Save your changes before closing.')
     }
@@ -120,7 +122,7 @@ function MaterialEditor({
       const raw = sessionStorage.getItem(recoveryKey)
       if (raw) {
         const saved = JSON.parse(raw)
-        if (saved.version !== recoveryVersion) {
+        if (saved.version !== baseVersion) {
           setStaleRecovery(true)
           setRecoveryProblem('A previous local edit was made against an older version. It was not restored to avoid overwriting newer changes.')
         } else if (typeof saved.title === 'string' && saved.content && typeof saved.postDate === 'string' && ['post', 'draft', 'schedule', 'preserve'].includes(saved.action) && typeof saved.scheduleDate === 'string' && typeof saved.scheduleTime === 'string') {
@@ -143,12 +145,12 @@ function MaterialEditor({
   useLayoutEffect(() => {
     if (!recoveryReady || readOnly || staleRecovery || !materialKey) return
     try {
-      if (dirty) sessionStorage.setItem(recoveryKey, JSON.stringify({ version: recoveryVersion, ...JSON.parse(current) }))
+      if (dirty) sessionStorage.setItem(recoveryKey, JSON.stringify({ version: baseVersion, owner: recoveryOwner, ...JSON.parse(current) }))
       else sessionStorage.removeItem(recoveryKey)
     } catch {
       setRecoveryProblem('Local recovery is unavailable. Save your changes before closing.')
     }
-  }, [current, dirty, readOnly, recoveryKey, recoveryReady, recoveryVersion, staleRecovery, materialKey])
+  }, [current, dirty, readOnly, recoveryKey, recoveryReady, baseVersion, recoveryOwner, staleRecovery, materialKey])
 
   function discardRecovery() {
     try { sessionStorage.removeItem(recoveryKey) } catch { /* Storage may be unavailable. */ }
