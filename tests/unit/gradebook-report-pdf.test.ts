@@ -97,4 +97,20 @@ describe('gradebook report archive', () => {
     expect(lines.length).toBeGreaterThan(1)
     for (const line of lines) expect(line.trim()).toMatch(/^(reading\s*)+$/)
   })
+  it('keeps a space and its combining mark together across wrapping', async () => {
+    const item = { title: `Start \u0301${'W'.repeat(100)}`, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item] }]))
+    const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
+    expect(text).toContain('Start \u0301')
+    expect(text).not.toMatch(/\n\p{Mark}/u)
+  })
+  it('keeps each assessment title and score on the same page when they fit', async () => {
+    const items = Array.from({ length: 18 }, (_, i) => ({ title: `Item ${i + 1}`, kind: 'Classwork' as const, categoryName: 'Term Work', earned: 18, possible: 20, percent: 90, included: true, isZeroWeight: false }))
+    const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 90, items }]))
+    const pages = extractText(Object.values(files)[0])
+    expect(pages.length).toBeGreaterThan(1)
+    for (const page of pages) {
+      expect((page.text.match(/Item \d+/g) ?? []).length).toBe((page.text.match(/18 \/ 20 points/g) ?? []).length)
+    }
+  })
 })
