@@ -408,6 +408,7 @@ describe('TeacherTestsTab', () => {
   let summaryFetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
+    localStorage.removeItem('teacher-tests:reverse-order:v1')
     invalidateCachedJSON(`teacher-tests:${classroom.id}`)
     invalidateCachedJSON(`teacher-tests:${secondClassroom.id}`)
     invalidateCachedJSON('teacher-test-detail:test-1')
