@@ -48,7 +48,7 @@ describe('RepoLight 298–300 closed source profile', () => {
     }
   })
 
-  it('admits only the complete sealed reorder tail while member profiles stay closed', () => {
+  it('admits only complete sealed reorder and member-list tails', () => {
     expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 297))).not.toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 298))).toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 299))).toThrow()
@@ -59,7 +59,14 @@ describe('RepoLight 298–300 closed source profile', () => {
     }
     const sql = 'select 1;'
     expect(() => validateTestOwnerReorderReviewedMigrations([...chain, {name:'301_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
-    expect(() => validateTestMemberListReviewedMigrations(chain)).toThrow()
+    expect(() => validateTestMemberListReviewedMigrations(chain.slice(0, 298))).toThrow()
+    expect(() => validateTestMemberListReviewedMigrations(chain.slice(0, 299))).toThrow()
+    expect(() => validateTestMemberListReviewedMigrations(chain)).not.toThrow()
+    for (const index of [297, 298, 299]) {
+      const changed = chain.map(entry => ({...entry})); changed[index].sql += '\n'; changed[index].sha256 = hash(changed[index].sql)
+      expect(() => validateTestMemberListReviewedMigrations(changed)).toThrow()
+    }
+    expect(() => validateTestMemberListReviewedMigrations([...chain, {name:'301_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
   })
 
   it('rejects missing, reordered and unknown tails', () => {
