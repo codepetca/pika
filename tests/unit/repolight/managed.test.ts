@@ -6,7 +6,7 @@ import { createRepoLightClient } from '@/lib/server/repolight-client'
 
 const teacher = '11111111-1111-4111-8111-111111111111', other = '22222222-2222-4222-8222-222222222222'
 const key = Buffer.alloc(32, 1).toString('base64url'), control = Buffer.alloc(32, 2).toString('base64url')
-const config = (): ManagedRepoLightConfig => ({ enabled: true, apiOrigin: 'https://reports.example.test', installationRef: 'pika-installation', controlSecret: control, activeEncryptionKeyId: 'key-1', encryptionKeys: { 'key-1': key } })
+const config = (): ManagedRepoLightConfig => ({ enabled: true, apiOrigin: 'https://reports.example.test', installationRef: 'pika-installation', controlSecret: control, activeEncryptionKeyId: 'key-1', encryptionKeys: { 'key-1': key }, pilotMode: 'full' })
 const json = (value: unknown) => new Response(JSON.stringify(value), { headers: { 'content-type': 'application/json' } })
 function fixture() {
   let eligible = true
@@ -48,7 +48,7 @@ describe('managed RepoLight credentials', () => {
     expect(() => decryptManagedRepoLightKey(row, { ...config(), encryptionKeys: {} })).toThrow()
   })
   it('parses dedicated keyring and rejects unsafe origins and noncanonical key bytes without reflecting secrets', () => {
-    const env = { PIKA_REPOLIGHT_MANAGED_ENABLED: 'true', REPOLIGHT_API_URL: config().apiOrigin, REPOLIGHT_MANAGED_INSTALLATION_REF: config().installationRef, REPOLIGHT_MANAGED_CONTROL_SECRET: control, REPOLIGHT_MANAGED_ACTIVE_ENCRYPTION_KEY_ID: 'key-1', REPOLIGHT_MANAGED_ENCRYPTION_KEYS_JSON: JSON.stringify({ 'key-1': key }) }
+    const env = { PIKA_REPOLIGHT_MANAGED_ENABLED: 'true', REPOLIGHT_MANAGED_ROLLOUT_MODE: 'full', REPOLIGHT_API_URL: config().apiOrigin, REPOLIGHT_MANAGED_INSTALLATION_REF: config().installationRef, REPOLIGHT_MANAGED_CONTROL_SECRET: control, REPOLIGHT_MANAGED_ACTIVE_ENCRYPTION_KEY_ID: 'key-1', REPOLIGHT_MANAGED_ENCRYPTION_KEYS_JSON: JSON.stringify({ 'key-1': key }) }
     expect(parseManagedRepoLightConfig(env)).toEqual(config())
     for (const changed of [{ REPOLIGHT_API_URL: 'https://a:b@reports.example.test' }, { REPOLIGHT_API_URL: 'http://reports.example.test' }, { REPOLIGHT_MANAGED_CONTROL_SECRET: 'x'.repeat(43) }, { REPOLIGHT_MANAGED_ENCRYPTION_KEYS_JSON: '{}' }, { PIKA_REPOLIGHT_MANAGED_ENABLED: 'TRUE' }]) {
       expect(() => parseManagedRepoLightConfig({ ...env, ...changed })).toThrow('Managed repository reports are unavailable.')
@@ -214,4 +214,40 @@ describe('managed RepoLight credentials', () => {
     const call = vi.fn(async () => ({ data: null, error: { code: '42501', message: 'secret upstream details' } }))
     await expect(createManagedRepoLightDatabase(call).access(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
   })
+})
+
+describe('managed pilot scope', () => {
+  const env = { PIKA_REPOLIGHT_MANAGED_ENABLED: 'true', REPOLIGHT_MANAGED_ROLLOUT_MODE: 'full', REPOLIGHT_API_URL: 'https://reports.example.test', REPOLIGHT_MANAGED_INSTALLATION_REF: 'fixture', REPOLIGHT_MANAGED_CONTROL_SECRET: control, REPOLIGHT_MANAGED_ACTIVE_ENCRYPTION_KEY_ID: 'key-1', REPOLIGHT_MANAGED_ENCRYPTION_KEYS_JSON: JSON.stringify({ 'key-1': key }) }
+  it('accepts only a bounded canonical list and leaves absent scope unrestricted', () => {
+    expect(parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: undefined }).pilotMode).toBe('off')
+    const scopedEnv = { ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'scoped', REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON: JSON.stringify([teacher]) }
+    const snapshot = parseManagedRepoLightConfig(scopedEnv)
+    scopedEnv.REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON = JSON.stringify([other])
+    expect(snapshot.pilotTeacherIds).toEqual([teacher])
+    expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'scoped' })).toThrow()
+    expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'FULL' })).toThrow()
+    expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON: JSON.stringify([teacher]) })).toThrow()
+    for (const value of ['', '[]', '{}', '["bad"]', JSON.stringify([teacher, teacher]), JSON.stringify(Array(11).fill(teacher))]) {
+      expect(() => parseManagedRepoLightConfig({ ...env, REPOLIGHT_MANAGED_ROLLOUT_MODE: 'scoped', REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON: value })).toThrow('Managed repository reports are unavailable.')
+    }
+  })
+  it('blocks creation and rotation before storage or provider calls', async () => {
+    const f = fixture()
+    const registry = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), pilotMode: 'scoped', pilotTeacherIds: [other] }), fetchImpl: f.fetchImpl })
+    await expect(registry.ensure(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
+    await expect(registry.rotate(teacher)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
+    expect(f.rows).toHaveLength(0)
+    expect(f.requests).toHaveLength(0)
+  })
+})
+
+it('keeps saved ready credentials usable outside the pilot but blocks pending rotation recovery', async () => {
+  const f = fixture(), first = await f.registry.ensure(teacher)
+  const scoped = createManagedRepoLightRegistry(f.store, { config: () => ({ ...config(), pilotMode: 'scoped', pilotTeacherIds: [other] }), keyring: config, fetchImpl: f.fetchImpl })
+  expect((await scoped.resolveSaved(teacher, first.connection.connectionRef)).connection.apiKey).toBe(first.connection.apiKey)
+  f.rows.push(prepareManagedRepoLightRecord(teacher, config(), f.rows[0]))
+  const count = f.requests.length
+  await expect(scoped.resolveSaved(teacher, first.connection.connectionRef)).rejects.toMatchObject({ code: 'repolight_managed_ineligible' })
+  expect(f.requests).toHaveLength(count)
+  expect(f.rows[1].state).toBe('pending')
 })
