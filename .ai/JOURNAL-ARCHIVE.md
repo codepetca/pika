@@ -50515,6 +50515,7 @@ Final receipt review/CI/main merge pending; production477 and activation/provide
 holds unchanged. Pilot still requires selected operator/cohort and authorization.
 
 <!-- pika-session-log-archive-batch:082067655fcf78400f7ec9a0e3d674340abe0001acda090f7f848317fbd58d9f -->
+<!-- pika-session-log-archive-batch:6713339ec4055d79c28fe08bad5a0b6a065f630787db7552bd98d86b9583b72c -->
 ## 2026-10-24 — Assessment diagnostic privacy cleanup
 
 Owner approved orchestration; journal-derived product feedback stays unchanged.
@@ -51128,3 +51129,100 @@ independent integration review and fresh stable-head CI. Prior calendar-only294
 receipts stay historical; current294 means admission only. No shared schema
 application, production release, provider/cohort/account or reset action. Durable
 plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
+
+## 2026-10-28 — Restore hosted browser CI compatibility
+
+- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
+- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
+
+<!-- pika-session-log-archive-batch:783e947536a9a83ba43b89367464ae246aa44e2339f60c505d5707313afe8abb -->
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+<!-- pika-session-log-archive-batch:928bb88e977b553d78667b585380e22bf5932d37755fb21ee95a5168f19243f9 -->
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.
+
+<!-- pika-session-log-archive-batch:910f08c812a8975c6eb3c723ef78153e5ff6df108468480f775fd414c37b9ec9 -->
+## 2026-10-28 Required repository usernames — base refresh
+
+Rebased the previously reviewed required-username change onto current main. Preserved
+upstream journal history and the prior local preparation evidence; focused verification
+is recorded in the task handoff. No migration, provider or production action.
+
+<!-- pika-session-log-archive-batch:b65af85d1ab15bb1a20d27ebd823be447c40aa712bc9f05daa9f34acc703fbb8 -->
+## 2026-10-29 — Managed RepoLight plan integration
+
+Prepared managed per-owner workspace provisioning, Pro/Max/trial entitlement,
+expiry-safe report access, subscription outbox and versioned offering source.
+AI and rollout gates remain off; no hosted migration or deployment. Independent
+reviews and isolated replay001–298 pass; focused 5,352 tests pass (one skip).
+Cross-service handler contract passed with in-memory synthetic stores; real
+DB-backed end-to-end and controlled activation remain outstanding. RepoLight
+service implementation is at worktree `repolight/pika-managed-provisioning`.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:a2557c90beace6c687a9ef8be6efbe87ff28ef6d61792b044fdabaf5484417ae -->
+## 2026-10-29 — RepoLight plan policy
+
+Owner selected Pro and Max, including active Pro trial. Documented SUB-17 and
+preserved offering-version, pilot, billing, and activation boundaries. Runtime
+plan enforcement remains unimplemented; sandbox billing status is not a safe
+production resolver. Next: implement and verify authoritative entitlement and
+race-safe analysis admission before any separately authorized rollout.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:cbd3ea2f5715e1a63fb9eb4c8adc25f3d1d046087492dea43c236b938e03dc40 -->
+## 2026-10-29 — Delete from assignment and test editors
+
+- Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
+
+<!-- pika-session-log-archive-batch:fb4668e7f65fcaa8599ac44c14fcd768e6e32c42a02e220ad4424928390ec494 -->
+## 2026-10-29 — RepoLight required username integration
+
+Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
+journal history and both integration contracts; application and test patches match
+the previously reviewed branch. Focused checks and final PR review follow.
+
+## 2026-10-29 — RepoLight selected-student drafts
+
+Prepared an approval-gated selected-student repository action beside AI Grade.
+It runs individual public reports sequentially and appends matched assignment
+summaries to revision-checked private drafts while the page remains open. No AI,
+grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
+component and executor checks, policy checks, and synthetic teacher desktop/mobile
+light/dark verification are in progress; publication and rollout remain separate.
+
+## 2026-10-30 — Test and assignment settings menus
+
+Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.

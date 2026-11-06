@@ -196,9 +196,13 @@ ${scope === 'metadata' ? '' : `select format('select jsonb_build_object(''table'
 from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in ('r','p') and n.nspname in ('public','private','storage') order by n.nspname,c.relname
 \\gexec`}
 select jsonb_build_object('metadata',jsonb_build_object(
- 'functions',(select jsonb_agg(jsonb_build_array(n.nspname,p.proname,md5(pg_get_functiondef(p.oid)),p.proacl) order by p.oid) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where (n.nspname='private' and p.proname in ('pal_membership_scope','guard_pal_membership_evidence','register_pal_membership','track_pal_membership_enrollment','track_pal_removed_roster')) or (n.nspname='public' and p.proname='resolve_pal_membership')),
- 'triggers',(select jsonb_agg(jsonb_build_array(t.tgname,pg_get_triggerdef(t.oid),t.tgenabled) order by t.tgname) from pg_trigger t where t.tgrelid in ('private.pal_membership_generations'::regclass,'public.classroom_enrollments'::regclass,'public.classroom_roster'::regclass) and not t.tgisinternal),
- 'rls_acl',(select jsonb_agg(jsonb_build_array(c.relname,c.relrowsecurity,c.relacl) order by c.relname) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname in ('pal_membership_generations','pal_membership_settings')),
+ 'functions',(select jsonb_agg(jsonb_build_array(n.nspname,p.proname,md5(pg_get_functiondef(p.oid)),p.proacl) order by p.oid) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where (n.nspname='private' and p.proname in ('pal_membership_scope','guard_pal_membership_evidence','register_pal_membership','track_pal_membership_enrollment','track_pal_removed_roster','repolight_provision_account_hint_v1','repolight_provision_gate_hint_v1')) or (n.nspname='public' and p.proname='resolve_pal_membership')),
+ 'triggers',(select jsonb_agg(jsonb_build_array(t.tgname,pg_get_triggerdef(t.oid),t.tgenabled) order by t.tgname) from pg_trigger t where (t.tgrelid in ('private.pal_membership_generations'::regclass,'public.classroom_enrollments'::regclass,'public.classroom_roster'::regclass)
+ or (t.tgrelid=to_regclass('public.billing_account_access') and t.tgname='repolight_provision_billing_hint')
+ or (t.tgrelid=to_regclass('public.account_plans') and t.tgname='repolight_provision_plan_hint')
+ or (t.tgrelid=to_regclass('private.repolight_settings') and t.tgname='repolight_provision_access_gate_hint')
+ or (t.tgrelid=to_regclass('private.stripe_billing_settings') and t.tgname='repolight_provision_billing_gate_hint')) and not t.tgisinternal),
+ 'rls_acl',(select jsonb_agg(jsonb_build_array(c.relname,c.relrowsecurity,c.relacl) order by c.relname) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='private' and c.relname in ('pal_membership_generations','pal_membership_settings','repolight_settings','stripe_billing_settings','repolight_managed_connections','repolight_provision_control','repolight_provision_outbox')),
  'singleton_index',pg_get_indexdef('public.classroom_roster_one_removed_membership_per_student'::regclass),
  'settings',(select md5(string_agg(name||'='||setting,chr(10) order by name)) from pg_settings)));
 select 'select jsonb_build_object(''cron'',coalesce(jsonb_agg(to_jsonb(j) order by j.jobid),''[]''::jsonb)) from cron.job j' where to_regclass('cron.job') is not null

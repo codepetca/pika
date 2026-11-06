@@ -47,7 +47,7 @@ do $$ declare src jsonb; dst jsonb; b jsonb; c jsonb; r jsonb; u uuid; n text; t
     'ai_definition',null,'availability','{"is_available":true}'::jsonb));
   dst:=public.billing_register_offering_v1(jsonb_build_object('plan_key','plus','version',9230,'stripe_account','acct_upgrade230',
     'provider_mode','test','stripe_product_id','prod_upgrade230plus','stripe_price_id','price_upgrade230plus','currency','usd',
-    'unit_amount',1900,'interval','month','classroom_limit',5,'features','{"catalog_key":"upgrade230-plus"}'::jsonb,
+    'unit_amount',1900,'interval','month','classroom_limit',5,'features','{"catalog_key":"upgrade230-plus","repolight_analysis":true}'::jsonb,
     'ai_definition',null,'availability','{"is_available":true}'::jsonb));
   foreach n in array array['applied','lease','override','entitlement','access','expiry','attention','unpaid','cancel','queue','zero','retry',
     'conflict_payment','conflict_unknown','conflict_claim','conflict_stale','conflict_tampered','conflict_quoted','conflict_retired'] loop
@@ -187,6 +187,23 @@ do $$ declare c jsonb; old jsonb; q jsonb; o jsonb; r jsonb; t timestamptz:=date
 end $$;
 reset role;
 -- Every revision and expired lease is independently fenced; overrides never refresh.
+-- Additive296 consumer check: a verified upgrade keeps the original invoice,
+-- so its immutable transition receipt must establish the purchased benefit.
+-- Historical230/231-only fixture profiles still run without that consumer.
+do $$ declare actor uuid; access jsonb; begin
+  if to_regprocedure('public.get_repolight_analysis_access_v1(uuid)') is not null then
+    update private.repolight_settings set billing_access_enabled=true where singleton;
+    select subject_id into actor from upgrade_cases where name='applied';
+    access:=public.get_repolight_analysis_access_v1(actor);
+    if access->>'allowed'<>'true' or access->>'source'<>'offering' then
+      raise exception 'Verified upgrade benefit could not follow its paid receipt: %',access;
+    end if;
+    select subject_id into actor from upgrade_cases where name='queue';
+    if public.get_repolight_analysis_access_v1(actor)->>'allowed'<>'false' then
+      raise exception 'Unpaid upgrade unlocked RepoLight';
+    end if;
+  end if;
+end $$;
 update public.stripe_billing_subscription_bindings set lease_expires_at=clock_timestamp()-interval '1 second'
   where id=(select subscription_id from upgrade_cases where name='lease');
 update public.account_plans set revision=revision+1 where subject_user_id=(select subject_id from upgrade_cases where name='override');

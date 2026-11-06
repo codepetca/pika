@@ -21,6 +21,6 @@ describe('RepoLight exact source profile (not native execution authority)', () =
     const next={name:'297_other.sql',sql:'select 1;',sha256:createHash('sha256').update('select 1;').digest('hex')}
     expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0,296),next])).toThrow()
     const after={...next,name:'298_other.sql'}
-    expect(() => validateLifecycleServicesReviewedMigrations([...chain,after])).toThrow('Unreviewed')
+    expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0,297),after])).toThrow()
   })
 })

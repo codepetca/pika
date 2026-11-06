@@ -34,6 +34,12 @@ export const repoLightSourceSchema = z.object({
   class_days: z.array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), is_class_day: z.boolean() }).catchall(json)).max(5000),
 }).strict()
 export type RepoLightSource = z.infer<typeof repoLightSourceSchema>
+export const repoLightAnalysisAccessSchema = z.object({
+  enforced: z.boolean(), allowed: z.boolean(),
+  reason: z.enum(['access_unavailable', 'account_unavailable', 'plan_not_included', 'entitlement_inconsistent', 'not_started', 'expired', 'legacy_access_disabled', 'billing_access_disabled', 'synchronization_pending', 'offering_not_included', 'eligible']),
+  source: z.enum(['legacy', 'trial', 'offering']).nullable(), access_ends_at: instant.nullable(),
+  plan_revision: z.number().int().positive().safe().nullable(),
+}).strict()
 export const repoLightRunRowSchema = z.object({
   id: uuid, subject_binding_id: uuid.nullable(), detached: z.boolean().default(false), classroom_id: uuid, assignment_id: uuid, student_id: uuid, actor_id: uuid,
   source_json: repoLightSourceSchema, source_fingerprint: digest,
@@ -45,16 +51,17 @@ export const repoLightRunRowSchema = z.object({
   lease_token: uuid.nullable().optional(), lease_generation: z.number().int().nonnegative(), lease_expires_at: nullableText,
   error_code: z.string().regex(/^[a-z_]{1,64}$/).nullable(), created_at: z.string(), completed_at: nullableText,
   source_current: z.boolean().optional(), report: analysisResultSchema.nullable().optional(),
+  analysis_access: repoLightAnalysisAccessSchema.optional(),
 }).strict().refine(row => row.subject_binding_id !== null || row.detached, 'An active run requires its private subject binding.')
 export type RepoLightRunRow = z.infer<typeof repoLightRunRowSchema>
-export const repoLightSourceResponseSchema = z.object({ source: repoLightSourceSchema, source_fingerprint: digest, latest_run: repoLightRunRowSchema.nullable() }).strict()
+export const repoLightSourceResponseSchema = z.object({ source: repoLightSourceSchema, source_fingerprint: digest, latest_run: repoLightRunRowSchema.nullable(), analysis_access: repoLightAnalysisAccessSchema.optional() }).strict()
 export const repoLightImportResultSchema = z.object({ imported: z.literal(true), replayed: z.boolean(), doc: z.object({ id: uuid, assignment_id: uuid, student_id: uuid, updated_at: z.string(), teacher_feedback_draft: z.string(), teacher_feedback_draft_updated_at: z.string() }).strict() }).strict()
 
 export const repoLightRunViewSchema = z.object({ id: uuid, status: z.enum(['queued', 'submitting', 'running', 'completed', 'failed', 'stale']), sourceCurrent: z.boolean(), canAdvance: z.boolean(), canImport: z.boolean(), reportAvailable: z.boolean(), errorCode: z.string().nullable(), nextRetryAt: nullableText }).strict()
 export const repoLightRepositoryChoiceSchema = z.object({ requirementId: uuid, repositoryUrl: publicRepositoryRequestSchema.shape.repositoryUrl.max(2048), label: z.string().min(1).max(2048) }).strict()
 export type RepoLightRepositoryChoice = z.infer<typeof repoLightRepositoryChoiceSchema>
 export const repoLightSourceSummarySchema = z.object({ repositoryChoices: z.array(repoLightRepositoryChoiceSchema).max(100).default([]), available: z.boolean(), repositoryUrl: nullableText, githubUsername: nullableText, usernameProvenance: z.enum(['analysis_override', 'teacher_override', 'artifact', 'legacy', 'none']), requirementId: uuid.nullable(), period: z.object({ startAt: instant, endAt: instant, timezone: z.literal('America/Toronto') }).strict().nullable(), periodDefaulted: z.boolean(), notice: nullableText }).strict()
-export const repoLightContextReplySchema = z.object({ state: z.enum(['disabled', 'not_configured', 'ready', 'unavailable']), source: repoLightSourceSummarySchema, run: repoLightRunViewSchema.nullable() }).strict()
+export const repoLightContextReplySchema = z.object({ state: z.enum(['disabled', 'not_configured', 'ready', 'unavailable', 'access_required']), source: repoLightSourceSummarySchema, run: repoLightRunViewSchema.nullable() }).strict()
 export const repoLightRunReplySchema = z.object({ run: repoLightRunViewSchema }).strict()
 export const repoLightReportReplySchema = z.object({ run: repoLightRunViewSchema, report: z.object({ reportDigest: digest, bundle: publicRepositoryBundleSchema, assignmentSummary: z.object({scopeKey:z.string().max(160).regex(/^contributor:[A-Za-z0-9._~-]+$/),text:z.string().min(1).max(20000),rulesVersion:z.literal('1.0.0')}).strict().nullable().optional() }).strict() }).strict()
 export type RepoLightRunView = z.infer<typeof repoLightRunViewSchema>

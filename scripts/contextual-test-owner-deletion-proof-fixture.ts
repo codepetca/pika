@@ -1,3 +1,4 @@
+import { withRepoLight300Witness } from './repolight-300-proof-witness'
 /** Fixed small synthetic work graph. Generation is inert; never execution authority. */
 import assert from 'node:assert/strict'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
@@ -73,7 +74,7 @@ ${insert('managed_storage_objects',f.objects)}${insert('test_document_snapshot_s
 ${f.tests.filter(t=>t.documents.length).map(t=>`update public.tests set documents=${j(t.documents)} where id=${q(t.id)};`).join('\n')}commit;`
   assert(Buffer.byteLength(sql)<=256*1024);return bounded(sql)
 }
-export function testOwnerDeletionGraphSql(f:TestOwnerDeletionFixture){
+export function testOwnerDeletionGraphSql(f:TestOwnerDeletionFixture, reviewed300 = false){
   const ids=(rows:readonly{id:string}[])=>rows.map(r=>q(r.id)).join(','),tests=ids(f.tests),classes=ids(f.classes)
   const tables=[['public.users',`id in(${ids(f.actors)})`],['public.classrooms',`id in(${classes})`],['public.tests',`id in(${tests})`],
     ...['test_questions','test_attempts','test_responses','test_focus_events','test_student_availability','test_ai_grading_runs','test_ai_grading_run_items'].map(t=>[`public.${t}`,`test_id in(${tests})`]),
@@ -84,6 +85,6 @@ export function testOwnerDeletionGraphSql(f:TestOwnerDeletionFixture){
   const fingerprints=`(select coalesce(jsonb_agg(jsonb_build_object('table',n.nspname||'.'||c.relname,'fingerprint',query_to_xml(format('select count(*) as count,md5(coalesce(string_agg(md5(to_jsonb(r)::text),'''' order by md5(to_jsonb(r)::text)),'''')) as digest from %I.%I r',n.nspname,c.relname),true,false,'')::text) order by n.nspname,c.relname),'[]'::jsonb) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in('r','p') and n.nspname in('public','private','storage'))`
   const exclusions=tables.map(([t,p])=>`when ${q(t)} then ${q(`not (${p})`)}`).join(' ')
   const nontarget=`(select coalesce(jsonb_agg(jsonb_build_object('table',n.nspname||'.'||c.relname,'fingerprint',query_to_xml(format('select count(*) as count,md5(coalesce(string_agg(md5(to_jsonb(r)::text),'''' order by md5(to_jsonb(r)::text)),'''')) as digest from %I.%I r where %s',n.nspname,c.relname,case n.nspname||'.'||c.relname ${exclusions} else 'true' end),true,false,'')::text) order by n.nspname,c.relname),'[]'::jsonb) from pg_class c join pg_namespace n on n.oid=c.relnamespace where c.relkind in('r','p') and n.nspname in('public','private','storage'))`
-  return `jsonb_build_object(${tables.map(([t,p])=>`${q(t)},(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from ${t} r where ${p})`).join(',')},'__whole_catalog',${fingerprints},'__nontarget_catalog',${nontarget})`
+  return withRepoLight300Witness(`jsonb_build_object(${tables.map(([t,p])=>`${q(t)},(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from ${t} r where ${p})`).join(',')},'__whole_catalog',${fingerprints},'__nontarget_catalog',${nontarget})`, reviewed300)
 }
-export function testOwnerDeletionSnapshotSql(f:TestOwnerDeletionFixture){return bounded(`begin read only;set local lock_timeout='3s';set local statement_timeout='12s';select ${testOwnerDeletionGraphSql(f)};rollback;`)}
+export function testOwnerDeletionSnapshotSql(f:TestOwnerDeletionFixture, reviewed300 = false){return bounded(`begin read only;set local lock_timeout='3s';set local statement_timeout='12s';select ${testOwnerDeletionGraphSql(f, reviewed300)};rollback;`)}
