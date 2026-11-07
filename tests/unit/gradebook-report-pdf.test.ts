@@ -70,11 +70,12 @@ describe('gradebook report archive', () => {
     const item = { title, kind: 'Classwork' as const, categoryName: null, earned: 8, possible: 10, percent: 80, included: true, isZeroWeight: false }
     await expect(buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 80, items: [item] }])).rejects.toThrow('right-to-left name or title is too long')
   })
-  it('explains which marks appear and labels an unavailable grade', async () => {
+  it('labels an unavailable grade without explanatory subtitles', async () => {
     const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: null, items: [] }]))
     const text = extractText(Object.values(files)[0]).map((page) => page.text).join('\n')
     expect(text).toContain('Not available')
-    expect(text).toContain('Only returned classwork and tests, and saved Gradebook marks, appear here.')
+    expect(text).not.toContain('Only returned classwork and tests')
+    expect(text).not.toContain('Based on returned work')
     expect(text).toContain('No marks are available to show yet.')
   })
   it('explains when an assessment does not count toward the current grade', async () => {
@@ -105,12 +106,12 @@ describe('gradebook report archive', () => {
     expect(text).not.toMatch(/\n\p{Mark}/u)
   })
   it('keeps each assessment title and score on the same page when they fit', async () => {
-    const items = Array.from({ length: 18 }, (_, i) => ({ title: `Item ${i + 1}`, kind: 'Classwork' as const, categoryName: 'Term Work', earned: 18, possible: 20, percent: 90, included: true, isZeroWeight: false }))
+    const items = Array.from({ length: 40 }, (_, i) => ({ title: `Item ${i + 1}`, kind: 'Classwork' as const, categoryName: 'Term Work', earned: 18, possible: 20, percent: 90, included: true, isZeroWeight: false }))
     const files = unzipSync(await buildGradebookReportArchive('Course', [{ studentName: 'Student', currentPercent: 90, items }]))
     const pages = extractText(Object.values(files)[0])
     expect(pages.length).toBeGreaterThan(1)
     for (const page of pages) {
-      expect((page.text.match(/Item \d+/g) ?? []).length).toBe((page.text.match(/18 \/ 20 points/g) ?? []).length)
+      expect((page.text.match(/Item \d+/g) ?? []).length).toBe((page.text.match(/18 \/ 20/g) ?? []).length)
     }
   })
 })

@@ -95,6 +95,9 @@ function reportParagraphs(text: string, size: number, fonts: FontEntry[], option
 /** Produce an archive of independent PDFs, never combining students in a report. */
 export async function buildGradebookReportArchive(classroom: string, reports: GradebookStudentReport[], recipients?: GuardianRecipient[]): Promise<Uint8Array> {
   if (recipients && recipients.length !== reports.length) throw new Error('Could not match reports to guardian addresses. No reports were downloaded.')
+  const generatedDate = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Toronto', year: 'numeric', month: 'long', day: 'numeric',
+  }).format(new Date())
   const files: Record<string, Uint8Array> = {}
   const manifest: string[][] = [['PDF file', 'Student', 'Guardian email in Pika', 'Status']]
   for (const [index, report] of reports.entries()) {
@@ -102,7 +105,7 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
     const itemLines = report.items.map((item) => ({
       title: item.title,
       category: `${item.kind}${item.categoryName ? ` · ${item.categoryName}` : ''}`,
-      score: `${item.earned} / ${item.possible} points`,
+      score: `${item.earned} / ${item.possible}`,
       percent: `${item.percent.toFixed(1)}%`,
       status: item.included ? '' : 'Does not count toward current grade',
     }))
@@ -125,6 +128,7 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       const gap = 16
       if (rightWidth + gap >= DEFAULT_CW) throw new Error('An assessment mark is too wide to display safely. No reports were downloaded.')
       const lines = reportParagraphs(left, size, fontEntries, { color, keepWithNext: true, maxWidth: DEFAULT_CW - rightWidth - gap })
+        .map((line) => line.type === 'paragraph' ? { ...line, lineHeight: 1 } : line)
       const last = lines.at(-1)
       if (!last || last.type !== 'paragraph') throw new Error('Could not format an assessment. No reports were downloaded.')
       const width = encoding.tw(last.text, size)
@@ -143,17 +147,12 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       lines[lines.length - 1] = { ...last, text, direction: 'ltr', keepWithNext }
       blocks.push(...lines)
     }
-    add('STUDENT GRADEBOOK REPORT', 10, accent, true)
+    addPair('Gradebook report', 'CURRENT GRADE', 10, accent, true)
     space(5)
-    add(report.studentName, 22, ink, true)
-    add(classroom, 12, muted)
-    space(13)
-    add('CURRENT GRADE', 10, muted, true)
-    add(report.currentPercent == null ? 'Not available' : `${report.currentPercent.toFixed(1)}%`, 25, accent)
-    add('Based on returned work and saved Gradebook marks. This is not an official report card.', 10, muted)
+    addPair(report.studentName, report.currentPercent == null ? 'Not available' : `${report.currentPercent.toFixed(1)}%`, 22, ink, true)
+    add(`${classroom} · ${generatedDate}`, 12, muted)
     space(14)
     add('Assessment results', 15, ink, true)
-    add('Only returned classwork and tests, and saved Gradebook marks, appear here.', 10, muted, true)
     space(6)
     if (itemLines.length === 0) add('No marks are available to show yet.', 11, muted)
     // Only the current page needs to be remeasured as entries are appended.
@@ -167,7 +166,7 @@ export async function buildGradebookReportArchive(classroom: string, reports: Gr
       addPair(item.title, item.percent, 12, ink, true)
       addPair(item.category, item.score, 10, muted, Boolean(item.status))
       if (item.status) add(item.status, 10, muted)
-      space(8)
+      space(2)
       const group = blocks.slice(start)
       const current = [...pageBlocks, ...group]
       const plan = inspectDocumentLayout({ blocks: current, fontEntries }, layout)

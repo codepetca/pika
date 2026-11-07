@@ -308,4 +308,4 @@ Partitioned the dark experience matrix into four fresh-server runs with an exact
 Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
 ## 2026-11-06 — Parent report score alignment
 
-Aligned percentages with assessment titles and raw scores with category subtitles in the exported parent PDF. Preserved returned-only eligibility and multilingual-safe wrapping; verified a rendered sample and focused PDF tests. Independent review and PR checks follow.
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
