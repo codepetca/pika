@@ -1807,6 +1807,7 @@ function ClassroomPageContent({
     hasTeacherStudentTableWorkspace ||
     hasTeacherViewportGrid ||
     activeTab === 'resources' ||
+    activeTab === 'calendar' ||
     (!isTeacher && activeTab === 'today')
 
   async function handleRequestAssessmentDelete() {
@@ -1906,7 +1907,8 @@ function ClassroomPageContent({
       onNavigateHome={handleHomeNavigationAttempt}
       mainClassName="max-w-none px-0 py-0"
       constrainToViewport={hasConstrainedWorkspace}
-      constrainToViewportOnMobile={hasTeacherStudentTableWorkspace && activeTab !== 'gradebook'}
+      allowShortViewportOverflow={activeTab === 'calendar'}
+      constrainToViewportOnMobile={activeTab === 'calendar' || (hasTeacherStudentTableWorkspace && activeTab !== 'gradebook')}
       examModeHeader={examHeaderData}
       pageTitle={undefined}
     >

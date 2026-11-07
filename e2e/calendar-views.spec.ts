@@ -4,6 +4,7 @@ test.use({ storageState: { cookies: [], origins: [] } })
 
 for (const role of ['teacher', 'student'] as const) {
   test(`${role} can switch term views and return to today`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: page.viewportSize()!.width, height: 600 })
     const classroomId = '30000000-0000-4000-8000-000000000011'
     await page.clock.setFixedTime(new Date('2026-10-05T16:00:00Z'))
     await page.route('**/api/**', async route => {
@@ -34,6 +35,23 @@ for (const role of ['teacher', 'student'] as const) {
       await expect(button).toHaveAttribute('aria-pressed', 'true')
       await expect(page.getByText('Lesson 1', { exact: true })).toBeAttached()
       await expect(page.getByText('Lesson 30', { exact: true })).toBeAttached()
+      const lastDay = workspace.locator('[data-calendar-date="2027-01-29"]')
+      const scroller = lastDay.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " overflow-auto ")][1]')
+      await expect(scroller).toHaveCount(1)
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+      await scroller.evaluate(element => { element.scrollTop = element.scrollHeight })
+      await expect.poll(() => lastDay.evaluate(element => {
+        const scroll = element.closest('.overflow-auto')!
+        const day = element.getBoundingClientRect()
+        const bounds = scroll.getBoundingClientRect()
+        return day.bottom <= bounds.bottom + 1 && day.bottom > bounds.top
+      })).toBe(true)
+      const scrollBounds = await scroller.boundingBox()
+      const workspaceBounds = await workspace.boundingBox()
+      expect(Math.abs(scrollBounds!.x + scrollBounds!.width - workspaceBounds!.x - workspaceBounds!.width)).toBeLessThanOrEqual(1)
+      // Exercise hit testing after the sticky month/weekday header has reached the top.
+      await page.getByRole('button', { name: mode === 'List' ? 'Grid' : 'List', exact: true }).click()
+      await button.click()
       await page.screenshot({ path: testInfo.outputPath(`${role}-${mode.toLowerCase()}.png`) })
       if (mode === 'List') {
         await page.locator('[data-calendar-date="2027-01-15"]').scrollIntoViewIfNeeded()
@@ -69,5 +87,23 @@ for (const role of ['teacher', 'student'] as const) {
     }
     await page.reload({ waitUntil: 'networkidle' })
     await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await page.setViewportSize({ width: 390, height: 240 })
+    await page.route('**/api/**', route => {
+      const path = new URL(route.request().url()).pathname
+      return ['/assignments', '/materials', '/announcements'].some(suffix => path.endsWith(suffix))
+        ? route.fulfill({ status: 500, json: { error: 'failure' } }) : route.fallback()
+    })
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByRole('alert').filter({ hasText: 'Some calendar information' })).toBeAttached()
+    const dates = page.getByRole('region', { name: 'Calendar dates' })
+    await expect(dates).toBeVisible()
+    await dates.focus()
+    await page.keyboard.press('End')
+    expect(await dates.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
+    await page.getByRole('button', { name: 'Today', exact: true }).click()
+    await expect.poll(() => page.locator('[data-calendar-date="2026-10-05"]').evaluate(element => {
+      const bounds = element.getBoundingClientRect()
+      return bounds.bottom > 0 && bounds.top < window.innerHeight
+    })).toBe(true)
   })
 }

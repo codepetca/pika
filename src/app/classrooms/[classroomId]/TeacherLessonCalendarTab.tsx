@@ -1251,9 +1251,9 @@ export function TeacherLessonCalendarTab({
   }
 
   return (
-    <PageLayout bleedX={false} width={viewMode === 'list' ? 'standard' : 'full'}>
+    <PageLayout bleedX={false} className="min-h-0 flex-1">
       <CalendarActionBar
-        className="sticky top-12 z-sticky-table bg-page"
+        className={`sticky top-12 z-sticky-table bg-page ${viewMode === 'list' ? 'mx-auto w-full max-w-standard' : ''}`}
         viewMode={viewMode}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
@@ -1275,15 +1275,15 @@ export function TeacherLessonCalendarTab({
           },
         ] : []}
       />
-      <PageContent className="pb-24 pt-1">
-        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
+      <PageContent className="flex min-h-0 flex-1 flex-col px-0 pb-0 pt-1">
+        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />
           <CalendarSourceErrors
             failures={saveFailures}
             message="Some lesson plan changes could not be saved."
           />
-          <div className="rounded-lg bg-surface">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-surface">
             <LessonCalendar
               classroom={classroom}
               lessonPlans={visibleLessonPlans}
@@ -1299,6 +1299,7 @@ export function TeacherLessonCalendarTab({
               currentDate={currentDate}
               editable={!classroom.archived_at}
               showHeader={false}
+              constrainToWorkspace
               onDateChange={setCurrentDate}
               onViewModeChange={handleViewModeChange}
               onContentChange={handleContentChange}

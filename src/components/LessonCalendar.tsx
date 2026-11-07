@@ -30,6 +30,8 @@ interface LessonCalendarProps {
   editable: boolean
   saving?: boolean
   showHeader?: boolean
+  constrainToWorkspace?: boolean
+  agendaGutter?: 'compact' | 'comfortable'
   todayRequest?: number
   initialSourcesLoading?: boolean
   onDateChange: (date: Date) => void
@@ -90,6 +92,8 @@ export function LessonCalendar({
   editable,
   saving = false,
   showHeader = true,
+  constrainToWorkspace = false,
+  agendaGutter = 'compact',
   todayRequest = 0,
   initialSourcesLoading = false,
   onDateChange,
@@ -216,7 +220,15 @@ export function LessonCalendar({
     const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
     scroller.scrollTop += offset - (scroller.clientHeight - element.offsetHeight) / 2
   }, [termStart, termEnd, today])
-  useEffect(() => { centerToday() }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest])
+  const lastTodayRequest = useRef({ external: todayRequest, local: localTodayRequest })
+  useEffect(() => {
+    centerToday()
+    const requested = lastTodayRequest.current.external !== todayRequest || lastTodayRequest.current.local !== localTodayRequest
+    lastTodayRequest.current = { external: todayRequest, local: localTodayRequest }
+    if (requested && constrainToWorkspace && window.matchMedia('(max-height: 400px)').matches) {
+      scrollRef.current?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest, constrainToWorkspace])
 
   // Source snapshots may arrive after the first render and change row heights.
   // Recenter once after the initial load, unless the user has taken control.
@@ -306,15 +318,15 @@ export function LessonCalendar({
   }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, materialsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
   return (
-    <div ref={calendarRef} className="min-w-0">
+    <div ref={calendarRef} className={constrainToWorkspace ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}>
       {showHeader && <div className="flex items-center justify-center gap-2">
         <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange}
           options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
         <Button variant="secondary" size="sm" onClick={() => setLocalTodayRequest(value => value + 1)}>Today</Button>
       </div>}
-      <div ref={scrollRef} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className="max-h-screen min-w-0 overflow-auto">
+      <div ref={scrollRef} role="region" aria-label="Calendar dates" tabIndex={0} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className={constrainToWorkspace ? "relative z-0 min-h-0 min-w-0 flex-1 overflow-auto [@media(max-height:400px)]:min-h-40 [@media(max-height:400px)]:max-h-40 focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset" : "max-h-screen min-w-0 overflow-auto"}>
       {viewMode === 'list' ? (
-        <div role="region" aria-label="Term agenda" className="min-w-0">
+        <div role="region" aria-label="Term agenda" className={constrainToWorkspace ? `mx-auto min-w-0 max-w-standard ${agendaGutter === 'comfortable' ? 'px-density-comfortable-gutter' : 'px-density-compact-gutter'}` : 'min-w-0'}>
           {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (
             <section key={month} data-calendar-month={format(parseISO(`${month}-01`), 'MMMM yyyy')}>
               <div className="sticky top-0 z-sticky-table border-y border-border bg-surface-2 px-4 py-1 text-sm font-medium text-text-muted">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>

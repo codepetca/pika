@@ -297,4 +297,4 @@ Aligned each assessment's title and percentage above its category and raw score 
 
 ## 2026-11-07 — Calendar label and scrolling review
 
-Removed the redundant action-bar month label, retaining the sticky list month header. Investigated nested page/calendar scrolling; recommend a viewport-constrained calendar workspace with one scroll owner, subject to mobile, banner and sticky-header verification.
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
