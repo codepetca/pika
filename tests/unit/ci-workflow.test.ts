@@ -186,13 +186,16 @@ describe('CI workflow', () => {
   it('preserves the full configured browser inventory with only independent auth setup repeated', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> }
     const jobs = extractWorkflow(readFileSync(workflowPath, 'utf8'))
-    const commands = ['browser-experience-matrix', 'browser-pattern-lab-dark'].map(id => {
+    const commands = ['browser-pattern-lab-dark'].map(id => {
       const runs = jobs[id].steps.filter(step => step.run?.startsWith('pnpm e2e:ci'))
       expect(runs).toHaveLength(1)
       return runs[0].run!.split(/\s+/).slice(2)
     })
     expect(jobs['browser-experience-dark'].steps.filter(step => step.run === 'node scripts/ci-browser-dark-partitions.mjs')).toHaveLength(1)
-    commands.splice(1, 0, ['--project=chromium-desktop-dark', '--project=chromium-mobile-dark'])
+    expect(jobs['browser-experience-matrix'].steps.filter(step => step.run === 'node scripts/ci-browser-light-partitions.mjs')).toHaveLength(1)
+    commands.unshift(['--project=chromium-desktop', '--project=chromium-mobile-light', '--project=pattern-lab-desktop-light', '--project=pattern-lab-mobile-light'], ['--project=chromium-desktop-dark', '--project=chromium-mobile-dark'])
+    const lightPartitions = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs', '--verify-only'], { encoding: 'utf8', timeout: 30_000 })
+    expect(lightPartitions.status, lightPartitions.stderr).toBe(0)
     const partitions = spawnSync('node', ['scripts/ci-browser-dark-partitions.mjs', '--verify-only'], { encoding: 'utf8', timeout: 30_000 })
     expect(partitions.status, partitions.stderr).toBe(0)
     const inventory = (flags: string[]) => {
@@ -221,22 +224,22 @@ describe('CI workflow', () => {
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 60_000)
 
-  it('fails before browser execution when a partition selects the wrong inventory', () => {
+  it.each(['dark', 'light'])('fails before %s browser execution when a partition selects the wrong inventory', mode => {
     const dir = mkdtempSync(join(tmpdir(), 'pika-dark-inventory-test-'))
     try {
       const spec = (title: string, line: number, projects: string[]) => ({ title, file: 'experience-matrix.spec.ts', line, column: 1, tests: projects.map(projectName => ({ projectName })) })
-      const projects = ['chromium-desktop-dark', 'chromium-mobile-dark']
+      const projects = mode === 'dark' ? ['chromium-desktop-dark', 'chromium-mobile-dark'] : ['chromium-desktop', 'chromium-mobile-light', 'pattern-lab-desktop-light', 'pattern-lab-mobile-light']
       const inventory = { suites: [
         { specs: [{ title: 'auth', file: 'auth.setup.ts', line: 1, column: 1, tests: [{ projectName: 'setup' }] }] },
         { specs: [1, 2, 3, 4].map(n => spec(`test ${n}`, n, projects)) },
       ] }
       writeFileSync(join(dir, 'inventory.json'), JSON.stringify(inventory))
       writeFileSync(join(dir, 'pnpm'), '#!/bin/sh\ncase " $* " in *" --list "*) cat "$FAKE_INVENTORY" ;; *) exit 99 ;; esac\n', { mode: 0o755 })
-      const result = spawnSync('node', ['scripts/ci-browser-dark-partitions.mjs'], {
+      const result = spawnSync('node', [`scripts/ci-browser-${mode}-partitions.mjs`], {
         encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_INVENTORY: join(dir, 'inventory.json') },
       })
       expect(result.status).not.toBe(0)
-      expect(result.stderr).toContain('Partition 1 inventory mismatch')
+      expect(result.stderr).toMatch(/Partition 1 inventory mismatch|Unexpected chromium-desktop inventory/)
     } finally { rmSync(dir, { recursive: true, force: true }) }
   })
 
@@ -576,7 +579,7 @@ describe('CI workflow', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
     expect(workflow).toContain('name: Run combined browser contracts')
-    expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(2)
+    expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(1)
     for (const id of ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
       const body = jobSource(workflow, id)
       expect(body).toContain("if: needs.classify-changes.outputs.run_browser == 'true'")
