@@ -297,4 +297,4 @@ Removed the redundant action-bar month label, retaining the sticky list month he
 
 ## 2026-11-07 — Calendar list day selection
 
-Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Verified teacher and student roles across viewports and themes, plus focused interactions.
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Verified teacher and student roles across viewports and themes, plus focused interactions.

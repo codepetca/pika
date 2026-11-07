@@ -334,7 +334,7 @@ export function LessonCalendar({
         <div role="region" aria-label="Term agenda" className={constrainToWorkspace ? `mx-auto min-w-0 max-w-standard ${agendaGutter === 'comfortable' ? 'px-density-comfortable-gutter' : 'px-density-compact-gutter'}` : 'min-w-0'}>
           {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (
             <section key={month} data-calendar-month={format(parseISO(`${month}-01`), 'MMMM yyyy')}>
-              <div className="sticky top-0 z-sticky-table border-y border-border bg-surface-2 px-4 py-1 text-sm font-medium text-text-muted">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
+              <div className="sticky top-0 z-sticky-table border-y border-border bg-surface-3 px-4 py-1 text-sm font-semibold text-text-default">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
               {days.filter(day => day >= termStart && day <= termEnd && format(day, 'yyyy-MM') === month).map(day => {
                 const dateString = format(day, 'yyyy-MM-dd')
                 const isWeekendDay = isWeekend(day)
@@ -357,7 +357,7 @@ export function LessonCalendar({
           <div className="grid" style={{ gridTemplateColumns: GRID_COLUMNS_8, gridTemplateRows: `auto ${weeks.map(() => 'auto').join(' ')}` }}>
             <div className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface" style={{ gridColumn: 1, gridRow: 1 }} />
             {DAY_LABELS.map((label, idx) => <div key={label} className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface py-1 text-center text-sm font-medium text-text-muted" style={{ gridColumn: idx + 2, gridRow: 1 }}>{idx === 0 || idx === 6 ? label.charAt(0) : label}</div>)}
-            {monthSpans.map(span => <div key={span.month} className="relative flex items-center justify-center overflow-hidden border-b border-r border-border bg-surface-2" style={{ gridColumn: 1, gridRow: `${span.startIdx + 2} / span ${span.count}` }}><span className="whitespace-nowrap text-xs font-medium text-text-muted" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{span.monthName}</span></div>)}
+            {monthSpans.map(span => <div key={span.month} className="relative flex items-center justify-center overflow-hidden border-b border-r border-border bg-surface-3" style={{ gridColumn: 1, gridRow: `${span.startIdx + 2} / span ${span.count}` }}><span className="whitespace-nowrap text-xs font-semibold text-text-default" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{span.monthName}</span></div>)}
             {weeks.flatMap((week, weekIdx) => week.map((day, dayIdx) => {
               const dateString = format(day, 'yyyy-MM-dd')
               const inTerm = day >= termStart && day <= termEnd
