@@ -878,7 +878,9 @@ describe('PageMockups', () => {
 
     expect(within(calendar).getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'false')
-    await user.click(within(calendar).getByRole('button', { name: 'Grid' }))
+    within(calendar).getByRole('button', { name: 'List' }).focus()
+    await user.keyboard('{ArrowRight}')
+    expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveFocus()
     expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(calendar).getByText('January', { exact: true })).toBeVisible()
     expect(within(calendar).getByText('Semester ecosystem reflection.')).toBeInTheDocument()

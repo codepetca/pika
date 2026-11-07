@@ -132,6 +132,7 @@ describe('CalendarActionBar', () => {
 
   it('exposes the calendar view control and changes modes', () => {
     const onViewModeChange = vi.fn()
+    const onToday = vi.fn()
 
     render(
       <CalendarActionBar
@@ -139,7 +140,7 @@ describe('CalendarActionBar', () => {
         currentDate={new Date(2026, 6, 21)}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-        onToday={vi.fn()}
+        onToday={onToday}
         onViewModeChange={onViewModeChange}
       />,
     )
@@ -151,6 +152,8 @@ describe('CalendarActionBar', () => {
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'Grid' }), { key: 'ArrowLeft' })
     expect(onViewModeChange).toHaveBeenCalledWith('list')
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    expect(onToday).toHaveBeenCalledOnce()
   })
 
   it('keeps teacher calendar views centered and places secondary commands in More actions', () => {
@@ -184,7 +187,7 @@ describe('CalendarActionBar', () => {
     expect(viewControl).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
     expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass('h-11', 'w-11')
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass('h-6', 'w-11')
 
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
 

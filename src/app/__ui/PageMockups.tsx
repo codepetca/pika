@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { DateNavigator } from '@/components/DateNavigator'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { LessonCalendar, type CalendarViewMode } from '@/components/LessonCalendar'
 import {
   TeacherWorkSurfaceActionCluster,
@@ -1138,6 +1139,8 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
 
 export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [view, setView] = useState<CalendarViewMode>('list')
+  const [visibleMonth, setVisibleMonth] = useState('')
+  const [todayRequest, setTodayRequest] = useState(0)
   const [lessonPlans, setLessonPlans] = useState(LESSON_PLANS)
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
   const handleContentChange = (lessonDate: string, markdown: string) => setLessonPlans((plans) => {
@@ -1154,26 +1157,19 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
     { id: 'markdown', label: 'Edit calendar in Markdown', onSelect: () => onPrototypeAction('Edit calendar in Markdown') },
   ]
   return <PageLayout bleedX={false} width={view === 'list' ? 'standard' : 'full'} className="space-y-3">
-    <TeacherWorkSurfaceContextBar
-      ariaLabel="Calendar mockup controls"
-      context={<span className="hidden truncate sm:inline">Teaching calendar</span>}
-      primary={<TeacherWorkSurfaceActionCluster>
-
-        <SegmentedControl<CalendarViewMode>
-          ariaLabel="Calendar view"
-          value={view}
-          onChange={setView}
-          options={[
-            { value: 'list', label: 'List' },
-            { value: 'grid', label: 'Grid' },
-          ]}
-        />
-        <Button variant="secondary" size="sm" onClick={() => setDate(new Date('2026-09-14T12:00:00'))}>Today</Button>
-      </TeacherWorkSurfaceActionCluster>}
-      actions={<MoreMenu label="Calendar" items={menuItems} />}
+    <CalendarActionBar
+      className="sticky top-12 z-sticky-table bg-page"
+      viewMode={view}
+      visibleMonth={view === 'list' ? visibleMonth : undefined}
+      currentDate={date}
+      onPrev={() => {}}
+      onNext={() => {}}
+      onToday={() => { setDate(new Date('2026-09-14T12:00:00')); setTodayRequest((request) => request + 1) }}
+      onViewModeChange={setView}
+      moreActions={menuItems}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'list'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} />
+      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'list'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} onVisibleMonthChange={setVisibleMonth} todayRequest={todayRequest} />
     </div>
     <Description>List and Grid show the full term. Today returns to the current date; More actions owns Markdown editing.</Description>
   </PageLayout>
