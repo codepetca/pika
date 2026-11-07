@@ -1,9 +1,8 @@
 'use client'
 
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend, addDays, parseISO } from 'date-fns'
-import { toZonedTime } from 'date-fns-tz'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
@@ -13,12 +12,10 @@ import { getCalendarAnnouncementDate, getCalendarAssignmentDate, getCalendarMate
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
 import { useKeyboardShortcutHint } from '@/hooks/use-keyboard-shortcut-hint'
 import { useTorontoToday } from '@/hooks/use-toronto-today'
-import { Button, DialogPanel, SegmentedControl, Tooltip } from '@/ui'
+import { Button, DialogPanel, IconButton, SegmentedControl, Tooltip } from '@/ui'
 import type { Announcement, Assignment, ClassDay, Classroom, ClassworkMaterial, LessonPlan, TestAssessment } from '@/types'
 
-const TIMEZONE = 'America/Toronto'
-
-export type CalendarViewMode = 'week' | 'month' | 'all'
+export type CalendarViewMode = 'list' | 'grid'
 
 interface LessonCalendarProps {
   classroom: Classroom
@@ -33,6 +30,9 @@ interface LessonCalendarProps {
   editable: boolean
   saving?: boolean
   showHeader?: boolean
+  todayRequest?: number
+  initialSourcesLoading?: boolean
+  onVisibleMonthChange?: (month: string) => void
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, contentMarkdown: string) => void
@@ -46,8 +46,8 @@ interface LessonCalendarProps {
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-// Preserve weekday/weekend proportions while reserving a touch target plus cell gutters.
-const GRID_DAY_MIN_WIDTH = 'calc(var(--size-control-min) + var(--space-control))'
+// Preserve weekday/weekend proportions while reserving a full touch target per day.
+const GRID_DAY_MIN_WIDTH = 'var(--size-control-min)'
 const GRID_COLUMNS_7 = [0.5, 2, 2, 2, 2, 2, 0.5]
   .map(fraction => `minmax(${GRID_DAY_MIN_WIDTH}, ${fraction}fr)`).join(' ')
 const GRID_COLUMNS_8 = `24px ${GRID_COLUMNS_7}`
@@ -91,6 +91,9 @@ export function LessonCalendar({
   editable,
   saving = false,
   showHeader = true,
+  todayRequest = 0,
+  initialSourcesLoading = false,
+  onVisibleMonthChange,
   onDateChange,
   onViewModeChange,
   onContentChange,
@@ -102,7 +105,7 @@ export function LessonCalendar({
   isSidebarOpen = false,
 }: LessonCalendarProps) {
   const currentTorontoDate = useTorontoToday()
-  const today = useMemo(() => toZonedTime(new Date(), TIMEZONE), [currentTorontoDate])
+  const today = useMemo(() => parseISO(currentTorontoDate), [currentTorontoDate])
   const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
   const handlePresentedDayPrev = useCallback(() => {
@@ -197,40 +200,52 @@ export function LessonCalendar({
     return set
   }, [classDays])
 
-  // Calculate days to display based on view mode
-  const days = useMemo(() => {
-    if (viewMode === 'week') {
-      const weekStart = startOfWeek(currentDate, { weekStartsOn: 0 })
-      const weekEnd = endOfWeek(currentDate, { weekStartsOn: 0 })
-      return eachDayOfInterval({ start: weekStart, end: weekEnd })
+  const termStart = useMemo(() => classroom.start_date ? parseISO(classroom.start_date) : startOfMonth(currentDate), [classroom.start_date, currentDate])
+  const termEnd = useMemo(() => classroom.end_date ? parseISO(classroom.end_date) : endOfMonth(currentDate), [classroom.end_date, currentDate])
+  const days = useMemo(() => eachDayOfInterval({
+    start: startOfWeek(termStart, { weekStartsOn: 0 }),
+    end: endOfWeek(termEnd, { weekStartsOn: 0 }),
+  }), [termStart, termEnd])
+  const calendarRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [localTodayRequest, setLocalTodayRequest] = useState(0)
+  const updateVisibleMonth = useCallback(() => {
+    const scroller = scrollRef.current
+    if (!scroller || viewMode !== 'list') return
+    const sections = Array.from(scroller.querySelectorAll<HTMLElement>('[data-calendar-month]'))
+    const top = scroller.getBoundingClientRect().top + 1
+    let active = sections[0]
+    for (const section of sections) {
+      if (section.getBoundingClientRect().top <= top) active = section
+      else break
     }
+    if (active?.dataset.calendarMonth) onVisibleMonthChange?.(active.dataset.calendarMonth)
+  }, [onVisibleMonthChange, viewMode])
 
-    if (viewMode === 'month') {
-      const monthStart = startOfMonth(currentDate)
-      const monthEnd = endOfMonth(currentDate)
-      // Extend to full weeks
-      const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
-      const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
-      return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
-    }
+  const centerToday = useCallback(() => {
+    const target = today < termStart ? termStart : today > termEnd ? termEnd : today
+    const key = format(target, 'yyyy-MM-dd')
+    const element = calendarRef.current?.querySelector<HTMLElement>(`[data-calendar-date="${key}"]`)
+    const scroller = scrollRef.current
+    if (!element || !scroller) return
+    const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+    scroller.scrollTop += offset - (scroller.clientHeight - element.offsetHeight) / 2
+    updateVisibleMonth()
+  }, [termStart, termEnd, today, updateVisibleMonth])
+  useEffect(() => { centerToday() }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest])
 
-    // 'all' mode: show entire term if available
-    if (classroom.start_date && classroom.end_date) {
-      const termStart = parseISO(classroom.start_date)
-      const termEnd = parseISO(classroom.end_date)
-      // Extend to full weeks
-      const calendarStart = startOfWeek(termStart, { weekStartsOn: 0 })
-      const calendarEnd = endOfWeek(termEnd, { weekStartsOn: 0 })
-      return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
-    }
-
-    // Fallback: show current month
-    const monthStart = startOfMonth(currentDate)
-    const monthEnd = endOfMonth(currentDate)
-    const calendarStart = startOfWeek(monthStart, { weekStartsOn: 0 })
-    const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 0 })
-    return eachDayOfInterval({ start: calendarStart, end: calendarEnd })
-  }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
+  // Source snapshots may arrive after the first render and change row heights.
+  // Recenter once after the initial load, unless the user has taken control.
+  const initialLoad = useRef({ classroomId: classroom.id, complete: false, interacted: false })
+  if (initialLoad.current.classroomId !== classroom.id) {
+    initialLoad.current = { classroomId: classroom.id, complete: false, interacted: false }
+  }
+  useEffect(() => {
+    if (initialSourcesLoading || initialLoad.current.complete) return
+    initialLoad.current.complete = true
+    if (!initialLoad.current.interacted) centerToday()
+  }, [initialSourcesLoading, centerToday, classroom.id])
+  const markUserInteraction = () => { initialLoad.current.interacted = true }
 
   // Group days into weeks for rendering
   const weeks = useMemo(() => {
@@ -241,30 +256,10 @@ export function LessonCalendar({
     return result
   }, [days])
 
-  // Find the index of the week containing today
-  const todayWeekIdx = useMemo(() => {
-    for (let i = 0; i < weeks.length; i++) {
-      if (weeks[i].some(day => isSameDay(day, today))) {
-        return i
-      }
-    }
-    return null
-  }, [weeks, today])
-
-  // Don't auto-expand any week in month/all views - let user click to expand
   useEffect(() => {
     setExpandedDate(null)
-  }, [viewMode])
-
-  useEffect(() => {
-    if (viewMode !== 'week') {
-      setPresentedDay(null)
-    }
-  }, [viewMode])
-
-  useEffect(() => {
     setPresentedDay(null)
-  }, [currentDate])
+  }, [viewMode])
 
   // Calculate month spans for the month label column
   // Returns array of { month: string, monthName: string, startIdx: number, count: number }
@@ -303,27 +298,6 @@ export function LessonCalendar({
     return spans
   }, [weeks])
 
-  // Navigation handlers
-  const handlePrev = () => {
-    if (viewMode === 'week') {
-      onDateChange(subWeeks(currentDate, 1))
-    } else if (viewMode === 'month') {
-      onDateChange(subMonths(currentDate, 1))
-    }
-  }
-
-  const handleNext = () => {
-    if (viewMode === 'week') {
-      onDateChange(addWeeks(currentDate, 1))
-    } else if (viewMode === 'month') {
-      onDateChange(addMonths(currentDate, 1))
-    }
-  }
-
-  const handleToday = () => {
-    onDateChange(today)
-  }
-
   const presentedDayDetails = useMemo(() => {
     if (!presentedDay) return null
 
@@ -347,261 +321,66 @@ export function LessonCalendar({
     }
   }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, materialsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
-  // Format header label
-  const headerLabel = useMemo(() => {
-    if (viewMode === 'week' || viewMode === 'month') {
-      return format(currentDate, 'MMMM yyyy')
-    }
-    // 'all' mode
-    if (classroom.start_date && classroom.end_date) {
-      return `${format(parseISO(classroom.start_date), 'MMM d, yyyy')} - ${format(parseISO(classroom.end_date), 'MMM d, yyyy')}`
-    }
-    return 'All Dates'
-  }, [viewMode, currentDate, classroom.start_date, classroom.end_date])
-
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col overflow-x-hidden">
-      {/* Header with navigation, view mode selector, and actions */}
-      {showHeader && (
-        <div className="grid grid-cols-3 items-center border-b border-border bg-surface px-4 py-1.5">
-          {/* Left: Navigation with month label */}
-          <div className="flex items-center gap-1 justify-start">
-            {viewMode !== 'all' && (
-              <button
-                onClick={handlePrev}
-                className="rounded p-1 hover:bg-surface-hover"
-                aria-label="Previous"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-            )}
-            {viewMode !== 'all' ? (
-              <button
-                type="button"
-                onClick={handleToday}
-                className="mx-1 min-w-[120px] rounded px-2 py-0.5 text-center text-lg font-semibold text-text-default hover:bg-surface-hover"
-                aria-label="Go to today"
-              >
-                {headerLabel}
-              </button>
-            ) : (
-              <span className="mx-1 min-w-[120px] text-center text-lg font-semibold text-text-default">
-                {headerLabel}
-              </span>
-            )}
-            {viewMode !== 'all' && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="rounded p-1 hover:bg-surface-hover"
-                  aria-label="Next"
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </>
-            )}
-          </div>
-
-          {/* Center: View mode selector */}
-          <div className="flex items-center justify-center">
-            <SegmentedControl<CalendarViewMode>
-              ariaLabel="Calendar view"
-              value={viewMode}
-              onChange={onViewModeChange}
-              capitalizeLabels
-              options={[
-                { value: 'week', label: 'Week' },
-                { value: 'month', label: 'Month' },
-                { value: 'all', label: 'All' },
-              ]}
-            />
-          </div>
-
-          {/* Right: Actions */}
-          <div className="flex items-center gap-2 justify-end">
-            {saving && (
-              <span className="text-sm text-text-muted">Saving...</span>
-            )}
-            {onMarkdownToggle && (
-              <Tooltip content={isSidebarOpen ? `Close sidebar (${shortcutHint})` : `Edit as Markdown (${shortcutHint})`}>
-                <button
-                  onClick={onMarkdownToggle}
-                  className="rounded p-1 hover:bg-surface-hover"
-                  aria-label={isSidebarOpen ? 'Close sidebar' : 'Edit as Markdown'}
-                >
-                  {isSidebarOpen ? (
-                    <PanelRightClose className="w-5 h-5" />
-                  ) : (
-                    <PanelRight className="w-5 h-5" />
-                  )}
-                </button>
-              </Tooltip>
-            )}
-          </div>
-        </div>
-      )}
-
-      {viewMode === 'week' ? (
-        <div role="region" aria-label="Week agenda" className="min-w-0 divide-y divide-border">
-          {weeks[0]?.map(day => {
-            const dateString = format(day, 'yyyy-MM-dd')
-            const isWeekendDay = isWeekend(day)
-            return (
-              <div key={dateString} className="bg-surface">
-                <LessonDayCell
-                  layout="agenda"
-                  date={dateString}
-                  day={day}
-                  lessonPlan={plansByDate.get(dateString) || null}
-                  tests={testsByDate.get(dateString) || []}
-                  assignments={assignmentsByDate.get(dateString) || []}
-                  materials={materialsByDate.get(dateString) || []}
-                  announcements={announcementsByDate.get(dateString) || []}
-                  isWeekend={isWeekendDay}
-                  isToday={isSameDay(day, today)}
-                  isClassDay={classDays.length > 0 ? classDayDates.has(dateString) : undefined}
-                  editable={editable && !isWeekendDay}
-                  onPresentDay={() => setPresentedDay(day)}
-                  onContentChange={onContentChange}
-                  onTestClick={onTestClick}
-                  onAssignmentClick={onAssignmentClick}
-                  onMaterialClick={onMaterialClick}
-                  onAnnouncementClick={onAnnouncementClick}
-                />
-              </div>
-            )
-          })}
+    <div ref={calendarRef} className="min-w-0">
+      {showHeader && <div className="flex items-center justify-center gap-2">
+        <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange}
+          options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
+        <Button variant="secondary" size="sm" onClick={() => setLocalTodayRequest(value => value + 1)}>Today</Button>
+      </div>}
+      <div ref={scrollRef} onScroll={updateVisibleMonth} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className="max-h-screen min-w-0 overflow-auto">
+      {viewMode === 'list' ? (
+        <div role="region" aria-label="Term agenda" className="min-w-0">
+          {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (
+            <section key={month} data-calendar-month={format(parseISO(`${month}-01`), 'MMMM yyyy')}>
+              <div className="sticky top-0 z-sticky-table border-y border-border bg-surface-2 px-4 py-1 text-sm font-medium text-text-muted">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
+              {days.filter(day => day >= termStart && day <= termEnd && format(day, 'yyyy-MM') === month).map(day => {
+                const dateString = format(day, 'yyyy-MM-dd')
+                const isWeekendDay = isWeekend(day)
+                return <div key={dateString} data-calendar-date={dateString} className={day.getDay() === 0 ? 'border-t border-border' : ''}>
+                  <LessonDayCell layout="agenda" denseAgenda date={dateString} day={day} lessonPlan={plansByDate.get(dateString) || null}
+                    tests={testsByDate.get(dateString) || []} assignments={assignmentsByDate.get(dateString) || []}
+                    materials={materialsByDate.get(dateString) || []} announcements={announcementsByDate.get(dateString) || []}
+                    isWeekend={isWeekendDay} isToday={isSameDay(day, today)}
+                    isClassDay={classDays.length > 0 ? classDayDates.has(dateString) : undefined}
+                    editable={editable && !isWeekendDay} onPresentDay={() => setPresentedDay(day)}
+                    onContentChange={onContentChange} onTestClick={onTestClick} onAssignmentClick={onAssignmentClick}
+                    onMaterialClick={onMaterialClick} onAnnouncementClick={onAnnouncementClick} />
+                </div>
+              })}
+            </section>
+          ))}
         </div>
       ) : (
-      <div className={viewMode === 'all' ? 'min-h-0 flex-1 overflow-x-auto overflow-y-auto' : 'min-h-0 flex-1 overflow-x-auto'}>
-        {viewMode !== 'all' && (
-          <div className="grid border-b-2 border-border" style={{ gridTemplateColumns: GRID_COLUMNS_7 }}>
-            {DAY_LABELS.map((label, idx) => (
-              <div key={label} className="py-0.5 text-center text-sm font-medium border-r border-border last:border-r-0 text-text-muted">
-                {idx === 0 || idx === 6 ? label.charAt(0) : label}
+        <div className="min-w-0">
+          <div className="grid" style={{ gridTemplateColumns: GRID_COLUMNS_8, gridTemplateRows: `auto ${weeks.map(() => 'auto').join(' ')}` }}>
+            <div className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface" style={{ gridColumn: 1, gridRow: 1 }} />
+            {DAY_LABELS.map((label, idx) => <div key={label} className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface py-1 text-center text-sm font-medium text-text-muted" style={{ gridColumn: idx + 2, gridRow: 1 }}>{idx === 0 || idx === 6 ? label.charAt(0) : label}</div>)}
+            {monthSpans.map(span => <div key={span.month} className="relative flex items-center justify-center overflow-hidden border-b border-r border-border bg-surface-2" style={{ gridColumn: 1, gridRow: `${span.startIdx + 2} / span ${span.count}` }}><span className="whitespace-nowrap text-xs font-medium text-text-muted" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{span.monthName}</span></div>)}
+            {weeks.flatMap((week, weekIdx) => week.map((day, dayIdx) => {
+              const dateString = format(day, 'yyyy-MM-dd')
+              const inTerm = day >= termStart && day <= termEnd
+              const isWeekendDay = isWeekend(day)
+              const isExpanded = expandedDate === dateString
+              const sameMonth = (other: Date | undefined) => other && other.getMonth() === day.getMonth() && other.getFullYear() === day.getFullYear()
+              return <div key={dateString} data-calendar-date={inTerm ? dateString : undefined}
+                className={`overflow-hidden border-b border-r border-border ${!sameMonth(weeks[weekIdx - 1]?.[dayIdx]) ? 'border-t border-t-border-strong' : ''} ${!sameMonth(weeks[weekIdx + 1]?.[dayIdx]) ? 'border-b-border-strong' : ''} ${dayIdx === 0 || !sameMonth(week[dayIdx - 1]) ? 'border-l border-l-border-strong' : ''} ${dayIdx === 6 || !sameMonth(week[dayIdx + 1]) ? 'border-r-border-strong' : ''}`}
+                style={{ gridColumn: dayIdx + 2, gridRow: weekIdx + 2 }}
+                onClick={() => inTerm && setExpandedDate(current => current === dateString ? null : dateString)}>
+                {inTerm && <LessonDayCell date={dateString} day={day} lessonPlan={plansByDate.get(dateString) || null}
+                  tests={testsByDate.get(dateString) || []} assignments={assignmentsByDate.get(dateString) || []}
+                  materials={materialsByDate.get(dateString) || []} announcements={announcementsByDate.get(dateString) || []}
+                  isWeekend={isWeekendDay} isToday={isSameDay(day, today)} isClassDay={classDays.length > 0 ? classDayDates.has(dateString) : undefined}
+                  editable={editable && !isWeekendDay} compact={!isExpanded} plainTextOnly
+                  onEditingStart={() => setExpandedDate(dateString)} onEditingEnd={() => setExpandedDate(current => current === dateString ? null : current)}
+                  onContentChange={onContentChange} onTestClick={onTestClick} onAssignmentClick={onAssignmentClick}
+                  onMaterialClick={onMaterialClick} onAnnouncementClick={onAnnouncementClick} />}
               </div>
-            ))}
+            }))}
           </div>
-        )}
-
-        {/* Calendar grid - in all mode, includes header row */}
-        <div
-          className={`grid transition-[grid-template-rows] duration-standard ease-standard motion-reduce:transition-none ${viewMode !== 'all' ? 'overflow-visible' : ''}`}
-          style={{
-            gridTemplateColumns: viewMode === 'all' ? GRID_COLUMNS_8 : GRID_COLUMNS_7,
-            gridTemplateRows: viewMode === 'all'
-                // First row is sticky header, rest are auto
-                ? `auto ${weeks.map(() => 'auto').join(' ')}`
-                : weeks.map(week => {
-                    const isExpanded = week.some(day => format(day, 'yyyy-MM-dd') === expandedDate)
-                    if (isExpanded) return `minmax(${MONTH_ROW_EXPANDED_MIN_HEIGHT}, auto)`
-                    return `minmax(${MONTH_ROW_MIN_HEIGHT}, auto)`
-                  }).join(' '),
-          }}
-        >
-        {/* Day header row inside grid - only in all mode */}
-        {viewMode === 'all' && (
-          <>
-            {/* Empty cell for month column */}
-            <div
-              className="sticky top-0 z-10 bg-surface border-r border-b-2 border-border"
-              style={{ gridColumn: 1, gridRow: 1 }}
-            />
-            {DAY_LABELS.map((label, idx) => {
-              const isWeekendDay = idx === 0 || idx === 6
-              return (
-                <div
-                  key={label}
-                  className="sticky top-0 z-10 bg-surface py-0.5 text-center text-sm font-medium border-r border-b-2 border-border last:border-r-0 text-text-muted"
-                  style={{ gridColumn: idx + 2, gridRow: 1 }}
-                >
-                  {isWeekendDay ? label.charAt(0) : label}
-                </div>
-              )
-            })}
-          </>
-        )}
-
-        {/* Render month labels (they span rows) - only in 'all' mode */}
-        {viewMode === 'all' && monthSpans.map((span) => (
-          <div
-            key={span.month}
-            className="relative border-b border-r border-border bg-surface-2 flex items-center justify-center overflow-hidden"
-            style={{
-              gridColumn: 1,
-              // +2 because row 1 is header
-              gridRow: `${span.startIdx + 2} / span ${span.count}`,
-              width: '24px',
-            }}
-          >
-            <span
-              className="text-xs font-medium text-text-muted whitespace-nowrap"
-              style={{
-                writingMode: 'vertical-rl',
-                transform: 'rotate(180deg)',
-              }}
-            >
-              {span.monthName}
-            </span>
-          </div>
-        ))}
-
-        {/* Render all day cells */}
-        {weeks.map((week, weekIdx) => {
-          // In all mode, rows start at 2 (row 1 is header)
-          const rowStart = viewMode === 'all' ? weekIdx + 2 : weekIdx + 1
-
-          return week.map((day, dayIdx) => {
-            const dateString = format(day, 'yyyy-MM-dd')
-            const isExpanded = expandedDate === dateString
-            const lessonPlan = plansByDate.get(dateString) || null
-            const isToday = isSameDay(day, today)
-            const isWeekendDay = isWeekend(day)
-            // Only determine class day status if we have class days data
-            const isClassDay = classDays.length > 0 ? classDayDates.has(dateString) : undefined
-            // In 'all' mode, column starts at 2 (after month column)
-            const colStart = viewMode === 'all' ? dayIdx + 2 : dayIdx + 1
-
-            return (
-              <div
-                key={dateString}
-                className="border-r border-b border-border overflow-hidden cursor-pointer"
-                style={{
-                  gridColumn: colStart,
-                  gridRow: rowStart,
-                }}
-                onClick={() => setExpandedDate(current => current === dateString ? null : dateString)}
-              >
-                <LessonDayCell
-                  date={dateString}
-                  day={day}
-                  lessonPlan={lessonPlan}
-                  tests={testsByDate.get(dateString) || []}
-                  assignments={assignmentsByDate.get(dateString) || []}
-                  materials={materialsByDate.get(dateString) || []}
-                  announcements={announcementsByDate.get(dateString) || []}
-                  isWeekend={isWeekendDay}
-                  isToday={isToday}
-                  isClassDay={isClassDay}
-                  editable={editable && !isWeekendDay}
-                  compact={!isExpanded}
-                  onEditingStart={() => setExpandedDate(dateString)}
-                  onEditingEnd={() => setExpandedDate(current => current === dateString ? null : current)}
-                  plainTextOnly={viewMode === 'all'}
-                  onContentChange={onContentChange}
-                  onTestClick={onTestClick}
-                  onAssignmentClick={onAssignmentClick}
-                  onMaterialClick={onMaterialClick}
-                  onAnnouncementClick={onAnnouncementClick}
-                />
-              </div>
-            )
-          })
-        })}
         </div>
-      </div>
       )}
+      </div>
 
       <DialogPanel
         isOpen={presentedDayDetails !== null}
@@ -621,22 +400,8 @@ export function LessonCalendar({
                 {format(presentedDayDetails.day, 'EEE MMM d, yyyy')}
               </h2>
               <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={handlePresentedDayPrev}
-                  className="rounded p-1 hover:bg-surface-hover"
-                  aria-label="Previous day"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handlePresentedDayNext}
-                  className="rounded p-1 hover:bg-surface-hover"
-                  aria-label="Next day"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
+                <IconButton icon={ChevronLeft} label="Previous day" onClick={handlePresentedDayPrev} />
+                <IconButton icon={ChevronRight} label="Next day" onClick={handlePresentedDayNext} />
               </div>
             </div>
 

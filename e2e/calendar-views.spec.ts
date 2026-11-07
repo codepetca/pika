@@ -1,39 +1,63 @@
 import { test, expect } from '@playwright/test'
 
-test.use({ storageState: '.auth/teacher.json' })
+test.use({ storageState: { cookies: [], origins: [] } })
 
-test('capture calendar views', async ({ page }) => {
-  // Go to classrooms
-  await page.goto('/classrooms')
-  await page.waitForTimeout(1000)
-
-  // Click on first classroom
-  await page.click('text=GLD2O Test Class')
-  await page.waitForTimeout(1000)
-
-  // Click on Calendar tab
-  await page.click('text=Calendar')
-  await page.waitForTimeout(1500)
-
-  // Capture week view
-  await page.screenshot({ path: '/tmp/calendar-week.png' })
-
-  // Click Month button
-  await page.click('button:has-text("month")')
-  await page.waitForTimeout(500)
-  await page.screenshot({ path: '/tmp/calendar-month.png' })
-
-  // Click All button
-  await page.click('button:has-text("all")')
-  await page.waitForTimeout(500)
-  await page.screenshot({ path: '/tmp/calendar-all.png' })
-
-  // Verify persistence - reload and check view is still "all"
-  await page.reload()
-  await page.waitForTimeout(1500)
-  await page.screenshot({ path: '/tmp/calendar-all-after-reload.png' })
-
-  // Check that "all" button has the active class
-  const allButton = page.locator('button:has-text("all")')
-  await expect(allButton).toHaveClass(/font-medium/)
-})
+for (const role of ['teacher', 'student'] as const) {
+  test(`${role} can switch term views and return to today`, async ({ page }, testInfo) => {
+    const classroomId = '30000000-0000-4000-8000-000000000011'
+    await page.clock.setFixedTime(new Date('2026-10-05T16:00:00Z'))
+    await page.route('**/api/**', async route => {
+      const path = new URL(route.request().url()).pathname
+      if (route.request().method() !== 'GET') return route.abort()
+      let body: unknown = {}
+      if (path === '/api/auth/me') body = { user: { id: role === 'teacher'
+        ? '30000000-0000-4000-8000-000000000012' : '30000000-0000-4000-8000-000000000015',
+      role, email: `${role}@example.invalid`, first_name: 'Fixture', last_name: role } }
+      else if (path.endsWith('/class-days')) body = { class_days: [] }
+      else if (path.endsWith('/lesson-plans')) body = { lesson_plans: [1, 5, 30].map(day => ({
+        id: `lesson-${day}`, classroom_id: classroomId, date: `2026-10-${String(day).padStart(2, '0')}`,
+        content: null, content_markdown: `Lesson ${day}`, created_at: '2026-10-01T12:00:00Z', updated_at: '2026-10-01T12:00:00Z',
+      })) }
+      else if (path.endsWith('/announcements')) body = { announcements: [] }
+      else if (path.endsWith('/assignments')) body = { assignments: [] }
+      else if (path.endsWith('/materials')) body = { materials: [] }
+      else if (path.endsWith('/classrooms')) body = { classrooms: [] }
+      else if (path.endsWith('/notifications')) body = { notifications: [] }
+      await route.fulfill({ json: body })
+    })
+    await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar&calendarTerm=true`, { waitUntil: 'networkidle' })
+    const workspace = page.getByRole('region', { name: 'Calendar workspace' })
+    await expect(workspace).toBeVisible()
+    for (const mode of ['List', 'Grid'] as const) {
+      const button = page.getByRole('button', { name: mode, exact: true })
+      await button.click()
+      await expect(button).toHaveAttribute('aria-pressed', 'true')
+      await expect(page.getByText('Lesson 1', { exact: true })).toBeAttached()
+      await expect(page.getByText('Lesson 30', { exact: true })).toBeAttached()
+      await page.screenshot({ path: testInfo.outputPath(`${role}-${mode.toLowerCase()}.png`) })
+      if (mode === 'List') {
+        await page.locator('[data-calendar-date="2027-01-15"]').scrollIntoViewIfNeeded()
+        await expect(page.locator('[aria-live="polite"]').filter({ hasText: 'January 2027' })).toBeVisible()
+      }
+      for (let attempt = 0; attempt < 2; attempt++) {
+        await page.locator('[data-calendar-date="2026-10-31"]').scrollIntoViewIfNeeded()
+        const today = page.getByRole('button', { name: 'Today', exact: true })
+        const todayBounds = await today.boundingBox()
+        expect(todayBounds).not.toBeNull()
+        expect(todayBounds!.y).toBeGreaterThanOrEqual(0)
+        expect(todayBounds!.y + todayBounds!.height).toBeLessThanOrEqual(page.viewportSize()!.height)
+        await today.click()
+        await expect.poll(() => page.locator('[data-calendar-date="2026-10-05"]').evaluate(element => {
+          const bounds = element.getBoundingClientRect()
+          let ancestor = element.parentElement
+          while (ancestor && !['auto', 'scroll'].includes(getComputedStyle(ancestor).overflowY)) ancestor = ancestor.parentElement
+          if (!ancestor) return false
+          const surface = ancestor.getBoundingClientRect()
+          return bounds.bottom > surface.top && bounds.top < surface.bottom
+        })).toBe(true)
+      }
+    }
+    await page.reload({ waitUntil: 'networkidle' })
+    await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  })
+}

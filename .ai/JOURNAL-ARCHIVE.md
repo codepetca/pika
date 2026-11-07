@@ -51244,6 +51244,7 @@ Risk profile: none. No production changes or migration are part of this edit.
 - Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
 - Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
 
+<!-- pika-session-log-archive-batch:fd287e43ee2ac263a3cc931ede7d062711ae6a66e7fbccc5fb6a83bbfda21753 -->
 <!-- pika-session-log-archive-batch:80f870ff9ab80ec11592a1d4728f0843b4fbb252375bed0ff6a085b36ea32a98 -->
 <!-- pika-session-log-archive-batch:9031de11f94f4fa6e39b75255c819fdff0c0eb5e2ab9d881c6def39f49db67f5 -->
 ## 2026-10-30 — Named attendance schedules

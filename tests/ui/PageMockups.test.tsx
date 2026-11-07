@@ -869,23 +869,24 @@ describe('PageMockups', () => {
     expect(within(classrooms).queryByRole('button', { name: 'Archive Grade 10 Science' })).not.toBeInTheDocument()
   })
 
-  it('keeps Week, Month, and Term in the Calendar center cluster', async () => {
+  it('keeps List and Grid in the Calendar center cluster', async () => {
     const user = userEvent.setup()
     renderMockups()
     const mockups = screen.getByTestId('page-mockups')
     await user.click(within(mockups).getByRole('tab', { name: 'Calendar' }))
     const calendar = within(mockups).getByRole('tabpanel', { name: 'Calendar' })
 
-    expect(within(calendar).getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true')
-    expect(within(calendar).getByRole('button', { name: 'Month' })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(calendar).getByRole('button', { name: 'Term' })).toHaveAttribute('aria-pressed', 'false')
-    expect(within(calendar).queryByRole('button', { name: 'All' })).not.toBeInTheDocument()
-    expect(within(calendar).queryByRole('button', { name: 'Year' })).not.toBeInTheDocument()
-    await user.click(within(calendar).getByRole('button', { name: 'Term' }))
-    expect(within(calendar).getByText('Semester 1')).toBeVisible()
-    expect(within(calendar).queryByRole('button', { name: /Return to reference/ })).not.toBeInTheDocument()
+    expect(within(calendar).getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
+    expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'false')
+    within(calendar).getByRole('button', { name: 'List' }).focus()
+    await user.keyboard('{ArrowRight}')
+    expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveFocus()
+    expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(calendar).getByText('January', { exact: true })).toBeVisible()
     expect(within(calendar).getByText('Semester ecosystem reflection.')).toBeInTheDocument()
+    await user.click(within(mockups).getByRole('tab', { name: 'Daily' }))
+    await user.click(within(mockups).getByRole('tab', { name: 'Calendar' }))
+    expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
 
     await user.click(within(calendar).getByRole('button', { name: 'More actions' }))
     expect(within(calendar).queryByRole('menuitemradio')).not.toBeInTheDocument()

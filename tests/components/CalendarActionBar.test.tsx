@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { CalendarActionBar, getCalendarHeaderLabel } from '@/components/CalendarActionBar'
+import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { DateActionBar } from '@/components/DateActionBar'
 import { DateLabelButton } from '@/components/DateLabelButton'
 import { DateNavigator } from '@/components/DateNavigator'
@@ -34,15 +34,6 @@ describe('CalendarActionBar', () => {
     rerender(<DateActionBar value="2026-09-01" onChange={vi.fn()} layout="compact" />)
     expect(dateButton).not.toHaveAccessibleDescription()
     expect(dateButton.querySelector('[aria-hidden="true"]')).toHaveClass('leading-4', 'text-xs')
-  })
-
-  it('keeps date-only term boundaries on their classroom calendar dates', () => {
-    expect(getCalendarHeaderLabel(
-      'all',
-      new Date(2025, 0, 1),
-      '2025-01-01',
-      '2025-06-30',
-    )).toBe('Jan 1, 2025 - Jun 30, 2025')
   })
 
   it('exposes named date navigation controls', () => {
@@ -141,27 +132,28 @@ describe('CalendarActionBar', () => {
 
   it('exposes the calendar view control and changes modes', () => {
     const onViewModeChange = vi.fn()
+    const onToday = vi.fn()
 
     render(
       <CalendarActionBar
-        viewMode="week"
+        viewMode="grid"
         currentDate={new Date(2026, 6, 21)}
         onPrev={vi.fn()}
         onNext={vi.fn()}
-        onToday={vi.fn()}
+        onToday={onToday}
         onViewModeChange={onViewModeChange}
       />,
     )
 
     const viewControl = screen.getByRole('group', { name: 'Calendar view' })
-    const contextBar = screen.getByRole('region', { name: 'Calendar controls' })
-    expect(contextBar).toHaveClass('grid')
     expect(viewControl.closest('.fixed')).toBeNull()
     expect(viewControl).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Month' }))
-    expect(onViewModeChange).toHaveBeenCalledWith('month')
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Grid' }), { key: 'ArrowLeft' })
+    expect(onViewModeChange).toHaveBeenCalledWith('list')
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    expect(onToday).toHaveBeenCalledOnce()
   })
 
   it('keeps teacher calendar views centered and places secondary commands in More actions', () => {
@@ -171,7 +163,7 @@ describe('CalendarActionBar', () => {
     render(
       <TooltipProvider>
         <CalendarActionBar
-          viewMode="week"
+          viewMode="grid"
           currentDate={new Date(2026, 6, 21)}
           onPrev={vi.fn()}
           onNext={vi.fn()}
@@ -193,16 +185,16 @@ describe('CalendarActionBar', () => {
 
     const viewControl = screen.getByRole('group', { name: 'Calendar view' })
     expect(viewControl).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Week' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Term' })).toHaveAttribute('aria-pressed', 'false')
-    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass('h-11', 'w-11')
+    expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.getByRole('button', { name: 'More actions' })).toHaveClass('h-6', 'w-11')
 
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
 
     expect(screen.queryByRole('menuitemradio')).not.toBeInTheDocument()
     expect(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' })).toHaveAttribute('aria-checked', 'false')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Month' }))
-    expect(onViewModeChange).toHaveBeenCalledWith('month')
+    fireEvent.click(screen.getByRole('button', { name: 'List' }))
+    expect(onViewModeChange).toHaveBeenCalledWith('list')
   })
 })

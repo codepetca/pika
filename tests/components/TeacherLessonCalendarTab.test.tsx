@@ -53,9 +53,10 @@ vi.mock('@/contexts/MarkdownPreferenceContext', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange, initialSourcesLoading }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-initial-sources-loading={String(initialSourcesLoading)}
       data-material-ids={materials.map((material: { id: string }) => material.id).join(',')}
       data-test-count={tests.length}
       data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
@@ -176,20 +177,31 @@ describe('TeacherLessonCalendarTab', () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
     render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
-    expect(screen.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const list = screen.getByRole('button', { name: 'List', exact: true })
+    expect(list).toHaveAttribute('aria-pressed', 'true')
     const readCount = fetchMock.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' }))
     expect(sidebarState.toggle).toHaveBeenCalledTimes(1)
-    const week = screen.getByRole('button', { name: 'Week', exact: true })
-    week.focus()
-    fireEvent.keyDown(week, { key: 'ArrowRight' })
-    expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Term', exact: true }))
-    expect(screen.getByRole('button', { name: 'Term', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('button', { name: 'Next', exact: true })).not.toBeInTheDocument()
+    list.focus()
+    fireEvent.keyDown(list, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(readCount)
+  })
+
+  it('exposes refresh status and forwards source settlement to the teacher calendar', async () => {
+    classDaysState.isLoading = true
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], materials: [], announcements: [] }) })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
+    const calendar = await screen.findByTestId('lesson-calendar')
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'true'))
+    expect(screen.getByText('Refreshing calendar')).toBeInTheDocument()
+    classDaysState.isLoading = false
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'false'))
+    expect(screen.queryByText('Refreshing calendar')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Calendar workspace' })).toBeInTheDocument()
   })
 
   it('does not fetch or display classroom features hidden from teachers', async () => {
