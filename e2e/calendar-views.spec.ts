@@ -91,13 +91,14 @@ for (const role of ['teacher', 'student'] as const) {
     }
     await page.reload({ waitUntil: 'networkidle' })
     await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize({ width: 390, height: 600 })
     const mobileDates = page.getByRole('region', { name: 'Calendar dates' })
     const mobileActionBar = page.getByRole('group', { name: 'Calendar view' }).locator('xpath=ancestor::div[contains(@class,"sticky")][1]')
     const weekdays = mobileDates.locator('.grid > .sticky').filter({ hasText: /^(S|Mon|Tue|Wed|Thu|Fri)$/ })
     await expect(weekdays).toHaveCount(7)
     for (const position of ['top', 'middle'] as const) {
       await mobileDates.evaluate((element, value) => { element.scrollTop = value === 'top' ? 0 : element.scrollHeight / 2 }, position)
+      if (position === 'middle') expect(await mobileDates.evaluate(element => element.scrollTop)).toBeGreaterThan(0)
       await expect.poll(async () => {
         const bar = await mobileActionBar.boundingBox()
         const scroll = await mobileDates.boundingBox()
