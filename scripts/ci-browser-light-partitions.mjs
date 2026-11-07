@@ -59,17 +59,30 @@ try {
     if (!groups.has(row.group)) groups.set(row.group, [])
     groups.get(row.group).push(row)
   }
-  // Contiguous groups retain declaration order; balance by discovered test count.
-  const partitions = [[], [], [], []]
+  // The lifecycle suite compiles many distinct routes. Keep it on a fresh
+  // server, away from the experience matrix and the Pattern Lab suites.
   const grouped = [...groups.values()].sort((a, b) => a[0].file.localeCompare(b[0].file) || Math.min(...a.map(row => row.line)) - Math.min(...b.map(row => row.line)))
-  let remaining = tests.length, index = 0
-  for (const group of grouped) {
-    if (index < partitions.length - 1 && partitions[index].length && partitions[index].length >= remaining / (partitions.length - index)) {
-      remaining -= partitions[index].length
-      index++
+  const lifecycleFile = 'test-lifecycle-ci.spec.ts'
+  const lifecycleStart = grouped.findIndex(group => group[0].file === lifecycleFile)
+  const lifecycleEnd = grouped.findLastIndex(group => group[0].file === lifecycleFile) + 1
+  if (lifecycleStart < 1 || lifecycleEnd >= grouped.length || grouped.slice(lifecycleStart, lifecycleEnd).some(group => group[0].file !== lifecycleFile)) throw new Error('Missing or fragmented lifecycle inventory')
+  function balance(segment, count) {
+    const partitions = Array.from({ length: count }, () => [])
+    let remaining = segment.reduce((sum, group) => sum + group.length, 0), index = 0
+    for (const group of segment) {
+      if (index < count - 1 && partitions[index].length && partitions[index].length >= remaining / (count - index)) {
+        remaining -= partitions[index].length
+        index++
+      }
+      partitions[index].push(...group)
     }
-    partitions[index].push(...group)
+    return partitions
   }
+  const partitions = [
+    ...balance(grouped.slice(0, lifecycleStart), 4),
+    grouped.slice(lifecycleStart, lifecycleEnd).flat(),
+    ...balance(grouped.slice(lifecycleEnd), 2),
+  ]
   if (partitions.some(part => !part.length)) throw new Error('Empty light partition')
   const seen = []
   const paths = partitions.map((partition, i) => {
@@ -82,7 +95,7 @@ try {
     return path
   })
   if (!same(seen, tests.map(row => row.identity))) throw new Error('Light partition union mismatch')
-  console.log(`Verified ${tests.length} light project tests in partitions of ${partitions.map(part => part.length).join(', ')}; required setup repeats for each partition.`)
+  console.log(`Verified ${tests.length} light project tests in partitions of ${partitions.map(part => part.length).join(', ')}; required setup repeats for each partition; lifecycle runs alone.`)
   if (!verifyOnly) for (const [index, path] of paths.entries()) {
     console.log(`Running light partition ${index + 1}/${paths.length}`)
     const result = spawnSync('pnpm', ['exec', ...script, ...flags, `--test-list=${path}`], { stdio: 'inherit' })
