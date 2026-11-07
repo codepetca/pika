@@ -104,6 +104,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
   const agendaHeadingId = useId()
   const editActionRef = useRef<HTMLButtonElement | null>(null)
+  const agendaDateRef = useRef<HTMLButtonElement | null>(null)
   const renderPlainText = plainTextOnly || !showMarkdown
 
   useEffect(() => {
@@ -193,7 +194,11 @@ export const LessonDayCell = memo(function LessonDayCell({
         aria-labelledby={agendaHeadingId}
         aria-describedby={nonClassDay ? `${agendaHeadingId}-status` : undefined}
         onClick={denseAgenda ? event => {
-          if (!isEditing && !(event.target as Element).closest('a, button, input, textarea, select, [contenteditable="true"], [role="button"]')) onPresentDay?.()
+          if (!event.currentTarget.contains(event.target as Node)) return
+          if (!isEditing && onPresentDay && !(event.target as Element).closest('a, button, input, textarea, select, [contenteditable="true"], [role="button"]')) {
+            agendaDateRef.current?.focus({ preventScroll: true })
+            onPresentDay()
+          }
         } : undefined}
         className={`group flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
           denseAgenda ? `items-center py-0 ${onPresentDay && !isEditing ? 'cursor-pointer' : ''}` : nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
@@ -203,6 +208,7 @@ export const LessonDayCell = memo(function LessonDayCell({
         <div className={denseAgenda ? 'w-24 shrink-0' : 'flex w-11 shrink-0 flex-col items-start gap-1 sm:w-24'}>
           <Button
             id={agendaHeadingId}
+            ref={agendaDateRef}
             variant="ghost"
             size="sm"
             onClick={onPresentDay}

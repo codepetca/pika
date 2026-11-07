@@ -76,6 +76,7 @@ for (const role of ['teacher', 'student'] as const) {
         await expect(weekdayDialog).toBeVisible()
         await page.keyboard.press('Escape')
         await expect(weekdayDialog).toBeHidden()
+        await expect(weekdayRow.getByRole('button', { name: 'Open Monday, October 5, 2026' })).toBeFocused()
 
         const weekendRow = workspace.locator('[data-calendar-date="2026-10-10"] article')
         await weekendRow.scrollIntoViewIfNeeded()
@@ -86,6 +87,7 @@ for (const role of ['teacher', 'student'] as const) {
         await expect(weekendDialog).toBeVisible()
         await page.keyboard.press('Escape')
         await expect(weekendDialog).toBeHidden()
+        await expect(weekendRow.getByRole('button', { name: 'Open Saturday, October 10, 2026' })).toBeFocused()
       }
       for (let attempt = 0; attempt < 2; attempt++) {
         await page.locator('[data-calendar-date="2026-10-31"]').scrollIntoViewIfNeeded()

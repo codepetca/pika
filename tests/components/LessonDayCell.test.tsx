@@ -658,6 +658,24 @@ describe('LessonDayCell agenda', () => {
     }
   })
 
+  it('ignores clicks in an interactive announcement tooltip rendered in a portal', async () => {
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda announcements={[longAnnouncement]} onPresentDay={onPresentDay} />)
+    fireEvent.focus(screen.getByRole('button', { name: 'Announcement' }))
+    const tooltip = await screen.findByRole('tooltip')
+    fireEvent.click(within(tooltip).getByText(longAnnouncement.content))
+    expect(onPresentDay).not.toHaveBeenCalled()
+  })
+
+  it('focuses the date action before presenting a day from the row', () => {
+    const onPresentDay = vi.fn(() => {
+      expect(screen.getByRole('button', { name: 'Open Friday, March 13, 2026' })).toHaveFocus()
+    })
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda onPresentDay={onPresentDay} />)
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(onPresentDay).toHaveBeenCalledOnce()
+  })
+
   it.each([false, true])('keeps dense lesson space bounded with events (has content=%s)', hasContent => {
     const onAssignmentClick = vi.fn()
     const assignment = { id: 'due', title: 'Due item', is_draft: false } as Assignment
