@@ -19,10 +19,10 @@ const jobsByLane = {
 }
 const browserCommands = {
   browser: 'pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light',
-  'browser-dark': 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark',
+  'browser-dark': 'node scripts/ci-browser-dark-partitions.mjs',
   'browser-pattern-dark': 'pnpm e2e:ci --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark',
 }
-const historicalDarkCommand = browserCommands['browser-dark'] + ' --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark'
+const historicalDarkCommand = 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark'
 const isBrowserLane = lane => ['browser', 'browser-dark', 'browser-pattern-dark'].includes(lane)
 const ownerProofs = [
   ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
@@ -460,7 +460,7 @@ export function extractWorkflow(source) {
   // Never accept a partial partition as the historical combined browser lane.
   const browserLanes = ['browser', ...(browserSplit ? ['browser-dark'] : []), ...(browserPatternSplit ? ['browser-pattern-dark'] : [])]
   for (const lane of browserLanes) {
-    const commands = jobs[jobsByLane[lane]].steps.filter(step => /\bpnpm e2e:ci\b/.test(step.run ?? ''))
+    const commands = jobs[jobsByLane[lane]].steps.filter(step => /\bpnpm e2e:ci\b|\bci-browser-dark-partitions\.mjs\b/.test(step.run ?? ''))
     const expected = !browserSplit ? 'pnpm e2e:ci'
       : lane === 'browser-dark' && !browserPatternSplit ? historicalDarkCommand : browserCommands[lane]
     if (commands.length !== 1 || commands[0].if || commands[0].run !== expected) {

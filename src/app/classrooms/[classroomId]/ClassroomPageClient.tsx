@@ -2017,6 +2017,7 @@ function ClassroomPageContent({
                     <TabContentTransition isActive={activeTab === 'assignments'}>
                       <TeacherClassroomView
                         classroom={classroom}
+                        recoveryUserId={user.id}
                         onSelectAssignment={handleSelectAssignment}
                         onViewModeChange={handleViewModeChange}
                         onEditModeChange={handleAssignmentsEditModeChange}

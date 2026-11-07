@@ -7,7 +7,7 @@ import { CLASSROOM_PUBLIC_AUTO_ADMISSION_REVIEWED_MIGRATION, CLASSROOM_PUBLIC_AU
   validateClassroomPublicAutoAdmissionReviewedMigration } from '../../scripts/classroom-public-auto-admission-reviewed-migration'
 
 // Source profile and catalog only: this does not claim 297 native database proof.
-const chain = loadAssignmentListReviewedMigrations(process.cwd())
+const chain = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 297)
 const digest = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
 describe('public auto-admission exact source profile', () => {

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AssessmentSetupCheckbox } from '@/components/assessment/AssessmentSetupForm'
 import { CreationModalShell, CreationModalTopRow } from '@/components/creation/CreationModalShell'
-import { Button } from '@/ui'
+import { Button, ConfirmDialog } from '@/ui'
 import type { Survey } from '@/types'
 
 interface SurveyCreationModalProps {
@@ -25,6 +25,7 @@ export function SurveyCreationModal({
   const [dynamicResponses, setDynamicResponses] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -32,6 +33,7 @@ export function SurveyCreationModal({
     setShowResults(true)
     setDynamicResponses(false)
     setError('')
+    setCloseConfirmOpen(false)
 
     setTimeout(() => {
       titleInputRef.current?.focus()
@@ -71,10 +73,17 @@ export function SurveyCreationModal({
     }
   }
 
+  function requestClose() {
+    if (saving) return
+    if (title !== '' || !showResults || dynamicResponses) setCloseConfirmOpen(true)
+    else onClose()
+  }
+
   return (
+    <>
     <CreationModalShell
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={requestClose}
       title="New Survey"
       titleId="survey-create-modal-title"
       closeLabel="Close survey modal"
@@ -121,5 +130,7 @@ export function SurveyCreationModal({
         </div>
       </form>
     </CreationModalShell>
+    <ConfirmDialog isOpen={isOpen && closeConfirmOpen} title="Discard survey changes?" description="Your changes will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" confirmVariant="danger" onCancel={() => setCloseConfirmOpen(false)} onConfirm={() => { setCloseConfirmOpen(false); onClose() }} />
+    </>
   )
 }

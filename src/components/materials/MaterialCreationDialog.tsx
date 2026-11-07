@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Eye } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
 import { Button, ContentDialog, DialogPanel, FormField, Input, SaveStatus, SplitButton } from '@/ui'
@@ -19,6 +19,7 @@ interface MaterialCreationDialogProps {
   classroomId?: string
   classroomName?: string
   materialKey?: string
+  recoveryVersion?: string
   isOpen: boolean
   isExisting?: boolean
   isDraft?: boolean
@@ -44,7 +45,7 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 
 function MaterialEditor({
   isOpen, isExisting = false, isDraft = true, releasedAt, createdAt, postedOn, readOnly = false, saving = false,
-  classroomId, classroomName, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
+  classroomId, classroomName, materialKey, recoveryVersion, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
 }: MaterialCreationDialogProps) {
   const [mode, setMode] = useState<'visual' | 'markdown'>('visual')
   const [markdown, setMarkdown] = useState(() => getMaterialMarkdownDraft(content).markdown)
@@ -62,6 +63,7 @@ function MaterialEditor({
     const document = createMaterialMarkdownContent(next)
     emittedContent.current = document
     if (!fromVisual) setVisualContent(getMaterialVisualContent(document))
+    persistChange({ content: document })
     onContentChange(document)
   }
 
@@ -89,6 +91,75 @@ function MaterialEditor({
   const [scheduleTime, setScheduleTime] = useState(initialSchedule?.time ?? DEFAULT_SCHEDULE_TIME)
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const validSchedule = !!scheduleIso && isScheduleIsoInFuture(scheduleIso)
+  const recoveryKey = `pika:material-recovery:${materialKey}`
+  const baseVersion = useRef(recoveryVersion).current
+  const recoveryOwner = useRef(crypto.randomUUID()).current
+  const baseline = useRef(JSON.stringify({ title, content, postDate: initialPostDate, action: isScheduled ? 'preserve' : 'post', scheduleDate: initialSchedule?.date ?? getDefaultScheduleDateInSchedulingTimezone(), scheduleTime: initialSchedule?.time ?? DEFAULT_SCHEDULE_TIME }))
+  const [recoveryReady, setRecoveryReady] = useState(false)
+  const [recoveryProblem, setRecoveryProblem] = useState<string | null>(null)
+  const [staleRecovery, setStaleRecovery] = useState(false)
+  const [closeOpen, setCloseOpen] = useState(false)
+  const current = JSON.stringify({ title, content, postDate, action, scheduleDate, scheduleTime })
+  const dirty = current !== baseline.current
+  const currentRef = useRef(JSON.parse(current))
+  currentRef.current = JSON.parse(current)
+
+  function persistChange(patch: Record<string, unknown>) {
+    const next = { ...currentRef.current, ...patch }
+    currentRef.current = next
+    if (!recoveryReady || readOnly || staleRecovery || !materialKey) return
+    try {
+      if (JSON.stringify(next) === baseline.current) sessionStorage.removeItem(recoveryKey)
+      else sessionStorage.setItem(recoveryKey, JSON.stringify({ version: baseVersion, owner: recoveryOwner, ...next }))
+    } catch {
+      setRecoveryProblem('Local recovery is unavailable. Save your changes before closing.')
+    }
+  }
+
+  useEffect(() => {
+    if (readOnly || !materialKey) { setRecoveryReady(true); return }
+    try {
+      const raw = sessionStorage.getItem(recoveryKey)
+      if (raw) {
+        const saved = JSON.parse(raw)
+        if (saved.version !== baseVersion) {
+          setStaleRecovery(true)
+          setRecoveryProblem('A previous local edit was made against an older version. It was not restored to avoid overwriting newer changes.')
+        } else if (typeof saved.title === 'string' && saved.content && typeof saved.postDate === 'string' && ['post', 'draft', 'schedule', 'preserve'].includes(saved.action) && typeof saved.scheduleDate === 'string' && typeof saved.scheduleTime === 'string') {
+          onTitleChange(saved.title)
+          onContentChange(saved.content)
+          setPostDate(saved.postDate)
+          setAction(saved.action)
+          setScheduleDate(saved.scheduleDate)
+          setScheduleTime(saved.scheduleTime)
+        }
+      }
+    } catch {
+      setRecoveryProblem('Local recovery is unavailable. Save your changes before closing.')
+    }
+    setRecoveryReady(true)
+    // Restore once for this mounted material; the parent keys the editor by material.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!recoveryReady || readOnly || staleRecovery || !materialKey) return
+    try {
+      if (dirty) sessionStorage.setItem(recoveryKey, JSON.stringify({ version: baseVersion, owner: recoveryOwner, ...JSON.parse(current) }))
+      else sessionStorage.removeItem(recoveryKey)
+    } catch {
+      setRecoveryProblem('Local recovery is unavailable. Save your changes before closing.')
+    }
+  }, [current, dirty, readOnly, recoveryKey, recoveryReady, baseVersion, recoveryOwner, staleRecovery, materialKey])
+
+  function discardRecovery() {
+    try { sessionStorage.removeItem(recoveryKey) } catch { /* Storage may be unavailable. */ }
+  }
+
+  function requestClose() {
+    if (dirty && !readOnly) setCloseOpen(true)
+    else onClose()
+  }
   const disabled = saving || readOnly
   const saveDisabled = disabled || !validPostDate
   const publishLabel = isScheduled ? 'Post now' : isDraft ? 'Post' : 'Save'
@@ -105,7 +176,7 @@ function MaterialEditor({
     <>
       <CreationModalShell
         isOpen={isOpen}
-        onClose={onClose}
+        onClose={requestClose}
         title={isExisting ? 'Material' : 'New Material'}
         titleId="material-modal-title"
         closeLabel="Close material modal"
@@ -119,7 +190,7 @@ function MaterialEditor({
           <section aria-label="Material details" className="flex min-w-0 flex-col gap-4 bg-surface-2 p-3 sm:p-4 lg:col-start-1 lg:row-start-1 lg:min-h-0 lg:overflow-y-auto">
             <CreationModalContextLabel itemType="Material" classroomName={classroomName} />
             <FormField label="Title" required hideLabel collapseHiddenLabel className="modal-title-field">
-              <Input value={title} onChange={(event) => onTitleChange(event.target.value)} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
+              <Input value={title} onChange={(event) => { persistChange({ title: event.target.value }); onTitleChange(event.target.value) }} placeholder="Title" required disabled={disabled} data-modal-initial-focus={!disabled ? '' : undefined} />
             </FormField>
             <AuthoringModeControl ariaLabel="Material content editing mode" value={mode === 'visual' ? 'write' : 'markdown'} onChange={(next) => setMode(next === 'write' ? 'visual' : 'markdown')} writeDisabled={disabled || previewOpen || scheduleOpen} markdownDisabled={disabled || previewOpen || scheduleOpen} />
             <Button variant="secondary" size="sm" fullWidth disabled={saving} onClick={() => setPreviewOpen(true)}>
@@ -130,8 +201,9 @@ function MaterialEditor({
               : isExisting ? isDraft ? 'Draft' : 'Posted' : 'Not posted'}</p>
             <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}>
               <Input type="date" value={postDate} min="0001-01-01"
-                disabled={disabled} onChange={(event) => setPostDate(event.target.value)} />
+                disabled={disabled} onChange={(event) => { persistChange({ postDate: event.target.value }); setPostDate(event.target.value) }} />
             </FormField>
+            {recoveryProblem && <p role="status" className="text-sm text-warning">{recoveryProblem} {staleRecovery && <Button variant="secondary" size="sm" onClick={() => { discardRecovery(); setStaleRecovery(false); setRecoveryProblem(null) }}>Discard previous local edit</Button>}</p>}
             {error && <p role="alert" className="text-sm text-danger">{error}</p>}
             <div className="shrink-0 lg:mt-auto">
               <SplitButton
@@ -147,9 +219,9 @@ function MaterialEditor({
                 primaryButtonProps={{ className: 'flex-1 justify-center font-semibold', disabled: saveDisabled }}
                 onPrimaryClick={save}
                 options={[
-                  ...(action !== 'post' ? [{ id: 'post', label: publishLabel, onSelect: () => setAction('post') }] : []),
-                  ...(action !== 'draft' ? [{ id: 'draft', label: 'Save draft', onSelect: () => setAction('draft') }] : []),
-                  ...(action !== 'schedule' ? [{ id: 'schedule', label: isScheduled ? 'Edit schedule' : 'Schedule', onSelect: () => setAction('schedule') }] : []),
+                  ...(action !== 'post' ? [{ id: 'post', label: publishLabel, onSelect: () => { persistChange({ action: 'post' }); setAction('post') } }] : []),
+                  ...(action !== 'draft' ? [{ id: 'draft', label: 'Save draft', onSelect: () => { persistChange({ action: 'draft' }); setAction('draft') } }] : []),
+                  ...(action !== 'schedule' ? [{ id: 'schedule', label: isScheduled ? 'Edit schedule' : 'Schedule', onSelect: () => { persistChange({ action: 'schedule' }); setAction('schedule') } }] : []),
                   ...(onDelete && !readOnly ? [{ id: 'delete', label: 'Delete material', destructive: true, onSelect: onDelete }] : []),
                 ]}
               />
@@ -184,11 +256,20 @@ function MaterialEditor({
           </section>
         </div>
       </CreationModalShell>
+      <ContentDialog isOpen={closeOpen} onClose={() => setCloseOpen(false)} title="Unsaved changes" maxWidth="!max-w-md" showFooterClose={false}>
+        <p className="text-sm text-text-muted">Local changes are kept in this tab, including after a refresh. Save a draft to keep them beyond this tab.</p>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button variant="secondary" onClick={() => setCloseOpen(false)}>Keep editing</Button>
+          <Button variant="secondary" disabled={!!recoveryProblem || !materialKey} onClick={onClose}>Close and keep local changes</Button>
+          <Button variant="secondary" onClick={() => { discardRecovery(); onClose() }}>Discard changes</Button>
+          <Button variant="primary" disabled={saving || !validPostDate} onClick={() => { setCloseOpen(false); onSave(isExisting ? isDraft : true, undefined, postDate) }}>{isExisting && !isDraft ? 'Save changes' : 'Save draft'}</Button>
+        </div>
+      </ContentDialog>
       <DialogPanel isOpen={isOpen && scheduleOpen && !disabled} onClose={() => setScheduleOpen(false)} maxWidth="max-w-sm" ariaLabelledBy="material-schedule-title">
         <h3 id="material-schedule-title" className="mb-2 text-sm font-semibold text-text-default">Schedule Release</h3>
         <ScheduleDateTimePicker
           date={scheduleDate} time={scheduleTime} minDate={getTodayInSchedulingTimezone()}
-          isFutureValid={validSchedule} onDateChange={setScheduleDate} onTimeChange={setScheduleTime}
+          isFutureValid={validSchedule} onDateChange={(value) => { persistChange({ scheduleDate: value }); setScheduleDate(value) }} onTimeChange={(value) => { persistChange({ scheduleTime: value }); setScheduleTime(value) }}
           onCancel={() => setScheduleOpen(false)}
           onConfirm={() => { if (!saveDisabled && validSchedule) { setScheduleOpen(false); onSave(false, scheduleIso, postDate) } }}
           confirmLabel={isScheduled ? 'Save schedule' : 'Schedule'}

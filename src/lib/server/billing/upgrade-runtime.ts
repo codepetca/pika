@@ -10,6 +10,7 @@ import { createStripeUpgradePort, createStripeUpgradeProvider } from './stripe-u
 import { processUpgrade, processDueUpgrades, upgradeQuoteDigest } from './upgrade-service'
 import { UpgradeOperationSchema, UpgradeConfirmationError, UpgradeEligibilityError,
   type UpgradeOperation, type UpgradeProvider, type UpgradeStore } from './upgrade-contracts'
+import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 
 export function readBillingUpgradeConfig(env: NodeJS.ProcessEnv = process.env): BillingPurchaseConfig | null {
   if (env.BILLING_UPGRADES_ENABLED !== 'true') return null
@@ -28,7 +29,7 @@ function envelope(value: unknown) {
 const publicPlan = { basic: 'basic', plus: 'pro', pro: 'max' } as const
 
 /** Application facade shared by authenticated routes and the separately gated worker. */
-export function createUpgradeApplication(input: { store: UpgradeStore; provider: UpgradeProvider; stripeAccount: string; now?: () => number }) {
+export function createUpgradeApplication(input: { store: UpgradeStore; provider: UpgradeProvider; stripeAccount: string; now?: () => number; onActivated?: (subjectUserId: string) => Promise<unknown> }) {
   const { store, provider } = input
   const now = input.now ?? Date.now
   function owned(operation: UpgradeOperation, subjectUserId: string, operationId: string) {
@@ -79,6 +80,15 @@ export function createUpgradeApplication(input: { store: UpgradeStore; provider:
   }
   const process = (operationId: string) => processUpgrade({ store, provider, operationId, leaseSeconds: 120,
     now: () => new Date(now()).toISOString() })
+  async function projectAfterMutation(operation: UpgradeOperation) {
+    const result = project(operation)
+    // Only validated persisted applied state may kick the committed hint.
+    // Failure leaves recovery to the durable queue and preserves billing success.
+    if (result.status === 'active' && input.onActivated) {
+      try { await input.onActivated(operation.subject_user_id) } catch { /* durable queue remains authoritative */ }
+    }
+    return result
+  }
   return {
     async startUpgrade(args: { subjectUserId: string; operationId: string; offeringVersionId: string }) {
       const result = envelope(await store.reserve({ subject_user_id: args.subjectUserId,
@@ -91,7 +101,7 @@ export function createUpgradeApplication(input: { store: UpgradeStore; provider:
       if (!['applied', 'expired', 'attention'].includes(operation.status) && operation.stage !== 'quoted') await process(args.operationId)
       const current = await get(args.subjectUserId, args.operationId)
       if (!current) throw new Error('Billing upgrade reservation is unavailable')
-      return project(current)
+      return projectAfterMutation(current)
     },
     async confirmUpgrade(args: { subjectUserId: string; operationId: string; quoteRevision: number; quoteDigest: string }) {
       const operation = await get(args.subjectUserId, args.operationId)
@@ -109,7 +119,7 @@ export function createUpgradeApplication(input: { store: UpgradeStore; provider:
       if (!['applied', 'expired', 'attention'].includes(confirmed.status)) await process(args.operationId)
       const current = await get(args.subjectUserId, args.operationId)
       if (!current) throw new Error('Billing upgrade confirmation is unavailable')
-      return project(current)
+      return projectAfterMutation(current)
     },
     async getUpgrade(args: { subjectUserId: string; operationId: string }) {
       const operation = await get(args.subjectUserId, args.operationId)
@@ -124,5 +134,6 @@ export function createBillingUpgradeRuntime(config: BillingPurchaseConfig) {
   const stripe = new Stripe(config.secretKey, { apiVersion: STRIPE_BILLING_API_VERSION, timeout: 5_000, maxNetworkRetries: 0 })
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
   return createUpgradeApplication({ store: createBillingUpgradeStore(client),
-    provider: createStripeUpgradeProvider(createStripeUpgradePort(stripe)), stripeAccount: config.stripeAccount })
+    provider: createStripeUpgradeProvider(createStripeUpgradePort(stripe)), stripeAccount: config.stripeAccount,
+    onActivated: subjectUserId => attemptRepoLightProvisionOutbox({ client, teacherId: subjectUserId }) })
 }

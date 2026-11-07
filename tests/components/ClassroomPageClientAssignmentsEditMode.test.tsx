@@ -23,6 +23,7 @@ const mockAssignmentsToMarkdown = vi.hoisted(() => vi.fn())
 const mockTeacherAnnouncementsTabProps = vi.hoisted(() => vi.fn())
 const retainedAnnouncementsOwner = vi.hoisted(() => ({ enabled: false }))
 const mockTeacherTestsTabProps = vi.hoisted(() => vi.fn())
+const mockTeacherClassroomViewProps = vi.hoisted(() => vi.fn())
 const mockStudentTestsTabProps = vi.hoisted(() => vi.fn())
 const mockStudentTodayTabProps = vi.hoisted(() => vi.fn())
 const mockTeacherAttendanceTabProps = vi.hoisted(() => vi.fn())
@@ -40,13 +41,16 @@ vi.mock('@/integrations/pal', () => ({
 }))
 
 vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
-  TeacherClassroomView: ({
+  TeacherClassroomView: (props: any) => {
+    mockTeacherClassroomViewProps(props)
+    const {
     onEditModeChange,
     onOpenMarkdownEditor,
     onSelectAssignment,
     onViewModeChange,
     showMarkdownEditorOption,
-  }: any) => (
+    } = props
+    return (
     <div>
       <button type="button" onClick={() => onEditModeChange?.(true)}>
         Set assignment edit active
@@ -69,7 +73,8 @@ vi.mock('@/app/classrooms/[classroomId]/TeacherClassroomView', () => ({
         Select assignment workspace
       </button>
     </div>
-  ),
+    )
+  },
   TeacherAssignmentsMarkdownEditor: ({ markdownContent }: any) => (
     <div>Markdown editor: {markdownContent}</div>
   ),
@@ -483,6 +488,7 @@ function renderClient(options?: {
   initialTab?: string
   initialSearchParams?: Record<string, string | undefined>
   attendanceAvailable?: boolean
+  userId?: string
 }) {
   const targetClassroom = options?.classroom ?? classroom
   const initialTab = options?.initialTab ?? 'assignments'
@@ -492,7 +498,7 @@ function renderClient(options?: {
     <MarkdownPreferenceProvider>
       <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}
         classroom={targetClassroom}
-        user={{ id: 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
+        user={{ id: options?.userId ?? 'teacher-1', email: 'teacher@example.com', role: 'teacher' }}
         teacherClassrooms={[targetClassroom]}
         initialTab={initialTab}
         initialSearchParams={initialSearchParams}
@@ -567,6 +573,7 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     mockInvalidateCachedJSON.mockReset()
     mockPrefetchJSON.mockReset()
     mockAssignmentsToMarkdown.mockReset()
+    mockTeacherClassroomViewProps.mockReset()
     mockTeacherTestsTabProps.mockReset()
     mockStudentTestsTabProps.mockReset()
     mockStudentTodayTabProps.mockReset()
@@ -596,6 +603,14 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
       markdown: '## Assignment One',
       hasRichContent: false,
     })
+  })
+
+  it('scopes teacher recovery to the signed-in user', () => {
+    renderClient({ userId: 'signed-in-teacher' })
+    expect(mockTeacherClassroomViewProps).toHaveBeenCalledWith(expect.objectContaining({
+      recoveryUserId: 'signed-in-teacher',
+      classroom,
+    }))
   })
 
   it('passes committed activity to the cached Teacher Announcements tab through real classroom navigation', () => {

@@ -451,6 +451,8 @@ describe('AssignmentModal', () => {
 
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated live title' } })
       fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+      expect(onClose).not.toHaveBeenCalled()
+      fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
@@ -1530,6 +1532,11 @@ describe('AssignmentModal', () => {
 
       fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Modified title' } })
       fireEvent.keyDown(screen.getByRole('dialog').parentElement!, { key: 'Escape' })
+      fireEvent.keyDown(screen.getByRole('dialog', { name: 'Close assignment?' }), { key: 'Escape' })
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByLabelText(/Title/)).toHaveValue('Modified title')
+      fireEvent.keyDown(screen.getByRole('dialog').parentElement!, { key: 'Escape' })
+      fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
 
       await waitFor(() => {
         expect(fetchMock).toHaveBeenCalledTimes(1)
