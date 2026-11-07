@@ -32,7 +32,6 @@ interface LessonCalendarProps {
   showHeader?: boolean
   todayRequest?: number
   initialSourcesLoading?: boolean
-  onVisibleMonthChange?: (month: string) => void
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, contentMarkdown: string) => void
@@ -93,7 +92,6 @@ export function LessonCalendar({
   showHeader = true,
   todayRequest = 0,
   initialSourcesLoading = false,
-  onVisibleMonthChange,
   onDateChange,
   onViewModeChange,
   onContentChange,
@@ -209,19 +207,6 @@ export function LessonCalendar({
   const calendarRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [localTodayRequest, setLocalTodayRequest] = useState(0)
-  const updateVisibleMonth = useCallback(() => {
-    const scroller = scrollRef.current
-    if (!scroller || viewMode !== 'list') return
-    const sections = Array.from(scroller.querySelectorAll<HTMLElement>('[data-calendar-month]'))
-    const top = scroller.getBoundingClientRect().top + 1
-    let active = sections[0]
-    for (const section of sections) {
-      if (section.getBoundingClientRect().top <= top) active = section
-      else break
-    }
-    if (active?.dataset.calendarMonth) onVisibleMonthChange?.(active.dataset.calendarMonth)
-  }, [onVisibleMonthChange, viewMode])
-
   const centerToday = useCallback(() => {
     const target = today < termStart ? termStart : today > termEnd ? termEnd : today
     const key = format(target, 'yyyy-MM-dd')
@@ -230,8 +215,7 @@ export function LessonCalendar({
     if (!element || !scroller) return
     const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
     scroller.scrollTop += offset - (scroller.clientHeight - element.offsetHeight) / 2
-    updateVisibleMonth()
-  }, [termStart, termEnd, today, updateVisibleMonth])
+  }, [termStart, termEnd, today])
   useEffect(() => { centerToday() }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest])
 
   // Source snapshots may arrive after the first render and change row heights.
@@ -328,7 +312,7 @@ export function LessonCalendar({
           options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
         <Button variant="secondary" size="sm" onClick={() => setLocalTodayRequest(value => value + 1)}>Today</Button>
       </div>}
-      <div ref={scrollRef} onScroll={updateVisibleMonth} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className="max-h-screen min-w-0 overflow-auto">
+      <div ref={scrollRef} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className="max-h-screen min-w-0 overflow-auto">
       {viewMode === 'list' ? (
         <div role="region" aria-label="Term agenda" className="min-w-0">
           {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (

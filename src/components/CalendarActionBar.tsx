@@ -10,7 +10,6 @@ import type { CalendarViewMode } from '@/components/LessonCalendar'
 interface CalendarActionBarProps {
   viewMode: CalendarViewMode
   currentDate: Date
-  visibleMonth?: string
   rangeStart?: string | null
   rangeEnd?: string | null
   onPrev: () => void
@@ -23,8 +22,8 @@ interface CalendarActionBarProps {
   className?: string
 }
 
-export function CalendarActionBar({ viewMode, visibleMonth, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
-  return <PageActionBar className={cn('py-0', className)} primary={<div className="flex items-center gap-2"><span aria-live="polite" className="text-sm font-medium text-text-muted">{visibleMonth}</span>{context}</div>} center={<>
+export function CalendarActionBar({ viewMode, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
+  return <PageActionBar className={cn('py-0', className)} primary={context ?? null} center={<>
     <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="h-6 gap-0 border border-border bg-surface-2 p-0"
       options={[
         { value: 'list', label: 'List', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },

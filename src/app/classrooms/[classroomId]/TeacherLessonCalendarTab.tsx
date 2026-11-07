@@ -181,7 +181,6 @@ export function TeacherLessonCalendarTab({
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(nowInToronto)
   const [todayRequest, setTodayRequest] = useState(0)
-  const [visibleMonth, setVisibleMonth] = useState('')
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownContentClassroomId, setMarkdownContentClassroomId] = useState('')
   const visibleMarkdownContent = markdownContentClassroomId === classroom.id ? markdownContent : ''
@@ -1256,7 +1255,6 @@ export function TeacherLessonCalendarTab({
       <CalendarActionBar
         className="sticky top-12 z-sticky-table bg-page"
         viewMode={viewMode}
-        visibleMonth={viewMode === 'list' ? visibleMonth : undefined}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
@@ -1298,7 +1296,6 @@ export function TeacherLessonCalendarTab({
               viewMode={viewMode}
               todayRequest={todayRequest}
               initialSourcesLoading={isRefreshing}
-              onVisibleMonthChange={setVisibleMonth}
               currentDate={currentDate}
               editable={!classroom.archived_at}
               showHeader={false}

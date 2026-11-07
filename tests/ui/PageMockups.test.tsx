@@ -876,6 +876,9 @@ describe('PageMockups', () => {
     await user.click(within(mockups).getByRole('tab', { name: 'Calendar' }))
     const calendar = within(mockups).getByRole('tabpanel', { name: 'Calendar' })
 
+    const actionBar = within(calendar).getByRole('group', { name: 'Calendar view' }).closest('.sticky')
+    expect(actionBar).not.toHaveTextContent('September 2026')
+    expect(within(calendar).getByText('September 2026', { exact: true })).toBeInTheDocument()
     expect(within(calendar).getByRole('button', { name: 'List' })).toHaveAttribute('aria-pressed', 'true')
     expect(within(calendar).getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'false')
     within(calendar).getByRole('button', { name: 'List' }).focus()

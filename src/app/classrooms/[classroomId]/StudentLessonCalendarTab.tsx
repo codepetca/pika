@@ -92,7 +92,6 @@ export function StudentLessonCalendarTab({
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(nowInToronto)
   const [todayRequest, setTodayRequest] = useState(0)
-  const [visibleMonth, setVisibleMonth] = useState('')
   const [maxDate, setMaxDate] = useState<string | null | undefined>(undefined)
 
   // Always fetch the full term - switching views is then instant
@@ -520,7 +519,6 @@ export function StudentLessonCalendarTab({
       <CalendarActionBar
         className="sticky top-12 z-sticky-table bg-page"
         viewMode={viewMode}
-        visibleMonth={viewMode === 'list' ? visibleMonth : undefined}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
@@ -546,7 +544,6 @@ export function StudentLessonCalendarTab({
               viewMode={viewMode}
               todayRequest={todayRequest}
               initialSourcesLoading={isRefreshing}
-              onVisibleMonthChange={setVisibleMonth}
               currentDate={currentDate}
               editable={false}
               showHeader={false}

@@ -178,6 +178,7 @@ describe('TeacherLessonCalendarTab', () => {
     render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
     const list = screen.getByRole('button', { name: 'List', exact: true })
+    expect(list.closest('.sticky')?.querySelector('[aria-live]')).toBeNull()
     expect(list).toHaveAttribute('aria-pressed', 'true')
     const readCount = fetchMock.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))

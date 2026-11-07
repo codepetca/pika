@@ -37,7 +37,17 @@ for (const role of ['teacher', 'student'] as const) {
       await page.screenshot({ path: testInfo.outputPath(`${role}-${mode.toLowerCase()}.png`) })
       if (mode === 'List') {
         await page.locator('[data-calendar-date="2027-01-15"]').scrollIntoViewIfNeeded()
-        await expect(page.locator('[aria-live="polite"]').filter({ hasText: 'January 2027' })).toBeVisible()
+        const monthHeader = workspace.locator('[data-calendar-month="January 2027"] > div').first()
+        await expect.poll(() => monthHeader.evaluate(element => {
+          let scroller = element.parentElement
+          while (scroller && !['auto', 'scroll'].includes(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement
+          if (!scroller) return false
+          const header = element.getBoundingClientRect()
+          const surface = scroller.getBoundingClientRect()
+          return Math.abs(header.top - surface.top) <= 2 && header.bottom > surface.top
+        })).toBe(true)
+        const actionBar = page.getByRole('group', { name: 'Calendar view' }).locator('xpath=ancestor::div[contains(@class,"sticky")][1]')
+        await expect(actionBar).not.toContainText('January 2027')
       }
       for (let attempt = 0; attempt < 2; attempt++) {
         await page.locator('[data-calendar-date="2026-10-31"]').scrollIntoViewIfNeeded()
