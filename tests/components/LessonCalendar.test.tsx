@@ -96,7 +96,7 @@ describe('LessonCalendar', () => {
     const firstDay = container.querySelector('[data-calendar-date="2026-01-01"]')!
     const lastDay = container.querySelector('[data-calendar-date="2026-06-01"]')!
     const scrollOwner = firstDay.closest('.overflow-auto')
-    expect(scrollOwner).toHaveClass('min-h-0', 'flex-1', 'relative', 'z-0')
+    expect(scrollOwner).toHaveClass('min-h-40', 'flex-1', 'isolate')
     expect(scrollOwner).toHaveAttribute('tabindex', '0')
     expect(scrollOwner).toHaveAccessibleName('Calendar dates')
     expect(lastDay.closest('.overflow-auto')).toBe(scrollOwner)

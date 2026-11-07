@@ -68,7 +68,7 @@ export function AppShell({
     : ''
 
   return (
-    <div className={['flex min-h-dvh flex-col bg-page', viewportClassName, allowShortViewportOverflow ? '[@media(max-height:400px)]:h-auto [@media(max-height:400px)]:overflow-visible' : ''].filter(Boolean).join(' ')}>
+    <div className={['flex min-h-dvh flex-col bg-page', viewportClassName, allowShortViewportOverflow ? 'calendar-short:h-auto calendar-short:overflow-visible' : ''].filter(Boolean).join(' ')}>
       {user && <AuthSessionWatcher expectedUserId={user.id} expectedRole={user.role} />}
       {showHeader && (
         <AppHeader
@@ -88,7 +88,7 @@ export function AppShell({
         className={[
           'flex-1 min-h-0 w-full',
           shouldConstrainViewport ? constrainToViewportOnMobile ? 'overflow-hidden' : 'lg:overflow-hidden' : '',
-          allowShortViewportOverflow ? '[@media(max-height:400px)]:overflow-visible' : '',
+          allowShortViewportOverflow ? 'overflow-y-auto calendar-short:overflow-visible' : '',
           mainClassName || 'max-w-7xl mx-auto px-4 py-3',
         ].filter(Boolean).join(' ')}
       >

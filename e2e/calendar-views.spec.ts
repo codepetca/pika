@@ -39,6 +39,10 @@ for (const role of ['teacher', 'student'] as const) {
       const scroller = lastDay.locator('xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " overflow-auto ")][1]')
       await expect(scroller).toHaveCount(1)
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+      await expect.poll(() => scroller.evaluate(element => {
+        const outer = element.closest('main')?.parentElement?.closest('main')
+        return !!outer && outer.scrollHeight <= outer.clientHeight
+      })).toBe(true)
       await scroller.evaluate(element => { element.scrollTop = element.scrollHeight })
       await expect.poll(() => lastDay.evaluate(element => {
         const scroll = element.closest('.overflow-auto')!
@@ -87,15 +91,35 @@ for (const role of ['teacher', 'student'] as const) {
     }
     await page.reload({ waitUntil: 'networkidle' })
     await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    await page.setViewportSize({ width: 390, height: 240 })
+    await page.setViewportSize({ width: 390, height: 401 })
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname
       return ['/assignments', '/materials', '/announcements'].some(suffix => path.endsWith(suffix))
         ? route.fulfill({ status: 500, json: { error: 'failure' } }) : route.fallback()
     })
-    await page.reload({ waitUntil: 'networkidle' })
+    if (role === 'teacher') {
+      await page.evaluate(id => sessionStorage.setItem(`pika:blueprint-classroom-overflow:${id}`,
+        JSON.stringify(Array.from({ length: 10 }, (_, index) => `Overflow lesson ${index + 1}`))), classroomId)
+    }
+    await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar&calendarTerm=true&reviewClassDays=1`, { waitUntil: 'networkidle' })
     await expect(page.getByRole('alert').filter({ hasText: 'Some calendar information' })).toBeAttached()
+    if (role === 'teacher') {
+      await expect(page.getByText('Overflow lesson 10')).toBeAttached()
+      const setup = page.getByRole('button', { name: 'Set up now' })
+      await setup.scrollIntoViewIfNeeded()
+      const bounds = await setup.boundingBox()
+      expect(bounds!.y).toBeGreaterThanOrEqual(0)
+      expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(401)
+    }
     const dates = page.getByRole('region', { name: 'Calendar dates' })
+    await dates.scrollIntoViewIfNeeded()
+    await expect.poll(() => dates.evaluate(element => element.getBoundingClientRect().height)).toBeGreaterThanOrEqual(160)
+    await page.getByRole('button', { name: 'Today', exact: true }).click()
+    await expect.poll(() => page.locator('[data-calendar-date="2026-10-05"]').evaluate(element => {
+      const bounds = element.getBoundingClientRect()
+      return bounds.bottom > 0 && bounds.top < window.innerHeight
+    })).toBe(true)
+    await page.setViewportSize({ width: 390, height: 240 })
     await expect(dates).toBeVisible()
     await dates.focus()
     await page.keyboard.press('End')
