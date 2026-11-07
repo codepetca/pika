@@ -70,6 +70,22 @@ for (const role of ['teacher', 'student'] as const) {
         })).toBe(true)
         const actionBar = page.getByRole('group', { name: 'Calendar view' }).locator('xpath=ancestor::div[contains(@class,"sticky")][1]')
         await expect(actionBar).not.toContainText('January 2027')
+        const weekdayRow = workspace.locator('[data-calendar-date="2026-10-05"]')
+        await weekdayRow.getByText('Lesson 5', { exact: true }).click()
+        const weekdayDialog = page.getByRole('dialog', { name: 'Mon Oct 5, 2026' })
+        await expect(weekdayDialog).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(weekdayDialog).toBeHidden()
+
+        const weekendRow = workspace.locator('[data-calendar-date="2026-10-10"] article')
+        await weekendRow.scrollIntoViewIfNeeded()
+        const weekendBounds = await weekendRow.boundingBox()
+        expect(weekendBounds).not.toBeNull()
+        await weekendRow.click({ position: { x: weekendBounds!.width - 8, y: weekendBounds!.height / 2 } })
+        const weekendDialog = page.getByRole('dialog', { name: 'Sat Oct 10, 2026' })
+        await expect(weekendDialog).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(weekendDialog).toBeHidden()
       }
       for (let attempt = 0; attempt < 2; attempt++) {
         await page.locator('[data-calendar-date="2026-10-31"]').scrollIntoViewIfNeeded()

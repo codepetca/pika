@@ -3,7 +3,7 @@
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { memo, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { format } from 'date-fns'
-import { Megaphone } from 'lucide-react'
+import { Megaphone, Pencil } from 'lucide-react'
 import { AnnouncementContent } from '@/components/AnnouncementContent'
 import { useLessonCellMotion } from './useLessonCellMotion'
 import { MarkdownContentEditor } from '@/components/editor'
@@ -12,7 +12,7 @@ import { getAnnouncementCalendarLabel, normalizeAnnouncementTitle } from '@/lib/
 import { isCalendarAnnouncementScheduled, isCalendarMaterialScheduled } from '@/lib/calendar-items'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { getLessonPlanMarkdown } from '@/lib/lesson-plan-content'
-import { Button, Tooltip } from '@/ui'
+import { Button, IconButton, Tooltip } from '@/ui'
 import type { Announcement, Assignment, ClassworkMaterial, LessonPlan, TestAssessment } from '@/types'
 
 // Month/Term use dense rows on fine pointers; touch and unknown pointers keep
@@ -192,8 +192,11 @@ export const LessonDayCell = memo(function LessonDayCell({
       <article
         aria-labelledby={agendaHeadingId}
         aria-describedby={nonClassDay ? `${agendaHeadingId}-status` : undefined}
-        className={`flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
-          denseAgenda ? 'py-0' : nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
+        onClick={denseAgenda ? event => {
+          if (!isEditing && !(event.target as Element).closest('a, button, input, textarea, select, [contenteditable="true"], [role="button"]')) onPresentDay?.()
+        } : undefined}
+        className={`group flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
+          denseAgenda ? `items-center py-0 ${onPresentDay && !isEditing ? 'cursor-pointer' : ''}` : nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
         } ${nonClassDay ? 'bg-surface-3' : ''} ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
       >
         {nonClassDay && <span id={`${agendaHeadingId}-status`} hidden>No class</span>}
@@ -214,13 +217,19 @@ export const LessonDayCell = memo(function LessonDayCell({
         <div className={denseAgenda ? 'flex min-w-0 flex-1 flex-wrap items-center gap-x-2' : 'flex min-w-0 flex-1 flex-col gap-3'}>
           <div
             ref={outerRef}
-            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 ${denseAgenda ? `max-w-full flex-1 ${hasContent || isEditing ? 'basis-48' : 'basis-0'}` : 'flex-none'} break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''} ${denseAgenda && canEdit ? 'min-w-control' : ''}`}
+            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 ${denseAgenda ? `max-w-full flex-1 ${hasContent || isEditing ? 'basis-48' : 'basis-0'}` : 'flex-none'} break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? `min-h-control ${denseAgenda ? '' : 'cursor-text'}` : ''} ${denseAgenda && canEdit ? 'min-w-control' : ''}`}
             onClick={event => {
-              if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
+              if (!denseAgenda && canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
             }}
           >
             {canEdit && !isEditing && (
-              <Button
+              denseAgenda ? (
+                <IconButton ref={editActionRef} variant="ghost" size="sm" icon={Pencil}
+                  label={`${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}`}
+                  tooltip={hasContent ? 'Edit lesson' : 'Add lesson'}
+                  onClick={handleStartEditing}
+                  className="absolute right-0 top-1/2 -translate-y-1/2 text-text-muted [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:pointer-events-auto [@media(hover:hover)]:group-hover:opacity-100 [@media(hover:hover)]:focus:pointer-events-auto [@media(hover:hover)]:focus:opacity-100" />
+              ) : <Button
                 ref={editActionRef}
                 variant="ghost"
                 size="sm"
@@ -229,7 +238,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                 className="absolute inset-0 h-full w-full cursor-text p-0"
               />
             )}
-            <div ref={innerRef} className="relative min-w-0">
+            <div ref={innerRef} className={`${denseAgenda ? '' : 'relative'} min-w-0 ${denseAgenda && canEdit && !isEditing ? 'pr-11' : ''}`}>
               {isEditing && canEdit ? (
                 <MarkdownContentEditor
                   markdown={localMarkdown}

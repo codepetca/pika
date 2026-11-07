@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-02 Test editor grading notes
-
-Made answer key and sample solution fields grow with their content and container width; moved Add reference beside the test title and removed the enclosing reference panel, and placed test/classroom context above the title, and aligned question number, points and add action in the toolbar. Extended the compact context label to assignment, material and survey editors and moved survey question actions into the toolbar, and placed the shared icon-labelled Write/Markdown control in each editor’s details pane. Aligned editor primary and add actions on the shared primary color. Updated Pattern Lab with shared auto-growing grading notes and assignment/survey settings examples. Shared test reference cards between the editor and Pattern Lab, retaining local-only placeholder behavior. Applied the reviewed read-only total beside question points in the test editor, with immediate valid-draft updates and full-modal visual checks. Reserved the mobile close target above title controls after independent review. Focused component tests and Playwright checks cover the editor.
-
 ## 2026-11-02 — Tests list read overlap
 
 PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list-responsiveness`, the legacy student active/closed Tests reads and legacy teacher Tests/roster reads start concurrently only after authorization; existing error precedence and status ordering remain. Deferred route tests cover authorization, overlap, migration/error precedence and late rejections. Controlled timer-only examples: student 107→62ms for 50ms mocked reads; teacher 203→102ms for 100ms reads. These are not production or database latency measurements; successful requests use the same query count with at most two initial reads in flight. Admitted/shared routes and student exam sessions are unchanged. Exact focused checks, independent security/correctness review and CI pending.
@@ -298,3 +294,7 @@ Aligned each assessment's title and percentage above its category and raw score 
 ## 2026-11-07 — Calendar label and scrolling review
 
 Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Verified teacher and student roles across viewports and themes, plus focused interactions.
