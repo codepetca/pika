@@ -201,7 +201,7 @@ export const LessonDayCell = memo(function LessonDayCell({
           }
         } : undefined}
         className={`group flex min-w-0 gap-3 px-3 sm:gap-6 sm:px-5 ${
-          denseAgenda ? `items-center py-0 ${onPresentDay && !isEditing ? 'cursor-pointer' : ''}` : nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
+          denseAgenda ? `${isEditing ? 'items-start' : 'items-center'} py-0 ${onPresentDay && !isEditing ? `cursor-pointer ${nonClassDay ? 'hover:bg-surface' : 'hover:bg-surface-hover'}` : ''}` : nonClassDay && !hasContent && assignments.length === 0 && announcements.length === 0 && tests.length === 0 && materials.length === 0 ? 'py-3' : 'py-5'
         } ${nonClassDay ? 'bg-surface-3' : ''} ${isToday ? 'ring-2 ring-inset ring-primary' : ''}`}
       >
         {nonClassDay && <span id={`${agendaHeadingId}-status`} hidden>No class</span>}
@@ -213,7 +213,7 @@ export const LessonDayCell = memo(function LessonDayCell({
             size="sm"
             onClick={onPresentDay}
             aria-label={`Open ${format(day, 'EEEE, MMMM d, yyyy')}`}
-            className={denseAgenda ? 'justify-start gap-1 px-0 text-left' : 'flex-col items-start px-0 text-left'}
+            className={denseAgenda ? 'w-16 justify-between gap-1 px-0 text-left hover:bg-transparent' : 'flex-col items-start px-0 text-left'}
           >
             <span className="text-xs font-medium text-text-muted">{format(day, 'EEE')}</span>
             <time dateTime={date} aria-current={isToday ? 'date' : undefined} className={`${denseAgenda ? 'text-sm' : 'text-xl'} font-semibold leading-tight ${nonClassDay ? 'text-text-muted' : 'text-text-default'}`}>{format(day, 'd')}</time>
@@ -223,9 +223,12 @@ export const LessonDayCell = memo(function LessonDayCell({
         <div className={denseAgenda ? 'flex min-w-0 flex-1 flex-wrap items-center gap-x-2' : 'flex min-w-0 flex-1 flex-col gap-3'}>
           <div
             ref={outerRef}
-            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 ${denseAgenda ? `max-w-full flex-1 ${hasContent || isEditing ? 'basis-48' : 'basis-0'}` : 'flex-none'} break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? `min-h-control ${denseAgenda ? '' : 'cursor-text'}` : ''} ${denseAgenda && canEdit ? 'min-w-control' : ''}`}
+            className={`transition-[height] duration-standard ease-standard motion-reduce:transition-none calendar-day-text relative min-w-0 ${denseAgenda ? `max-w-full flex-1 ${hasContent || isEditing ? 'basis-48' : 'basis-0'}` : 'flex-none'} break-words text-sm leading-relaxed text-text-default [&_pre]:max-w-full [&_pre]:overflow-x-auto ${!isEditing ? 'flex flex-col justify-center' : ''} ${canEdit && !isEditing ? 'min-h-control cursor-text' : ''} ${denseAgenda && canEdit ? 'min-w-control' : ''}`}
             onClick={event => {
-              if (!denseAgenda && canEdit && !isEditing && !(event.target as Element).closest('a, button')) handleStartEditing()
+              if (canEdit && !isEditing && !(event.target as Element).closest('a, button')) {
+                event.stopPropagation()
+                handleStartEditing()
+              }
             }}
           >
             {canEdit && !isEditing && (

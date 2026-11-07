@@ -613,6 +613,7 @@ describe('LessonDayCell agenda', () => {
     renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda isToday onPresentDay={onPresentDay} />)
     const article = screen.getByRole('article', { name: 'Open Friday, March 13, 2026' })
     expect(within(article).getByText('13')).toHaveAttribute('aria-current', 'date')
+    expect(article).toHaveClass('items-center')
     await user.tab()
     expect(screen.getByRole('button', { name: 'Open Friday, March 13, 2026' })).toHaveFocus()
     await user.keyboard('{Enter}')
@@ -622,13 +623,16 @@ describe('LessonDayCell agenda', () => {
     expect(edit).toHaveFocus()
     await user.keyboard('{Enter}')
     const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    expect(article).toHaveClass('items-start')
+    expect(article).not.toHaveClass('items-center')
     editor.focus()
     await user.keyboard('{Escape}')
     await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })).toHaveFocus())
+    expect(article).toHaveClass('items-center')
   })
 
 
-  it.each([true, false])('opens a dense row from non-interactive content for editable=%s', editable => {
+  it.each([true, false])('routes dense lesson content and row actions for editable=%s', editable => {
     const onPresentDay = vi.fn()
     const onAssignmentClick = vi.fn()
     const assignment = { id: 'due', title: 'Due item', is_draft: false } as Assignment
@@ -636,26 +640,31 @@ describe('LessonDayCell agenda', () => {
       lessonPlan={{ ...lessonPlan, content_markdown: 'Lesson text [Notes](https://example.com)' }}
       assignments={[assignment]} onAssignmentClick={onAssignmentClick} />)
     const row = screen.getByRole('article')
-    expect(row).toHaveClass('items-center', 'cursor-pointer')
-    fireEvent.click(screen.getByText(/Lesson text/))
-    fireEvent.click(row)
-    expect(onPresentDay).toHaveBeenCalledTimes(2)
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Due: Due item' }))
     fireEvent.click(screen.getByRole('link', { name: 'Notes' }))
     expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(assignment)
-    expect(onPresentDay).toHaveBeenCalledTimes(2)
+    expect(onPresentDay).not.toHaveBeenCalled()
+    fireEvent.click(row)
+    expect(onPresentDay).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByText(/Lesson text/))
     if (editable) {
-      const edit = screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })
-      expect(edit.className).toContain('[@media(hover:hover)]:pointer-events-none')
-      expect(edit.className).toContain('[@media(hover:hover)]:group-hover:pointer-events-auto')
-      expect(edit.className).toContain('[@media(hover:hover)]:focus:pointer-events-auto')
-      fireEvent.click(edit)
       expect(screen.getByRole('textbox')).toBeInTheDocument()
-      expect(row).not.toHaveClass('cursor-pointer')
+      expect(onPresentDay).toHaveBeenCalledOnce()
       fireEvent.click(screen.getByRole('textbox'))
+      expect(onPresentDay).toHaveBeenCalledOnce()
+    } else {
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
       expect(onPresentDay).toHaveBeenCalledTimes(2)
     }
+  })
+
+  it('starts editing from blank dense lesson space without opening the day', () => {
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda lessonPlan={null} onPresentDay={onPresentDay} />)
+    const area = screen.getByRole('button', { name: 'Add lesson for March 13, 2026' }).closest('.calendar-day-text')!
+    fireEvent.click(area)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(onPresentDay).not.toHaveBeenCalled()
   })
 
   it('ignores clicks in an interactive announcement tooltip rendered in a portal', async () => {
@@ -672,7 +681,7 @@ describe('LessonDayCell agenda', () => {
       expect(screen.getByRole('button', { name: 'Open Friday, March 13, 2026' })).toHaveFocus()
     })
     renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda onPresentDay={onPresentDay} />)
-    fireEvent.click(screen.getByText('Lesson text'))
+    fireEvent.click(screen.getByRole('article'))
     expect(onPresentDay).toHaveBeenCalledOnce()
   })
 
