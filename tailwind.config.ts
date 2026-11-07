@@ -38,6 +38,7 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      screens: { 'calendar-short': { raw: '(max-height: 400px)' } },
       colors: {
         // Semantic background colors
         page: 'var(--color-page)',

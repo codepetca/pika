@@ -628,13 +628,61 @@ describe('LessonDayCell agenda', () => {
   })
 
 
+  it.each([true, false])('opens a dense row from non-interactive content for editable=%s', editable => {
+    const onPresentDay = vi.fn()
+    const onAssignmentClick = vi.fn()
+    const assignment = { id: 'due', title: 'Due item', is_draft: false } as Assignment
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda editable={editable} onPresentDay={onPresentDay}
+      lessonPlan={{ ...lessonPlan, content_markdown: 'Lesson text [Notes](https://example.com)' }}
+      assignments={[assignment]} onAssignmentClick={onAssignmentClick} />)
+    const row = screen.getByRole('article')
+    expect(row).toHaveClass('items-center', 'cursor-pointer')
+    fireEvent.click(screen.getByText(/Lesson text/))
+    fireEvent.click(row)
+    expect(onPresentDay).toHaveBeenCalledTimes(2)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Due: Due item' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Notes' }))
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(assignment)
+    expect(onPresentDay).toHaveBeenCalledTimes(2)
+    if (editable) {
+      const edit = screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })
+      expect(edit.className).toContain('[@media(hover:hover)]:pointer-events-none')
+      expect(edit.className).toContain('[@media(hover:hover)]:group-hover:pointer-events-auto')
+      expect(edit.className).toContain('[@media(hover:hover)]:focus:pointer-events-auto')
+      fireEvent.click(edit)
+      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(row).not.toHaveClass('cursor-pointer')
+      fireEvent.click(screen.getByRole('textbox'))
+      expect(onPresentDay).toHaveBeenCalledTimes(2)
+    }
+  })
+
+  it('ignores clicks in an interactive announcement tooltip rendered in a portal', async () => {
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda announcements={[longAnnouncement]} onPresentDay={onPresentDay} />)
+    fireEvent.focus(screen.getByRole('button', { name: 'Announcement' }))
+    const tooltip = await screen.findByRole('tooltip')
+    fireEvent.click(within(tooltip).getByText(longAnnouncement.content))
+    expect(onPresentDay).not.toHaveBeenCalled()
+  })
+
+  it('focuses the date action before presenting a day from the row', () => {
+    const onPresentDay = vi.fn(() => {
+      expect(screen.getByRole('button', { name: 'Open Friday, March 13, 2026' })).toHaveFocus()
+    })
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda onPresentDay={onPresentDay} />)
+    fireEvent.click(screen.getByText('Lesson text'))
+    expect(onPresentDay).toHaveBeenCalledOnce()
+  })
+
   it.each([false, true])('keeps dense lesson space bounded with events (has content=%s)', hasContent => {
     const onAssignmentClick = vi.fn()
     const assignment = { id: 'due', title: 'Due item', is_draft: false } as Assignment
     const plan = hasContent ? { ...lessonPlan, content_markdown: 'LongWord'.repeat(80) } : null
     renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda lessonPlan={plan} assignments={[assignment]} onAssignmentClick={onAssignmentClick} />)
     const edit = screen.getByRole('button', { name: `${hasContent ? 'Edit' : 'Add'} lesson for March 13, 2026` })
-    const lessonArea = edit.parentElement!
+    const lessonArea = edit.closest('.calendar-day-text')!
     expect(lessonArea).toHaveClass('max-w-full', 'min-w-control', 'flex-1')
     expect(lessonArea).toHaveClass('break-words', hasContent ? 'basis-48' : 'basis-0')
     const due = screen.getByRole('button', { name: 'Due: Due item' })
