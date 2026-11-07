@@ -51259,3 +51259,24 @@ Applied local migrations 293–295. Migration 296 initially failed on a reserved
 ## 2026-10-30 — Named schedule CI fixes
 
 Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
+
+<!-- pika-session-log-archive-batch:c10e91045712acb9267a8f483af67f2004c2e7323512b22b95e6052bf1e9e596 -->
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
+
+## 2026-10-31 — Named schedule proof catalog
+
+Updated the sealed test-member-list canonical catalog to include both reviewed migration-296 attendance tables while preserving predecessor profiles. The catalog and proof unit suites pass; the failed PR database lane requires rerun on the reviewed head.
+
+## 2026-11-01 — Verified public classroom admission
+
+Prepared default-off verified-account admission, an explicit existing-session recovery action, and migration 297 with protected exclusion and growth-stop serialization. Isolated database replay and concurrency tests, representative mocked UI checks, and targeted proof-catalog checks were run; production activation, provider readiness and account-deletion lifecycle remain separate.
+
+## 2026-11-02 — Classroom responsiveness in progress
+
+Approved responsiveness plan; worktree `codex/site-responsiveness` at base ebe91cab. Teacher Test detail/results overlap only after draft succeeds; Classwork surveys prefetch on intent; teacher/student Calendar Tests reads keep in-flight dedup but no settled cache. Controlled synthetic probes: Test editor median 724→531 ms with 200 ms mocked reads (8 samples); Classwork hover teacher 497→117 ms and student 431→88 ms with 400 ms survey delay (4 samples), no idle survey requests. Not production evidence. Focused component tests pass; browser matrix and full checks/review remain in progress. Probe receipts under `/tmp/pika-responsiveness-probe.bGoLmS` and `/tmp/pika-classwork-probe.zesg5l`. Do not prefetch Tests until mutation invalidation races are resolved. Goal tracker remained blocked after approval; app controls resume status.
+
+## 2026-11-02 — Teacher Classwork cold loading
+
+PR1718 merged to main as 0507966c; exact-head CI passed on retry after one unrelated UiGallery timeout. In `codex/classwork-cold-load`, teacher Classwork reuses the classroom class-days provider without blocking its three-list snapshot; the standalone fallback hides another classroom's schedule immediately. Paired synthetic browser probe holding class-days 500ms: median list readiness 545→37ms (5 samples/version), one request per source; no production latency claim. Focused component/context tests pass 105. UI matrix, focused checks and independent review pending. Evidence: `/tmp/pika-classdays-paired.0haTTl`.
