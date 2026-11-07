@@ -91,6 +91,26 @@ for (const role of ['teacher', 'student'] as const) {
     }
     await page.reload({ waitUntil: 'networkidle' })
     await expect(page.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await page.setViewportSize({ width: 390, height: 844 })
+    const mobileDates = page.getByRole('region', { name: 'Calendar dates' })
+    const mobileActionBar = page.getByRole('group', { name: 'Calendar view' }).locator('xpath=ancestor::div[contains(@class,"sticky")][1]')
+    const weekdays = mobileDates.locator('.grid > .sticky').filter({ hasText: /^(S|Mon|Tue|Wed|Thu|Fri)$/ })
+    await expect(weekdays).toHaveCount(7)
+    for (const position of ['top', 'middle'] as const) {
+      await mobileDates.evaluate((element, value) => { element.scrollTop = value === 'top' ? 0 : element.scrollHeight / 2 }, position)
+      await expect.poll(async () => {
+        const bar = await mobileActionBar.boundingBox()
+        const scroll = await mobileDates.boundingBox()
+        return !!bar && !!scroll && bar.y + bar.height <= scroll.y + 1
+      }).toBe(true)
+      for (const weekday of await weekdays.all()) {
+        await expect.poll(() => weekday.evaluate(element => {
+          const rect = element.getBoundingClientRect()
+          const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2)
+          return hit === element || element.contains(hit)
+        })).toBe(true)
+      }
+    }
     await page.setViewportSize({ width: 390, height: 401 })
     await page.route('**/api/**', route => {
       const path = new URL(route.request().url()).pathname

@@ -1253,7 +1253,7 @@ export function TeacherLessonCalendarTab({
   return (
     <PageLayout bleedX={false} className="min-h-0 flex-1">
       <CalendarActionBar
-        className={`sticky top-12 z-sticky-table bg-page ${viewMode === 'list' ? 'mx-auto w-full max-w-standard' : ''}`}
+        className={`sticky top-0 z-sticky-table bg-page calendar-short:top-12 ${viewMode === 'list' ? 'mx-auto w-full max-w-standard' : ''}`}
         viewMode={viewMode}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
