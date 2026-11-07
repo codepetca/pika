@@ -51245,6 +51245,8 @@ Risk profile: none. No production changes or migration are part of this edit.
 - Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
 
 <!-- pika-session-log-archive-batch:fd287e43ee2ac263a3cc931ede7d062711ae6a66e7fbccc5fb6a83bbfda21753 -->
+<!-- pika-session-log-archive-batch:80f870ff9ab80ec11592a1d4728f0843b4fbb252375bed0ff6a085b36ea32a98 -->
+<!-- pika-session-log-archive-batch:9031de11f94f4fa6e39b75255c819fdff0c0eb5e2ab9d881c6def39f49db67f5 -->
 ## 2026-10-30 — Named attendance schedules
 
 Prepared date-specific named QR attendance schedules, replacing the proposed manual open override. Regular policy remains the default; migration 296 adds guarded storage and sync source tracking. Focused tests and fixture visual checks are in progress. Local migrations 293–296 require separate explicit authorization; database replay, independent review, and release remain outstanding.
@@ -51252,3 +51254,8 @@ Prepared date-specific named QR attendance schedules, replacing the proposed man
 ## 2026-10-30 — Local named-schedule migration
 
 Applied local migrations 293–295. Migration 296 initially failed on a reserved SQL alias; corrected the alias and reviewed-source hashes, then applied 296 with renewed authorization. Verified local migration history, database objects and access controls; focused checks passed (4,489 tests). The rollback-only synthetic database harness passed on a temporary isolated copy, which was removed afterward.
+
+<!-- pika-session-log-archive-batch:8936d6bbe439cd703d0b4502e60d92d821681b628eed8e118f53de6271dd969a -->
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
