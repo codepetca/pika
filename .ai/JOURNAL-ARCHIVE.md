@@ -51968,6 +51968,7 @@ Risk profile: none. No production changes or migration are part of this edit.
 - Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
 
 <!-- pika-session-log-archive-batch:80f870ff9ab80ec11592a1d4728f0843b4fbb252375bed0ff6a085b36ea32a98 -->
+<!-- pika-session-log-archive-batch:9031de11f94f4fa6e39b75255c819fdff0c0eb5e2ab9d881c6def39f49db67f5 -->
 ## 2026-10-30 — Named attendance schedules
 
 Prepared date-specific named QR attendance schedules, replacing the proposed manual open override. Regular policy remains the default; migration 296 adds guarded storage and sync source tracking. Focused tests and fixture visual checks are in progress. Local migrations 293–296 require separate explicit authorization; database replay, independent review, and release remain outstanding.

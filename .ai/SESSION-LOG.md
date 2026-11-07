@@ -11,6 +11,14 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
+
+## 2026-10-31 — Named schedule proof catalog
+
+Updated the sealed test-member-list canonical catalog to include both reviewed migration-296 attendance tables while preserving predecessor profiles. The catalog and proof unit suites pass; the failed PR database lane requires rerun on the reviewed head.
+
 ## 2026-11-01 — Verified public classroom admission
 
 Prepared default-off verified-account admission, an explicit existing-session recovery action, and migration 297 with protected exclusion and growth-stop serialization. Isolated database replay and concurrency tests, representative mocked UI checks, and targeted proof-catalog checks were run; production activation, provider readiness and account-deletion lifecycle remain separate.
@@ -298,3 +306,6 @@ Partitioned the dark experience matrix into four fresh-server runs with an exact
 ## 2026-11-06 — Gradebook PDF test timeout
 
 Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
