@@ -31,6 +31,16 @@ export const BillingSubscriptionBindingSchema = z.object({
 
 export type BillingSubscriptionBinding = z.infer<typeof BillingSubscriptionBindingSchema>
 
+export const BillingScheduledRenewalSchema = z.object({
+  operation_id: uuidSchema,
+  provider_schedule_id: z.string().regex(/^sub_sched_[A-Za-z0-9]{1,240}$/),
+  effective_at: isoDateTimeSchema,
+  state: z.enum(['scheduled', 'applied']),
+  target_binding: BillingSubscriptionBindingSchema,
+}).strict()
+
+export type BillingScheduledRenewal = z.infer<typeof BillingScheduledRenewalSchema>
+
 const claimedSubscriptionSchema = z.object({
   status: z.literal('claimed'),
   subscription_id: uuidSchema,
@@ -225,4 +235,10 @@ export type BillingFinishInput = {
   provider_status?: string
   cancel_at_period_end?: boolean
   obligations_cleared?: boolean
+}
+
+export type BillingScheduledRenewalFinishInput = BillingFinishInput & {
+  operation_id: string
+  provider_schedule_id: string
+  target_offering_version_id: string
 }

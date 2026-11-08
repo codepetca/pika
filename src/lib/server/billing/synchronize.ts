@@ -1,14 +1,18 @@
 import {
   BillingFinishResultSchema,
   BillingProviderSubscriptionSnapshotSchema,
+  BillingScheduledRenewalSchema,
   BillingSubscriptionClaimSchema,
   type BillingClaimedSubscription,
   type BillingProviderSubscriptionSnapshot,
   type BillingFinishInput,
+  type BillingScheduledRenewal,
+  type BillingScheduledRenewalFinishInput,
   type BillingSubscriptionBinding,
   type BillingSynchronizationReason,
 } from '@/lib/server/billing/contracts'
 import { z } from 'zod'
+import { scheduledTermEnd } from './scheduled-plan-change-period'
 import { AppliedUpgradeProviderEvidenceSchema, UpgradeOperationSchema, type UpgradeOperation } from './upgrade-contracts'
 import { upgradeQuoteDigest } from './upgrade-service'
 
@@ -23,6 +27,8 @@ export type BillingStore = {
   finishSubscription(input: BillingFinishInput): Promise<unknown>
   listWork(input: { limit: number }): Promise<unknown>
   getAppliedUpgrade?(input: { subscription_id: string }): Promise<unknown>
+  getScheduledRenewal?(input: { subscription_id: string }): Promise<unknown>
+  finishScheduledRenewal?(input: BillingScheduledRenewalFinishInput): Promise<unknown>
 }
 
 export type BillingSynchronizationResult =
@@ -38,6 +44,8 @@ type PaidEvidence = {
   periodStart: string
   periodEnd: string
 }
+
+type BillingObservation = Omit<BillingFinishInput, 'subscription_id' | 'lease_token' | 'fencing_token' | 'expected_subscription_revision' | 'expected_account_plan_revision' | 'event_inbox_id'>
 
 function equalTimestamp(left: string, right: string): boolean {
   return new Date(left).getTime() === new Date(right).getTime()
@@ -170,7 +178,7 @@ export function verifyPaidSubscriptionSnapshot(
 export function verifyBillingLifecycleSnapshot(
   claim: BillingClaimedSubscription,
   candidate: unknown,
-): Omit<BillingFinishInput, 'subscription_id' | 'lease_token' | 'fencing_token' | 'expected_subscription_revision' | 'expected_account_plan_revision' | 'event_inbox_id'> | BillingSynchronizationReason {
+): BillingObservation | BillingSynchronizationReason {
   const facts = claim.lifecycle
   if (!facts?.is_current) return 'subscription_not_current'
   const parsed = BillingProviderSubscriptionSnapshotSchema.safeParse(candidate)
@@ -240,12 +248,78 @@ export function verifyBillingLifecycleSnapshot(
   return 'invoice_not_paid'
 }
 
+function verifyScheduledRenewalSnapshot(
+  claim: BillingClaimedSubscription,
+  proof: BillingScheduledRenewal,
+  snapshot: BillingProviderSubscriptionSnapshot,
+): BillingObservation | BillingSynchronizationReason {
+  const { binding, lifecycle: facts } = claim
+  const target = proof.target_binding
+  if (snapshot.scheduleId !== proof.provider_schedule_id || snapshot.pendingUpdate || snapshot.pauseCollection
+    || snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled') return 'subscription_transition_unapproved'
+  if (snapshot.liveMode || snapshot.stripeAccount !== binding.stripe_account
+    || target.stripe_account !== binding.stripe_account || target.provider_mode !== binding.provider_mode) return 'provider_environment_invalid'
+  if (!snapshot.isCurrent || !facts?.is_current) return 'subscription_not_current'
+  if (snapshot.customerId !== binding.stripe_customer_id || snapshot.subscriptionId !== binding.stripe_subscription_id
+    || target.stripe_customer_id !== binding.stripe_customer_id || target.stripe_subscription_id !== binding.stripe_subscription_id
+    || target.subscription_id !== binding.subscription_id || target.subject_user_id !== binding.subject_user_id) return 'subscription_not_bound'
+  if (!facts.paid_through || !facts.paid_period_start || !facts.last_paid_invoice_id
+    || (facts.end_reason !== 'renewal_pending' && facts.end_reason !== 'renewal_grace')) return 'invoice_not_paid'
+  if (target.currency !== binding.currency || target.unit_amount <= 0) return 'financial_terms_unapproved'
+
+  const effective = Date.parse(proof.effective_at)
+  const now = Date.now()
+  const alreadyApplied = proof.state === 'applied'
+  if (alreadyApplied) {
+    if (now < effective || !equalTimestamp(proof.effective_at, facts.paid_period_start)
+      || Date.parse(facts.paid_through) !== scheduledTermEnd(proof.effective_at, target.interval)) return 'invoice_line_unverified'
+    if (target.offering_version_id !== binding.offering_version_id || target.offering_id !== binding.offering_id
+      || target.stripe_price_id !== binding.stripe_price_id || target.stripe_product_id !== binding.stripe_product_id
+      || target.plan_key !== binding.plan_key || target.interval !== binding.interval
+      || target.unit_amount !== binding.unit_amount) return 'subscription_transition_unapproved'
+  } else {
+    if (!equalTimestamp(proof.effective_at, facts.paid_through)) return 'invoice_line_unverified'
+    // The durable admission contract currently permits only this downgrade.
+    if (target.offering_version_id === binding.offering_version_id || target.stripe_price_id === binding.stripe_price_id
+      || binding.plan_key !== 'pro' || target.plan_key !== 'plus' || target.interval !== binding.interval
+      || target.unit_amount >= binding.unit_amount) return 'subscription_transition_unapproved'
+  }
+
+  // Strip only the schedule whose durable identity and binding were checked.
+  // The ordinary verifiers still enforce invoice, item, charge, and mode facts.
+  const knownSchedule = { ...snapshot, scheduleId: null }
+  if (alreadyApplied || now < effective) {
+    if (now < Date.parse(facts.paid_period_start) || facts.end_reason !== 'renewal_pending') return 'invoice_line_unverified'
+    const paid = verifyPaidSubscriptionSnapshot(binding, knownSchedule)
+    if (typeof paid === 'string') return paid
+    if (paid.invoiceId !== facts.last_paid_invoice_id || !equalTimestamp(paid.periodStart, facts.paid_period_start)
+      || !equalTimestamp(paid.periodEnd, facts.paid_through)
+      || (alreadyApplied && snapshot.latestInvoice?.billingReason !== 'subscription_cycle')) return 'invoice_line_unverified'
+    return { outcome: 'observed', invoice_id: null, period_start: null, period_end: null, reason_code: null,
+      provider_status: 'active', cancel_at_period_end: false, obligations_cleared: false }
+  }
+
+  const invoice = snapshot.latestInvoice
+  if (!invoice) return 'invoice_missing'
+  if (invoice.billingReason !== 'subscription_cycle') return 'invoice_not_bound'
+  const verified = verifyBillingLifecycleSnapshot({ ...claim, binding: target }, knownSchedule)
+  if (typeof verified === 'string') return verified
+  if (verified.outcome !== 'paid' && verified.outcome !== 'renewal_invoice_pending' && verified.outcome !== 'renewal_failed') {
+    return 'subscription_transition_unapproved'
+  }
+  if (!verified.invoice_id || verified.invoice_id === facts.last_paid_invoice_id || !verified.period_start || !verified.period_end
+    || !equalTimestamp(verified.period_start, proof.effective_at)
+    || Date.parse(verified.period_end) !== scheduledTermEnd(proof.effective_at, target.interval)) return 'invoice_line_unverified'
+  return verified
+}
+
 async function finish(
   store: BillingStore,
   claim: BillingClaimedSubscription,
-  input: Omit<BillingFinishInput, 'subscription_id' | 'lease_token' | 'fencing_token' | 'expected_subscription_revision' | 'expected_account_plan_revision'>,
+  input: BillingObservation & Pick<BillingFinishInput, 'event_inbox_id'>,
+  persist: (request: BillingFinishInput) => Promise<unknown> = request => store.finishSubscription(request),
 ): Promise<BillingSynchronizationResult> {
-  const rawResult = await store.finishSubscription({
+  const rawResult = await persist({
     subscription_id: claim.subscription_id,
     lease_token: claim.lease_token,
     fencing_token: claim.fencing_token,
@@ -370,6 +444,29 @@ export async function synchronizeBillingSubscription(args: {
     snapshot = await args.provider.retrieveSubscription(claim.data.binding)
   } catch {
     return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable')
+  }
+
+  const { getScheduledRenewal, finishScheduledRenewal } = args.store
+  if (getScheduledRenewal && finishScheduledRenewal && typeof snapshot === 'object' && snapshot !== null
+    && 'scheduleId' in snapshot && snapshot.scheduleId !== null) {
+    const normalized = BillingProviderSubscriptionSnapshotSchema.safeParse(snapshot)
+    if (!normalized.success) return finishException(args.store, claim.data, args.eventInboxId, 'provider_snapshot_invalid')
+    let stored: unknown
+    try {
+      stored = await getScheduledRenewal({ subscription_id: claim.data.subscription_id })
+    } catch {
+      return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable')
+    }
+    const proof = BillingScheduledRenewalSchema.safeParse(stored)
+    if (!proof.success) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
+    const verified = verifyScheduledRenewalSnapshot(claim.data, proof.data, normalized.data)
+    if (typeof verified === 'string') return finishException(args.store, claim.data, args.eventInboxId, verified)
+    const completion = { ...verified, event_inbox_id: args.eventInboxId }
+    if (verified.outcome === 'observed') return finish(args.store, claim.data, completion)
+    return finish(args.store, claim.data, completion, request => finishScheduledRenewal({
+      ...request, operation_id: proof.data.operation_id, provider_schedule_id: proof.data.provider_schedule_id,
+      target_offering_version_id: proof.data.target_binding.offering_version_id,
+    }))
   }
 
   if (claim.data.lifecycle) {

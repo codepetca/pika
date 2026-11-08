@@ -46,7 +46,7 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     // The shared guard pins this client to loopback and rejects redirect responses.
     fetch: createTargetBoundFetch(config.supabaseOrigin),
   })
-  const databaseStore = createBillingStore(client)
+  const databaseStore = createBillingStore(client, process.env.BILLING_SCHEDULED_RENEWALS_ENABLED === 'true')
   let provisioningSubject: string | undefined
   const store = { ...databaseStore, async claimSubscription(input: Parameters<typeof databaseStore.claimSubscription>[0]) {
     const raw = await databaseStore.claimSubscription(input)

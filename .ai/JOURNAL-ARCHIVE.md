@@ -51339,3 +51339,10 @@ regressions cover multi-page reads, exact boundaries, and later-page failures.
 Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
 7d1c121fb. The rebase preserved the prior source tree and continuity histories;
 PR 1727 remains draft pending focused checks and exact-head review.
+
+<!-- pika-session-log-archive-batch:719dc1aae1363556b8f9dea56a90cf99058cd16796a4c5e55c8a14fc77d648c8 -->
+## 2026-11-03 — Classwork refresh browser fixture
+
+The Classwork continuity fixture now models summary and full reads separately.
+Its first refresh fails the summary and then exercises the full-read fallback,
+including retained editor, failure, retry, recovery, and controlled navigation.

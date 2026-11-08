@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Classwork refresh browser fixture
-
-The Classwork continuity fixture now models summary and full reads separately.
-Its first refresh fails the summary and then exercises the full-read fallback,
-including retained editor, failure, retry, recovery, and controlled navigation.
-
 ## 2026-11-03 List order toggle
 
 - Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
@@ -296,6 +290,14 @@ recoverable when new admissions close. Migration 304 isolates conflicting
 expiry rows so a limited batch still processes healthy accounts. Offline
 001–304 replay, billing/RepoLight contracts and contention passed. Live mode
 and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, closeout, replacement, customer UI and profile admission are pending.
 
 ## 2026-11-09 — Sync billing launch with main
 

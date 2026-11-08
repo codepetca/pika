@@ -656,3 +656,21 @@ expire an unrelated healthy account. The worker rechecks revisions after
 taking the same account and entitlement locks used by the writer. The isolated
 rollback fixture places both conflict types ahead of a healthy expired trial
 and verifies that a batch of one completes only the healthy expiry.
+
+### Scheduled Max-to-Pro sandbox checkpoint
+
+Migrations 305–306 add an exact same-interval, same-currency renewal quote,
+teacher confirmation, and leased Stripe schedule installation. The worker
+records each possible attach or configure request before sending it, pins its
+replay window, and commits a schedule only after checking its identity and
+terms. Recovery is independent of the customer admission flag. A verified
+target renewal payment changes the purchased version atomically. A failed
+target invoice enters the exact seven-day grace period on the paid Max terms.
+
+Both application flags and the database admission flag default to off. This
+checkpoint has disposable database and mocked Stripe evidence. It still needs
+disposable CI profile admission, independent review, customer scheduling and
+replacement controls, and scheduled target-invoice closeout and payment-race
+handling. The current verifier accepts target capture during grace. A capture
+at or after cutoff needs the pending closeout integration. Keep the scheduling
+flags off until those contracts and the isolated Stripe rehearsal pass.

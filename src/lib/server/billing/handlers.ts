@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { reconcileBillingSubscriptions } from '@/lib/server/billing/reconcile'
+import { logServerError } from '@/lib/server/diagnostics'
 import type { BillingProvider, BillingStore } from '@/lib/server/billing/synchronize'
 import { acceptBillingWebhook, readBillingWebhookBody, type BillingEventReceipt } from '@/lib/server/billing/webhook'
 
@@ -21,6 +22,7 @@ export function createBillingHandlers(
   loadLifecycle?: () => Promise<{ applyDue(input: { limit: number }): Promise<{ processed: number }> } | null>,
   loadCloseouts?: () => Promise<{ closeDueRenewals(input: { limit: number }): Promise<unknown> } | null>,
   loadUpgrades?: () => Promise<{ processDue(input: { limit: number }): Promise<unknown> } | null>,
+  loadScheduledChanges?: () => Promise<{ processDue(input: { limit: number }): Promise<unknown> } | null>,
 ) {
   function requireConfiguration() {
     const config = configuration()
@@ -46,6 +48,13 @@ export function createBillingHandlers(
       const runtime = await loadRuntime()
       const upgradeRuntime = loadUpgrades ? await loadUpgrades() : null
       const upgrades = upgradeRuntime ? await upgradeRuntime.processDue({ limit: 1 }) : undefined
+      let scheduledChanges: unknown
+      try {
+        const scheduledRuntime = loadScheduledChanges ? await loadScheduledChanges() : null
+        scheduledChanges = await scheduledRuntime?.processDue({ limit: 1 })
+      } catch (error) {
+        scheduledChanges = { failed: 1, diagnosticId: logServerError('api.unexpected', error) }
+      }
       const result = await reconcileBillingSubscriptions({
         store: runtime.store, provider: runtime.provider, limit: 1, leaseSeconds: 120,
       })
@@ -61,7 +70,7 @@ export function createBillingHandlers(
       // owns retry and exact entitlement checks; billing success is unchanged.
       await runtime.drainProvisioning?.()
       return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}),
-        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}) })
+        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}), ...(scheduledChanges ? { scheduledChanges } : {}) })
     }),
   }
 }

@@ -7,6 +7,7 @@ import { createBillingPurchaseRuntime } from '@/lib/server/billing/purchase-runt
 import { createBillingLifecycleRuntime } from '@/lib/server/billing/lifecycle-runtime'
 import { createBillingCloseoutRuntime } from '@/lib/server/billing/closeout-runtime'
 import { createBillingUpgradeRuntime } from '@/lib/server/billing/upgrade-runtime'
+import { createScheduledPlanChangeRuntime } from '@/lib/server/billing/scheduled-plan-change-runtime'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -32,6 +33,10 @@ const billingHandlers = createBillingHandlers(readBillingSandboxConfig, async ()
   const config = readBillingRecoveryConfig()
   if (!config) return null
   return createBillingUpgradeRuntime(config)
+}, async () => {
+  if (process.env.BILLING_SCHEDULED_RENEWALS_ENABLED !== 'true') return null
+  const config = readBillingSandboxConfig()
+  return config ? createScheduledPlanChangeRuntime(config) : null
 })
 
 export const POST = withErrorHandler('PostStripeBillingProcess', async (request, context) => (
