@@ -205,6 +205,31 @@ describe('contextual existing-assignment owner mutation routes', () => {
     expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
   })
 
+  it('uses canonical assignment IDs for observed schedules from uppercase legacy URLs', async () => {
+    const uppercaseId = assignmentId.toUpperCase()
+    const context = { params: Promise.resolve({ id: uppercaseId }) }
+    const url = `http://localhost/api/teacher/assignments/${uppercaseId}/release`
+    vi.mocked(authorizeContextualAssignmentOwnerMutationRequest).mockResolvedValue({
+      mode: 'legacy', user: user as any, assignmentId: uppercaseId,
+    })
+    const scheduledFor = '2099-01-01T00:00:00.000Z'
+    mockSupabase.rpc.mockResolvedValueOnce({ data: { assignment: assignment(), release_schedule: {
+      id: intentId, scheduled_for: scheduledFor, state: 'pending', notice_code: null,
+    } }, error: null })
+    const rescheduled = await releaseAssignment(new NextRequest(url, {
+      method: 'POST', body: JSON.stringify({ release_at: scheduledFor, expected_intent_id: intentId }),
+    }), context)
+    expect(rescheduled.status).toBe(200)
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'schedule_assignment_for_billing_v1', expect.objectContaining({ p_assignment_id: assignmentId }))
+
+    mockSupabase.rpc.mockResolvedValueOnce({ data: { assignment: assignment(), release_schedule: null }, error: null })
+    const canceled = await cancelRelease(new NextRequest(url, {
+      method: 'DELETE', body: JSON.stringify({ expected_intent_id: intentId }),
+    }), context)
+    expect(canceled.status).toBe(200)
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'cancel_assignment_release_for_owner_v1', expect.objectContaining({ p_assignment_id: assignmentId }))
+  })
+
   it.each([
     ['PT403', 'billing_classroom_new_work_unavailable', 403, 'Assignment release is unavailable for this classroom.'],
     ['PT409', 'billing_assignment_publication_busy', 409, 'Assignment changed during this update. Refresh and try again.'],

@@ -134,7 +134,7 @@ describe('GET /api/teacher/assignments', () => {
     const chain: any = { select: () => chain, eq: () => chain, order: () => chain,
       then: (resolve: (value: unknown) => void) => resolve({ data: [assignment], error: null }) }
     mockSupabaseClient.from = vi.fn(() => chain)
-    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    mockSupabaseClient.rpc.mockReturnValueOnce({ abortSignal: vi.fn().mockResolvedValue({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null }) } as any)
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1&summary=1'))
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ assignments: [{ ...assignment, release_schedule: schedule }], summary_only: true })
@@ -148,7 +148,7 @@ describe('GET /api/teacher/assignments', () => {
     const chain: any = { select: () => chain, eq: () => chain, order: () => chain,
       then: (resolve: (value: unknown) => void) => resolve({ data: [assignment], error: null }) }
     mockSupabaseClient.from = vi.fn((table: string) => table === 'assignments' ? chain : buildEmptySubmissionRequirementsTable())
-    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    mockSupabaseClient.rpc.mockReturnValueOnce({ abortSignal: vi.fn().mockResolvedValue({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null }) } as any)
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1'))
     expect(response.status).toBe(200)
     expect((await response.json()).assignments[0]).toMatchObject({ ...assignment, release_schedule: schedule, stats: expect.any(Object) })

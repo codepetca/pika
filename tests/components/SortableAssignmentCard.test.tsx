@@ -80,6 +80,7 @@ describe('SortableAssignmentCard', () => {
   it('keeps past-due queued work distinct from a missed release and opens the owner editor', async () => {
     const user = userEvent.setup()
     render(<TooltipProvider><AssignmentControllerPattern /></TooltipProvider>)
+    expect(screen.getByText('Scheduled', { exact: true })).toBeInTheDocument()
     expect(screen.getByText('Release pending')).toBeInTheDocument()
     expect(screen.getByText('Release missed')).toBeInTheDocument()
     expect(screen.queryByText('Draft', { exact: true })).not.toBeInTheDocument()

@@ -37,8 +37,9 @@ export async function stageBillingAssignmentRelease(
   scheduledFor: string,
   expectedIntentId?: string,
 ) {
+  const canonicalAssignmentId = assignmentId.toLowerCase()
   const { data, error } = await client.rpc('schedule_assignment_for_billing_v1', {
-    p_actor_id: actorId, p_assignment_id: assignmentId, p_scheduled_for: scheduledFor,
+    p_actor_id: actorId, p_assignment_id: canonicalAssignmentId, p_scheduled_for: scheduledFor,
     ...(expectedIntentId ? { p_expected_intent_id: expectedIntentId } : {}),
   })
   if (error) {
@@ -47,7 +48,7 @@ export async function stageBillingAssignmentRelease(
   }
   if (data === null && !expectedIntentId) return null
   const parsed = releaseMutationSchema.safeParse(data)
-  if (!parsed.success || parsed.data.assignment.id !== assignmentId
+  if (!parsed.success || parsed.data.assignment.id !== canonicalAssignmentId
     || !parsed.data.assignment.is_draft || parsed.data.assignment.released_at !== null
     || parsed.data.release_schedule?.state !== 'pending'
     || Date.parse(parsed.data.release_schedule.scheduled_for) !== Date.parse(scheduledFor)) {
@@ -63,14 +64,15 @@ export async function resolveBillingAssignmentRelease(
   expectedIntentId: string,
   action: 'cancel' | 'publish',
 ) {
+  const canonicalAssignmentId = assignmentId.toLowerCase()
   const { data, error } = await client.rpc(
     action === 'cancel' ? 'cancel_assignment_release_for_owner_v1' : 'publish_scheduled_assignment_for_owner_v1',
-    { p_actor_id: actorId, p_assignment_id: assignmentId, p_expected_intent_id: expectedIntentId },
+    { p_actor_id: actorId, p_assignment_id: canonicalAssignmentId, p_expected_intent_id: expectedIntentId },
   )
   if (error) throwScheduleMutationError(error)
   const parsed = releaseMutationSchema.safeParse(data)
   const canceled = action === 'cancel'
-  if (!parsed.success || parsed.data.assignment.id !== assignmentId || parsed.data.release_schedule !== null
+  if (!parsed.success || parsed.data.assignment.id !== canonicalAssignmentId || parsed.data.release_schedule !== null
     || parsed.data.assignment.is_draft !== canceled || (parsed.data.assignment.released_at === null) !== canceled) {
     throw new ApiError(503, 'Unable to verify assignment release update')
   }

@@ -126,10 +126,9 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
   if (shared.mode === 'shared') {
     const input = contextualAssignmentListQuerySchema.parse({ classroomId: resolveClassroomId() })
     const supabase = getServiceRoleClient()
-    const result = await readContextualAssignmentList({ supabase, actorId: shared.user.id, classroomId: input.classroomId, permission: 'owner' })
+    const result = await readContextualAssignmentList({ supabase, actorId: shared.user.id, classroomId: input.classroomId, permission: 'owner', includeReleaseSchedule: true })
     classworkListModeQuerySchema.parse({ summary: new URL(request.url).searchParams.getAll('summary') })
-    const assignments = await projectAssignmentReleaseStates(supabase, shared.user.id, input.classroomId, result.assignments)
-    return NextResponse.json({ ...result, assignments })
+    return NextResponse.json(result)
   }
   const assignmentAccess = await authorizeClassroomAssignmentRequest(resolveClassroomId, {
     legacyRole: 'teacher',
@@ -140,10 +139,9 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
   if (['contextual'].includes(assignmentAccess.mode)) {
     const input = contextualAssignmentListQuerySchema.parse({ classroomId })
     const supabase = getServiceRoleClient()
-    const result = await readContextualAssignmentList({ supabase, actorId: assignmentAccess.user.id, classroomId: input.classroomId, permission: 'owner' })
+    const result = await readContextualAssignmentList({ supabase, actorId: assignmentAccess.user.id, classroomId: input.classroomId, permission: 'owner', includeReleaseSchedule: true })
     classworkListModeQuerySchema.parse({ summary: new URL(request.url).searchParams.getAll('summary') })
-    const assignments = await projectAssignmentReleaseStates(supabase, assignmentAccess.user.id, input.classroomId, result.assignments)
-    return NextResponse.json({ ...result, assignments })
+    return NextResponse.json(result)
   }
 
   if (!classroomId) {

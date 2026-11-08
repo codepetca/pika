@@ -29,6 +29,17 @@ const PENDING_ASSIGNMENT: Assignment = {
     notice_code: null,
   },
 }
+const FUTURE_ASSIGNMENT: Assignment = {
+  ...FIXTURE_ASSIGNMENT,
+  id: 'assignment-controller-future',
+  title: 'Upcoming field observations',
+  release_schedule: {
+    id: '44dc7253-e183-43b6-850f-373a575e30ac',
+    scheduled_for: '2030-10-19T15:00:00.000Z',
+    state: 'pending',
+    notice_code: null,
+  },
+}
 const MISSED_ASSIGNMENT: Assignment = {
   ...FIXTURE_ASSIGNMENT,
   id: 'assignment-controller-missed',
@@ -79,7 +90,7 @@ export function AssignmentControllerPattern() {
         }}>Open controlled assignment</Button>
         <p role="status" className="mt-2 text-xs text-text-muted">{receipt}</p>
         <div className="mt-3 space-y-2">
-          {[PENDING_ASSIGNMENT, MISSED_ASSIGNMENT].map(record => {
+          {[FUTURE_ASSIGNMENT, PENDING_ASSIGNMENT, MISSED_ASSIGNMENT].map(record => {
             const open = () => setOwner({ mounted: true, open: true, record })
             return <SortableAssignmentCard key={record.id} assignment={record} isReadOnly editMode={false}
               onOpen={open} onEdit={open} onDelete={() => {}} />

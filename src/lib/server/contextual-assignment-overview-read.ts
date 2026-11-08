@@ -1,3 +1,4 @@
+import { projectAssignmentReleaseStates } from '@/lib/server/billing/assignment-release-state'
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { requireAuth } from '@/lib/auth'
@@ -45,7 +46,7 @@ export async function authorizeSharedAssignmentOverviewReadActor(): Promise<{ mo
 }
 
 /** Owner authority is proved by every payload statement, including empty terminal and final reads. */
-export async function readContextualAssignmentOverview(input: { supabase: Client; actorId: string; assignmentId: string }) {
+export async function readContextualAssignmentOverview(input: { supabase: Client; actorId: string; assignmentId: string; includeReleaseSchedule?: boolean }) {
   const identity = contextualAssignmentOverviewIdentitySchema.safeParse({ actorId: input.actorId, assignmentId: input.assignmentId })
   if (!identity.success) throw new ApiError(400, 'Invalid assignment overview query')
   const { actorId, assignmentId } = identity.data
@@ -302,8 +303,12 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
       instructions_markdown: getAssignmentInstructionsMarkdown(assignment).markdown, rich_instructions: assignment.rich_instructions, due_at: assignment.due_at, position: assignment.position,
       is_draft: assignment.is_draft, released_at: assignment.released_at, track_authenticity: assignment.track_authenticity, submission_requirements: requirements,
       created_by: assignment.created_by, created_at: assignment.created_at, updated_at: assignment.updated_at }, classroom: assignment.classrooms, students, active_ai_grading_run: activeAiGradingRun }
-    if (!boundedAssignmentListJson(result, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
-    checkDeadline(); return result
+    const [projected] = input.includeReleaseSchedule
+      ? await projectAssignmentReleaseStates(input.supabase, actorId, classroomId, [result.assignment], { signal: controller.signal, execute })
+      : [result.assignment]
+    const output = { ...result, assignment: projected }
+    if (!boundedAssignmentListJson(output, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
+    checkDeadline(); return output
   } catch (error) { if (error instanceof ApiError) throw error; throw unavailable() }
   finally { clearTimeout(timer) }
 }

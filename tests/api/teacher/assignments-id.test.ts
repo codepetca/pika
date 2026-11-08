@@ -274,7 +274,7 @@ describe('GET /api/teacher/assignments/[id]', () => {
     const assignment = makeAssignment({ classroom_id: 'classroom-1', is_draft: true, released_at: null })
     const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'pending', notice_code: null }
     mockSupabaseClient.from = mockAssignmentDetailTables({ assignment })
-    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    mockSupabaseClient.rpc.mockReturnValueOnce({ abortSignal: vi.fn().mockResolvedValue({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null }) } as any)
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments/a-1'), { params: { id: 'a-1' } })
     expect(response.status).toBe(200)
     expect((await response.json()).assignment).toMatchObject({ is_draft: true, released_at: null, release_schedule: schedule })

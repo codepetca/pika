@@ -28,7 +28,7 @@ describe('shared overview GET admission and retained body', () => {
   it.each(['teacher', 'student'])('uses current-owner helper for admitted global role %s', async role => {
     admission(); mocks.auth.mockResolvedValue({ id: actorId, role })
     const response = await GET(request(), { params: Promise.resolve({ id: assignmentId.toUpperCase() }) })
-    expect(response.status).toBe(200); expect(mocks.read).toHaveBeenCalledWith({ supabase: {}, actorId, assignmentId })
+    expect(response.status).toBe(200); expect(mocks.read).toHaveBeenCalledWith({ supabase: {}, actorId, assignmentId, includeReleaseSchedule: true })
     expect(mocks.legacy).not.toHaveBeenCalled()
   })
   it('projects the schedule for a shared owner overview', async () => {
@@ -37,7 +37,7 @@ describe('shared overview GET admission and retained body', () => {
     const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'pending', notice_code: null }
     const rpc = vi.fn().mockResolvedValue({ data: [{ assignment_id: assignmentId, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
     mocks.client.mockReturnValue({ rpc })
-    mocks.read.mockResolvedValue({ assignment, classroom: {}, students: [], active_ai_grading_run: null })
+    mocks.read.mockResolvedValue({ assignment: { ...assignment, release_schedule: schedule }, classroom: {}, students: [], active_ai_grading_run: null })
     const response = await GET(request(), { params: Promise.resolve({ id: assignmentId }) })
     expect(response.status).toBe(200)
     expect((await response.json()).assignment).toEqual({ ...assignment, release_schedule: schedule })

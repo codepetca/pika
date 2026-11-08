@@ -92,7 +92,7 @@ function makeClient(options: { assignment?: unknown; rosterData?: unknown; assig
   })
   return {
     from,
-    rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202' } }),
+    rpc: vi.fn(() => ({ abortSignal: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202' } }) })),
     storage: { from: vi.fn() },
   }
 }

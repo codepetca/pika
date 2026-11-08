@@ -187,9 +187,8 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
   if (sharedActor.mode === 'shared') {
     const { assignmentId } = contextualAssignmentOverviewQuerySchema.parse({ assignmentId: (await context.params).id })
     const supabase = getServiceRoleClient()
-    const result = await readContextualAssignmentOverview({ supabase, actorId: sharedActor.user.id, assignmentId })
-    const [assignment] = await projectAssignmentReleaseStates(supabase, sharedActor.user.id, result.assignment.classroom_id, [result.assignment])
-    return NextResponse.json({ ...result, assignment })
+    const result = await readContextualAssignmentOverview({ supabase, actorId: sharedActor.user.id, assignmentId, includeReleaseSchedule: true })
+    return NextResponse.json(result)
   }
   const resolveAssignmentId = async () => (await context.params).id
   const assignmentAccess = await authorizeClassroomAssignmentDetailRequest(resolveAssignmentId, {

@@ -93,6 +93,37 @@ describe('current assignment list statements using the installed SDK offline', (
   it('rejects noncurrent student stats before using the payload', async () => {
     await expect(fixture({ docs: [{ ...doc(1), participant: { id: id(50001), enrollment: [{ classroom_id: otherId, student_id: id(50001) }] } }] }).read()).rejects.toMatchObject({ statusCode: 503 })
   })
+  it('never invokes schedule projection for a member even if opted in', async () => {
+    const f = fixture({ member: true })
+    const result = await readContextualAssignmentList({ supabase: f.supabase, actorId, classroomId, permission: 'member', includeReleaseSchedule: true })
+    expect(result.assignments).toHaveLength(1)
+    expect(f.urls.every(url => !url.pathname.includes('/rpc/'))).toBe(true)
+  })
+  it.each(['stalled', 'oversized'])('bounds an owner schedule lookup after the base list: %s', async mode => {
+    vi.useFakeTimers()
+    try {
+      const f = fixture({ assignments: [{ ...assignment(1), is_draft: true }] })
+      const baseFetch = f.fetcher.getMockImplementation()!
+      let reached!: () => void
+      const rpcReached = new Promise<void>(resolve => { reached = resolve })
+      let signal: AbortSignal | undefined
+      f.fetcher.mockImplementation(async (request: RequestInfo | URL, init?: RequestInit) => {
+        if (String(request).includes('/rpc/get_assignment_release_states_for_owner_v1')) {
+          signal = init?.signal ?? undefined; reached()
+          if (mode === 'stalled') return new Promise<Response>(() => {})
+          return new Response(JSON.stringify([{ junk: 'x'.repeat(9 * 1024 * 1024) }]), { status: 200 })
+        }
+        return baseFetch(request)
+      })
+      const pending = readContextualAssignmentList({ supabase: f.supabase, actorId, classroomId, permission: 'owner', includeReleaseSchedule: true })
+      const rejected = expect(pending).rejects.toMatchObject({ statusCode: 503 })
+      await rpcReached
+      if (mode === 'stalled') await vi.advanceTimersByTimeAsync(20_000)
+      await rejected
+      if (mode === 'stalled') expect(signal?.aborted).toBe(true)
+      expect(f.urls.length).toBeGreaterThan(1)
+    } finally { vi.useRealTimers() }
+  })
   it('fails uncertain transport without retry or query fallback', async () => {
     const f = fixture(); f.fetcher.mockRejectedValue(new Error('private backend detail'))
     await expect(f.read()).rejects.toMatchObject({ statusCode: 503 })
