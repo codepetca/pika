@@ -145,6 +145,54 @@ create trigger billing_classroom_unpaid_closeout after update of status on publi
 for each row when (new.status='closed' and old.status is distinct from new.status)
 execute function private.apply_billing_classroom_unpaid_closeout_v1();
 
+create function private.apply_billing_classroom_paid_reentry_v1()
+returns trigger language plpgsql security definer set search_path='' as $$
+declare v_previous_cutoff timestamptz:=(new.previous_state->>'access_ends_at')::timestamptz;
+begin
+  if v_previous_cutoff<=new.created_at
+    and (new.previous_state->>'source'='trial'
+      or (new.previous_state->>'source'='paid'
+        and new.previous_state->>'subscription_id' is distinct from new.next_state->>'subscription_id'))
+    and exists(select 1 from private.stripe_billing_settings where singleton and classroom_new_work_cutoff_enabled) then
+    -- The lifecycle audit retains the prior access row after settlement replaces
+    -- it. Expiry still applies when a new payer arrives ahead of the expiry job.
+    perform private.restrict_billing_classrooms_v1(new.subject_user_id,
+      (new.next_state->>'account_plan_revision')::bigint,v_previous_cutoff,0,null);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger billing_classroom_paid_reentry after insert on public.billing_lifecycle_audit
+for each row when (new.reason='paid' and new.previous_state is not null)
+execute function private.apply_billing_classroom_paid_reentry_v1();
+
+create function private.apply_billing_classroom_unpaid_retirement_v1()
+returns trigger language plpgsql security definer set search_path='' as $$
+declare v_access public.billing_account_access%rowtype;
+begin
+  if not exists(select 1 from private.stripe_billing_settings where singleton and classroom_new_work_cutoff_enabled) then
+    return new;
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('account-plan-subject:'||new.subject_user_id::text,20620260924));
+  perform public.lock_effective_feature_entitlement_v1(new.subject_user_id,'classrooms.create');
+  select * into v_access from public.billing_account_access
+    where subject_user_id=new.subject_user_id and subscription_id=new.id and end_reason='renewal_grace';
+  if found and v_access.access_ends_at<=clock_timestamp() then
+    -- Ordinary reconciliation can independently verify terminal closure before
+    -- closeout claims a lease. Record the same restriction at that boundary.
+    perform private.restrict_billing_classrooms_v1(new.subject_user_id,
+      v_access.account_plan_revision,v_access.access_ends_at,0,null);
+  end if;
+  return new;
+end;
+$$;
+
+create trigger billing_classroom_unpaid_retirement after update of is_current on public.stripe_billing_subscription_bindings
+for each row when (old.is_current and not new.is_current
+  and new.terminal_confirmed_at is not null and new.obligations_cleared_at is not null)
+execute function private.apply_billing_classroom_unpaid_retirement_v1();
+
 create function public.set_billing_classroom_selection_v1(p_subject uuid,p_operation uuid,p_keep uuid[])
 returns void language plpgsql security definer set search_path='' as $$
 declare
@@ -197,7 +245,8 @@ $$;
 revoke all on function private.billing_classroom_is_restricted_v1(uuid,uuid),
   private.billing_active_classroom_count_v1(uuid,uuid,timestamptz),private.billing_classroom_last_activity_v1(uuid,timestamptz),
   private.restrict_billing_classrooms_v1(uuid,bigint,timestamptz,integer,uuid[]),
-  private.apply_billing_classroom_capacity_drop_v1(),private.apply_billing_classroom_unpaid_closeout_v1()
+  private.apply_billing_classroom_capacity_drop_v1(),private.apply_billing_classroom_unpaid_closeout_v1(),
+  private.apply_billing_classroom_paid_reentry_v1(),private.apply_billing_classroom_unpaid_retirement_v1()
   from public,anon,authenticated,service_role;
 revoke all on function public.set_billing_classroom_selection_v1(uuid,uuid,uuid[]),
   public.restore_billing_classroom_v1(uuid,uuid) from public,anon,authenticated,service_role;

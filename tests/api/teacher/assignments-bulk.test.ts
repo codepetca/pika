@@ -12,7 +12,7 @@ vi.mock('@/lib/server/classrooms', () => ({
   assertTeacherCanMutateClassroom: vi.fn(async () => ({ ok: true })),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 describe('POST /api/teacher/assignments/bulk', () => {
   beforeEach(() => {
@@ -367,45 +367,36 @@ describe('POST /api/teacher/assignments/bulk', () => {
     ])
   })
 
-  it('should allow releasing a draft assignment', async () => {
-    // Mock: existing draft assignment via select().eq().in()
-    const mockIn = vi.fn().mockResolvedValue({
-      data: [
-        { id: 'a-1', title: 'Draft', is_draft: true, released_at: null },
-      ],
+  it.each([false, true])('runs a legacy create-and-release batch atomically (cutoff denial %s)', async denied => {
+    const { requireRole } = await import('@/lib/auth')
+    const actorId = '11111111-1111-4111-8111-111111111111'
+    const classroomId = '22222222-2222-4222-8222-222222222222'
+    const assignmentId = '33333333-3333-4333-8333-333333333333'
+    const createdId = '44444444-4444-4444-8444-444444444444'
+    vi.mocked(requireRole).mockResolvedValueOnce({ id: actorId } as never)
+    mockSupabaseClient.rpc.mockResolvedValue(denied ? {
+      data: null, error: { code: 'PT403', message: 'billing_classroom_new_work_unavailable' },
+    } : {
       error: null,
+      data: { ok: true, actor_id: actorId, classroom_id: classroomId, created: 1, updated: 1, assignments: [
+        { id: createdId, classroom_id: classroomId, created_by: actorId, is_draft: true },
+        { id: assignmentId, classroom_id: classroomId, created_by: actorId, is_draft: false },
+      ] },
     })
-    const mockSelectEq = vi.fn(() => ({ in: mockIn }))
-    const mockSelect = vi.fn(() => ({ eq: mockSelectEq }))
-
-    // Mock: update().eq().select()
-    const mockUpdateSelect = vi.fn().mockResolvedValue({
-      data: [{ id: 'a-1', title: 'Released', is_draft: false, released_at: '2025-01-15T00:00:00Z', position: 0 }],
-      error: null,
-    })
-    const mockUpdateEq = vi.fn(() => ({ select: mockUpdateSelect }))
-    const mockUpdate = vi.fn(() => ({ eq: mockUpdateEq }))
-
-    const mockFrom = vi.fn(() => ({
-      select: mockSelect,
-      update: mockUpdate,
-      insert: vi.fn(),
-    }))
-    ;(mockSupabaseClient.from as any) = mockFrom
-
     const assignments = [
-      { id: 'a-1', title: 'Released', due_at: '2025-01-20T23:59:00Z', instructions: 'Instructions', is_draft: false, position: 0 },
+      { title: 'New draft', due_at: '2025-01-20T23:59:00Z', instructions: '', is_draft: true, position: 0 },
+      { id: assignmentId, title: 'Release', due_at: '2025-01-20T23:59:00Z', instructions: '', is_draft: false, position: 1 },
     ]
+    const response = await POST(new NextRequest('http://localhost:3000/api/teacher/assignments/bulk', {
+      method: 'POST', body: JSON.stringify({ classroom_id: classroomId, assignments }),
+    }))
 
-    const request = new NextRequest(
-      'http://localhost:3000/api/teacher/assignments/bulk',
-      {
-        method: 'POST',
-        body: JSON.stringify({ classroom_id: 'c-1', assignments }),
-      }
-    )
-    const response = await POST(request)
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(denied ? 403 : 200)
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledExactlyOnceWith('save_assignments_bulk_for_owner_v1', expect.objectContaining({
+      p_actor_id: actorId, p_classroom_id: classroomId,
+      p_assignments: [expect.objectContaining({ is_draft: true }), expect.objectContaining({ id: assignmentId, is_draft: false })],
+    }))
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
   })
 
   it('should return 401 when not authenticated', async () => {

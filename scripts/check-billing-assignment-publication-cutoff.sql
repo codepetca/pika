@@ -67,6 +67,20 @@ begin
   exception when sqlstate 'PT403' then
     if sqlerrm<>'billing_classroom_new_work_unavailable' then raise; end if;
   end;
+  begin
+    perform public.save_assignments_bulk_for_owner_v1(v_teacher,v_classroom,jsonb_build_array(
+      jsonb_build_object('title','Tentative bulk draft','due_at',v_due,'is_draft',true,
+        'instructions_markdown','','description','','rich_instructions',v_content),
+      jsonb_build_object('id',v_other_draft,'title','Tentative bulk release','due_at',v_due,'is_draft',false,
+        'instructions_markdown','','description','','rich_instructions',v_content)));
+    raise exception 'Bulk publication escaped the cutoff';
+  exception when sqlstate 'PT403' then
+    if sqlerrm<>'billing_classroom_new_work_unavailable' then raise; end if;
+  end;
+  if exists(select 1 from public.assignments where classroom_id=v_classroom
+    and title in ('Tentative bulk draft','Tentative bulk release')) then
+    raise exception 'Cutoff rejection partially committed a bulk write';
+  end if;
   if not exists(select 1 from public.assignments where id=v_draft and title='Draft title'
     and is_draft and released_at is null) then raise exception 'Denied publication changed the draft'; end if;
   v_result:=public.update_assignment_for_owner_v1(v_teacher,v_draft,'{"title":"Retained draft"}',null);

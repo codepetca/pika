@@ -5,7 +5,7 @@
   },
   {
     "name": "309_billing_classroom_capacity_restrictions.sql",
-    "sha256": "d31bd11187eec85baf5f2998fa274204be6dd4dd7c965b28353d65f963938c67"
+    "sha256": "fbe2d9d58a666b7b70f1b9153c4df7700b2ade2a971ad03fdf7f2b3c253c67c1"
   },
   {
     "name": "310_billing_assignment_publication_cutoff.sql",

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
@@ -149,13 +148,17 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     if (!a.due_at) {
       errors.push(`Assignment "${a.title || `at position ${i}`}" has no due date`)
     }
+    if (a.id && typeof a.is_draft !== 'boolean') {
+      errors.push(`Assignment at position ${i} needs a draft status`)
+    }
   }
 
   if (errors.length > 0) {
     return NextResponse.json({ errors }, { status: 400 })
   }
 
-  if (access.mode === 'contextual') {
+  // Publish-capable batches must roll back every write if publication fails.
+  if (access.mode === 'contextual' || inputAssignments.some((assignment) => assignment.id && !assignment.is_draft)) {
     const result = await saveAssignmentsBulkForOwner({
       supabase,
       actorId: access.user.id,
@@ -338,9 +341,6 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
 
     const instructionFields = buildAssignmentInstructionFields(a.instructions)
 
-    // Determine if we're releasing (draft→released)
-    const isReleasing = existing.is_draft && !a.is_draft
-
     const updateData: Record<string, any> = {
       title: a.title.trim(),
       instructions_markdown: instructionFields.instructions_markdown,
@@ -355,11 +355,6 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       updateData.released_at = null
     }
 
-    // Set released_at when releasing
-    if (isReleasing) {
-      updateData.released_at = new Date().toISOString()
-    }
-
     const { data, error } = await supabase
       .from('assignments')
       .update(updateData)
@@ -367,7 +362,6 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       .select()
 
     if (error) {
-      throwBillingClassroomPublicationError(error)
       logServerError('assignment.bulk_update', error)
       return NextResponse.json(
         { error: 'Failed to update assignments' },

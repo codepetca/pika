@@ -123,7 +123,10 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
   const laterPrefixes = [295, 296, 297, 298, 299, 300, 301]
     .filter(count => migrations.length >= count)
     .map(count => classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, count)))
-  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, admission, ...laterPrefixes, expected]
+  const disposablePrefixes = [303, 304, 307]
+    .filter(count => migrations.length >= count)
+    .map(count => disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, count)))
+  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, admission, ...laterPrefixes, ...disposablePrefixes, expected]
   assert(accepted.some(profile => JSON.stringify([...catalog].sort()) === JSON.stringify(profile)), 'Unreviewed member-list canonical catalog')
   return disposableClassroomTestQuotaProofCatalog(catalog, migrations)
 }

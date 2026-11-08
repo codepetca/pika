@@ -110,4 +110,109 @@ begin
   end if;
 end $$;
 
+do $$
+declare
+  v_case text;
+  v_owner uuid;
+  v_classroom uuid;
+  v_offering uuid;
+  v_binding uuid;
+  v_claim jsonb;
+  v_request jsonb;
+  v_result jsonb;
+  v_period_start timestamptz;
+  v_period_end timestamptz;
+  v_cutoff timestamptz;
+begin
+  v_offering:=(public.billing_register_offering_v1(jsonb_build_object('plan_key','plus','version',9310,
+    'stripe_account','acct_reentry309','provider_mode','test','stripe_product_id','prod_reentry309',
+    'stripe_price_id','price_reentry309','currency','usd','unit_amount',1900,'interval','month','classroom_limit',5,
+    'features','{"catalog_key":"pika-reentry-fixture"}'::jsonb,'ai_definition',null,
+    'availability',jsonb_build_object('is_available',true)))->>'offering_version_id')::uuid;
+
+  foreach v_case in array array['beforeworker','disabledexpiry','terminalretirement'] loop
+    v_owner:=gen_random_uuid();
+    v_classroom:=gen_random_uuid();
+    update private.stripe_billing_settings set classroom_new_work_cutoff_enabled=true where singleton;
+    insert into public.users(id,email,role)
+    values(v_owner,'billing-capacity-'||v_case||'@example.invalid','teacher');
+    if not exists(select 1 from public.account_plans where subject_user_id=v_owner) then
+      perform public.set_account_plan_v1(gen_random_uuid(),v_owner,'free','test:billing-reentry','fixture',0);
+    end if;
+    perform public.billing_start_trial_v1(jsonb_build_object('subject_user_id',v_owner,'operation_id',gen_random_uuid()));
+    insert into public.classrooms(id,teacher_id,title,class_code)
+    values(v_classroom,v_owner,'Retained classroom',case v_case
+      when 'beforeworker' then 'RE309001' when 'disabledexpiry' then 'RE309002' else 'RE309003' end);
+
+    v_period_start:=date_trunc('second',clock_timestamp());
+    v_period_end:=v_period_start+interval '1 month';
+    if v_case='terminalretirement' then
+      v_period_end:=v_period_start-interval '8 days';
+      v_period_start:=v_period_end-interval '1 month';
+    else
+      v_cutoff:=clock_timestamp();
+      update public.billing_trials set started_at=v_cutoff-interval '720 hours',ends_at=v_cutoff where subject_user_id=v_owner;
+      update public.billing_account_access set starts_at=v_cutoff-interval '720 hours',access_ends_at=v_cutoff
+        where subject_user_id=v_owner;
+      update public.effective_feature_entitlements set starts_at=v_cutoff-interval '720 hours',expires_at=v_cutoff
+        where subject_user_id=v_owner and feature_key='classrooms.create';
+      if v_case='disabledexpiry' then
+        update private.stripe_billing_settings set classroom_new_work_cutoff_enabled=false where singleton;
+        perform public.billing_apply_due_access_v1('{"limit":25}');
+        if private.billing_classroom_is_restricted_v1(v_owner,v_classroom) then raise exception 'Dormant fixture restricted a classroom'; end if;
+        update private.stripe_billing_settings set classroom_new_work_cutoff_enabled=true where singleton;
+      elsif (select plan_key from public.account_plans where subject_user_id=v_owner) is distinct from 'plus' then
+        raise exception 'Fixture applied expiry before payment';
+      end if;
+    end if;
+
+    v_binding:=(public.billing_bind_customer_v1(jsonb_build_object('subject_user_id',v_owner,
+      'stripe_account','acct_reentry309','provider_mode','test','stripe_price_id','price_reentry309',
+      'stripe_customer_id','cus_reentry309'||v_case,'stripe_subscription_id','sub_reentry309'||v_case,
+      'offering_version_id',v_offering))->>'subscription_id')::uuid;
+    v_claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+    v_request:=jsonb_build_object('subscription_id',v_binding,'lease_token',v_claim->'lease_token',
+      'fencing_token',v_claim->'fencing_token','expected_subscription_revision',v_claim->'subscription_revision',
+      'expected_account_plan_revision',v_claim->'expected_account_plan_revision','outcome','paid',
+      'invoice_id','in_reentry309'||v_case,'period_start',v_period_start,'period_end',v_period_end,
+      'provider_status','active','cancel_at_period_end',false,'obligations_cleared',false);
+    v_result:=public.billing_finish_lifecycle_v1(v_request);
+    if v_result->>'status' is distinct from 'applied' then raise exception 'Fixture payment failed: %',v_case; end if;
+
+    if v_case='terminalretirement' then
+      v_cutoff:=v_period_end+interval '168 hours';
+      v_claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+      v_request:=v_request||jsonb_build_object('lease_token',v_claim->'lease_token','fencing_token',v_claim->'fencing_token',
+        'expected_subscription_revision',v_claim->'subscription_revision','expected_account_plan_revision',v_claim->'expected_account_plan_revision',
+        'outcome','renewal_failed','invoice_id','in_reentry309failed','period_start',v_period_end,
+        'period_end',v_period_end+interval '1 month','provider_status','past_due');
+      if public.billing_finish_lifecycle_v1(v_request)->>'status' is distinct from 'applied' then
+        raise exception 'Fixture could not record failed renewal';
+      end if;
+      if private.billing_classroom_is_restricted_v1(v_owner,v_classroom) then raise exception 'Grace was closed before terminal verification'; end if;
+      v_claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+      v_request:=v_request||jsonb_build_object('lease_token',v_claim->'lease_token','fencing_token',v_claim->'fencing_token',
+        'expected_subscription_revision',v_claim->'subscription_revision','expected_account_plan_revision',v_claim->'expected_account_plan_revision',
+        'outcome','canceled','invoice_id',null,'period_start',null,'period_end',null,
+        'provider_status','canceled','obligations_cleared',true);
+      v_result:=public.billing_finish_lifecycle_v1(v_request);
+      if v_result->>'status' is distinct from 'applied'
+        or exists(select 1 from public.stripe_billing_subscription_bindings where id=v_binding and is_current)
+        or exists(select 1 from public.billing_renewal_closeouts where subscription_id=v_binding) then
+        raise exception 'Ordinary terminal fixture did not retire without closeout';
+      end if;
+    end if;
+
+    if not exists(select 1 from private.billing_classroom_restrictions where subject_user_id=v_owner
+      and classroom_id=v_classroom and restricted_at=v_cutoff and restored_at is null)
+      or private.billing_classroom_can_start_work_v1(v_classroom)
+      or (select archived_at from public.classrooms where id=v_classroom) is not null then
+      raise exception 'Cutoff history did not require explicit restoration: %',v_case;
+    end if;
+    if v_case<>'terminalretirement' and not public.restore_billing_classroom_v1(v_owner,v_classroom) then
+      raise exception 'Paid re-entry did not allow explicit restore: %',v_case;
+    end if;
+  end loop;
+end $$;
+
 rollback;

@@ -369,3 +369,7 @@ The sealed disposable 001–307 replay passed.
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the existing atomic writer.

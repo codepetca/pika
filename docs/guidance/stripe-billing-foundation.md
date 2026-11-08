@@ -660,6 +660,10 @@ Draft edits, page views and classroom renames do not affect the ranking. For a
 scheduled downgrade, the reduction takes effect when Pika verifies the target
 payment and commits the smaller entitlement. A failed target invoice leaves
 the Max classroom limit and selection unchanged through grace.
+An expired trial or a closed paid term still requires explicit classroom
+restoration when payment is reconciled before expiry processing. Verified
+unpaid payer retirement records the same restrictions when Stripe has already
+closed the obligations.
 
 ### Scheduled assignment release contract
 
