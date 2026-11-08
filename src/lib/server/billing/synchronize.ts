@@ -319,9 +319,12 @@ function verifyScheduledRenewalSnapshot(
       || target.unit_amount >= binding.unit_amount) return 'subscription_transition_unapproved'
   }
 
+  const sourceSnapshotAtBoundary = binding.provider_mode === 'live' && !alreadyApplied && now >= effective
+    && snapshot.status === 'active' && snapshot.items[0]?.priceId === binding.stripe_price_id
   // Strip only the schedule whose durable identity and binding were checked.
   // The ordinary verifiers still enforce invoice, item, charge, and mode facts.
-  const targetInvoice = (alreadyApplied || now >= effective) && snapshot.latestInvoice?.billingReason === 'subscription_update'
+  const targetInvoice = !sourceSnapshotAtBoundary && (alreadyApplied || now >= effective)
+    && snapshot.latestInvoice?.billingReason === 'subscription_update'
     ? { ...snapshot.latestInvoice, billingReason: 'subscription_cycle' }
     : snapshot.latestInvoice
   // Cancellation markers can linger on a terminal subscription. The caller
@@ -336,13 +339,16 @@ function verifyScheduledRenewalSnapshot(
       || !verified.period_end || !equalTimestamp(verified.period_end, facts.paid_through)) return 'invoice_line_unverified'
     return verified
   }
-  if (alreadyApplied || now < effective) {
+  if (alreadyApplied || now < effective || sourceSnapshotAtBoundary) {
     if (now < Date.parse(facts.paid_period_start) || facts.end_reason !== 'renewal_pending') return 'invoice_line_unverified'
     const paid = verifyPaidSubscriptionSnapshot(binding, knownSchedule, scope)
     if (typeof paid === 'string') return paid
     if (paid.invoiceId !== facts.last_paid_invoice_id || !equalTimestamp(paid.periodStart, facts.paid_period_start)
       || !equalTimestamp(paid.periodEnd, facts.paid_through)
       || (alreadyApplied && targetInvoice?.billingReason !== 'subscription_cycle')) return 'invoice_line_unverified'
+    // A provider read can straddle the boundary. Retry the exact old paid
+    // observation under the existing budget without altering the access cutoff.
+    if (sourceSnapshotAtBoundary) return 'provider_unavailable'
     return { outcome: 'observed', invoice_id: null, period_start: null, period_end: null, reason_code: null,
       provider_status: 'active', cancel_at_period_end: false, obligations_cleared: false }
   }
