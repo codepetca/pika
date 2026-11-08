@@ -590,8 +590,9 @@ plan status, while the new page hides unsupported actions.
 2. Complete renewal-boundary changes and the customer cancellation path.
    Persist the confirmed source and target offering, exact effective date and
    provider schedule identity. Require verified target payment to advance the
-   purchased version. Record the owner's grace capacity choice before
-   implementing failed scheduled-renewal behavior. Fence replacement,
+   purchased version. The 2026-11-08 owner decision retains the last paid Max
+   classroom limit if the scheduled Pro renewal payment fails. Keep target
+   invoice proof separate from the offering supplying grace access. Fence replacement,
    cancellation and upgrade against outstanding financial operations. Use
    Stripe schedule phases with no immediate proration for eligible scheduled
    changes. [Stripe schedule contract](https://docs.stripe.com/billing/subscriptions/subscription-schedules)
@@ -640,3 +641,18 @@ The shared local environment has no configured Stripe sandbox credentials for
 this worktree. Provider-port fixtures and database replays are separate from
 the actual provider rehearsal. The September 27 receipt is historical first
 purchase evidence only.
+
+### Worker recovery follow-up
+
+Keep the base sandbox and its validated local app origin configured when
+stopping new checkout and upgrade admissions. The authenticated worker still
+drains checkout and upgrade operations already recorded in Pika. Customer
+mutations continue to check their respective admission gates. A blank app
+origin leaves the base subscription, expiry and closeout paths available.
+
+Migration 304 isolates expiry conflicts. A stale account-plan or entitlement
+revision stays available for investigation, and a limited batch can still
+expire an unrelated healthy account. The worker rechecks revisions after
+taking the same account and entitlement locks used by the writer. The isolated
+rollback fixture places both conflict types ahead of a healthy expired trial
+and verifies that a batch of one completes only the healthy expiry.

@@ -6,5 +6,9 @@
   {
     "name": "303_billing_customer_options.sql",
     "sha256": "2949a66a761481c57b25d130706e71a9cb47a3b24f86eff9ef9dca56ffa964cc"
+  },
+  {
+    "name": "304_billing_isolate_expiry_conflicts.sql",
+    "sha256": "72075d8f721bd3745ecaec3555f58d5c508b63a1288802a8bf715ff252d1cb4b"
   }
 ]

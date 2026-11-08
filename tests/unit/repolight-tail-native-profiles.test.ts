@@ -48,12 +48,13 @@ describe('sealed 300 native source profiles (offline only)', () => {
 
   it('admits the sealed billing suffix for member-list disposable replay and keeps the 301 catalog', () => {
     expect(() => validateTestMemberListReviewedMigrations(current)).not.toThrow()
+    expect(() => validateTestMemberListReviewedMigrations(current.slice(0, 303))).not.toThrow()
     const catalog301 = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, chain)
     expect(testMemberListReviewedIsolatedCatalog(catalog301, current)).toEqual(catalog301)
     expect(testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toEqual(catalog301)
     const changed = current.map(row => ({ ...row }))
-    changed[302].sql += '\n'
-    changed[302].sha256 = hash(changed[302].sql)
+    changed[303].sql += '\n'
+    changed[303].sha256 = hash(changed[303].sql)
     for (const inventory of [changed, current.slice(0, 302)]) {
       expect(() => validateTestMemberListReviewedMigrations(inventory)).toThrow()
       expect(() => testMemberListReviewedIsolatedCatalog(catalog301, inventory)).toThrow()
@@ -82,7 +83,7 @@ describe('sealed 300 native source profiles (offline only)', () => {
 
   it('rejects partial and unknown source tails', () => {
     for (const inventory of [chain.slice(0, 298), chain.slice(0, 299), [...chain, {name:'302_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}],
-      [...current, {name:'304_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
+      [...current, {name:'305_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
       const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(inventory)
       try {
         expect(() => createOfflineTestLearnerRepository(repository)).toThrow()

@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions 296–303 are sealed below and do not modify Auth/Storage.
+# Source extensions 296–304 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 303)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303].includes(migrations.length),'RepoLight access proof target must end at 301 or 303'); validateDisposableBillingReplayMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 304)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304].includes(migrations.length),'RepoLight access proof target must end at 301, 303 or 304'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -127,12 +127,19 @@ for proof in check-repolight-database.sql check-repolight-analysis-access-databa
   fi
 done
 echo 'PASS rollback-only RepoLight compatibility and access contracts.'
-if [[ "$replay_version" == 303 ]]; then
+if ((10#$replay_version >= 303)); then
   if ! sql < "$root/scripts/check-billing-renewal-pending-database.sql" > "$scratch/billing-renewal-pending.log" 2>&1; then
     tail -25 "$scratch/billing-renewal-pending.log" >&2
     exit 1
   fi
   echo 'PASS rollback-only billing renewal contracts.'
+fi
+if [[ "$replay_version" == 304 ]]; then
+  if ! sql < "$root/scripts/check-billing-expiry-conflicts-database.sql" > "$scratch/billing-expiry-conflicts.log" 2>&1; then
+    tail -25 "$scratch/billing-expiry-conflicts.log" >&2
+    exit 1
+  fi
+  echo 'PASS rollback-only billing expiry conflict contracts.'
 fi
 node "$root/scripts/check-repolight-analysis-access-contention.mjs" "$clone_id" "$$:$token" > "$scratch/contention.log" 2>&1 || { tail -30 "$scratch/contention.log" >&2; exit 1; }
 echo 'PASS two-session plan and exact-expiry contention.'

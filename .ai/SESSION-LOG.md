@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Rebase Tests pagination onto main
-
-Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
-7d1c121fb. The rebase preserved the prior source tree and continuity histories;
-PR 1727 remains draft pending focused checks and exact-head review.
-
 ## 2026-11-03 — Classwork refresh browser fixture
 
 The Classwork continuity fixture now models summary and full reads separately.
@@ -294,6 +288,14 @@ migrations 302–303 cover pending renewal recovery, undo-cancellation after a
 verified prorated upgrade, and advisory account actions. RepoLight's migration
 301 tier rule and exact cutoff stay in place. See the billing foundation
 checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
 
 ## 2026-11-09 — Sync billing launch with main
 

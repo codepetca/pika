@@ -36,7 +36,7 @@ function sealedReplayPreflight(path: string, repository = process.cwd()) {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -101,7 +101,7 @@ describe('isolated attendance membership database proof', () => {
     } finally { rmSync(repository, { recursive: true, force: true }) }
   }, 60_000)
 
-  it.each(['tampered298', 'tampered299', 'tampered300', 'tampered301', 'renamed301', 'renamed299', 'missing300', 'partial298', 'partial299', 'tampered302', 'tampered303', 'renamed302', 'renamed303', 'partial302', 'missing302', 'unknown304'] as const)(
+  it.each(['tampered298', 'tampered299', 'tampered300', 'tampered301', 'renamed301', 'renamed299', 'missing300', 'partial298', 'partial299', 'tampered302', 'tampered303', 'tampered304', 'renamed302', 'renamed303', 'renamed304', 'partial302', 'missing302', 'unknown305'] as const)(
     'rejects %s from the attendance replay preflight', defect => {
       const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-replay-profile-'))
       try {
@@ -115,13 +115,13 @@ describe('isolated attendance membership database proof', () => {
         if (defect.startsWith('renamed')) renameSync(file, join(migrations, `${version}_unknown.sql`))
         if (defect.startsWith('missing')) rmSync(file)
         if (defect.startsWith('partial')) for (const later of files.slice(version)) rmSync(join(migrations, later))
-        if (defect === 'unknown304') writeFileSync(file, 'select 1;')
+        if (defect === 'unknown305') writeFileSync(file, 'select 1;')
         expect(sealedReplayPreflight('scripts/check-attendance-membership-adoption-database.sh', repository).status).not.toBe(0)
       } finally { rmSync(repository, {recursive:true,force:true}) }
     }, 60_000,
   )
   it('binds its platform-source extension to application-only migration bytes', () => {
-    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-3])_/.test(name))) {
+    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-4])_/.test(name))) {
       const sql=readFileSync(join('supabase/migrations',file),'utf8')
       expect(sql).not.toMatch(/\b(?:auth|storage)\s*\.|\b(?:create|alter|drop)\s+schema\b/i)
     }
@@ -192,7 +192,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateDisposableBillingReplayMigrations')
-    expect(source).toContain("assert([297,300,301,303].includes(migrations.length)")
+    expect(source).toContain("assert([297,300,301,303,304].includes(migrations.length)")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {

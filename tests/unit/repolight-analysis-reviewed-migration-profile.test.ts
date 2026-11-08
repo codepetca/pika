@@ -77,18 +77,19 @@ describe('RepoLight 298–301 closed source profile', () => {
   })
 })
 
-describe('Billing 302–303 disposable replay source profile', () => {
+describe('Billing 302–304 disposable replay source profile', () => {
   const chain = loadAssignmentListReviewedMigrations(process.cwd())
   const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
   it('accepts the exact complete billing suffix for disposable replay only', () => {
-    expect(chain).toHaveLength(303)
+    expect(chain).toHaveLength(304)
     expect(() => validateDisposableBillingReplayMigrations(chain)).not.toThrow()
     expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, 301))).not.toThrow()
+    expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, 303))).not.toThrow()
     expect(() => validateLifecycleServicesReviewedMigrations(chain)).toThrow()
   })
 
-  it.each([302, 303])('rejects self-hashed changes to migration %i', version => {
+  it.each([302, 303, 304])('rejects self-hashed changes to migration %i', version => {
     const changed = chain.map(migration => ({ ...migration }))
     changed[version - 1].sql += '\n-- source substitution'
     changed[version - 1].sha256 = hash(changed[version - 1].sql)
@@ -98,6 +99,6 @@ describe('Billing 302–303 disposable replay source profile', () => {
   it('rejects a partial suffix and a contiguous unknown successor', () => {
     expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, 302))).toThrow()
     const sql = 'select 1;'
-    expect(() => validateDisposableBillingReplayMigrations([...chain, { name: '304_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
+    expect(() => validateDisposableBillingReplayMigrations([...chain, { name: '305_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
   })
 })

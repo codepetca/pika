@@ -280,6 +280,11 @@ purchase-order billing. Sponsored/manual grant precedence remains deferred.
 - Failed renewals get **seven days of grace from the paid period's end**, keeping
   paid capabilities during retries. Use an exact timestamp, not seven calendar
   midnights. Success clears failed-payment/expiry notices.
+- Owner decision 2026-11-08 for a scheduled Max-to-Pro renewal: if the Pro
+  payment fails, keep the last paid Max classroom limit during the exact
+  seven-day grace period. Apply Pro after verified target payment. If grace
+  expires unpaid, apply Free restrictions. Keep the target invoice separate
+  from the offering that supplies grace access.
 - At the unpaid grace deadline, apply Free restrictions, end the failed
   subscription and close out the unpaid renewal invoice so later automatic
   collection cannot unexpectedly charge it. Grace is complimentary. Reconcile
