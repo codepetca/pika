@@ -483,7 +483,7 @@ export function buildTestOwnerReorderNativeContractsManifest(original: Assignmen
   // The caller first seals and admits the full migration chain; this selects
   // additional fixture checks for complete profiles with the RepoLight outbox.
   const names = readdirSync(resolve(repository, 'supabase/migrations')).filter(name => /^\d{3}_.+\.sql$/.test(name)).sort()
-  const repoLight300 = [300, 301, 303, 304, 307].includes(names.length) ? `
+  const repoLight300 = [300, 301, 303, 304, 307, 310].includes(names.length) ? `
  or (select count(*) from private.repolight_settings)<>1
  or not exists(select 1 from private.repolight_settings where singleton and not plan_enforcement_enabled and not legacy_plan_access_enabled and not billing_access_enabled and not managed_provisioning_enabled)
  or (select count(*) from private.repolight_provision_control)<>1

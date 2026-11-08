@@ -50,8 +50,8 @@ describe('sealed 300 native source profiles (offline only)', () => {
     expect(() => validateTestMemberListReviewedMigrations(current)).not.toThrow()
     expect(() => validateTestMemberListReviewedMigrations(current.slice(0, 303))).not.toThrow()
     const catalog301 = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, chain)
-    expect(testMemberListReviewedIsolatedCatalog(catalog301, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes'].sort())
-    expect(testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes'].sort())
+    expect(testMemberListReviewedIsolatedCatalog(catalog301, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions'].sort())
+    expect(testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions'].sort())
     const changed = current.map(row => ({ ...row }))
     changed[303].sql += '\n'
     changed[303].sha256 = hash(changed[303].sql)

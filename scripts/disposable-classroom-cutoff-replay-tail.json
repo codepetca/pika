@@ -1,0 +1,14 @@
+[
+  {
+    "name": "308_billing_classroom_test_start_cutoff.sql",
+    "sha256": "cae5c9e4a2d878e0ce854077eaa1072efb4e46c6f30d59910a905762e4de46bc"
+  },
+  {
+    "name": "309_billing_classroom_capacity_restrictions.sql",
+    "sha256": "d31bd11187eec85baf5f2998fa274204be6dd4dd7c965b28353d65f963938c67"
+  },
+  {
+    "name": "310_billing_assignment_publication_cutoff.sql",
+    "sha256": "43f404097a230fa92012083252ae58ec62b76762dc26be524a9c78c77e781335"
+  }
+]

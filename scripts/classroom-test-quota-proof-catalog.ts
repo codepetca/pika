@@ -59,7 +59,7 @@ export function classroomTestQuotaProofCatalog(
 }
 
 /** Owned disposable replays use the full sealed source. The billing tail
- * adds one private table at 305; fingerprint it only after the complete 307 tail.
+ * adds private tables at 305 and 309; fingerprint each only after its complete tail.
  */
 export function disposableClassroomTestQuotaProofCatalog(
   canonicalTables: readonly string[],
@@ -68,7 +68,8 @@ export function disposableClassroomTestQuotaProofCatalog(
   if (migrations.length <= 301) return classroomTestQuotaProofCatalog(canonicalTables, migrations)
   validateDisposableBillingReplayMigrations(migrations)
   const base = classroomTestQuotaProofCatalog(canonicalTables, migrations.slice(0, 301))
-  return migrations.length === 307
-    ? Object.freeze([...new Set([...base, 'private.billing_scheduled_plan_changes'])].sort())
-    : base
+  return Object.freeze([...new Set([...base,
+    ...(migrations.length >= 307 ? ['private.billing_scheduled_plan_changes'] : []),
+    ...(migrations.length === 310 ? ['private.billing_classroom_restrictions'] : []),
+  ])].sort())
 }
