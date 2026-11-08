@@ -257,6 +257,7 @@ function verifyScheduledRenewalSnapshot(
   const { binding, lifecycle: facts } = claim
   const target = proof.target_binding
   const terminal = snapshot.status === 'canceled'
+  const alreadyApplied = proof.state === 'applied'
   if ((snapshot.scheduleId !== proof.provider_schedule_id && !(terminal && snapshot.scheduleId === null))
     || snapshot.pendingUpdate || snapshot.pauseCollection
     || (!terminal && (snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd))) return 'subscription_transition_unapproved'
@@ -267,12 +268,12 @@ function verifyScheduledRenewalSnapshot(
     || target.stripe_customer_id !== binding.stripe_customer_id || target.stripe_subscription_id !== binding.stripe_subscription_id
     || target.subscription_id !== binding.subscription_id || target.subject_user_id !== binding.subject_user_id) return 'subscription_not_bound'
   if (!facts.paid_through || !facts.paid_period_start || !facts.last_paid_invoice_id
-    || (facts.end_reason !== 'renewal_pending' && facts.end_reason !== 'renewal_grace')) return 'invoice_not_paid'
+    || (facts.end_reason !== 'renewal_pending' && facts.end_reason !== 'renewal_grace'
+      && !(terminal && alreadyApplied && facts.end_reason === 'cancellation'))) return 'invoice_not_paid'
   if (target.currency !== binding.currency || target.unit_amount <= 0) return 'financial_terms_unapproved'
 
   const effective = Date.parse(proof.effective_at)
   const now = Date.now()
-  const alreadyApplied = proof.state === 'applied'
   if (terminal && now < effective) return 'subscription_transition_unapproved'
   if (alreadyApplied) {
     if (now < effective || !equalTimestamp(proof.effective_at, facts.paid_period_start)

@@ -256,7 +256,10 @@ declare
 begin
   select id into strict v_max from public.stripe_billing_offering_versions where stripe_price_id='price_schedule305max';
   select id into strict v_pro from public.stripe_billing_offering_versions where stripe_price_id='price_schedule305pro';
-  foreach v_case in array array['latepaid','terminalpaid','captured','voided'] loop
+  foreach v_case in array array['latepaid','terminalpaid','terminalretire','captured','voided'] loop
+    v_end:=date_trunc('second',clock_timestamp())-(case when v_case='terminalretire' then interval '40 days' else interval '8 days' end);
+    v_start:=((v_end at time zone 'UTC')-interval '1 month') at time zone 'UTC';
+    v_next_end:=((v_end at time zone 'UTC')+interval '1 month') at time zone 'UTC';
     v_user:=gen_random_uuid();
     v_operation:=gen_random_uuid();
     v_schedule:='sub_sched_schedule307'||v_case;
@@ -290,10 +293,10 @@ begin
       'provider_schedule_id',v_schedule,'lease_token',v_claim->'lease_token','fencing_token',v_claim->'fencing_token',
       'expected_subscription_revision',v_claim->'subscription_revision','expected_account_plan_revision',v_claim->'expected_account_plan_revision',
       'outcome','renewal_failed','provider_status','past_due','invoice_id',v_target_invoice,'period_start',v_end,'period_end',v_next_end);
-    if v_case in ('latepaid','terminalpaid') then
+    if v_case in ('latepaid','terminalpaid','terminalretire') then
       v_request:=v_request||jsonb_build_object('outcome','paid','provider_status',
-        case when v_case='terminalpaid' then 'canceled' else 'active' end,
-        'cancel_at_period_end',v_case='terminalpaid','obligations_cleared',v_case='terminalpaid');
+        case when v_case='latepaid' then 'active' else 'canceled' end,
+        'cancel_at_period_end',v_case<>'latepaid','obligations_cleared',v_case='terminalpaid');
       v_result:=public.billing_finish_scheduled_renewal_v1(v_request||jsonb_build_object('period_end',v_next_end+interval '1 year'));
       if v_result->>'status' is distinct from 'rejected'
         or exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding
@@ -304,10 +307,28 @@ begin
       if v_result->>'status' is distinct from 'applied'
         or not exists(select 1 from public.billing_account_access where subject_user_id=v_user and offering_version_id=v_pro
           and last_paid_invoice_id=v_target_invoice and paid_through=v_next_end and failed_renewal_invoice_id is null
-          and end_reason=(case when v_case='terminalpaid' then 'cancellation' else 'renewal_pending' end))
+          and end_reason=(case when v_case='latepaid' then 'renewal_pending' else 'cancellation' end))
         or not exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding
           and stripe_invoice_id=v_target_invoice and offering_version_id=v_pro) then
         raise exception 'First verified Pro payment after the grace window did not settle: %',v_result;
+      end if;
+      if v_case='terminalretire' then
+        if public.billing_get_scheduled_renewal_v1(jsonb_build_object('subscription_id',v_binding))->>'state' is distinct from 'applied'
+          or (select plan_key from public.account_plans where subject_user_id=v_user) is distinct from 'free' then
+          raise exception 'Expired cancellation lost the applied schedule before obligations cleared';
+        end if;
+        v_claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_binding,'lease_seconds',120));
+        v_request:=(v_request-array['operation_id','provider_schedule_id','target_offering_version_id'])||jsonb_build_object(
+          'lease_token',v_claim->'lease_token','fencing_token',v_claim->'fencing_token',
+          'expected_subscription_revision',v_claim->'subscription_revision',
+          'expected_account_plan_revision',v_claim->'expected_account_plan_revision','obligations_cleared',true);
+        v_result:=public.billing_finish_lifecycle_v1(v_request);
+        if v_result->>'status' is distinct from 'replayed'
+          or exists(select 1 from public.stripe_billing_subscription_bindings where id=v_binding and is_current)
+          or (select count(*) from public.stripe_billing_invoice_effects where subscription_id=v_binding
+            and stripe_invoice_id=v_target_invoice)<>1 then
+          raise exception 'Terminal paid replay did not retire the binding exactly once: %',v_result;
+        end if;
       end if;
       continue;
     end if;

@@ -213,6 +213,26 @@ describe('scheduled renewal reconciliation', () => {
     }))
   })
 
+  it.each([-1, 0, 1000])('replays the terminal target receipt at paid-through plus %sms', async offset => {
+    vi.setSystemTime(Date.parse(targetEnd) + offset)
+    const receipt = snapshot(target)
+    receipt.latestInvoice.billingReason = 'subscription_update'
+    const value = { ...receipt, status: 'canceled', scheduleId: null, terminalObligationsCleared: true } as const
+    const { provider, store, run } = fixture(value)
+    store.getScheduledRenewal.mockResolvedValue({ ...proof, state: 'applied' })
+    store.claimSubscription.mockResolvedValue({ ...claim, binding: target,
+      lease_expires_at: new Date(Date.now() + 120_000).toISOString(), lifecycle: { ...claim.lifecycle!,
+      paid_period_start: effectiveAt, paid_through: targetEnd, access_ends_at: targetEnd,
+      last_paid_invoice_id: 'in_Target', end_reason: 'cancellation' } })
+    provider.verifyScheduledRenewal.mockResolvedValue(true)
+    await expect(run()).resolves.toEqual({ kind: 'applied' })
+    expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      ...claimFence, outcome: 'paid', provider_status: 'canceled', obligations_cleared: true,
+      invoice_id: 'in_Target', period_start: effectiveAt, period_end: targetEnd,
+    }))
+    expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
+  })
+
   it('records only a fenced observation of the exact prior paid term before cutoff', async () => {
     vi.setSystemTime(Date.parse(effectiveAt) - 1)
     const { store, provider, run } = fixture(snapshot(source))
