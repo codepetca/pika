@@ -121,6 +121,23 @@ describe('StudentLessonCalendarTab', () => {
     await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-11-01') && String(url).includes('end=2026-11-30'))).toBe(true))
   })
 
+  it('allows a partially visible future month but blocks the following month', async () => {
+    vi.spyOn(timezone, 'nowInToronto').mockReturnValue(new Date(2026, 9, 30, 12))
+    const incomplete = { ...classroom, id: 'student-partial-month', start_date: null, end_date: null }
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => ({
+      lesson_plans: String(url).includes('start=2026-11-01') ? [{ id: 'visible-november-lesson' }] : [],
+      max_date: '2026-11-07', assignments: [], materials: [], announcements: [], tests: [],
+    }) }))
+    render(<StudentLessonCalendarTab showTests={false} classroom={incomplete} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-11-30'))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-ids', 'visible-november-lesson'))
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-11-30')
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-12-01'))).toBe(false)
+  })
+
   it('switches student List and Grid without refetching term data', async () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], max_date: null, assignments: [], announcements: [] }) })
     render(<StudentLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })

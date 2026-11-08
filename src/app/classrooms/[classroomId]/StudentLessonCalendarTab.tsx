@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { addMonths, addWeeks, endOfMonth, format, startOfMonth, startOfWeek, subMonths, subWeeks } from 'date-fns'
+import { addMonths, addWeeks, endOfMonth, format, startOfMonth, subMonths, subWeeks } from 'date-fns'
 import { CalendarActionBar } from '@/components/CalendarActionBar'
 import { CalendarSourceErrors, type CalendarSourceFailure } from '@/components/CalendarSourceErrors'
 import { LessonCalendar, CalendarViewMode } from '@/components/LessonCalendar'
@@ -472,7 +472,7 @@ export function StudentLessonCalendarTab({
   // Lesson visibility remains owned by the server; permitted reminders extend navigation only.
   const handleDateChange = useCallback((newDate: Date) => {
     if (calendarMaxDate) {
-      const newDateStr = format(startOfWeek(newDate, { weekStartsOn: 0 }), 'yyyy-MM-dd')
+      const newDateStr = format(startOfMonth(newDate), 'yyyy-MM-dd')
       if (newDateStr > calendarMaxDate) {
         // Don't allow navigation past max date
         return
