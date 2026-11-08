@@ -11,6 +11,14 @@ declare
   v_legacy uuid:=gen_random_uuid();
   v_student uuid:=gen_random_uuid();
   v_other uuid:=gen_random_uuid();
+  v_manual uuid:=gen_random_uuid();
+  v_school uuid:=gen_random_uuid();
+  v_unmatched uuid:=gen_random_uuid();
+  v_grant_subject uuid;
+  v_grant_source text;
+  v_snapshot jsonb;
+  v_plan_snapshot jsonb;
+  v_audit_count bigint;
   v_classroom uuid:=gen_random_uuid();
   v_assignment uuid:=gen_random_uuid();
   v_operation uuid:=gen_random_uuid();
@@ -48,7 +56,10 @@ begin
     (v_subject,'live-trial-owner@example.invalid','teacher'),
     (v_legacy,'live-trial-legacy@example.invalid','teacher'),
     (v_student,'live-trial-student@example.invalid','student'),
-    (v_other,'live-trial-other@example.invalid','teacher');
+    (v_other,'live-trial-other@example.invalid','teacher'),
+    (v_manual,'live-trial-manual@example.invalid','teacher'),
+    (v_school,'live-trial-school@example.invalid','teacher'),
+    (v_unmatched,'live-trial-unmatched@example.invalid','teacher');
   -- A legacy classroom can outlive its old entitlement. Create it while the
   -- teacher has a plan, then return them to Free before testing trial admission.
   perform public.set_account_plan_v1(gen_random_uuid(),v_subject,'plus','test:live-trial','fixture',
@@ -99,6 +110,38 @@ begin
     if sqlerrm<>'billing_live_trial_admission_disabled' then raise; end if;
   end;
   update private.stripe_billing_settings set live_trial_admission_enabled=true where singleton;
+  -- An independently managed Free entitlement must remain untouched even if
+  -- the account plan itself is Free. Trial options and admission both deny it.
+  for v_grant_subject, v_grant_source in select * from (values (v_manual,'manual'),(v_school,'school'),(v_unmatched,'plan')) grants(subject,source) loop
+    if not exists(select 1 from public.account_plans where subject_user_id=v_grant_subject) then
+      perform public.set_account_plan_v1(gen_random_uuid(),v_grant_subject,'free','test:live-trial','fixture',0);
+    end if;
+    perform public.set_effective_feature_entitlement_v1(gen_random_uuid(),v_grant_subject,'classrooms.create',
+      v_grant_source,v_grant_source<>'plan',clock_timestamp(),null,case when v_grant_source='plan' then 0 else 2 end,'test:live-trial','independent_grant',
+      (select revision from public.effective_feature_entitlements where subject_user_id=v_grant_subject and feature_key='classrooms.create'));
+    select to_jsonb(e) into v_snapshot from public.effective_feature_entitlements e
+      where subject_user_id=v_grant_subject and feature_key='classrooms.create';
+    select to_jsonb(p) into v_plan_snapshot from public.account_plans p where subject_user_id=v_grant_subject;
+    select count(*) into v_audit_count from public.effective_feature_entitlement_audit where subject_user_id=v_grant_subject;
+    if public.billing_get_live_access_status_v1(v_project,v_account,
+      jsonb_build_object('subject_user_id',v_grant_subject,'include_options',true))#>>'{customer_options,trial_available}' is distinct from 'false' then
+      raise exception 'Independent % grant was presented as trial eligible',v_grant_source;
+    end if;
+    begin
+      perform public.billing_start_live_trial_v1(v_project,v_account,
+        jsonb_build_object('subject_user_id',v_grant_subject,'operation_id',gen_random_uuid()));
+      raise exception 'Independent % grant was overwritten',v_grant_source;
+    exception when sqlstate '55000' then
+      if sqlerrm<>'billing_trial_ineligible' then raise; end if;
+    end;
+    if (select to_jsonb(e) from public.effective_feature_entitlements e where subject_user_id=v_grant_subject and feature_key='classrooms.create') is distinct from v_snapshot
+      or (select to_jsonb(p) from public.account_plans p where subject_user_id=v_grant_subject) is distinct from v_plan_snapshot
+      or (select count(*) from public.effective_feature_entitlement_audit where subject_user_id=v_grant_subject)<>v_audit_count
+      or exists(select 1 from public.billing_trials where subject_user_id=v_grant_subject)
+      or exists(select 1 from public.billing_account_access where subject_user_id=v_grant_subject) then
+      raise exception 'Independent % grant changed',v_grant_source;
+    end if;
+  end loop;
   begin
     perform public.billing_start_live_trial_v1(v_project,'acct_Other313',v_start);
     raise exception 'Wrong Stripe account started a live trial';

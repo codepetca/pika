@@ -180,8 +180,28 @@ create trigger billing_live_trial_classroom_transfer_fence
 create function private.billing_live_trial_eligible_v1(p_subject uuid)
 returns boolean language sql stable set search_path='' as $$
   select private.billing_trial_eligible_v1(p_subject)
-    and exists(select 1 from public.account_plans
-      where subject_user_id=p_subject and management_source='legacy')
+    and exists (
+      select 1 from public.account_plans plan
+      join public.account_plan_audit plan_audit on plan_audit.subject_user_id=plan.subject_user_id
+        and plan_audit.plan_revision=plan.revision and plan_audit.new_plan_key='free'
+        and plan_audit.new_classroom_limit=0
+      join public.effective_feature_entitlements entitlement on entitlement.subject_user_id=plan.subject_user_id
+        and entitlement.feature_key='classrooms.create' and entitlement.source='plan'
+        and not entitlement.enabled and entitlement.quota_limit=0 and entitlement.expires_at is null
+        and entitlement.revision=plan_audit.entitlement_revision
+      join public.effective_feature_entitlement_audit entitlement_audit
+        on entitlement_audit.operation_id=plan_audit.operation_id
+        and entitlement_audit.subject_user_id=entitlement.subject_user_id
+        and entitlement_audit.feature_key=entitlement.feature_key
+        and entitlement_audit.entitlement_revision=entitlement.revision
+        and entitlement_audit.new_source=entitlement.source
+        and entitlement_audit.new_enabled=entitlement.enabled
+        and entitlement_audit.new_starts_at=entitlement.starts_at
+        and entitlement_audit.new_expires_at is not distinct from entitlement.expires_at
+        and entitlement_audit.new_quota_limit is not distinct from entitlement.quota_limit
+      where plan.subject_user_id=p_subject and plan.management_source='legacy'
+        and plan.plan_key='free' and plan.billing_offering_version_id is null
+    )
     and not exists(select 1 from public.billing_account_access where subject_user_id=p_subject);
 $$;
 
@@ -314,13 +334,14 @@ begin
     raise exception using errcode='55000',message='billing_live_trial_admission_disabled';
   end if;
   select * into v_plan from public.account_plans where subject_user_id=v_subject for update;
-  if not found or not private.billing_live_trial_eligible_v1(v_subject) then
+  if not found then raise exception using errcode='55000',message='billing_trial_ineligible'; end if;
+  perform public.lock_effective_feature_entitlement_v1(v_subject,'classrooms.create');
+  if not private.billing_live_trial_eligible_v1(v_subject) then
     raise exception using errcode='55000',message='billing_trial_ineligible';
   end if;
   if private.billing_has_legacy_future_assignment_v1(v_subject) then
     raise exception using errcode='55000',message='billing_live_trial_future_releases';
   end if;
-  perform public.lock_effective_feature_entitlement_v1(v_subject,'classrooms.create');
   v_now:=clock_timestamp();
   insert into public.billing_trials(subject_user_id,operation_id,definition_id,started_at,ends_at)
     values(v_subject,v_operation,'pro-trial-v1',v_now,v_now+interval '720 hours');

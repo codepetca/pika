@@ -156,7 +156,7 @@ if (paths.length >= 311) {
 const trialTailPath = 'scripts/disposable-live-trial-replay-tail.json'
 if (paths.length >= 313) {
   const bytes = readFileSync(join(root, trialTailPath))
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), '440e74c641288ba79195d9f84f4bb85a6fcf5a2c6a335ce577af8976ec88e01d', 'Unreviewed live trial replay seal')
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), 'bb5a238fe788fe2118c807d1b324b804ac98a66266ee3cb612c372d2bd60a067', 'Unreviewed live trial replay seal')
   const tail = JSON.parse(bytes.toString('utf8'))
   assert.equal(tail.length, 1)
   const { name, sha256 } = tail[0]

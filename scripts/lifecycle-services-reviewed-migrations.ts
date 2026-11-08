@@ -121,7 +121,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   }
   if (migrations.length >= 313) {
     assert.equal(createHash('sha256').update(JSON.stringify(disposableLiveTrialReplayTail)).digest('hex'),
-      '59989e102ffdaf03e69658252c04a003ce3f753c95f99f66f3da87eb4bcae4ac', 'Unreviewed live trial replay seal')
+      '1350073dac51c21c697dfa4e3cdf2c2fd833d4396c71944aaca9c2e112a1ce54', 'Unreviewed live trial replay seal')
     assert.equal(disposableLiveTrialReplayTail.length, 1)
     const { name, sha256 } = disposableLiveTrialReplayTail[0]
     const migration = migrations[312]
