@@ -1145,10 +1145,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
 
       <ConfirmDialog
         isOpen={isOpen && closeConfirmOpen}
-        title="Close assignment?"
-        description="Your changes will be saved before closing."
-        confirmLabel="Save and close"
-        cancelLabel="Keep editing"
+        title="Save changes"
+        confirmLabel="Confirm Save"
         onCancel={() => setCloseConfirmOpen(false)}
         onConfirm={() => { setCloseConfirmOpen(false); void handleClose() }}
       />
