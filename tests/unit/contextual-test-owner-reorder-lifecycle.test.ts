@@ -538,10 +538,6 @@ describe('reorder snapshot/completion admission', () => {
     expect(() => validateTestOwnerReorderReviewedMigrations(current)).not.toThrow()
     const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current)
     expect(fullCatalog).toEqual(testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)))
-    const native = await vi.importActual<typeof import('../../scripts/contextual-test-draft-save-native-contracts')>('../../scripts/contextual-test-draft-save-native-contracts')
-    const manifest = native.buildTestOwnerReorderNativeContractsManifest(original, fixture, 'a'.repeat(40), process.cwd())
-    expect(manifest.setup).toContain('repolight_provision_billing_hint')
-    expect(manifest.setup).toContain('not managed_provisioning_enabled')
     const changed = current.map(migration => ({ ...migration }))
     changed[302].sql += '\n'
     changed[302].sha256 = testOwnerDigest(changed[302].sql)

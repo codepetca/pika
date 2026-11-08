@@ -56,6 +56,33 @@ describe('BillingUpgradeCard', () => {
     await waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
     expect(JSON.parse(fetch.mock.calls[0][1].body).operationId).toBe(JSON.parse(fetch.mock.calls[1][1].body).operationId)
   })
+  it('clears a rejected reservation only after an authenticated status read confirms it is absent', async () => {
+    const fetch = vi.fn((url: string) => url.endsWith(operationId)
+      ? json({ error: 'Upgrade operation not found' }, 404) : json({ error: 'Ineligible' }, 409))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingUpgradeCard userId="teacher" offers={[offer]} onActivated={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review upgrade' }))
+    await screen.findByText(/Could not prepare/)
+    expect(screen.getByRole('combobox')).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Check status' }))
+    expect(await screen.findByText(/You can request a new quote/)).toBeInTheDocument()
+    expect(screen.getByRole('combobox')).toBeEnabled()
+    expect(sessionStorage.getItem('pika-billing-upgrade:teacher')).toBeNull()
+  })
+
+  it('keeps an uncertain reservation even if it has not appeared in a status read yet', async () => {
+    const fetch = vi.fn((url: string) => url.endsWith(operationId)
+      ? json({ error: 'Upgrade operation not found' }, 404) : Promise.reject(new Error('network')))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingUpgradeCard userId="teacher" offers={[offer]} onActivated={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review upgrade' }))
+    await screen.findByText(/Could not prepare/)
+    fireEvent.click(screen.getByRole('button', { name: 'Check status' }))
+    await screen.findByText(/Could not check/)
+    expect(sessionStorage.getItem('pika-billing-upgrade:teacher')).toContain(operationId)
+    expect(screen.getByRole('button', { name: 'Retry quote' })).toBeEnabled()
+  })
+
   it('rejects mismatched operation and quote without exposing confirmation', async () => {
     vi.stubGlobal('fetch', vi.fn(() => json({ ...quoted, operationId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' })))
     render(<BillingUpgradeCard userId="teacher" offers={[offer]} onActivated={vi.fn()} />)
@@ -66,7 +93,7 @@ describe('BillingUpgradeCard', () => {
   it('recovers a stored operation and displays support attention', async () => {
     sessionStorage.setItem('pika-billing-upgrade:teacher', JSON.stringify({ id: operationId, offeringId: offer.offeringVersionId }))
     const fetch = vi.fn(() => json({ operationId, status: 'attention', quote: null })); vi.stubGlobal('fetch', fetch)
-    render(<BillingUpgradeCard userId="teacher" offers={[offer]} onActivated={vi.fn()} />)
+    render(<BillingUpgradeCard userId="teacher" offers={[]} catalog={[offer]} onActivated={vi.fn()} />)
     expect(await screen.findByText(/Please contact support/)).toBeInTheDocument()
     expect(fetch).toHaveBeenCalledWith(`/api/billing/upgrade/${operationId}`, { cache: 'no-store' })
   })

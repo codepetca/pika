@@ -43,7 +43,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
   const [message, setMessage] = useState('')
   const [purchase, setPurchase] = useState<BillingPurchaseStatus | null>(null)
   const [returnId, setReturnId] = useState('')
-  const [returnResult, setReturnResult] = useState('')
+  const [stripeReturn, setStripeReturn] = useState<{ id: string; result: string | null } | null>(null)
   const generation = useRef(0)
   const purchaseGeneration = useRef(0)
   const actionGeneration = useRef(0)
@@ -58,7 +58,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
       if (request !== generation.current) return
       const verified = BillingSubscriptionStatusSchema.parse(status)
       setSubscription(verified)
-      if (verified.options?.pendingCheckoutId) setReturnId(current => current || verified.options?.pendingCheckoutId || '')
+      if (verified.options?.pendingCheckoutId) setReturnId(verified.options.pendingCheckoutId)
       setCatalog(offers.items)
       setSelected(current => offers.items.some((item: BillingCatalogItem) => item.offeringVersionId === current) ? current : offers.items[0]?.offeringVersionId ?? '')
       setState('ready')
@@ -71,8 +71,11 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     if (!billingAvailable) return
     const params = new URLSearchParams(window.location.search)
     const checkout = params.get('checkout')
-    if (checkout && uuid.test(checkout)) setReturnId(checkout)
-    setReturnResult(params.get('result') ?? '')
+    if (checkout && uuid.test(checkout)) {
+      const id = checkout.toLowerCase()
+      setReturnId(id)
+      setStripeReturn({ id, result: params.get('result') })
+    }
     void load()
     return () => { generation.current++; actionGeneration.current++ }
   }, [billingAvailable, load])
@@ -81,6 +84,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     try {
       const result: BillingPurchaseStatus = await fetch(`/api/billing/checkout/${id}`, { cache: 'no-store' }).then(read)
       if (request !== purchaseGeneration.current) return 'stale'
+      if (result.attemptId !== id) throw new Error('Checkout attempt mismatch')
       setPurchase(result)
       if (result.status === 'expired' || result.status === 'active') {
         const attemptKey = `pika-billing-attempt:${userId}:${id}`
@@ -99,6 +103,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
       return 'error'
     }
   }, [load, userId])
+  const successReturn = stripeReturn?.id === returnId && stripeReturn.result === 'success'
   useEffect(() => {
     if (!returnId) return
     let active = true
@@ -106,11 +111,13 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     let remaining = 12
     async function poll() {
       const status = await checkPurchase(returnId)
-      if (active && remaining-- > 0 && ['pending', 'payment_pending', 'synchronizing'].includes(status)) timer = setTimeout(poll, 5000)
+      const waiting = ['pending', 'payment_pending', 'synchronizing'].includes(status)
+        || (status === 'checkout_open' && successReturn)
+      if (active && waiting && remaining-- > 0) timer = setTimeout(poll, 5000)
     }
     void poll()
     return () => { active = false; purchaseGeneration.current++; clearTimeout(timer) }
-  }, [returnId, checkPurchase])
+  }, [returnId, checkPurchase, successReturn])
   async function startTrial() {
     const request = ++actionGeneration.current
     setBusy(true); setMessage('')
@@ -143,8 +150,8 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
       if (request !== actionGeneration.current) return
       if (result.attemptId !== operationId) throw new Error('Checkout attempt mismatch')
       setPurchase(result)
+      setReturnId(result.attemptId)
       if (result.checkoutUrl) window.location.assign(result.checkoutUrl)
-      else setReturnId(result.attemptId)
     } catch (error) {
       if (request !== actionGeneration.current) return
       setMessage((error as { status?: number }).status === 409 ? 'This plan cannot be purchased from your current account state.' : 'Could not start checkout. Please try again.')
@@ -167,6 +174,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     }
   }
   const offer = catalog.find(item => item.offeringVersionId === selected)
+  const currentPurchase = purchase?.attemptId === returnId ? purchase : null
   const terms = subscription?.options?.paidTerms
   const upgradeOffers = upgradesAvailable && terms?.upgradeAvailable && subscription
     ? catalog.filter(item => tierOrder[item.plan] > tierOrder[subscription.plan]
@@ -200,15 +208,15 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
         {offer ? <p className="mt-2 text-sm text-text-muted">{offer.classroomLimit} active classrooms. {offer.interval === 'year' ? 'Full annual amount charged upfront. ' : ''}Prices exclude applicable tax.</p> : null}
         <Button className="mt-4" onClick={() => void checkout()} disabled={busy || !selected}>Continue to checkout</Button>
       </Card> : null}
-      {upgradeOffers.length > 0
-        ? <BillingUpgradeCard userId={userId} offers={upgradeOffers} onActivated={() => void load(true)} />
+      {upgradesAvailable
+        ? <BillingUpgradeCard userId={userId} offers={upgradeOffers} catalog={catalog} onActivated={() => void load(true)} />
         : null}
       {returnId ? <Card><h2 className="text-lg font-semibold">Checkout status</h2>
-        <p className="mt-2 text-sm" role="status">{purchase?.status === 'active' ? 'Payment and plan access confirmed.' : purchase?.status === 'attention' ? 'Checkout needs attention. Please contact support.' : purchase?.status === 'expired' ? 'Checkout expired.' : returnResult === 'cancel' && purchase?.status === 'checkout_open' ? 'Checkout was not completed.' : 'Payment or plan access is being checked.'}</p>
-        {purchase?.status === 'checkout_open' && purchase.checkoutUrl
-          ? <Button className="mt-3 mr-2" onClick={() => window.location.assign(purchase.checkoutUrl!)}>Resume checkout</Button>
+        <p className="mt-2 text-sm" role="status">{currentPurchase?.status === 'active' ? 'Payment and plan access confirmed.' : currentPurchase?.status === 'attention' ? 'Checkout needs attention. Please contact support.' : currentPurchase?.status === 'expired' ? 'Checkout expired.' : currentPurchase?.status === 'checkout_open' && !successReturn ? 'Checkout is ready to continue.' : 'Payment or plan access is being checked.'}</p>
+        {currentPurchase?.status === 'checkout_open' && currentPurchase.checkoutUrl && !successReturn
+          ? <Button className="mt-3 mr-2" onClick={() => window.location.assign(currentPurchase.checkoutUrl!)}>Resume checkout</Button>
           : null}
-        {purchase?.status !== 'active' ? <Button variant="secondary" className="mt-3" onClick={() => void checkPurchase(returnId)}>Check status</Button> : null}
+        {currentPurchase?.status !== 'active' ? <Button variant="secondary" className="mt-3" onClick={() => void checkPurchase(returnId)}>Check status</Button> : null}
       </Card> : null}
       {message ? <p role="status" className="text-sm text-text-default">{message}</p> : null}
     </> : null}

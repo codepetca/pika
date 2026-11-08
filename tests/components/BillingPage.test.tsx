@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BillingPage } from '@/app/billing/BillingPage'
 
@@ -51,6 +51,42 @@ describe('BillingPage', () => {
     expect(screen.queryByRole('button', { name: 'Start 30-day Pro trial' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Continue to checkout' })).not.toBeInTheDocument()
     expect(fetch).toHaveBeenCalledWith(`/api/billing/checkout/${attemptId}`, { cache: 'no-store' })
+  })
+
+  it('prefers the account’s unfinished checkout to a stale return URL', async () => {
+    const oldAttempt = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    const pendingAttempt = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+    history.replaceState({}, '', `/billing?checkout=${oldAttempt}&result=success`)
+    const fetch = vi.fn((url: string) => url.endsWith('/subscription') ? json({
+      ...free, options: { ...free.options, checkoutAvailable: false, pendingCheckoutId: pendingAttempt },
+    }) : url.endsWith('/catalog') ? json({ items: [item] }) : url.endsWith(oldAttempt)
+      ? json({ attemptId: oldAttempt, status: 'expired', checkoutUrl: null })
+      : json({ attemptId: pendingAttempt, status: 'checkout_open', checkoutUrl: 'https://checkout.stripe.com/c/pay/current' }))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" />)
+    expect(await screen.findByRole('button', { name: 'Resume checkout' })).toBeInTheDocument()
+    expect(screen.queryByText('Checkout expired.')).not.toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledWith(`/api/billing/checkout/${pendingAttempt}`, { cache: 'no-store' })
+  })
+
+  it('polls a success return whose server status is still open', async () => {
+    const attemptId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    history.replaceState({}, '', `/billing?checkout=${attemptId}&result=success`)
+    vi.useFakeTimers()
+    try {
+      const status = vi.fn()
+        .mockImplementationOnce(() => json({ attemptId, status: 'checkout_open', checkoutUrl: 'https://checkout.stripe.com/c/pay/current' }))
+        .mockImplementation(() => json({ attemptId, status: 'active', checkoutUrl: null }))
+      vi.stubGlobal('fetch', vi.fn((url: string) => url.endsWith('/subscription') ? json(free)
+        : url.endsWith('/catalog') ? json({ items: [] }) : status()))
+      render(<BillingPage userId="teacher" />)
+      await act(async () => { await vi.advanceTimersByTimeAsync(0) })
+      expect(screen.getByText('Payment or plan access is being checked.')).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Resume checkout' })).not.toBeInTheDocument()
+      await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
+      expect(screen.getByText('Payment and plan access confirmed.')).toBeInTheDocument()
+      expect(status).toHaveBeenCalledTimes(2)
+    } finally { vi.useRealTimers() }
   })
 
   it('shows disabled configuration without purchase actions', async () => {

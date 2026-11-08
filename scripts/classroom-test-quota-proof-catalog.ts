@@ -2,7 +2,7 @@ import { CLASSROOM_PUBLIC_AUTO_ADMISSION_REVIEWED_TABLES } from './classroom-pub
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from './classroom-admission-registry-reviewed-migration'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
+import { validateDisposableBillingReplayMigrations, validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from './repolight-report-service-reviewed-migration'
 import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES } from './attendance-named-schedules-reviewed-migration'
 
@@ -56,4 +56,16 @@ export function classroomTestQuotaProofCatalog(
     ...(hasPublicAutoAdmission ? CLASSROOM_PUBLIC_AUTO_ADMISSION_REVIEWED_TABLES : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
+}
+
+/** Owned disposable replays use the full sealed source. The billing tail
+ * changes routines only, so the table fingerprint catalog still comes from 301.
+ */
+export function disposableClassroomTestQuotaProofCatalog(
+  canonicalTables: readonly string[],
+  migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1],
+): readonly string[] {
+  if (migrations.length <= 301) return classroomTestQuotaProofCatalog(canonicalTables, migrations)
+  validateDisposableBillingReplayMigrations(migrations)
+  return classroomTestQuotaProofCatalog(canonicalTables, migrations.slice(0, 301))
 }

@@ -415,6 +415,11 @@ begin
   if not exists(select 1 from supabase_migrations.schema_migrations where version='302') then return; end if;
   select * into strict fixture from upgrade_cases where name='applied';
   select * into strict paid_before from public.billing_account_access where subject_user_id=fixture.subject_id;
+  if exists(select 1 from supabase_migrations.schema_migrations where version='303') and
+    public.billing_get_access_status_v1(jsonb_build_object('subject_user_id',fixture.subject_id,'include_options',true))
+      #>>'{customer_options,paid_terms,upgrade_available}' is distinct from 'false' then
+    raise exception 'Customer options advertised a second upgrade without current full-cycle payment';
+  end if;
 
   claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',fixture.subscription_id,'lease_seconds',120));
   request:=jsonb_build_object('subscription_id',fixture.subscription_id,'lease_token',claim->'lease_token',

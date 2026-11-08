@@ -37,7 +37,15 @@ returns jsonb language sql stable set search_path='' as $$
     ),
     'paid_terms',(
       select jsonb_build_object('currency',version.currency,'interval',version.interval,'unit_amount',version.unit_amount,
-        'upgrade_available',access.end_reason='renewal_pending' and p_at<access.paid_through)
+        -- The writer requires a full-cycle payment at the current version.
+        'upgrade_available',access.end_reason='renewal_pending' and p_at<access.paid_through
+          and access.access_ends_at=access.paid_through and access.failed_renewal_invoice_id is null
+          and exists(
+            select 1 from public.stripe_billing_invoice_effects effect
+            where effect.subscription_id=binding.id and effect.stripe_invoice_id=access.last_paid_invoice_id
+              and effect.offering_version_id=version.id and effect.period_start=access.paid_period_start
+              and effect.period_end=access.paid_through
+          ))
       from public.billing_account_access access
       join public.account_plans plan on plan.subject_user_id=access.subject_user_id and plan.revision=access.account_plan_revision
       join public.effective_feature_entitlements entitlement on entitlement.subject_user_id=plan.subject_user_id
