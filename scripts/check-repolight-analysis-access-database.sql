@@ -22,7 +22,10 @@ insert into public.users(id,email,role) values
  ('f2960000-0000-4000-8000-000000000002','repolight-access-student@example.invalid','student'),
  ('f2960000-0000-4000-8000-000000000003','repolight-access-trial@example.invalid','teacher'),
  ('f2960000-0000-4000-8000-000000000004','repolight-access-paid@example.invalid','teacher'),
- ('f2960000-0000-4000-8000-000000000005','repolight-access-old-offering@example.invalid','teacher');
+ ('f2960000-0000-4000-8000-000000000005','repolight-access-old-offering@example.invalid','teacher'),
+ ('f2960000-0000-4000-8000-000000000006','repolight-access-false-offering@example.invalid','teacher'),
+ ('f2960000-0000-4000-8000-000000000007','repolight-access-max-offering@example.invalid','teacher'),
+ ('f2960000-0000-4000-8000-000000000008','repolight-access-basic-offering@example.invalid','teacher');
 do $$ declare actor uuid:='f2960000-0000-4000-8000-000000000001'; p text; r jsonb; rev bigint; begin
   if public.get_repolight_analysis_access_v1(actor)->>'allowed'<>'false' then raise exception 'Missing plan allowed'; end if;
   foreach p in array array['free','basic','plus','pro'] loop
@@ -125,25 +128,28 @@ do $$ declare actor uuid:='f2960000-0000-4000-8000-000000000003'; r jsonb; t tim
   if public.get_repolight_analysis_access_v1(actor)->>'reason'<>'expired' then raise exception 'Trial expiry depends on worker'; end if;
 end $$;
 
-do $$ declare actor uuid; included boolean; offering jsonb; bound jsonb; claim jsonb; r jsonb; deadline timestamptz:=clock_timestamp()+interval '24 hours'; rev bigint; suffix text; begin
-  for actor,included,suffix in select * from (values
-    ('f2960000-0000-4000-8000-000000000004'::uuid,true,'new296'),
-    ('f2960000-0000-4000-8000-000000000005'::uuid,false,'old296')) as fixture(id,benefit,label) loop
+do $$ declare actor uuid; tier text; feature jsonb; allowed boolean; offering jsonb; bound jsonb; claim jsonb; r jsonb; deadline timestamptz:=clock_timestamp()+interval '24 hours'; rev bigint; suffix text; begin
+  for actor,tier,feature,allowed,suffix in select * from (values
+    ('f2960000-0000-4000-8000-000000000004'::uuid,'plus','{"repolight_analysis":true}'::jsonb,true,'new296'),
+    ('f2960000-0000-4000-8000-000000000005'::uuid,'plus','{}'::jsonb,true,'old296'),
+    ('f2960000-0000-4000-8000-000000000006'::uuid,'plus','{"repolight_analysis":false}'::jsonb,true,'false301'),
+    ('f2960000-0000-4000-8000-000000000007'::uuid,'pro','{}'::jsonb,true,'max301'),
+    ('f2960000-0000-4000-8000-000000000008'::uuid,'basic','{"repolight_analysis":true}'::jsonb,false,'basic301')) as fixture(id,tier,feature,allowed,label) loop
     if not exists(select 1 from public.account_plans where subject_user_id=actor) then
       perform public.set_account_plan_v1(gen_random_uuid(),actor,'free','test:repolight296','fixture',0);
     end if;
-    offering:=public.billing_register_offering_v1(jsonb_build_object('plan_key','plus','version',case when included then 9296 else 9297 end,
+    offering:=public.billing_register_offering_v1(jsonb_build_object('plan_key',tier,'version',case suffix when 'new296' then 9296 when 'old296' then 9297 when 'false301' then 9301 when 'max301' then 9302 else 9303 end,
       'stripe_account','acct_access296','provider_mode','test','stripe_product_id','prod_'||suffix,'stripe_price_id','price_'||suffix,
-      'currency','usd','unit_amount',1900,'interval','month','classroom_limit',5,
-      'features',case when included then '{"repolight_analysis":true}'::jsonb else '{}'::jsonb end,'ai_definition',null,'availability',jsonb_build_object('is_available',true)));
+      'currency','usd','unit_amount',1900,'interval','month','classroom_limit',case tier when 'basic' then 2 when 'pro' then 10 else 5 end,
+      'features',feature,'ai_definition',null,'availability',jsonb_build_object('is_available',true)));
     bound:=public.billing_bind_customer_v1(jsonb_build_object('subject_user_id',actor,'stripe_account','acct_access296','provider_mode','test','stripe_price_id','price_'||suffix,'stripe_customer_id','cus_'||suffix,'stripe_subscription_id','sub_'||suffix,'offering_version_id',offering->>'offering_version_id'));
     claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',bound->>'subscription_id','lease_seconds',120));
     r:=public.billing_finish_lifecycle_v1(jsonb_build_object('subscription_id',bound->>'subscription_id','lease_token',claim->>'lease_token','fencing_token',claim->'fencing_token','expected_subscription_revision',claim->'subscription_revision','expected_account_plan_revision',claim->'expected_account_plan_revision',
       'outcome','paid','event_inbox_id',null,'invoice_id','in_'||suffix,'period_start',deadline-interval '30 days','period_end',deadline,'reason_code',null,'provider_status','active','cancel_at_period_end',false,'obligations_cleared',false));
     if r->>'status'<>'applied' then raise exception 'Paid fixture failed: %',r; end if;
     r:=public.get_repolight_analysis_access_v1(actor);
-    if (r->>'allowed')::boolean is distinct from included then raise exception 'Purchased feature binding differs: %',r; end if;
-    if included then
+    if (r->>'allowed')::boolean is distinct from allowed then raise exception 'Purchased tier decision differs: %',r; end if;
+    if allowed then
       -- Keep the existing paid-through/receipt identity, but exercise real grace
       -- facts and its exclusive end without waiting for lifecycle maintenance.
       update public.billing_account_access set access_ends_at=paid_through+interval '168 hours',end_reason='renewal_grace',failed_renewal_invoice_id='in_failed296' where subject_user_id=actor;

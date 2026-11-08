@@ -22,7 +22,7 @@ const plans=new WeakSet<object>()
 const checks=freeze(['owner-roles','restore-admission','full-row-content-revision','fences','strict-legacy','trigger-fault-rollback'] as const)
 export function classroomHotLifecycleNativePlan(original:AssignmentListProofFixture,reviewedHead:string,repository:string) {
   assert.match(reviewedHead,/^[a-f0-9]{40}$/)
-  const inventory=loadAssignmentListReviewedMigrations(repository);validateAssignmentListMigrationChain(inventory);assert([268,269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300].includes(inventory.length))
+  const inventory=loadAssignmentListReviewedMigrations(repository);validateAssignmentListMigrationChain(inventory);assert([268,269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301].includes(inventory.length))
   const migrations=inventory.map(({name,sha256})=>({name,sha256}))
   assert.equal(hash(JSON.stringify(migrations.slice(0,267))),'9f08b2db28b413c6f00b3021597d5cd0271600b0d8039abf46f84b50c318b4bd')
   assert.equal(inventory[267].name,SOURCE);assert.equal(inventory[267].sha256,SOURCE_HASH);assert.equal(hash(inventory[267].sql),SOURCE_HASH)
@@ -61,7 +61,7 @@ export function classroomHotLifecycleNativePlan(original:AssignmentListProofFixt
     schedule('archive-before-restore',1,true,mutate(call(1,1,true)),call(1,1,false),'00000',''),
   ]}
   const plan=freeze({version:1,nativeVerified:false,reviewedHead,fixture:f,projectId,migrations,sourceSha256:SOURCE_HASH,
-    migrationManifestSha256:hash(JSON.stringify(migrations)),guard:testOwnerGuardSql(projectId),setup:hotLifecycleSetupSql(f,inventory.length===300),snapshot:hotLifecycleSnapshotSql(),contracts,concurrency:{schedules:[]},committed})
+    migrationManifestSha256:hash(JSON.stringify(migrations)),guard:testOwnerGuardSql(projectId),setup:hotLifecycleSetupSql(f,[300,301].includes(inventory.length)),snapshot:hotLifecycleSnapshotSql(),contracts,concurrency:{schedules:[]},committed})
   for(const sql of [plan.setup,plan.snapshot,plan.contracts.sql,...plan.committed.schedules.flatMap(s=>[s.holderSql,s.contenderSql,s.observeSql,s.commitSql])])assert(Buffer.byteLength(sql)<=caps.sqlBytes)
   plans.add(plan);return plan
 }

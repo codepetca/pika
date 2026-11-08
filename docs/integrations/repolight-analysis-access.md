@@ -32,11 +32,13 @@ Billing-managed access additionally requires exact account/access/entitlement
 revision and timestamp agreement, current subject/subscription binding, the
 purchased immutable offering and a matching recorded paid invoice effect (with
 immutable verified upgrade receipts when the original paid invoice predates the
-current offering). Only
-the JSON boolean `features.repolight_analysis=true` includes the benefit; a
-missing key, string, current catalog label or another purchased version does not.
-New offering publication and existing subscriber transitions remain separately
-owned work. This migration never edits offerings or assigns plans.
+current offering). Migration 301 adds RepoLight as a universal additive benefit for otherwise
+valid Pro and Max plans: the purchased offering's `repolight_analysis` feature
+value is no longer an additional eligibility condition. The purchased version,
+verified paid invoice, binding, revisions and valid access period are still
+required. This exception does not modify historical offering records or financial
+terms, enable live billing, or assign plans. The owner clarified this policy on
+2026-11-08; publication and paid billing remain separately owned work.
 
 Trials require the actual unconverted Pro trial, its immutable definition,
 matching effective state and its precise start/end. Existing billing rules
@@ -72,7 +74,7 @@ jobs is claimed. An unknown response remains a durable subject requiring cleanup
 expiry does not erase it or permit an unsafe reconciliation POST.
 
 The pre-rebase proof replayed the then-current chain through 298. After the main
-sync, `scripts/check-repolight-analysis-access-database.sh` targets 001–300 in an owned,
+sync, `scripts/check-repolight-analysis-access-database.sh` targets 001–301 in an owned,
 network-isolated database, runs rollback-only compatibility/access contracts,
 executes actual two-session contention and compares generated public types.
 `--write-types` regenerates the checked-in types from that disposable schema.

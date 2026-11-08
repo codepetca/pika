@@ -42,6 +42,17 @@ describe('RepoLight analysis entitlement migration contract', () => {
       expect(migration).not.toContain(`function public.${name}(`)
     }
   })
+  it('adds the universal tier benefit without changing any other resolver checks', () => {
+    const universal = readFileSync('supabase/migrations/301_repolight_universal_tier_benefit.sql', 'utf8')
+    const previous = body(migration, 'get_repolight_analysis_access_v1')
+    const expected = previous.replace(
+      "      elsif version.features->'repolight_analysis' is distinct from 'true'::jsonb then decision := 'offering_not_included';\n",
+      '',
+    )
+    expect(expected).not.toBe(previous)
+    expect(body(universal, 'get_repolight_analysis_access_v1')).toBe(expected)
+    expect(universal).not.toMatch(/\b(?:insert|update|delete|alter)\s+(?:into\s+|from\s+|table\s+)?(?:public|private)\./i)
+  })
   it('samples the database clock after the plan/feature fences and uses exclusive cutoffs', () => {
     const resolver = body(migration, 'get_repolight_analysis_access_v1')
     expect(resolver.indexOf('now_at := clock_timestamp()')).toBeGreaterThan(resolver.indexOf('perform private.lock_repolight_analysis_access_v1'))
