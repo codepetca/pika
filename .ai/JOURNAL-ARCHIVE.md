@@ -51375,3 +51375,8 @@ Observed production learner and owner busy errors during class tests. Prepared b
 ## 2026-11-04 — AI provider gate rebase
 
 Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
+
+<!-- pika-session-log-archive-batch:55e4762dea85672db137c3277296324f4a1a5e00b630a55e8cbfdd78d8173bf9 -->
+## 2026-11-04 Clarify busy Test errors
+
+Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.

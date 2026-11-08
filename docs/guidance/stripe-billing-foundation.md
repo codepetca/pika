@@ -642,6 +642,25 @@ this worktree. Provider-port fixtures and database replays are separate from
 the actual provider rehearsal. The September 27 receipt is historical first
 purchase evidence only.
 
+### Classroom activity fallback
+
+On a verified drop in classroom capacity, consider the owner's current
+classrooms that are neither ordinarily archived nor already restricted by a
+subscription. A confirmed selection applies to that specific downgrade. A
+selection of fewer classrooms than the cap keeps only those eligible selected
+classrooms. Free keeps none. Preserve earlier restrictions across renewals and
+resubscription until the teacher explicitly restores a classroom within capacity.
+
+When there is no selection, order eligible classrooms by the latest recorded
+assignment release, assignment submission, Test attempt start or Test
+submission. Use only activity at or before the effective reduction. Sort
+classrooms without recorded activity after classrooms with activity, then break
+ties by classroom creation time (newest first) and classroom UUID (ascending).
+Draft edits, page views and classroom renames do not affect the ranking. For a
+scheduled downgrade, the reduction takes effect when Pika verifies the target
+payment and commits the smaller entitlement. A failed target invoice leaves
+the Max classroom limit and selection unchanged through grace.
+
 ### Worker recovery follow-up
 
 Keep the base sandbox and its validated local app origin configured when

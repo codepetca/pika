@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-04 Clarify busy Test errors
-
-Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
-
 ## 2026-11-04 Calendar empty lesson text
 
 Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
@@ -335,6 +331,17 @@ resume/save/submit, and a blocked Start crossing cutoff while waiting on the
 account lock. Generated public types and shared schema matched their baselines.
 The flag remains off pending assignment release, per-classroom restrictions,
 and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
 
 ## 2026-11-09 — Sync billing launch with main
 
