@@ -10167,6 +10167,10 @@ export type Database = {
         Returns: Json
       }
       billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_attest_live_target_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
       billing_checkpoint_renewal_closeout_v1: {
         Args: { p_request: Json }

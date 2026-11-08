@@ -51414,3 +51414,21 @@ Teacher Roster uses the existing cache and error path on navigation intent, with
 ## 2026-11-06 — Protect authoring progress
 
 - Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+<!-- pika-session-log-archive-batch:0cacc0d8acabf0c758362fa05201454424ca9bdbfabb281b93ca507daa6a7803 -->
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.

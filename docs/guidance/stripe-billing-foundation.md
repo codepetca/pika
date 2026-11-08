@@ -579,6 +579,31 @@ actions and immutable purchased terms without sending Stripe identifiers to
 the browser. Its extra fields are opt-in; an earlier schema can still return
 plan status, while the new page hides unsupported actions.
 
+### Dormant live target attestation
+
+Migration 311 adds an optional private live Stripe account and Supabase project
+identity. The settings row cannot contain that pair while the sandbox is
+enabled. The service-role RPC returns one boolean for the exact pair on a
+database free of sandbox billing evidence. It can attest a target that already
+contains legacy account plans. The settings row starts with both live fields
+unset. The isolated sandbox can still run against its own loopback database.
+
+The operator command is `pnpm exec tsx scripts/check-billing-live-target.ts`.
+It uses environment variables already supplied by the operator, including
+`BILLING_LIVE_TARGET_CHECK_ENABLED=true` and `STRIPE_LIVE_ACCOUNT_ID`. It requires
+`VERCEL=1`, `VERCEL_ENV=production`, the canonical HTTPS
+`NEXT_PUBLIC_APP_URL`, and the exact production `NEXT_PUBLIC_SUPABASE_URL`.
+The existing Supabase service credential is read only after
+the target passes these checks. The transport permits one read-only RPC and
+rejects redirects. Output is limited to the attestation status. It needs no
+Stripe API key, webhook secret, or worker token.
+
+A successful attestation verifies the dormant database target at the time of
+the read. Operational billing requires separate scoped provider evidence,
+database writer gates, and rollout authorization. Use
+`scripts/check-billing-live-target.sql` for the rollback-only proof on an owned
+disposable replay through 311.
+
 ### Release sequence
 
 1. Keep live billing disabled. Finish the source contracts for live/test

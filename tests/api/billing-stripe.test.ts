@@ -1,3 +1,4 @@
+import { NextRequest } from 'next/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockLoadBillingRuntime, mockLifecycleRuntime, applyDue, mockCloseoutRuntime, closeDueRenewals } = vi.hoisted(() => ({
@@ -54,6 +55,22 @@ describe('Stripe billing routes', () => {
     expect(mockLoadBillingRuntime).not.toHaveBeenCalled()
     expect(mockLifecycleRuntime).not.toHaveBeenCalled()
     expect(mockCloseoutRuntime).not.toHaveBeenCalled()
+  })
+
+  it('keeps provider routes off during the live target check', async () => {
+    vi.stubEnv('BILLING_SANDBOX_ENABLED', 'false')
+    vi.stubEnv('BILLING_LIVE_TARGET_CHECK_ENABLED', 'true')
+    vi.stubEnv('VERCEL', '1')
+    vi.stubEnv('VERCEL_ENV', 'production')
+    vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://pika.codepet.ca')
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://zhioqbapgfcrronyuidm.supabase.co')
+    vi.stubEnv('STRIPE_LIVE_ACCOUNT_ID', 'acct_Preflight311')
+
+    const webhook = new NextRequest('https://pika.codepet.ca/api/billing/stripe/webhook', { method: 'POST' })
+    const worker = new NextRequest('https://pika.codepet.ca/api/billing/stripe/process', { method: 'POST' })
+    expect((await receiveWebhook(webhook, context)).status).toBe(404)
+    expect((await processBilling(worker, context)).status).toBe(404)
+    expect(mockLoadBillingRuntime).not.toHaveBeenCalled()
   })
 
   it('checks the dedicated worker credential before constructing the billing runtime', async () => {
