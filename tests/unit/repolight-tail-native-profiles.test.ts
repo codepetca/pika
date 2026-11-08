@@ -50,17 +50,20 @@ describe('sealed 300 native source profiles (offline only)', () => {
     expect(() => validateTestMemberListReviewedMigrations(current)).not.toThrow()
     expect(() => validateTestMemberListReviewedMigrations(current.slice(0, 303))).not.toThrow()
     const catalog301 = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, chain)
-    expect(testMemberListReviewedIsolatedCatalog(catalog301, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents'].sort())
-    expect(testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents'].sort())
+    expect(testMemberListReviewedIsolatedCatalog(catalog301, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources'].sort())
+    expect(testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toEqual([...catalog301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources'].sort())
     const catalog307 = disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 307))
     expect(catalog307).toEqual([...catalog301, 'private.billing_scheduled_plan_changes'].sort())
-    expect(testMemberListReviewedIsolatedCatalog(catalog307, current)).toEqual([...catalog307, 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents'].sort())
+    expect(testMemberListReviewedIsolatedCatalog(catalog307, current)).toEqual([...catalog307, 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources'].sort())
     for (const count of [310, 311]) {
       const prefix = disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, count))
       expect(prefix).toContain('private.billing_classroom_restrictions')
       expect(prefix).not.toContain('private.billing_assignment_release_intents')
       expect(testMemberListReviewedIsolatedCatalog(prefix, current)).toContain('private.billing_assignment_release_intents')
     }
+    const catalog312 = disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, 312))
+    expect(catalog312).not.toContain('private.billing_live_trial_sources')
+    expect(testMemberListReviewedIsolatedCatalog(catalog312, current)).toEqual([...catalog312, 'private.billing_live_trial_sources'].sort())
     for (const count of [308, 309]) {
       expect(() => testMemberListReviewedIsolatedCatalog(catalog307, current.slice(0, count))).toThrow()
     }

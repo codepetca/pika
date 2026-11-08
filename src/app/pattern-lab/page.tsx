@@ -1,6 +1,8 @@
 import { notFound, redirect } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
+import { AppShell } from '@/components/AppShell'
+import { BillingPage } from '../billing/BillingPage'
 import { UiGallery } from '../__ui/UiGallery'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +21,15 @@ export default async function PatternLabPage({
 
   if (process.env.PIKA_E2E_FIXTURES === 'true') {
     const fixtureRole = resolvedSearchParams?.role === 'student' ? 'student' : 'teacher'
+    if (resolvedSearchParams?.fixture === 'billing-trial') {
+      // The browser supplies synthetic billing responses. Never render an
+      // actionable fixture in a real signed-in session.
+      if (fixtureRole !== 'teacher' || await getCurrentUser()) notFound()
+      const user = { id: 'pattern-billing-teacher', email: 'teacher@example.invalid', role: 'teacher' as const }
+      return <AppShell user={user} billingAvailable initialNow={Date.now()}>
+        <BillingPage userId={user.id} purchaseAvailable={false} />
+      </AppShell>
+    }
     // Give the lazy client gallery a stable server parent without changing layout.
     return <div className="contents"><UiGallery role={fixtureRole}
       assignmentControllerFixture={resolvedSearchParams?.fixture === 'assignment-controller'}

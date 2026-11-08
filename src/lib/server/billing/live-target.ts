@@ -62,6 +62,11 @@ export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env)
   return { ...target, appOrigin: PRODUCTION_APP_ORIGIN, workerSecret, admissionEnabled }
 }
 
+/** Navigation can show existing trial status while admission is closed. */
+export function isBillingLiveTrialAvailable(): boolean {
+  try { return readBillingLiveTrialConfig() !== null } catch { return false }
+}
+
 function createLiveTargetReadOnlyFetch(config: BillingLiveTargetConfig, fetchImpl?: typeof fetch): typeof fetch {
   const fetchBound = createTargetBoundFetch(config.supabaseOrigin, fetchImpl)
   return async (input, init) => {
