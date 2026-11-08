@@ -10,9 +10,8 @@ returns boolean language sql stable security definer set search_path='' as $$
         and settings.live_project_ref=p_project_ref and settings.live_stripe_account=p_stripe_account);
 $$;
 
--- Retained attention/bound attempts and live binding are evidence even when
--- admission is paused or a customer has not yet paid. A paid plan stays fenced
--- after its binding ceases to be current while that plan still owns the access.
+-- Unresolved attempts and current live bindings remain fenced during a pause.
+-- A retired binding stays fenced only until its paid access has ended.
 create function private.billing_live_legacy_assignment_fenced_v1(p_subject uuid)
 returns boolean language sql stable set search_path='' as $$
   select exists(select 1 from private.billing_live_trial_sources source
@@ -21,13 +20,14 @@ returns boolean language sql stable set search_path='' as $$
     or exists(select 1 from public.stripe_checkout_attempts attempt
       join public.stripe_billing_offering_versions version on version.id=attempt.offering_version_id
       where attempt.subject_user_id=p_subject and version.provider_mode='live'
-        and attempt.status in ('reserved','open','payment_pending','attention','bound'))
+        and attempt.status in ('reserved','open','payment_pending','attention'))
     or exists(select 1 from public.stripe_billing_subscription_bindings binding
       where binding.subject_user_id=p_subject and binding.provider_mode='live' and binding.is_current)
     or exists(select 1 from public.account_plans plan
       join public.billing_account_access access on access.subject_user_id=plan.subject_user_id
       join public.stripe_billing_subscription_bindings binding on binding.id=access.subscription_id
       where plan.subject_user_id=p_subject and plan.management_source='billing' and access.source='paid'
+        and access.expiry_applied_at is null
         and binding.subject_user_id=p_subject and binding.provider_mode='live');
 $$;
 

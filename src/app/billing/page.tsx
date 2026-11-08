@@ -20,7 +20,7 @@ export default async function Page() {
   const billingAvailable = purchaseAvailable || isBillingLiveTrialAvailable()
   let portalAvailable = false
   if (purchaseAvailable) {
-    try { portalAvailable = readBillingPortalConfig() !== null } catch { /* Keep checkout available. */ }
+    try { portalAvailable = readBillingPortalConfig() !== null } catch { /* Keep billing status available. */ }
   }
   return <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role }} billingAvailable={billingAvailable}>
     <BillingPage

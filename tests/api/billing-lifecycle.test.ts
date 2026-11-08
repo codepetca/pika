@@ -87,6 +87,22 @@ describe('billing lifecycle API boundaries', () => {
     expect(mock.startTrial).not.toHaveBeenCalled()
   })
 
+  it('preserves live trial status and admission when payment configuration is invalid', async () => {
+    const config = { appOrigin: 'https://pika.codepet.ca', projectRef: 'live-project', admissionEnabled: true }
+    mock.liveConfig.mockReturnValue(config)
+    mock.paymentConfig.mockImplementation(() => { throw new Error('Invalid live payment worker configuration') })
+    mock.getStatus.mockResolvedValue({ ...access, customer_options: {
+      trial_available: true, checkout_available: true, pending_checkout_id: null,
+      has_billing_customer: false, paid_terms: null,
+    } })
+    const response = await status(new NextRequest(`${config.appOrigin}/api/billing/subscription`), context)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ state: 'trial', options: { trialAvailable: true, checkoutAvailable: false } })
+    expect((await trial(request(undefined, { origin: config.appOrigin }), context)).status).toBe(200)
+    expect(mock.startTrial).toHaveBeenCalledWith({ subjectUserId: subject, operationId })
+    expect(mock.runtime).not.toHaveBeenCalled()
+  })
+
   it('reads paid status during an admission pause and requires the separate worker bearer', async () => {
     const config = { appOrigin: 'https://pika.codepet.ca', projectRef: 'live-project',
       workerSecret: 'live-payment-secret'.repeat(3), checkoutAdmissionEnabled: false, providerWritesEnabled: false }

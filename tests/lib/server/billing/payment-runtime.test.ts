@@ -51,6 +51,7 @@ describe('live paid billing recovery', () => {
     expect(mock.reconcile).toHaveBeenCalledBefore(mock.closeout)
     expect(mock.reconcile.mock.invocationCallOrder[0]).toBeLessThan(mock.rpc.mock.invocationCallOrder[1])
     expect(mock.rpc).toHaveBeenLastCalledWith('billing_apply_due_live_paid_access_v1', { ...scope, p_request: { limit: 25 } })
+    expect(mock.rpc.mock.invocationCallOrder[1]).toBeLessThan(mock.closeout.mock.invocationCallOrder[0])
     expect(mock.rpc.mock.invocationCallOrder[1]).toBeLessThan(mock.provision.mock.invocationCallOrder[0])
   })
 

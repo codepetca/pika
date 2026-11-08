@@ -23,7 +23,6 @@ export async function processLiveBillingPaymentLifecycle(config: BillingLiveChec
   const purchases = await runOptionalRecoveryLane(async () =>
     createBillingPurchaseRuntime(config).reconcileCheckouts({ limit: 1 }))
   const reconciliation = await runOptionalRecoveryLane(() => reconcileLiveBillingSubscriptions(config, 1))
-  const closeouts = await runOptionalRecoveryLane(() => closeDueLiveRenewals(config))
   const expiry = await runOptionalRecoveryLane(async () => {
     const { data, error } = await client.rpc('billing_apply_due_live_paid_access_v1', {
       ...target, p_request: { limit: EXPIRY_BATCH_LIMIT },
@@ -31,6 +30,7 @@ export async function processLiveBillingPaymentLifecycle(config: BillingLiveChec
     if (error) throw new Error('Live paid expiry is unavailable')
     return expiryResultSchema.parse(data)
   })
+  const closeouts = await runOptionalRecoveryLane(() => closeDueLiveRenewals(config))
   const assignmentReleases = await runOptionalRecoveryLane(() => processDueBillingAssignmentReleases(client))
   await attemptRepoLightProvisionOutbox({ client })
   return { purchases, reconciliation, closeouts, expiry, assignmentReleases }

@@ -102,9 +102,10 @@ begin
   begin update public.assignments set is_draft=false,released_at=clock_timestamp()+interval '1 day' where id=v_assignment;
   exception when sqlstate 'PT403' then v_failed:=true; end;
   if not v_failed then raise exception 'Bound unpaid checkout allowed legacy schedule'; end if;
-  -- Even if attempt/binding are no longer current, a paid-owned plan remains fenced.
-  update public.stripe_checkout_attempts set status='expired' where id=v_attempt;
+  -- A retired unpaid binding and its immutable checkout history no longer fence.
   update public.stripe_billing_subscription_bindings set is_current=false where id=v_binding;
+  if private.billing_live_legacy_assignment_fenced_v1(v_owner) then raise exception 'Retired unpaid checkout still fenced'; end if;
+  -- A retired binding with a retained paid term stays fenced through expiry.
   insert into public.billing_account_access(subject_user_id,source,subscription_id,offering_version_id,starts_at,
     paid_period_start,paid_through,last_paid_invoice_id,access_ends_at,end_reason,account_plan_revision)
   values(v_owner,'paid',v_binding,v_version,clock_timestamp(),clock_timestamp(),clock_timestamp()+interval '1 day',
@@ -116,6 +117,10 @@ begin
   begin update public.assignments set is_draft=false,released_at=clock_timestamp()+interval '1 day' where id=v_assignment;
   exception when sqlstate 'PT403' then v_failed:=true; end;
   if not v_failed then raise exception 'Paid-owned plan allowed legacy schedule'; end if;
+  update public.billing_account_access set starts_at=clock_timestamp()-interval '30 days',
+    paid_period_start=clock_timestamp()-interval '30 days',paid_through=statement_timestamp(),
+    access_ends_at=statement_timestamp(),expiry_applied_at=clock_timestamp() where subject_user_id=v_owner;
+  if private.billing_live_legacy_assignment_fenced_v1(v_owner) then raise exception 'Expired retired paid access still fenced'; end if;
   -- A live trial still uses the 312 durable draft schedule path.
   update private.stripe_billing_settings set live_trial_lifecycle_enabled=true,live_trial_admission_enabled=true where singleton;
   perform public.billing_start_live_trial_v1(v_project,v_account,jsonb_build_object('subject_user_id',v_trial,'operation_id',gen_random_uuid()));

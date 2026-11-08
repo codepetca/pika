@@ -132,7 +132,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   }
   if (migrations.length >= 314) {
     assert.equal(createHash('sha256').update(JSON.stringify(disposableLivePaymentReplayTail)).digest('hex'),
-      '67d557e4f411af77427db6880de3059c1d1765f5d43cbf68af3be5f6389f68d5', 'Unreviewed live payment replay seal')
+      'd98065bb68d141dfa14909e8a852725e6340908ca46872f2218720b0839ecda9', 'Unreviewed live payment replay seal')
     assert.equal(disposableLivePaymentReplayTail.length, 8)
     for (const [offset, { name, sha256 }] of disposableLivePaymentReplayTail.slice(0, migrations.length - 313).entries()) {
       const migration = migrations[313 + offset]

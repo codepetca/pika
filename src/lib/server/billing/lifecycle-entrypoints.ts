@@ -6,9 +6,13 @@ import { createBillingLifecycleRuntime, createLiveTrialLifecycleRuntime } from '
 
 export function readBillingLifecycleConfiguration() {
   const trial = readBillingLiveTrialConfig()
-  const payment = readBillingLivePaymentWorkerConfig()
-  if (payment) return { ...payment, admissionEnabled: trial?.admissionEnabled ?? false,
-    checkoutAdmissionEnabled: payment.checkoutAdmissionEnabled && payment.providerWritesEnabled }
+  try {
+    const payment = readBillingLivePaymentWorkerConfig()
+    if (payment) return { ...payment, admissionEnabled: trial?.admissionEnabled ?? false,
+      checkoutAdmissionEnabled: payment.checkoutAdmissionEnabled && payment.providerWritesEnabled }
+  } catch (error) {
+    if (!trial) throw error
+  }
   if (trial) return { ...trial, checkoutAdmissionEnabled: false }
   return readBillingPurchaseConfig()
 }

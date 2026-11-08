@@ -67,6 +67,7 @@ export type BillingLiveCheckoutConfig = BillingLiveTargetConfig & Readonly<{
   secretKey: string
   checkoutAdmissionEnabled: boolean
   providerWritesEnabled: boolean
+  portalConfigurationId?: string
 }>
 
 export type BillingLivePaymentWorkerConfig = BillingLiveCheckoutConfig & Readonly<{ workerSecret: string }>
@@ -84,7 +85,9 @@ export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.e
   if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
     throw new Error('Invalid live checkout configuration')
   }
-  return { ...target, providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
+  const portalId = env.BILLING_LIVE_PORTAL_CONFIGURATION_ID
+  const portalConfigurationId = portalId && /^bpc_[A-Za-z0-9]+$/.test(portalId) ? portalId : undefined
+  return { ...target, ...(portalConfigurationId ? { portalConfigurationId } : {}), providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
     checkoutAdmissionEnabled, providerWritesEnabled }
 }
 
@@ -97,7 +100,11 @@ export function readBillingLivePaymentWorkerConfig(env: NodeJS.ProcessEnv = proc
     || workerSecret === env.STRIPE_LIVE_WEBHOOK_SECRET) {
     throw new Error('Invalid live payment worker configuration')
   }
-  const checkoutAdmissionEnabled = checkout.checkoutAdmissionEnabled && readBillingLiveWebhookConfig(env) !== null
+  let webhookReady = false
+  if (checkout.checkoutAdmissionEnabled) {
+    try { webhookReady = readBillingLiveWebhookConfig(env) !== null } catch { webhookReady = false }
+  }
+  const checkoutAdmissionEnabled = checkout.checkoutAdmissionEnabled && webhookReady && Boolean(checkout.portalConfigurationId)
   return { ...checkout, checkoutAdmissionEnabled, workerSecret }
 }
 

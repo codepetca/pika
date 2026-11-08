@@ -39,8 +39,13 @@ describe('live checkout configuration', () => {
     const payment = { ...recovery, BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED: 'true', BILLING_LIVE_CHECKOUT_WRITES_ENABLED: 'true',
       BILLING_LIVE_PAYMENT_WORKER_SECRET: 'live-payment-worker'.repeat(3) }
     expect(readBillingLivePaymentWorkerConfig(payment)?.checkoutAdmissionEnabled).toBe(false)
-    expect(readBillingLivePaymentWorkerConfig({ ...payment, BILLING_LIVE_WEBHOOK_ENABLED: 'true',
-      STRIPE_LIVE_WEBHOOK_SECRET: 'whsec_LiveFixtureSigningSecret' })?.checkoutAdmissionEnabled).toBe(true)
+    expect(readBillingLivePaymentWorkerConfig({ ...payment, BILLING_LIVE_WEBHOOK_ENABLED: 'true', STRIPE_LIVE_WEBHOOK_SECRET: 'bad' })?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLiveCheckoutConfig({ ...payment, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'invalid' })?.portalConfigurationId).toBeUndefined()
+    expect(readBillingLiveCheckoutConfig({ ...payment, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'bpc_Live' })?.portalConfigurationId).toBe('bpc_Live')
+    const webhook = { ...payment, BILLING_LIVE_WEBHOOK_ENABLED: 'true', STRIPE_LIVE_WEBHOOK_SECRET: 'whsec_LiveFixtureSigningSecret' }
+    expect(readBillingLivePaymentWorkerConfig(webhook)?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLivePaymentWorkerConfig({ ...webhook, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'invalid' })?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLivePaymentWorkerConfig({ ...webhook, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'bpc_Live' })?.checkoutAdmissionEnabled).toBe(true)
     expect(() => readBillingLivePaymentWorkerConfig({ ...payment,
       BILLING_LIVE_TRIAL_WORKER_SECRET: payment.BILLING_LIVE_PAYMENT_WORKER_SECRET })).toThrow(/worker configuration/)
     expect(() => readBillingLivePaymentWorkerConfig({ ...payment,

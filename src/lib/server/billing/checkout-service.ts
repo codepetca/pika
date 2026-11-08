@@ -24,6 +24,7 @@ type CheckoutMode = { providerMode?: 'test' } | {
   checkoutAdmissionEnabled: boolean
   providerWritesEnabled: boolean
   authorizeProviderWrite(fence: CheckoutFence): Promise<boolean>
+  authorizeNewCheckout(): Promise<boolean>
 }
 
 export function createCheckoutService(input: {
@@ -141,6 +142,11 @@ export function createCheckoutService(input: {
       if (attempt && attempt.offering.offering_version_id !== offeringVersionId) throw new Error('Checkout operation conflict')
       if (!attempt) {
         if (!checkoutAdmissionEnabled) throw new CheckoutEligibilityError('New checkout is currently unavailable')
+        if (input.providerMode === 'live') {
+          let allowed = false
+          try { allowed = await input.authorizeNewCheckout() } catch { allowed = false }
+          if (!allowed) throw new CheckoutEligibilityError('New checkout is currently unavailable')
+        }
         const offering = CheckoutOfferingSchema.parse(await store.getCheckoutOffering({
           offering_version_id: offeringVersionId, stripe_account: input.stripeAccount,
         }))

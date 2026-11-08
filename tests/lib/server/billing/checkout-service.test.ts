@@ -51,15 +51,35 @@ function fixture(providerMode: 'test' | 'live' = 'test', now = () => at) {
     validateOffering: candidate => candidate.catalog_key === offering.catalog_key ? { lookupKey: offering.catalog_key } : null,
     now } satisfies Pick<Parameters<typeof createCheckoutService>[0], 'store' | 'provider' | 'stripeAccount' | 'validateOffering' | 'now'>
   const authorizeProviderWrite = vi.fn(async () => { sequence.push('authorize'); return true })
+  const authorizeNewCheckout = vi.fn().mockResolvedValue(true)
   const liveService = (checkoutAdmissionEnabled: boolean, providerWritesEnabled: boolean, returnOrigin = 'https://pika.codepet.ca') =>
-    createCheckoutService({ ...dependencies, providerMode: 'live', returnOrigin, checkoutAdmissionEnabled, providerWritesEnabled, authorizeProviderWrite })
+    createCheckoutService({ ...dependencies, providerMode: 'live', returnOrigin, checkoutAdmissionEnabled, providerWritesEnabled, authorizeProviderWrite, authorizeNewCheckout })
   const service = providerMode === 'live' ? liveService(true, true)
     : createCheckoutService({ ...dependencies, returnOrigin: 'http://localhost:3000' })
   const start = () => service.startCheckout({ subjectUserId: user, offeringVersionId: version, operationId: id })
-  return { store, provider, service, liveService, start, sequence, row: () => row!, open, authorizeProviderWrite }
+  return { store, provider, service, liveService, start, sequence, row: () => row!, open, authorizeProviderWrite, authorizeNewCheckout }
 }
 
 describe('durable hosted checkout orchestration', () => {
+  it('requires portal admission only for a new live reservation, not recovery', async () => {
+    const f = fixture('live')
+    f.authorizeNewCheckout.mockResolvedValueOnce(false)
+    await expect(f.start()).rejects.toThrow('New checkout is currently unavailable')
+    expect(f.store.reserveCheckout).not.toHaveBeenCalled()
+    expect(f.store.getCheckoutOffering).not.toHaveBeenCalled()
+    await f.start()
+    expect(f.authorizeNewCheckout).toHaveBeenCalledTimes(2)
+    f.authorizeNewCheckout.mockRejectedValue(new Error('portal unavailable'))
+    await expect(f.start()).resolves.toMatchObject({ status: 'checkout_open' })
+    expect(f.authorizeNewCheckout).toHaveBeenCalledTimes(2)
+    expect(f.store.reserveCheckout).toHaveBeenCalledOnce()
+  })
+  it('fails closed without reserving when portal admission throws', async () => {
+    const f = fixture('live')
+    f.authorizeNewCheckout.mockRejectedValue(new Error('network'))
+    await expect(f.start()).rejects.toThrow('New checkout is currently unavailable')
+    expect(f.store.reserveCheckout).not.toHaveBeenCalled()
+  })
   it('reauthorizes the exact lease before each live write and preserves customer progress on pause', async () => {
     const live = fixture('live')
     live.authorizeProviderWrite.mockImplementationOnce(async () => { live.sequence.push('authorize'); return true })

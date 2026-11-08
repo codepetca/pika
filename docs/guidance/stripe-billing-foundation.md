@@ -645,16 +645,17 @@ notices on the authorized rollout path.
 The live billing routes use the pinned project and Stripe account. The owner
 status and checkout-recovery routes remain available when new checkout is
 paused. New checkout requires signed webhook configuration, a separate paid
-worker credential, and database permission for admission, provider writes and
-renewal closeout. Existing legacy future assignments hold new checkout until
-the teacher resolves those schedules. The database fences new legacy releases
-and classroom transfers during a live checkout or live paid ownership. The
-durable assignment schedule continues to use the existing draft flow.
+worker credential, a verified live cancellation portal, and database permission
+for admission, provider writes and renewal closeout. Existing legacy future
+assignments hold new checkout until the teacher resolves those schedules. The
+database fences new legacy releases and classroom transfers during a live
+checkout or live paid ownership. The durable assignment schedule continues to
+use the existing draft flow.
 
 The paid worker accepts authenticated `POST /api/billing/stripe/live/process`.
 Use a credential distinct from trial recovery, webhook signing and the Stripe
-API key. It processes checkout recovery, verified invoices, unpaid closeout,
-paid expiry, assignment release and RepoLight provisioning. At the end of
+API key. It processes checkout recovery, verified invoices, paid expiry, unpaid
+closeout, assignment release and RepoLight provisioning. At the end of
 grace, the closeout lease excludes a competing reconciliation claim. If fresh
 Stripe evidence confirms payment, the worker applies the verified renewal.
 Otherwise it pauses collection, verifies the invoice can be voided, then

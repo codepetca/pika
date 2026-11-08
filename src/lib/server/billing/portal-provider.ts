@@ -29,6 +29,25 @@ export type PortalPort = {
   createSession(input: { customer: string; configuration: string; return_url: string }): Promise<unknown>
 }
 
+/** Verify the exact configured account and portal policy before advertising sales. */
+export async function verifyPortalConfiguration(port: Pick<PortalPort, 'getAccount' | 'getConfiguration'>, input: {
+  account: string; configurationId: string; providerMode: 'test' | 'live'
+}): Promise<void> {
+  if (!/^acct_[A-Za-z0-9]+$/.test(input.account) || !/^bpc_[A-Za-z0-9]+$/.test(input.configurationId)) {
+    throw new Error('Portal configuration mismatch')
+  }
+  const account = z.object({ id: z.string() }).parse(await port.getAccount())
+  if (account.id !== input.account) throw new Error('Portal account mismatch')
+  const config = configurationSchema.parse(await port.getConfiguration(input.configurationId))
+  const live = input.providerMode === 'live'
+  if (config.id !== input.configurationId || config.livemode !== live
+    || (live && config.features.customer_update?.enabled !== false)
+    || (live ? !config.features.subscription_cancel.enabled || config.features.subscription_cancel.mode !== 'at_period_end'
+      || config.features.subscription_cancel.proration_behavior !== 'none' : config.features.subscription_cancel.enabled)) {
+    throw new Error('Portal configuration mismatch')
+  }
+}
+
 /** Reject untrusted DB and provider evidence before returning any bearer URL. */
 export async function createPortalSession(port: PortalPort, input: {
   userId: string; account: string; configurationId: string; returnUrl: string; providerMode?: 'test' | 'live'
@@ -39,25 +58,17 @@ export async function createPortalSession(port: PortalPort, input: {
   if (live && input.returnUrl !== `${PRODUCTION_APP_ORIGIN}/billing`) throw new Error('Portal return URL mismatch')
   const binding = customerSchema.parse(await port.getCustomer(input.userId, input.account))
   if (binding.subject_user_id !== input.userId || binding.stripe_account !== input.account || binding.provider_mode !== mode) throw new Error('Portal binding mismatch')
-  const account = z.object({ id: z.string() }).parse(await port.getAccount())
-  if (account.id !== input.account) throw new Error('Portal account mismatch')
+  await verifyPortalConfiguration(port, { account: input.account, configurationId: input.configurationId, providerMode: mode })
   if (live) {
     if (!port.getStripeCustomer) throw new Error('Portal customer unavailable')
     const customer = z.object({ id: z.string(), livemode: z.literal(true), deleted: z.literal(false).optional() })
       .parse(await port.getStripeCustomer(binding.stripe_customer_id))
     if (customer.id !== binding.stripe_customer_id) throw new Error('Portal customer mismatch')
   }
-  const config = configurationSchema.parse(await port.getConfiguration(input.configurationId))
-  if (config.id !== input.configurationId || config.livemode !== live
-    || (live && config.features.customer_update?.enabled !== false)
-    || (live ? !config.features.subscription_cancel.enabled || config.features.subscription_cancel.mode !== 'at_period_end'
-      || config.features.subscription_cancel.proration_behavior !== 'none' : config.features.subscription_cancel.enabled)) {
-    throw new Error('Portal configuration mismatch')
-  }
   const session = sessionSchema.parse(await port.createSession({
-    customer: binding.stripe_customer_id, configuration: config.id, return_url: input.returnUrl,
+    customer: binding.stripe_customer_id, configuration: input.configurationId, return_url: input.returnUrl,
   }))
-  if ((live && session.flow !== null) || session.livemode !== live || session.customer !== binding.stripe_customer_id || session.configuration !== config.id || session.return_url !== input.returnUrl) {
+  if ((live && session.flow !== null) || session.livemode !== live || session.customer !== binding.stripe_customer_id || session.configuration !== input.configurationId || session.return_url !== input.returnUrl) {
     throw new Error('Portal session mismatch')
   }
   const url = new URL(session.url)
