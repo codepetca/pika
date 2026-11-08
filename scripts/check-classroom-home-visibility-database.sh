@@ -134,7 +134,7 @@ if (paths.length > 301) {
 const cutoffTailPath = 'scripts/disposable-classroom-cutoff-replay-tail.json'
 if (paths.length === 310) {
   const bytes = readFileSync(join(root, cutoffTailPath))
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), 'fef34b347c6ee7091384a86398517e000dc589fea5071a6f874dcf71a1b6161a', 'Unreviewed classroom cutoff replay seal')
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), 'b06f422a5419ec8cb3553df8c5546d330258d4c51f4321fa825db7d10637c169', 'Unreviewed classroom cutoff replay seal')
   const tail = JSON.parse(bytes.toString('utf8'))
   assert.equal(tail.length, 3)
   for (const [offset, { name, sha256 }] of tail.entries()) {

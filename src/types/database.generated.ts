@@ -14250,6 +14250,14 @@ export type Database = {
         }
         Returns: Json
       }
+      save_legacy_assignments_bulk_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignments: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       save_lesson_plan_for_owner_v1: {
         Args: {
           p_actor_id: string

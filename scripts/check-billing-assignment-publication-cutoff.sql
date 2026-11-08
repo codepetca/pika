@@ -11,6 +11,7 @@ declare
   v_live uuid:=gen_random_uuid();
   v_draft uuid:=gen_random_uuid();
   v_other_draft uuid:=gen_random_uuid();
+  v_retired uuid:=gen_random_uuid();
   v_cutoff timestamptz;
   v_due timestamptz:=clock_timestamp()+interval '1 day';
   v_result jsonb;
@@ -33,10 +34,13 @@ begin
   insert into public.assignments(id,classroom_id,created_by,title,due_at) values
     (v_live,v_classroom,v_teacher,'Live assignment',v_due),
     (v_draft,v_classroom,v_teacher,'Draft title',v_due),
-    (v_other_draft,v_classroom,v_teacher,'Legacy draft title',v_due);
+    (v_other_draft,v_classroom,v_teacher,'Legacy draft title',v_due),
+    (v_retired,v_classroom,v_teacher,'Retired assignment',v_due);
 
   v_result:=public.release_assignment_for_owner_v1(v_teacher,v_live,clock_timestamp(),false);
   if v_result#>>'{assignment,is_draft}' is distinct from 'false' then raise exception 'Active trial could not publish'; end if;
+  perform public.release_assignment_for_owner_v1(v_teacher,v_retired,clock_timestamp(),false);
+  update public.assignments set blueprint_archived_at=clock_timestamp() where id=v_retired;
   begin
     perform public.release_assignment_for_owner_v1(v_teacher,v_draft,v_due-interval '1 hour',true);
     raise exception 'Direct time-based publication escaped the gated release path';
@@ -68,8 +72,10 @@ begin
     if sqlerrm<>'billing_classroom_new_work_unavailable' then raise; end if;
   end;
   begin
-    perform public.save_assignments_bulk_for_owner_v1(v_teacher,v_classroom,jsonb_build_array(
+    perform public.save_legacy_assignments_bulk_for_owner_v1(v_teacher,v_classroom,jsonb_build_array(
       jsonb_build_object('title','Tentative bulk draft','due_at',v_due,'is_draft',true,
+        'instructions_markdown','','description','','rich_instructions',v_content),
+      jsonb_build_object('id',v_retired,'title','Tentative history edit','due_at',v_due,'is_draft',false,
         'instructions_markdown','','description','','rich_instructions',v_content),
       jsonb_build_object('id',v_other_draft,'title','Tentative bulk release','due_at',v_due,'is_draft',false,
         'instructions_markdown','','description','','rich_instructions',v_content)));
@@ -78,9 +84,27 @@ begin
     if sqlerrm<>'billing_classroom_new_work_unavailable' then raise; end if;
   end;
   if exists(select 1 from public.assignments where classroom_id=v_classroom
-    and title in ('Tentative bulk draft','Tentative bulk release')) then
+    and title in ('Tentative bulk draft','Tentative bulk release','Tentative history edit')) then
     raise exception 'Cutoff rejection partially committed a bulk write';
   end if;
+  v_result:=public.save_legacy_assignments_bulk_for_owner_v1(v_teacher,v_classroom,jsonb_build_array(
+    jsonb_build_object('title','Retained new draft','due_at',v_due,'is_draft',true,
+      'instructions_markdown','','description','','rich_instructions',v_content),
+    jsonb_build_object('id',v_retired,'title','Retained history edit','due_at',v_due,'is_draft',false,
+      'instructions_markdown','','description','','rich_instructions',v_content)));
+  if v_result->>'created' is distinct from '1' or v_result->>'updated' is distinct from '1'
+    or not exists(select 1 from public.assignments where id=v_retired and title='Retained history edit'
+      and blueprint_archived_at is not null and not is_draft) then
+    raise exception 'Legacy bulk could not edit Blueprint-retired history';
+  end if;
+  begin
+    perform public.save_assignments_bulk_for_owner_v1(v_teacher,v_classroom,jsonb_build_array(
+      jsonb_build_object('id',v_retired,'title','Contextual retired edit','due_at',v_due,'is_draft',false,
+        'instructions_markdown','','description','','rich_instructions',v_content)));
+    raise exception 'Contextual writer accepted Blueprint-retired edit';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'assignment_bulk_archived' then raise; end if;
+  end;
   if not exists(select 1 from public.assignments where id=v_draft and title='Draft title'
     and is_draft and released_at is null) then raise exception 'Denied publication changed the draft'; end if;
   v_result:=public.update_assignment_for_owner_v1(v_teacher,v_draft,'{"title":"Retained draft"}',null);

@@ -97,7 +97,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   }
   if (migrations.length === 310) {
     assert.equal(createHash('sha256').update(JSON.stringify(disposableClassroomCutoffReplayTail)).digest('hex'),
-      'fedfb991c020d589e91abfb3d82a9d3c7457c78b11951621bd5c60fcfa19d2c5', 'Unreviewed classroom cutoff replay seal')
+      'fcc169d15c918d2a71d43dfc41e13e053f9c12a796cd9c4b1d632e183f079ecc', 'Unreviewed classroom cutoff replay seal')
     assert.equal(disposableClassroomCutoffReplayTail.length, 3)
     for (const [offset, { name, sha256 }] of disposableClassroomCutoffReplayTail.entries()) {
       const migration = migrations[307 + offset]

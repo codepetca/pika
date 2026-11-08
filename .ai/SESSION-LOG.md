@@ -372,4 +372,5 @@ Merged the latest main into the sandbox billing launch candidate. Preserved the 
 Independent review identified gaps in paid re-entry, ordinary terminal
 retirement, legacy bulk publication and the 307 source replay profile. The
 remediation preserves cutoff history and sends publish-capable bulk requests
-through the existing atomic writer.
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts.

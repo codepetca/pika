@@ -675,6 +675,10 @@ Student reads and submissions can continue using the canonical publication
 state. Convert existing future schedules only within the enabled cohort and
 after verifying that the assignments have no learner work.
 
+Apply migration 310 and verify the legacy bulk RPC in the Data API schema
+cache before deploying the application route. The atomic legacy writer
+preserves edits to Blueprint-retired history in a mixed batch.
+
 Release under the existing assignment and classroom locks, then acquire the
 owner account and entitlement locks. Require eligible access both at the
 scheduled time and after any lock wait. For the scheduled time, use an

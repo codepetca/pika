@@ -384,7 +384,7 @@ describe('POST /api/teacher/assignments/bulk', () => {
       ] },
     })
     const assignments = [
-      { title: 'New draft', due_at: '2025-01-20T23:59:00Z', instructions: '', is_draft: true, position: 0 },
+      { title: 'New draft', due_at: '2025-01-20T23:59:00Z', instructions: '', position: 0 },
       { id: assignmentId, title: 'Release', due_at: '2025-01-20T23:59:00Z', instructions: '', is_draft: false, position: 1 },
     ]
     const response = await POST(new NextRequest('http://localhost:3000/api/teacher/assignments/bulk', {
@@ -392,7 +392,7 @@ describe('POST /api/teacher/assignments/bulk', () => {
     }))
 
     expect(response.status).toBe(denied ? 403 : 200)
-    expect(mockSupabaseClient.rpc).toHaveBeenCalledExactlyOnceWith('save_assignments_bulk_for_owner_v1', expect.objectContaining({
+    expect(mockSupabaseClient.rpc).toHaveBeenCalledExactlyOnceWith('save_legacy_assignments_bulk_for_owner_v1', expect.objectContaining({
       p_actor_id: actorId, p_classroom_id: classroomId,
       p_assignments: [expect.objectContaining({ is_draft: true }), expect.objectContaining({ id: assignmentId, is_draft: false })],
     }))

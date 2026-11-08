@@ -163,6 +163,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       supabase,
       actorId: access.user.id,
       classroomId: access.classroomId,
+      preserveLegacyHistory: access.mode === 'legacy',
       assignments: inputAssignments.map((assignment) => {
         const instructionFields = buildAssignmentInstructionFields(assignment.instructions)
         return {
@@ -172,7 +173,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
           instructionsMarkdown: instructionFields.instructions_markdown,
           description: instructionFields.description,
           richInstructions: instructionFields.rich_instructions as unknown as Json,
-          isDraft: assignment.is_draft,
+          isDraft: access.mode === 'legacy' && !assignment.id ? true : assignment.is_draft,
         }
       }),
     })
