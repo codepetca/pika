@@ -52735,3 +52735,18 @@ recoverable when new admissions close. Migration 304 isolates conflicting
 expiry rows so a limited batch still processes healthy accounts. Offline
 001–304 replay, billing/RepoLight contracts and contention passed. Live mode
 and scheduled changes remain open.
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+<!-- pika-session-log-archive-batch:cdefae3ca7dc23c6fcb1d3ddec5de2180d1425246d11288d266ef0d3040a47c5 -->
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+<!-- pika-session-log-archive-batch:8da09969272194c217015d835616489f16b2cb2e568ebb66f41d3089e6077ff1 -->

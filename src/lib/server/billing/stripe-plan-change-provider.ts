@@ -396,3 +396,121 @@ export function createStripePlanChangeProvider(port: StripePlanChangePort, now =
     verify,
   }
 }
+
+const cancellationSubscriptionSchema = subscriptionSchema.extend({
+  status: z.enum(['active', 'canceled']), cancel_at: timestamp.nullable(),
+  canceled_at: timestamp.nullable().optional(), ended_at: timestamp.nullable().optional(),
+})
+const cancellationScheduleSchema = scheduleSchema.extend({
+  status: z.enum(['active', 'completed']), end_behavior: z.enum(['release', 'cancel']),
+  completed_at: timestamp.nullable().optional(), canceled_at: timestamp.nullable().optional(),
+  current_phase: phaseBounds.nullable(),
+})
+type CancellationOperation = { operation: PersistedSchedule; cancellationOperationId: string }
+type CancellationMutation = CancellationOperation & { replayUntil: string; beforeMutation(): Promise<boolean> }
+
+export function stripeScheduledCancellationIdempotencyKey(cancellationOperationId: string, action: 'cancel' | 'undo') {
+  return `pika-scheduled-cancellation-${cancellationOperationId}-${action}`
+}
+
+/** Live-only adapter. Caller must durably fence and authorize each operation. */
+export function createLiveScheduledCancellationProvider(port: StripePlanChangePort, configuredScope: BillingReconciliationScope, now = Date.now) {
+  const scope = BillingReconciliationScopeSchema.parse(configuredScope)
+  requireFact(scope.providerMode === 'live')
+  function operationFor(input: CancellationOperation) {
+    const cancellationOperationId = decode(z.uuid(), input.cancellationOperationId)
+    const operation = parseOperation(input.operation)
+    requireFact(operation.providerMode === 'live' && !!operation.lastPaidInvoiceId && !!operation.scheduleId
+      && operation.stripeAccount === scope.stripeAccount && cancellationOperationId !== operation.operationId)
+    return { operation, cancellationOperationId }
+  }
+  async function observe(input: CancellationOperation) {
+    const { operation, cancellationOperationId } = operationFor(input)
+    const account = decode(z.object({ id: accountId }), await port.retrieveAccount())
+    requireFact(account.id === scope.stripeAccount)
+    const subscription = decode(cancellationSubscriptionSchema, await port.retrieveSubscription(operation.stripeSubscriptionId))
+    const schedule = decode(cancellationScheduleSchema, await port.retrieveSchedule(operation.scheduleId!))
+    const invoice = subscription.latest_invoice
+    const item = subscription.items.data[0]
+    requireFact(subscription.livemode && subscription.id === operation.stripeSubscriptionId
+      && subscription.customer.id === operation.stripeCustomerId && subscription.customer.livemode
+      && subscription.schedule === operation.scheduleId && subscription.currency === operation.source.currency
+      && item.price.livemode && sameTerms(item.price, operation.source)
+      && item.current_period_start === operation.starts && item.current_period_end === operation.effective
+      && invoice !== null && invoice.id === operation.lastPaidInvoiceId && invoice.livemode
+      && invoice.status === 'paid' && invoice.amount_remaining === 0 && invoice.customer === operation.stripeCustomerId
+      && schedule.livemode && schedule.id === operation.scheduleId && schedule.customer === operation.stripeCustomerId
+      && schedule.subscription === operation.stripeSubscriptionId)
+    const [source, target] = schedule.phases
+    requireFact(matchesPhase(source, operation.source, operation.starts, operation.effective)
+      && source.proration_behavior === 'none' && (source.billing_cycle_anchor == null || source.billing_cycle_anchor === 'automatic')
+      && (source.default_payment_method ?? schedule.default_settings.default_payment_method ?? null) === (subscription.default_payment_method ?? null))
+    const marker = schedule.metadata ?? {}
+    requireFact(marker.pika_plan_change_operation === operation.operationId)
+    const at = now() / 1000
+    if (schedule.status === 'completed') {
+      requireFact(at >= operation.effective && subscription.status === 'canceled'
+        && subscription.ended_at === operation.effective && subscription.canceled_at != null
+        && (subscription.cancel_at === null || subscription.cancel_at === operation.effective)
+        && schedule.end_behavior === 'cancel' && schedule.completed_at === operation.effective
+        && schedule.current_phase === null && schedule.phases.length === 1
+        && Object.keys(marker).length === 2 && marker.pika_cancellation_operation === cancellationOperationId)
+      return { kind: 'completed' as const, operation, schedule }
+    }
+    requireFact(at >= operation.starts && at < operation.effective && subscription.status === 'active'
+      && schedule.current_phase !== null && schedule.current_phase.start_date === operation.starts
+      && schedule.current_phase.end_date === operation.effective && schedule.completed_at == null)
+    if (schedule.end_behavior === 'cancel') {
+      requireFact(schedule.phases.length === 1 && subscription.cancel_at === operation.effective
+        && marker.pika_cancellation_operation === cancellationOperationId && Object.keys(marker).length === 2)
+      return { kind: 'cancel_scheduled' as const, operation, schedule }
+    }
+    requireFact(subscription.cancel_at === null && schedule.phases.length === 2 && !!target
+      && Object.keys(marker).length === 1 && matchesPhase(target, operation.target, operation.effective, operation.targetEnd)
+      && target.proration_behavior === 'none' && target.billing_cycle_anchor === 'phase_start'
+      && (source.default_payment_method ?? null) === (target.default_payment_method ?? null))
+    const price = decode(priceSchema, await port.retrievePrice(operation.target.priceId))
+    requireFact(price.livemode && sameTerms(price, operation.target))
+    return { kind: 'scheduled' as const, operation, schedule }
+  }
+  async function mutate(input: CancellationMutation, action: 'cancel' | 'undo') {
+    const replayUntil = Date.parse(decode(time, input.replayUntil))
+    requireFact(typeof input.beforeMutation === 'function')
+    const state = await observe(input)
+    const desired = action === 'cancel' ? 'cancel_scheduled' : 'scheduled'
+    if (action === 'cancel' && state.kind === 'completed') return { kind: 'completed' } as const
+    if (state.kind === desired) return { kind: desired } as const
+    requireFact(action === 'cancel' ? state.kind === 'scheduled' : state.kind === 'cancel_scheduled')
+    const { operation, schedule } = state
+    const canWrite = () => requireFact(now() >= operation.starts * 1000 && now() + 5_000 < Math.min(operation.effective * 1000, replayUntil))
+    const defaultPaymentMethod = schedule.phases[0].default_payment_method
+    const common = { proration_behavior: 'none', automatic_tax: { enabled: false }, collection_method: 'charge_automatically',
+      discounts: '', ...(defaultPaymentMethod ? { default_payment_method: defaultPaymentMethod } : {}) } as const
+    if (action === 'undo') {
+      const price = decode(priceSchema, await port.retrievePrice(operation.target.priceId))
+      requireFact(price.livemode && price.active && sameTerms(price, operation.target))
+    }
+    const params: Stripe.SubscriptionScheduleUpdateParams = {
+      end_behavior: action === 'cancel' ? 'cancel' : 'release', proration_behavior: 'none',
+      metadata: { pika_plan_change_operation: operation.operationId,
+        pika_cancellation_operation: action === 'cancel' ? input.cancellationOperationId : '' },
+      phases: [{ ...common, start_date: operation.starts, end_date: operation.effective,
+        items: [{ price: operation.source.priceId, quantity: 1 }] },
+      ...(action === 'undo' ? [{ ...common, start_date: operation.effective,
+        duration: { interval: operation.target.interval, interval_count: 1 }, billing_cycle_anchor: 'phase_start' as const,
+        items: [{ price: operation.target.priceId, quantity: 1 }] }] : [])],
+    }
+    canWrite()
+    if (await input.beforeMutation() !== true) return { kind: 'stale' as const }
+    canWrite()
+    await port.updateSchedule(operation.scheduleId!, params, { idempotencyKey: stripeScheduledCancellationIdempotencyKey(input.cancellationOperationId, action) })
+    const verified = await observe(input)
+    requireFact(verified.kind === desired || (action === 'cancel' && verified.kind === 'completed'))
+    return { kind: verified.kind }
+  }
+  return {
+    async read(input: CancellationOperation) { const { kind } = await observe(input); return { kind } },
+    cancel: (input: CancellationMutation) => mutate(input, 'cancel'),
+    undo: (input: CancellationMutation) => mutate(input, 'undo'),
+  }
+}
