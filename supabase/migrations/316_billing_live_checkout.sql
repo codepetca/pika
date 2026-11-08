@@ -477,12 +477,14 @@ grant execute on function public.billing_reserve_live_checkout_v1(text,text,json
 -- gate behavior. Live rows must not enter either candidate arm before limiting.
 create or replace function public.billing_claim_subscription_v1(p_request jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
+declare v_seconds integer;
 begin
   perform private.assert_stripe_billing_sandbox_enabled_v1();
+  -- Match the original integer parser before deciding whether to delegate
+  -- validation. Text with whitespace or a plus sign is still a valid lease.
+  v_seconds:=(p_request->>'lease_seconds')::integer;
   if p_request is null or jsonb_typeof(p_request)<>'object' or p_request->>'subscription_id' is null
-    or coalesce(p_request->>'lease_seconds','') !~ '^[0-9]+$' then
-    return private.billing_claim_subscription_before_upgrade_v1(p_request); end if;
-  if (p_request->>'lease_seconds')::numeric not between 30 and 300 then
+    or v_seconds is null or v_seconds not between 30 and 300 then
     return private.billing_claim_subscription_before_upgrade_v1(p_request); end if;
   perform 1 from public.stripe_billing_subscription_bindings binding
     join public.stripe_billing_offering_versions version on version.id=binding.offering_version_id

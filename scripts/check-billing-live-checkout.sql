@@ -37,6 +37,29 @@ begin
     end if;
   end loop;
   v_id:=gen_random_uuid();
+  -- A synthetic mixed database also needs the mode filter. Roll it back
+  -- before pinning the actual test target below.
+  begin
+    declare v_mixed_offering uuid; v_mixed_version uuid; v_mixed_binding uuid;
+    begin
+      update private.stripe_billing_settings set sandbox_enabled=true where singleton;
+      insert into public.stripe_billing_offerings(plan_key) values('plus') returning id into v_mixed_offering;
+      insert into public.stripe_billing_offering_versions(offering_id,version,stripe_account,provider_mode,
+        stripe_product_id,stripe_price_id,currency,unit_amount,interval,classroom_limit,features)
+      values(v_mixed_offering,1,v_account,'live','prod_Mixed316','price_Mixed316','usd',1900,'month',5,'{}')
+      returning id into v_mixed_version;
+      insert into public.stripe_billing_subscription_bindings(subject_user_id,stripe_account,provider_mode,
+        stripe_customer_id,stripe_subscription_id,offering_version_id)
+      values(v_subject,v_account,'live','cus_Mixed316','sub_Mixed316',v_mixed_version) returning id into v_mixed_binding;
+      v_result:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_mixed_binding,'lease_seconds',' +120 '));
+      if v_result is distinct from '{"status":"not_found"}'::jsonb
+        or exists(select 1 from public.stripe_billing_subscription_bindings where id=v_mixed_binding and lease_token is not null) then
+        raise exception 'Legacy lease text bypassed sandbox mode filtering';
+      end if;
+      raise exception using errcode='P3161',message='rollback_mixed_mode_fixture';
+    end;
+  exception when sqlstate 'P3161' then null;
+  end;
   update private.stripe_billing_settings set live_project_ref=v_project,live_stripe_account=v_account,
     classroom_new_work_cutoff_enabled=true where singleton;
   update private.stripe_billing_settings set live_payment_lifecycle_enabled=true where singleton;
