@@ -66,6 +66,50 @@ async function verifyDirectClassroomContention(ids) {
   }
 }
 
+async function verifyBulkTenantScope(ids) {
+  const otherOwner = "'b3100000-0000-4000-8000-000000000005'::uuid"
+  const otherClassroom = "'b3100000-0000-4000-8000-000000000006'::uuid"
+  sql(`insert into public.users(id,email,role) values(${otherOwner},'race310-other@example.invalid','teacher');
+    insert into public.classrooms(id,teacher_id,title,class_code)
+      values(${otherClassroom},${otherOwner},'Other classroom','CUT31003');`)
+  const holder = session('billing-bulk-tenant-holder')
+  const entrant = session('billing-bulk-tenant-entrant')
+  const batch = `jsonb_build_array(jsonb_build_object('id',${ids.work},'title','Cross tenant',
+    'due_at',clock_timestamp()+interval '1 day','is_draft',false,'instructions_markdown','',
+    'description','','rich_instructions','{}'::jsonb))`
+  try {
+    holder.send(`begin;
+      select pg_advisory_xact_lock(hashtextextended('assignment_submission:'||${ids.work}::text,0));
+      select id from public.assignments where id=${ids.work} for update;
+      select 'ready';`)
+    await holder.marker('ready')
+    entrant.send("set lock_timeout='1s'; set role service_role;")
+    for (const rpc of ['save_assignments_bulk_for_owner_v1', 'save_legacy_assignments_bulk_for_owner_v1']) {
+      entrant.send(`do $$ declare result jsonb; begin
+        result:=public.${rpc}(${otherOwner},${otherClassroom},${batch});
+        if result is distinct from jsonb_build_object('ok',false,'status',400,
+          'errors',jsonb_build_array('Assignment ID not found: '||${ids.work}::text)) then
+          raise exception 'Expected a scoped missing assignment response';
+        end if;
+        begin
+          perform public.${rpc}(${otherOwner},${ids.classroom},${batch});
+          raise exception 'Expected the foreign classroom to be forbidden';
+        exception when insufficient_privilege then
+          if sqlerrm<>'Forbidden' then raise; end if;
+        end;
+      end $$; select '${rpc}';`)
+      await entrant.marker(rpc)
+    }
+    await entrant.close()
+    holder.send('commit;')
+    await holder.close()
+    console.log('PASS 310 bulk editors rejected a foreign classroom and assignment without acquiring victim locks.')
+  } finally {
+    holder.child.kill()
+    entrant.child.kill()
+  }
+}
+
 async function verifyCutoff(version, buildCase) {
   const ids = Object.fromEntries(['owner', 'student', 'classroom', 'work'].map((name, index) => [
     name, `'b${version}0000-0000-4000-8000-00000000000${index + 1}'::uuid`,
@@ -136,7 +180,10 @@ await verifyCutoff('310', ids => ({
   fixture: `insert into public.assignments(id,classroom_id,created_by,title,due_at)
     values(${ids.work},${ids.classroom},${ids.owner},'Race',clock_timestamp()+interval '1 day')`,
   operation: `public.release_assignment_for_owner_v1(${ids.owner},${ids.work},clock_timestamp(),false)`,
-  verifyContention: verifyDirectClassroomContention,
+  async verifyContention(ids) {
+    await verifyDirectClassroomContention(ids)
+    await verifyBulkTenantScope(ids)
+  },
   verifyUnchanged() {
     assert.equal(sql(`select (is_draft and released_at is null)::text from public.assignments where id=${ids.work};`), 'true')
   },

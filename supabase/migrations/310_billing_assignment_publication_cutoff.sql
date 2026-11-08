@@ -54,7 +54,7 @@ revoke all on function private.guard_billing_assignment_publication_v1() from pu
 create trigger billing_assignment_publication_cutoff before insert or update of is_draft,released_at,classroom_id
 on public.assignments for each row execute function private.guard_billing_assignment_publication_v1();
 
--- Share migration 198's locks and write transaction between both editors.
+-- Share the atomic write and migration 199's tenant checks between both editors.
 create function private.save_assignments_bulk_for_owner_v2(
   p_actor_id uuid,
   p_classroom_id uuid,
@@ -91,6 +91,47 @@ begin
     or jsonb_array_length(p_assignments) > 50
   then
     raise exception using errcode = '22023', message = 'Invalid assignment bulk request';
+  end if;
+
+  -- Validate caller-supplied IDs before the tenant preflight, preserving the
+  -- invalid-input response without acquiring their advisory locks.
+  begin
+    perform (item.value->>'id')::uuid
+    from jsonb_array_elements(p_assignments) as item(value)
+    where item.value ? 'id' and item.value->'id' <> 'null'::jsonb;
+  exception when invalid_text_representation then
+    raise exception using errcode = '22023', message = 'Invalid assignment bulk request';
+  end;
+
+  select classroom.teacher_id, classroom.archived_at
+  into v_owner_id, v_archived_at
+  from public.classrooms as classroom
+  where classroom.id = p_classroom_id;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'Classroom not found';
+  end if;
+  if v_owner_id is distinct from p_actor_id then
+    raise exception using errcode = '42501', message = 'Forbidden';
+  end if;
+  if v_archived_at is not null then
+    raise exception using errcode = '55000', message = 'assignment_bulk_archived';
+  end if;
+
+  -- Reject foreign and missing IDs before entering their lock namespaces.
+  select jsonb_agg(to_jsonb(format('Assignment ID not found: %s', item.value->>'id')) order by item.ordinality)
+  into v_errors
+  from jsonb_array_elements(p_assignments) with ordinality as item(value, ordinality)
+  where item.value ? 'id'
+    and item.value->'id' <> 'null'::jsonb
+    and not exists (
+      select 1 from public.assignments as assignment
+      where assignment.id = (item.value->>'id')::uuid
+        and assignment.classroom_id = p_classroom_id
+    );
+
+  if v_errors is not null then
+    return jsonb_build_object('ok', false, 'status', 400, 'errors', v_errors);
   end if;
 
   -- Resolve new Assignment IDs before taking the established per-Assignment
@@ -168,7 +209,7 @@ begin
   for update;
 
   if not found then
-    raise exception using errcode = 'P0002', message = 'Classroom not found';
+    raise exception using errcode = '40001', message = 'Classroom binding changed';
   end if;
   if v_owner_id is distinct from p_actor_id then
     raise exception using errcode = '42501', message = 'Forbidden';
@@ -181,11 +222,12 @@ begin
   -- advisory fences above keep this compatible with single-Assignment writes.
   perform 1
   from public.assignments as assignment
-  where assignment.id in (
-    select distinct (item.value->>'assignment_id')::uuid
-    from jsonb_array_elements(v_items) as item(value)
-    where not (item.value->>'is_new')::boolean
-  )
+  where assignment.classroom_id = p_classroom_id
+    and assignment.id in (
+      select distinct (item.value->>'assignment_id')::uuid
+      from jsonb_array_elements(v_items) as item(value)
+      where not (item.value->>'is_new')::boolean
+    )
   order by assignment.id
   for update;
 
@@ -297,7 +339,8 @@ begin
   loop
     select * into strict v_existing
     from public.assignments as assignment
-    where assignment.id = (v_item->>'assignment_id')::uuid;
+    where assignment.id = (v_item->>'assignment_id')::uuid
+      and assignment.classroom_id = p_classroom_id;
 
     update public.assignments
     set title = v_item->>'title',
@@ -312,7 +355,7 @@ begin
         when v_existing.is_draft then v_now
         else v_existing.released_at
       end
-    where id = v_existing.id
+    where id = v_existing.id and classroom_id = p_classroom_id
     returning * into v_assignment;
 
     v_result_assignments := v_result_assignments || jsonb_build_array(to_jsonb(v_assignment));

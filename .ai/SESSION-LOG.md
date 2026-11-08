@@ -373,4 +373,5 @@ Independent review identified gaps in paid re-entry, ordinary terminal
 retirement, legacy bulk publication and the 307 source replay profile. The
 remediation preserves cutoff history and sends publish-capable bulk requests
 through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
-and treats newly created rows as drafts.
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
