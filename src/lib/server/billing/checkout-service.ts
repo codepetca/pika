@@ -1,13 +1,14 @@
 import { z } from 'zod'
 import { CheckoutAttemptSchema, CheckoutClaimSchema, CheckoutOfferingSchema,
   CheckoutEligibilityError, CheckoutProviderContractError, publicCheckout,
-  type CheckoutAttempt, type CheckoutOffering, type CheckoutProvider, type CheckoutStore,
+  type CheckoutAttempt, type CheckoutFence, type CheckoutOffering, type CheckoutProvider, type CheckoutStore,
 } from './checkout-contracts'
 import { PRODUCTION_APP_ORIGIN } from './live-target'
 
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
 const mutationResult = z.object({ status: z.enum(['saved', 'finished', 'lost_claim']) }).strict()
 class CheckoutWriteDeadlineError extends Error {}
+class CheckoutWritesPausedError extends Error {}
 
 function pinnedOrigin(value: string): string {
   const url = new URL(value)
@@ -22,6 +23,7 @@ type CheckoutMode = { providerMode?: 'test' } | {
   providerMode: 'live'
   checkoutAdmissionEnabled: boolean
   providerWritesEnabled: boolean
+  authorizeProviderWrite(fence: CheckoutFence): Promise<boolean>
 }
 
 export function createCheckoutService(input: {
@@ -78,7 +80,11 @@ export function createCheckoutService(input: {
     }
     const canWrite = () => now() < Date.parse(attempt.write_deadline)
       && now() + 10_000 < Date.parse(claim.lease_expires_at)
-    const assertCanWrite = () => { if (!canWrite()) throw new CheckoutWriteDeadlineError() }
+    const assertCanWrite = async () => {
+      if (!canWrite()) throw new CheckoutWriteDeadlineError()
+      if (input.providerMode === 'live' && !await input.authorizeProviderWrite(fence)) throw new CheckoutWritesPausedError()
+      if (!canWrite()) throw new CheckoutWriteDeadlineError()
+    }
     try {
       // A known session can settle while provider writes are paused. A
       // reservation without a session must not create one during the pause.
@@ -116,6 +122,7 @@ export function createCheckoutService(input: {
       await finish('pending', { payment_pending: session.status === 'complete' })
     } catch (error) {
       if (error instanceof CheckoutWriteDeadlineError) return await finish('attention', { reason_code: 'write_recovery_expired' })
+      if (error instanceof CheckoutWritesPausedError) return await finish('paused', { reason_code: 'provider_writes_paused' })
       // No database/provider messages or object IDs cross this boundary.
       await finish(error instanceof CheckoutProviderContractError ? 'attention' : 'retry', {
         reason_code: error instanceof CheckoutProviderContractError ? 'provider_contract_invalid' : 'provider_unavailable',

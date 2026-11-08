@@ -17,6 +17,7 @@ export function validateLaunchCheckoutOffering(offering: CheckoutOffering, relea
 
 export async function listLaunchPurchaseCatalog(input: {
   stripeAccount: string
+  providerMode?: 'test' | 'live'
   release?: PurchaseCatalogRelease
   listOfferings(): Promise<unknown>
 }): Promise<BillingCatalogItem[]> {
@@ -26,6 +27,7 @@ export async function listLaunchPurchaseCatalog(input: {
   const result = new Map<string, { item: BillingCatalogItem; isCurrent: boolean }>()
   for (const offering of response.items) {
     if (offering.stripe_account !== input.stripeAccount) throw new Error('Billing catalog account mismatch')
+    if ((offering.provider_mode ?? 'test') !== (input.providerMode ?? 'test')) throw new Error('Billing catalog mode mismatch')
     const match = validateLaunchCheckoutOffering(offering, input.release)
     if (!match) continue
     if (seen.has(match.lookupKey)) throw new Error('Billing catalog has conflicting available versions')

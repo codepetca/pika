@@ -127,7 +127,7 @@ export function createStripeCheckoutProvider(port: StripeCheckoutPort, scope?: S
       if (scope) {
         if (!assertCanWrite) throw new CheckoutProviderContractError()
         await assertAccount(scope.stripeAccount)
-        assertCanWrite()
+        await assertCanWrite()
       }
       const result = customerSchema.safeParse(await port.createCustomer(idempotencyKey))
       if (!result.success || result.data.livemode !== live) throw new CheckoutProviderContractError()
@@ -144,7 +144,7 @@ export function createStripeCheckoutProvider(port: StripeCheckoutPort, scope?: S
           || price.data.currency !== expected.currency || price.data.unit_amount !== expected.unit_amount
           || price.data.unit_amount_decimal.replace(/\.0+$/, '') !== String(expected.unit_amount)
           || price.data.recurring.interval !== expected.interval) throw new CheckoutProviderContractError()
-        assertCanWrite()
+        await assertCanWrite()
       }
       return session(await port.createSession(attempt, customerId, idempotencyKey), attempt, customerId, live)
     },

@@ -61,6 +61,31 @@ export function readBillingLiveWebhookConfig(env: NodeJS.ProcessEnv = process.en
   return { ...target, webhookSecret }
 }
 
+export type BillingLiveCheckoutConfig = BillingLiveTargetConfig & Readonly<{
+  providerMode: 'live'
+  appOrigin: typeof PRODUCTION_APP_ORIGIN
+  secretKey: string
+  checkoutAdmissionEnabled: boolean
+  providerWritesEnabled: boolean
+}>
+
+/** Keep recovery available while either admission or new provider writes is paused. */
+export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveCheckoutConfig | null {
+  const checkoutAdmissionEnabled = env.BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED === 'true'
+  const providerWritesEnabled = env.BILLING_LIVE_CHECKOUT_WRITES_ENABLED === 'true'
+  if (env.BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED !== 'true') {
+    if (checkoutAdmissionEnabled || providerWritesEnabled) throw new Error('Invalid live checkout configuration')
+    return null
+  }
+  const target = readExactLiveBillingTarget(env)
+  const secretKey = env.STRIPE_LIVE_SECRET_KEY
+  if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
+    throw new Error('Invalid live checkout configuration')
+  }
+  return { ...target, providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
+    checkoutAdmissionEnabled, providerWritesEnabled }
+}
+
 /** Existing trial status and expiry stay available while new admission is stopped. */
 export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveTrialConfig | null {
   const admissionEnabled = env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true'

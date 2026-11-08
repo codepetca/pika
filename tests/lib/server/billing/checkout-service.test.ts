@@ -43,22 +43,41 @@ function fixture(providerMode: 'test' | 'live' = 'test', now = () => at) {
     status: 'open' as const, paymentStatus: 'unpaid' as const, url: 'https://checkout.stripe.com/c/pay/abc' }
   const provider: CheckoutProvider = {
     assertAccount: vi.fn(async () => { sequence.push('account') }),
-    createCustomer: vi.fn(async () => { sequence.push('customer'); return 'cus_test' }),
-    createSession: vi.fn(async () => { sequence.push('session'); return open }),
+    createCustomer: vi.fn(async (_key, authorize) => { await authorize?.(); sequence.push('customer'); return 'cus_test' }),
+    createSession: vi.fn(async (_attempt, _customer, _key, authorize) => { await authorize?.(); sequence.push('session'); return open }),
     retrieveSession: vi.fn(async () => open),
   }
   const dependencies = { store, provider, stripeAccount: 'acct_test',
     validateOffering: candidate => candidate.catalog_key === offering.catalog_key ? { lookupKey: offering.catalog_key } : null,
     now } satisfies Pick<Parameters<typeof createCheckoutService>[0], 'store' | 'provider' | 'stripeAccount' | 'validateOffering' | 'now'>
+  const authorizeProviderWrite = vi.fn(async () => { sequence.push('authorize'); return true })
   const liveService = (checkoutAdmissionEnabled: boolean, providerWritesEnabled: boolean, returnOrigin = 'https://pika.codepet.ca') =>
-    createCheckoutService({ ...dependencies, providerMode: 'live', returnOrigin, checkoutAdmissionEnabled, providerWritesEnabled })
+    createCheckoutService({ ...dependencies, providerMode: 'live', returnOrigin, checkoutAdmissionEnabled, providerWritesEnabled, authorizeProviderWrite })
   const service = providerMode === 'live' ? liveService(true, true)
     : createCheckoutService({ ...dependencies, returnOrigin: 'http://localhost:3000' })
   const start = () => service.startCheckout({ subjectUserId: user, offeringVersionId: version, operationId: id })
-  return { store, provider, service, liveService, start, sequence, row: () => row!, open }
+  return { store, provider, service, liveService, start, sequence, row: () => row!, open, authorizeProviderWrite }
 }
 
 describe('durable hosted checkout orchestration', () => {
+  it('reauthorizes the exact lease before each live write and preserves customer progress on pause', async () => {
+    const live = fixture('live')
+    live.authorizeProviderWrite.mockImplementationOnce(async () => { live.sequence.push('authorize'); return true })
+      .mockImplementationOnce(async () => { live.sequence.push('authorize'); return false })
+
+    await expect(live.start()).resolves.toMatchObject({ status: 'pending', checkoutUrl: null })
+    expect(live.sequence).toEqual(['reserve', 'account', 'authorize', 'customer', 'authorize'])
+    expect(live.authorizeProviderWrite).toHaveBeenCalledTimes(2)
+    expect(live.authorizeProviderWrite).toHaveBeenCalledWith({ attempt_id: id, lease_token: lease, fencing_token: 1 })
+    expect(live.row()).toMatchObject({ customer_id: 'cus_test', session_id: null })
+    expect(live.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({
+      outcome: 'paused', reason_code: 'provider_writes_paused',
+    }))
+
+    await expect(live.start()).resolves.toMatchObject({ status: 'checkout_open' })
+    expect(live.provider.createCustomer).toHaveBeenCalledOnce()
+  })
+
   it('binds live reservations to production and rejects a same-account sandbox offering', async () => {
     const live = fixture('live')
     expect(() => live.liveService(true, true, 'https://pika.codepet.ca.invalid')).toThrow('Invalid live checkout return origin')
@@ -104,7 +123,7 @@ describe('durable hosted checkout orchestration', () => {
     const live = fixture('live', () => time)
     vi.mocked(live.provider.createSession).mockImplementationOnce(async (_attempt, _customer, _key, assertCanWrite) => {
       time = at + 120_000
-      assertCanWrite?.()
+      await assertCanWrite?.()
       throw new Error('Provider write should have stopped')
     })
     expect((await live.start()).status).toBe('attention')

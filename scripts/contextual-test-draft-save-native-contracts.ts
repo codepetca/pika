@@ -484,7 +484,7 @@ export function buildTestOwnerReorderNativeContractsManifest(original: Assignmen
   // The caller first seals and admits the full migration chain; this selects
   // additional fixture checks for complete profiles with the RepoLight outbox.
   const names = readdirSync(resolve(repository, 'supabase/migrations')).filter(name => /^\d{3}_.+\.sql$/.test(name)).sort()
-  const repoLight300 = [300, 301, 303, 304, 307, 310, 311, 312, 313, 314].includes(names.length)
+  const repoLight300 = [300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316].includes(names.length)
     ? repoLight300PresenceSql(names.includes('313_billing_live_trial_lifecycle.sql')) : ''
   const setup = `${guard}\nbegin read only;set local lock_timeout='1s';set local statement_timeout='8s';
 ${repoLight300}

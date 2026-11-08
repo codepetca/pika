@@ -51663,3 +51663,9 @@ Observed production learner and owner busy errors during class tests. Prepared b
 
 - Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
 - Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
+
+## 2026-11-04 — AI provider gate rebase
+
+Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
+
+<!-- pika-session-log-archive-batch:557e8495a6a5b2f8c218938c92cb96058e6fe2ab497b48b28bd3bc0e7db3cf78 -->

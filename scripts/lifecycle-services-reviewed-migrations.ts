@@ -88,7 +88,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304, 307, 310, 311, 312, 313, 314].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313 or 314')
+  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313, 314, 315 or 316')
   assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
     '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
   assert.equal(disposableBillingReplayTail.length, 6)
@@ -132,12 +132,13 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   }
   if (migrations.length >= 314) {
     assert.equal(createHash('sha256').update(JSON.stringify(disposableLivePaymentReplayTail)).digest('hex'),
-      '4fd9ced25f883b6a68ae532931284649b641daf9118bfc31d76f3fc537b49d1e', 'Unreviewed live payment replay seal')
-    assert.equal(disposableLivePaymentReplayTail.length, 1)
-    const { name, sha256 } = disposableLivePaymentReplayTail[0]
-    const migration = migrations[313]
-    assert.equal(migration.name, name)
-    assert.equal(migration.sha256, sha256)
-    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+      'bd2c8a393964bc0aa3840ad4938f078bff0e6a105bcfec19ea2f916896b2b558', 'Unreviewed live payment replay seal')
+    assert.equal(disposableLivePaymentReplayTail.length, 3)
+    for (const [offset, { name, sha256 }] of disposableLivePaymentReplayTail.slice(0, migrations.length - 313).entries()) {
+      const migration = migrations[313 + offset]
+      assert.equal(migration.name, name)
+      assert.equal(migration.sha256, sha256)
+      assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+    }
   }
 }

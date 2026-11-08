@@ -75,8 +75,8 @@ export type CheckoutSession = {
 }
 export type CheckoutProvider = {
   assertAccount(stripeAccount: string): Promise<void>
-  createCustomer(idempotencyKey: string, assertCanWrite?: () => void): Promise<string>
-  createSession(attempt: CheckoutAttempt, customerId: string, idempotencyKey: string, assertCanWrite?: () => void): Promise<CheckoutSession>
+  createCustomer(idempotencyKey: string, assertCanWrite?: () => void | Promise<void>): Promise<string>
+  createSession(attempt: CheckoutAttempt, customerId: string, idempotencyKey: string, assertCanWrite?: () => void | Promise<void>): Promise<CheckoutSession>
   retrieveSession(attempt: CheckoutAttempt): Promise<CheckoutSession>
 }
 

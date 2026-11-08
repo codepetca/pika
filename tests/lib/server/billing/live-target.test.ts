@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { checkBillingLiveTarget, readBillingLiveTrialConfig } from '@/lib/server/billing/live-target'
+import { checkBillingLiveTarget, readBillingLiveCheckoutConfig, readBillingLiveTrialConfig } from '@/lib/server/billing/live-target'
 
 const projectRef = 'zhioqbapgfcrronyuidm'
 const supabaseOrigin = 'https://' + projectRef + '.supabase.co'
@@ -14,6 +14,27 @@ const environment = {
 }
 const rpcPath = '/rest/v1/rpc/billing_attest_live_target_v1'
 const requestUrl = supabaseOrigin + rpcPath + '?p_project_ref=' + projectRef + '&p_stripe_account=' + stripeAccount
+
+describe('live checkout configuration', () => {
+  const recovery = { ...environment, BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'true',
+    STRIPE_LIVE_SECRET_KEY: 'rk_live_DedicatedFixtureSecret' }
+
+  it('defaults off and can keep recovery on while new admission and Stripe writes are off', () => {
+    expect(readBillingLiveCheckoutConfig({})).toBeNull()
+    expect(readBillingLiveCheckoutConfig(recovery)).toMatchObject({ projectRef, stripeAccount, supabaseOrigin,
+      providerMode: 'live', checkoutAdmissionEnabled: false, providerWritesEnabled: false })
+  })
+
+  it.each([
+    { STRIPE_LIVE_SECRET_KEY: 'sk_test_OtherModeSecretFixture' },
+    { BILLING_SANDBOX_ENABLED: 'true' },
+    { VERCEL_ENV: 'preview' },
+    { BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'false', BILLING_LIVE_CHECKOUT_WRITES_ENABLED: 'true' },
+    { BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'false', BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED: 'true' },
+  ])('rejects unsafe configuration', overrides => {
+    expect(() => readBillingLiveCheckoutConfig({ ...recovery, ...overrides })).toThrow(/Invalid live/)
+  })
+})
 
 describe('live trial runtime configuration', () => {
   const trial = {
