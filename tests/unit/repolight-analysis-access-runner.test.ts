@@ -32,6 +32,7 @@ describe('RepoLight offline replay source boundary', () => {
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
     const billingStep = workflow.split('- name: Verify account plans and isolated Stripe billing contracts')[1]?.split('- name:')[0]
     expect(billingStep).toContain('docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-expiry-conflicts-database.sql')
+    expect(billingStep).toContain('docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-scheduled-plan-change-admission-database.sql')
   }, 60_000)
 
   it('checks the exact reviewed 296/297 bytes and leaves platform schemas outside their scope', () => {
