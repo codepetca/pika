@@ -10,6 +10,7 @@ import { chunkValues, loadChunkedRows, loadPagedRows } from '@/lib/server/query-
 import type { TableRow } from '@/types/database'
 import { z } from 'zod'
 import { assignmentSubmissionContentSchema } from '@/lib/validations/assignment-doc-submissions'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import { logServerError } from '@/lib/server/diagnostics'
 
 const ASSIGNMENT_ARTIFACTS_BUCKET = 'assignment-artifacts'
@@ -432,6 +433,7 @@ export async function updateAssignmentWithSubmissionRequirementsAtomic(input: {
   )
 
   if (error) {
+    throwBillingClassroomPublicationError(error)
     if (error.code === 'PGRST202' || error.code === '42883') {
       return { ok: false, status: 500, error: 'Assignment submission migration is required' }
     }

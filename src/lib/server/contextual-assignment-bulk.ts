@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import type { TableRow } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 
@@ -61,6 +62,7 @@ export type ContextualAssignmentBulkResult =
   | { ok: false; errors: string[] }
 
 function mapBulkError(error: RpcError): never {
+  throwBillingClassroomPublicationError(error)
   if (error.code === 'P0002') throw new ApiError(404, 'Classroom not found')
   if (error.code === '42501') throw new ApiError(403, 'Unauthorized')
   if (error.code === '55000' && error.message === 'assignment_bulk_archived') {

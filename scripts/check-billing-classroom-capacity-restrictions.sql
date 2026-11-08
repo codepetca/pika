@@ -26,7 +26,7 @@ begin
   if not exists(select 1 from public.account_plans where subject_user_id=v_owner) then
     perform public.set_account_plan_v1(gen_random_uuid(),v_owner,'free','test:billing-restrictions','fixture',0);
   end if;
-  update private.stripe_billing_settings set sandbox_enabled=true,classroom_new_work_cutoff_enabled=true where singleton;
+  update private.stripe_billing_settings set sandbox_enabled=true where singleton;
   perform public.billing_start_trial_v1(jsonb_build_object('subject_user_id',v_owner,'operation_id',gen_random_uuid()));
   insert into public.classrooms(id,teacher_id,title,class_code) values
     (v_first,v_owner,'Trial classroom one','CAP30901'),(v_second,v_owner,'Trial classroom two','CAP30902');
@@ -36,6 +36,7 @@ begin
   insert into public.assignments(classroom_id,created_by,title,due_at,is_draft,released_at) values
     (v_first,v_owner,'Released activity',v_now+interval '1 day',false,v_now-interval '1 hour'),
     (v_second,v_owner,'Future release',v_now+interval '2 days',false,v_now+interval '1 day');
+  update private.stripe_billing_settings set classroom_new_work_cutoff_enabled=true where singleton;
   if private.billing_classroom_last_activity_v1(v_first,v_now) is distinct from v_now-interval '1 hour'
     or private.billing_classroom_last_activity_v1(v_second,v_now) is not null then
     raise exception 'Activity order included unpublished work or missed a release';

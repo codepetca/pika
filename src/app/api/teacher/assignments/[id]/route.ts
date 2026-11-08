@@ -1,5 +1,6 @@
 import { readAssignmentDeleteOperation, replayCompletedAssignmentDeletion, deleteAssignmentWithRepoLightCleanup } from '@/lib/server/repolight-assignment-delete'
 import { NextRequest, NextResponse } from 'next/server'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
@@ -705,6 +706,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
       .single()
 
     if (error || !updatedAssignment) {
+      throwBillingClassroomPublicationError(error)
       if (isRetryableDatabaseContention(error)) {
         return NextResponse.json(
           { error: 'Assignment changed during this update. Refresh and try again.' },

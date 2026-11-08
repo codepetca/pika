@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
@@ -366,6 +367,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
       .select()
 
     if (error) {
+      throwBillingClassroomPublicationError(error)
       logServerError('assignment.bulk_update', error)
       return NextResponse.json(
         { error: 'Failed to update assignments' },

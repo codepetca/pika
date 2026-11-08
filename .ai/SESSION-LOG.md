@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-04 Calendar empty lesson text
-
-Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
-
 ## 2026-11-05 Reuse teacher Tests intent summaries
 
 Retain the legacy teacher Tests intent summary briefly within the current
@@ -342,6 +338,15 @@ Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
 with seven classrooms. The existing classroom archive state, shared schema
 and generated public type baseline were checked. The rollout flag is off;
 assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
 
 ## 2026-11-09 — Sync billing launch with main
 
