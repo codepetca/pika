@@ -723,9 +723,10 @@ expired. The missed status remains visible until the teacher takes action.
 
 The assignment card and authoring dialog are the reference surfaces. Verify
 scheduled and overdue pending states, missed release, the open schedule dialog
-and cancellation on teacher desktop and mobile in both themes. The student
-check covers visibility before and after worker publication. Check keyboard
-entry to the existing schedule dialog and its focus behavior.
+and cancellation on teacher desktop and mobile in both themes. Check keyboard
+entry to the existing schedule dialog and its focus behavior. The student
+browser check covers absence of owner controls. The database proof covers
+learner assignment access before and after worker publication.
 
 | Need | Existing candidate | Decision | Reason |
 | --- | --- | --- | --- |

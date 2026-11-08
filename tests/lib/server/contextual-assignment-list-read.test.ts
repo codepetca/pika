@@ -99,6 +99,25 @@ describe('current assignment list statements using the installed SDK offline', (
     expect(result.assignments).toHaveLength(1)
     expect(f.urls.every(url => !url.pathname.includes('/rpc/'))).toBe(true)
   })
+  it('rejects ownership transfer while the schedule lookup is in flight', async () => {
+    let transferred = false
+    const f = fixture({ assignments: [{ ...assignment(1), is_draft: true }], intercept: row => transferred ? null : row })
+    const baseFetch = f.fetcher.getMockImplementation()!
+    let reached!: () => void; let resume!: () => void
+    const rpcReached = new Promise<void>(resolve => { reached = resolve })
+    const releaseRpc = new Promise<void>(resolve => { resume = resolve })
+    f.fetcher.mockImplementation(async (request: RequestInfo | URL, init?: RequestInit) => {
+      if (String(request).includes('/rpc/get_assignment_release_states_for_owner_v1')) {
+        reached(); await releaseRpc
+        return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return baseFetch(request)
+    })
+    const pending = readContextualAssignmentList({ supabase: f.supabase, actorId, classroomId, permission: 'owner', includeReleaseSchedule: true })
+    await rpcReached
+    transferred = true; resume()
+    await expect(pending).rejects.toMatchObject({ statusCode: 403 })
+  })
   it.each(['stalled', 'oversized'])('bounds an owner schedule lookup after the base list: %s', async mode => {
     vi.useFakeTimers()
     try {

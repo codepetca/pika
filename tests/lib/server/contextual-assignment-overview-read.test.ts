@@ -67,6 +67,25 @@ function fixture(options: { assignment?: Record<string, unknown>; count?: number
 }
 
 describe('statement-bound assignment overview with installed SDK', () => {
+  it('rejects ownership transfer while the schedule lookup is in flight', async () => {
+    let transferred = false
+    const f = fixture({ assignment: { is_draft: true }, intercept: row => transferred ? null : row })
+    const baseFetch = f.fetcher.getMockImplementation()!
+    let reached!: () => void; let resume!: () => void
+    const rpcReached = new Promise<void>(resolve => { reached = resolve })
+    const releaseRpc = new Promise<void>(resolve => { resume = resolve })
+    f.fetcher.mockImplementation(async (request: RequestInfo | URL, init?: RequestInit) => {
+      if (String(request).includes('/rpc/get_assignment_release_states_for_owner_v1')) {
+        reached(); await releaseRpc
+        return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return baseFetch(request, init)
+    })
+    const pending = readContextualAssignmentOverview({ supabase: f.supabase, actorId, assignmentId, includeReleaseSchedule: true })
+    await rpcReached
+    transferred = true; resume()
+    await expect(pending).rejects.toMatchObject({ statusCode: 403 })
+  })
   it.each(['stalled', 'oversized'])('bounds an owner schedule lookup after the base overview: %s', async mode => {
     vi.useFakeTimers()
     try {

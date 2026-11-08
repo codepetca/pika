@@ -232,12 +232,12 @@ export async function readContextualAssignmentList(input: {
         }
       }
     }
-    await decode(queryFor('').maybeSingle(), [])
     result.sort((a, b) => member ? Date.parse(String(a.due_at)) - Date.parse(String(b.due_at)) || String(a.id).localeCompare(String(b.id))
       : Number(a.position) - Number(b.position) || Date.parse(String(a.due_at)) - Date.parse(String(b.due_at)) || String(a.id).localeCompare(String(b.id)))
     const projected = !member && input.includeReleaseSchedule
       ? await projectAssignmentReleaseStates(input.supabase, actorId, classroomId, result, { signal: controller.signal, execute })
       : result
+    await decode(queryFor('').maybeSingle(), [])
     if (!boundedAssignmentListJson({ assignments: projected }, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
     checkDeadline()
     return { assignments: projected }

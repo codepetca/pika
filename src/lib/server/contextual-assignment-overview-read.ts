@@ -280,7 +280,6 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
       }
       if (returnedPaths.size !== byPath.size) throw unavailable()
     }
-    await decode(queryFor().maybeSingle(), contextualAssignmentOverviewControlSchema)
     const byDoc = new Map<string, typeof signedArtifacts>()
     for (const artifact of signedArtifacts) { const rows = byDoc.get(artifact.assignment_doc_id) ?? []; rows.push(artifact); byDoc.set(artifact.assignment_doc_id, rows) }
     const students = enrollments.map(enrollment => {
@@ -306,6 +305,7 @@ export async function readContextualAssignmentOverview(input: { supabase: Client
     const [projected] = input.includeReleaseSchedule
       ? await projectAssignmentReleaseStates(input.supabase, actorId, classroomId, [result.assignment], { signal: controller.signal, execute })
       : [result.assignment]
+    await decode(queryFor().maybeSingle(), contextualAssignmentOverviewControlSchema)
     const output = { ...result, assignment: projected }
     if (!boundedAssignmentListJson(output, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
     checkDeadline(); return output
