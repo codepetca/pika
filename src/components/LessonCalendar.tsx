@@ -202,8 +202,9 @@ export function LessonCalendar({
     return set
   }, [classDays])
 
-  const termStart = useMemo(() => classroom.start_date ? parseISO(classroom.start_date) : startOfMonth(currentDate), [classroom.start_date, currentDate])
-  const termEnd = useMemo(() => classroom.end_date ? parseISO(classroom.end_date) : endOfMonth(currentDate), [classroom.end_date, currentDate])
+  const hasCompleteTerm = Boolean(classroom.start_date && classroom.end_date)
+  const termStart = useMemo(() => hasCompleteTerm ? parseISO(classroom.start_date!) : startOfMonth(currentDate), [hasCompleteTerm, classroom.start_date, currentDate])
+  const termEnd = useMemo(() => hasCompleteTerm ? parseISO(classroom.end_date!) : endOfMonth(currentDate), [hasCompleteTerm, classroom.end_date, currentDate])
   const days = useMemo(() => eachDayOfInterval({
     start: startOfWeek(termStart, { weekStartsOn: 0 }),
     end: endOfWeek(termEnd, { weekStartsOn: 0 }),

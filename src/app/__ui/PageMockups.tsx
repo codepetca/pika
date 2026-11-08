@@ -1160,6 +1160,8 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
       className="sticky top-12 z-sticky-table bg-page"
       viewMode={view}
       currentDate={date}
+      rangeStart={CLASSROOM.start_date}
+      rangeEnd={CLASSROOM.end_date}
       onPrev={() => {}}
       onNext={() => {}}
       onToday={() => { setDate(new Date('2026-09-14T12:00:00')); setTodayRequest((request) => request + 1) }}

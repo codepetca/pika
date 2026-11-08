@@ -146,6 +146,8 @@ describe('UiGallery accessibility contracts', () => {
     </TooltipProvider></ThemeProvider>)
     const mockups = within(container)
     const agenda = mockups.getByRole('region', { name: 'Term agenda' })
+    expect(mockups.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument()
+    expect(mockups.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument()
     expect(within(agenda).getAllByRole('article').length).toBeGreaterThan(7)
     expect(within(agenda).getAllByRole('button', { name: /^Edit lesson for / }).length).toBeGreaterThan(0)
     expect(mockups.queryByText('Edit lesson', { exact: true })).not.toBeInTheDocument()
