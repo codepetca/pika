@@ -11,6 +11,7 @@ import {
 import { createStripeUpgradePort, createStripeUpgradeProvider } from './stripe-upgrade-provider'
 import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 import { BillingSubscriptionClaimSchema } from './contracts'
+import { verifyInstalledStripeSchedule } from './stripe-closeout-provider'
 
 /** Pinned to the API version whose response shapes this foundation validates. */
 export const STRIPE_BILLING_API_VERSION = '2026-08-26.dahlia' as const
@@ -58,6 +59,9 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
   // Existing purchased terms remain verifiable if new upgrades are disabled.
   const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
   provider.retrieveAppliedUpgrade = operation => upgrades.readAppliedEvidence(operation)
+  provider.verifyScheduledRenewal = ({ state: _state, ...proof }, snapshot) => (
+    verifyInstalledStripeSchedule(id => stripe.subscriptionSchedules.retrieve(id), proof, snapshot)
+  )
 
   return {
     store,

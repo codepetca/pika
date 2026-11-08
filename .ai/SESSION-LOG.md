@@ -306,3 +306,9 @@ rehearsal, replacement, customer UI and profile admission are pending. Replay
 through 307 also verified scheduled-aware closeout ownership, a captured Pro
 invoice winning the cutoff race, and an unpaid closeout preserving Free and
 the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.

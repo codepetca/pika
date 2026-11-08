@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { BillingProviderSubscriptionSnapshotSchema, BillingSubscriptionBindingSchema } from './contracts'
-import { RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence, type RenewalCloseoutProvider, type RenewalCloseoutReadRequest } from './closeout-contracts'
+import { BillingProviderSubscriptionSnapshotSchema, BillingSubscriptionBindingSchema, type BillingProviderSubscriptionSnapshot } from './contracts'
+import { RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence, type RenewalCloseoutProvider, type RenewalCloseoutReadRequest, type RenewalCloseoutSchedule } from './closeout-contracts'
 import { createStripeBillingProvider, type StripeBillingReadPort } from './stripe-provider'
 import { verifyPaidSubscriptionSnapshot } from './synchronize'
 import { BILLING_RENEWAL_GRACE_SECONDS } from './lifecycle-policy'
@@ -51,13 +51,18 @@ const obligationList = z.object({ object: z.literal('list'), has_more: z.literal
   customer: reference, parent: z.object({ subscription_details: z.object({ subscription: reference }) }),
 })).max(1) })
 const date = z.string().datetime({ offset: true })
+const phaseBounds = z.object({ start_date: z.number().int().positive(), end_date: z.number().int().positive() })
 const stripeSchedule = z.object({
   id: z.string(), object: z.literal('subscription_schedule'), livemode: z.literal(false),
   customer: reference, subscription: reference.nullable(), status: z.enum(['active', 'canceled']),
   metadata: z.object({ pika_plan_change_operation: z.string().uuid() }).strict(),
   end_behavior: z.literal('release'), canceled_at: z.number().int().positive().nullable(),
   released_at: z.null().optional(), released_subscription: z.null().optional(), completed_at: z.null().optional(),
-  current_phase: z.object({ start_date: z.number().int().positive(), end_date: z.number().int().positive() }).nullable(),
+  current_phase: phaseBounds.nullable(),
+  phases: z.array(phaseBounds.extend({
+    currency: z.string(), proration_behavior: z.string(),
+    items: z.array(z.object({ price: reference, quantity: z.number().int() })).max(100),
+  })).max(100).optional(),
 })
 const readRequest = z.object({
   binding: BillingSubscriptionBindingSchema, invoiceId: z.string().min(1).max(255),
@@ -70,6 +75,54 @@ function attention(reason: Extract<RenewalCloseoutEvidence, { kind: 'attention' 
   return { kind: 'attention', reason }
 }
 function equalTimestamp(a: string, b: string): boolean { return Date.parse(a) === Date.parse(b) }
+
+function matchesTargetItem(scheduled: RenewalCloseoutSchedule, snapshot: BillingProviderSubscriptionSnapshot): boolean {
+  const binding = scheduled.target_binding
+  const item = snapshot.items[0]
+  return snapshot.isCurrent && !snapshot.liveMode && snapshot.stripeAccount === binding.stripe_account
+    && snapshot.subscriptionId === binding.stripe_subscription_id && snapshot.customerId === binding.stripe_customer_id
+    && snapshot.items.length === 1 && item.quantity === 1 && !item.priceLiveMode
+    && item.priceId === binding.stripe_price_id && item.productId === binding.stripe_product_id
+    && item.unitAmount === binding.unit_amount && item.currency === binding.currency
+    && item.interval === binding.interval && item.intervalCount === 1
+    && equalTimestamp(item.currentPeriodStart, scheduled.effective_at)
+    && Date.parse(item.currentPeriodEnd) === scheduledTermEnd(scheduled.effective_at, binding.interval)
+}
+
+async function readInstalledSchedule(retrieveSchedule: (id: string) => Promise<unknown>, scheduled: RenewalCloseoutSchedule) {
+  const observed = stripeSchedule.safeParse(await retrieveSchedule(scheduled.provider_schedule_id))
+  if (!observed.success) return null
+  const schedule = observed.data
+  return schedule.id === scheduled.provider_schedule_id && schedule.customer === scheduled.target_binding.stripe_customer_id
+    && schedule.metadata.pika_plan_change_operation === scheduled.operation_id ? schedule : null
+}
+
+function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled: RenewalCloseoutSchedule): boolean {
+  const binding = scheduled.target_binding
+  const start = Date.parse(scheduled.effective_at)
+  const end = scheduledTermEnd(scheduled.effective_at, binding.interval)
+  const phases = schedule.phases?.filter(phase => phase.start_date * 1000 === start)
+  return phases?.length === 1 && phases[0].end_date * 1000 === end && phases[0].currency === binding.currency
+    && phases[0].proration_behavior === 'none' && phases[0].items.length === 1
+    && phases[0].items[0].price === binding.stripe_price_id && phases[0].items[0].quantity === 1
+}
+
+/** A schedule-caused invoice still needs the ordinary financial and payment proof. */
+export async function verifyInstalledStripeSchedule(
+  retrieveSchedule: (id: string) => Promise<unknown>,
+  scheduled: RenewalCloseoutSchedule,
+  snapshot: BillingProviderSubscriptionSnapshot,
+): Promise<boolean> {
+  if (snapshot.scheduleId !== scheduled.provider_schedule_id || !['active', 'past_due', 'unpaid'].includes(snapshot.status)
+    || snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd || snapshot.pauseCollection || snapshot.pendingUpdate
+    || !matchesTargetItem(scheduled, snapshot)) return false
+  const schedule = await readInstalledSchedule(retrieveSchedule, scheduled)
+  if (!schedule || schedule.status !== 'active' || schedule.canceled_at !== null || !schedule.current_phase
+    || schedule.subscription !== scheduled.target_binding.stripe_subscription_id
+    || schedule.current_phase.start_date * 1000 !== Date.parse(scheduled.effective_at)
+    || schedule.current_phase.end_date * 1000 !== scheduledTermEnd(scheduled.effective_at, scheduled.target_binding.interval)) return false
+  return matchesTargetPhase(schedule, scheduled)
+}
 
 /**
  * Reuses the canonical invoice/paid snapshot validation, while retaining raw
@@ -121,28 +174,26 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       || invoice.currency !== binding.currency) return attention('identity_mismatch')
     if (!['active', 'past_due', 'unpaid', 'canceled'].includes(snapshot.status)
       || snapshot.pendingUpdate || snapshot.pauseCollection) return attention('incomplete_evidence')
+    const scheduledUpdate = scheduled !== undefined && invoice.billingReason === 'subscription_update'
+    const terminalScheduledVoid = scheduled !== undefined && snapshot.status === 'canceled' && invoice.status === 'void'
     if (scheduled) {
       const canceled = snapshot.status === 'canceled'
       const expectedId = scheduled.provider_schedule_id
-      if (!sdk.retrieveSchedule || (snapshot.scheduleId !== expectedId && (!canceled || snapshot.scheduleId !== null))
-        || snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd) return attention('incomplete_evidence')
-      const observed = stripeSchedule.safeParse(await sdk.retrieveSchedule(expectedId))
-      if (!observed.success) return attention('incomplete_evidence')
-      const schedule = observed.data
-      if (schedule.id !== expectedId || schedule.customer !== binding.stripe_customer_id
-        || schedule.metadata.pika_plan_change_operation !== scheduled.operation_id) return attention('identity_mismatch')
+      const retrieveSchedule = sdk.retrieveSchedule?.bind(sdk)
+      if (!retrieveSchedule) return attention('incomplete_evidence')
       if (canceled) {
         // Stripe can clear both pointers on cancellation. The exact saved
         // schedule and operation marker independently establish correlation.
-        if (schedule.status !== 'canceled' || schedule.canceled_at === null || schedule.current_phase !== null
+        if ((snapshot.scheduleId !== null && snapshot.scheduleId !== expectedId)
+          || (!terminalScheduledVoid && (snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd))) return attention('incomplete_evidence')
+        const schedule = await readInstalledSchedule(retrieveSchedule, scheduled)
+        if (!schedule || schedule.status !== 'canceled' || schedule.canceled_at === null || schedule.current_phase !== null
+          || (scheduledUpdate && !matchesTargetPhase(schedule, scheduled))
           || (schedule.subscription !== null && schedule.subscription !== binding.stripe_subscription_id)) return attention('incomplete_evidence')
-      } else if (schedule.status !== 'active' || schedule.canceled_at !== null || !schedule.current_phase
-        || schedule.subscription !== binding.stripe_subscription_id
-        || schedule.current_phase.start_date * 1000 !== Date.parse(paidThrough)
-        || schedule.current_phase.end_date * 1000 !== scheduledEnd) return attention('incomplete_evidence')
+      } else if (!await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot)) return attention('incomplete_evidence')
     } else if (snapshot.scheduleId !== null) return attention('incomplete_evidence')
     const line = invoice.lines[0]
-    if (binding.unit_amount <= 0 || invoice.billingReason !== 'subscription_cycle'
+    if (binding.unit_amount <= 0 || (invoice.billingReason !== 'subscription_cycle' && !scheduledUpdate)
       || invoice.subtotal !== binding.unit_amount || invoice.total !== binding.unit_amount || invoice.amountDue !== binding.unit_amount
       || invoice.startingBalance !== 0 || invoice.endingBalance !== 0 || invoice.hasDiscounts || invoice.hasTaxes
       || invoice.totalDiscountAmount !== 0 || invoice.totalTaxAmount !== 0
@@ -187,6 +238,7 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       if (!['active', 'canceled'].includes(snapshot.status) || (scheduled && snapshot.status !== 'active')) return attention('incomplete_evidence')
       const proof = verifyPaidSubscriptionSnapshot(binding, {
         ...snapshot, status: 'active', cancelAt: null, cancelAtPeriodEnd: false, scheduleId: null,
+        latestInvoice: scheduledUpdate ? { ...invoice, billingReason: 'subscription_cycle' } : invoice,
       })
       if (typeof proof === 'string' || (snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, proof.periodEnd))) return attention('unsupported_payment')
       return { kind: 'paid', ...proof, providerStatus: snapshot.status as 'active' | 'canceled',
@@ -195,8 +247,11 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
     if (invoice.amountPaid !== 0) return attention('partial_payment')
     if (pending) return { kind: 'payment_pending', invoiceId }
     if (!['open', 'uncollectible', 'void'].includes(invoice.status)
-      || (snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, paidThrough))) return attention('incomplete_evidence')
-    if (raw.data.amount_remaining !== (invoice.status === 'void' ? 0 : binding.unit_amount)) return attention('unexpected_money')
+      || (!terminalScheduledVoid && snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, paidThrough))) return attention('incomplete_evidence')
+    // Stripe can retain the original due amount on a void invoice. The canceled
+    // payment evidence above and the obligations list below decide collectability.
+    if (raw.data.amount_remaining !== binding.unit_amount
+      && (invoice.status !== 'void' || raw.data.amount_remaining !== 0)) return attention('unexpected_money')
     // limit:1 is sufficient only when has_more=false and the sole row is the
     // fully read target. Any other obligation or incomplete list stops closeout.
     for (const status of ['draft', 'open', 'uncollectible'] as const) {

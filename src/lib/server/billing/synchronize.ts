@@ -20,6 +20,7 @@ export type BillingProvider = {
   /** Returns only the normalized snapshot, never an SDK object. */
   retrieveSubscription(binding: BillingSubscriptionBinding): Promise<unknown>
   retrieveAppliedUpgrade?(operation: UpgradeOperation): Promise<unknown>
+  verifyScheduledRenewal?(proof: BillingScheduledRenewal, snapshot: BillingProviderSubscriptionSnapshot): Promise<boolean>
 }
 
 export type BillingStore = {
@@ -287,19 +288,22 @@ function verifyScheduledRenewalSnapshot(
 
   // Strip only the schedule whose durable identity and binding were checked.
   // The ordinary verifiers still enforce invoice, item, charge, and mode facts.
-  const knownSchedule = { ...snapshot, scheduleId: null }
+  const targetInvoice = (alreadyApplied || now >= effective) && snapshot.latestInvoice?.billingReason === 'subscription_update'
+    ? { ...snapshot.latestInvoice, billingReason: 'subscription_cycle' }
+    : snapshot.latestInvoice
+  const knownSchedule = { ...snapshot, scheduleId: null, latestInvoice: targetInvoice }
   if (alreadyApplied || now < effective) {
     if (now < Date.parse(facts.paid_period_start) || facts.end_reason !== 'renewal_pending') return 'invoice_line_unverified'
     const paid = verifyPaidSubscriptionSnapshot(binding, knownSchedule)
     if (typeof paid === 'string') return paid
     if (paid.invoiceId !== facts.last_paid_invoice_id || !equalTimestamp(paid.periodStart, facts.paid_period_start)
       || !equalTimestamp(paid.periodEnd, facts.paid_through)
-      || (alreadyApplied && snapshot.latestInvoice?.billingReason !== 'subscription_cycle')) return 'invoice_line_unverified'
+      || (alreadyApplied && targetInvoice?.billingReason !== 'subscription_cycle')) return 'invoice_line_unverified'
     return { outcome: 'observed', invoice_id: null, period_start: null, period_end: null, reason_code: null,
       provider_status: 'active', cancel_at_period_end: false, obligations_cleared: false }
   }
 
-  const invoice = snapshot.latestInvoice
+  const invoice = targetInvoice
   if (!invoice) return 'invoice_missing'
   if (invoice.billingReason !== 'subscription_cycle') return 'invoice_not_bound'
   const verified = verifyBillingLifecycleSnapshot({ ...claim, binding: target }, knownSchedule)
@@ -461,6 +465,14 @@ export async function synchronizeBillingSubscription(args: {
     if (!proof.success) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
     const verified = verifyScheduledRenewalSnapshot(claim.data, proof.data, normalized.data)
     if (typeof verified === 'string') return finishException(args.store, claim.data, args.eventInboxId, verified)
+    // A phase-start anchor can issue the full-cycle invoice as a Stripe update.
+    // Permit that label only after a fresh, independent read of the installed phase.
+    if (normalized.data.latestInvoice?.billingReason === 'subscription_update') {
+      let matches: boolean | undefined
+      try { matches = await args.provider.verifyScheduledRenewal?.(proof.data, normalized.data) }
+      catch { return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable') }
+      if (matches !== true) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
+    }
     const completion = { ...verified, event_inbox_id: args.eventInboxId }
     if (verified.outcome === 'observed') return finish(args.store, claim.data, completion)
     return finish(args.store, claim.data, completion, request => finishScheduledRenewal({

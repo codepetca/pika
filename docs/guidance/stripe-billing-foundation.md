@@ -676,3 +676,29 @@ claim to the exact target invoice. A verified capture that wins the closeout
 race commits the Pro term. A verified void plus terminal schedule and invoice
 evidence keeps Free in force and retires the payer binding. Keep the scheduling
 flags off outside the isolated rehearsal until the remaining contracts pass.
+
+The November 8 isolated Stripe rehearsal reused all 12 existing sandbox prices.
+Hosted Pro and Max test payments produced one verified receipt each, with five
+and twelve classrooms and eligible RepoLight access. The signed webhook reached
+the local app, and the paid Pro account opened the invoice and payment-method
+portal. The cardless Pro trial granted five classrooms for 720 hours and reused
+the same cutoff on replay. An accelerated rollback test confirmed RepoLight
+denied new work after the trial cutoff, before the expiry worker applied Free.
+The disposable rehearsal needed Free plan rows for its synthetic teachers. The
+live rollout depends on the separately governed account-plan provisioning step.
+
+The installed same-interval Stripe schedule issued its exact target renewal as
+`subscription_update` with a full, non-prorated line at the phase boundary.
+Reconciliation accepts that reason only after a fresh read verifies the exact
+installed schedule and target phase. Closeout applies the same distinction.
+Ordinary renewal and upgrade verifiers keep their existing invoice contracts.
+
+The real scheduled decline preserved Max's twelve classrooms and RepoLight
+with an exact 168-hour cutoff. Successful retry of the same invoice changed the
+account to Pro with five classrooms and retained both distinct receipts. A
+separate historical test clock used a seeded exact schedule and verified the
+unpaid closeout through the actual worker. Stripe retained the original amount
+remaining after void. The worker used the void status, canceled payment and
+complete outstanding-invoice checks before canceling the schedule without
+proration or a final invoice. Pika retired the binding and kept Free with
+RepoLight denied. The audited requeue resumed the saved stage after the fix.

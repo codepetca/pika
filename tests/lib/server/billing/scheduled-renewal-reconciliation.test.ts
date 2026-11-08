@@ -122,6 +122,7 @@ function fixture(value: unknown) {
   const provider = {
     retrieveSubscription: vi.fn(async () => value),
     retrieveAppliedUpgrade: vi.fn(),
+    verifyScheduledRenewal: vi.fn<(_proof: BillingScheduledRenewal, _snapshot: BillingProviderSubscriptionSnapshot) => Promise<boolean>>(),
   }
   const run = () => synchronizeBillingSubscription({
     store, provider, subscriptionId: claim.subscription_id, eventInboxId, leaseSeconds: 120,
@@ -135,6 +136,29 @@ describe('scheduled renewal reconciliation', () => {
     vi.setSystemTime(effectiveAt)
   })
   afterEach(() => vi.useRealTimers())
+
+  it.each([['paid', 'paid'], ['failed', 'renewal_failed']] as const)(
+    'accepts the full target invoice labeled subscription_update for a verified %s phase', async (state, outcome) => {
+      const value = snapshot(target, state)
+      value.latestInvoice.billingReason = 'subscription_update'
+      const { provider, store, run } = fixture(value)
+      provider.verifyScheduledRenewal.mockResolvedValue(true)
+      await expect(run()).resolves.toEqual({ kind: 'applied' })
+      expect(provider.verifyScheduledRenewal).toHaveBeenCalledExactlyOnceWith(proof, value)
+      expect(store.finishScheduledRenewal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        ...scheduledFence, outcome, invoice_id: 'in_Target', period_start: effectiveAt, period_end: targetEnd,
+      }))
+    },
+  )
+
+  it('rejects an update invoice when the freshly read phase is unverified', async () => {
+    const value = snapshot(target)
+    value.latestInvoice.billingReason = 'subscription_update'
+    const { provider, store, run } = fixture(value)
+    provider.verifyScheduledRenewal.mockResolvedValue(false)
+    await expect(run()).resolves.toMatchObject({ kind: 'exception', reason: 'subscription_transition_unapproved' })
+    expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
+  })
 
   it('records only a fenced observation of the exact prior paid term before cutoff', async () => {
     vi.setSystemTime(Date.parse(effectiveAt) - 1)
