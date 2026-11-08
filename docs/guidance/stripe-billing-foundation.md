@@ -661,6 +661,25 @@ scheduled downgrade, the reduction takes effect when Pika verifies the target
 payment and commits the smaller entitlement. A failed target invoice leaves
 the Max classroom limit and selection unchanged through grace.
 
+### Scheduled assignment release contract
+
+For classrooms governed by the billing cutoff, keep a scheduled assignment
+in its canonical draft state until an authorized worker releases it. Store the
+schedule generation, classroom, owner, due time and result separately. Owner
+views need to show that schedule, and draft cleanup must preserve its work.
+Student reads and submissions can continue using the canonical publication
+state. Convert existing future schedules only within the enabled cohort and
+after verifying that the assignments have no learner work.
+
+Release under the existing assignment and classroom locks, then acquire the
+owner account and entitlement locks. Require eligible access both at the
+scheduled time and after any lock wait. For the scheduled time, use an
+entitlement audit recorded by that time and the classroom's restriction
+history. A grant written later with an earlier period start cannot rescue a
+missed release. Persist the suppressed generation and its teacher notice in
+one transaction. A teacher can explicitly reschedule or release it after
+regaining access. Released assignments keep their existing student rules.
+
 ### Worker recovery follow-up
 
 Keep the base sandbox and its validated local app origin configured when
