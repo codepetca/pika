@@ -10,6 +10,7 @@ import { TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES } from './contextual-test-public
 import { contextualTestListTestSchema } from '../src/lib/validations/contextual-test-list-read'
 import { boundedAssignmentListJson } from '../src/lib/validations/contextual-assignment-list-read'
 import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
+import { validateDisposableBillingReplayMigrations } from './lifecycle-services-reviewed-migrations'
 
 // Fixed 999/1,000/1,001 bulk sources exercise the supported boundary and refusal.
 // Full immutable-row digests preserve the complete over-limit Classroom.
@@ -260,7 +261,14 @@ export function testOwnerReorderTableCatalogFromCanonical(value: unknown, migrat
     z.object({ count: z.number().int().nonnegative().safe(), digest: z.string().regex(/^[a-f0-9]{32}$/) }).strict()).parse(JSON.parse(receipt.rowDigests))
   const tables = Object.keys(rows).sort(); assert(tables.length > 0 && tables.length <= TEST_OWNER_REORDER_CAPS.fingerprintTables)
   for (const t of [...TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets']) assert(tables.includes(t), 'Incomplete canonical catalog')
-  const result = freeze(migrations ? classroomTestQuotaProofCatalog(tables, migrations) : tables); acceptedCatalogs.add(result); return result
+  // The sealed billing tail changes routines only. Retain the full table witness
+  // from the last migration that establishes this disposable replay catalog.
+  const hasBillingReplayTail = migrations?.length === 303
+  if (hasBillingReplayTail) validateDisposableBillingReplayMigrations(migrations)
+  const tableMigrations = hasBillingReplayTail ? migrations.slice(0, 301) : migrations
+  const result = freeze(tableMigrations ? classroomTestQuotaProofCatalog(tables, tableMigrations) : tables)
+  acceptedCatalogs.add(result)
+  return result
 }
 function instant(v: unknown) {
   const s = timestamp.parse(v); const fraction = /(?:\.(\d+))?(?:Z|[+-]\d{2}:\d{2})$/.exec(s)?.[1] ?? ''

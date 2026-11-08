@@ -29,7 +29,9 @@ describe('BillingPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Continue to checkout' }))
     await waitFor(() => expect(fetch.mock.calls.filter(call => call[0] === '/api/billing/checkout')).toHaveLength(2))
     const calls = fetch.mock.calls.filter(call => call[0] === '/api/billing/checkout') as unknown as [string, RequestInit][]
-    expect(JSON.parse(calls[0][1].body as string).operationId).toEqual(JSON.parse(calls[1][1].body as string).operationId)
+    const operationId = JSON.parse(calls[0][1].body as string).operationId
+    expect(operationId).toEqual(JSON.parse(calls[1][1].body as string).operationId)
+    expect(sessionStorage.getItem(`pika-billing-attempt:teacher:${operationId}`)).toBe(item.offeringVersionId)
   })
   it('uses verified checkout status instead of the success redirect', async () => {
     history.replaceState({}, '', '/billing?checkout=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&result=success')

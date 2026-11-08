@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions through 301 are sealed below; 298–301 do not modify Auth/Storage.
+# Source extensions 298–303 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 301)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([297,300,301].includes(migrations.length),'Attendance proof target must be exactly297, 300 or301'); validateLifecycleServicesReviewedMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 303)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([297,300,301,303].includes(migrations.length),'Attendance proof target must end at 297, 300, 301 or 303'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"
@@ -96,7 +96,7 @@ for path in "$root"/supabase/migrations/*.sql; do
 done
 shasum -a 256 "$root"/supabase/migrations/*.sql > "$scratch/migration-after.sha256"
 cmp -s "$scratch/migration-source.sha256" "$scratch/migration-after.sha256" || { echo 'Migration source changed during replay.' >&2; exit 1; }
-echo 'PASS replay001–297.'
+echo "PASS sealed replay through migration $number."
 # Record only versions whose actual replay just succeeded, so existing native
 # harness preflights see the same real migration history as a CLI-created stack.
 {

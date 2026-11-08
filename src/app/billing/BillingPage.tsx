@@ -131,10 +131,17 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     const request = ++actionGeneration.current
     setBusy(true); setMessage('')
     try {
-      const response = await fetch('/api/billing/checkout', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ offeringVersionId: selected, operationId: operation(`pika-billing-checkout:${userId}:${selected}`) }) })
+      const operationId = operation(`pika-billing-checkout:${userId}:${selected}`)
+      // Save the reverse mapping before the request in case the response is lost.
+      sessionStorage.setItem(`pika-billing-attempt:${userId}:${operationId}`, selected)
+      const response = await fetch('/api/billing/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offeringVersionId: selected, operationId }),
+      })
       const result: BillingPurchaseStatus = await read(response)
       if (request !== actionGeneration.current) return
-      sessionStorage.setItem(`pika-billing-attempt:${userId}:${result.attemptId}`, selected)
+      if (result.attemptId !== operationId) throw new Error('Checkout attempt mismatch')
       setPurchase(result)
       if (result.checkoutUrl) window.location.assign(result.checkoutUrl)
       else setReturnId(result.attemptId)

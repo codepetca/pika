@@ -16,6 +16,7 @@ import { validateAttendanceLearnerMembershipReviewedMigration } from './attendan
 import { validatePalOwnerQueueStopReviewedMigration } from './pal-owner-queue-stop-reviewed-migration'
 import { validateContextualRemovedMembershipCleanupReviewedMigration } from './contextual-removed-membership-cleanup-reviewed-migration'
 import assert from 'node:assert/strict'
+import disposableBillingReplayTail from './disposable-billing-replay-tail.json'
 import { createHash } from 'node:crypto'
 import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
 import { validateDataApiGrantsReviewedMigration } from './data-api-grants-reviewed-migration'
@@ -73,5 +74,22 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
     assert.equal(migration.name, name)
     assert.equal(migration.sha256, digest)
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), digest)
+  }
+}
+
+/** Application-routine changes admitted only by the disposable database runners.
+ * The historical lifecycle and native proof validators remain closed at 301.
+ */
+export function validateDisposableBillingReplayMigrations(migrations: Parameters<typeof validateLifecycleServicesReviewedMigrations>[0]) {
+  validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
+  if (migrations.length <= 301) return
+
+  assert.equal(migrations.length, 303, 'Expected complete billing replay tail through migration 303')
+  assert.equal(disposableBillingReplayTail.length, 2)
+  for (const [offset, { name, sha256 }] of disposableBillingReplayTail.entries()) {
+    const migration = migrations[301 + offset]
+    assert.equal(migration.name, name)
+    assert.equal(migration.sha256, sha256)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
   }
 }

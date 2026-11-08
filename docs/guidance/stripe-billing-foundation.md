@@ -597,8 +597,13 @@ plan status, while the new page hides unsupported actions.
    changes. [Stripe schedule contract](https://docs.stripe.com/billing/subscriptions/subscription-schedules)
 3. Complete classroom selection and archive behavior, exact publish/test
    admission guards, preserved released work and started attempts, and
-   cancellation, failure and expiry notifications. Implement the agreed refund
-   window and confirm Ontario tax treatment. The current provider adapters
+   cancellation, failure and expiry notifications. Keep a separate subscription
+   restriction state for retained classrooms. The ordinary archive status blocks
+   student participation and can make data eligible for compaction or purge.
+   Fence Test Start at the shared attempt RPC and preserve Save/Submit for an
+   attempt started before cutoff. Record suppressed scheduled assignment releases
+   durably so resubscription cannot expose work that missed its release.
+   Implement the agreed refund window and confirm Ontario tax treatment. The current provider adapters
    reject tax and discount adjustments; an operator cannot enable Stripe Tax
    against those adapters. Do not publish provisional AI allowances.
 4. Rehearse against a designated isolated Stripe sandbox and disposable Pika

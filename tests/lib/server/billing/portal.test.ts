@@ -102,6 +102,15 @@ describe('portal configuration', () => {
   it('defaults off without an explicit configuration and retains purchase sandbox gates', () => {
     expect(readBillingPortalConfig({})).toBeNull()
     expect(readBillingPortalConfig({ BILLING_PORTAL_CONFIGURATION_ID: 'bpc_123' })).toBeNull()
-    expect(() => readBillingPortalConfig({ BILLING_PORTAL_CONFIGURATION_ID: 'invalid' })).toThrow()
+    expect(readBillingPortalConfig({ BILLING_PORTAL_CONFIGURATION_ID: 'invalid' })).toBeNull()
+    const sandbox = {
+      BILLING_SANDBOX_ENABLED: 'true', BILLING_CHECKOUT_ENABLED: 'true',
+      BILLING_APP_ORIGIN: 'http://localhost:3000', NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321',
+      STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'whsec_fixture',
+      STRIPE_ACCOUNT_ID: 'acct_fixture', BILLING_WORKER_SECRET: 'fixture'.repeat(6),
+    }
+    expect(() => readBillingPortalConfig({ ...sandbox, BILLING_PORTAL_CONFIGURATION_ID: 'invalid' })).toThrow('Invalid portal configuration')
+    expect(readBillingPortalConfig({ ...sandbox, BILLING_PORTAL_CONFIGURATION_ID: 'bpc_123' }))
+      .toMatchObject({ portalConfigurationId: 'bpc_123', appOrigin: 'http://localhost:3000' })
   })
 })
