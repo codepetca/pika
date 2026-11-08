@@ -329,7 +329,7 @@ export function LessonCalendar({
           options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
         <Button variant="secondary" size="sm" onClick={() => setLocalTodayRequest(value => value + 1)}>Today</Button>
       </div>}
-      <div ref={scrollRef} role="region" aria-label="Calendar dates" tabIndex={0} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className={constrainToWorkspace ? "isolate min-h-40 min-w-0 flex-1 overflow-auto calendar-short:max-h-40 focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset" : "max-h-screen min-w-0 overflow-auto"}>
+      <div ref={scrollRef} role="region" aria-label="Calendar dates" tabIndex={0} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className={constrainToWorkspace ? "isolate min-h-40 min-w-0 flex-1 overflow-auto scroll-pt-8 calendar-short:max-h-40 focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset" : "max-h-screen min-w-0 overflow-auto scroll-pt-8"}>
       {viewMode === 'list' ? (
         <div role="region" aria-label="Term agenda" className={constrainToWorkspace ? `mx-auto min-w-0 max-w-standard ${agendaGutter === 'comfortable' ? 'px-density-comfortable-gutter' : 'px-density-compact-gutter'}` : 'min-w-0'}>
           {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (

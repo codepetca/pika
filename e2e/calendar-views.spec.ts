@@ -29,6 +29,33 @@ for (const role of ['teacher', 'student'] as const) {
     await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar&calendarTerm=true`, { waitUntil: 'networkidle' })
     const workspace = page.getByRole('region', { name: 'Calendar workspace' })
     await expect(workspace).toBeVisible()
+    // Keyboard focus must scroll below the opaque sticky month heading.
+    const initialWidth = page.viewportSize()!.width
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({ width, height: 600 })
+      await page.getByRole('button', { name: 'List', exact: true }).click()
+      const target = page.getByRole('button', { name: 'Open Tuesday, October 6, 2026' })
+      const scroller = page.getByRole('region', { name: 'Calendar dates' })
+      await target.evaluate(element => {
+        const controls = Array.from(document.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), [tabindex="0"]'))
+          .filter(control => control.getClientRects().length > 0)
+        controls[controls.indexOf(element as HTMLElement) - 1].focus()
+      })
+      await scroller.evaluate((element, date) => {
+        const target = element.querySelector(`[data-calendar-date="${date}"]`)!
+        element.scrollTop += target.getBoundingClientRect().top - element.getBoundingClientRect().top
+      }, '2026-10-06')
+      await page.keyboard.press('Tab')
+      await expect(target).toBeFocused()
+      const header = workspace.locator('[data-calendar-month="October 2026"] > div').first()
+      await expect.poll(async () => {
+        const focused = await target.boundingBox()
+        const sticky = await header.boundingBox()
+        return !!focused && !!sticky && focused.y >= sticky.y + sticky.height - 1
+      }).toBe(true)
+    }
+    await page.setViewportSize({ width: initialWidth, height: 600 })
+    await page.reload({ waitUntil: 'networkidle' })
     for (const mode of ['List', 'Grid'] as const) {
       const button = page.getByRole('button', { name: mode, exact: true })
       await button.click()
