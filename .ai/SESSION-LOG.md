@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-02 — Tests list read overlap
-
-PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list-responsiveness`, the legacy student active/closed Tests reads and legacy teacher Tests/roster reads start concurrently only after authorization; existing error precedence and status ordering remain. Deferred route tests cover authorization, overlap, migration/error precedence and late rejections. Controlled timer-only examples: student 107→62ms for 50ms mocked reads; teacher 203→102ms for 100ms reads. These are not production or database latency measurements; successful requests use the same query count with at most two initial reads in flight. Admitted/shared routes and student exam sessions are unchanged. Exact focused checks, independent security/correctness review and CI pending.
-
 ## 2026-11-02 — Reduce Classwork requirement reads
 
 Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
@@ -298,3 +294,7 @@ Removed the redundant action-bar month label, retaining the sticky list month he
 ## 2026-11-07 — Calendar list day selection
 
 Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
