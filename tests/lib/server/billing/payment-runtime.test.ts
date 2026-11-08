@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
-  rpc: vi.fn(), response: vi.fn(), checkout: vi.fn(), reconcile: vi.fn(), provision: vi.fn(), diagnostics: vi.fn(),
+  rpc: vi.fn(), response: vi.fn(), checkout: vi.fn(), reconcile: vi.fn(), closeout: vi.fn(), assignments: vi.fn(), provision: vi.fn(), diagnostics: vi.fn(),
 }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ rpc: mock.rpc }) }))
 vi.mock('@/lib/server/billing/purchase-runtime', () => ({ createBillingPurchaseRuntime: () => ({ reconcileCheckouts: mock.checkout }) }))
 vi.mock('@/lib/server/billing/runtime', () => ({ reconcileLiveBillingSubscriptions: mock.reconcile }))
+vi.mock('@/lib/server/billing/closeout-runtime', () => ({ closeDueLiveRenewals: mock.closeout }))
+vi.mock('@/lib/server/billing/assignment-releases', () => ({ processDueBillingAssignmentReleases: mock.assignments }))
 vi.mock('@/lib/server/repolight-provision-runtime', () => ({ attemptRepoLightProvisionOutbox: mock.provision }))
 vi.mock('@/lib/server/diagnostics', () => ({ logServerError: mock.diagnostics }))
 
@@ -25,6 +27,8 @@ beforeEach(() => {
     .mockResolvedValueOnce({ data: { processed: 1 }, error: null })
   mock.checkout.mockResolvedValue({ processed: 1, failed: 0 })
   mock.reconcile.mockResolvedValue({ applied: 1 })
+  mock.closeout.mockResolvedValue({ closed: 1 })
+  mock.assignments.mockResolvedValue({ released: 1 })
   mock.diagnostics.mockReturnValue('payment-diagnostic')
 })
 
@@ -40,9 +44,11 @@ describe('live paid billing recovery', () => {
 
   it('checks purchase recovery and invoice evidence before applying due access and RepoLight effects', async () => {
     await expect(processLiveBillingPaymentLifecycle(config)).resolves.toEqual({
-      purchases: { processed: 1, failed: 0 }, reconciliation: { applied: 1 }, expiry: { processed: 1 },
+      purchases: { processed: 1, failed: 0 }, reconciliation: { applied: 1 }, closeouts: { closed: 1 },
+      expiry: { processed: 1 }, assignmentReleases: { released: 1 },
     })
     expect(mock.checkout).toHaveBeenCalledBefore(mock.reconcile)
+    expect(mock.reconcile).toHaveBeenCalledBefore(mock.closeout)
     expect(mock.reconcile.mock.invocationCallOrder[0]).toBeLessThan(mock.rpc.mock.invocationCallOrder[1])
     expect(mock.rpc).toHaveBeenLastCalledWith('billing_apply_due_live_paid_access_v1', { ...scope, p_request: { limit: 25 } })
     expect(mock.rpc.mock.invocationCallOrder[1]).toBeLessThan(mock.provision.mock.invocationCallOrder[0])
@@ -50,8 +56,10 @@ describe('live paid billing recovery', () => {
 
   it('preserves exact-cutoff expiry and RepoLight recovery if Stripe reconciliation fails', async () => {
     mock.reconcile.mockRejectedValueOnce(new Error('provider unavailable'))
+    mock.closeout.mockRejectedValueOnce(new Error('closeout unavailable'))
     await expect(processLiveBillingPaymentLifecycle(config)).resolves.toMatchObject({
-      reconciliation: { failed: 1, diagnosticId: 'payment-diagnostic' }, expiry: { processed: 1 },
+      reconciliation: { failed: 1, diagnosticId: 'payment-diagnostic' },
+      closeouts: { failed: 1, diagnosticId: 'payment-diagnostic' }, expiry: { processed: 1 },
     })
     expect(mock.provision).toHaveBeenCalledOnce()
   })

@@ -1,12 +1,19 @@
 import { z } from 'zod'
+import { BillingReconciliationScopeSchema, matchesBillingReconciliationScope, type BillingReconciliationScope } from './contracts'
 import {
+  LiveRenewalCloseoutClaimResultSchema, LiveRenewalCloseoutCheckpointResultSchema,
   RenewalCloseoutClaimResultSchema, RenewalCloseoutCheckpointResultSchema, RenewalCloseoutEvidenceSchema,
   RenewalCloseoutFinishSchema, RenewalCloseoutWorkSchema,
   type RenewalCloseoutClaim, type RenewalCloseoutCheckpointStage, type RenewalCloseoutFence,
   type RenewalCloseoutFinishRequest, type RenewalCloseoutProvider, type RenewalCloseoutStore,
 } from './closeout-contracts'
 
-type Dependencies = { store: RenewalCloseoutStore; provider: RenewalCloseoutProvider; leaseSeconds: number }
+type Dependencies = {
+  store: RenewalCloseoutStore
+  provider: RenewalCloseoutProvider
+  leaseSeconds: number
+  scope?: BillingReconciliationScope
+}
 type Result = z.infer<typeof RenewalCloseoutFinishSchema> | { status: 'busy' | 'not_found' }
 const stages: readonly string[] = ['queued', 'pause_requested', 'collection_paused', 'void_requested', 'invoice_voided', 'cancel_requested']
 function fence(claim: RenewalCloseoutClaim): RenewalCloseoutFence {
@@ -24,11 +31,15 @@ function sameIdentity(before: RenewalCloseoutClaim, after: RenewalCloseoutClaim)
 export async function closeFailedRenewal(args: Dependencies & { subscriptionId: string }): Promise<Result> {
   const subscription_id = z.string().uuid().parse(args.subscriptionId)
   const lease_seconds = z.number().int().min(30).max(300).parse(args.leaseSeconds)
-  const parsed = RenewalCloseoutClaimResultSchema.safeParse(await args.store.claim({ subscription_id, lease_seconds }))
+  const scope = BillingReconciliationScopeSchema.optional().parse(args.scope)
+  const live = scope?.providerMode === 'live'
+  const claimSchema = live ? LiveRenewalCloseoutClaimResultSchema : RenewalCloseoutClaimResultSchema
+  const parsed = claimSchema.safeParse(await args.store.claim({ subscription_id, lease_seconds }))
   if (!parsed.success) throw new Error('Billing closeout claim is unavailable')
   if (parsed.data.status !== 'claimed') return parsed.data
   let claim = parsed.data
   if (claim.subscription_id !== subscription_id || claim.binding.subscription_id !== subscription_id
+    || !matchesBillingReconciliationScope(claim.binding, scope)
     || Date.parse(claim.cutoff) !== Date.parse(claim.paid_through) + 168 * 60 * 60 * 1000
     || ['closed', 'payment_won', 'superseded', 'attention'].includes(claim.stage)) {
     throw new Error('Billing closeout claim is unavailable')
@@ -49,7 +60,8 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
     return parsedFinish.data
   }
   async function checkpoint(stage: RenewalCloseoutCheckpointStage): Promise<Result | null> {
-    const next = RenewalCloseoutCheckpointResultSchema.safeParse(await args.store.checkpoint({ ...fence(claim), stage }))
+    const checkpointSchema = live ? LiveRenewalCloseoutCheckpointResultSchema : RenewalCloseoutCheckpointResultSchema
+    const next = checkpointSchema.safeParse(await args.store.checkpoint({ ...fence(claim), stage }))
     if (!next.success) throw new Error('Billing closeout checkpoint is unavailable')
     if (next.data.status !== 'claimed') return next.data
     if (!sameIdentity(claim, next.data) || next.data.stage !== stage || next.data.operation_revision !== claim.operation_revision + 1) {
@@ -114,6 +126,7 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
         : mutationRequest)
     } catch {
       if (writeCheckpointFailed) throw new Error('Billing closeout checkpoint is unavailable')
+      if (writeFenceFailure) return writeFenceFailure
       return finish({ outcome: 'deferred', reason: 'provider_unavailable' })
     }
     if (writeFenceFailure) return writeFenceFailure
@@ -124,13 +137,14 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
 export async function closeDueRenewals(args: Dependencies & { limit: number }) {
   const limit = z.literal(1).parse(args.limit)
   z.number().int().min(30).max(300).parse(args.leaseSeconds)
+  const scope = BillingReconciliationScopeSchema.optional().parse(args.scope)
   const work = RenewalCloseoutWorkSchema.safeParse(await args.store.listDue({ limit }))
   if (!work.success) throw new Error('Billing closeout work is unavailable')
   const result = { requested: limit, processed: 0, closed: 0, paymentWon: 0, deferred: 0, attention: 0, exceptions: 0 }
   for (const item of work.data.items) {
     result.processed += 1
     try {
-      const outcome = await closeFailedRenewal({ ...args, subscriptionId: item.subscription_id })
+      const outcome = await closeFailedRenewal({ ...args, scope, subscriptionId: item.subscription_id })
       if (outcome.status === 'closed') result.closed += 1
       else if (outcome.status === 'payment_won') result.paymentWon += 1
       else if (outcome.status === 'attention') result.attention += 1

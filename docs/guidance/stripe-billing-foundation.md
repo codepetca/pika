@@ -636,11 +636,37 @@ RepoLight access for verified Pro and Max and denial at the exact Max cutoff.
 The paid expiry worker can apply Free after financial retirement without
 creating another payment effect.
 
-Before opening checkout, wire the production customer routes and authenticated
-workers, including unpaid invoice closeout. Convert existing future assignment
-releases or hold admission while they exist, and fence new legacy schedules
-through checkout and paid access. Verify the live catalog, tax settings, refund
-and dispute handling, worker cadence and notices on the authorized rollout path.
+Before opening checkout, verify production customer and worker routing, the
+live catalog, tax settings, refund and dispute handling, worker cadence and
+notices on the authorized rollout path.
+
+### Live customer and worker routing
+
+The live billing routes use the pinned project and Stripe account. The owner
+status and checkout-recovery routes remain available when new checkout is
+paused. New checkout requires signed webhook configuration, a separate paid
+worker credential, and database permission for admission, provider writes and
+renewal closeout. Existing legacy future assignments hold new checkout until
+the teacher resolves those schedules. The database fences new legacy releases
+and classroom transfers during a live checkout or live paid ownership. The
+durable assignment schedule continues to use the existing draft flow.
+
+The paid worker accepts authenticated `POST /api/billing/stripe/live/process`.
+Use a credential distinct from trial recovery, webhook signing and the Stripe
+API key. It processes checkout recovery, verified invoices, unpaid closeout,
+paid expiry, assignment release and RepoLight provisioning. At the end of
+grace, the closeout lease excludes a competing reconciliation claim. If fresh
+Stripe evidence confirms payment, the worker applies the verified renewal.
+Otherwise it pauses collection, verifies the invoice can be voided, then
+confirms there are no outstanding customer invoices before cancellation.
+
+The separate live portal configuration enables invoice history, payment
+methods and period-end cancellation without proration. Verify the portal's
+cancel and undo behavior with the production configuration before offering it
+to customers. Checkout, portal and both worker routes can be tested with
+fixtures before configuring credentials. Before production admission, verify
+successful signed webhook receipts, recurring authenticated worker runs and
+alerts for failed or delayed work on the pinned target.
 
 ### Release sequence
 

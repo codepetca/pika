@@ -22,5 +22,13 @@
   {
     "name": "319_billing_live_paid_access.sql",
     "sha256": "7ed98674245b15510c1131d9e9614da31f70ebb06ef152122d7f17234542714b"
+  },
+  {
+    "name": "320_billing_live_renewal_closeout.sql",
+    "sha256": "4129dfff9df7e6b38eb228fcef5b2cae756b66315592598835c35a3c6e6ea410"
+  },
+  {
+    "name": "321_billing_live_checkout_admission.sql",
+    "sha256": "defa8c8d8baf6d23f3f2c20eabf4c6e169fce08241a673e86d1bb96cac972f55"
   }
 ]

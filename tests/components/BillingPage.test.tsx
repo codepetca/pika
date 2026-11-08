@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BillingPage } from '@/app/billing/BillingPage'
 
@@ -10,6 +11,23 @@ const json = (data: unknown, status = 200) => Promise.resolve({ ok: status === 2
 describe('BillingPage', () => {
   beforeEach(() => { sessionStorage.clear(); history.replaceState({}, '', '/billing') })
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+
+  it.each([
+    [true, 'Manage billing'],
+    [false, 'Invoices and payment method'],
+  ])('names the portal action for its cancellation capabilities and supports keyboard activation', async (portalCancellationAvailable, label) => {
+    const user = userEvent.setup()
+    const paid = { ...free, state: 'paid', plan: 'pro', classroomLimit: 5, canStartPaidWork: true,
+      options: { ...free.options, trialAvailable: false, checkoutAvailable: false, hasBillingCustomer: true } }
+    const fetch = vi.fn((url: string) => url.endsWith('/subscription') ? json(paid)
+      : url.endsWith('/catalog') ? json({ items: [] }) : json({}, 503))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" portalAvailable portalCancellationAvailable={portalCancellationAvailable} />)
+    const action = await screen.findByRole('button', { name: label })
+    action.focus()
+    await user.keyboard('{Enter}')
+    expect(fetch).toHaveBeenCalledWith('/api/billing/portal', { method: 'POST' })
+  })
   it('loads and starts a trial without catalog or checkout access', async () => {
     const pendingCheckoutId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
     history.replaceState({}, '', `/billing?checkout=${pendingCheckoutId}&result=success`)

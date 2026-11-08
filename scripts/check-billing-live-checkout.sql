@@ -64,6 +64,9 @@ begin
     classroom_new_work_cutoff_enabled=true where singleton;
   update private.stripe_billing_settings set live_payment_lifecycle_enabled=true where singleton;
   update private.stripe_billing_settings set live_trial_lifecycle_enabled=true,live_trial_admission_enabled=true where singleton;
+  if to_regprocedure('public.billing_live_checkout_activation_ready_v1(text,text)') is not null then
+    execute 'update private.stripe_billing_settings set live_closeout_enabled=true where singleton';
+  end if;
   perform public.billing_start_live_trial_v1(v_project,v_account,
     jsonb_build_object('subject_user_id',v_trial,'operation_id',gen_random_uuid()));
   v_result:=public.billing_register_live_checkout_offering_v1(v_project,v_account,jsonb_build_object(

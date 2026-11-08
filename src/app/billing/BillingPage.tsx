@@ -29,11 +29,13 @@ async function read(response: Response) {
   return response.json()
 }
 
-export function BillingPage({ userId, billingAvailable = true, purchaseAvailable = true, portalAvailable = false, upgradesAvailable = false }: {
+export function BillingPage({ userId, billingAvailable = true, purchaseAvailable = true, portalAvailable = false,
+  portalCancellationAvailable = false, upgradesAvailable = false }: {
   userId: string
   billingAvailable?: boolean
   purchaseAvailable?: boolean
   portalAvailable?: boolean
+  portalCancellationAvailable?: boolean
   upgradesAvailable?: boolean
 }) {
   const [state, setState] = useState<LoadState>(billingAvailable ? 'loading' : 'unavailable')
@@ -203,7 +205,9 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
           {terms.currency.toUpperCase()} {(terms.unitAmount / 100).toFixed(2)} / {terms.interval === 'year' ? 'year' : 'month'}
         </p> : null}
         {purchaseAvailable && portalAvailable && subscription.options?.hasBillingCustomer
-          ? <Button variant="secondary" className="mt-3" onClick={() => void openPortal()} disabled={busy}>Invoices and payment method</Button>
+          ? <Button variant="secondary" className="mt-3" onClick={() => void openPortal()} disabled={busy}>
+              {portalCancellationAvailable ? 'Manage billing' : 'Invoices and payment method'}
+            </Button>
           : null}
         {subscription.state === 'synchronization_pending' ? <p className="mt-2 text-sm">Your plan is synchronizing. Check again shortly.</p> : null}
       </Card>

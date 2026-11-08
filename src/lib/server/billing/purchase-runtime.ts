@@ -32,10 +32,17 @@ export function createBillingPurchaseRuntime(config: BillingPurchaseConfig | Bil
         authorizeProviderWrite: store.authorizeProviderWrite,
         validateOffering: offering => validateLaunchCheckoutOffering(offering, REPOLIGHT_CATALOG_RELEASE_TAG),
       }),
-      listCatalog: () => listLaunchPurchaseCatalog({
-        stripeAccount: config.stripeAccount, providerMode: config.providerMode, release: REPOLIGHT_CATALOG_RELEASE_TAG,
-        listOfferings: () => store.listOfferings({ stripe_account: config.stripeAccount }),
-      }),
+      async listCatalog() {
+        if (!config.checkoutAdmissionEnabled || !config.providerWritesEnabled) return []
+        const { data, error } = await client.rpc('billing_live_checkout_activation_ready_v1', {
+          p_project_ref: config.projectRef, p_stripe_account: config.stripeAccount,
+        }).abortSignal(AbortSignal.timeout(5_000))
+        if (error || data !== true) return []
+        return listLaunchPurchaseCatalog({
+          stripeAccount: config.stripeAccount, providerMode: config.providerMode, release: REPOLIGHT_CATALOG_RELEASE_TAG,
+          listOfferings: () => store.listOfferings({ stripe_account: config.stripeAccount }),
+        })
+      },
     }
   }
   const store = createBillingPurchaseStore(client)

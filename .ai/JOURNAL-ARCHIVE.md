@@ -52075,3 +52075,15 @@ Aligned each assessment's title and percentage above its category and raw score 
 ## 2026-11-07 — Calendar label and scrolling review
 
 Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-04 Clarify busy Test errors
+
+Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
+
+<!-- pika-session-log-archive-batch:498a968ae1e31228d5d1026189b922d37cbb42991f6b3ef0379c71e76f18fe03 -->
+
+## 2026-11-04 Calendar empty lesson text
+
+Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+<!-- pika-session-log-archive-batch:e574954b7f79991b44ffd26870acfa23f77eaf532c21ad0bdd07ba95523c6692 -->

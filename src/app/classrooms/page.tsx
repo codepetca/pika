@@ -19,7 +19,7 @@ import { loadClassroomHomeCreationAccess } from '@/lib/server/classroom-home-cre
 import type { ClassroomHomePresentation } from '@/lib/contracts/classroom-home'
 import type { Classroom } from '@/types'
 import { isBillingPurchaseAvailable } from '@/lib/server/billing/purchase-config'
-import { isBillingLiveTrialAvailable } from '@/lib/server/billing/live-target'
+import { isBillingLivePaymentAvailable, isBillingLiveTrialAvailable } from '@/lib/server/billing/live-target'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -32,7 +32,8 @@ export default async function ClassroomsIndexPage() {
   }
 
   const supabase = getServiceRoleClient()
-  const billingAvailable = user.role === 'teacher' && (isBillingPurchaseAvailable() || isBillingLiveTrialAvailable())
+  const billingAvailable = user.role === 'teacher'
+    && (isBillingPurchaseAvailable() || isBillingLiveTrialAvailable() || isBillingLivePaymentAvailable())
 
   const contextualHomeAdmitted = await isContextualClassroomHomeAdmitted(user)
   if (contextualHomeAdmitted

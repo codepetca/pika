@@ -4,7 +4,7 @@ import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { AppShell } from '@/components/AppShell'
 import { BillingPage } from './BillingPage'
 import { isBillingPurchaseAvailable } from '@/lib/server/billing/purchase-config'
-import { isBillingLiveTrialAvailable } from '@/lib/server/billing/live-target'
+import { isBillingLivePaymentAvailable, isBillingLiveTrialAvailable } from '@/lib/server/billing/live-target'
 import { readBillingUpgradeConfig } from '@/lib/server/billing/upgrade-runtime'
 import { readBillingPortalConfig } from '@/lib/server/billing/portal-config'
 
@@ -14,7 +14,9 @@ export default async function Page() {
   const user = await getCurrentUser()
   if (!user) redirect(await getServerLoginRedirectPath())
   if (user.role !== 'teacher') redirect('/classrooms')
-  const purchaseAvailable = isBillingPurchaseAvailable()
+  const sandboxPurchaseAvailable = isBillingPurchaseAvailable()
+  const livePurchaseAvailable = isBillingLivePaymentAvailable()
+  const purchaseAvailable = sandboxPurchaseAvailable || livePurchaseAvailable
   const billingAvailable = purchaseAvailable || isBillingLiveTrialAvailable()
   let portalAvailable = false
   if (purchaseAvailable) {
@@ -27,7 +29,8 @@ export default async function Page() {
       billingAvailable={billingAvailable}
       purchaseAvailable={purchaseAvailable}
       portalAvailable={portalAvailable}
-      upgradesAvailable={purchaseAvailable && readBillingUpgradeConfig() !== null}
+      portalCancellationAvailable={livePurchaseAvailable && portalAvailable}
+      upgradesAvailable={sandboxPurchaseAvailable && readBillingUpgradeConfig() !== null}
     />
   </AppShell>
 }

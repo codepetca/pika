@@ -69,6 +69,8 @@ export type BillingLiveCheckoutConfig = BillingLiveTargetConfig & Readonly<{
   providerWritesEnabled: boolean
 }>
 
+export type BillingLivePaymentWorkerConfig = BillingLiveCheckoutConfig & Readonly<{ workerSecret: string }>
+
 /** Keep recovery available while either admission or new provider writes is paused. */
 export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveCheckoutConfig | null {
   const checkoutAdmissionEnabled = env.BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED === 'true'
@@ -84,6 +86,23 @@ export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.e
   }
   return { ...target, providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
     checkoutAdmissionEnabled, providerWritesEnabled }
+}
+
+export function readBillingLivePaymentWorkerConfig(env: NodeJS.ProcessEnv = process.env): BillingLivePaymentWorkerConfig | null {
+  const checkout = readBillingLiveCheckoutConfig(env)
+  if (!checkout) return null
+  const workerSecret = env.BILLING_LIVE_PAYMENT_WORKER_SECRET
+  if (!workerSecret || workerSecret.length < 32 || workerSecret === env.BILLING_WORKER_SECRET
+    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret === checkout.secretKey
+    || workerSecret === env.STRIPE_LIVE_WEBHOOK_SECRET) {
+    throw new Error('Invalid live payment worker configuration')
+  }
+  const checkoutAdmissionEnabled = checkout.checkoutAdmissionEnabled && readBillingLiveWebhookConfig(env) !== null
+  return { ...checkout, checkoutAdmissionEnabled, workerSecret }
+}
+
+export function isBillingLivePaymentAvailable(): boolean {
+  try { return readBillingLivePaymentWorkerConfig() !== null } catch { return false }
 }
 
 /** Existing trial status and expiry stay available while new admission is stopped. */
