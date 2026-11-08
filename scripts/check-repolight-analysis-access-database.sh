@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions 296–313 are sealed below and do not modify Auth/Storage.
+# Source extensions 296–314 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 313)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312 or 313'); validateDisposableBillingReplayMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 314)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313,314].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312, 313 or 314'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -164,6 +164,10 @@ if ((10#$replay_version >= 312)); then
 fi
 if ((10#$replay_version >= 313)); then
   sql < "$root/scripts/check-billing-live-trial-lifecycle.sql" > "$scratch/billing-live-trial-lifecycle.log" 2>&1 || { tail -25 "$scratch/billing-live-trial-lifecycle.log" >&2; exit 1; }
+fi
+if ((10#$replay_version >= 314)); then
+  sql < "$root/scripts/check-billing-live-payment-scope.sql" > "$scratch/billing-live-payment-scope.log" 2>&1 || { tail -25 "$scratch/billing-live-payment-scope.log" >&2; exit 1; }
+  echo 'PASS live payment scope and receipt persistence.'
 fi
 # The multi-session fixture commits in the owned clone, so run it after
 # rollback proofs that verify the default-off state.

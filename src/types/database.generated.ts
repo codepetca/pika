@@ -10264,11 +10264,19 @@ export type Database = {
       }
       billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_live_payment_lifecycle_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_live_trial_lifecycle_ready_v1: {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean
       }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_record_live_event_v1: {
+        Args: { p_project_ref: string; p_request: Json }
+        Returns: Json
+      }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
       billing_requeue_subscription_v1: {
         Args: { p_request: Json }

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ApiError } from '@/lib/api-error'
 import type { Json } from '@/types/database.generated'
 import type { BillingStore } from '@/lib/server/billing/synchronize'
 import type { BillingEventReceipt } from '@/lib/server/billing/webhook'
@@ -24,6 +25,26 @@ const billingEventReceiptResultSchema = z.object({
   status: z.enum(['accepted', 'duplicate']),
   event_inbox_id: z.string().uuid(),
 }).strict()
+
+export async function recordLiveBillingEvent(input: {
+  receipt: BillingEventReceipt
+  target: { projectRef: string; stripeAccount: string }
+  record: (args: { p_project_ref: string; p_request: Json }) => PromiseLike<{
+    data: unknown; error: { code: string } | null
+  }>
+}) {
+  const { receipt, target, record } = input
+  if (receipt.provider_mode !== 'live' || receipt.stripe_account !== target.stripeAccount) {
+    throw new Error('Live billing receipt scope mismatch')
+  }
+  const { data, error } = await record({ p_project_ref: target.projectRef, p_request: receipt })
+  if (error?.code === '55000') throw new ApiError(503, 'Live billing webhook is unavailable')
+  if (error?.code === '23505') throw new ApiError(409, 'Stripe event conflicts with an existing receipt')
+  if (error) throw new Error('Live billing receipt could not be recorded')
+  const result = billingEventReceiptResultSchema.safeParse(data)
+  if (!result.success) throw new Error('Billing event receipt could not be confirmed')
+  return result.data
+}
 
 export function createBillingStore(client: BillingRpcClient, scheduledRenewalsEnabled = false): BillingStore & {
   recordEvent(receipt: BillingEventReceipt): Promise<z.infer<typeof billingEventReceiptResultSchema>>

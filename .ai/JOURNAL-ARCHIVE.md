@@ -51573,3 +51573,93 @@ Added explicit off/scoped/full managed provisioning scope with one-teacher cron 
 
 - Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
 - Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-02 — Reduce Classwork requirement reads
+
+Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
+
+<!-- pika-session-log-archive-batch:a32a4d4065eab4fded7b808c778be390c213703aa90372f737a87a8254ae6c8c -->
+
+## 2026-11-02 — Teacher Tests intent prefetch
+
+Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+<!-- pika-session-log-archive-batch:98fc1375d12a43907ec60469857b8ea93fc30366831a9c6a9b2ac78c1560655a -->
+
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
+
+<!-- pika-session-log-archive-batch:b1053a5b9386f4026f76f482e02f8dcb6608d3ed09f5edc77d518fa06581c563 -->
+
+## 2026-11-03 — Progressive teacher Classwork prototype
+
+Legacy assignment and survey summaries can render before statistics, with explicit
+unknown counts and incomplete-list action guards. Shared reads retain their full
+owner-scoped contract and cache; cache invalidation and permission failure guards
+protect delayed results. Independent review and CI remain pending.
+
+<!-- pika-session-log-archive-batch:92aec458e06f41e038ea40bb634b542986ad61816df462881562ec72b39057fc -->
+
+## 2026-11-03 — Classwork progressive read review fixes
+
+Prevent invalidated summary reuse, join in-flight full prefetches, fall back
+from non-authorization summary errors, and gate material deep links on complete
+authorized classwork. Real-cache and interaction regressions exercise these paths.
+
+<!-- pika-session-log-archive-batch:e582479255b416671c32dcaccb76955fe61bd0e95f2864692f9e28927c7fee14 -->
+
+## 2026-11-03 — Teacher Tests statistics pagination
+
+On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
+PostgREST's row cap silently truncating question, attempt, response, and access
+counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
+regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+<!-- pika-session-log-archive-batch:3b8df3df4e58afa009fc666a493e8cf19e2bcd7767999f5977289c7c1dde00ba -->
+
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.
+
+<!-- pika-session-log-archive-batch:62cff90bde8c31134704b8cb19906dd6e86b1d78bf8055504c1e1c12a936a668 -->
+
+## 2026-11-03 — Classwork refresh browser fixture
+
+The Classwork continuity fixture now models summary and full reads separately.
+Its first refresh fails the summary and then exercises the full-read fallback,
+including retained editor, failure, retry, recovery, and controlled navigation.
+
+<!-- pika-session-log-archive-batch:7dd46b02d71130e919d1d1b7bbca3c03136762cc4e22d460c3bcfceeb13eddac -->
+
+## 2026-11-03 List order toggle
+
+- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
+
+<!-- pika-session-log-archive-batch:fc0314dab86dcb1897558e274daaf98b46eda34e636247ba62348572cc052d5c -->
+
+## 2026-11-03 — Student Test submission reassurance
+
+Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
+
+<!-- pika-session-log-archive-batch:3c9c6f05cf68f11a65128e4aff61688fb1ce79452d24bbb09330f423b769beaa -->
+
+## 2026-11-03 Investigate test contention
+
+Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
+
+<!-- pika-session-log-archive-batch:c842757d516a991f3da2d2bdf49abcb4e2ba27b889be86b4281d873ff8818d76 -->
+
+## 2026-11-04 — Classwork access recovery
+
+- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
+- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
+
+<!-- pika-session-log-archive-batch:2484b7a60ac7f3834d0e52ab1e2ee85d9194a9ff44d8ee4e7e980d70cf46d447 -->
+
+## 2026-11-04 Header message loading feedback
+
+- Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
+- Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.

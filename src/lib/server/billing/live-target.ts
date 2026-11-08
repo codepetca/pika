@@ -49,6 +49,18 @@ export type BillingLiveTrialConfig = BillingLiveTargetConfig & Readonly<{
   admissionEnabled: boolean
 }>
 
+/** Ingress only needs its signing secret. It cannot call the Stripe API. */
+export function readBillingLiveWebhookConfig(env: NodeJS.ProcessEnv = process.env) {
+  if (env.BILLING_LIVE_WEBHOOK_ENABLED !== 'true') return null
+  const target = readExactLiveBillingTarget(env)
+  const webhookSecret = env.STRIPE_LIVE_WEBHOOK_SECRET
+  if (!webhookSecret || !/^whsec_[A-Za-z0-9]{16,255}$/.test(webhookSecret)
+    || webhookSecret === env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error('Invalid live webhook configuration')
+  }
+  return { ...target, webhookSecret }
+}
+
 /** Existing trial status and expiry stay available while new admission is stopped. */
 export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveTrialConfig | null {
   const admissionEnabled = env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true'
