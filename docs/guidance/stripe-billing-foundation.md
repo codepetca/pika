@@ -622,6 +622,26 @@ RepoLight eligibility and retained learner work. The rollout still needs an
 authorized worker caller and resolution of existing future assignments for
 eligible teachers. The runtime declines admission while those assignments exist.
 
+### Live Pro and Max source verification
+
+Migrations 314–316 establish the pinned live receipt intake, catalog and checkout
+binding. A binding records the customer, session and subscription for one
+teacher. The next reconciliation lease uses fresh Stripe evidence to record the
+paid invoice and grant its exact term. New checkout can be paused while an
+existing session finishes.
+
+The isolated 317–319 replay verifies first payment, trial conversion, renewal
+deferral, failed renewal and recovery, cancellation and retirement. It checks
+RepoLight access for verified Pro and Max and denial at the exact Max cutoff.
+The paid expiry worker can apply Free after financial retirement without
+creating another payment effect.
+
+Before opening checkout, wire the production customer routes and authenticated
+workers, including unpaid invoice closeout. Convert existing future assignment
+releases or hold admission while they exist, and fence new legacy schedules
+through checkout and paid access. Verify the live catalog, tax settings, refund
+and dispute handling, worker cadence and notices on the authorized rollout path.
+
 ### Release sequence
 
 1. Keep live billing disabled. Finish the source contracts for live/test

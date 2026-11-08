@@ -1,7 +1,6 @@
-import Stripe from 'stripe'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { createTargetBoundFetch } from '@/lib/server/supabase-target'
-import { STRIPE_BILLING_API_VERSION } from '@/lib/server/billing/runtime'
+import { createBillingStripeClient } from '@/lib/server/billing/runtime'
 import { REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import type { BillingPurchaseConfig } from '@/lib/server/billing/purchase-config'
 import type { BillingLiveCheckoutConfig } from '@/lib/server/billing/live-target'
@@ -15,9 +14,7 @@ import type { BillingPurchaseRuntime } from '@/lib/server/billing/purchase-handl
 export function createBillingPurchaseRuntime(config: BillingPurchaseConfig | BillingLiveCheckoutConfig): BillingPurchaseRuntime & {
   reconcileCheckouts(input: { limit: number }): Promise<{ processed: number; failed: number }>
 } {
-  const stripe = new Stripe(config.secretKey, {
-    apiVersion: STRIPE_BILLING_API_VERSION, timeout: 5_000, maxNetworkRetries: 0,
-  })
+  const stripe = createBillingStripeClient(config.secretKey)
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
   const port = createStripeCheckoutPort(stripe)
   if ('providerMode' in config) {

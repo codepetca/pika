@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createBillingStore } from '@/lib/server/billing/store'
+import { createBillingStore, createLiveBillingStore } from '@/lib/server/billing/store'
 
 const receipt = {
   stripe_account: 'acct_fixture', event_id: 'evt_fixture', event_type: 'invoice.paid',
@@ -9,6 +9,23 @@ const receipt = {
 }
 
 describe('billing persistence boundary', () => {
+  it('uses scoped live reconciliation endpoints with no sandbox operation fallback', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null })
+    const store = createLiveBillingStore({ rpc }, { projectRef: 'zhioqbapgfcrronyuidm', stripeAccount: 'acct_Live' })
+    const scope = { p_project_ref: 'zhioqbapgfcrronyuidm', p_stripe_account: 'acct_Live' }
+    const claim = { subscription_id: '11111111-1111-4111-8111-111111111111', lease_seconds: 120 }
+    await store.listWork({ limit: 2 })
+    await store.claimSubscription(claim)
+    expect(rpc.mock.calls).toEqual([
+      ['billing_list_live_work_v1', { ...scope, p_request: { limit: 2 } }],
+      ['billing_claim_live_subscription_v1', { ...scope, p_request: claim }],
+    ])
+    expect(store.getAppliedUpgrade).toBeUndefined()
+    expect(store.getScheduledRenewal).toBeUndefined()
+    rpc.mockResolvedValueOnce({ data: null, error: { message: 'private identity' } })
+    await expect(store.claimSubscription(claim)).rejects.toThrow('Live billing database operation failed')
+  })
+
   it('rejects live evidence before calling the sandbox receipt RPC', async () => {
     const rpc = vi.fn()
     await expect(createBillingStore({ rpc }).recordEvent({ ...receipt, provider_mode: 'live' }))

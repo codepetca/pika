@@ -10167,6 +10167,14 @@ export type Database = {
         Returns: Json
       }
       billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_apply_due_live_paid_access_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_apply_due_live_trial_access_v1: {
         Args: {
           p_payload: Json
@@ -10205,6 +10213,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_claim_live_subscription_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_claim_renewal_closeout_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10227,6 +10243,14 @@ export type Database = {
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_lifecycle_v1: {
         Args: {
           p_project_ref: string
           p_request: Json
@@ -10303,6 +10327,14 @@ export type Database = {
         Returns: Json
       }
       billing_list_live_checkout_work_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_work_v1: {
         Args: {
           p_project_ref: string
           p_request: Json

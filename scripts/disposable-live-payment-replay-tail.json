@@ -10,5 +10,17 @@
   {
     "name": "316_billing_live_checkout.sql",
     "sha256": "d87d3c2999e86db9a943f42f6b6afc762625e1c0d2d4531a88a0fab6844b8f3f"
+  },
+  {
+    "name": "317_billing_live_reconciliation_claims.sql",
+    "sha256": "9fc4d624b4ec58a6358d7ced977131237f47e4dfb523008b17740b4a007d9f1f"
+  },
+  {
+    "name": "318_billing_live_paid_lifecycle.sql",
+    "sha256": "d55f88b7c1dd5e493e7abfb4859067b249e370cfb7b3b26cc03316b4909a73ba"
+  },
+  {
+    "name": "319_billing_live_paid_access.sql",
+    "sha256": "7ed98674245b15510c1131d9e9614da31f70ebb06ef152122d7f17234542714b"
   }
 ]

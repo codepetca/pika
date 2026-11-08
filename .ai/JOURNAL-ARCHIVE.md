@@ -51864,3 +51864,15 @@ Partitioned the dark experience matrix into four fresh-server runs with an exact
 ## 2026-11-06 — Gradebook PDF test timeout
 
 Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-04 — AI provider gate rebase
+
+Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
+
+<!-- pika-session-log-archive-batch:557e8495a6a5b2f8c218938c92cb96058e6fe2ab497b48b28bd3bc0e7db3cf78 -->
+
+## 2026-11-04 Clarify busy Test errors
+
+Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
+
+<!-- pika-session-log-archive-batch:498a968ae1e31228d5d1026189b922d37cbb42991f6b3ef0379c71e76f18fe03 -->
