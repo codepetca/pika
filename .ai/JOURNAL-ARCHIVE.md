@@ -51365,3 +51365,13 @@ Observed production learner and owner busy errors during class tests. Prepared b
 
 - Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
 - Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
+
+<!-- pika-session-log-archive-batch:3c46fbceb317bea82c94efdfda00bc6430efc46bbf65f20620fa91aa53a428b3 -->
+## 2026-11-04 Header message loading feedback
+
+- Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
+- Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
+
+## 2026-11-04 — AI provider gate rebase
+
+Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.

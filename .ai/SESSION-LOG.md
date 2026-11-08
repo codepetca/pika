@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-04 Header message loading feedback
-
-- Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
-- Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
-
-## 2026-11-04 — AI provider gate rebase
-
-Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
-
 ## 2026-11-04 Clarify busy Test errors
 
 Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
@@ -320,6 +311,30 @@ fresh terminal schedule proof for detached delinquent subscriptions. The
 follow-up preserves ordinary cancellation after settlement and keeps terminal
 markers out of authorization once Stripe proves the exact canceled phase.
 The sealed disposable 001–307 replay passed.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
 
 ## 2026-11-09 — Sync billing launch with main
 
