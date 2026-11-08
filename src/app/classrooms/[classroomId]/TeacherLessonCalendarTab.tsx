@@ -173,13 +173,14 @@ export function TeacherLessonCalendarTab({
   const [saving, setSaving] = useState(false)
   const [viewMode, setViewMode] = useState<CalendarViewMode>(() => {
     const saved = readCookie(`calendarViewMode:${classroom.id}`)
-    return (saved === 'week' || saved === 'month' || saved === 'all') ? saved : 'week'
+    return saved === 'list' || saved === 'week' ? 'list' : 'grid'
   })
   const handleViewModeChange = useCallback((mode: CalendarViewMode) => {
     setViewMode(mode)
     writeCookie(`calendarViewMode:${classroom.id}`, mode)
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(nowInToronto)
+  const [todayRequest, setTodayRequest] = useState(0)
   const [markdownContent, setMarkdownContent] = useState('')
   const [markdownContentClassroomId, setMarkdownContentClassroomId] = useState('')
   const visibleMarkdownContent = markdownContentClassroomId === classroom.id ? markdownContent : ''
@@ -279,8 +280,8 @@ export function TeacherLessonCalendarTab({
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = useMemo(() => {
-    const start = classroom.start_date || format(startOfMonth(currentDate), 'yyyy-MM-dd')
-    const end = classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd')
+    const start = (classroom.start_date && classroom.end_date) ? classroom.start_date : format(startOfMonth(currentDate), 'yyyy-MM-dd')
+    const end = (classroom.start_date && classroom.end_date) ? classroom.end_date : format(endOfMonth(currentDate), 'yyyy-MM-dd')
     return { start, end }
   }, [classroom.start_date, classroom.end_date, currentDate])
 
@@ -860,8 +861,8 @@ export function TeacherLessonCalendarTab({
     setLoading(true)
     setMarkdownError(null)
     try {
-      const start = classroom.start_date || fetchRange.start
-      const end = classroom.end_date || fetchRange.end
+      const start = fetchRange.start
+      const end = fetchRange.end
       const cachedPlans = await fetchTeacherLessonPlansForRange(requestedClassroomId, start, end)
       if (!isCurrentLoad()) return
       const plans = applyPendingLessonPlanChanges(
@@ -1090,25 +1091,12 @@ export function TeacherLessonCalendarTab({
     onNavigateToAnnouncements()
   }, [onNavigateToAnnouncements])
 
-  const handlePreviousDate = useCallback(() => {
-    if (viewMode === 'week') {
-      setCurrentDate((prev) => subWeeks(prev, 1))
-    } else if (viewMode === 'month') {
-      setCurrentDate((prev) => subMonths(prev, 1))
-    }
-  }, [viewMode])
-
-  const handleNextDate = useCallback(() => {
-    if (viewMode === 'week') {
-      setCurrentDate((prev) => addWeeks(prev, 1))
-    } else if (viewMode === 'month') {
-      setCurrentDate((prev) => addMonths(prev, 1))
-    }
-  }, [viewMode])
-
+  const handlePreviousDate = useCallback(() => setCurrentDate(date => subMonths(date, 1)), [])
+  const handleNextDate = useCallback(() => setCurrentDate(date => addMonths(date, 1)), [])
   const handleToday = useCallback(() => {
-    setCurrentDate(nowInToronto())
-  }, [])
+    if (!classroom.start_date || !classroom.end_date) setCurrentDate(nowInToronto())
+    setTodayRequest(value => value + 1)
+  }, [classroom.start_date, classroom.end_date])
 
   // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
   // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
@@ -1266,9 +1254,9 @@ export function TeacherLessonCalendarTab({
   }
 
   return (
-    <PageLayout bleedX={false} width={viewMode === 'week' ? 'standard' : 'full'}>
+    <PageLayout bleedX={false} className="min-h-0 flex-1">
       <CalendarActionBar
-        className={viewMode === 'week' ? 'sticky top-12 z-sticky-table bg-page' : undefined}
+        className={`sticky top-0 z-sticky-table bg-page calendar-short:top-12 ${viewMode === 'list' ? 'mx-auto w-full max-w-standard' : ''}`}
         viewMode={viewMode}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
@@ -1290,15 +1278,15 @@ export function TeacherLessonCalendarTab({
           },
         ] : []}
       />
-      <PageContent className="pb-24 pt-1">
-        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
+      <PageContent className="flex min-h-0 flex-1 flex-col px-0 pb-0 pt-1">
+        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />
           <CalendarSourceErrors
             failures={saveFailures}
             message="Some lesson plan changes could not be saved."
           />
-          <div className="overflow-hidden rounded-lg bg-surface">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-surface">
             <LessonCalendar
               classroom={classroom}
               lessonPlans={visibleLessonPlans}
@@ -1309,9 +1297,12 @@ export function TeacherLessonCalendarTab({
               announcements={visibleAnnouncements}
               classDays={classDays}
               viewMode={viewMode}
+              todayRequest={todayRequest}
+              initialSourcesLoading={isRefreshing}
               currentDate={currentDate}
               editable={!classroom.archived_at}
               showHeader={false}
+              constrainToWorkspace
               onDateChange={setCurrentDate}
               onViewModeChange={handleViewModeChange}
               onContentChange={handleContentChange}

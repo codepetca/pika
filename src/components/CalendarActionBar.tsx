@@ -1,16 +1,11 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { format, parseISO } from 'date-fns'
-import { MoreVertical } from 'lucide-react'
-import { SegmentedControl, cn } from '@/ui'
+import { ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react'
+import { format } from 'date-fns'
+import { Button, IconButton, SegmentedControl, cn } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
-import { DateNavigator } from '@/components/DateNavigator'
-import {
-  TeacherWorkSurfaceIconMenuButton,
-  type TeacherWorkSurfaceActionItem,
-} from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
-import { TeacherWorkSurfaceContextBar } from '@/components/teacher-work-surface/TeacherWorkSurfaceContextBar'
+import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
 
 interface CalendarActionBarProps {
@@ -28,118 +23,21 @@ interface CalendarActionBarProps {
   className?: string
 }
 
-export function getCalendarHeaderLabel(
-  viewMode: CalendarViewMode,
-  currentDate: Date,
-  rangeStart?: string | null,
-  rangeEnd?: string | null,
-) {
-  if (viewMode === 'week' || viewMode === 'month') {
-    return format(currentDate, 'MMMM yyyy')
-  }
-
-  if (rangeStart && rangeEnd) {
-    return `${format(parseISO(rangeStart), 'MMM d, yyyy')} - ${format(parseISO(rangeEnd), 'MMM d, yyyy')}`
-  }
-
-  return 'All Dates'
-}
-
-export function CalendarActionBar({
-  viewMode,
-  currentDate,
-  rangeStart,
-  rangeEnd,
-  onPrev,
-  onNext,
-  onToday,
-  onViewModeChange,
-  trailing,
-  context,
-  moreActions,
-  className = '',
-}: CalendarActionBarProps) {
-  const headerLabel = getCalendarHeaderLabel(viewMode, currentDate, rangeStart, rangeEnd)
-
-  if (moreActions) {
-    return (
-      <PageActionBar
-        className={cn('pt-density-compact-content-top', className)}
-        primary={context}
-        center={
-          <>
-            <DateNavigator
-              label={headerLabel}
-              onPrev={onPrev}
-              onNext={onNext}
-              onLabelClick={viewMode === 'all' ? undefined : onToday}
-              showNavigation={viewMode !== 'all'}
-              className="max-w-full"
-              joined
-            />
-            <SegmentedControl<CalendarViewMode>
-              ariaLabel="Calendar view"
-              value={viewMode}
-              onChange={onViewModeChange}
-              options={[
-                { value: 'week', label: 'Week' },
-                { value: 'month', label: 'Month' },
-                { value: 'all', label: 'Term' },
-              ]}
-            />
-          </>
-        }
-        trailing={moreActions.length > 0 ? (
-          <TeacherWorkSurfaceIconMenuButton
-            ariaLabel="More actions"
-            menuAriaLabel="Calendar actions"
-            tooltip="More actions"
-            icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />}
-            items={moreActions}
-            menuPlacement="down"
-            menuAlign="end"
-            menuClassName="w-64"
-            className="h-11 w-11"
-          />
-        ) : null}
-      />
-    )
-  }
-
-  return (
-    <PageActionBar
-      className={cn('pb-2', className)}
-      primary={
-        <TeacherWorkSurfaceContextBar
-          ariaLabel="Calendar controls"
-          primaryClassName="max-w-full"
-          primary={
-            <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5">
-              <DateNavigator
-                label={headerLabel}
-                onPrev={onPrev}
-                onNext={onNext}
-                onLabelClick={viewMode === 'all' ? undefined : onToday}
-                showNavigation={viewMode !== 'all'}
-                className="max-w-full"
-                joined
-              />
-              <SegmentedControl<CalendarViewMode>
-                ariaLabel="Calendar view"
-                value={viewMode}
-                onChange={onViewModeChange}
-                capitalizeLabels
-                options={[
-                  { value: 'week', label: 'Week' },
-                  { value: 'month', label: 'Month' },
-                  { value: 'all', label: 'All' },
-                ]}
-              />
-              {trailing}
-            </div>
-          }
-        />
-      }
-    />
-  )
+export function CalendarActionBar({ viewMode, currentDate, rangeStart, rangeEnd, onPrev, onNext, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
+  return <PageActionBar className={cn('py-0', className)} primary={context ?? null} center={<>
+    <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="h-6 gap-0 border border-border bg-surface-2 p-0"
+      options={[
+        { value: 'list', label: 'List', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
+        { value: 'grid', label: 'Grid', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
+      ]} />
+    {(!rangeStart || !rangeEnd) && <>
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{format(currentDate, 'MMMM yyyy')}</span>
+      <IconButton variant="ghost" size="sm" icon={ChevronLeft} label="Previous month" onClick={onPrev} />
+      <IconButton variant="ghost" size="sm" icon={ChevronRight} label="Next month" onClick={onNext} />
+    </>}
+    <Button variant="ghost" size="sm" className="min-h-0 px-0 py-0 hover:bg-transparent" onClick={onToday}><span className="rounded-control border border-border bg-surface-2 px-2 py-0.5 text-text-default">Today</span></Button>
+    {trailing}
+  </>} trailing={moreActions && moreActions.length > 0 ? <TeacherWorkSurfaceIconMenuButton
+    ariaLabel="More actions" menuAriaLabel="Calendar actions" tooltip="More actions"
+    icon={<MoreVertical className="h-5 w-5" aria-hidden="true" />} items={moreActions} menuPlacement="down" menuAlign="end" menuClassName="w-64" className="h-6 min-h-0 w-11" /> : null} />
 }

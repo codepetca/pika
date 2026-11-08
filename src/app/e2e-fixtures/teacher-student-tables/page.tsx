@@ -43,9 +43,12 @@ export default async function TeacherStudentTablesFixture({
       </LayoutInitialStateProvider>
     )
   }
-  const fixtureClassroom = classroomRole === 'student' && query.grades === 'true'
-    ? { ...classroom, feature_visibility: { ...classroom.feature_visibility, student_grades: true } }
-    : classroom
+  const fixtureClassroom = {
+    ...classroom,
+    ...(query.calendarTerm === 'true' ? { start_date: '2026-09-08', end_date: '2027-01-29' } : {}),
+    ...(classroomRole === 'student' && query.grades === 'true'
+      ? { feature_visibility: { ...classroom.feature_visibility, student_grades: true } } : {}),
+  }
   return (
     <LayoutInitialStateProvider leftSidebarExpanded>
       <ClassroomPageClient initialNow={Date.parse('2026-10-05T16:00:00Z')}

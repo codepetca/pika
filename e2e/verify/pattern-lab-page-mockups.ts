@@ -611,22 +611,20 @@ export const patternLabPageMockups: VerificationScript = {
     await page.setViewportSize(VIEWPORTS.desktop)
     await section.getByRole('tab', { name: 'Calendar' }).click()
     const calendar = section.getByRole('tabpanel', { name: 'Calendar' })
-    const weekView = calendar.getByRole('button', { name: 'Week', exact: true })
-    const monthView = calendar.getByRole('button', { name: 'Month', exact: true })
-    const termView = calendar.getByRole('button', { name: 'Term', exact: true })
+    const listView = calendar.getByRole('button', { name: 'List', exact: true })
+    const gridView = calendar.getByRole('button', { name: 'Grid', exact: true })
     checks.push({
-      name: 'Calendar center cluster offers Week, Month, and Term without All or Year',
-      passed: await weekView.getAttribute('aria-pressed') === 'true'
-        && await monthView.getAttribute('aria-pressed') === 'false'
-        && await termView.getAttribute('aria-pressed') === 'false'
-        && await calendar.getByRole('button', { name: 'All', exact: true }).count() === 0
-        && await calendar.getByRole('button', { name: 'Year', exact: true }).count() === 0,
+      name: 'Calendar center cluster offers List and Grid',
+      passed: await listView.getAttribute('aria-pressed') === 'true'
+        && await gridView.getAttribute('aria-pressed') === 'false'
+        && await calendar.getByRole('button', { name: 'Week', exact: true }).count() === 0
+        && await calendar.getByRole('button', { name: 'Month', exact: true }).count() === 0
+        && await calendar.getByRole('button', { name: 'Term', exact: true }).count() === 0,
     })
-    await termView.click()
+    await gridView.click()
     checks.push({
-      name: 'Calendar Term renders the full Semester 1 fixture through January',
-      passed: await termView.getAttribute('aria-pressed') === 'true'
-        && await calendar.getByText('Semester 1', { exact: true }).isVisible()
+      name: 'Calendar Grid renders the full term through January',
+      passed: await gridView.getAttribute('aria-pressed') === 'true'
         && await calendar.getByText('January', { exact: true }).isVisible()
         && await calendar.getByText('Semester ecosystem reflection.').isVisible(),
     })

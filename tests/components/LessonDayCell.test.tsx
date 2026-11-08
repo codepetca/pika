@@ -282,7 +282,7 @@ describe('LessonDayCell', () => {
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
   })
 
-  it.each([false, true])('reveals expanded Month plain text while keeping All summaries clipped (plainTextOnly=%s)', (plainTextOnly) => {
+  it.each([false, true])('reveals expanded plain text regardless of rendering preference (plainTextOnly=%s)', (plainTextOnly) => {
     localStorage.setItem('pika_show_markdown', 'false')
     const text = 'First line\nSecond line\nThird line\nFourth line\nFinal lesson line'
     const cell = (compact: boolean) => (
@@ -299,8 +299,7 @@ describe('LessonDayCell', () => {
       rerender(<TooltipProvider>{cell(false)}</TooltipProvider>)
       expect(screen.getByText(/Final lesson line/)).toBe(preview)
       expect(preview).toHaveClass('text-[10px]', 'leading-tight')
-      if (plainTextOnly) expect(preview).toHaveClass('line-clamp-3')
-      else expect(preview).not.toHaveClass('line-clamp-3')
+      expect(preview).not.toHaveClass('line-clamp-3')
       rerender(<TooltipProvider>{cell(true)}</TooltipProvider>)
       expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
     } finally {
@@ -476,7 +475,7 @@ describe('LessonDayCell agenda', () => {
     await user.keyboard('{Enter}')
     const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
     editor.focus() // Native autofocus is covered by the browser regression.
-    expect(editor).toHaveFocus()
+    editor.focus()
     await user.keyboard('{Escape}')
     expect(screen.getByRole('button', { name: 'Add lesson for March 13, 2026' })).toHaveFocus()
     await user.tab()
@@ -607,4 +606,99 @@ describe('LessonDayCell agenda', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /edit lesson|add lesson/i })).not.toBeInTheDocument()
   })
+
+  it('keeps compact agenda date and editing actions keyboard accessible', async () => {
+    const user = userEvent.setup()
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda isToday onPresentDay={onPresentDay} />)
+    const article = screen.getByRole('article', { name: 'Open Friday, March 13, 2026' })
+    expect(within(article).getByText('13')).toHaveAttribute('aria-current', 'date')
+    expect(article).toHaveClass('items-center')
+    await user.tab()
+    expect(screen.getByRole('button', { name: 'Open Friday, March 13, 2026' })).toHaveFocus()
+    await user.keyboard('{Enter}')
+    expect(onPresentDay).toHaveBeenCalledOnce()
+    await user.tab()
+    const edit = screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })
+    expect(edit).toHaveFocus()
+    await user.keyboard('{Enter}')
+    const editor = screen.getByRole('textbox', { name: 'Lesson plan for March 13, 2026' })
+    expect(article).toHaveClass('items-start')
+    expect(article).not.toHaveClass('items-center')
+    editor.focus()
+    await user.keyboard('{Escape}')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })).toHaveFocus())
+    expect(article).toHaveClass('items-center')
+  })
+
+
+  it.each([true, false])('routes dense lesson content and row actions for editable=%s', editable => {
+    const onPresentDay = vi.fn()
+    const onAssignmentClick = vi.fn()
+    const assignment = { id: 'due', title: 'Due item', is_draft: false } as Assignment
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda editable={editable} onPresentDay={onPresentDay}
+      lessonPlan={{ ...lessonPlan, content_markdown: 'Lesson text [Notes](https://example.com)' }}
+      assignments={[assignment]} onAssignmentClick={onAssignmentClick} />)
+    const row = screen.getByRole('article')
+    fireEvent.click(screen.getByRole('button', { name: 'Due: Due item' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Notes' }))
+    expect(onAssignmentClick).toHaveBeenCalledExactlyOnceWith(assignment)
+    expect(onPresentDay).not.toHaveBeenCalled()
+    fireEvent.click(row)
+    expect(onPresentDay).toHaveBeenCalledOnce()
+    fireEvent.click(screen.getByText(/Lesson text/))
+    if (editable) {
+      expect(screen.getByRole('textbox')).toBeInTheDocument()
+      expect(onPresentDay).toHaveBeenCalledOnce()
+      fireEvent.click(screen.getByRole('textbox'))
+      expect(onPresentDay).toHaveBeenCalledOnce()
+    } else {
+      expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+      expect(onPresentDay).toHaveBeenCalledTimes(2)
+    }
+  })
+
+  it('starts editing from blank dense lesson space without opening the day', () => {
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda lessonPlan={null} onPresentDay={onPresentDay} />)
+    const area = screen.getByRole('button', { name: 'Add lesson for March 13, 2026' }).closest('.calendar-day-text')!
+    fireEvent.click(area)
+    expect(screen.getByRole('textbox')).toBeInTheDocument()
+    expect(onPresentDay).not.toHaveBeenCalled()
+  })
+
+  it('ignores clicks in an interactive announcement tooltip rendered in a portal', async () => {
+    const onPresentDay = vi.fn()
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda announcements={[longAnnouncement]} onPresentDay={onPresentDay} />)
+    fireEvent.focus(screen.getByRole('button', { name: 'Announcement' }))
+    const tooltip = await screen.findByRole('tooltip')
+    fireEvent.click(within(tooltip).getByText(longAnnouncement.content))
+    expect(onPresentDay).not.toHaveBeenCalled()
+  })
+
+  it('focuses the date action before presenting a day from the row', () => {
+    const onPresentDay = vi.fn(() => {
+      expect(screen.getByRole('button', { name: 'Open Friday, March 13, 2026' })).toHaveFocus()
+    })
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda onPresentDay={onPresentDay} />)
+    fireEvent.click(screen.getByRole('article'))
+    expect(onPresentDay).toHaveBeenCalledOnce()
+  })
+
+  it.each([false, true])('keeps dense lesson space bounded with events (has content=%s)', hasContent => {
+    const onAssignmentClick = vi.fn()
+    const assignment = { id: 'due', title: 'Due item', is_draft: false } as Assignment
+    const plan = hasContent ? { ...lessonPlan, content_markdown: 'LongWord'.repeat(80) } : null
+    renderWithTooltip(<LessonDayCell {...agendaProps} denseAgenda lessonPlan={plan} assignments={[assignment]} onAssignmentClick={onAssignmentClick} />)
+    const edit = screen.getByRole('button', { name: `${hasContent ? 'Edit' : 'Add'} lesson for March 13, 2026` })
+    const lessonArea = edit.closest('.calendar-day-text')!
+    expect(lessonArea).toHaveClass('max-w-full', 'min-w-control', 'flex-1')
+    expect(lessonArea).toHaveClass('break-words', hasContent ? 'basis-48' : 'basis-0')
+    const due = screen.getByRole('button', { name: 'Due: Due item' })
+    expect(lessonArea).not.toContainElement(due)
+    fireEvent.click(due)
+    expect(onAssignmentClick).toHaveBeenCalledWith(assignment)
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+  })
+
 })
