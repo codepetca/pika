@@ -23,9 +23,9 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-# Sealed 298–300 touch application schemas only; replay retains the same
+# Sealed 298–301 touch application schemas only; replay retains the same
 # Auth/Storage platform-source assumption. The manifest below pins their bytes.
-((10#$source_version >= 234 && 10#$source_version <= 300)) || exit 1
+((10#$source_version >= 234 && 10#$source_version <= 301)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"

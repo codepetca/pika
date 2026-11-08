@@ -36,7 +36,7 @@ function sealedReplayPreflight(path: string, repository = process.cwd()) {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -47,7 +47,7 @@ describe('isolated attendance membership database proof', () => {
       const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${source.slice(start, end)}`], {
         encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version },
       })
-      expect(result.status === 0, path).toBe(path.includes('material-post-date') && ['298','299','300'].includes(version) ? false : accepted)
+      expect(result.status === 0, path).toBe(path.includes('material-post-date') && ['298','299','300','301'].includes(version) ? false : accepted)
     }
   })
 

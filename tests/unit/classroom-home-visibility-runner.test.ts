@@ -40,7 +40,7 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
+  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
     const start = runner.indexOf('[[ "$source_version" =~')
     const end = runner.indexOf('registry=', start)
     expect(start).toBeGreaterThan(-1); expect(end).toBeGreaterThan(start)
@@ -105,7 +105,7 @@ describe('isolated home visibility proof runner source contracts', () => {
   })
 
   it('binds the source extension to application-only migration bytes', () => {
-    for (const file of ['298_repolight_analysis_access.sql', '299_repolight_managed_registry.sql', '300_repolight_provision_outbox.sql']) {
+    for (const file of ['298_repolight_analysis_access.sql', '299_repolight_managed_registry.sql', '300_repolight_provision_outbox.sql', '301_repolight_universal_tier_benefit.sql']) {
       const sql = readFileSync(join('supabase/migrations', file), 'utf8')
       expect(sql).not.toMatch(/\b(?:auth|storage)\s*\./i)
       expect(sql).not.toMatch(/\b(?:create|alter|drop)\s+schema\s+(?:auth|storage)\b/i)
