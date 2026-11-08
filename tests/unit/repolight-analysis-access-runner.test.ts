@@ -8,7 +8,7 @@ import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifec
 const runner = readFileSync('scripts/check-repolight-analysis-access-database.sh', 'utf8')
 
 describe('RepoLight offline replay source boundary', () => {
-  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', false], ['x', false]])(
+  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', false], ['x', false]])(
     'admits source version %s: %s', (version, accepted) => {
       const start = runner.indexOf('[[ "$source_version" =~')
       const end = runner.indexOf('pnpm --dir "$root"', start)
@@ -27,7 +27,8 @@ describe('RepoLight offline replay source boundary', () => {
     const result = spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['-e', command!], { encoding: 'utf8' })
     expect(result.status, result.stderr).toBe(0)
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 303\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-renewal-pending-database.sql"/)
-    expect(runner).toMatch(/if \[\[ "\$replay_version" == 304 \]\]; then\n  if ! sql < "\$root\/scripts\/check-billing-expiry-conflicts-database.sql"/)
+    expect(runner).toMatch(/if \(\(10#\$replay_version >= 304\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-expiry-conflicts-database.sql"/)
+    expect(runner).toMatch(/if \[\[ "\$replay_version" == 307 \]\]; then\n  if ! sql < "\$root\/scripts\/check-billing-scheduled-plan-change-admission-database.sql"/)
     const workflow = readFileSync('.github/workflows/ci.yml', 'utf8')
     const billingStep = workflow.split('- name: Verify account plans and isolated Stripe billing contracts')[1]?.split('- name:')[0]
     expect(billingStep).toContain('docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-expiry-conflicts-database.sql')

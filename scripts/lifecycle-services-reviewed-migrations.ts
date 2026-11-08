@@ -84,8 +84,10 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304].includes(migrations.length), 'Expected a complete billing replay through migration 303 or 304')
-  assert.equal(disposableBillingReplayTail.length, 3)
+  assert([303, 304, 307].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304 or 307')
+  assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
+    'dfc755553f4c85ed7346438fabc05611ee69af807495c97e7679371f70bd11e8', 'Unreviewed billing replay seal')
+  assert.equal(disposableBillingReplayTail.length, 6)
   for (const [offset, { name, sha256 }] of disposableBillingReplayTail.slice(0, migrations.length - 301).entries()) {
     const migration = migrations[301 + offset]
     assert.equal(migration.name, name)

@@ -10,5 +10,17 @@
   {
     "name": "304_billing_isolate_expiry_conflicts.sql",
     "sha256": "72075d8f721bd3745ecaec3555f58d5c508b63a1288802a8bf715ff252d1cb4b"
+  },
+  {
+    "name": "305_billing_scheduled_plan_change_admission.sql",
+    "sha256": "0417a11b042700d498f038c747cf20f3e6284cc87fed73e9c3f19b5fccd4eaf3"
+  },
+  {
+    "name": "306_billing_scheduled_plan_change_installation.sql",
+    "sha256": "c387d1ef756dea271f4216724043c5de04a9ebcf46ee6c44b92adf5fd9e60914"
+  },
+  {
+    "name": "307_billing_scheduled_renewal_closeout.sql",
+    "sha256": "c883995b73df277cf5ae0a103f8a520959c4d0d883790e5b61bd4549b1e7ebbd"
   }
 ]
