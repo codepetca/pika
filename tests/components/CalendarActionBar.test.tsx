@@ -148,6 +148,7 @@ describe('CalendarActionBar', () => {
     const viewControl = screen.getByRole('group', { name: 'Calendar view' })
     expect(viewControl.closest('.fixed')).toBeNull()
     expect(viewControl).toBeInTheDocument()
+    expect(viewControl.closest('.bg-page')?.querySelector('[aria-live]')).toBeNull()
     expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'Grid' }), { key: 'ArrowLeft' })

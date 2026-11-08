@@ -92,7 +92,6 @@ export function StudentLessonCalendarTab({
   }, [classroom.id])
   const [currentDate, setCurrentDate] = useState(nowInToronto)
   const [todayRequest, setTodayRequest] = useState(0)
-  const [visibleMonth, setVisibleMonth] = useState('')
   const [maxDate, setMaxDate] = useState<string | null | undefined>(undefined)
 
   // Always fetch the full term - switching views is then instant
@@ -516,11 +515,10 @@ export function StudentLessonCalendarTab({
   }
 
   return (
-    <PageLayout bleedX={false} width={viewMode === 'list' ? 'standard' : 'full'}>
+    <PageLayout bleedX={false} className="min-h-0 flex-1">
       <CalendarActionBar
-        className="sticky top-12 z-sticky-table bg-page"
+        className={`sticky top-0 z-sticky-table bg-page calendar-short:top-12 ${viewMode === 'list' ? 'mx-auto w-full max-w-standard' : ''}`}
         viewMode={viewMode}
-        visibleMonth={viewMode === 'list' ? visibleMonth : undefined}
         currentDate={currentDate}
         rangeStart={classroom.start_date}
         rangeEnd={classroom.end_date}
@@ -529,11 +527,11 @@ export function StudentLessonCalendarTab({
         onToday={handleToday}
         onViewModeChange={handleViewModeChange}
       />
-      <PageContent className="pb-24 pt-2">
-        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="outline-none">
+      <PageContent className="flex min-h-0 flex-1 flex-col px-0 pb-0 pt-2">
+        <div ref={calendarWorkspaceRef} role="region" aria-label="Calendar workspace" tabIndex={-1} className="flex min-h-0 flex-1 flex-col outline-none">
           {isRefreshing ? <RefreshingIndicator label="Refreshing calendar" className="mb-2" /> : null}
           <CalendarSourceErrors failures={failures} />
-          <div className="rounded-lg bg-surface">
+          <div className="flex min-h-0 flex-1 flex-col rounded-lg bg-surface">
             <LessonCalendar
               classroom={classroom}
               lessonPlans={currentLessonPlans}
@@ -546,10 +544,11 @@ export function StudentLessonCalendarTab({
               viewMode={viewMode}
               todayRequest={todayRequest}
               initialSourcesLoading={isRefreshing}
-              onVisibleMonthChange={setVisibleMonth}
               currentDate={currentDate}
               editable={false}
               showHeader={false}
+              constrainToWorkspace
+              agendaGutter="comfortable"
               onDateChange={handleDateChange}
               onViewModeChange={handleViewModeChange}
               onAssignmentClick={handleAssignmentClick}

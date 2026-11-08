@@ -1139,7 +1139,6 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
 
 export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (action: string) => void }) {
   const [view, setView] = useState<CalendarViewMode>('list')
-  const [visibleMonth, setVisibleMonth] = useState('')
   const [todayRequest, setTodayRequest] = useState(0)
   const [lessonPlans, setLessonPlans] = useState(LESSON_PLANS)
   const [date, setDate] = useState(new Date('2026-09-14T12:00:00'))
@@ -1160,7 +1159,6 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
     <CalendarActionBar
       className="sticky top-12 z-sticky-table bg-page"
       viewMode={view}
-      visibleMonth={view === 'list' ? visibleMonth : undefined}
       currentDate={date}
       onPrev={() => {}}
       onNext={() => {}}
@@ -1169,7 +1167,7 @@ export function CalendarMockup({ onPrototypeAction }: { onPrototypeAction: (acti
       moreActions={menuItems}
     />
     <div className="overflow-hidden rounded-lg border border-border bg-surface">
-      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'list'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} onVisibleMonthChange={setVisibleMonth} todayRequest={todayRequest} />
+      <LessonCalendar classroom={CLASSROOM} tests={[CALENDAR_REFERENCE_TEST]} onTestClick={(test) => onPrototypeAction(`Open ${test.title}`)} lessonPlans={lessonPlans} classDays={CLASS_DAYS} viewMode={view} currentDate={date} editable={view === 'list'} onContentChange={handleContentChange} showHeader={false} onDateChange={setDate} onViewModeChange={setView} todayRequest={todayRequest} />
     </div>
     <Description>List and Grid show the full term. Today returns to the current date; More actions owns Markdown editing.</Description>
   </PageLayout>
