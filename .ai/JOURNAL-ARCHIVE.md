@@ -51290,3 +51290,8 @@ Made answer key and sample solution fields grow with their content and container
 ## 2026-11-02 — Tests list read overlap
 
 PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list-responsiveness`, the legacy student active/closed Tests reads and legacy teacher Tests/roster reads start concurrently only after authorization; existing error precedence and status ordering remain. Deferred route tests cover authorization, overlap, migration/error precedence and late rejections. Controlled timer-only examples: student 107→62ms for 50ms mocked reads; teacher 203→102ms for 100ms reads. These are not production or database latency measurements; successful requests use the same query count with at most two initial reads in flight. Admitted/shared routes and student exam sessions are unchanged. Exact focused checks, independent security/correctness review and CI pending.
+
+<!-- pika-session-log-archive-batch:fdb982b5e65bf9c71c37eaa84f4b203659c73872d1823665c7eaf06e650a51ee -->
+## 2026-11-02 — Reduce Classwork requirement reads
+
+Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.

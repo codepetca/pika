@@ -1,9 +1,10 @@
+import * as timezone from '@/lib/timezone'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react'
 import { StudentLessonCalendarTab } from '@/app/classrooms/[classroomId]/StudentLessonCalendarTab'
 import { createMockClassroom } from '../helpers/mocks'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
-import { AppMessageProvider } from '@/ui'
+import { AppMessageProvider, TooltipProvider } from '@/ui'
 import type { ReactNode } from 'react'
 
 const classDaysState = vi.hoisted(() => ({
@@ -48,7 +49,7 @@ vi.mock('@/components/LessonCalendar', () => ({
 }))
 
 function Wrapper({ children }: { children: ReactNode }) {
-  return <AppMessageProvider>{children}</AppMessageProvider>
+  return <AppMessageProvider><TooltipProvider>{children}</TooltipProvider></AppMessageProvider>
 }
 
 describe('StudentLessonCalendarTab', () => {
@@ -96,6 +97,28 @@ describe('StudentLessonCalendarTab', () => {
     invalidateCachedJSON(`student-announcements:${secondClassroom.id}`)
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it.each([
+    [null, null], ['2026-01-01', null], [null, '2026-12-31'],
+  ])('navigates and fetches prior months with incomplete dates (%s, %s)', async (start_date, end_date) => {
+    let now = new Date(2026, 9, 15, 12)
+    vi.spyOn(timezone, 'nowInToronto').mockImplementation(() => now)
+    const incomplete = { ...classroom, id: `incomplete-Student-${start_date}-${end_date}`, start_date, end_date }
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => ({
+      lesson_plans: String(url).includes('2026-09-01') ? [{ id: 'prior-lesson', classroom_id: incomplete.id, date: '2026-09-15', content_markdown: 'Previous lesson' }] : [],
+      assignments: [], materials: [], announcements: [], tests: [], max_date: null,
+    }) }))
+    render(<StudentLessonCalendarTab showTests={false} classroom={incomplete} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-09-01') && String(url).includes('end=2026-09-30'))).toBe(true))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1'))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-09-15')
+    now = new Date(2026, 10, 2, 12)
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-11-02'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-11-01') && String(url).includes('end=2026-11-30'))).toBe(true))
   })
 
   it('switches student List and Grid without refetching term data', async () => {

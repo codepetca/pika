@@ -135,17 +135,18 @@ describe('CalendarActionBar', () => {
     const onToday = vi.fn()
 
     render(
-      <CalendarActionBar
+      <TooltipProvider><CalendarActionBar
         viewMode="grid"
         currentDate={new Date(2026, 6, 21)}
         onPrev={vi.fn()}
         onNext={vi.fn()}
         onToday={onToday}
         onViewModeChange={onViewModeChange}
-      />,
+      /></TooltipProvider>,
     )
 
     const viewControl = screen.getByRole('group', { name: 'Calendar view' })
+    expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument()
     expect(viewControl.closest('.fixed')).toBeNull()
     expect(viewControl).toBeInTheDocument()
     expect(viewControl.closest('.bg-page')?.querySelector('[aria-live]')).toBeNull()
@@ -155,6 +156,21 @@ describe('CalendarActionBar', () => {
     expect(onViewModeChange).toHaveBeenCalledWith('list')
     fireEvent.click(screen.getByRole('button', { name: 'Today' }))
     expect(onToday).toHaveBeenCalledOnce()
+  })
+
+  it('only shows month arrows for incomplete terms and calls both actions', () => {
+    const onPrev = vi.fn()
+    const onNext = vi.fn()
+    const props = { viewMode: 'list' as const, currentDate: new Date(2026, 9, 5), onPrev, onNext,
+      onToday: vi.fn(), onViewModeChange: vi.fn() }
+    const view = render(<TooltipProvider><CalendarActionBar {...props} rangeStart="2026-09-01" rangeEnd={null} /></TooltipProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(onPrev).toHaveBeenCalledOnce()
+    expect(onNext).toHaveBeenCalledOnce()
+    view.rerender(<TooltipProvider><CalendarActionBar {...props} rangeStart="2026-09-01" rangeEnd="2027-01-31" /></TooltipProvider>)
+    expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument()
   })
 
   it('keeps teacher calendar views centered and places secondary commands in More actions', () => {
