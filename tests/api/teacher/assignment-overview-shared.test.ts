@@ -31,6 +31,17 @@ describe('shared overview GET admission and retained body', () => {
     expect(response.status).toBe(200); expect(mocks.read).toHaveBeenCalledWith({ supabase: {}, actorId, assignmentId })
     expect(mocks.legacy).not.toHaveBeenCalled()
   })
+  it('projects the schedule for a shared owner overview', async () => {
+    admission()
+    const assignment = { id: assignmentId, classroom_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', is_draft: true, released_at: null, updated_at: '2026-11-08T10:00:00Z' }
+    const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'pending', notice_code: null }
+    const rpc = vi.fn().mockResolvedValue({ data: [{ assignment_id: assignmentId, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    mocks.client.mockReturnValue({ rpc })
+    mocks.read.mockResolvedValue({ assignment, classroom: {}, students: [], active_ai_grading_run: null })
+    const response = await GET(request(), { params: Promise.resolve({ id: assignmentId }) })
+    expect(response.status).toBe(200)
+    expect((await response.json()).assignment).toEqual({ ...assignment, release_schedule: schedule })
+  })
   it('preserves absent admission without introducing another authentication call', async () => {
     const response = await GET(request(), { params: Promise.resolve({ id: 'old-literal-id' }) })
     expect(response.status).toBe(404); expect(await response.json()).toMatchObject({ error: 'Legacy sentinel' })

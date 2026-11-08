@@ -713,6 +713,26 @@ missed release. Persist the suppressed generation and its teacher notice in
 one transaction. A teacher can explicitly reschedule or release it after
 regaining access. Released assignments keep their existing student rules.
 
+Owner Classwork list, summary and detail responses expose the latest relevant
+release generation separately from the assignment draft and publication fields.
+Only the service can query these generations, and the database binds each query
+to the classroom owner. Cancel, reschedule and Post check the generation the
+teacher saw. If a worker completes it first, the editor refreshes the assignment.
+Cancelling preserves the draft even when the cutoff flag is off or access has
+expired. The missed status remains visible until the teacher takes action.
+
+The assignment card and authoring dialog are the reference surfaces. Verify
+scheduled and overdue pending states, missed release, the open schedule dialog
+and cancellation on teacher desktop and mobile in both themes. The student
+check covers visibility before and after worker publication. Check keyboard
+entry to the existing schedule dialog and its focus behavior.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Release status in Classwork | `SortableAssignmentCard` | extend | Keep the current badge and distinguish a pending or missed release. |
+| Teacher scheduling controls | `AssignmentActionButton` and `ScheduleDateTimePicker` | reuse | Preserve the existing date, time and cancel controls. |
+| Visual verification | Pattern Lab assignment controller | extend | Exercise the production owner controls with deterministic records. |
+
 ### Worker recovery follow-up
 
 Keep the base sandbox and its validated local app origin configured when

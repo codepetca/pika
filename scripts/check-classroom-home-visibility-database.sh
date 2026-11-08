@@ -23,9 +23,9 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-# Sealed 298–307 touch application schemas only; replay retains the same
+# Sealed 298–312 touch application schemas only; replay retains the same
 # Auth/Storage platform-source assumption. The manifest below pins their bytes.
-((10#$source_version >= 234 && 10#$source_version <= 310)) || exit 1
+((10#$source_version >= 234 && 10#$source_version <= 312)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"
@@ -81,7 +81,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Seal the exact dirty-tree SQL inventory, rather than asserting a reviewed SHA.
-# This validates contiguous replay through 297, 300, 301, 303, 304, 307 or 310 and binds all migration and proof bytes.
+# This validates contiguous replay through 297, 300, 301, 303, 304, 307, 310, 311 or 312 and binds all migration and proof bytes.
 manifest() {
   node - "$root" <<'NODE'
 const assert = require('node:assert/strict')
@@ -90,7 +90,7 @@ const { readFileSync, readdirSync } = require('node:fs')
 const { join } = require('node:path')
 const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
-assert([297, 300, 301, 303, 304, 307, 310].includes(paths.length), 'Expected replay through migration 297, 300, 301, 303, 304, 307 or 310')
+assert([297, 300, 301, 303, 304, 307, 310, 311, 312].includes(paths.length), 'Expected replay through migration 297, 300, 301, 303, 304, 307, 310, 311 or 312')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
 // Preserve the reviewed293 pin and require the exact admission294/calendar295/attendance296 tails.
 const reviewed293 = '293_repolight_report_service.sql'
@@ -132,7 +132,7 @@ if (paths.length > 301) {
   }
 }
 const cutoffTailPath = 'scripts/disposable-classroom-cutoff-replay-tail.json'
-if (paths.length === 310) {
+if (paths.length >= 310) {
   const bytes = readFileSync(join(root, cutoffTailPath))
   assert.equal(createHash('sha256').update(bytes).digest('hex'), '2c1283ba0827c979aa3f2eb833c857c7fa7c8b72a37d93f84c6d804b7dacab57', 'Unreviewed classroom cutoff replay seal')
   const tail = JSON.parse(bytes.toString('utf8'))
@@ -142,7 +142,18 @@ if (paths.length === 310) {
     assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), sha256, 'Unreviewed classroom cutoff source')
   }
 }
-for (const path of [...paths.map(name => `supabase/migrations/${name}`), billingTailPath, cutoffTailPath, 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-public-auto-admission.sql', 'scripts/check-classroom-public-auto-admission-native-catalog.sql', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
+const releaseTailPath = 'scripts/disposable-assignment-release-replay-tail.json'
+if (paths.length >= 311) {
+  const bytes = readFileSync(join(root, releaseTailPath))
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), '5fe36236dcb2a93bd149035b988a3a56de1ac010fc79697f5ba5b353f921d7ab', 'Unreviewed assignment release replay seal')
+  const tail = JSON.parse(bytes.toString('utf8'))
+  assert.equal(tail.length, 2)
+  for (const [offset, { name, sha256 }] of tail.slice(0, paths.length - 310).entries()) {
+    assert.equal(paths[310 + offset], name, 'Unreviewed assignment release filename')
+    assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), sha256, 'Unreviewed assignment release source')
+  }
+}
+for (const path of [...paths.map(name => `supabase/migrations/${name}`), billingTailPath, cutoffTailPath, releaseTailPath, 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-public-auto-admission.sql', 'scripts/check-classroom-public-auto-admission-native-catalog.sql', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
 NODE

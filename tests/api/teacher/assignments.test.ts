@@ -23,7 +23,7 @@ vi.mock('@/lib/server/classrooms', () => ({
   getClassroomStudentIds: mockGetClassroomStudentIds,
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = { from: vi.fn(), rpc: vi.fn() }
 
 function buildEmptySubmissionRequirementsTable() {
   const chain: any = {
@@ -126,6 +126,32 @@ describe('GET /api/teacher/assignments', () => {
     vi.mocked(assertTeacherOwnsClassroom).mockResolvedValueOnce({ ok: false, status: 403, error: 'Forbidden' } as any)
     const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1&summary=invalid'))
     expect(response.status).toBe(403)
+  })
+
+  it('projects durable schedules in an owner summary without altering publication fields', async () => {
+    const assignment = { id: 'item-1', is_draft: true, released_at: null, updated_at: '2026-11-08T10:00:00Z' }
+    const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'suppressed', notice_code: 'access_unavailable' }
+    const chain: any = { select: () => chain, eq: () => chain, order: () => chain,
+      then: (resolve: (value: unknown) => void) => resolve({ data: [assignment], error: null }) }
+    mockSupabaseClient.from = vi.fn(() => chain)
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1&summary=1'))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ assignments: [{ ...assignment, release_schedule: schedule }], summary_only: true })
+    expect(mockGetClassroomStudentIds).not.toHaveBeenCalled()
+  })
+
+  it('projects schedules in the full owner list alongside statistics', async () => {
+    const assignment = { id: 'item-1', is_draft: true, released_at: null, updated_at: '2026-11-08T10:00:00Z', due_at: '2026-11-10T10:00:00Z' }
+    const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'pending', notice_code: null }
+    mockGetClassroomStudentIds.mockResolvedValueOnce({ studentIds: [], studentIdSet: new Set(), totalStudents: 0, error: null })
+    const chain: any = { select: () => chain, eq: () => chain, order: () => chain,
+      then: (resolve: (value: unknown) => void) => resolve({ data: [assignment], error: null }) }
+    mockSupabaseClient.from = vi.fn((table: string) => table === 'assignments' ? chain : buildEmptySubmissionRequirementsTable())
+    mockSupabaseClient.rpc.mockResolvedValueOnce({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments?classroom_id=c1'))
+    expect(response.status).toBe(200)
+    expect((await response.json()).assignments[0]).toMatchObject({ ...assignment, release_schedule: schedule, stats: expect.any(Object) })
   })
 
   it('returns an owner summary without loading roster or statistics', async () => {

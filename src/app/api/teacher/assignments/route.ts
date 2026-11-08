@@ -1,3 +1,4 @@
+import { projectAssignmentReleaseStates } from '@/lib/server/billing/assignment-release-state'
 import { classworkListModeQuerySchema } from '@/lib/validations/classwork-list-mode'
 import { NextRequest, NextResponse } from 'next/server'
 import { logServerError } from '@/lib/server/diagnostics'
@@ -124,9 +125,11 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
   const resolveClassroomId = () => new URL(request.url).searchParams.get('classroom_id')
   if (shared.mode === 'shared') {
     const input = contextualAssignmentListQuerySchema.parse({ classroomId: resolveClassroomId() })
-    const result = await readContextualAssignmentList({ supabase: getServiceRoleClient(), actorId: shared.user.id, classroomId: input.classroomId, permission: 'owner' })
+    const supabase = getServiceRoleClient()
+    const result = await readContextualAssignmentList({ supabase, actorId: shared.user.id, classroomId: input.classroomId, permission: 'owner' })
     classworkListModeQuerySchema.parse({ summary: new URL(request.url).searchParams.getAll('summary') })
-    return NextResponse.json(result)
+    const assignments = await projectAssignmentReleaseStates(supabase, shared.user.id, input.classroomId, result.assignments)
+    return NextResponse.json({ ...result, assignments })
   }
   const assignmentAccess = await authorizeClassroomAssignmentRequest(resolveClassroomId, {
     legacyRole: 'teacher',
@@ -136,9 +139,11 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
 
   if (['contextual'].includes(assignmentAccess.mode)) {
     const input = contextualAssignmentListQuerySchema.parse({ classroomId })
-    const result = await readContextualAssignmentList({ supabase: getServiceRoleClient(), actorId: assignmentAccess.user.id, classroomId: input.classroomId, permission: 'owner' })
+    const supabase = getServiceRoleClient()
+    const result = await readContextualAssignmentList({ supabase, actorId: assignmentAccess.user.id, classroomId: input.classroomId, permission: 'owner' })
     classworkListModeQuerySchema.parse({ summary: new URL(request.url).searchParams.getAll('summary') })
-    return NextResponse.json(result)
+    const assignments = await projectAssignmentReleaseStates(supabase, assignmentAccess.user.id, input.classroomId, result.assignments)
+    return NextResponse.json({ ...result, assignments })
   }
 
   if (!classroomId) {
@@ -189,6 +194,8 @@ export const GET = withErrorHandler('GetTeacherAssignments', async (request, con
   if (assignmentAccess.mode === 'contextual') {
     assertContextualAssignmentRows(classroomId, assignments, { publishedOnly: false })
   }
+
+  assignments = await projectAssignmentReleaseStates(supabase, assignmentAccess.user.id, classroomId, assignments || [])
 
   // Summary reads are owner-authorized above and intentionally omit roster and statistics.
   if (summary.length === 1) {

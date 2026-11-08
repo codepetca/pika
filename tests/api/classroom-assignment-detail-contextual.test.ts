@@ -90,7 +90,11 @@ function makeClient(options: { assignment?: unknown; rosterData?: unknown; assig
     }
     throw new Error(`Unexpected table: ${table}`)
   })
-  return { from, storage: { from: vi.fn() } }
+  return {
+    from,
+    rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202' } }),
+    storage: { from: vi.fn() },
+  }
 }
 
 describe('contextual assignment detail route', () => {
@@ -162,6 +166,9 @@ describe('contextual assignment detail route', () => {
     expect(getActiveAssignmentAiGradingRunSummary).toHaveBeenCalledWith(assignmentId, expect.objectContaining({
       requireEvidence: true,
     }))
+    expect(client.rpc).toHaveBeenCalledWith('get_assignment_release_states_for_owner_v1', {
+      p_actor_id: actorId, p_classroom_id: classroomId, p_assignment_ids: [assignmentId],
+    })
   })
 
   it('fails closed on an assignment substituted after exact-pair admission', async () => {

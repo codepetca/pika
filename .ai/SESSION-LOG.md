@@ -11,11 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-06 Gradebook student PDF export continuation
-
-- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
-- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
-
 ## 2026-11-06 Gradebook PDF review continuation
 
 - Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
@@ -314,6 +309,20 @@ target and the private Stripe account pin. The 001–311 offline replay verified
 the service-only read, sandbox exclusion, retained test evidence denial,
 unchanged shared schema and generated types. The check leaves all live
 operations closed.
+
+## 2026-11-08 — Scheduled assignment release worker
+
+Prepared durable draft-backed schedules through the assignment Release route
+and the authenticated billing worker. The isolated replay proved eligible
+release, exact-once processing, pristine draft preservation and suppression
+when a later paid term starts retroactively across the missed due time. The
+same draft can be explicitly released after access returns. Migration 312 adds
+owner-only list and detail schedule state. Rescheduling and cancellation check
+the observed generation under the worker's locks. A stale request refreshes the
+editor. Verified teacher and student browser checks on desktop and mobile in
+light and dark mode. The sealed replay covers 311 and 312, including both
+worker and owner lock orders. Existing-schedule conversion, notice delivery and
+final CI still gate activation.
 
 ## 2026-11-09 — Sync billing launch with main
 

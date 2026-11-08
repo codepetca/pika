@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
+import { resolveBillingAssignmentRelease, stageBillingAssignmentRelease } from '@/lib/server/billing/assignment-releases'
 import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -15,7 +16,9 @@ export const revalidate = 0
 
 const assignmentReleaseRequestSchema = z.object({
   release_at: z.unknown().optional(),
+  expected_intent_id: z.uuid().optional(),
 }).passthrough()
+const cancelAssignmentReleaseSchema = z.object({ expected_intent_id: z.uuid() }).strict()
 
 // POST /api/teacher/assignments/[id]/release - Release a draft assignment to students
 export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (request, context) => {
@@ -23,9 +26,23 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
   const assignmentAccess = await authorizeContextualAssignmentOwnerMutationRequest(resolveAssignmentId)
   const id = assignmentAccess.assignmentId
   const user = assignmentAccess.user
-  const body = assignmentReleaseRequestSchema.parse(await request.json().catch(() => ({})))
+  const body = assignmentReleaseRequestSchema.parse(request.body === null ? {} : await request.json().catch(() => null))
   const releaseAt = body?.release_at as string | undefined
+  const expectedIntentId = body.expected_intent_id
   const supabase = getServiceRoleClient()
+
+  if (expectedIntentId) {
+    if (releaseAt === undefined) {
+      const assignment = await resolveBillingAssignmentRelease(supabase, user.id, id, expectedIntentId, 'publish')
+      return NextResponse.json({ assignment })
+    }
+    const parsed = new Date(releaseAt)
+    if (typeof releaseAt !== 'string' || !Number.isFinite(parsed.getTime())) {
+      return NextResponse.json({ error: 'Invalid release date' }, { status: 400 })
+    }
+    const assignment = await stageBillingAssignmentRelease(supabase, user.id, id, parsed.toISOString(), expectedIntentId)
+    return NextResponse.json({ assignment })
+  }
 
   // Fetch assignment and verify ownership
   const { data: existing, error: existingError } = await supabase
@@ -95,6 +112,8 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
       )
     }
     releasedAtIso = parsed.toISOString()
+    const scheduledAssignment = await stageBillingAssignmentRelease(supabase, user.id, existing.id, releasedAtIso)
+    if (scheduledAssignment) return NextResponse.json({ assignment: scheduledAssignment })
   }
 
   let assignment
@@ -133,5 +152,15 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
     assignment = updatedAssignment
   }
 
+  return NextResponse.json({ assignment })
+})
+
+// DELETE /api/teacher/assignments/[id]/release - Cancel the observed release schedule.
+export const DELETE = withErrorHandler('DeleteTeacherAssignmentRelease', async (request, context) => {
+  const access = await authorizeContextualAssignmentOwnerMutationRequest(async () => (await context.params).id)
+  const { expected_intent_id: expectedIntentId } = cancelAssignmentReleaseSchema.parse(await request.json().catch(() => null))
+  const assignment = await resolveBillingAssignmentRelease(
+    getServiceRoleClient(), access.user.id, access.assignmentId, expectedIntentId, 'cancel',
+  )
   return NextResponse.json({ assignment })
 })

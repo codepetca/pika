@@ -5,6 +5,52 @@ import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-stude
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
 
+test('teacher sees pending and missed assignment releases and cancels the observed generation', async ({ page }, info) => {
+  const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+  await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+  let canceledGeneration: string | undefined
+  await page.route('**/api/teacher/assignments/assignment-controller-pending/release', async route => {
+    expect(route.request().method()).toBe('DELETE')
+    canceledGeneration = route.request().postDataJSON().expected_intent_id
+    await route.fulfill({ json: { assignment: {
+      id: 'assignment-controller-pending', classroom_id: 'classroom-controller', title: 'Scheduled field observations',
+      description: 'Original instructions', instructions_markdown: 'Original instructions', rich_instructions: null,
+      due_at: '2030-10-21T03:59:59.999Z', is_draft: true, released_at: null, release_schedule: null,
+    } } })
+  })
+  await page.goto('/pattern-lab?role=teacher&fixture=assignment-controller')
+  const fixture = page.getByTestId('assignment-controller-fixture')
+  await expect(fixture.getByText('Release pending', { exact: true })).toBeVisible()
+  await expect(fixture.getByText('Release missed', { exact: true })).toBeVisible()
+  await fixture.scrollIntoViewIfNeeded()
+  await fixture.screenshot({ path: info.outputPath('assignment-release-cards.png'), animations: 'disabled' })
+  await fixture.getByRole('button', { name: 'Scheduled field observations', exact: true }).click()
+  const editor = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close assignment modal' }) })
+  await expect(editor.getByText(/Release pending ·/)).toBeVisible()
+  await editor.screenshot({ path: info.outputPath('assignment-release-pending.png'), animations: 'disabled' })
+  await editor.getByRole('button', { name: 'Schedule', exact: true }).press('Enter')
+  const schedule = page.getByRole('dialog', { name: 'Schedule Release' })
+  await expect(schedule.getByRole('button', { name: 'Save schedule', exact: true })).toBeDisabled()
+  await schedule.screenshot({ path: info.outputPath('assignment-release-schedule.png'), animations: 'disabled' })
+  await schedule.getByRole('button', { name: 'Cancel schedule', exact: true }).click()
+  await expect(schedule).toHaveCount(0)
+  expect(canceledGeneration).toBe('3405d674-485b-41e5-8f21-c8cf3ed5ec56')
+  await editor.getByRole('button', { name: 'Close assignment modal' }).click()
+  await fixture.getByRole('button', { name: 'Missed field observations', exact: true }).click()
+  await expect(editor.getByText('Release missed', { exact: true })).toBeVisible()
+  await expect(editor.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
+  await editor.screenshot({ path: info.outputPath('assignment-release-missed.png'), animations: 'disabled' })
+})
+
+test('student Pattern Lab has no owner assignment release controls', async ({ page }, info) => {
+  const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+  await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+  await page.goto('/pattern-lab?role=student&fixture=assignment-controller')
+  await expect(page.locator('[data-pattern-lab-ready=true]')).toBeVisible()
+  await expect(page.getByTestId('assignment-controller-fixture')).toHaveCount(0)
+  await page.screenshot({ path: info.outputPath('student-without-owner-release-controls.png'), animations: 'disabled' })
+})
+
 for (const role of ['teacher', 'student'] as const) {
   test(`modal corner close stays consistent for ${role}`, async ({ page }, info) => {
     await openPatternLab(page, info, role)

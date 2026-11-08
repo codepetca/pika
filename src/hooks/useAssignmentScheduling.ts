@@ -8,7 +8,7 @@ import {
   isScheduleIsoInFuture,
   parseScheduleIsoToParts,
 } from '@/lib/scheduling'
-import { isAssignmentLive, isAssignmentScheduledForFuture } from '@/lib/assignments'
+import { getAssignmentScheduledReleaseAt, isAssignmentLive } from '@/lib/assignments'
 import type { Assignment } from '@/types'
 
 export type CreateSubmitAction = 'post' | 'schedule' | 'draft'
@@ -110,7 +110,7 @@ export function useAssignmentScheduling({
   const ownsSession = useCallback((session: number, editorSession: number | null | undefined) => (
     schedulingSessionRef.current === session && editorSessionRef?.current === editorSession
   ), [editorSessionRef])
-  const [scheduleDate, setScheduleDate] = useState(getDefaultScheduleDateInSchedulingTimezone())
+  const [scheduleDate, setScheduleDate] = useState(getDefaultScheduleDateInSchedulingTimezone)
   const [scheduleTime, setScheduleTime] = useState(DEFAULT_SCHEDULE_TIME)
   const [primaryAction, setPrimaryAction] = useState<CreateSubmitAction>('post')
   const [showPostNowConfirm, setShowPostNowConfirm] = useState(false)
@@ -118,9 +118,25 @@ export function useAssignmentScheduling({
   const [showCreateScheduleModal, setShowCreateScheduleModal] = useState(false)
   const [releasing, setReleasing] = useState(false)
 
+  const refreshAfterScheduleConflict = useCallback(async (
+    assignmentId: string,
+    session: number,
+    editorSession: number | null | undefined,
+  ) => {
+    if (!ownsSession(session, editorSession)) return
+    const refreshed = await fetch(`/api/teacher/assignments/${assignmentId}`, { cache: 'no-store' })
+      .then(async (response) => response.ok ? await response.json() as { assignment?: Assignment } : null)
+      .catch(() => null)
+    const assignment = refreshed?.assignment
+    if (assignment?.id !== assignmentId || !ownsSession(session, editorSession)) return
+    onAssignmentChange(assignment)
+    if (!isCreateMode) onSuccess(assignment, { closeModal: false })
+    setShowCreateScheduleModal(false)
+  }, [isCreateMode, onAssignmentChange, onSuccess, ownsSession])
+
   // Derived status flags
   const isDraft = !currentAssignment || currentAssignment.is_draft
-  const isScheduled = !!currentAssignment && isAssignmentScheduledForFuture(currentAssignment)
+  const isScheduled = !!currentAssignment && !!getAssignmentScheduledReleaseAt(currentAssignment)
   const isLive = !!currentAssignment && isAssignmentLive(currentAssignment)
   const scheduleIso = scheduleDate ? combineScheduleDateTimeToIso(scheduleDate, scheduleTime) : ''
   const isScheduleValid = scheduleIso ? isScheduleIsoInFuture(scheduleIso) : false
@@ -153,13 +169,13 @@ export function useAssignmentScheduling({
     setShowCreateScheduleModal(false)
     setReleasing(false)
 
-    if (assignment?.released_at && isAssignmentScheduledForFuture(assignment)) {
-      const scheduled = parseScheduleIsoToParts(assignment.released_at)
+    const scheduledAt = assignment && getAssignmentScheduledReleaseAt(assignment)
+    if (scheduledAt) {
+      const scheduled = parseScheduleIsoToParts(scheduledAt)
       setScheduleDate(scheduled.date)
       setScheduleTime(scheduled.time)
       setPrimaryAction('schedule')
     } else {
-      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
       setPrimaryAction('post')
@@ -180,12 +196,12 @@ export function useAssignmentScheduling({
   }
 
   function syncScheduleInputsFromAssignment() {
-    if (currentAssignment?.released_at && isAssignmentScheduledForFuture(currentAssignment)) {
-      const parsed = parseScheduleIsoToParts(currentAssignment.released_at)
+    const scheduledAt = currentAssignment && getAssignmentScheduledReleaseAt(currentAssignment)
+    if (scheduledAt) {
+      const parsed = parseScheduleIsoToParts(scheduledAt)
       setScheduleDate(parsed.date)
       setScheduleTime(parsed.time)
     } else {
-      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
       setScheduleTime(DEFAULT_SCHEDULE_TIME)
     }
@@ -206,14 +222,20 @@ export function useAssignmentScheduling({
       try {
         await flushPendingChanges()
 
+        const intentId = assignmentToRelease.release_schedule?.id
         const response = assignmentToRelease.is_draft
-          ? await fetch(`/api/teacher/assignments/${assignmentToRelease.id}/release`, { method: 'POST' })
+          ? await fetch(`/api/teacher/assignments/${assignmentToRelease.id}/release`, intentId ? {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ expected_intent_id: intentId }),
+            } : { method: 'POST' })
           : await fetch(`/api/teacher/assignments/${assignmentToRelease.id}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ released_at: null }),
             })
         const data = await response.json()
+        if (response.status === 409) await refreshAfterScheduleConflict(assignmentToRelease.id, session, editorSession)
         if (!response.ok) throw new Error(data.error || 'Failed to post assignment')
 
         const updated = data.assignment as Assignment
@@ -233,7 +255,7 @@ export function useAssignmentScheduling({
         }
       }
     },
-    [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, onAssignmentChange, onClose, onError, onSuccess, ownsSession, releasing]
+    [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, onAssignmentChange, onClose, onError, onSuccess, ownsSession, refreshAfterScheduleConflict, releasing]
   )
 
   const scheduleAssignmentRelease = useCallback(
@@ -261,7 +283,7 @@ export function useAssignmentScheduling({
           ? await fetch(`/api/teacher/assignments/${assignmentToSchedule.id}/release`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ release_at: releaseIso }),
+              body: JSON.stringify({ release_at: releaseIso, expected_intent_id: assignmentToSchedule.release_schedule?.id }),
             })
           : await fetch(`/api/teacher/assignments/${assignmentToSchedule.id}`, {
               method: 'PATCH',
@@ -269,6 +291,7 @@ export function useAssignmentScheduling({
               body: JSON.stringify({ released_at: releaseIso }),
             })
         const data = await response.json()
+        if (response.status === 409) await refreshAfterScheduleConflict(assignmentToSchedule.id, session, editorSession)
         if (!response.ok) throw new Error(data.error || 'Failed to schedule assignment')
 
         const updated = data.assignment as Assignment
@@ -297,6 +320,7 @@ export function useAssignmentScheduling({
       onError,
       onSuccess,
       ownsSession,
+      refreshAfterScheduleConflict,
       releasing,
       scheduleDate,
       scheduleTime,
@@ -352,12 +376,15 @@ export function useAssignmentScheduling({
     setReleasing(true)
     try {
       await flushPendingChanges()
-      const response = await fetch(`/api/teacher/assignments/${assignmentToUpdate.id}`, {
-        method: 'PATCH',
+      const intentId = assignmentToUpdate.release_schedule?.id
+      const assignmentPath = `/api/teacher/assignments/${assignmentToUpdate.id}`
+      const response = await fetch(intentId ? `${assignmentPath}/release` : assignmentPath, {
+        method: intentId ? 'DELETE' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_draft: true, released_at: null }),
+        body: JSON.stringify(intentId ? { expected_intent_id: intentId } : { is_draft: true, released_at: null }),
       })
       const data = await response.json()
+      if (response.status === 409) await refreshAfterScheduleConflict(assignmentToUpdate.id, session, editorSession)
       if (!response.ok) throw new Error(data.error || 'Failed to clear scheduled release')
 
       const updated = data.assignment as Assignment
@@ -377,7 +404,7 @@ export function useAssignmentScheduling({
     } finally {
       if (ownsSession(session, editorSession)) setReleasing(false)
     }
-  }, [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, isScheduled, onAssignmentChange, onError, onSuccess, ownsSession, releasing])
+  }, [currentAssignment, editorSessionRef, flushPendingChanges, isCreateMode, isScheduled, onAssignmentChange, onError, onSuccess, ownsSession, refreshAfterScheduleConflict, releasing])
 
   const openScheduleModalWithSave = useCallback(async () => {
     if (!currentAssignment || saving || releasing || creating) return

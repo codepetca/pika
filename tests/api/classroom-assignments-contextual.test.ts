@@ -45,6 +45,24 @@ describe('assignment list shared admission and existing exact-pair routing', () 
     }
     expect(authorizeClassroomAssignmentRequest).not.toHaveBeenCalled()
   })
+  it.each(['shared', 'contextual'])('projects owner %s lists and leaves learner reads untouched', async mode => {
+    if (mode === 'shared') vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', admission())
+    else vi.mocked(authorizeClassroomAssignmentRequest).mockResolvedValue({ mode: 'contextual', user: user('teacher'), context: {} } as any)
+    const assignment = { id: 'item', is_draft: true, released_at: null, updated_at: '2026-11-08T10:00:00Z' }
+    const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'pending', notice_code: null }
+    const rpc = vi.fn().mockResolvedValue({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null })
+    vi.mocked(getServiceRoleClient).mockReturnValue({ rpc } as any)
+    vi.mocked(readContextualAssignmentList).mockResolvedValue({ assignments: [assignment] })
+    const owner = await teacherGet(request())
+    expect(owner.status).toBe(200)
+    expect((await owner.json()).assignments).toEqual([{ ...assignment, release_schedule: schedule }])
+    expect(rpc).toHaveBeenCalledOnce()
+    rpc.mockClear()
+    const member = await studentGet(request())
+    expect(member.status).toBe(200)
+    expect((await member.json()).assignments).toEqual([assignment])
+    expect(rpc).not.toHaveBeenCalled()
+  })
   it.each(routes)('retains the old pair decision when shared admission is absent or does not admit the actor ($permission)', async ({ get, permission }) => {
     vi.mocked(authorizeClassroomAssignmentRequest).mockResolvedValue({ mode: 'contextual', user: user('teacher'), context: {} } as any)
     for (const config of [undefined, admission([]), admission(['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'])]) {

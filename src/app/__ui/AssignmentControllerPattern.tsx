@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AssignmentModal } from '@/components/AssignmentModal'
+import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { toTorontoEndOfDayIso } from '@/lib/timezone'
 import type { Assignment } from '@/types'
 import { Button, Card } from '@/ui'
@@ -16,6 +17,28 @@ const FIXTURE_ASSIGNMENT: Assignment = {
   is_draft: true, released_at: null, track_authenticity: true,
   created_by: 'teacher-controller', submission_requirements: [],
   created_at: '2026-10-01T00:00:00.000Z', updated_at: '2026-10-01T00:00:00.000Z',
+}
+const PENDING_ASSIGNMENT: Assignment = {
+  ...FIXTURE_ASSIGNMENT,
+  id: 'assignment-controller-pending',
+  title: 'Scheduled field observations',
+  release_schedule: {
+    id: '3405d674-485b-41e5-8f21-c8cf3ed5ec56',
+    scheduled_for: '2020-10-19T15:00:00.000Z',
+    state: 'pending',
+    notice_code: null,
+  },
+}
+const MISSED_ASSIGNMENT: Assignment = {
+  ...FIXTURE_ASSIGNMENT,
+  id: 'assignment-controller-missed',
+  title: 'Missed field observations',
+  release_schedule: {
+    id: 'cf3a4086-0ac3-4f82-9aad-9a4e9559c1dd',
+    scheduled_for: '2020-10-19T15:00:00.000Z',
+    state: 'suppressed',
+    notice_code: 'access_unavailable',
+  },
 }
 
 export function AssignmentControllerPattern() {
@@ -55,6 +78,13 @@ export function AssignmentControllerPattern() {
           setOwner({ mounted: true, open: true, record: FIXTURE_ASSIGNMENT })
         }}>Open controlled assignment</Button>
         <p role="status" className="mt-2 text-xs text-text-muted">{receipt}</p>
+        <div className="mt-3 space-y-2">
+          {[PENDING_ASSIGNMENT, MISSED_ASSIGNMENT].map(record => {
+            const open = () => setOwner({ mounted: true, open: true, record })
+            return <SortableAssignmentCard key={record.id} assignment={record} isReadOnly editMode={false}
+              onOpen={open} onEdit={open} onDelete={() => {}} />
+          })}
+        </div>
       </Card>
       {owner.mounted && <AssignmentModal
         isOpen={owner.open}
