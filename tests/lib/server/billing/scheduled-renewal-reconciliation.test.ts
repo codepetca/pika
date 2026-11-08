@@ -160,6 +160,29 @@ describe('scheduled renewal reconciliation', () => {
     expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
   })
 
+  it('records the failed target after Stripe canceled and detached the installed schedule', async () => {
+    const value = { ...snapshot(target, 'failed'), status: 'canceled', scheduleId: null } as const
+    const { provider, store, run } = fixture(value)
+    provider.verifyScheduledRenewal.mockResolvedValue(true)
+    await expect(run()).resolves.toEqual({ kind: 'applied' })
+    expect(provider.verifyScheduledRenewal).toHaveBeenCalledExactlyOnceWith(proof, value)
+    expect(store.finishScheduledRenewal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      ...scheduledFence, outcome: 'renewal_failed', provider_status: 'canceled', obligations_cleared: false,
+      invoice_id: 'in_Target', period_start: effectiveAt, period_end: targetEnd,
+    }))
+  })
+
+  it('preserves ordinary cancellation for a subscription with no saved schedule', async () => {
+    const value = { ...snapshot(source), status: 'canceled', scheduleId: null } as const
+    const { provider, store, run } = fixture(value)
+    store.getScheduledRenewal.mockResolvedValue(null)
+    await expect(run()).resolves.toEqual({ kind: 'applied' })
+    expect(provider.verifyScheduledRenewal).not.toHaveBeenCalled()
+    expect(store.finishSubscription).toHaveBeenCalledWith(expect.objectContaining({
+      outcome: 'paid', provider_status: 'canceled', invoice_id: 'in_Source', cancel_at_period_end: true,
+    }))
+  })
+
   it('records only a fenced observation of the exact prior paid term before cutoff', async () => {
     vi.setSystemTime(Date.parse(effectiveAt) - 1)
     const { store, provider, run } = fixture(snapshot(source))

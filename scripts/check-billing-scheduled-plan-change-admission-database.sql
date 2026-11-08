@@ -22,8 +22,8 @@ declare
   v_term_start timestamptz:=v_term_end-interval '30 days';
 begin
   if has_table_privilege('service_role','private.billing_scheduled_plan_changes','insert')
-    or has_function_privilege('authenticated','public.billing_reserve_scheduled_plan_change_v1(uuid,uuid,uuid)','execute')
-    or has_function_privilege('anon','public.billing_confirm_scheduled_plan_change_v1(uuid,uuid)','execute') then
+    or has_function_privilege('authenticated','public.billing_reserve_scheduled_plan_change_v1(uuid,uuid,uuid,text)','execute')
+    or has_function_privilege('anon','public.billing_confirm_scheduled_plan_change_v1(uuid,uuid,text)','execute') then
     raise exception 'Scheduled change authority widened';
   end if;
   insert into public.users(id,email,role) values
@@ -53,17 +53,17 @@ begin
   if v_result->>'status' is distinct from 'applied' then raise exception 'Fixture did not grant Max'; end if;
   select to_jsonb(access) into strict v_before from public.billing_account_access access where subject_user_id=v_user;
   begin
-    perform public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro);
+    perform public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro,'acct_schedule305');
     raise exception 'Dormant gate admitted a quote';
   exception when object_not_in_prerequisite_state then
     if sqlerrm<>'billing_scheduled_changes_disabled' then raise; end if;
   end;
   update private.stripe_billing_settings set scheduled_plan_changes_enabled=true where singleton;
 
-  perform public.billing_reserve_scheduled_plan_change_v1(v_user,v_stale,v_pro);
+  perform public.billing_reserve_scheduled_plan_change_v1(v_user,v_stale,v_pro,'acct_schedule305');
   update public.effective_feature_entitlements set revision=revision+1 where subject_user_id=v_user and feature_key='classrooms.create';
   begin
-    perform public.billing_confirm_scheduled_plan_change_v1(v_user,v_stale);
+    perform public.billing_confirm_scheduled_plan_change_v1(v_user,v_stale,'acct_schedule305');
     raise exception 'Stale entitlement revision confirmed a change';
   exception when object_not_in_prerequisite_state then
     if sqlerrm<>'billing_scheduled_change_quote_stale' then raise; end if;
@@ -71,33 +71,46 @@ begin
   update public.effective_feature_entitlements set revision=revision-1 where subject_user_id=v_user and feature_key='classrooms.create';
   update private.billing_scheduled_plan_changes set quote_expires_at=clock_timestamp()-interval '1 second' where id=v_stale;
 
-  v_quote:=public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro);
+  begin
+    perform public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro,'acct_foreign305');
+    raise exception 'A foreign worker account reserved a scheduled change';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'billing_scheduled_change_ineligible' then raise; end if;
+  end;
+  v_quote:=public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro,'acct_schedule305');
   if v_quote->>'state' is distinct from 'quoted' or (v_quote->>'effective_at')::timestamptz is distinct from v_term_end
     or (v_quote->>'due_now')::integer is distinct from 0 or (v_quote->>'recurring_amount')::integer is distinct from 1900
     or (v_quote->>'classroom_limit')::integer is distinct from 5
     or v_quote->>'plan_key' is distinct from 'plus' then raise exception 'Incorrect renewal quote: %',v_quote; end if;
-  if public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro) is distinct from v_quote then
+  if public.billing_reserve_scheduled_plan_change_v1(v_user,v_op,v_pro,'acct_schedule305') is distinct from v_quote then
     raise exception 'Quote replay changed the terms';
   end if;
-  if public.billing_confirm_scheduled_plan_change_v1(v_other,v_op) is not null then
+  if public.billing_confirm_scheduled_plan_change_v1(v_other,v_op,'acct_schedule305') is not null then
     raise exception 'A foreign account recovered the quote';
   end if;
-  v_result:=public.billing_confirm_scheduled_plan_change_v1(v_user,v_op);
+  begin
+    perform public.billing_confirm_scheduled_plan_change_v1(v_user,v_op,'acct_foreign305');
+    raise exception 'A foreign worker account confirmed a scheduled change';
+  exception when sqlstate '55000' then
+    if sqlerrm<>'billing_scheduled_change_ineligible' then raise; end if;
+  end;
+  v_result:=public.billing_confirm_scheduled_plan_change_v1(v_user,v_op,'acct_schedule305');
   if v_result->>'state' is distinct from 'confirmed'
-    or public.billing_confirm_scheduled_plan_change_v1(v_user,v_op) is distinct from v_result
+    or public.billing_confirm_scheduled_plan_change_v1(v_user,v_op,'acct_schedule305') is distinct from v_result
     or (select to_jsonb(access) from public.billing_account_access access where subject_user_id=v_user) is distinct from v_before
     or (select quota_limit from public.effective_feature_entitlements where subject_user_id=v_user and feature_key='classrooms.create') is distinct from 12 then
     raise exception 'Scheduling changed the paid Max period or was not idempotent';
   end if;
   update private.stripe_billing_settings set scheduled_plan_changes_enabled=false where singleton;
-  if public.billing_list_scheduled_installations_v1(1) is distinct from jsonb_build_array(v_op) then
+  if public.billing_list_scheduled_installations_v1(1,'acct_schedule305') is distinct from jsonb_build_array(v_op)
+    or public.billing_list_scheduled_installations_v1(1,'acct_foreign305') is distinct from '[]'::jsonb then
     raise exception 'Admission stop hid confirmed installation';
   end if;
   v_claim:=public.billing_scheduled_installation_v1(v_op,'claim');
   v_fence:=v_claim->'fence';
   if v_claim#>>'{installation,stage}' is distinct from 'confirmed' or v_fence is null
     or public.billing_scheduled_installation_v1(v_op,'claim') is not null
-    or public.billing_list_scheduled_installations_v1(1) is distinct from '[]'::jsonb
+    or public.billing_list_scheduled_installations_v1(1,'acct_schedule305') is distinct from '[]'::jsonb
     or public.billing_scheduled_installation_v1(v_op,'authorize_write',v_fence) is not null then
     raise exception 'Installation lease or write-ahead checkpoint was bypassed';
   end if;
@@ -243,7 +256,7 @@ declare
 begin
   select id into strict v_max from public.stripe_billing_offering_versions where stripe_price_id='price_schedule305max';
   select id into strict v_pro from public.stripe_billing_offering_versions where stripe_price_id='price_schedule305pro';
-  foreach v_case in array array['captured','voided'] loop
+  foreach v_case in array array['latepaid','captured','voided'] loop
     v_user:=gen_random_uuid();
     v_operation:=gen_random_uuid();
     v_schedule:='sub_sched_schedule307'||v_case;
@@ -277,6 +290,24 @@ begin
       'provider_schedule_id',v_schedule,'lease_token',v_claim->'lease_token','fencing_token',v_claim->'fencing_token',
       'expected_subscription_revision',v_claim->'subscription_revision','expected_account_plan_revision',v_claim->'expected_account_plan_revision',
       'outcome','renewal_failed','provider_status','past_due','invoice_id',v_target_invoice,'period_start',v_end,'period_end',v_next_end);
+    if v_case='latepaid' then
+      v_request:=v_request||'{"outcome":"paid","provider_status":"active"}'::jsonb;
+      v_result:=public.billing_finish_scheduled_renewal_v1(v_request||jsonb_build_object('period_end',v_next_end+interval '1 year'));
+      if v_result->>'status' is distinct from 'rejected'
+        or exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding
+          and stripe_invoice_id=v_target_invoice) then
+        raise exception 'A mismatched target term affected paid access';
+      end if;
+      v_result:=public.billing_finish_scheduled_renewal_v1(v_request);
+      if v_result->>'status' is distinct from 'applied'
+        or not exists(select 1 from public.billing_account_access where subject_user_id=v_user and offering_version_id=v_pro
+          and last_paid_invoice_id=v_target_invoice and paid_through=v_next_end and failed_renewal_invoice_id is null)
+        or not exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding
+          and stripe_invoice_id=v_target_invoice and offering_version_id=v_pro) then
+        raise exception 'First verified Pro payment after the grace window did not settle: %',v_result;
+      end if;
+      continue;
+    end if;
     if public.billing_finish_scheduled_renewal_v1(v_request)->>'status' is distinct from 'applied' then
       raise exception 'Closeout fixture did not record target grace';
     end if;
@@ -287,6 +318,11 @@ begin
       raise exception 'Exact cutoff did not apply Free or the legacy queue saw a scheduled target';
     end if;
     v_request:=jsonb_build_object('subscription_id',v_binding,'lease_seconds',120);
+    if public.billing_claim_subscription_v1(v_request)->>'status' is distinct from 'busy'
+      or exists(select 1 from jsonb_array_elements(public.billing_list_work_v1('{"limit":50}')->'items') work
+        where work->>'subscription_id'=v_binding::text) then
+      raise exception 'Ordinary reconciliation could claim or select the due scheduled closeout';
+    end if;
     if public.billing_claim_renewal_closeout_v1(v_request)->>'status' is distinct from 'busy'
       or exists(select 1 from public.billing_renewal_closeouts where subscription_id=v_binding) then
       raise exception 'Legacy claim took ownership of a scheduled target';

@@ -47,7 +47,7 @@ $$;
 -- The subject and exact target version are selected by the authenticated
 -- application. No provider identity or price supplied by the browser is used.
 create function public.billing_reserve_scheduled_plan_change_v1(
-  p_subject_user_id uuid, p_operation_id uuid, p_target_offering_version_id uuid
+  p_subject_user_id uuid, p_operation_id uuid, p_target_offering_version_id uuid, p_stripe_account text
 )
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
@@ -70,7 +70,7 @@ begin
   end if;
   select * into v_binding from public.stripe_billing_subscription_bindings
     where subject_user_id=p_subject_user_id and is_current for update;
-  if not found or v_binding.provider_mode<>'test' then
+  if not found or v_binding.provider_mode<>'test' or v_binding.stripe_account is distinct from p_stripe_account then
     raise exception using errcode='55000',message='billing_scheduled_change_ineligible';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('account-plan-subject:'||p_subject_user_id::text,20620260924));
@@ -138,7 +138,7 @@ begin
 end;
 $$;
 
-create function public.billing_confirm_scheduled_plan_change_v1(p_subject_user_id uuid,p_operation_id uuid)
+create function public.billing_confirm_scheduled_plan_change_v1(p_subject_user_id uuid,p_operation_id uuid,p_stripe_account text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
   v_change private.billing_scheduled_plan_changes%rowtype;
@@ -161,7 +161,7 @@ begin
   if not found then return null; end if;
   select * into v_binding from public.stripe_billing_subscription_bindings
     where id=v_change.subscription_id and subject_user_id=p_subject_user_id and is_current for update;
-  if not found or v_binding.provider_mode<>'test' then
+  if not found or v_binding.provider_mode<>'test' or v_binding.stripe_account is distinct from p_stripe_account then
     raise exception using errcode='55000',message='billing_scheduled_change_ineligible';
   end if;
   perform pg_advisory_xact_lock(hashtextextended('account-plan-subject:'||p_subject_user_id::text,20620260924));
@@ -238,6 +238,13 @@ $$;
 -- The worker supplies normalized provider evidence only after verifying the
 -- installed schedule, exact target line and captured payment or failed invoice.
 -- The separate attach/recovery worker must fence schedule installation.
+create function private.billing_scheduled_term_end_v1(p_start timestamptz,p_offering_version uuid)
+returns timestamptz language sql stable set search_path='' as $$
+  select ((p_start at time zone 'UTC')+case version.interval
+    when 'month' then interval '1 month' when 'year' then interval '1 year' end) at time zone 'UTC'
+  from public.stripe_billing_offering_versions version where version.id=p_offering_version;
+$$;
+
 create function public.billing_finish_scheduled_renewal_v1(p_request jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare
@@ -294,8 +301,11 @@ begin
     or v_access.last_paid_invoice_id is distinct from v_change.last_paid_invoice_id
     or p_request->>'invoice_id'=v_change.last_paid_invoice_id
     or (p_request->>'period_start')::timestamptz is distinct from v_change.effective_at or v_now<v_change.effective_at
+    or (p_request->>'period_end')::timestamptz is distinct from
+      private.billing_scheduled_term_end_v1(v_change.effective_at,v_change.target_offering_version_id)
     or (v_outcome='paid' and (p_request->>'provider_status' is distinct from 'active'
-      or v_now>=v_change.effective_at+interval '168 hours'
+      or exists(select 1 from public.billing_renewal_closeouts where subscription_id=v_binding.id
+        and status in ('queued','retry','attention'))
       or (v_access.failed_renewal_invoice_id is not null and v_access.failed_renewal_invoice_id<>p_request->>'invoice_id'))) then
     return jsonb_build_object('status','rejected','retry_scheduled',false);
   end if;
@@ -321,13 +331,14 @@ begin
 end;
 $$;
 
-revoke all on function private.billing_scheduled_plan_change_quote_v1(private.billing_scheduled_plan_changes)
+revoke all on function private.billing_scheduled_plan_change_quote_v1(private.billing_scheduled_plan_changes),
+  private.billing_scheduled_term_end_v1(timestamptz,uuid)
   from public,anon,authenticated,service_role;
-revoke all on function public.billing_reserve_scheduled_plan_change_v1(uuid,uuid,uuid),
-  public.billing_confirm_scheduled_plan_change_v1(uuid,uuid),
+revoke all on function public.billing_reserve_scheduled_plan_change_v1(uuid,uuid,uuid,text),
+  public.billing_confirm_scheduled_plan_change_v1(uuid,uuid,text),
   public.billing_get_scheduled_renewal_v1(jsonb),public.billing_finish_scheduled_renewal_v1(jsonb) from public,anon,authenticated;
-grant execute on function public.billing_reserve_scheduled_plan_change_v1(uuid,uuid,uuid),
-  public.billing_confirm_scheduled_plan_change_v1(uuid,uuid),
+grant execute on function public.billing_reserve_scheduled_plan_change_v1(uuid,uuid,uuid,text),
+  public.billing_confirm_scheduled_plan_change_v1(uuid,uuid,text),
   public.billing_get_scheduled_renewal_v1(jsonb),public.billing_finish_scheduled_renewal_v1(jsonb) to service_role;
 
 commit;

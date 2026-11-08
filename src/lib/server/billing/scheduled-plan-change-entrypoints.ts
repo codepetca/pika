@@ -10,10 +10,13 @@ function configuration() {
   return readBillingPurchaseConfig()
 }
 
-function client() {
+function scheduledChangeContext() {
   const config = configuration()
   if (!config) throw new Error('Billing scheduled change is unavailable')
-  return getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
+  return {
+    stripeAccount: config.stripeAccount,
+    client: getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) }),
+  }
 }
 
 function result(response: { data: unknown; error: { code: string; message: string } | null }) {
@@ -28,13 +31,15 @@ export const scheduledPlanChangeHandlers = createScheduledPlanChangeHandlers({
   configuration,
   authenticate: () => requireRole('teacher'),
   async reserve(subject, operation, offering) {
-    return result(await client().rpc('billing_reserve_scheduled_plan_change_v1', {
-      p_subject_user_id: subject, p_operation_id: operation, p_target_offering_version_id: offering,
+    const { client, stripeAccount } = scheduledChangeContext()
+    return result(await client.rpc('billing_reserve_scheduled_plan_change_v1', {
+      p_subject_user_id: subject, p_operation_id: operation, p_target_offering_version_id: offering, p_stripe_account: stripeAccount,
     }))
   },
   async confirm(subject, operation) {
-    return result(await client().rpc('billing_confirm_scheduled_plan_change_v1', {
-      p_subject_user_id: subject, p_operation_id: operation,
+    const { client, stripeAccount } = scheduledChangeContext()
+    return result(await client.rpc('billing_confirm_scheduled_plan_change_v1', {
+      p_subject_user_id: subject, p_operation_id: operation, p_stripe_account: stripeAccount,
     }))
   },
 })

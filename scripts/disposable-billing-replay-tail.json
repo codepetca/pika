@@ -13,14 +13,14 @@
   },
   {
     "name": "305_billing_scheduled_plan_change_admission.sql",
-    "sha256": "0417a11b042700d498f038c747cf20f3e6284cc87fed73e9c3f19b5fccd4eaf3"
+    "sha256": "0782b076edcc09ef847fddbb2703c35e331f6d926348f950a1013d51b4ba9b4e"
   },
   {
     "name": "306_billing_scheduled_plan_change_installation.sql",
-    "sha256": "c387d1ef756dea271f4216724043c5de04a9ebcf46ee6c44b92adf5fd9e60914"
+    "sha256": "38363d65b5a0f17e6150eba0a41154b490392bdd4c69e310eaca7bb4aaec4289"
   },
   {
     "name": "307_billing_scheduled_renewal_closeout.sql",
-    "sha256": "c883995b73df277cf5ae0a103f8a520959c4d0d883790e5b61bd4549b1e7ebbd"
+    "sha256": "4f2e2ea64345131a0ae36842a955c3da4bc8d7064ebb7eac279ef26b49e912de"
   }
 ]

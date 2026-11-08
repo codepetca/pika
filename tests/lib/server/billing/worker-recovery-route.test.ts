@@ -98,11 +98,25 @@ describe('worker recovery independent of admission', () => {
     expect(mocks.purchase).not.toHaveBeenCalled(); expect(mocks.upgrade).not.toHaveBeenCalled()
     expect(mocks.applyDue).toHaveBeenCalled(); expect(mocks.closeDue).toHaveBeenCalled()
   })
-  it.each(['https://example.com', 'http://localhost:3000/path', 'http://localhost.evil:3000'])('fails closed on configured origin %s', async origin => {
+  it.each(['https://example.com', 'http://localhost:3000/path', 'http://localhost.evil:3000'])('isolates invalid recovery origin %s', async origin => {
     vi.stubEnv('BILLING_APP_ORIGIN', origin)
     const response = await POST(request(`Bearer ${env.BILLING_WORKER_SECRET}`), context)
-    expect(response.status).toBe(500)
+    expect(response.status).toBe(200)
     expect(mocks.purchase).not.toHaveBeenCalled(); expect(mocks.upgrade).not.toHaveBeenCalled()
+    expect(mocks.applyDue).toHaveBeenCalled(); expect(mocks.closeDue).toHaveBeenCalled()
+    expect(await response.json()).toMatchObject({ purchases: { failed: 1 }, upgrades: { failed: 1 } })
+  })
+  it('runs expiry and closeout even when checkout and upgrade recovery fail', async () => {
+    mocks.reconcile.mockRejectedValueOnce(new Error('private checkout fixture detail'))
+    mocks.upgrades.mockRejectedValueOnce(new Error('private upgrade fixture detail'))
+    const response = await POST(request(`Bearer ${env.BILLING_WORKER_SECRET}`), context)
+    expect(response.status).toBe(200)
+    const result = await response.json()
+    expect(result).toMatchObject({ purchases: { failed: 1, diagnosticId: expect.any(String) },
+      upgrades: { failed: 1, diagnosticId: expect.any(String) } })
+    expect(JSON.stringify(result)).not.toContain('private')
+    expect(mocks.applyDue).toHaveBeenCalledWith({ limit: 25 })
+    expect(mocks.closeDue).toHaveBeenCalledWith({ limit: 1 })
   })
   it('preserves sandbox, target and key restrictions', () => {
     expect(readBillingRecoveryConfig({ ...env, BILLING_SANDBOX_ENABLED: 'false' })).toBeNull()

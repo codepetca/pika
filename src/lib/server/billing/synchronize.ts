@@ -256,8 +256,10 @@ function verifyScheduledRenewalSnapshot(
 ): BillingObservation | BillingSynchronizationReason {
   const { binding, lifecycle: facts } = claim
   const target = proof.target_binding
-  if (snapshot.scheduleId !== proof.provider_schedule_id || snapshot.pendingUpdate || snapshot.pauseCollection
-    || snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled') return 'subscription_transition_unapproved'
+  const terminal = snapshot.status === 'canceled'
+  if ((snapshot.scheduleId !== proof.provider_schedule_id && !(terminal && snapshot.scheduleId === null))
+    || snapshot.pendingUpdate || snapshot.pauseCollection
+    || (!terminal && (snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd))) return 'subscription_transition_unapproved'
   if (snapshot.liveMode || snapshot.stripeAccount !== binding.stripe_account
     || target.stripe_account !== binding.stripe_account || target.provider_mode !== binding.provider_mode) return 'provider_environment_invalid'
   if (!snapshot.isCurrent || !facts?.is_current) return 'subscription_not_current'
@@ -271,6 +273,7 @@ function verifyScheduledRenewalSnapshot(
   const effective = Date.parse(proof.effective_at)
   const now = Date.now()
   const alreadyApplied = proof.state === 'applied'
+  if (terminal && (alreadyApplied || now < effective)) return 'subscription_transition_unapproved'
   if (alreadyApplied) {
     if (now < effective || !equalTimestamp(proof.effective_at, facts.paid_period_start)
       || Date.parse(facts.paid_through) !== scheduledTermEnd(proof.effective_at, target.interval)) return 'invoice_line_unverified'
@@ -308,6 +311,7 @@ function verifyScheduledRenewalSnapshot(
   if (invoice.billingReason !== 'subscription_cycle') return 'invoice_not_bound'
   const verified = verifyBillingLifecycleSnapshot({ ...claim, binding: target }, knownSchedule)
   if (typeof verified === 'string') return verified
+  if (terminal && verified.outcome !== 'renewal_failed') return 'subscription_transition_unapproved'
   if (verified.outcome !== 'paid' && verified.outcome !== 'renewal_invoice_pending' && verified.outcome !== 'renewal_failed') {
     return 'subscription_transition_unapproved'
   }
@@ -452,7 +456,7 @@ export async function synchronizeBillingSubscription(args: {
 
   const { getScheduledRenewal, finishScheduledRenewal } = args.store
   if (getScheduledRenewal && finishScheduledRenewal && typeof snapshot === 'object' && snapshot !== null
-    && 'scheduleId' in snapshot && snapshot.scheduleId !== null) {
+    && 'scheduleId' in snapshot && (snapshot.scheduleId !== null || ('status' in snapshot && snapshot.status === 'canceled'))) {
     const normalized = BillingProviderSubscriptionSnapshotSchema.safeParse(snapshot)
     if (!normalized.success) return finishException(args.store, claim.data, args.eventInboxId, 'provider_snapshot_invalid')
     let stored: unknown
@@ -461,24 +465,26 @@ export async function synchronizeBillingSubscription(args: {
     } catch {
       return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable')
     }
-    const proof = BillingScheduledRenewalSchema.safeParse(stored)
-    if (!proof.success) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
-    const verified = verifyScheduledRenewalSnapshot(claim.data, proof.data, normalized.data)
-    if (typeof verified === 'string') return finishException(args.store, claim.data, args.eventInboxId, verified)
-    // A phase-start anchor can issue the full-cycle invoice as a Stripe update.
-    // Permit that label only after a fresh, independent read of the installed phase.
-    if (normalized.data.latestInvoice?.billingReason === 'subscription_update') {
-      let matches: boolean | undefined
-      try { matches = await args.provider.verifyScheduledRenewal?.(proof.data, normalized.data) }
-      catch { return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable') }
-      if (matches !== true) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
+    if (stored !== null || normalized.data.scheduleId !== null) {
+      const proof = BillingScheduledRenewalSchema.safeParse(stored)
+      if (!proof.success) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
+      const verified = verifyScheduledRenewalSnapshot(claim.data, proof.data, normalized.data)
+      if (typeof verified === 'string') return finishException(args.store, claim.data, args.eventInboxId, verified)
+      // A phase-start anchor can issue the cycle invoice as a Stripe update.
+      // Read the saved phase independently for that label or terminal recovery.
+      if (normalized.data.latestInvoice?.billingReason === 'subscription_update' || normalized.data.status === 'canceled') {
+        let matches: boolean | undefined
+        try { matches = await args.provider.verifyScheduledRenewal?.(proof.data, normalized.data) }
+        catch { return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable') }
+        if (matches !== true) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
+      }
+      const completion = { ...verified, event_inbox_id: args.eventInboxId }
+      if (verified.outcome === 'observed') return finish(args.store, claim.data, completion)
+      return finish(args.store, claim.data, completion, request => finishScheduledRenewal({
+        ...request, operation_id: proof.data.operation_id, provider_schedule_id: proof.data.provider_schedule_id,
+        target_offering_version_id: proof.data.target_binding.offering_version_id,
+      }))
     }
-    const completion = { ...verified, event_inbox_id: args.eventInboxId }
-    if (verified.outcome === 'observed') return finish(args.store, claim.data, completion)
-    return finish(args.store, claim.data, completion, request => finishScheduledRenewal({
-      ...request, operation_id: proof.data.operation_id, provider_schedule_id: proof.data.provider_schedule_id,
-      target_offering_version_id: proof.data.target_binding.offering_version_id,
-    }))
   }
 
   if (claim.data.lifecycle) {

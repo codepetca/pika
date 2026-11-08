@@ -51346,3 +51346,12 @@ PR 1727 remains draft pending focused checks and exact-head review.
 The Classwork continuity fixture now models summary and full reads separately.
 Its first refresh fails the summary and then exercises the full-read fallback,
 including retained editor, failure, retry, recovery, and controlled navigation.
+
+<!-- pika-session-log-archive-batch:d06ca0bdcc9d79b13234dc923dad1018b498e8451d31dc8d4db17eed44825cad -->
+## 2026-11-03 List order toggle
+
+- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
+
+## 2026-11-03 — Student Test submission reassurance
+
+Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.

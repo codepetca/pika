@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createStripeCloseoutProvider } from '@/lib/server/billing/stripe-closeout-provider'
+import { createStripeCloseoutProvider, verifyInstalledStripeSchedule } from '@/lib/server/billing/stripe-closeout-provider'
 import type { RenewalCloseoutWriteRequest } from '@/lib/server/billing/closeout-contracts'
+import { BillingProviderSubscriptionSnapshotSchema } from '@/lib/server/billing/contracts'
+import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -346,6 +348,18 @@ describe('Stripe closeout of an installed scheduled renewal', () => {
     await f.provider.voidInvoice({ ...f.close, idempotencyKey: 'closeout-fixture:void' })
     expect(f.sdk.invoices.voidInvoice).toHaveBeenCalledWith(request.invoiceId, {}, { idempotencyKey: 'closeout-fixture:void' })
     expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+  })
+
+  it('proves the exact canceled target phase when Stripe cleared both pointers', async () => {
+    const f = scheduledFixture()
+    f.canceled()
+    const snapshot = BillingProviderSubscriptionSnapshotSchema.parse(
+      await createStripeBillingProvider(f.sdk).retrieveSubscription(scheduledRequest.binding),
+    )
+    const verify = () => verifyInstalledStripeSchedule(f.sdk.retrieveSchedule, scheduledRequest.scheduled, snapshot)
+    await expect(verify()).resolves.toBe(true)
+    f.schedule.phases[0].items[0].price = 'price_other'
+    await expect(verify()).resolves.toBe(false)
   })
 
   it('honors a captured target payment observed before void and never sends a destructive write', async () => {

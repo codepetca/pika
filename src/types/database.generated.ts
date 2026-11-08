@@ -10187,7 +10187,11 @@ export type Database = {
       }
       billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_confirm_scheduled_plan_change_v1: {
-        Args: { p_operation_id: string; p_subject_user_id: string }
+        Args: {
+          p_operation_id: string
+          p_stripe_account: string
+          p_subject_user_id: string
+        }
         Returns: Json
       }
       billing_confirm_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
@@ -10235,7 +10239,7 @@ export type Database = {
         Returns: Json
       }
       billing_list_scheduled_installations_v1: {
-        Args: { p_limit: number }
+        Args: { p_limit: number; p_stripe_account: string }
         Returns: Json
       }
       billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
@@ -10250,6 +10254,7 @@ export type Database = {
       billing_reserve_scheduled_plan_change_v1: {
         Args: {
           p_operation_id: string
+          p_stripe_account: string
           p_subject_user_id: string
           p_target_offering_version_id: string
         }

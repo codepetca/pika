@@ -649,6 +649,8 @@ stopping new checkout and upgrade admissions. The authenticated worker still
 drains checkout and upgrade operations already recorded in Pika. Customer
 mutations continue to check their respective admission gates. A blank app
 origin leaves the base subscription, expiry and closeout paths available.
+Invalid optional recovery configuration or a failed checkout or upgrade
+recovery call returns a diagnostic for that lane while the other work continues.
 
 Migration 304 isolates expiry conflicts. A stale account-plan or entitlement
 revision stays available for investigation, and a limited batch can still
@@ -668,14 +670,22 @@ target renewal payment changes the purchased version atomically. A failed
 target invoice enters the exact seven-day grace period on the paid Max terms.
 
 Both application flags and the database admission flag default to off. This
-checkpoint has disposable database and mocked Stripe evidence. It still needs
-disposable CI profile admission, independent review, customer scheduling and
-replacement controls, and an isolated Stripe lifecycle rehearsal. Migration 307
-keeps scheduled renewals out of the legacy closeout worker and ties an opted-in
-claim to the exact target invoice. A verified capture that wins the closeout
-race commits the Pro term. A verified void plus terminal schedule and invoice
-evidence keeps Free in force and retires the payer binding. Keep the scheduling
-flags off outside the isolated rehearsal until the remaining contracts pass.
+checkpoint has a sealed disposable replay and a separate draft review. Customer
+scheduling and replacement controls are still pending. Migration 307 reserves
+due scheduled closeout work before ordinary reconciliation can lease it and
+ties the claim to the exact target invoice. A verified capture that wins the
+closeout race commits the Pro term. A verified void plus terminal schedule and
+invoice evidence keeps Free in force and retires the payer binding. Keep the
+scheduling flags off outside the isolated rehearsal until the remaining
+contracts pass.
+
+A verified target payment first observed after the grace window can settle
+under the existing lease if closeout has yet to take ownership. The SQL
+settlement and closeout checks both derive the exact UTC cycle end from the
+immutable target offering. Admission and installation listing are scoped to the
+configured Stripe test account. When Stripe cancels a delinquent subscription,
+a failed target invoice can enter the grace or closeout flow only with a fresh
+read of the saved terminal schedule and matching target phase.
 
 The November 8 isolated Stripe rehearsal reused all 12 existing sandbox prices.
 Hosted Pro and Max test payments produced one verified receipt each, with five

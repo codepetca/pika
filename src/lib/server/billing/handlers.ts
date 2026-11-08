@@ -14,6 +14,14 @@ export type BillingHandlerRuntime = {
   drainProvisioning?(): Promise<unknown>
 }
 
+async function runOptionalRecoveryLane(run: () => Promise<unknown>) {
+  try {
+    return await run()
+  } catch (error) {
+    return { failed: 1, diagnosticId: logServerError('api.unexpected', error) }
+  }
+}
+
 /** Runtime wiring is separate so no SDK/client is constructed while disabled. */
 export function createBillingHandlers(
   configuration: () => { stripeAccount: string; workerSecret: string } | null,
@@ -46,22 +54,14 @@ export function createBillingHandlers(
         throw new ApiError(401, 'Unauthorized')
       }
       const runtime = await loadRuntime()
-      const upgradeRuntime = loadUpgrades ? await loadUpgrades() : null
-      const upgrades = upgradeRuntime ? await upgradeRuntime.processDue({ limit: 1 }) : undefined
-      let scheduledChanges: unknown
-      try {
-        const scheduledRuntime = loadScheduledChanges ? await loadScheduledChanges() : null
-        scheduledChanges = await scheduledRuntime?.processDue({ limit: 1 })
-      } catch (error) {
-        scheduledChanges = { failed: 1, diagnosticId: logServerError('api.unexpected', error) }
-      }
+      const upgrades = await runOptionalRecoveryLane(async () => (await loadUpgrades?.())?.processDue({ limit: 1 }))
+      const scheduledChanges = await runOptionalRecoveryLane(async () => (await loadScheduledChanges?.())?.processDue({ limit: 1 }))
       const result = await reconcileBillingSubscriptions({
         store: runtime.store, provider: runtime.provider, limit: 1, leaseSeconds: 120,
       })
       // A newly completed purchase is bound here; the next worker pass verifies
       // its captured invoice before applying paid access. Neither needs a redirect.
-      const purchaseRuntime = loadPurchases ? await loadPurchases() : null
-      const purchases = purchaseRuntime ? await purchaseRuntime.reconcileCheckouts({ limit: 1 }) : undefined
+      const purchases = await runOptionalRecoveryLane(async () => (await loadPurchases?.())?.reconcileCheckouts({ limit: 1 }))
       const lifecycleRuntime = loadLifecycle ? await loadLifecycle() : null
       const lifecycle = lifecycleRuntime ? await lifecycleRuntime.applyDue({ limit: 25 }) : undefined
       const closeoutRuntime = loadCloseouts ? await loadCloseouts() : null

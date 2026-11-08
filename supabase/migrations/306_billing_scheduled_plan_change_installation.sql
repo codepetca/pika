@@ -44,7 +44,7 @@ returns jsonb language sql stable set search_path='' as $$
   where change.id=p_id;
 $$;
 
-create function public.billing_list_scheduled_installations_v1(p_limit integer)
+create function public.billing_list_scheduled_installations_v1(p_limit integer,p_stripe_account text)
 returns jsonb language plpgsql security definer set search_path='' as $$
 begin
   perform private.assert_stripe_billing_sandbox_enabled_v1();
@@ -57,6 +57,7 @@ begin
       from private.billing_scheduled_plan_changes change
       join public.stripe_billing_subscription_bindings binding on binding.id=change.subscription_id
       where change.state='confirmed' and change.installation_attention_at is null
+        and binding.stripe_account=p_stripe_account and binding.provider_mode='test'
         and (change.installation_retry_at is null or change.installation_retry_at<=clock_timestamp())
         and (binding.lease_expires_at is null or binding.lease_expires_at<=clock_timestamp())
       order by due_at,change.id limit p_limit
@@ -189,9 +190,9 @@ end;
 $$;
 
 revoke all on function private.billing_scheduled_installation_claim_v1(uuid) from public,anon,authenticated,service_role;
-revoke all on function public.billing_list_scheduled_installations_v1(integer),
+revoke all on function public.billing_list_scheduled_installations_v1(integer,text),
   public.billing_scheduled_installation_v1(uuid,text,jsonb,text) from public,anon,authenticated;
-grant execute on function public.billing_list_scheduled_installations_v1(integer),
+grant execute on function public.billing_list_scheduled_installations_v1(integer,text),
   public.billing_scheduled_installation_v1(uuid,text,jsonb,text) to service_role;
 
 commit;

@@ -49,7 +49,9 @@ export function createScheduledPlanChangeRuntime(config: BillingSandboxConfig) {
   }
   return {
     async processDue({ limit }: { limit: number }) {
-      const { data, error } = await client.rpc('billing_list_scheduled_installations_v1', { p_limit: limit })
+      const { data, error } = await client.rpc('billing_list_scheduled_installations_v1', {
+        p_limit: limit, p_stripe_account: config.stripeAccount,
+      })
       if (error) throw new Error('Scheduled billing change work is unavailable')
       const operationIds = z.array(uuid).max(limit).parse(data)
       const outcomes: Partial<Record<Awaited<ReturnType<typeof installScheduledPlanChange>>, number>> = {}

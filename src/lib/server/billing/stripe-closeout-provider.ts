@@ -113,6 +113,15 @@ export async function verifyInstalledStripeSchedule(
   scheduled: RenewalCloseoutSchedule,
   snapshot: BillingProviderSubscriptionSnapshot,
 ): Promise<boolean> {
+  if (snapshot.status === 'canceled') {
+    if ((snapshot.scheduleId !== null && snapshot.scheduleId !== scheduled.provider_schedule_id)
+      || snapshot.pauseCollection || snapshot.pendingUpdate || !matchesTargetItem(scheduled, snapshot)) return false
+    const schedule = await readInstalledSchedule(retrieveSchedule, scheduled)
+    return schedule !== null && schedule.status === 'canceled' && schedule.canceled_at !== null
+      && schedule.canceled_at * 1000 >= Date.parse(scheduled.effective_at) && schedule.current_phase === null
+      && (schedule.subscription === null || schedule.subscription === scheduled.target_binding.stripe_subscription_id)
+      && matchesTargetPhase(schedule, scheduled)
+  }
   if (snapshot.scheduleId !== scheduled.provider_schedule_id || !['active', 'past_due', 'unpaid'].includes(snapshot.status)
     || snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd || snapshot.pauseCollection || snapshot.pendingUpdate
     || !matchesTargetItem(scheduled, snapshot)) return false
