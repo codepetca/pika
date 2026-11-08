@@ -331,3 +331,7 @@ webhooks, trial and RepoLight access, the restricted portal, actual Max grace
 and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
 update invoice only with exact fresh phase proof, and the observed retained
 balance on an independently verified void. See the billing foundation receipt.
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.

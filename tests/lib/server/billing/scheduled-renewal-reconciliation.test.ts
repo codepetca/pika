@@ -161,7 +161,8 @@ describe('scheduled renewal reconciliation', () => {
   })
 
   it('records the failed target after Stripe canceled and detached the installed schedule', async () => {
-    const value = { ...snapshot(target, 'failed'), status: 'canceled', scheduleId: null } as const
+    const value = { ...snapshot(target, 'failed'), status: 'canceled', scheduleId: null,
+      cancelAt: targetEnd, cancelAtPeriodEnd: true } as const
     const { provider, store, run } = fixture(value)
     provider.verifyScheduledRenewal.mockResolvedValue(true)
     await expect(run()).resolves.toEqual({ kind: 'applied' })
@@ -180,6 +181,35 @@ describe('scheduled renewal reconciliation', () => {
     expect(provider.verifyScheduledRenewal).not.toHaveBeenCalled()
     expect(store.finishSubscription).toHaveBeenCalledWith(expect.objectContaining({
       outcome: 'paid', provider_status: 'canceled', invoice_id: 'in_Source', cancel_at_period_end: true,
+    }))
+  })
+
+  it.each(['subscription_cycle', 'subscription_update'] as const)(
+    'preserves cancellation on the applied Pro term for a %s receipt', async billingReason => {
+      const receipt = snapshot(target)
+      receipt.latestInvoice.billingReason = billingReason
+      const value = { ...receipt, status: 'canceled', scheduleId: null, cancelAt: targetEnd, cancelAtPeriodEnd: true } as const
+      const { provider, store, run } = fixture(value)
+      store.getScheduledRenewal.mockResolvedValue({ ...proof, state: 'applied' })
+      store.claimSubscription.mockResolvedValue({ ...claim, binding: target, lifecycle: { ...claim.lifecycle!,
+        paid_period_start: effectiveAt, paid_through: targetEnd, access_ends_at: targetEnd, last_paid_invoice_id: 'in_Target' } })
+      provider.verifyScheduledRenewal.mockResolvedValue(true)
+      await expect(run()).resolves.toEqual({ kind: 'applied' })
+      expect(provider.verifyScheduledRenewal).toHaveBeenCalledTimes(billingReason === 'subscription_update' ? 1 : 0)
+      expect(store.finishSubscription).toHaveBeenCalledWith(expect.objectContaining({
+        outcome: 'paid', provider_status: 'canceled', invoice_id: 'in_Target', cancel_at_period_end: true,
+      }))
+      expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
+    },
+  )
+
+  it('settles the exact captured target on first observation after terminal cancellation', async () => {
+    const value = { ...snapshot(target), status: 'canceled', scheduleId: null, cancelAt: targetEnd } as const
+    const { provider, store, run } = fixture(value)
+    provider.verifyScheduledRenewal.mockResolvedValue(true)
+    await expect(run()).resolves.toEqual({ kind: 'applied' })
+    expect(store.finishScheduledRenewal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      ...scheduledFence, outcome: 'paid', provider_status: 'canceled', cancel_at_period_end: true, invoice_id: 'in_Target',
     }))
   })
 

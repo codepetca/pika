@@ -122,7 +122,7 @@ if (paths.length >= 301) {
 const billingTailPath = 'scripts/disposable-billing-replay-tail.json'
 if (paths.length > 301) {
   const billingTailBytes = readFileSync(join(root, billingTailPath))
-  assert.equal(createHash('sha256').update(billingTailBytes).digest('hex'), '6d57e763121ffee82f974636f403d4086c484dd1831b24208604dbfdd06a60ec', 'Unreviewed billing replay seal')
+  assert.equal(createHash('sha256').update(billingTailBytes).digest('hex'), '7ce540eb8478fcefab4ca4e5c30fc03101335a614405e398faa556d9d06212c1', 'Unreviewed billing replay seal')
   const billingTail = JSON.parse(billingTailBytes.toString('utf8'))
   assert.equal(billingTail.length, 6, 'Expected complete billing replay tail')
   for (const [offset, { name, sha256 }] of billingTail.slice(0, paths.length - 301).entries()) {

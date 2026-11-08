@@ -13,7 +13,7 @@
   },
   {
     "name": "305_billing_scheduled_plan_change_admission.sql",
-    "sha256": "0782b076edcc09ef847fddbb2703c35e331f6d926348f950a1013d51b4ba9b4e"
+    "sha256": "0922d070c89239af395ab9aa3434de609b359590489195c416d9cdb21aa1d499"
   },
   {
     "name": "306_billing_scheduled_plan_change_installation.sql",

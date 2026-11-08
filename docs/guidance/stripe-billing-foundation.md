@@ -683,9 +683,10 @@ A verified target payment first observed after the grace window can settle
 under the existing lease if closeout has yet to take ownership. The SQL
 settlement and closeout checks both derive the exact UTC cycle end from the
 immutable target offering. Admission and installation listing are scoped to the
-configured Stripe test account. When Stripe cancels a delinquent subscription,
-a failed target invoice can enter the grace or closeout flow only with a fresh
-read of the saved terminal schedule and matching target phase.
+configured Stripe test account. After Stripe cancels a scheduled subscription,
+a fresh read of the saved terminal schedule and exact target phase supports
+failed-invoice closeout or settlement of an already captured target payment.
+The first verified paid term keeps its actual paid-through date.
 
 The November 8 isolated Stripe rehearsal reused all 12 existing sandbox prices.
 Hosted Pro and Max test payments produced one verified receipt each, with five

@@ -362,6 +362,18 @@ describe('Stripe closeout of an installed scheduled renewal', () => {
     await expect(verify()).resolves.toBe(false)
   })
 
+  it('preserves the captured target after terminal cancellation without voiding it', async () => {
+    const f = scheduledFixture()
+    paid(f)
+    f.canceled()
+    f.subscription.cancel_at_period_end = true
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({
+      kind: 'paid', invoiceId: request.invoiceId, providerStatus: 'canceled', cancelAtPeriodEnd: true,
+    })
+    await f.provider.voidInvoice(f.close)
+    expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+  })
+
   it('honors a captured target payment observed before void and never sends a destructive write', async () => {
     const f = scheduledFixture()
     f.invoice.auto_advance = false
@@ -436,13 +448,16 @@ describe('Stripe closeout of an installed scheduled renewal', () => {
     expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
   })
 
-  it('treats cancellation markers as historical only for independently verified terminal void evidence', async () => {
+  it('treats cancellation markers as historical after independently verifying terminal status', async () => {
     const f = scheduledFixture()
     f.subscription.cancel_at = 1793491200
     f.subscription.cancel_at_period_end = true
     await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'attention' })
     f.canceled()
-    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'attention' })
+    f.invoice.auto_advance = false
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'unpaid', collectionPaused: true })
+    await f.provider.voidInvoice(f.close)
+    expect(f.sdk.invoices.voidInvoice).toHaveBeenCalledExactlyOnceWith(request.invoiceId, {}, { idempotencyKey: f.close.idempotencyKey })
     voided(f)
     await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toEqual({
       kind: 'invoice_voided', invoiceId: request.invoiceId, subscriptionCanceled: true, obligationsCleared: true,

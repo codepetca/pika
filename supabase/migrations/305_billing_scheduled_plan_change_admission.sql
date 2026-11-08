@@ -303,7 +303,7 @@ begin
     or (p_request->>'period_start')::timestamptz is distinct from v_change.effective_at or v_now<v_change.effective_at
     or (p_request->>'period_end')::timestamptz is distinct from
       private.billing_scheduled_term_end_v1(v_change.effective_at,v_change.target_offering_version_id)
-    or (v_outcome='paid' and (p_request->>'provider_status' is distinct from 'active'
+    or (v_outcome='paid' and (coalesce(p_request->>'provider_status','') not in ('active','canceled')
       or exists(select 1 from public.billing_renewal_closeouts where subscription_id=v_binding.id
         and status in ('queued','retry','attention'))
       or (v_access.failed_renewal_invoice_id is not null and v_access.failed_renewal_invoice_id<>p_request->>'invoice_id'))) then

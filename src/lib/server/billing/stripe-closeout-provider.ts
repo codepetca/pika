@@ -184,22 +184,10 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
     if (!['active', 'past_due', 'unpaid', 'canceled'].includes(snapshot.status)
       || snapshot.pendingUpdate || snapshot.pauseCollection) return attention('incomplete_evidence')
     const scheduledUpdate = scheduled !== undefined && invoice.billingReason === 'subscription_update'
-    const terminalScheduledVoid = scheduled !== undefined && snapshot.status === 'canceled' && invoice.status === 'void'
+    const terminalScheduled = scheduled !== undefined && snapshot.status === 'canceled'
     if (scheduled) {
-      const canceled = snapshot.status === 'canceled'
-      const expectedId = scheduled.provider_schedule_id
       const retrieveSchedule = sdk.retrieveSchedule?.bind(sdk)
-      if (!retrieveSchedule) return attention('incomplete_evidence')
-      if (canceled) {
-        // Stripe can clear both pointers on cancellation. The exact saved
-        // schedule and operation marker independently establish correlation.
-        if ((snapshot.scheduleId !== null && snapshot.scheduleId !== expectedId)
-          || (!terminalScheduledVoid && (snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd))) return attention('incomplete_evidence')
-        const schedule = await readInstalledSchedule(retrieveSchedule, scheduled)
-        if (!schedule || schedule.status !== 'canceled' || schedule.canceled_at === null || schedule.current_phase !== null
-          || (scheduledUpdate && !matchesTargetPhase(schedule, scheduled))
-          || (schedule.subscription !== null && schedule.subscription !== binding.stripe_subscription_id)) return attention('incomplete_evidence')
-      } else if (!await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot)) return attention('incomplete_evidence')
+      if (!retrieveSchedule || !await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot)) return attention('incomplete_evidence')
     } else if (snapshot.scheduleId !== null) return attention('incomplete_evidence')
     const line = invoice.lines[0]
     if (binding.unit_amount <= 0 || (invoice.billingReason !== 'subscription_cycle' && !scheduledUpdate)
@@ -244,19 +232,19 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       }
     }
     if (invoice.status === 'paid') {
-      if (!['active', 'canceled'].includes(snapshot.status) || (scheduled && snapshot.status !== 'active')) return attention('incomplete_evidence')
+      if (!['active', 'canceled'].includes(snapshot.status)) return attention('incomplete_evidence')
       const proof = verifyPaidSubscriptionSnapshot(binding, {
         ...snapshot, status: 'active', cancelAt: null, cancelAtPeriodEnd: false, scheduleId: null,
         latestInvoice: scheduledUpdate ? { ...invoice, billingReason: 'subscription_cycle' } : invoice,
       })
-      if (typeof proof === 'string' || (snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, proof.periodEnd))) return attention('unsupported_payment')
+      if (typeof proof === 'string' || (!terminalScheduled && snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, proof.periodEnd))) return attention('unsupported_payment')
       return { kind: 'paid', ...proof, providerStatus: snapshot.status as 'active' | 'canceled',
         cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled', terminalObligationsCleared: snapshot.terminalObligationsCleared === true }
     }
     if (invoice.amountPaid !== 0) return attention('partial_payment')
     if (pending) return { kind: 'payment_pending', invoiceId }
     if (!['open', 'uncollectible', 'void'].includes(invoice.status)
-      || (!terminalScheduledVoid && snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, paidThrough))) return attention('incomplete_evidence')
+      || (!terminalScheduled && snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, paidThrough))) return attention('incomplete_evidence')
     // Stripe can retain the original due amount on a void invoice. The canceled
     // payment evidence above and the obligations list below decide collectability.
     if (raw.data.amount_remaining !== binding.unit_amount

@@ -256,7 +256,7 @@ declare
 begin
   select id into strict v_max from public.stripe_billing_offering_versions where stripe_price_id='price_schedule305max';
   select id into strict v_pro from public.stripe_billing_offering_versions where stripe_price_id='price_schedule305pro';
-  foreach v_case in array array['latepaid','captured','voided'] loop
+  foreach v_case in array array['latepaid','terminalpaid','captured','voided'] loop
     v_user:=gen_random_uuid();
     v_operation:=gen_random_uuid();
     v_schedule:='sub_sched_schedule307'||v_case;
@@ -290,8 +290,10 @@ begin
       'provider_schedule_id',v_schedule,'lease_token',v_claim->'lease_token','fencing_token',v_claim->'fencing_token',
       'expected_subscription_revision',v_claim->'subscription_revision','expected_account_plan_revision',v_claim->'expected_account_plan_revision',
       'outcome','renewal_failed','provider_status','past_due','invoice_id',v_target_invoice,'period_start',v_end,'period_end',v_next_end);
-    if v_case='latepaid' then
-      v_request:=v_request||'{"outcome":"paid","provider_status":"active"}'::jsonb;
+    if v_case in ('latepaid','terminalpaid') then
+      v_request:=v_request||jsonb_build_object('outcome','paid','provider_status',
+        case when v_case='terminalpaid' then 'canceled' else 'active' end,
+        'cancel_at_period_end',v_case='terminalpaid','obligations_cleared',v_case='terminalpaid');
       v_result:=public.billing_finish_scheduled_renewal_v1(v_request||jsonb_build_object('period_end',v_next_end+interval '1 year'));
       if v_result->>'status' is distinct from 'rejected'
         or exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding
@@ -301,7 +303,8 @@ begin
       v_result:=public.billing_finish_scheduled_renewal_v1(v_request);
       if v_result->>'status' is distinct from 'applied'
         or not exists(select 1 from public.billing_account_access where subject_user_id=v_user and offering_version_id=v_pro
-          and last_paid_invoice_id=v_target_invoice and paid_through=v_next_end and failed_renewal_invoice_id is null)
+          and last_paid_invoice_id=v_target_invoice and paid_through=v_next_end and failed_renewal_invoice_id is null
+          and end_reason=(case when v_case='terminalpaid' then 'cancellation' else 'renewal_pending' end))
         or not exists(select 1 from public.stripe_billing_invoice_effects where subscription_id=v_binding
           and stripe_invoice_id=v_target_invoice and offering_version_id=v_pro) then
         raise exception 'First verified Pro payment after the grace window did not settle: %',v_result;
