@@ -16,12 +16,14 @@ describe('billing persistence boundary', () => {
     const claim = { subscription_id: '11111111-1111-4111-8111-111111111111', lease_seconds: 120 }
     await store.listWork({ limit: 2 })
     await store.claimSubscription(claim)
+    const lease = { subscription_id: claim.subscription_id, lease_token: '22222222-2222-4222-8222-222222222222' }
+    await store.getScheduledRenewal?.(lease)
     expect(rpc.mock.calls).toEqual([
       ['billing_list_live_work_v1', { ...scope, p_request: { limit: 2 } }],
       ['billing_claim_live_subscription_v1', { ...scope, p_request: claim }],
+      ['billing_get_live_scheduled_renewal_v1', { ...scope, p_request: lease }],
     ])
     expect(store.getAppliedUpgrade).toBeUndefined()
-    expect(store.getScheduledRenewal).toBeUndefined()
     rpc.mockResolvedValueOnce({ data: null, error: { message: 'private identity' } })
     await expect(store.claimSubscription(claim)).rejects.toThrow('Live billing database operation failed')
   })

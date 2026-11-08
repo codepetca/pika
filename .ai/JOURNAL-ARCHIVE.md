@@ -52286,3 +52286,19 @@ Centered date labels in compact calendar list rows and made non-interactive row 
 ## 2026-11-07 — Local loopback sign-in
 
 Fixed development-only `127.0.0.1` sign-in when Next.js normalizes the request URL to `localhost`, retaining exact host, port, protocol and cross-site checks. Documented the launcher and verified local teacher sign-in and calendar access; production origin behavior is unchanged.
+
+## 2026-11-04 Calendar empty lesson text
+
+Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+<!-- pika-session-log-archive-batch:e574954b7f79991b44ffd26870acfa23f77eaf532c21ad0bdd07ba95523c6692 -->
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+<!-- pika-session-log-archive-batch:120321cd6d52fead38076fc21169dbbcba87d648ea39da1fa28afff0f6908f97 -->

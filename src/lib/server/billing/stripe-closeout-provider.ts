@@ -4,8 +4,8 @@ import {
   matchesBillingReconciliationScope, type BillingProviderSubscriptionSnapshot, type BillingReconciliationScope,
 } from './contracts'
 import {
-  LiveRenewalCloseoutBindingSchema, RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence, type RenewalCloseoutProvider,
-  type RenewalCloseoutReadRequest, type RenewalCloseoutSchedule,
+  LiveRenewalCloseoutBindingSchema, RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence,
+  type RenewalCloseoutReadRequest,
 } from './closeout-contracts'
 import { createStripeBillingProvider, type StripeBillingReadPort } from './stripe-provider'
 import { verifyPaidSubscriptionSnapshot } from './synchronize'
@@ -61,7 +61,7 @@ const emptyObligationList = z.object({ object: z.literal('list'), has_more: z.li
 const date = z.string().datetime({ offset: true })
 const phaseBounds = z.object({ start_date: z.number().int().positive(), end_date: z.number().int().positive() })
 const stripeSchedule = z.object({
-  id: z.string(), object: z.literal('subscription_schedule'), livemode: z.literal(false),
+  id: z.string(), object: z.literal('subscription_schedule'), livemode: z.boolean(),
   customer: reference, subscription: reference.nullable(), status: z.enum(['active', 'canceled']),
   metadata: z.object({ pika_plan_change_operation: z.string().uuid() }).strict(),
   end_behavior: z.literal('release'), canceled_at: z.number().int().positive().nullable(),
@@ -72,10 +72,36 @@ const stripeSchedule = z.object({
     items: z.array(z.object({ price: reference, quantity: z.number().int() })).max(100),
   })).max(100).optional(),
 })
+// Live settlement must not adopt phases with billing features the installer never writes.
+const emptyProviderList = z.array(z.unknown()).length(0).nullish()
+const emptyProviderMetadata = z.record(z.string(), z.never()).nullish()
+const liveSchedulePhases = z.object({ phases: z.array(z.object({
+  start_date: z.number(), billing_cycle_anchor: z.enum(['automatic', 'phase_start']).nullish(),
+  collection_method: z.literal('charge_automatically').nullish(),
+  automatic_tax: z.object({ enabled: z.literal(false) }).optional(),
+  discounts: emptyProviderList, default_tax_rates: emptyProviderList, add_invoice_items: emptyProviderList,
+  metadata: emptyProviderMetadata, trial: z.literal(false).optional(), trial_end: z.null().optional(),
+  items: z.array(z.object({ discounts: emptyProviderList, tax_rates: emptyProviderList,
+    metadata: emptyProviderMetadata, billing_thresholds: z.null().optional() })).max(100),
+})).max(100) })
+const scopedScheduleSchema = z.union([
+  RenewalCloseoutScheduleSchema,
+  RenewalCloseoutScheduleSchema.extend({ target_binding: LiveRenewalCloseoutBindingSchema }),
+])
+type ScopedSchedule = z.infer<typeof scopedScheduleSchema>
+type ScopedReadRequest = Omit<RenewalCloseoutReadRequest, 'scheduled'> & { scheduled?: ScopedSchedule }
+type ScopedMutation = ScopedReadRequest & { beforeMutation(): Promise<boolean>; idempotencyKey?: string }
+type ScopedWrite = ScopedMutation & { idempotencyKey: string }
+export type StripeScopedRenewalCloseoutProvider = {
+  readCloseoutEvidence(input: ScopedReadRequest): Promise<RenewalCloseoutEvidence>
+  pauseInvoiceCollection(input: ScopedWrite): Promise<void>
+  voidInvoice(input: ScopedWrite): Promise<void>
+  cancelSubscription(input: ScopedMutation): Promise<void>
+}
 const readRequest = z.object({
   binding: z.discriminatedUnion('provider_mode', [BillingSubscriptionBindingSchema, LiveRenewalCloseoutBindingSchema]),
   invoiceId: z.string().min(1).max(255),
-  paidThrough: date, cutoff: date, scheduled: RenewalCloseoutScheduleSchema.optional(),
+  paidThrough: date, cutoff: date, scheduled: scopedScheduleSchema.optional(),
 })
 const guardedRequest = readRequest.extend({ beforeMutation: z.custom<() => Promise<boolean>>(value => typeof value === 'function') })
 const postRequest = guardedRequest.extend({ idempotencyKey: z.string().min(1).max(255) })
@@ -85,12 +111,12 @@ function attention(reason: Extract<RenewalCloseoutEvidence, { kind: 'attention' 
 }
 function equalTimestamp(a: string, b: string): boolean { return Date.parse(a) === Date.parse(b) }
 
-function matchesTargetItem(scheduled: RenewalCloseoutSchedule, snapshot: BillingProviderSubscriptionSnapshot): boolean {
+function matchesTargetItem(scheduled: ScopedSchedule, snapshot: BillingProviderSubscriptionSnapshot): boolean {
   const binding = scheduled.target_binding
   const item = snapshot.items[0]
-  return snapshot.isCurrent && !snapshot.liveMode && snapshot.stripeAccount === binding.stripe_account
+  return snapshot.isCurrent && snapshot.liveMode === (binding.provider_mode === 'live') && snapshot.stripeAccount === binding.stripe_account
     && snapshot.subscriptionId === binding.stripe_subscription_id && snapshot.customerId === binding.stripe_customer_id
-    && snapshot.items.length === 1 && item.quantity === 1 && !item.priceLiveMode
+    && snapshot.items.length === 1 && item.quantity === 1 && item.priceLiveMode === (binding.provider_mode === 'live')
     && item.priceId === binding.stripe_price_id && item.productId === binding.stripe_product_id
     && item.unitAmount === binding.unit_amount && item.currency === binding.currency
     && item.interval === binding.interval && item.intervalCount === 1
@@ -98,15 +124,22 @@ function matchesTargetItem(scheduled: RenewalCloseoutSchedule, snapshot: Billing
     && Date.parse(item.currentPeriodEnd) === scheduledTermEnd(scheduled.effective_at, binding.interval)
 }
 
-async function readInstalledSchedule(retrieveSchedule: (id: string) => Promise<unknown>, scheduled: RenewalCloseoutSchedule) {
-  const observed = stripeSchedule.safeParse(await retrieveSchedule(scheduled.provider_schedule_id))
+async function readInstalledSchedule(retrieveSchedule: (id: string) => Promise<unknown>, scheduled: ScopedSchedule) {
+  const raw = await retrieveSchedule(scheduled.provider_schedule_id)
+  if (scheduled.target_binding.provider_mode === 'live') {
+    const phases = liveSchedulePhases.safeParse(raw)
+    const target = phases.success && phases.data.phases.filter(phase => phase.start_date * 1000 === Date.parse(scheduled.effective_at))
+    if (!target || target.length !== 1 || target[0].billing_cycle_anchor !== 'phase_start') return null
+  }
+  const observed = stripeSchedule.safeParse(raw)
   if (!observed.success) return null
   const schedule = observed.data
-  return schedule.id === scheduled.provider_schedule_id && schedule.customer === scheduled.target_binding.stripe_customer_id
+  return schedule.livemode === (scheduled.target_binding.provider_mode === 'live')
+    && schedule.id === scheduled.provider_schedule_id && schedule.customer === scheduled.target_binding.stripe_customer_id
     && schedule.metadata.pika_plan_change_operation === scheduled.operation_id ? schedule : null
 }
 
-function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled: RenewalCloseoutSchedule): boolean {
+function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled: ScopedSchedule): boolean {
   const binding = scheduled.target_binding
   const start = Date.parse(scheduled.effective_at)
   const end = scheduledTermEnd(scheduled.effective_at, binding.interval)
@@ -119,9 +152,21 @@ function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled:
 /** A schedule-caused invoice still needs the ordinary financial and payment proof. */
 export async function verifyInstalledStripeSchedule(
   retrieveSchedule: (id: string) => Promise<unknown>,
-  scheduled: RenewalCloseoutSchedule,
+  scheduled: ScopedSchedule,
   snapshot: BillingProviderSubscriptionSnapshot,
+  configuredScope?: BillingReconciliationScope,
+  retrieveAccount?: () => Promise<unknown>,
 ): Promise<boolean> {
+  const scope = BillingReconciliationScopeSchema.optional().safeParse(configuredScope)
+  const candidate = scopedScheduleSchema.safeParse(scheduled)
+  if (!scope.success || !candidate.success || !matchesBillingReconciliationScope(candidate.data.target_binding, scope.data)) return false
+  if (scope.data?.providerMode === 'live') {
+    if (!retrieveAccount) return false
+    try {
+      const account = z.object({ id: z.string() }).safeParse(await retrieveAccount())
+      if (!account.success || account.data.id !== scope.data.stripeAccount) return false
+    } catch { return false }
+  }
   if (snapshot.status === 'canceled') {
     if ((snapshot.scheduleId !== null && snapshot.scheduleId !== scheduled.provider_schedule_id)
       || snapshot.pauseCollection || snapshot.pendingUpdate || !matchesTargetItem(scheduled, snapshot)) return false
@@ -147,16 +192,14 @@ export async function verifyInstalledStripeSchedule(
  * InvoicePayments and retrieving every unpaid intent it would otherwise omit.
  * Each call owns its own observation; previous reads never authorize a write.
  */
-export function createStripeCloseoutProvider(sdk: StripeCloseoutPort, configuredScope?: BillingReconciliationScope): Omit<RenewalCloseoutProvider, 'readCloseoutEvidence'> & {
-  readCloseoutEvidence(input: RenewalCloseoutReadRequest): Promise<RenewalCloseoutEvidence>
-} {
+export function createStripeCloseoutProvider(sdk: StripeCloseoutPort, configuredScope?: BillingReconciliationScope): StripeScopedRenewalCloseoutProvider {
   const scope = BillingReconciliationScopeSchema.optional().parse(configuredScope)
   const live = scope?.providerMode === 'live'
-  async function readCloseoutEvidence(input: RenewalCloseoutReadRequest): Promise<RenewalCloseoutEvidence> {
+  async function readCloseoutEvidence(input: ScopedReadRequest): Promise<RenewalCloseoutEvidence> {
     const parsedRequest = readRequest.safeParse(input)
     if (!parsedRequest.success) return attention('identity_mismatch')
     const { binding: paidBinding, invoiceId, paidThrough, cutoff, scheduled } = parsedRequest.data
-    if (!matchesBillingReconciliationScope(paidBinding, scope) || (live && scheduled)) return attention('identity_mismatch')
+    if (!matchesBillingReconciliationScope(paidBinding, scope)) return attention('identity_mismatch')
     const binding = scheduled?.target_binding ?? paidBinding
     const scheduledEnd = scheduled ? scheduledTermEnd(paidThrough, binding.interval) : null
     if (Date.parse(cutoff) !== Date.parse(paidThrough) + BILLING_RENEWAL_GRACE_SECONDS * 1000) return attention('incomplete_evidence')
@@ -211,7 +254,7 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort, configured
     const terminalScheduled = scheduled !== undefined && snapshot.status === 'canceled'
     if (scheduled) {
       const retrieveSchedule = sdk.retrieveSchedule?.bind(sdk)
-      if (!retrieveSchedule || !await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot)) return attention('incomplete_evidence')
+      if (!retrieveSchedule || !await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot, scope, () => sdk.accounts.retrieve())) return attention('incomplete_evidence')
     } else if (snapshot.scheduleId !== null) return attention('incomplete_evidence')
     const line = invoice.lines[0]
     if (binding.unit_amount <= 0 || (invoice.billingReason !== 'subscription_cycle' && !scheduledUpdate)

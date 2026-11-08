@@ -22,6 +22,7 @@ export type BillingRpcClient = {
 }
 
 type LiveBillingRpcName = 'billing_list_live_work_v1' | 'billing_claim_live_subscription_v1' | 'billing_finish_live_lifecycle_v1'
+  | 'billing_get_live_scheduled_renewal_v1' | 'billing_finish_live_scheduled_renewal_v1'
 export type LiveBillingRpcClient = {
   rpc(name: LiveBillingRpcName, args: { p_project_ref: string; p_stripe_account: string; p_request: Json }):
     PromiseLike<{ data: unknown; error: unknown }>
@@ -41,6 +42,8 @@ export function createLiveBillingStore(client: LiveBillingRpcClient, target: {
     listWork: request => call('billing_list_live_work_v1', request),
     claimSubscription: request => call('billing_claim_live_subscription_v1', request),
     finishSubscription: request => call('billing_finish_live_lifecycle_v1', request),
+    getScheduledRenewal: request => call('billing_get_live_scheduled_renewal_v1', request),
+    finishScheduledRenewal: request => call('billing_finish_live_scheduled_renewal_v1', request),
   }
 }
 

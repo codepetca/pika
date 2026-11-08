@@ -32,7 +32,7 @@ export type BillingStore = {
   finishSubscription(input: BillingFinishInput): Promise<unknown>
   listWork(input: { limit: number }): Promise<unknown>
   getAppliedUpgrade?(input: { subscription_id: string }): Promise<unknown>
-  getScheduledRenewal?(input: { subscription_id: string }): Promise<unknown>
+  getScheduledRenewal?(input: { subscription_id: string; lease_token?: string }): Promise<unknown>
   finishScheduledRenewal?(input: BillingScheduledRenewalFinishInput): Promise<unknown>
 }
 
@@ -203,7 +203,7 @@ export function verifyPaidSubscriptionSnapshot(
 
 /** Recognizes lifecycle facts without relaxing proof of a successful payment. */
 export function verifyBillingLifecycleSnapshot(
-  claim: BillingReconciliationClaim,
+  claim: Pick<BillingReconciliationClaim, 'binding' | 'lifecycle'>,
   candidate: unknown,
   scope?: BillingReconciliationScope,
 ): BillingObservation | BillingSynchronizationReason {
@@ -281,6 +281,7 @@ function verifyScheduledRenewalSnapshot(
   claim: BillingReconciliationClaim,
   proof: BillingScheduledRenewal,
   snapshot: BillingProviderSubscriptionSnapshot,
+  scope?: BillingReconciliationScope,
 ): BillingObservation | BillingSynchronizationReason {
   const { binding, lifecycle: facts } = claim
   const target = proof.target_binding
@@ -289,7 +290,7 @@ function verifyScheduledRenewalSnapshot(
   if ((snapshot.scheduleId !== proof.provider_schedule_id && !(terminal && snapshot.scheduleId === null))
     || snapshot.pendingUpdate || snapshot.pauseCollection
     || (!terminal && (snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd))) return 'subscription_transition_unapproved'
-  if (snapshot.liveMode || snapshot.stripeAccount !== binding.stripe_account
+  if (!matchesSnapshotEnvironment(binding, snapshot, scope)
     || target.stripe_account !== binding.stripe_account || target.provider_mode !== binding.provider_mode) return 'provider_environment_invalid'
   if (!snapshot.isCurrent || !facts?.is_current) return 'subscription_not_current'
   if (snapshot.customerId !== binding.stripe_customer_id || snapshot.subscriptionId !== binding.stripe_subscription_id
@@ -328,7 +329,7 @@ function verifyScheduledRenewalSnapshot(
   const knownSchedule = { ...snapshot, scheduleId: null, latestInvoice: targetInvoice,
     ...(terminal ? { cancelAt: null, cancelAtPeriodEnd: false } : {}) }
   if (terminal && alreadyApplied) {
-    const verified = verifyBillingLifecycleSnapshot(claim, knownSchedule)
+    const verified = verifyBillingLifecycleSnapshot(claim, knownSchedule, scope)
     if (typeof verified === 'string' || verified.outcome === 'canceled') return verified
     if (verified.outcome !== 'paid' || verified.invoice_id !== facts.last_paid_invoice_id
       || !verified.period_start || !equalTimestamp(verified.period_start, facts.paid_period_start)
@@ -337,7 +338,7 @@ function verifyScheduledRenewalSnapshot(
   }
   if (alreadyApplied || now < effective) {
     if (now < Date.parse(facts.paid_period_start) || facts.end_reason !== 'renewal_pending') return 'invoice_line_unverified'
-    const paid = verifyPaidSubscriptionSnapshot(binding, knownSchedule)
+    const paid = verifyPaidSubscriptionSnapshot(binding, knownSchedule, scope)
     if (typeof paid === 'string') return paid
     if (paid.invoiceId !== facts.last_paid_invoice_id || !equalTimestamp(paid.periodStart, facts.paid_period_start)
       || !equalTimestamp(paid.periodEnd, facts.paid_through)
@@ -349,7 +350,7 @@ function verifyScheduledRenewalSnapshot(
   const invoice = targetInvoice
   if (!invoice) return 'invoice_missing'
   if (invoice.billingReason !== 'subscription_cycle') return 'invoice_not_bound'
-  const verified = verifyBillingLifecycleSnapshot({ ...claim, binding: target }, knownSchedule)
+  const verified = verifyBillingLifecycleSnapshot({ ...claim, binding: target }, knownSchedule, scope)
   if (typeof verified === 'string') return verified
   if (terminal && verified.outcome !== 'renewal_failed' && verified.outcome !== 'paid') return 'subscription_transition_unapproved'
   if (verified.outcome !== 'paid' && verified.outcome !== 'renewal_invoice_pending' && verified.outcome !== 'renewal_failed') {
@@ -501,33 +502,40 @@ export async function synchronizeBillingSubscription(args: {
   }
 
   const { getScheduledRenewal, finishScheduledRenewal } = args.store
-  if (claim.data.binding.provider_mode === 'test' && getScheduledRenewal && finishScheduledRenewal && typeof snapshot === 'object' && snapshot !== null
-    && 'scheduleId' in snapshot && (snapshot.scheduleId !== null || ('status' in snapshot && snapshot.status === 'canceled'))) {
+  const live = claim.data.binding.provider_mode === 'live'
+  if (getScheduledRenewal && finishScheduledRenewal && (live || (typeof snapshot === 'object' && snapshot !== null
+    && 'scheduleId' in snapshot && (snapshot.scheduleId !== null || ('status' in snapshot && snapshot.status === 'canceled'))))) {
     const normalized = BillingProviderSubscriptionSnapshotSchema.safeParse(snapshot)
     if (!normalized.success) return finishException(args.store, claim.data, args.eventInboxId, 'provider_snapshot_invalid')
+    if (live && !matchesSnapshotEnvironment(claim.data.binding, normalized.data, scope)) {
+      return finishException(args.store, claim.data, args.eventInboxId, 'provider_environment_invalid')
+    }
     let stored: unknown
     try {
-      stored = await getScheduledRenewal({ subscription_id: claim.data.subscription_id })
+      stored = await getScheduledRenewal({ subscription_id: claim.data.subscription_id,
+        ...(live ? { lease_token: claim.data.lease_token } : {}) })
     } catch {
       return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable')
     }
     if (stored !== null || normalized.data.scheduleId !== null) {
       const proof = BillingScheduledRenewalSchema.safeParse(stored)
       if (!proof.success) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
-      const ordinaryCancellation = proof.data.state === 'applied' && normalized.data.status === 'canceled'
+      const ordinaryAfterSchedule = proof.data.state === 'applied' && (live || normalized.data.status === 'canceled')
         && normalized.data.scheduleId === null && normalized.data.latestInvoice?.billingReason !== 'subscription_update'
-      if (!ordinaryCancellation) {
-        const verified = verifyScheduledRenewalSnapshot(claim.data, proof.data, normalized.data)
+      if (!ordinaryAfterSchedule) {
+        const verified = verifyScheduledRenewalSnapshot(claim.data, proof.data, normalized.data, scope)
         if (typeof verified === 'string') return finishException(args.store, claim.data, args.eventInboxId, verified)
         // A phase-start anchor can issue the cycle invoice as a Stripe update.
         // Read the saved phase independently for that label or terminal recovery.
-        if (normalized.data.latestInvoice?.billingReason === 'subscription_update' || normalized.data.status === 'canceled') {
+        if (normalized.data.latestInvoice?.billingReason === 'subscription_update' || normalized.data.status === 'canceled'
+          || (live && verified.outcome !== 'observed')) {
           let matches: boolean | undefined
           try { matches = await args.provider.verifyScheduledRenewal?.(proof.data, normalized.data) }
           catch { return finishException(args.store, claim.data, args.eventInboxId, 'provider_unavailable') }
           if (matches !== true) return finishException(args.store, claim.data, args.eventInboxId, 'subscription_transition_unapproved')
         }
         const completion = { ...verified, event_inbox_id: args.eventInboxId }
+        if (live && verified.outcome === 'observed') return finish(args.store, claim.data, { ...completion, outcome: 'noop' })
         if (verified.outcome === 'observed' || proof.data.state === 'applied') return finish(args.store, claim.data, completion)
         return finish(args.store, claim.data, completion, request => finishScheduledRenewal({
           ...request, operation_id: proof.data.operation_id, provider_schedule_id: proof.data.provider_schedule_id,

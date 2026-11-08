@@ -55,9 +55,9 @@ function fixture(installation: Claim['installation'] = { stage: 'confirmed' }) {
       return { kind: 'configured', scheduleId }
     }),
   }
-  const run = (now = '2026-11-09T00:00:00Z') => installScheduledPlanChange({ operationId, stripeAccount: 'acct_billing',
-    store, provider, now: () => Date.parse(now) })
-  return { store, provider, calls, run }
+  const run = (now = '2026-11-09T00:00:00Z', providerMode: 'test' | 'live' = 'test') => installScheduledPlanChange({ operationId, stripeAccount: 'acct_billing',
+    store, provider, providerMode, now: () => Date.parse(now) })
+  return { store, provider, calls, run, initial }
 }
 
 describe('scheduled change installation orchestration', () => {
@@ -109,5 +109,31 @@ describe('scheduled change installation orchestration', () => {
     await expect(run(effectiveAt)).resolves.toBe('expired')
     expect(provider.attach).not.toHaveBeenCalled()
     expect(store.finish).toHaveBeenCalledWith(expect.any(Object), { outcome: 'expired' })
+  })
+})
+
+describe('live scheduled installation pause and identity', () => {
+  it.each(['begin_attach', 'authorize_write', 'begin_configure'] as const)('defers a refused %s with the current fence', async action => {
+    const f = fixture(action === 'begin_attach' ? { stage: 'confirmed' } : action === 'begin_configure'
+      ? { stage: 'attached', scheduleId } : { stage: 'attach_requested', replayUntil })
+    f.initial.operation.providerMode = 'live'; f.initial.operation.lastPaidInvoiceId = 'in_paid'
+    f.store.checkpoint.mockResolvedValueOnce(null)
+    expect(await f.run(undefined, 'live')).toBe('deferred')
+    expect(f.store.finish).toHaveBeenCalledWith(f.initial.fence, { outcome: 'deferred' })
+  })
+  it('keeps stale behavior if the database rejects deferral and preserves live invoice identity', async () => {
+    const f = fixture({ stage: 'attach_requested', replayUntil })
+    f.initial.operation.providerMode = 'live'; f.initial.operation.lastPaidInvoiceId = 'in_paid'
+    f.store.checkpoint.mockResolvedValueOnce(null); f.store.finish.mockResolvedValueOnce(false)
+    expect(await f.run(undefined, 'live')).toBe('lost_claim')
+    expect(f.provider.attach.mock.calls[0][0].operation).toHaveProperty('providerMode', 'live')
+    expect(f.provider.attach.mock.calls[0][0].operation).toHaveProperty('lastPaidInvoiceId', 'in_paid')
+  })
+  it('refuses cross-mode or malformed live claims before provider reads', async () => {
+    const f = fixture()
+    await expect(f.run(undefined, 'live')).rejects.toThrow('Invalid scheduled change claim')
+    f.initial.operation.providerMode = 'live'; f.initial.operation.lastPaidInvoiceId = 'bad'
+    await expect(f.run(undefined, 'live')).rejects.toThrow('Invalid scheduled change claim')
+    expect(f.provider.attach).not.toHaveBeenCalled()
   })
 })

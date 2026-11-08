@@ -40,7 +40,7 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
+  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
     const start = runner.indexOf('[[ "$source_version" =~')
     const end = runner.indexOf('registry=', start)
     expect(start).toBeGreaterThan(-1); expect(end).toBeGreaterThan(start)
@@ -48,14 +48,14 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it('executes the complete current 321 manifest and seals the exact reviewed extension', () => {
+  it('executes the complete current 323 manifest and seals the exact reviewed extension', () => {
     const result = runManifest()
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout.trim().split('\n')).toHaveLength(335)
+    expect(result.stdout.trim().split('\n')).toHaveLength(337)
     expect(result.stdout).toContain(`${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.sha256}  supabase/migrations/${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.name}`)
   })
 
-  it.each(['tampered293', 'renamed293', 'renamed294', 'renamed295', 'tampered296', 'renamed296', 'missing296', 'tampered297', 'renamed297', 'missing297', 'tampered298', 'renamed298', 'tampered299', 'renamed299', 'tampered300', 'tampered301', 'renamed301', 'tampered302', 'tampered303', 'tampered304', 'renamed302', 'renamed303', 'renamed304', 'missing302', 'partial302', 'tampered305', 'tampered306', 'tampered307', 'renamed305', 'renamed306', 'renamed307', 'partial305', 'partial306', 'partial308', 'partial309', 'tampered308', 'tampered309', 'tampered310', 'renamed310', 'unknown322', 'tampered321', 'renamed321', 'tampered320', 'renamed320', 'historical320', 'historical319', 'tampered319', 'renamed319', 'tampered318', 'renamed318', 'tampered317', 'renamed317', 'historical318', 'historical317', 'historical316', 'tampered316', 'renamed316', 'tampered315', 'renamed315', 'historical315', 'historical314', 'tampered314', 'renamed314', 'tamperedPaymentSeal', 'historical313', 'tampered313', 'renamed313', 'tamperedTrialSeal', 'historical312', 'tampered311', 'tampered312', 'renamed311', 'renamed312', 'missing311', 'tamperedReleaseSeal', 'historical310', 'historical311', 'tamperedCutoffSeal', 'unknown308', 'historical303', 'historical301', 'historical300', 'missing300', 'partial298', 'partial299', 'historical297', 'unknown301', 'historicalDirtyTree', 'tampered294', 'tampered295', 'tamperedAdmissionProof', 'tamperedBuilder', 'tamperedBillingSeal'] as const)('executes manifest compatibility rules for %s', defect => {
+  it.each(['tampered293', 'renamed293', 'renamed294', 'renamed295', 'tampered296', 'renamed296', 'missing296', 'tampered297', 'renamed297', 'missing297', 'tampered298', 'renamed298', 'tampered299', 'renamed299', 'tampered300', 'tampered301', 'renamed301', 'tampered302', 'tampered303', 'tampered304', 'renamed302', 'renamed303', 'renamed304', 'missing302', 'partial302', 'tampered305', 'tampered306', 'tampered307', 'renamed305', 'renamed306', 'renamed307', 'partial305', 'partial306', 'partial308', 'partial309', 'tampered308', 'tampered309', 'tampered310', 'renamed310', 'unknown324', 'tampered323', 'renamed323', 'tampered322', 'renamed322', 'tampered321', 'renamed321', 'tampered320', 'renamed320', 'historical320', 'historical319', 'tampered319', 'renamed319', 'tampered318', 'renamed318', 'tampered317', 'renamed317', 'historical318', 'historical317', 'historical316', 'tampered316', 'renamed316', 'tampered315', 'renamed315', 'historical315', 'historical314', 'tampered314', 'renamed314', 'tamperedPaymentSeal', 'historical313', 'tampered313', 'renamed313', 'tamperedTrialSeal', 'historical312', 'tampered311', 'tampered312', 'renamed311', 'renamed312', 'missing311', 'tamperedReleaseSeal', 'historical310', 'historical311', 'tamperedCutoffSeal', 'unknown308', 'historical303', 'historical301', 'historical300', 'missing300', 'partial298', 'partial299', 'historical297', 'unknown301', 'historicalDirtyTree', 'tampered294', 'tampered295', 'tamperedAdmissionProof', 'tamperedBuilder', 'tamperedBillingSeal'] as const)('executes manifest compatibility rules for %s', defect => {
     const repository = mkdtempSync(join(tmpdir(), 'pika-home-reviewed-profile-'))
     try {
       mkdirSync(join(repository, 'supabase')); mkdirSync(join(repository, 'scripts'))
@@ -82,14 +82,14 @@ describe('isolated home visibility proof runner source contracts', () => {
       if (defect === 'tampered300') appendFileSync(join(migrations, '300_repolight_provision_outbox.sql'), '\n-- unreviewed\n')
       if (defect === 'tampered301') appendFileSync(join(migrations, '301_repolight_universal_tier_benefit.sql'), '\n-- unreviewed\n')
       if (defect === 'renamed301') renameSync(join(migrations, '301_repolight_universal_tier_benefit.sql'), join(migrations, '301_unreviewed.sql'))
-      if (/^(?:tampered|renamed|missing)(?:30[23456789]|31[0-9]|32[01])$/.test(defect)) {
+      if (/^(?:tampered|renamed|missing)(?:30[23456789]|31[0-9]|32[0-3])$/.test(defect)) {
         const version = defect.slice(-3)
         const file = readdirSync(migrations).find(name => name.startsWith(`${version}_`))!
         if (defect.startsWith('tampered')) appendFileSync(join(migrations, file), '\n-- unreviewed billing bytes\n')
         if (defect.startsWith('renamed')) renameSync(join(migrations, file), join(migrations, `${version}_unreviewed.sql`))
         if (defect.startsWith('missing')) rmSync(join(migrations, file))
       }
-      if (defect === 'unknown322') writeFileSync(join(migrations, '322_unreviewed.sql'), 'select 1;\n')
+      if (defect === 'unknown324') writeFileSync(join(migrations, '324_unreviewed.sql'), 'select 1;\n')
       if (defect === 'tamperedPaymentSeal') appendFileSync(join(repository, 'scripts/disposable-live-payment-replay-tail.json'), ' ')
       if (defect === 'tamperedTrialSeal') appendFileSync(join(repository, 'scripts/disposable-live-trial-replay-tail.json'), ' ')
       if (defect === 'tamperedReleaseSeal') appendFileSync(join(repository, 'scripts/disposable-assignment-release-replay-tail.json'), ' ')
@@ -118,7 +118,7 @@ describe('isolated home visibility proof runner source contracts', () => {
   })
 
   it('binds the source extension to application-only migration bytes', () => {
-    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-9]|31[0-9]|32[01])_/.test(name))) {
+    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-9]|31[0-9]|32[0-3])_/.test(name))) {
       const sql = readFileSync(join('supabase/migrations', file), 'utf8')
       expect(sql).not.toMatch(/\b(?:auth|storage)\s*\./i)
       expect(sql).not.toMatch(/\b(?:create|alter|drop)\s+schema\s+(?:auth|storage)\b/i)
@@ -147,7 +147,7 @@ ${guard}`], {
   })
 
   it('validates a contiguous reviewed inventory and seals SQL/proof bytes before and after execution', () => {
-    for (const token of ["assert([297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321].includes(paths.length)", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
+    for (const token of ["assert([297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323].includes(paths.length)", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
       expect(runner).toContain(token)
     }
     expect(runner).not.toContain('validateLifecycleServicesReviewedMigrations')
