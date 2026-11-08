@@ -38,6 +38,24 @@ describe('UserMenu', () => {
     expect(document.getElementById(trigger.getAttribute('aria-controls') ?? '')).toHaveAttribute('inert')
   })
 
+  it('opens the gated teacher billing entry with keyboard navigation', () => {
+    render(<ThemeProvider><UserMenu billingAvailable user={{ email: 'teacher@example.com', role: 'teacher' }} /></ThemeProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }))
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0], { key: 'ArrowDown' })
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Send Feedback' }), { key: 'ArrowDown' })
+    const billing = screen.getByRole('menuitem', { name: 'Plans and billing' })
+    expect(billing).toHaveFocus()
+    expect(billing).toHaveAttribute('href', '/billing')
+    fireEvent.keyDown(billing, { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitem', { name: 'Logout' })).toHaveFocus()
+  })
+
+  it('omits the billing menu item for students', () => {
+    render(<ThemeProvider><UserMenu billingAvailable user={{ email: 'student@example.com', role: 'student' }} /></ThemeProvider>)
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }))
+    expect(screen.queryByRole('menuitem', { name: 'Plans and billing' })).not.toBeInTheDocument()
+  })
+
   it('keeps display preferences out of the account menu', async () => {
     renderUserMenu()
 

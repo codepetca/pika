@@ -7,7 +7,7 @@ export class BillingLifecycleEligibilityError extends Error {
 }
 export type BillingLifecycleStore = {
   startTrial(input: { subject_user_id: string; operation_id: string }): Promise<unknown>
-  getAccessStatus(input: { subject_user_id: string }): Promise<unknown>
+  getAccessStatus(input: { subject_user_id: string; include_options: true }): Promise<unknown>
   applyDueAccess(input: { limit: number }): Promise<unknown>
 }
 function status(raw: unknown, subjectUserId: string): BillingAccessStatus {
@@ -22,7 +22,7 @@ export async function startBillingTrial(args: { store: BillingLifecycleStore; su
 }
 export async function getBillingAccessStatus(args: { store: BillingLifecycleStore; subjectUserId: string }): Promise<BillingAccessStatus> {
   const subject_user_id = z.string().uuid().parse(args.subjectUserId)
-  return status(await args.store.getAccessStatus({ subject_user_id }), subject_user_id)
+  return status(await args.store.getAccessStatus({ subject_user_id, include_options: true }), subject_user_id)
 }
 export async function applyDueBillingAccess(args: { store: BillingLifecycleStore; limit: number }): Promise<{ processed: number }> {
   const limit = z.number().int().min(1).max(100).parse(args.limit)

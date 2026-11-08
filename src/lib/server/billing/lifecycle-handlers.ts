@@ -15,11 +15,21 @@ function response(raw: unknown, subjectUserId: string) {
   const result = BillingAccessStatusSchema.safeParse(raw)
   if (!result.success || result.data.subject_user_id !== subjectUserId) throw new Error('Billing status is unavailable')
   const value = result.data
+  const options = value.customer_options
+  const terms = options?.paid_terms
   const plan = value.plan_key === 'plus' ? 'pro' : value.plan_key === 'pro' ? 'max' : value.plan_key
   return NextResponse.json(BillingSubscriptionStatusSchema.parse({
     state: value.state, plan, classroomLimit: value.classroom_limit,
     accessEndsAt: value.access_ends_at, renewalAt: value.renewal_at,
     canStartPaidWork: value.can_start_paid_work, retryable: value.retryable,
+    ...(options ? { options: {
+      trialAvailable: options.trial_available, checkoutAvailable: options.checkout_available,
+      hasBillingCustomer: options.has_billing_customer,
+      pendingCheckoutId: options.pending_checkout_id,
+      paidTerms: terms ? {
+        currency: terms.currency, interval: terms.interval, unitAmount: terms.unit_amount, upgradeAvailable: terms.upgrade_available,
+      } : null,
+    } } : {}),
   }), { headers: { 'Cache-Control': 'private, no-store' } })
 }
 export function createBillingLifecycleHandlers(deps: {

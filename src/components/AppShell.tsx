@@ -38,6 +38,7 @@ interface AppShellProps {
     awayTotalSeconds: number
   } | null
   pageTitle?: ReactNode
+  billingAvailable?: boolean
 }
 
 /**
@@ -61,6 +62,7 @@ export function AppShell({
   allowShortViewportOverflow = false,
   examModeHeader,
   pageTitle,
+  billingAvailable,
 }: AppShellProps) {
   const shouldConstrainViewport = constrainToViewport || !!examModeHeader
   const viewportClassName = shouldConstrainViewport
@@ -81,6 +83,7 @@ export function AppShell({
           onNavigateHome={onNavigateHome}
           examModeHeader={examModeHeader}
           pageTitle={pageTitle}
+          billingAvailable={billingAvailable}
         />
       )}
       {navigation}

@@ -38,6 +38,7 @@ interface AppHeaderProps {
     awayTotalSeconds: number
   } | null
   pageTitle?: ReactNode
+  billingAvailable?: boolean
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -62,6 +63,7 @@ export function AppHeader({
   onNavigateHome,
   examModeHeader,
   pageTitle,
+  billingAvailable,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date(initialNow))
   const [exitCountPulseActive, setExitCountPulseActive] = useState(false)
@@ -288,7 +290,7 @@ export function AppHeader({
             <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
           </span>
         )}
-        <UserMenu user={user} />
+        <UserMenu user={user} billingAvailable={billingAvailable} />
       </div>
     </header>
   )

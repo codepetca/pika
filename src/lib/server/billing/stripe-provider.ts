@@ -149,6 +149,7 @@ export function createStripeBillingProvider(sdk: StripeBillingReadPort): Billing
           } else {
             if (
               invoice.amount_paid !== 0
+              || (['draft', 'open'].includes(invoice.status) && invoice.amount_remaining !== invoice.amount_due)
               || (invoice.amount_paid_off_stripe !== undefined && invoice.amount_paid_off_stripe !== 0)
             ) return null
             const unpaidPayments = z.array(stripeUnpaidInvoicePaymentSchema).safeParse(invoice.payments.data)

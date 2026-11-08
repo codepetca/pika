@@ -26,8 +26,18 @@ do $$ declare u uuid; begin
 end $$;
 set local role service_role;
 do $$ declare r jsonb; before_revision bigint; begin
+  r:=public.billing_get_access_status_v1('{"subject_user_id":"f2140000-0000-4000-8000-000000000001","include_options":true}');
+  if r ? 'customer_options' and (r#>>'{customer_options,trial_available}' is distinct from 'true'
+    or r#>>'{customer_options,checkout_available}' is distinct from 'true') then
+    raise exception 'Eligible Free teacher did not receive trial and checkout options';
+  end if;
   r:=public.billing_start_trial_v1('{"subject_user_id":"f2140000-0000-4000-8000-000000000001","operation_id":"f2141000-0000-4000-8000-000000000001"}');
   if r->>'state'<>'trial' or (r->>'classroom_limit')::int<>5 or not (r->>'can_start_paid_work')::boolean then raise exception 'Trial grant failed'; end if;
+  r:=public.billing_get_access_status_v1('{"subject_user_id":"f2140000-0000-4000-8000-000000000001","include_options":true}');
+  if r ? 'customer_options' and (r#>>'{customer_options,trial_available}' is distinct from 'false'
+    or r#>>'{customer_options,checkout_available}' is distinct from 'true') then
+    raise exception 'Active trial offered a second trial or hid paid conversion';
+  end if;
   select revision into before_revision from public.account_plans where subject_user_id='f2140000-0000-4000-8000-000000000001';
   perform public.billing_start_trial_v1('{"subject_user_id":"f2140000-0000-4000-8000-000000000001","operation_id":"f2141000-0000-4000-8000-000000000001"}');
   if before_revision<>(select revision from public.account_plans where subject_user_id='f2140000-0000-4000-8000-000000000001') then raise exception 'Trial replay rewrote plan'; end if;
@@ -77,6 +87,12 @@ do $$ declare offering jsonb; binding jsonb; c jsonb; r jsonb; v_id uuid; p_end 
   r:=public.billing_finish_lifecycle_v1(request);
   if r->>'status'<>'applied' then raise exception 'First paid apply failed: %',r; end if;
   if not exists(select 1 from public.effective_feature_entitlements where subject_user_id='f2140000-0000-4000-8000-000000000002' and quota_limit=7 and expires_at=p_end) then raise exception 'Purchased version or finite expiry lost'; end if;
+  r:=public.billing_get_access_status_v1('{"subject_user_id":"f2140000-0000-4000-8000-000000000002","include_options":true}');
+  if r ? 'customer_options' and (r#>>'{customer_options,paid_terms,unit_amount}' is distinct from '1900'
+    or r#>>'{customer_options,paid_terms,upgrade_available}' is distinct from 'true'
+    or r#>>'{customer_options,checkout_available}' is distinct from 'false') then
+    raise exception 'Customer options omitted purchased terms or permitted double checkout';
+  end if;
   select revision into revision_after from public.account_plans where subject_user_id='f2140000-0000-4000-8000-000000000002';
   c:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',v_id,'lease_seconds',120));
   request:=request||jsonb_build_object('lease_token',c->>'lease_token','fencing_token',c->'fencing_token','expected_subscription_revision',c->'subscription_revision','expected_account_plan_revision',c->'expected_account_plan_revision');

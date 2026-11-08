@@ -51296,3 +51296,12 @@ PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list
 ## 2026-11-02 — Reduce Classwork requirement reads
 
 Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
+
+<!-- pika-session-log-archive-batch:a32a4d4065eab4fded7b808c778be390c213703aa90372f737a87a8254ae6c8c -->
+## 2026-11-02 — Teacher Tests query overlap
+
+On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list change that overlaps authorized question and attempt reads while preserving question-first errors. A synthetic one-test/one-student probe with 80 ms delays per read measured 168 ms before and 89 ms after, with six table requests in both successful runs; these are mocked timings, not production measurements. Focused route checks cover overlap, authorization, error precedence and late rejections. Production deployment remains pending.
+
+## 2026-11-02 — Teacher Tests intent prefetch
+
+Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.

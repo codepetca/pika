@@ -13,6 +13,18 @@ export const BillingAccessStatusSchema = z.object({
   can_start_paid_work: z.boolean(),
   retryable: z.boolean(),
   revision: z.number().int().nonnegative(),
+  customer_options: z.object({
+    trial_available: z.boolean(),
+    has_billing_customer: z.boolean(),
+    checkout_available: z.boolean(),
+    pending_checkout_id: uuid.nullable(),
+    paid_terms: z.object({
+      currency: z.enum(['usd', 'cad']),
+      interval: z.enum(['month', 'year']),
+      unit_amount: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+      upgrade_available: z.boolean(),
+    }).strict().nullable(),
+  }).strict().optional(),
 }).strict()
 export type BillingAccessStatus = z.infer<typeof BillingAccessStatusSchema>
 

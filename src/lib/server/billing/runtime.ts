@@ -55,10 +55,9 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     return raw
   } }
   const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe))
-  if (process.env.BILLING_UPGRADES_ENABLED === 'true') {
-    const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
-    provider.retrieveAppliedUpgrade = operation => upgrades.readAppliedEvidence(operation)
-  }
+  // Existing purchased terms remain verifiable if new upgrades are disabled.
+  const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
+  provider.retrieveAppliedUpgrade = operation => upgrades.readAppliedEvidence(operation)
 
   return {
     store,
