@@ -135,6 +135,9 @@ begin
     or (select to_jsonb(entitlement) from public.effective_feature_entitlements entitlement where subject_user_id=v_subject and feature_key='classrooms.create') is distinct from v_entitlement then
     raise exception 'Binding crossed receipt scope or changed paid access';
   end if;
+  if public.billing_list_work_v1('{"limit":1}')->'items' is distinct from '[]'::jsonb then
+    raise exception 'Sandbox work list returned a live binding or receipt';
+  end if;
   v_failed:=false;
   begin perform public.billing_claim_checkout_v1(jsonb_build_object('attempt_id',v_id,'lease_seconds',120));
   exception when object_not_in_prerequisite_state then

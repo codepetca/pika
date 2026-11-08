@@ -88,9 +88,11 @@ export function createCheckoutService(input: {
     try {
       // A known session can settle while provider writes are paused. A
       // reservation without a session must not create one during the pause.
-      if (!providerWritesEnabled && !attempt.session_id) {
+      if (input.providerMode === 'live' && !attempt.session_id) {
         if (now() >= Date.parse(attempt.write_deadline)) return await finish('attention', { reason_code: 'write_recovery_expired' })
-        return await finish('paused', { reason_code: 'provider_writes_paused' })
+        if (!providerWritesEnabled || !await input.authorizeProviderWrite(fence)) {
+          return await finish('paused', { reason_code: 'provider_writes_paused' })
+        }
       }
       await provider.assertAccount(input.stripeAccount)
       if (!attempt.customer_id) {

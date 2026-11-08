@@ -63,11 +63,12 @@ describe('durable hosted checkout orchestration', () => {
   it('reauthorizes the exact lease before each live write and preserves customer progress on pause', async () => {
     const live = fixture('live')
     live.authorizeProviderWrite.mockImplementationOnce(async () => { live.sequence.push('authorize'); return true })
+      .mockImplementationOnce(async () => { live.sequence.push('authorize'); return true })
       .mockImplementationOnce(async () => { live.sequence.push('authorize'); return false })
 
     await expect(live.start()).resolves.toMatchObject({ status: 'pending', checkoutUrl: null })
-    expect(live.sequence).toEqual(['reserve', 'account', 'authorize', 'customer', 'authorize'])
-    expect(live.authorizeProviderWrite).toHaveBeenCalledTimes(2)
+    expect(live.sequence).toEqual(['reserve', 'authorize', 'account', 'authorize', 'customer', 'authorize'])
+    expect(live.authorizeProviderWrite).toHaveBeenCalledTimes(3)
     expect(live.authorizeProviderWrite).toHaveBeenCalledWith({ attempt_id: id, lease_token: lease, fencing_token: 1 })
     expect(live.row()).toMatchObject({ customer_id: 'cus_test', session_id: null })
     expect(live.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({
@@ -76,6 +77,15 @@ describe('durable hosted checkout orchestration', () => {
 
     await expect(live.start()).resolves.toMatchObject({ status: 'checkout_open' })
     expect(live.provider.createCustomer).toHaveBeenCalledOnce()
+  })
+
+  it('learns about a database-only write pause before any Stripe reads', async () => {
+    const live = fixture('live')
+    live.authorizeProviderWrite.mockResolvedValueOnce(false)
+    await expect(live.start()).resolves.toMatchObject({ status: 'pending', checkoutUrl: null })
+    expect(live.provider.assertAccount).not.toHaveBeenCalled()
+    expect(live.provider.createCustomer).not.toHaveBeenCalled()
+    expect(live.store.finishCheckout).toHaveBeenCalledWith(expect.objectContaining({ outcome: 'paused' }))
   })
 
   it('binds live reservations to production and rejects a same-account sandbox offering', async () => {

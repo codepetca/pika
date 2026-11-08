@@ -473,4 +473,111 @@ grant execute on function public.billing_reserve_live_checkout_v1(text,text,json
   public.billing_finish_live_checkout_v1(text,text,jsonb),
   public.billing_authorize_live_checkout_write_v1(text,text,jsonb) to service_role;
 
+-- Preserve the sandbox response, prioritization, limits, and original access
+-- gate behavior. Live rows must not enter either candidate arm before limiting.
+create or replace function public.billing_claim_subscription_v1(p_request jsonb)
+returns jsonb language plpgsql security definer set search_path='' as $$
+begin
+  perform private.assert_stripe_billing_sandbox_enabled_v1();
+  if p_request is null or jsonb_typeof(p_request)<>'object' or p_request->>'subscription_id' is null
+    or coalesce(p_request->>'lease_seconds','') !~ '^[0-9]+$' then
+    return private.billing_claim_subscription_before_upgrade_v1(p_request); end if;
+  if (p_request->>'lease_seconds')::numeric not between 30 and 300 then
+    return private.billing_claim_subscription_before_upgrade_v1(p_request); end if;
+  perform 1 from public.stripe_billing_subscription_bindings binding
+    join public.stripe_billing_offering_versions version on version.id=binding.offering_version_id
+      and version.provider_mode='test' and version.stripe_account=binding.stripe_account
+    where binding.id=(p_request->>'subscription_id')::uuid and binding.provider_mode='test' for update of binding;
+  if not found then return jsonb_build_object('status','not_found'); end if;
+  if exists(select 1 from public.billing_upgrade_operations where subscription_id=(p_request->>'subscription_id')::uuid
+    and status in ('queued','retry','attention'))
+    or private.billing_scheduled_closeout_due_v1((p_request->>'subscription_id')::uuid) then
+    return jsonb_build_object('status','busy');
+  end if;
+  return private.billing_claim_subscription_before_upgrade_v1(p_request);
+end; $$;
+
+create or replace function public.billing_list_work_v1(p_request jsonb)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with params as (
+    select greatest(1, least(50, coalesce((p_request->>'limit')::integer, 0))) as limit_value
+  ), sandbox_bindings as not materialized (
+    select binding.* from public.stripe_billing_subscription_bindings binding
+    join public.stripe_billing_offering_versions version on version.id=binding.offering_version_id
+      and version.provider_mode='test' and version.stripe_account=binding.stripe_account
+    where binding.provider_mode='test' and binding.is_current
+  ), candidates as (
+    select 'event'::text as kind, event.id as event_inbox_id,
+      event.subscription_id, event.next_attempt_at as due_at
+    from public.stripe_billing_event_inbox event
+    join sandbox_bindings binding on binding.id = event.subscription_id
+    where event.provider_mode='test' and event.stripe_account=binding.stripe_account
+      and event.status in ('received', 'exception')
+      and event.attempt_count < 5
+      and event.next_attempt_at <= clock_timestamp()
+      and (binding.lease_expires_at is null or binding.lease_expires_at <= clock_timestamp())
+      and binding.reconcile_state in ('queued', 'retry')
+      and (binding.reconcile_state = 'queued' or binding.next_reconcile_at <= clock_timestamp())
+      and not exists(select 1 from public.billing_upgrade_operations upgrade
+        where upgrade.subscription_id=binding.id and upgrade.status in ('queued','retry','attention'))
+      and not private.billing_scheduled_closeout_due_v1(binding.id)
+      and not exists(select 1 from public.billing_renewal_closeouts closeout
+        where closeout.subscription_id=binding.id and closeout.status in ('queued','retry','attention'))
+    union all
+    select 'reconcile'::text, null::uuid, binding.id, binding.next_reconcile_at
+    from sandbox_bindings binding
+    where binding.reconcile_state in ('queued', 'retry')
+      and binding.reconcile_attempt_count < 5
+      and binding.next_reconcile_at <= clock_timestamp()
+      and (binding.lease_expires_at is null or binding.lease_expires_at <= clock_timestamp())
+      and not exists(select 1 from public.billing_upgrade_operations upgrade
+        where upgrade.subscription_id=binding.id and upgrade.status in ('queued','retry','attention'))
+      and not private.billing_scheduled_closeout_due_v1(binding.id)
+      and not exists(select 1 from public.billing_renewal_closeouts closeout
+        where closeout.subscription_id=binding.id and closeout.status in ('queued','retry','attention'))
+  ), one_per_subscription as (
+    select candidates.*, row_number() over (
+      partition by subscription_id
+      order by due_at, case kind when 'event' then 0 else 1 end, event_inbox_id nulls last
+    ) as item_rank
+    from candidates
+  ), picked as (
+    select * from one_per_subscription
+    where item_rank = 1
+    order by due_at, subscription_id
+    limit (select limit_value from params)
+  )
+  select jsonb_build_object('items', coalesce(jsonb_agg(jsonb_build_object(
+    'kind', picked.kind,
+    'event_inbox_id', picked.event_inbox_id,
+    'subscription_id', binding.id,
+    'binding', jsonb_build_object(
+      'subscription_id', binding.id,
+      'subject_user_id', binding.subject_user_id,
+      'stripe_account', binding.stripe_account,
+      'stripe_customer_id', binding.stripe_customer_id,
+      'stripe_subscription_id', binding.stripe_subscription_id,
+      'offering_id', offering.id,
+      'offering_version_id', version.id,
+      'stripe_product_id', version.stripe_product_id,
+      'stripe_price_id', version.stripe_price_id,
+      'unit_amount', version.unit_amount,
+      'plan_key', offering.plan_key,
+      'currency', version.currency,
+      'interval', version.interval,
+      'provider_mode', binding.provider_mode
+    ),
+    'next_attempt_at', picked.due_at
+  ) order by picked.due_at, picked.subscription_id), '[]'::jsonb))
+  from picked
+  join public.stripe_billing_subscription_bindings binding on binding.id = picked.subscription_id
+  join public.stripe_billing_offering_versions version on version.id = binding.offering_version_id
+  join public.stripe_billing_offerings offering on offering.id = version.offering_id;
+$$;
+
 commit;
