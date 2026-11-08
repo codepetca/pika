@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions through 300 are sealed below; 298–300 do not modify Auth/Storage.
+# Source extensions through 301 are sealed below; 298–301 do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 300)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([297,300].includes(migrations.length),'Attendance proof target must be exactly297 or300'); validateLifecycleServicesReviewedMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 301)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([297,300,301].includes(migrations.length),'Attendance proof target must be exactly297, 300 or301'); validateLifecycleServicesReviewedMigrations(migrations);"
 meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"

@@ -7,7 +7,7 @@ import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifec
 const runner = readFileSync('scripts/check-repolight-analysis-access-database.sh', 'utf8')
 
 describe('RepoLight offline replay source boundary', () => {
-  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', false], ['300', false], ['x', false]])(
+  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', false], ['x', false]])(
     'admits source version %s: %s', (version, accepted) => {
       const start = runner.indexOf('[[ "$source_version" =~')
       const end = runner.indexOf('pnpm --dir "$root"', start)
