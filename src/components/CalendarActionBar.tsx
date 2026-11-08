@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, MoreVertical } from 'lucide-react'
+import { format } from 'date-fns'
 import { Button, IconButton, SegmentedControl, cn } from '@/ui'
 import { PageActionBar } from '@/components/PageLayout'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
@@ -22,7 +23,7 @@ interface CalendarActionBarProps {
   className?: string
 }
 
-export function CalendarActionBar({ viewMode, rangeStart, rangeEnd, onPrev, onNext, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
+export function CalendarActionBar({ viewMode, currentDate, rangeStart, rangeEnd, onPrev, onNext, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
   return <PageActionBar className={cn('py-0', className)} primary={context ?? null} center={<>
     <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="h-6 gap-0 border border-border bg-surface-2 p-0"
       options={[
@@ -30,6 +31,7 @@ export function CalendarActionBar({ viewMode, rangeStart, rangeEnd, onPrev, onNe
         { value: 'grid', label: 'Grid', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
       ]} />
     {(!rangeStart || !rangeEnd) && <>
+      <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{format(currentDate, 'MMMM yyyy')}</span>
       <IconButton variant="ghost" size="sm" icon={ChevronLeft} label="Previous month" onClick={onPrev} />
       <IconButton variant="ghost" size="sm" icon={ChevronRight} label="Next month" onClick={onNext} />
     </>}

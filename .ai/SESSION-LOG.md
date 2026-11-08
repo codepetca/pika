@@ -297,4 +297,4 @@ Added scroll padding to keep keyboard-focused calendar controls below sticky hea
 
 ## 2026-11-08 — Restore navigation for calendars without complete dates
 
-Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles.
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
