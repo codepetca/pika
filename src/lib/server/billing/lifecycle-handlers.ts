@@ -11,7 +11,7 @@ export type BillingLifecycleRuntime = {
   getStatus(input: { subjectUserId: string }): Promise<BillingAccessStatus>
   applyDue(input: { limit: number }): Promise<{ processed: number }>
 }
-function response(raw: unknown, subjectUserId: string) {
+function response(raw: unknown, subjectUserId: string, admissionEnabled: boolean) {
   const result = BillingAccessStatusSchema.safeParse(raw)
   if (!result.success || result.data.subject_user_id !== subjectUserId) throw new Error('Billing status is unavailable')
   const value = result.data
@@ -23,7 +23,7 @@ function response(raw: unknown, subjectUserId: string) {
     accessEndsAt: value.access_ends_at, renewalAt: value.renewal_at,
     canStartPaidWork: value.can_start_paid_work, retryable: value.retryable,
     ...(options ? { options: {
-      trialAvailable: options.trial_available, checkoutAvailable: options.checkout_available,
+      trialAvailable: admissionEnabled && options.trial_available, checkoutAvailable: options.checkout_available,
       hasBillingCustomer: options.has_billing_customer,
       pendingCheckoutId: options.pending_checkout_id,
       paidTerms: terms ? {
@@ -33,7 +33,7 @@ function response(raw: unknown, subjectUserId: string) {
   }), { headers: { 'Cache-Control': 'private, no-store' } })
 }
 export function createBillingLifecycleHandlers(deps: {
-  configuration(): { appOrigin: string } | null
+  configuration(): { appOrigin: string; admissionEnabled?: boolean } | null
   authenticate(): Promise<{ id: string }>
   loadRuntime(): Promise<BillingLifecycleRuntime>
 }) {
@@ -44,13 +44,14 @@ export function createBillingLifecycleHandlers(deps: {
   }
   return {
     status: withErrorHandler('BillingSubscriptionStatus', async () => {
-      configuration()
+      const config = configuration()
       const user = await deps.authenticate()
       const runtime = await deps.loadRuntime()
-      return response(await runtime.getStatus({ subjectUserId: user.id }), user.id)
+      return response(await runtime.getStatus({ subjectUserId: user.id }), user.id, config.admissionEnabled !== false)
     }),
     trial: withErrorHandler('BillingTrialStart', async request => {
       const config = configuration()
+      if (config.admissionEnabled === false) throw new ApiError(404, 'Not found')
       const user = await deps.authenticate()
       if (request.headers.get('origin') !== config.appOrigin) throw new ApiError(403, 'Invalid request origin')
       if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') throw new ApiError(415, 'Expected JSON request')
@@ -75,7 +76,7 @@ export function createBillingLifecycleHandlers(deps: {
       const input = trialRequest.parse(body)
       const runtime = await deps.loadRuntime()
       try {
-        return response(await runtime.startTrial({ subjectUserId: user.id, operationId: input.operationId }), user.id)
+        return response(await runtime.startTrial({ subjectUserId: user.id, operationId: input.operationId }), user.id, true)
       } catch (error) {
         if (error instanceof BillingLifecycleEligibilityError) throw new ApiError(409, error.message)
         throw error

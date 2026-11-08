@@ -10167,6 +10167,14 @@ export type Database = {
         Returns: Json
       }
       billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_apply_due_live_trial_access_v1: {
+        Args: {
+          p_payload: Json
+          p_project_ref: string
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_attest_live_target_v1: {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean
@@ -10225,6 +10233,14 @@ export type Database = {
         Returns: Json
       }
       billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_live_access_status_v1: {
+        Args: {
+          p_payload: Json
+          p_project_ref: string
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_get_scheduled_renewal_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10248,6 +10264,10 @@ export type Database = {
       }
       billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_live_trial_lifecycle_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
       billing_requeue_subscription_v1: {
@@ -10275,6 +10295,14 @@ export type Database = {
           p_fence?: Json
           p_operation_id: string
           p_schedule_id?: string
+        }
+        Returns: Json
+      }
+      billing_start_live_trial_v1: {
+        Args: {
+          p_payload: Json
+          p_project_ref: string
+          p_stripe_account: string
         }
         Returns: Json
       }

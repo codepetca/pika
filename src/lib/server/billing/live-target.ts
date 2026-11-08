@@ -17,9 +17,7 @@ type LiveTargetRpcArgs = {
 
 export type BillingLiveTargetStatus = 'disabled' | 'invalid_target' | 'unavailable' | 'attested'
 
-/** This config is for the read-only operator check. Billing routes use sandbox configuration. */
-function readBillingLiveTargetConfig(env: NodeJS.ProcessEnv): BillingLiveTargetConfig | null {
-  if (env.BILLING_LIVE_TARGET_CHECK_ENABLED !== 'true') return null
+function readExactLiveBillingTarget(env: NodeJS.ProcessEnv): BillingLiveTargetConfig {
   const stripeAccount = env.STRIPE_LIVE_ACCOUNT_ID
   if (
     env.BILLING_SANDBOX_ENABLED === 'true'
@@ -33,11 +31,35 @@ function readBillingLiveTargetConfig(env: NodeJS.ProcessEnv): BillingLiveTargetC
   ) {
     throw new Error('Invalid live billing target')
   }
-  const supabaseOrigin = verifyHostedSupabaseApiOrigin(env.NEXT_PUBLIC_SUPABASE_URL, PRODUCTION_PROJECT_REF)
+  let supabaseOrigin: string
+  try {
+    supabaseOrigin = verifyHostedSupabaseApiOrigin(env.NEXT_PUBLIC_SUPABASE_URL, PRODUCTION_PROJECT_REF)
+  } catch {
+    throw new Error('Invalid live billing target')
+  }
   if (env.NEXT_PUBLIC_SUPABASE_URL !== supabaseOrigin && env.NEXT_PUBLIC_SUPABASE_URL !== supabaseOrigin + '/') {
     throw new Error('Invalid live billing target')
   }
   return { projectRef: PRODUCTION_PROJECT_REF, stripeAccount, supabaseOrigin }
+}
+
+export type BillingLiveTrialConfig = BillingLiveTargetConfig & Readonly<{
+  appOrigin: string
+  workerSecret: string
+  admissionEnabled: boolean
+}>
+
+/** Existing trial status and expiry stay available while new admission is stopped. */
+export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveTrialConfig | null {
+  const admissionEnabled = env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true'
+  if (env.BILLING_LIVE_TRIAL_LIFECYCLE_ENABLED !== 'true') {
+    if (admissionEnabled) throw new Error('Invalid live trial configuration')
+    return null
+  }
+  const target = readExactLiveBillingTarget(env)
+  const workerSecret = env.BILLING_LIVE_TRIAL_WORKER_SECRET
+  if (!workerSecret || workerSecret.length < 32) throw new Error('Invalid live trial configuration')
+  return { ...target, appOrigin: PRODUCTION_APP_ORIGIN, workerSecret, admissionEnabled }
 }
 
 function createLiveTargetReadOnlyFetch(config: BillingLiveTargetConfig, fetchImpl?: typeof fetch): typeof fetch {
@@ -66,13 +88,13 @@ export async function checkBillingLiveTarget(input: {
   read: (args: LiveTargetRpcArgs, fetch: typeof globalThis.fetch) => PromiseLike<unknown>
   fetchImpl?: typeof fetch
 }): Promise<BillingLiveTargetStatus> {
-  let config: BillingLiveTargetConfig | null
+  if (input.environment.BILLING_LIVE_TARGET_CHECK_ENABLED !== 'true') return 'disabled'
+  let config: BillingLiveTargetConfig
   try {
-    config = readBillingLiveTargetConfig(input.environment)
+    config = readExactLiveBillingTarget(input.environment)
   } catch {
     return 'invalid_target'
   }
-  if (!config) return 'disabled'
   try {
     const attested = await input.read({
       p_project_ref: config.projectRef,

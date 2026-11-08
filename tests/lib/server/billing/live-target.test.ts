@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { checkBillingLiveTarget } from '@/lib/server/billing/live-target'
+import { checkBillingLiveTarget, readBillingLiveTrialConfig } from '@/lib/server/billing/live-target'
 
 const projectRef = 'zhioqbapgfcrronyuidm'
 const supabaseOrigin = 'https://' + projectRef + '.supabase.co'
@@ -14,6 +14,38 @@ const environment = {
 }
 const rpcPath = '/rest/v1/rpc/billing_attest_live_target_v1'
 const requestUrl = supabaseOrigin + rpcPath + '?p_project_ref=' + projectRef + '&p_stripe_account=' + stripeAccount
+
+describe('live trial runtime configuration', () => {
+  const trial = {
+    ...environment,
+    BILLING_LIVE_TARGET_CHECK_ENABLED: 'false',
+    BILLING_LIVE_TRIAL_LIFECYCLE_ENABLED: 'true',
+    BILLING_LIVE_TRIAL_WORKER_SECRET: 'worker-secret'.repeat(3),
+  }
+
+  it('allows recovery while admission is off without Stripe credentials', () => {
+    expect(readBillingLiveTrialConfig({})).toBeNull()
+    expect(readBillingLiveTrialConfig(trial)).toEqual({
+      projectRef, stripeAccount, supabaseOrigin,
+      appOrigin: environment.NEXT_PUBLIC_APP_URL,
+      workerSecret: trial.BILLING_LIVE_TRIAL_WORKER_SECRET,
+      admissionEnabled: false,
+    })
+    expect(readBillingLiveTrialConfig({ ...trial, BILLING_LIVE_TRIAL_ADMISSION_ENABLED: 'true' })?.admissionEnabled)
+      .toBe(true)
+  })
+
+  it.each([
+    { BILLING_SANDBOX_ENABLED: 'true' },
+    { VERCEL_ENV: 'preview' },
+    { NEXT_PUBLIC_SUPABASE_URL: 'http://localhost:54321' },
+    { STRIPE_LIVE_ACCOUNT_ID: undefined, STRIPE_ACCOUNT_ID: 'acct_Sandbox311' },
+    { BILLING_LIVE_TRIAL_WORKER_SECRET: 'short' },
+    { BILLING_LIVE_TRIAL_LIFECYCLE_ENABLED: 'false', BILLING_LIVE_TRIAL_ADMISSION_ENABLED: 'true' },
+  ])('rejects an invalid live trial boundary', (overrides) => {
+    expect(() => readBillingLiveTrialConfig({ ...trial, ...overrides })).toThrow(/Invalid live/)
+  })
+})
 
 describe('dormant live billing target check', () => {
   it('defaults off before building any transport', async () => {

@@ -1,5 +1,12 @@
+import { timingSafeEqual } from 'node:crypto'
 import type { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-handler'
+
+export function assertBillingWorkerAuthorization(request: NextRequest, secret: string): void {
+  const expected = Buffer.from(`Bearer ${secret}`)
+  const actual = Buffer.from(request.headers.get('authorization') ?? '')
+  if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) throw new ApiError(401, 'Unauthorized')
+}
 
 export async function readBillingJsonBody(request: NextRequest): Promise<unknown> {
   if (request.headers.get('content-type')?.split(';')[0].trim() !== 'application/json') throw new ApiError(415, 'Expected JSON request')
