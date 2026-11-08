@@ -1,7 +1,7 @@
 import { createTargetBoundFetch, verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
 
 // These identify Pika's production target independently of caller-supplied URLs.
-const PRODUCTION_APP_ORIGIN = 'https://pika.codepet.ca'
+export const PRODUCTION_APP_ORIGIN = 'https://pika.codepet.ca'
 const PRODUCTION_PROJECT_REF = 'zhioqbapgfcrronyuidm'
 
 type BillingLiveTargetConfig = Readonly<{

@@ -284,3 +284,11 @@ The isolated Test reorder fixture now selects the exact RepoLight billing trigge
 ## 2026-11-09 — Sync the reviewed live trial with main
 
 The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
+## 2026-11-08 — Scoped live Stripe evidence
+
+Added explicit account and mode checks for Checkout and verified invoice
+reconciliation. Live session creation verifies the active product, price and
+remaining write window. Paused writes preserve recovery for known sessions.
+Signed live snapshots require a dedicated account endpoint and live evidence.
+The sandbox store rejects live receipts. Synthetic provider and service tests
+passed. The live SQL store, runtime and operator rollout still need work.

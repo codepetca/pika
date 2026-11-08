@@ -34,6 +34,9 @@ export function createBillingPurchaseStore(client: PurchaseRpcClient): CheckoutS
     listCheckoutWork: request => call('billing_list_checkout_work_v1', request),
     claimCheckout: request => call('billing_claim_checkout_v1', request),
     saveCheckoutProgress: request => call('billing_save_checkout_progress_v1', request),
-    finishCheckout: request => call('billing_finish_checkout_v1', request),
+    async finishCheckout(request) {
+      if (request.outcome === 'paused') throw new Error('Paused checkout requires a live scoped store')
+      return call('billing_finish_checkout_v1', request)
+    },
   }
 }

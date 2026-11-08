@@ -17,7 +17,7 @@ export type BillingHandlerRuntime = {
 
 /** Runtime wiring is separate so no SDK/client is constructed while disabled. */
 export function createBillingHandlers(
-  configuration: () => { stripeAccount: string; workerSecret: string } | null,
+  configuration: () => { stripeAccount: string; workerSecret: string; providerMode?: 'test' | 'live' } | null,
   loadRuntime: () => Promise<BillingHandlerRuntime>,
   loadPurchases?: () => Promise<{ reconcileCheckouts(input: { limit: number }): Promise<unknown> } | null>,
   loadLifecycle?: () => Promise<{ applyDue(input: { limit: number }): Promise<{ processed: number }> } | null>,
@@ -36,11 +36,12 @@ export function createBillingHandlers(
       const raw = await readBillingWebhookBody(request)
       const runtime = await loadRuntime()
       await acceptBillingWebhook({ raw, signature: request.headers.get('stripe-signature'),
-        stripeAccount: config.stripeAccount, verify: runtime.verify, record: runtime.record })
+        stripeAccount: config.stripeAccount, providerMode: config.providerMode, verify: runtime.verify, record: runtime.record })
       return NextResponse.json({ received: true })
     }),
     process: withErrorHandler('StripeBillingWorker', async request => {
       const config = requireConfiguration()
+      if (config.providerMode === 'live') throw new ApiError(404, 'Not found')
       assertBillingWorkerAuthorization(request, config.workerSecret)
       const runtime = await loadRuntime()
       const upgrades = await runOptionalRecoveryLane(async () => (await loadUpgrades?.())?.processDue({ limit: 1 }))

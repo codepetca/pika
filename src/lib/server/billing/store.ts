@@ -44,6 +44,7 @@ export function createBillingStore(client: BillingRpcClient, scheduledRenewalsEn
       finishScheduledRenewal: request => call('billing_finish_scheduled_renewal_v1', request),
     } : {}),
     async recordEvent(receipt) {
+      if (receipt.provider_mode === 'live') throw new Error('Live billing events require a scoped store')
       const result = billingEventReceiptResultSchema.safeParse(
         await call('billing_record_event_v1', receipt),
       )

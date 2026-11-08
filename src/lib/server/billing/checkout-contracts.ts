@@ -6,6 +6,7 @@ export const CheckoutOfferingSchema = z.object({
   offering_version_id: uuid,
   plan_key: z.enum(['basic', 'plus', 'pro']),
   stripe_account: z.string().regex(/^acct_[A-Za-z0-9]+$/),
+  provider_mode: z.enum(['test', 'live']).optional(),
   stripe_product_id: z.string().regex(/^prod_[A-Za-z0-9]+$/),
   stripe_price_id: z.string().regex(/^price_[A-Za-z0-9]+$/),
   currency: z.enum(['usd', 'cad']),
@@ -29,14 +30,14 @@ export const CheckoutAttemptSchema = z.object({
   lookup_key: z.string().min(1).max(200),
   status: z.enum(['reserved', 'open', 'payment_pending', 'bound', 'expired', 'attention']),
   customer_id: z.string().regex(/^cus_[A-Za-z0-9]+$/).nullable(),
-  session_id: z.string().regex(/^cs_test_[A-Za-z0-9]+$/).nullable(),
+  session_id: z.string().regex(/^cs_(?:test|live)_[A-Za-z0-9]+$/).nullable(),
   checkout_url: CheckoutUrlSchema.nullable(),
   success_url: z.string().url(),
   cancel_url: z.string().url(),
   write_deadline: time,
   created_at: time,
   access_confirmed: z.boolean(),
-}).strict()
+}).strict().refine(attempt => !attempt.session_id || attempt.session_id.startsWith(attempt.offering.provider_mode === 'live' ? 'cs_live_' : 'cs_test_'), 'Checkout session mode differs from offering')
 export type CheckoutAttempt = z.infer<typeof CheckoutAttemptSchema>
 
 export const CheckoutClaimSchema = z.discriminatedUnion('status', [
@@ -62,7 +63,7 @@ export type CheckoutStore = {
     customer_id?: string; session_id?: string; checkout_url?: string | null
   }): Promise<unknown>
   finishCheckout(input: CheckoutFence & {
-    outcome: 'pending' | 'bound' | 'expired' | 'retry' | 'attention'
+    outcome: 'pending' | 'bound' | 'expired' | 'retry' | 'attention' | 'paused'
     subscription_id?: string; payment_pending?: boolean; reason_code?: string
   }): Promise<unknown>
 }
@@ -74,8 +75,8 @@ export type CheckoutSession = {
 }
 export type CheckoutProvider = {
   assertAccount(stripeAccount: string): Promise<void>
-  createCustomer(idempotencyKey: string): Promise<string>
-  createSession(attempt: CheckoutAttempt, customerId: string, idempotencyKey: string): Promise<CheckoutSession>
+  createCustomer(idempotencyKey: string, assertCanWrite?: () => void): Promise<string>
+  createSession(attempt: CheckoutAttempt, customerId: string, idempotencyKey: string, assertCanWrite?: () => void): Promise<CheckoutSession>
   retrieveSession(attempt: CheckoutAttempt): Promise<CheckoutSession>
 }
 
@@ -84,7 +85,7 @@ export class CheckoutProviderContractError extends Error {
 }
 
 export class CheckoutEligibilityError extends Error {
-  constructor() { super('Checkout is currently available only for Free accounts') }
+  constructor(message = 'Checkout is currently available only for Free accounts') { super(message) }
 }
 
 export type PublicCheckout = {

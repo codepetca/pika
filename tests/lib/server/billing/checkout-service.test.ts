@@ -12,11 +12,11 @@ const at = Date.parse('2026-09-26T12:00:00Z')
 const offering = { offering_version_id: version, plan_key: 'plus' as const, stripe_account: 'acct_test',
   stripe_product_id: 'prod_test', stripe_price_id: 'price_test', currency: 'usd' as const, interval: 'month' as const,
   unit_amount: 1900, classroom_limit: 5, catalog_key: 'pika:launch-2026-09-26:pro:usd:month' }
-function fixture() {
+function fixture(providerMode: 'test' | 'live' = 'test', now = () => at) {
   let row: CheckoutAttempt | null = null
   const sequence: string[] = []
   const store: CheckoutStore = {
-    getCheckoutOffering: vi.fn(async () => offering),
+    getCheckoutOffering: vi.fn(async () => providerMode === 'live' ? { ...offering, provider_mode: 'live' } : offering),
     getCheckout: vi.fn(async ({ subject_user_id }) => row?.subject_user_id === subject_user_id ? structuredClone(row) : null),
     reserveCheckout: vi.fn(async request => {
       sequence.push('reserve')
@@ -34,12 +34,12 @@ function fixture() {
     }),
     finishCheckout: vi.fn(async request => {
       row!.status = request.outcome === 'pending' ? request.payment_pending ? 'payment_pending' : 'open'
-        : request.outcome === 'retry' ? row!.status : request.outcome
+        : request.outcome === 'retry' || request.outcome === 'paused' ? row!.status : request.outcome
       return { status: 'finished' }
     }),
     listCheckoutWork: vi.fn(async () => ({ attempt_ids: [id] })),
   }
-  const open = { id: 'cs_test_abc', customerId: 'cus_test', subscriptionId: null,
+  const open = { id: `cs_${providerMode}_abc`, customerId: 'cus_test', subscriptionId: null,
     status: 'open' as const, paymentStatus: 'unpaid' as const, url: 'https://checkout.stripe.com/c/pay/abc' }
   const provider: CheckoutProvider = {
     assertAccount: vi.fn(async () => { sequence.push('account') }),
@@ -47,14 +47,70 @@ function fixture() {
     createSession: vi.fn(async () => { sequence.push('session'); return open }),
     retrieveSession: vi.fn(async () => open),
   }
-  const service = createCheckoutService({ store, provider, stripeAccount: 'acct_test', returnOrigin: 'http://localhost:3000',
+  const dependencies = { store, provider, stripeAccount: 'acct_test',
     validateOffering: candidate => candidate.catalog_key === offering.catalog_key ? { lookupKey: offering.catalog_key } : null,
-    now: () => at })
+    now } satisfies Pick<Parameters<typeof createCheckoutService>[0], 'store' | 'provider' | 'stripeAccount' | 'validateOffering' | 'now'>
+  const liveService = (checkoutAdmissionEnabled: boolean, providerWritesEnabled: boolean, returnOrigin = 'https://pika.codepet.ca') =>
+    createCheckoutService({ ...dependencies, providerMode: 'live', returnOrigin, checkoutAdmissionEnabled, providerWritesEnabled })
+  const service = providerMode === 'live' ? liveService(true, true)
+    : createCheckoutService({ ...dependencies, returnOrigin: 'http://localhost:3000' })
   const start = () => service.startCheckout({ subjectUserId: user, offeringVersionId: version, operationId: id })
-  return { store, provider, service, start, sequence, row: () => row!, open }
+  return { store, provider, service, liveService, start, sequence, row: () => row!, open }
 }
 
 describe('durable hosted checkout orchestration', () => {
+  it('binds live reservations to production and rejects a same-account sandbox offering', async () => {
+    const live = fixture('live')
+    expect(() => live.liveService(true, true, 'https://pika.codepet.ca.invalid')).toThrow('Invalid live checkout return origin')
+    vi.mocked(live.store.getCheckoutOffering).mockResolvedValueOnce(offering)
+    await expect(live.start()).rejects.toThrow('Checkout offering mismatch')
+    expect(live.store.reserveCheckout).not.toHaveBeenCalled()
+    expect(live.provider.createCustomer).not.toHaveBeenCalled()
+    expect(await live.start()).toEqual({ attemptId: id, status: 'checkout_open', checkoutUrl: live.open.url })
+    expect(live.store.reserveCheckout).toHaveBeenCalledWith(expect.objectContaining({
+      success_url: `https://pika.codepet.ca/billing?checkout=${id}&result=success`,
+      cancel_url: `https://pika.codepet.ca/billing?checkout=${id}&result=cancel`,
+      offering: expect.objectContaining({ provider_mode: 'live' }),
+    }))
+    live.row().success_url = `https://pika.codepet.ca.invalid/billing?checkout=${id}&result=success`
+    await expect(live.start()).rejects.toThrow('Checkout identity mismatch')
+    expect(live.provider.createSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes new admission without preventing recovery of a paid live session', async () => {
+    const fresh = fixture('live')
+    const args = { subjectUserId: user, offeringVersionId: version, operationId: id }
+    await expect(fresh.liveService(false, true).startCheckout(args)).rejects.toThrow('New checkout is currently unavailable')
+    expect(fresh.store.reserveCheckout).not.toHaveBeenCalled()
+
+    const live = fixture('live')
+    await live.start()
+    vi.mocked(live.provider.retrieveSession).mockResolvedValue({ ...live.open,
+      status: 'complete', paymentStatus: 'paid', subscriptionId: 'sub_live', url: null })
+    const paused = live.liveService(false, false)
+    expect(await paused.reconcileCheckouts({ limit: 1 })).toEqual({ processed: 1, failed: 0 })
+    expect(live.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'bound', subscription_id: 'sub_live' }))
+    expect(live.provider.createSession).toHaveBeenCalledTimes(1)
+
+    live.row().session_id = null
+    live.row().status = 'reserved'
+    expect(await paused.reconcileCheckouts({ limit: 1 })).toEqual({ processed: 1, failed: 0 })
+    expect(live.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'paused', reason_code: 'provider_writes_paused' }))
+    expect(live.provider.createSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('closes a live attempt when provider reads consume its write window', async () => {
+    let time = at
+    const live = fixture('live', () => time)
+    vi.mocked(live.provider.createSession).mockImplementationOnce(async (_attempt, _customer, _key, assertCanWrite) => {
+      time = at + 120_000
+      assertCanWrite?.()
+      throw new Error('Provider write should have stopped')
+    })
+    expect((await live.start()).status).toBe('attention')
+    expect(live.store.finishCheckout).toHaveBeenLastCalledWith(expect.objectContaining({ outcome: 'attention', reason_code: 'write_recovery_expired' }))
+  })
+
   it('reserves before provider writes, verifies merchant, reuses fixed keys and redacts identity', async () => {
     const f = fixture()
     expect(await f.start()).toEqual({ attemptId: id, status: 'checkout_open', checkoutUrl: f.open.url })

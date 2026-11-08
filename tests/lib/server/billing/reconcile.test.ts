@@ -67,6 +67,34 @@ const paidSnapshot = {
 }
 
 describe('reconcileBillingSubscriptions', () => {
+  it('isolates live work and refuses a foreign live account before claiming', async () => {
+    const scope = { stripeAccount: 'acct_liveplatform', providerMode: 'live' } as const
+    const liveBinding = { ...binding, stripe_account: scope.stripeAccount, provider_mode: scope.providerMode }
+    const item = { kind: 'reconcile', event_inbox_id: null, subscription_id: binding.subscription_id, next_attempt_at: null }
+    const foreignId = '99999999-9999-4999-8999-999999999999'
+    const store: BillingStore = {
+      listWork: vi.fn().mockResolvedValue({ items: [
+        { ...item, binding: liveBinding },
+        { ...item, subscription_id: foreignId,
+          binding: { ...liveBinding, subscription_id: foreignId, stripe_account: 'acct_other' } },
+      ] }),
+      claimSubscription: vi.fn().mockResolvedValue({ status: 'busy' }),
+      finishSubscription: vi.fn(),
+    }
+    const provider: BillingProvider = { retrieveSubscription: vi.fn() }
+    const input = { store, provider, limit: 2, leaseSeconds: 60 }
+
+    await expect(reconcileBillingSubscriptions(input)).rejects.toThrow('work is unavailable')
+    expect(store.claimSubscription).not.toHaveBeenCalled()
+
+    await expect(reconcileBillingSubscriptions({ ...input, scope })).resolves.toMatchObject({
+      processed: 2, deferred: 1, exceptions: 1,
+    })
+    expect(store.claimSubscription).toHaveBeenCalledExactlyOnceWith({ subscription_id: binding.subscription_id, lease_seconds: 60 })
+    expect(provider.retrieveSubscription).not.toHaveBeenCalled()
+    expect(store.finishSubscription).not.toHaveBeenCalled()
+  })
+
   it('rechecks a pending renewal without a paid webhook and applies only the captured invoice', async () => {
     const eventInboxId = '88888888-8888-4888-8888-888888888888'
     const dueWork = { subscription_id: binding.subscription_id, binding, next_attempt_at: null }
