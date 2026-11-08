@@ -280,8 +280,8 @@ export function TeacherLessonCalendarTab({
 
   // Always fetch the full term - switching views is then instant
   const fetchRange = useMemo(() => {
-    const start = classroom.start_date || format(startOfMonth(currentDate), 'yyyy-MM-dd')
-    const end = classroom.end_date || format(endOfMonth(currentDate), 'yyyy-MM-dd')
+    const start = (classroom.start_date && classroom.end_date) ? classroom.start_date : format(startOfMonth(currentDate), 'yyyy-MM-dd')
+    const end = (classroom.start_date && classroom.end_date) ? classroom.end_date : format(endOfMonth(currentDate), 'yyyy-MM-dd')
     return { start, end }
   }, [classroom.start_date, classroom.end_date, currentDate])
 
@@ -861,8 +861,8 @@ export function TeacherLessonCalendarTab({
     setLoading(true)
     setMarkdownError(null)
     try {
-      const start = classroom.start_date || fetchRange.start
-      const end = classroom.end_date || fetchRange.end
+      const start = fetchRange.start
+      const end = fetchRange.end
       const cachedPlans = await fetchTeacherLessonPlansForRange(requestedClassroomId, start, end)
       if (!isCurrentLoad()) return
       const plans = applyPendingLessonPlanChanges(
@@ -1091,9 +1091,12 @@ export function TeacherLessonCalendarTab({
     onNavigateToAnnouncements()
   }, [onNavigateToAnnouncements])
 
-  const handlePreviousDate = useCallback(() => {}, [])
-  const handleNextDate = useCallback(() => {}, [])
-  const handleToday = useCallback(() => setTodayRequest(value => value + 1), [])
+  const handlePreviousDate = useCallback(() => setCurrentDate(date => subMonths(date, 1)), [])
+  const handleNextDate = useCallback(() => setCurrentDate(date => addMonths(date, 1)), [])
+  const handleToday = useCallback(() => {
+    if (!classroom.start_date || !classroom.end_date) setCurrentDate(nowInToronto())
+    setTodayRequest(value => value + 1)
+  }, [classroom.start_date, classroom.end_date])
 
   // Notify parent when sidebar opens/closes, content changes, or error/saving state changes
   // Note: markdownContent IS included because the sidebar uses local state to avoid cursor jump.
