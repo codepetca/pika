@@ -302,3 +302,7 @@ rehearsal, closeout, replacement, customer UI and profile admission are pending.
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.

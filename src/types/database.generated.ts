@@ -2881,6 +2881,7 @@ export type Database = {
           paid_through: string
           reason: string | null
           revision: number
+          scheduled_operation_id: string | null
           stage: string
           status: string
           subscription_id: string
@@ -2900,6 +2901,7 @@ export type Database = {
           paid_through: string
           reason?: string | null
           revision?: number
+          scheduled_operation_id?: string | null
           stage?: string
           status?: string
           subscription_id: string
@@ -2919,6 +2921,7 @@ export type Database = {
           paid_through?: string
           reason?: string | null
           revision?: number
+          scheduled_operation_id?: string | null
           stage?: string
           status?: string
           subscription_id?: string

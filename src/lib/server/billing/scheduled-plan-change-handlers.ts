@@ -7,7 +7,7 @@ const uuid = z.string().uuid().transform(value => value.toLowerCase())
 const reserveInput = z.object({ operationId: uuid, offeringVersionId: uuid }).strict()
 const confirmInput = z.object({ operationId: uuid }).strict()
 const quote = z.object({
-  operation_id: uuid, state: z.enum(['quoted', 'confirmed', 'scheduled', 'applied', 'expired']),
+  operation_id: uuid, state: z.enum(['quoted', 'confirmed', 'scheduled', 'applied', 'closed_unpaid', 'expired']),
   effective_at: z.string().datetime({ offset: true }), expires_at: z.string().datetime({ offset: true }),
   plan_key: z.literal('plus'), currency: z.enum(['usd', 'cad']), interval: z.enum(['month', 'year']),
   recurring_amount: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),

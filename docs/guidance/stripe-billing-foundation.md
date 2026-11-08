@@ -670,7 +670,9 @@ target invoice enters the exact seven-day grace period on the paid Max terms.
 Both application flags and the database admission flag default to off. This
 checkpoint has disposable database and mocked Stripe evidence. It still needs
 disposable CI profile admission, independent review, customer scheduling and
-replacement controls, and scheduled target-invoice closeout and payment-race
-handling. The current verifier accepts target capture during grace. A capture
-at or after cutoff needs the pending closeout integration. Keep the scheduling
-flags off until those contracts and the isolated Stripe rehearsal pass.
+replacement controls, and an isolated Stripe lifecycle rehearsal. Migration 307
+keeps scheduled renewals out of the legacy closeout worker and ties an opted-in
+claim to the exact target invoice. A verified capture that wins the closeout
+race commits the Pro term. A verified void plus terminal schedule and invoice
+evidence keeps Free in force and retires the payer binding. Keep the scheduling
+flags off outside the isolated rehearsal until the remaining contracts pass.

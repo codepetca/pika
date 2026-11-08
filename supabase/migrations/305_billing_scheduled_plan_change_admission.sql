@@ -18,14 +18,14 @@ create table private.billing_scheduled_plan_changes (
   expected_plan_revision bigint not null check (expected_plan_revision > 0),
   expected_access_revision bigint not null check (expected_access_revision > 0),
   expected_entitlement_revision bigint not null check (expected_entitlement_revision > 0),
-  state text not null default 'quoted' check (state in ('quoted','confirmed','scheduled','applied','expired')),
+  state text not null default 'quoted' check (state in ('quoted','confirmed','scheduled','applied','closed_unpaid','expired')),
   confirmed_at timestamptz,
   provider_schedule_id text unique check (provider_schedule_id ~ '^sub_sched_[A-Za-z0-9]{1,240}$'),
   created_at timestamptz not null default clock_timestamp(),
   check (source_offering_version_id <> target_offering_version_id),
   check (paid_period_start < effective_at and quote_expires_at < effective_at),
-  check ((state in ('confirmed','scheduled','applied'))=(confirmed_at is not null)),
-  check ((state in ('scheduled','applied'))=(provider_schedule_id is not null))
+  check ((state in ('confirmed','scheduled','applied','closed_unpaid'))=(confirmed_at is not null)),
+  check ((state in ('scheduled','applied','closed_unpaid'))=(provider_schedule_id is not null))
 );
 alter table private.billing_scheduled_plan_changes enable row level security;
 revoke all on table private.billing_scheduled_plan_changes from public,anon,authenticated,service_role;
