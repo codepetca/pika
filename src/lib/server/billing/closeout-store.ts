@@ -29,7 +29,7 @@ export type LiveBillingCloseoutRpcClient = {
 
 export function createLiveBillingCloseoutStore(client: LiveBillingCloseoutRpcClient, target: {
   projectRef: string; stripeAccount: string
-}): RenewalCloseoutStore {
+}, scheduledChangesEnabled = false): RenewalCloseoutStore {
   async function call(name: LiveCloseoutRpcName, payload: Json) {
     const { data, error } = await client.rpc(name, {
       p_project_ref: target.projectRef, p_stripe_account: target.stripeAccount, p_request: payload,
@@ -38,8 +38,8 @@ export function createLiveBillingCloseoutStore(client: LiveBillingCloseoutRpcCli
     return data
   }
   return {
-    listDue: input => call('billing_list_live_renewal_closeouts_v1', input),
-    claim: input => call('billing_claim_live_renewal_closeout_v1', input),
+    listDue: input => call('billing_list_live_renewal_closeouts_v1', scheduledChangesEnabled ? { ...input, scheduled_changes_enabled: true } : input),
+    claim: input => call('billing_claim_live_renewal_closeout_v1', scheduledChangesEnabled ? { ...input, scheduled_changes_enabled: true } : input),
     checkpoint: input => call('billing_checkpoint_live_renewal_closeout_v1', input),
     finish: input => call('billing_finish_live_renewal_closeout_v1', input),
   }

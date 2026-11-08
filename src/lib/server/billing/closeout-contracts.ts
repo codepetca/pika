@@ -14,9 +14,11 @@ export const RenewalCloseoutEvidenceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('attention'), reason: z.enum(['identity_mismatch', 'unsupported_payment', 'partial_payment', 'unknown_invoice', 'incomplete_evidence', 'unexpected_money']) }).strict(),
 ])
 export type RenewalCloseoutEvidence = z.infer<typeof RenewalCloseoutEvidenceSchema>
-export const RenewalCloseoutScheduleSchema = BillingScheduledRenewalSchema.omit({ state: true })
-export type RenewalCloseoutSchedule = z.infer<typeof RenewalCloseoutScheduleSchema>
 export const LiveRenewalCloseoutBindingSchema = BillingSubscriptionBindingSchema.extend({ provider_mode: z.literal('live') })
+const scheduleSchema = BillingScheduledRenewalSchema.omit({ state: true })
+export const RenewalCloseoutScheduleSchema = scheduleSchema.extend({ target_binding: BillingSubscriptionBindingSchema })
+export const LiveRenewalCloseoutScheduleSchema = scheduleSchema.extend({ target_binding: LiveRenewalCloseoutBindingSchema })
+export type RenewalCloseoutSchedule = z.infer<typeof RenewalCloseoutScheduleSchema> | z.infer<typeof LiveRenewalCloseoutScheduleSchema>
 export type RenewalCloseoutReadRequest = {
   binding: BillingReconciliationBinding
   invoiceId: string
@@ -48,7 +50,7 @@ export const RenewalCloseoutClaimSchema = z.object({
 }).strict()
 const liveRenewalCloseoutClaimSchema = RenewalCloseoutClaimSchema.extend({
   binding: LiveRenewalCloseoutBindingSchema,
-  scheduled: z.never().optional(),
+  scheduled: LiveRenewalCloseoutScheduleSchema.optional(),
 })
 export type RenewalCloseoutClaim = z.infer<typeof RenewalCloseoutClaimSchema> | z.infer<typeof liveRenewalCloseoutClaimSchema>
 const claimUnavailableSchema = z.object({ status: z.enum(['busy', 'not_found', 'plan_conflict', 'superseded']) }).strict()

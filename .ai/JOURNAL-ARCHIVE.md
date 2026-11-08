@@ -52503,3 +52503,22 @@ Restored compact month navigation for teacher and student calendars with an inco
 ## 2026-11-08 — Universal RepoLight tier benefit
 
 Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+<!-- pika-session-log-archive-batch:120321cd6d52fead38076fc21169dbbcba87d648ea39da1fa28afff0f6908f97 -->
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+<!-- pika-session-log-archive-batch:cdefae3ca7dc23c6fcb1d3ddec5de2180d1425246d11288d266ef0d3040a47c5 -->

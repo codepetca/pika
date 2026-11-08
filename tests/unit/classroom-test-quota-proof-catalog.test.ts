@@ -41,7 +41,7 @@ describe('externally sealed Test quota proof table addition', () => {
     const changed = current.map(row => ({ ...row }))
     changed[301].sql += '\n'
     changed[301].sha256 = createHash('sha256').update(changed[301].sql).digest('hex')
-    const future = { name: '324_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }
+    const future = { name: '325_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }
     for (const inventory of [current.slice(0, 302), current.slice(0, 305), current.slice(0, 306), current.slice(0, 308), current.slice(0, 309), changed, [...current, future]]) {
       expect(() => disposableClassroomTestQuotaProofCatalog(canonical, inventory)).toThrow()
     }

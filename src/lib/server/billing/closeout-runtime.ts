@@ -37,7 +37,7 @@ export function closeDueLiveRenewals(config: BillingLiveCheckoutConfig) {
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
   const store = createLiveBillingCloseoutStore({
     rpc: (name, args) => client.rpc(name, args).abortSignal(AbortSignal.timeout(5_000)),
-  }, config)
+  }, config, process.env.BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED === 'true')
   const scope = { providerMode: config.providerMode, stripeAccount: config.stripeAccount }
   const provider = createStripeCloseoutProvider(createStripeCloseoutPort(stripe), scope)
   return closeDueRenewals({ store, provider, scope, limit: 1, leaseSeconds: 120 })
