@@ -427,12 +427,17 @@ Re-eligibility restores access to the same retained workspace. Existing work
 and legally required cleanup remain accessible under their established ownership
 and lifecycle safeguards.
 
-For billing-managed subscriptions, record the benefit explicitly on new offering
-versions; do not infer a benefit from a current display label or silently alter
-historical purchased versions. Existing subscriptions retain their purchased terms
-unless an approved transition supplies the benefit. The legacy runtime keys are
-`plus` for public Pro and `pro` for public Max. Trial eligibility must use the
-actual active trial period and authoritative entitlement state, including expiry.
+Owner clarification 2026-11-08: RepoLight is an additive benefit for **every**
+valid Pro or Max tier, including an active Pro trial, regardless of whether a
+purchased offering version recorded the RepoLight feature flag. This specific
+benefit is an explicit exception to the feature-inclusion rule in SUB-07 and
+SUB-08. Historical offering records, prices, payment terms, classroom limits,
+AI allowances and all other purchased terms remain unchanged; the exception does
+not authorize a paid billing launch. A tier label alone is insufficient: the
+resolver must still verify the purchased version, payment, binding, revisions,
+access period and effective entitlement. The legacy runtime keys are `plus` for
+public Pro and `pro` for public Max. Trial eligibility must use the actual active
+trial period and authoritative entitlement state, including expiry.
 
 Implement server-side checks at new-analysis admission and remote-work
 (including retry) boundaries, with race-safe plan changes and fail-closed handling

@@ -89,6 +89,20 @@ describe('LessonCalendar', () => {
   const neighboringPlan = { ...allModeLessonPlan, id: 'neighbor-plan', date: '2026-03-17',
     content_markdown: 'Neighboring long preview\n\nA second paragraph that should keep its compact density.' }
 
+  it.each(['list', 'grid'] as const)('uses one workspace scroller for the full %s term', viewMode => {
+    const { container } = render(<LessonCalendar classroom={mockClassroom} lessonPlans={[]}
+      viewMode={viewMode} currentDate={new Date('2026-03-15T12:00:00')} editable={false}
+      showHeader={false} constrainToWorkspace onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
+    const firstDay = container.querySelector('[data-calendar-date="2026-01-01"]')!
+    const lastDay = container.querySelector('[data-calendar-date="2026-06-01"]')!
+    const scrollOwner = firstDay.closest('.overflow-auto')
+    expect(scrollOwner).toHaveClass('min-h-40', 'flex-1', 'isolate')
+    expect(scrollOwner).toHaveAttribute('tabindex', '0')
+    expect(scrollOwner).toHaveAccessibleName('Calendar dates')
+    expect(lastDay.closest('.overflow-auto')).toBe(scrollOwner)
+    expect(container.querySelectorAll('.overflow-auto')).toHaveLength(1)
+  })
+
   it.each([true, false])('keeps neighboring preview density unchanged when selecting a day (editable=%s)', editable => {
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable={editable}

@@ -1,3 +1,4 @@
+import * as timezone from '@/lib/timezone'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TeacherLessonCalendarTab } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
@@ -53,9 +54,10 @@ vi.mock('@/contexts/MarkdownPreferenceContext', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange, initialSourcesLoading }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange, initialSourcesLoading, currentDate }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-current-date={currentDate.toISOString().slice(0, 10)}
       data-initial-sources-loading={String(initialSourcesLoading)}
       data-material-ids={materials.map((material: { id: string }) => material.id).join(',')}
       data-test-count={tests.length}
@@ -153,6 +155,28 @@ describe('TeacherLessonCalendarTab', () => {
     vi.restoreAllMocks()
   })
 
+  it.each([
+    [null, null], ['2026-01-01', null], [null, '2026-12-31'],
+  ])('navigates and fetches prior months with incomplete dates (%s, %s)', async (start_date, end_date) => {
+    let now = new Date(2026, 9, 15, 12)
+    vi.spyOn(timezone, 'nowInToronto').mockImplementation(() => now)
+    const incomplete = { ...classroom, id: `incomplete-Teacher-${start_date}-${end_date}`, start_date, end_date }
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => ({
+      lesson_plans: String(url).includes('2026-09-01') ? [{ id: 'prior-lesson', classroom_id: incomplete.id, date: '2026-09-15', content_markdown: 'Previous lesson' }] : [],
+      assignments: [], materials: [], announcements: [], tests: [], max_date: null,
+    }) }))
+    render(<TeacherLessonCalendarTab showTests={false} classroom={incomplete} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-09-01') && String(url).includes('end=2026-09-30'))).toBe(true))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1'))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-09-15')
+    now = new Date(2026, 10, 2, 12)
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-11-02'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-11-01') && String(url).includes('end=2026-11-30'))).toBe(true))
+  })
+
   it('refreshes an already-mounted calendar after a confirmed announcement edit in this classroom', async () => {
     let published_at = '2026-10-22T04:00:00Z'
     let reads = 0
@@ -178,6 +202,7 @@ describe('TeacherLessonCalendarTab', () => {
     render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
     const list = screen.getByRole('button', { name: 'List', exact: true })
+    expect(list.closest('.sticky')?.querySelector('[aria-live]')).toBeNull()
     expect(list).toHaveAttribute('aria-pressed', 'true')
     const readCount = fetchMock.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))

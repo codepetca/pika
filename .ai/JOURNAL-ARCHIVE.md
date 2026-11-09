@@ -51260,7 +51260,7 @@ Applied local migrations 293–295. Migration 296 initially failed on a reserved
 
 Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
 
-<!-- pika-session-log-archive-batch:c10e91045712acb9267a8f483af67f2004c2e7323512b22b95e6052bf1e9e596 -->
+<!-- pika-session-log-archive-batch:f125a64435d30c85b2622cbd95a24694f63b4fb8565e1024653f61623b760155 -->
 ## 2026-10-30 — Named schedule CI fixes
 
 Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
@@ -51280,3 +51280,28 @@ Approved responsiveness plan; worktree `codex/site-responsiveness` at base ebe91
 ## 2026-11-02 — Teacher Classwork cold loading
 
 PR1718 merged to main as 0507966c; exact-head CI passed on retry after one unrelated UiGallery timeout. In `codex/classwork-cold-load`, teacher Classwork reuses the classroom class-days provider without blocking its three-list snapshot; the standalone fallback hides another classroom's schedule immediately. Paired synthetic browser probe holding class-days 500ms: median list readiness 545→37ms (5 samples/version), one request per source; no production latency claim. Focused component/context tests pass 105. UI matrix, focused checks and independent review pending. Evidence: `/tmp/pika-classdays-paired.0haTTl`.
+
+<!-- pika-session-log-archive-batch:18675c0da6da4fe2286c05dc251647c58a5142d0fc57c137b4a1f4925f227f08 -->
+## 2026-11-02 Test editor grading notes
+
+Made answer key and sample solution fields grow with their content and container width; moved Add reference beside the test title and removed the enclosing reference panel, and placed test/classroom context above the title, and aligned question number, points and add action in the toolbar. Extended the compact context label to assignment, material and survey editors and moved survey question actions into the toolbar, and placed the shared icon-labelled Write/Markdown control in each editor’s details pane. Aligned editor primary and add actions on the shared primary color. Updated Pattern Lab with shared auto-growing grading notes and assignment/survey settings examples. Shared test reference cards between the editor and Pattern Lab, retaining local-only placeholder behavior. Applied the reviewed read-only total beside question points in the test editor, with immediate valid-draft updates and full-modal visual checks. Reserved the mobile close target above title controls after independent review. Focused component tests and Playwright checks cover the editor.
+
+<!-- pika-session-log-archive-batch:d3be3903b02a8396cf6848471490546f594104deb8cf7e4bdebd535dc836764e -->
+## 2026-11-02 — Tests list read overlap
+
+PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list-responsiveness`, the legacy student active/closed Tests reads and legacy teacher Tests/roster reads start concurrently only after authorization; existing error precedence and status ordering remain. Deferred route tests cover authorization, overlap, migration/error precedence and late rejections. Controlled timer-only examples: student 107→62ms for 50ms mocked reads; teacher 203→102ms for 100ms reads. These are not production or database latency measurements; successful requests use the same query count with at most two initial reads in flight. Admitted/shared routes and student exam sessions are unchanged. Exact focused checks, independent security/correctness review and CI pending.
+
+<!-- pika-session-log-archive-batch:fdb982b5e65bf9c71c37eaa84f4b203659c73872d1823665c7eaf06e650a51ee -->
+<!-- pika-session-log-archive-batch:329c5a697a888d3ce2e3f192e3c7c864d45763d728106da883ad10d7322d8e4b -->
+## 2026-11-02 — Reduce Classwork requirement reads
+
+Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
+
+<!-- pika-session-log-archive-batch:4bef94ac035cc9c2c6f94a43c947390766b4b99eccf0256569b7b0026257be85 -->
+## 2026-11-02 — Teacher Tests query overlap
+
+On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list change that overlaps authorized question and attempt reads while preserving question-first errors. A synthetic one-test/one-student probe with 80 ms delays per read measured 168 ms before and 89 ms after, with six table requests in both successful runs; these are mocked timings, not production measurements. Focused route checks cover overlap, authorization, error precedence and late rejections. Production deployment remains pending.
+
+## 2026-11-02 — Teacher Tests intent prefetch
+
+Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.

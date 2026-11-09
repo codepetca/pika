@@ -45,6 +45,14 @@ describe('term calendar modes', () => {
     expect(onAssignmentClick).toHaveBeenCalledWith(assignment)
   })
 
+  it.each(['list', 'grid'] as const)('shows the selected month for an incomplete term in %s', mode => {
+    render(<TooltipProvider><LessonCalendar classroom={{ ...classroom, start_date: null }}
+      lessonPlans={[lesson('prior', '2026-02-16', 'Previous month lesson')]}
+      viewMode={mode} currentDate={new Date('2026-02-15T12:00:00')} editable={false}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} /></TooltipProvider>)
+    expect(screen.getByText('Previous month lesson')).toBeInTheDocument()
+  })
+
   it('unclamps expanded read-only grid text while keeping plain text', () => {
     const longText = 'First line\nSecond line\nThird line\nFourth line'
     render(<TooltipProvider><LessonCalendar classroom={classroom} lessonPlans={[lesson('long', '2026-03-02', longText)]}

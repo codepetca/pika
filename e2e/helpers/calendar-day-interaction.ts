@@ -248,7 +248,10 @@ export async function verifyEmptyCalendarLessonTargets(page: Page, testInfo: Tes
   await page.getByRole('button', { name: 'List', exact: true }).click()
   const add = page.getByRole('button', { name: 'Add lesson for October 6, 2026', exact: true })
   const event = page.getByRole('button', { name: 'Blank day event', exact: true })
-  await event.scrollIntoViewIfNeeded()
+  // Center the row below the sticky month heading, then reveal its hover action
+  // as a pointer user would before clicking it.
+  await event.evaluate(element => element.scrollIntoView({ block: 'center' }))
+  await event.hover()
   const bounds = await add.evaluate(element => {
     const button = element.getBoundingClientRect()
     const region = element.closest('.calendar-day-text')!.getBoundingClientRect()
@@ -257,7 +260,16 @@ export async function verifyEmptyCalendarLessonTargets(page: Page, testInfo: Tes
   expect(bounds.top).toBeGreaterThanOrEqual(-1)
   expect(bounds.bottom).toBeLessThanOrEqual(1)
   expect(bounds.height).toBeGreaterThanOrEqual(44)
+  await expect(add).toHaveCSS('opacity', '1')
+  expect(await add.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
+  })).toBe(true)
   await add.click()
+  await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(add).toBeFocused()
+  await page.keyboard.press('Enter')
   await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(add).toBeFocused()

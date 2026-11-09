@@ -135,25 +135,49 @@ describe('CalendarActionBar', () => {
     const onToday = vi.fn()
 
     render(
-      <CalendarActionBar
+      <TooltipProvider><CalendarActionBar
         viewMode="grid"
         currentDate={new Date(2026, 6, 21)}
         onPrev={vi.fn()}
         onNext={vi.fn()}
         onToday={onToday}
         onViewModeChange={onViewModeChange}
-      />,
+      /></TooltipProvider>,
     )
 
     const viewControl = screen.getByRole('group', { name: 'Calendar view' })
+    expect(screen.getByRole('button', { name: 'Previous month' })).toBeInTheDocument()
     expect(viewControl.closest('.fixed')).toBeNull()
     expect(viewControl).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('July 2026')
     expect(screen.getByRole('button', { name: 'Grid' })).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.keyDown(screen.getByRole('button', { name: 'Grid' }), { key: 'ArrowLeft' })
     expect(onViewModeChange).toHaveBeenCalledWith('list')
     fireEvent.click(screen.getByRole('button', { name: 'Today' }))
     expect(onToday).toHaveBeenCalledOnce()
+  })
+
+  it('only shows month arrows for incomplete terms and calls both actions', () => {
+    const onPrev = vi.fn()
+    const onNext = vi.fn()
+    const props = { viewMode: 'list' as const, currentDate: new Date(2026, 9, 5), onPrev, onNext,
+      onToday: vi.fn(), onViewModeChange: vi.fn() }
+    const view = render(<TooltipProvider><CalendarActionBar {...props} rangeStart="2026-09-01" rangeEnd={null} /></TooltipProvider>)
+    const status = screen.getByRole('status')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+    expect(status).toHaveClass('sr-only')
+    expect(status).toHaveTextContent('October 2026')
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    view.rerender(<TooltipProvider><CalendarActionBar {...props} currentDate={new Date(2026, 8, 5)} rangeStart="2026-09-01" rangeEnd={null} /></TooltipProvider>)
+    expect(status).toHaveTextContent('September 2026')
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }))
+    expect(onPrev).toHaveBeenCalledOnce()
+    expect(onNext).toHaveBeenCalledOnce()
+    view.rerender(<TooltipProvider><CalendarActionBar {...props} rangeStart="2026-09-01" rangeEnd="2027-01-31" /></TooltipProvider>)
+    expect(screen.queryByRole('button', { name: 'Previous month' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Next month' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
   })
 
   it('keeps teacher calendar views centered and places secondary commands in More actions', () => {

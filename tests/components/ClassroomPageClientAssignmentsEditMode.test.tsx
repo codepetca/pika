@@ -1198,6 +1198,17 @@ describe('ClassroomPageClient assignment edit-mode markdown gating', () => {
     expect(screen.getByTestId('app-shell-page-title')).toBeEmptyDOMElement()
   })
 
+  it.each(['teacher', 'student'] as const)('constrains the %s calendar workspace on mobile and desktop', role => {
+    window.history.replaceState({}, '', '/classrooms/classroom-1?tab=calendar')
+    const options = { initialTab: 'calendar', initialSearchParams: { tab: 'calendar' } }
+    if (role === 'teacher') renderClient(options)
+    else renderStudentClient(options)
+    expect(mockAppShellProps.mock.lastCall?.[0]).toMatchObject({
+      constrainToViewport: true,
+      constrainToViewportOnMobile: true,
+    })
+  })
+
   it('uses the accessible solid fill for the calendar sidebar save action', async () => {
     window.history.replaceState({}, '', '/classrooms/classroom-1?tab=calendar')
 

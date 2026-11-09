@@ -30,9 +30,10 @@ interface LessonCalendarProps {
   editable: boolean
   saving?: boolean
   showHeader?: boolean
+  constrainToWorkspace?: boolean
+  agendaGutter?: 'compact' | 'comfortable'
   todayRequest?: number
   initialSourcesLoading?: boolean
-  onVisibleMonthChange?: (month: string) => void
   onDateChange: (date: Date) => void
   onViewModeChange: (mode: CalendarViewMode) => void
   onContentChange?: (date: string, contentMarkdown: string) => void
@@ -91,9 +92,10 @@ export function LessonCalendar({
   editable,
   saving = false,
   showHeader = true,
+  constrainToWorkspace = false,
+  agendaGutter = 'compact',
   todayRequest = 0,
   initialSourcesLoading = false,
-  onVisibleMonthChange,
   onDateChange,
   onViewModeChange,
   onContentChange,
@@ -200,8 +202,9 @@ export function LessonCalendar({
     return set
   }, [classDays])
 
-  const termStart = useMemo(() => classroom.start_date ? parseISO(classroom.start_date) : startOfMonth(currentDate), [classroom.start_date, currentDate])
-  const termEnd = useMemo(() => classroom.end_date ? parseISO(classroom.end_date) : endOfMonth(currentDate), [classroom.end_date, currentDate])
+  const hasCompleteTerm = Boolean(classroom.start_date && classroom.end_date)
+  const termStart = useMemo(() => hasCompleteTerm ? parseISO(classroom.start_date!) : startOfMonth(currentDate), [hasCompleteTerm, classroom.start_date, currentDate])
+  const termEnd = useMemo(() => hasCompleteTerm ? parseISO(classroom.end_date!) : endOfMonth(currentDate), [hasCompleteTerm, classroom.end_date, currentDate])
   const days = useMemo(() => eachDayOfInterval({
     start: startOfWeek(termStart, { weekStartsOn: 0 }),
     end: endOfWeek(termEnd, { weekStartsOn: 0 }),
@@ -209,19 +212,6 @@ export function LessonCalendar({
   const calendarRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [localTodayRequest, setLocalTodayRequest] = useState(0)
-  const updateVisibleMonth = useCallback(() => {
-    const scroller = scrollRef.current
-    if (!scroller || viewMode !== 'list') return
-    const sections = Array.from(scroller.querySelectorAll<HTMLElement>('[data-calendar-month]'))
-    const top = scroller.getBoundingClientRect().top + 1
-    let active = sections[0]
-    for (const section of sections) {
-      if (section.getBoundingClientRect().top <= top) active = section
-      else break
-    }
-    if (active?.dataset.calendarMonth) onVisibleMonthChange?.(active.dataset.calendarMonth)
-  }, [onVisibleMonthChange, viewMode])
-
   const centerToday = useCallback(() => {
     const target = today < termStart ? termStart : today > termEnd ? termEnd : today
     const key = format(target, 'yyyy-MM-dd')
@@ -230,9 +220,21 @@ export function LessonCalendar({
     if (!element || !scroller) return
     const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
     scroller.scrollTop += offset - (scroller.clientHeight - element.offsetHeight) / 2
-    updateVisibleMonth()
-  }, [termStart, termEnd, today, updateVisibleMonth])
-  useEffect(() => { centerToday() }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest])
+  }, [termStart, termEnd, today])
+  const lastTodayRequest = useRef({ external: todayRequest, local: localTodayRequest })
+  useEffect(() => {
+    centerToday()
+    const requested = lastTodayRequest.current.external !== todayRequest || lastTodayRequest.current.local !== localTodayRequest
+    lastTodayRequest.current = { external: todayRequest, local: localTodayRequest }
+    if (requested && constrainToWorkspace && scrollRef.current) {
+      const scroller = scrollRef.current
+      const bounds = scroller.getBoundingClientRect()
+      const shell = scroller.closest('main')?.getBoundingClientRect()
+      if (window.innerHeight <= 400 || bounds.top < (shell?.top ?? 0) || bounds.bottom > (shell?.bottom ?? window.innerHeight)) {
+        scroller.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest, constrainToWorkspace])
 
   // Source snapshots may arrive after the first render and change row heights.
   // Recenter once after the initial load, unless the user has taken control.
@@ -322,18 +324,18 @@ export function LessonCalendar({
   }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, materialsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
   return (
-    <div ref={calendarRef} className="min-w-0">
+    <div ref={calendarRef} className={constrainToWorkspace ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}>
       {showHeader && <div className="flex items-center justify-center gap-2">
         <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange}
           options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
         <Button variant="secondary" size="sm" onClick={() => setLocalTodayRequest(value => value + 1)}>Today</Button>
       </div>}
-      <div ref={scrollRef} onScroll={updateVisibleMonth} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className="max-h-screen min-w-0 overflow-auto">
+      <div ref={scrollRef} role="region" aria-label="Calendar dates" tabIndex={0} onWheel={markUserInteraction} onTouchStart={markUserInteraction} onPointerDown={markUserInteraction} onKeyDown={markUserInteraction} className={constrainToWorkspace ? "isolate min-h-40 min-w-0 flex-1 overflow-auto scroll-pt-8 calendar-short:max-h-40 focus-visible:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-inset" : "max-h-screen min-w-0 overflow-auto scroll-pt-8"}>
       {viewMode === 'list' ? (
-        <div role="region" aria-label="Term agenda" className="min-w-0">
+        <div role="region" aria-label="Term agenda" className={constrainToWorkspace ? `mx-auto min-w-0 max-w-standard ${agendaGutter === 'comfortable' ? 'px-density-comfortable-gutter' : 'px-density-compact-gutter'}` : 'min-w-0'}>
           {Array.from(new Set(days.filter(day => day >= termStart && day <= termEnd).map(day => format(day, 'yyyy-MM')))).map(month => (
             <section key={month} data-calendar-month={format(parseISO(`${month}-01`), 'MMMM yyyy')}>
-              <div className="sticky top-0 z-sticky-table border-y border-border bg-surface-2 px-4 py-1 text-sm font-medium text-text-muted">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
+              <div className="sticky top-0 z-sticky-table border-y border-border bg-surface-3 px-4 py-1 text-sm font-semibold text-text-default">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</div>
               {days.filter(day => day >= termStart && day <= termEnd && format(day, 'yyyy-MM') === month).map(day => {
                 const dateString = format(day, 'yyyy-MM-dd')
                 const isWeekendDay = isWeekend(day)
@@ -356,7 +358,7 @@ export function LessonCalendar({
           <div className="grid" style={{ gridTemplateColumns: GRID_COLUMNS_8, gridTemplateRows: `auto ${weeks.map(() => 'auto').join(' ')}` }}>
             <div className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface" style={{ gridColumn: 1, gridRow: 1 }} />
             {DAY_LABELS.map((label, idx) => <div key={label} className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface py-1 text-center text-sm font-medium text-text-muted" style={{ gridColumn: idx + 2, gridRow: 1 }}>{idx === 0 || idx === 6 ? label.charAt(0) : label}</div>)}
-            {monthSpans.map(span => <div key={span.month} className="relative flex items-center justify-center overflow-hidden border-b border-r border-border bg-surface-2" style={{ gridColumn: 1, gridRow: `${span.startIdx + 2} / span ${span.count}` }}><span className="whitespace-nowrap text-xs font-medium text-text-muted" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{span.monthName}</span></div>)}
+            {monthSpans.map(span => <div key={span.month} className="relative flex items-center justify-center overflow-hidden border-b border-r border-border bg-surface-3" style={{ gridColumn: 1, gridRow: `${span.startIdx + 2} / span ${span.count}` }}><span className="whitespace-nowrap text-xs font-semibold text-text-default" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{span.monthName}</span></div>)}
             {weeks.flatMap((week, weekIdx) => week.map((day, dayIdx) => {
               const dateString = format(day, 'yyyy-MM-dd')
               const inTerm = day >= termStart && day <= termEnd

@@ -27,11 +27,11 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# The exact source seals through 297 are checked in the preflight below.
-# 296/297 do not modify Auth/Storage; the version is not a live schema attestation.
+# The exact source seals through 301 are checked in the preflight below.
+# 296–301 do not modify Auth/Storage; the version is not a live schema attestation.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 297)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,300,'RepoLight access proof target must be exactly300'); validateLifecycleServicesReviewedMigrations(migrations.slice(0,297)); assert.equal(migrations[297].name,'298_repolight_analysis_access.sql'); assert.equal(migrations[297].sha256,'63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'); assert.equal(migrations[298].name,'299_repolight_managed_registry.sql'); assert.equal(migrations[298].sha256,'8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'); assert.equal(migrations[299].name,'300_repolight_provision_outbox.sql'); assert.equal(migrations[299].sha256,'47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf');"
+((10#$source_version >= 234 && 10#$source_version <= 301)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,301,'RepoLight access proof target must be exactly301'); validateLifecycleServicesReviewedMigrations(migrations.slice(0,297)); assert.equal(migrations[297].name,'298_repolight_analysis_access.sql'); assert.equal(migrations[297].sha256,'63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'); assert.equal(migrations[298].name,'299_repolight_managed_registry.sql'); assert.equal(migrations[298].sha256,'8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'); assert.equal(migrations[299].name,'300_repolight_provision_outbox.sql'); assert.equal(migrations[299].sha256,'47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf'); assert.equal(migrations[300].name,'301_repolight_universal_tier_benefit.sql'); assert.equal(migrations[300].sha256,'871db1a388284f8a4178f7d36385b7db267c26b0b936bdd25a78f85ac24956e3');"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -119,7 +119,7 @@ if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then
   tail -25 "$scratch/replay.log" >&2
   exit 1
 fi
-echo 'PASS replay001–300.'
+echo 'PASS replay001–301.'
 for proof in check-repolight-database.sql check-repolight-analysis-access-database.sql check-subscription-prorated-upgrades-database.sql check-repolight-provision-combined.sql; do
   if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
     tail -25 "$scratch/$proof.log" >&2
@@ -140,4 +140,4 @@ awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { pri
 verify_source || { echo 'Baseline must remain unchanged' >&2; exit 1; }
 if [[ "$mode" == --write-types ]]; then cp "$scratch/normalized.ts" "$root/src/types/database.generated.ts"; fi
 cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts" || { echo 'Generated types differ from the replay schema' >&2; exit 1; }
-echo 'PASS isolated300 replay, rollback behavior, generated-type equality and unchanged shared schema.'
+echo 'PASS isolated301 replay, rollback behavior, generated-type equality and unchanged shared schema.'
