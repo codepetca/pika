@@ -51366,12 +51366,13 @@ Observed production learner and owner busy errors during class tests. Prepared b
 - Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
 - Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
 
-<!-- pika-session-log-archive-batch:cd39a7b3d6bad3a91b0da79ff82649edb6e78b2e792fb41e7db16a33a5c87357 -->
+<!-- pika-session-log-archive-batch:7b1739c3c313debb64386cb72d5dd327291a5bcd2bbe84c57b66f2fb5a1ae64e -->
 ## 2026-11-04 Header message loading feedback
 
 - Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
 - Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
 
+<!-- pika-session-log-archive-batch:a210273b9bf59dab0cc661c150275c801474ee7809e4ee8bec7bb440c3d521f0 -->
 ## 2026-11-04 — AI provider gate rebase
 
 Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
@@ -51392,7 +51393,6 @@ provisional list on authorization denial. The shared-admission full read remains
 unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
 no production timing or deployment is implied.
 
-<!-- pika-session-log-archive-batch:729cbde84c25a2f54405db9317a9903d3142d23d72d909d54348622a1c41b59b -->
 ## 2026-11-05 — Reverse order display preferences
 
 - Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
@@ -51400,10 +51400,17 @@ no production timing or deployment is implied.
 
 - 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
 
-<!-- pika-session-log-archive-batch:7310c8d4240f414f4fffdd995987c77c45d02de81262bba3e2cb62fd1ae27227 -->
 ## 2026-11-05 Investigate classroom tab loading
 
 Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
 Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
 content, preserving scoped filtering; local verification and independent review
 remain required before release. Roster intent PR #1745 remains separately owned.
+
+## 2026-11-05 Test roster intent loading
+
+Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.

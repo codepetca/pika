@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-05 Test roster intent loading
-
-Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.
-
-## 2026-11-06 — Protect authoring progress
-
-- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
-
 ## 2026-11-06 — RepoLight sync after gradebook PDF
 
 Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
@@ -354,6 +346,12 @@ The sealed disposable 001–307 replay passed.
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
 
+## 2026-11-09 — Combined assignment copy action
+
+Consolidated teacher bulk grade and comment copying into one menu item and dialog. Grade is selected when available; teachers can choose the comment separately, and each unchecked field hides its preview and stays unchanged. Reused the existing atomic request for grade only, comment only, or both. Verified the three request shapes in component tests and the teacher workspace in desktop and mobile light and dark browser runs.
+
+Independent review prompted three follow-ups: dismiss the dialog if its source or recipients change, retain keyboard access to the preview while copying, and show a failed save in the dialog. Added regressions for source and recipient changes and the failed save.
+
 ## 2026-11-09 — Classroom cutoff rebase
 
 Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
@@ -365,3 +363,7 @@ Hosted CI exposed exact trigger inventory checks that predated migration 308. Th
 ## 2026-11-09 — Seal the Test publication cutoff proof
 
 Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
+
+## 2026-11-09 — Sync the classroom cutoff proof with main
+
+Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.
