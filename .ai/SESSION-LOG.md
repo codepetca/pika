@@ -11,15 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 Investigate test contention
-
-Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
-
-## 2026-11-04 — Classwork access recovery
-
-- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
-- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
-
 ## 2026-11-04 Header message loading feedback
 
 - Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
@@ -318,6 +309,18 @@ keeps expiry and closeout running when optional recovery fails, and requires
 fresh terminal schedule proof for detached delinquent subscriptions.
 The sealed disposable 001–307 replay and 186 focused tests passed.
 
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
@@ -335,3 +338,7 @@ fresh terminal schedule proof for detached delinquent subscriptions. The
 follow-up preserves ordinary cancellation after settlement and keeps terminal
 markers out of authorization once Stripe proves the exact canceled phase.
 The sealed disposable 001–307 replay passed.
+
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.

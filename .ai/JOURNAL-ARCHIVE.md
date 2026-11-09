@@ -51355,3 +51355,13 @@ including retained editor, failure, retry, recovery, and controlled navigation.
 ## 2026-11-03 — Student Test submission reassurance
 
 Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
+
+<!-- pika-session-log-archive-batch:6c7974dc3e3c4403c980c10202091834693fb33d7f6562756197c02cc75bc4c7 -->
+## 2026-11-03 Investigate test contention
+
+Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
+
+## 2026-11-04 — Classwork access recovery
+
+- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
+- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
