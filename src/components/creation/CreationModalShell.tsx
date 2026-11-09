@@ -145,11 +145,7 @@ export function CreationModalContextHeader({ itemType, classroomName, spacious =
       spacious ? '!top-0 min-h-[76px] gap-3 !bg-surface px-3 sm:px-4' : 'min-h-control gap-2')}>
       <span className={cn('shrink-0 font-semibold text-text-default', spacious && 'text-2xl leading-8')}>{itemType}</span>
       {classroomName && (
-        <span title={classroomName} className="min-w-0 flex-1 overflow-hidden whitespace-nowrap text-text-muted"
-          style={{
-            maskImage: 'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
-            WebkitMaskImage: 'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
-          }}>
+        <span title={classroomName} className="min-w-0 flex-1 truncate text-text-muted">
           {classroomName}
         </span>
       )}

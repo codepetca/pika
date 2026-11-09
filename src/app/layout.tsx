@@ -6,7 +6,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext'
 import { BrowserTabProvider } from '@/components/BrowserTabBranding'
 import { MarkdownPreferenceProvider } from '@/contexts/MarkdownPreferenceContext'
 import { ProgressBarProvider } from '@/components/ProgressBarProvider'
-import { AppMessageProvider, TooltipProvider } from '@/ui'
+import { AppMessageProvider, TextOverflowFades, TooltipProvider } from '@/ui'
 import { AuthKitProvider } from '@workos-inc/authkit-nextjs/components'
 import { withAuth } from '@workos-inc/authkit-nextjs'
 import { isWorkOSMagicAuthPilotEnabled } from '@/lib/server/workos-pilot'
@@ -69,6 +69,7 @@ export default async function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-page font-sans">
+        <TextOverflowFades />
         {workOSInitialAuth
           ? <AuthKitProvider initialAuth={workOSInitialAuth} onSessionExpired={false}>{providers}</AuthKitProvider>
           : providers}

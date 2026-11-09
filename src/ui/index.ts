@@ -80,3 +80,5 @@ export {
 export { cn } from './utils'
 export { IconButton, type IconButtonProps } from './IconButton'
 export { DialogCloseButton, type DialogCloseButtonProps } from './DialogCloseButton'
+
+export { TextOverflowFades } from './TextOverflowFades'

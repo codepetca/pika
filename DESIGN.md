@@ -172,6 +172,22 @@ for new or deliberately modified work.
 - The Tiptap editor remains a content-owned mini-platform exception. Its
   typography must not spread into ordinary application controls or shells.
 
+### Horizontal text overflow
+
+- Where text must stay within an existing width, fade only overflowing text at
+  the inline end. Apply the same rule to plain titles, lesson lines, table
+  values, and labels on coloured surfaces. Text that fits remains fully opaque.
+- Apply the fade to the label inside a control so backgrounds, icons, focus
+  indicators, and hit targets stay intact. Keep the full text and existing
+  means of reading it, such as a tooltip or a wider reading view.
+- Keep native ellipsis for forced colours or when the fade cannot be applied.
+  Editable fields keep native text scrolling. Horizontal clipping has no
+  effect on vertical line limits or on the number of Calendar entries.
+
+The [horizontal text fade plan](docs/guidance/ui/changes/horizontal-text-fade.md)
+records the implementation and verification matrix. Pattern Lab
+`#horizontal-text-fade` is the executable reference.
+
 ### Spacing, density, and touch
 
 - Prefer semantic spacing for component and shell responsibilities; ordinary

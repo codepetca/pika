@@ -609,7 +609,9 @@ describe('TeacherRosterTab', () => {
 
     renderRoster()
 
-    expect(await screen.findByText('Ada')).toBeInTheDocument()
+    const firstName = await screen.findByRole('cell', { name: 'Ada' })
+    expect(firstName).toHaveAttribute('title', 'Ada')
+    expect(within(firstName).getByText('Ada')).toHaveClass('truncate')
     const contextBar = screen.getByRole('region', { name: 'Roster controls' })
     const addStudentsButton = screen.getByRole('button', { name: 'Add students' })
     const moreActionsButton = screen.getByRole('button', { name: 'More actions' })

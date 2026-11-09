@@ -62,6 +62,43 @@ test('student Pattern Lab has no owner assignment release controls', async ({ pa
 })
 
 for (const role of ['teacher', 'student'] as const) {
+  test(`horizontal text fade applies only to overflowing labels for ${role}`, async ({ page }, info) => {
+    await openPatternLab(page, info, role)
+    await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('horizontal-text-fade')
+    const pattern = page.locator('#horizontal-text-fade')
+    const title = pattern.getByTitle('Biology 11 — Ecosystems and field studies', { exact: true })
+    const lesson = pattern.getByText('Compare the field observations with last week’s notes.', { exact: true })
+    const fitting = pattern.getByText('Bring your notebook.', { exact: true })
+    const button = pattern.getByRole('button', { name: 'Due: Field observations worksheet' })
+    const label = button.locator('span')
+
+    for (const text of [title, lesson, label]) await expect(text).toHaveCSS('mask-image', /linear-gradient/)
+    await expect(fitting).toHaveCSS('mask-image', 'none')
+    await button.focus()
+    await expect(button).toBeFocused()
+    await expect(button).toHaveCSS('mask-image', 'none')
+    await pattern.screenshot({ path: info.outputPath(`${role}-horizontal-text-fade.png`), animations: 'disabled' })
+
+    await page.emulateMedia({ forcedColors: 'active' })
+    await expect(lesson).toHaveCSS('text-overflow', 'ellipsis')
+    await expect(lesson).toHaveCSS('mask-image', 'none')
+    await page.emulateMedia({ forcedColors: 'none' })
+    await expect(lesson).toHaveCSS('mask-image', /linear-gradient/)
+
+    await fitting.evaluate(element => { element.style.width = '60px' })
+    await expect(fitting).toHaveCSS('mask-image', /linear-gradient/)
+    await fitting.evaluate(element => { element.setAttribute('dir', 'rtl') })
+    await expect(fitting).toHaveCSS('mask-image', /to left/)
+    await fitting.evaluate(element => { element.style.removeProperty('width') })
+    await expect(fitting).toHaveCSS('mask-image', 'none')
+
+    // The same fixed-width label can change text without changing its box.
+    await title.evaluate(element => { element.textContent = 'Biology 11' })
+    await expect(title).toHaveCSS('mask-image', 'none')
+  })
+}
+
+for (const role of ['teacher', 'student'] as const) {
   test(`modal corner close stays consistent for ${role}`, async ({ page }, info) => {
     await openPatternLab(page, info, role)
     await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('modal-close')
@@ -258,7 +295,6 @@ for (const role of ['teacher', 'student'] as const) {
     const title = page.getByRole('banner').getByTitle(longTitle, { exact: true })
     await expect(title).toHaveText(longTitle)
     await expect(page).toHaveTitle(longTitle)
-    await expect(title).toHaveCSS('text-overflow', 'clip')
     if (testInfo.project.metadata.viewport === 'desktop') {
       await expect(title).toHaveCSS('mask-image', 'none')
       expect(await title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
