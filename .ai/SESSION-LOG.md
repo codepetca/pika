@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Classwork refresh browser fixture
-
-The Classwork continuity fixture now models summary and full reads separately.
-Its first refresh fails the summary and then exercises the full-read fallback,
-including retained editor, failure, retry, recovery, and controlled navigation.
-
 ## 2026-11-03 List order toggle
 
 - Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
@@ -296,3 +290,7 @@ Merged the latest main into the sandbox billing launch candidate. Preserved the 
 ## 2026-11-09 — Show all classroom Calendar Grid entries
 
 Removed the three-line lesson preview cap and showed each weekend event in its own chip. Grid weeks grow with their contents; long chip titles still use horizontal ellipsis. Retained inline teacher editing and covered busy cells and read-only student previews in the browser matrix.
+
+## 2026-11-09 — Fade horizontally clipped display text
+
+Recorded the shared fade in Design and added a Pattern Lab example for plain text and chip labels. Existing truncation uses the fade only where text overflows. Calendar keeps every lesson line and entry, and forced colours retains native ellipsis. Test evidence is tracked with the draft PR.

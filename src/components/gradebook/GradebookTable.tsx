@@ -130,7 +130,7 @@ export function GradebookTable({
               tabIndex={-1} aria-selected={selectedStudentId === student.student_id}
               className={cn('h-11 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', selectedStudentId === student.student_id ? 'bg-surface-3' : 'hover:bg-surface-hover')}
               onClick={() => onStudentSelect(student)}>
-              {orderedNames.map((column) => <DataTableCell key={column.key} className="truncate" title={getStudentIdentityValue(student, column.key)}>{getStudentIdentityValue(student, column.key)}</DataTableCell>)}
+              {orderedNames.map((column) => <DataTableCell key={column.key} title={getStudentIdentityValue(student, column.key)}><span className="block truncate">{getStudentIdentityValue(student, column.key)}</span></DataTableCell>)}
             </DataTableRow>)}
             {!students.length ? <EmptyStateRow colSpan={2} message="No students enrolled yet" /> : null}
           </tbody>
@@ -178,9 +178,9 @@ export function GradebookTable({
                 <DataTableHeaderCell scope="row" align="right" className={rowLabelClass}>Category</DataTableHeaderCell>
                 {!ultraCompact ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
                 {showStudentIds ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
-                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="truncate bg-surface-2 !px-1 !py-0 text-xs text-text-muted">
-                  <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="h-6 min-h-0 w-full min-w-0 truncate border-0 px-1 py-0 align-middle font-normal text-text-muted focus-visible:ring-inset focus-visible:ring-offset-0">
-                    <span title={column.category_name || 'None'}>{ultraCompact || isCompactZero(column) ? (column.category_name || 'None').slice(0, 4) : column.category_name || 'None'}</span>
+                {columns.map((column) => <DataTableCell key={getAssessmentColumnKey(column)} align="center" className="overflow-hidden bg-surface-2 !px-1 !py-0 text-xs text-text-muted">
+                  <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit category for ${column.code}: ${column.title}`} className="h-6 min-h-0 w-full min-w-0 border-0 px-1 py-0 align-middle font-normal text-text-muted focus-visible:ring-inset focus-visible:ring-offset-0">
+                    <span className="min-w-0 truncate" title={column.category_name || 'None'}>{ultraCompact || isCompactZero(column) ? (column.category_name || 'None').slice(0, 4) : column.category_name || 'None'}</span>
                   </Button>
                 </DataTableCell>)}
                 {filler ? <DataTableCell className="bg-surface-2">{null}</DataTableCell> : null}
@@ -249,8 +249,8 @@ export function GradebookTable({
                 className={cn('group cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary', active || selected ? 'bg-surface-3' : 'hover:bg-surface-hover')}
                 onClick={(event) => { if (!(event.target as HTMLElement).closest('button,input,a,label,select,textarea')) onStudentSelect(student) }}>
                 <TableSelectionCell className={cn(frozen && 'sticky left-0', surface)} checked={selected} onChange={() => toggleSelect(student.student_id)} ariaLabel={`Select ${getStudentName(student)}`} />
-                {names.map((column, index) => <DataTableCell key={column.key} title={getStudentIdentityValue(student, column.key)} className={cn('truncate whitespace-nowrap', frozen && index === 0 && 'sticky left-10', frozen && index === 0 && surface)}>{getStudentIdentityValue(student, column.key)}</DataTableCell>)}
-                {showStudentIds ? <DataTableCell className="truncate">{getStudentDisplayId(student)}</DataTableCell> : null}
+                {names.map((column, index) => <DataTableCell key={column.key} title={getStudentIdentityValue(student, column.key)} className={cn(frozen && index === 0 && 'sticky left-10', frozen && index === 0 && surface)}><span className="block truncate">{getStudentIdentityValue(student, column.key)}</span></DataTableCell>)}
+                {showStudentIds ? <DataTableCell><span className="block truncate">{getStudentDisplayId(student)}</span></DataTableCell> : null}
                 {columns.map((column) => {
                   const cell = getAssessmentCell(student, column)
                   const scoreKey = `${student.student_id}:${getAssessmentColumnKey(column)}`
@@ -276,7 +276,7 @@ export function GradebookTable({
                       className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', (ultraCompact || isCompactZero(column)) && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS, unreturned && 'disabled:pointer-events-none')}
                       onClick={() => onScoreOpen?.(student, column)}
                     >
-                      <span data-unreturned-mark={unreturned || undefined} className={cn(scoreTone, 'min-w-0 truncate', unreturned && 'rounded-sm px-1 py-0.5', unreturned && markStyles.unreturned)}>{score}</span>
+                      <span data-unreturned-mark={unreturned || undefined} className={cn(scoreTone, 'min-w-0', unreturned && 'rounded-sm px-1 py-0.5', unreturned && markStyles.unreturned)}><span className="block truncate">{score}</span></span>
                     </Button>
                   )
                   return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', scoreTone)}>

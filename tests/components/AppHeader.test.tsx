@@ -157,7 +157,7 @@ describe('AppHeader classroom theme', () => {
     )
 
     const title = screen.getByText('Beta')
-    expect(title).toHaveClass('overflow-hidden', 'whitespace-nowrap', 'text-xl', 'font-bold')
+    expect(title).toHaveClass('truncate', 'text-xl', 'font-bold')
     expect(title).toHaveAttribute('title', 'Beta')
     expect(screen.queryByRole('button', { name: 'Select classroom' })).not.toBeInTheDocument()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()

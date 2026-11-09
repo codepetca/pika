@@ -292,7 +292,11 @@ export const LessonDayCell = memo(function LessonDayCell({
   const isNonClassDay = isClassDay === false
   const lessonPreview = hasContent ? (
     renderPlainText ? (
-      <div className="overflow-hidden text-ellipsis whitespace-pre text-text-muted">{plainText}</div>
+      <div className="text-text-muted">
+        {plainText.split('\n').map((line, index, lines) => (
+          <span key={index} className="block overflow-hidden text-ellipsis whitespace-pre">{index < lines.length - 1 ? line + '\n' : line}</span>
+        ))}
+      </div>
     ) : (
       <LimitedMarkdown content={markdown} className="calendar-lesson-markdown" emptyPlaceholder={null} />
     )
@@ -341,9 +345,9 @@ export const LessonDayCell = memo(function LessonDayCell({
                       e.stopPropagation()
                       onAssignmentClick?.(assignment)
                     }}
-                    className={`w-full min-w-0 rounded bg-calendar-assessment-bg text-calendar-assessment font-medium hover:bg-calendar-assessment-hover text-center truncate text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${assignment.is_draft ? 'opacity-50' : ''}`}
+                    className={`w-full min-w-0 rounded bg-calendar-assessment-bg text-calendar-assessment font-medium hover:bg-calendar-assessment-hover text-center text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${assignment.is_draft ? 'opacity-50' : ''}`}
                   >
-                    Due: {assignment.title}
+                    <span className="block truncate">Due: {assignment.title}</span>
                   </button>
                 </Tooltip>
               ))}
@@ -373,7 +377,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                       }}
                       title={calendarLabel}
                       aria-label={calendarLabel}
-                      className={`inline-flex w-full min-w-0 items-center justify-center gap-1 rounded font-medium text-center truncate text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${
+                      className={`inline-flex w-full min-w-0 items-center justify-center gap-1 rounded font-medium text-center text-[10px] px-0.5 py-px ${CALENDAR_GRID_CHIP_CLASS_NAME} ${
                         scheduled
                           ? 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
                           : 'bg-calendar-announcement-bg text-calendar-announcement hover:bg-calendar-announcement-hover'

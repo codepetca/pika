@@ -193,6 +193,7 @@ describe('Gradebook surface owners', () => {
     const props = { student: scored, columns: [column], displayMode: 'percent' as const, onItemOpen: vi.fn(), onItemScoreOpen: vi.fn() }
     const view = render(<GradebookStudentPanel {...props} />)
     const title = screen.getByRole('button', { name: 'Edit item: Practice journal' })
+    expect(within(title).getByText('Practice journal')).toHaveClass('truncate')
     expect(title.closest('[data-compact-zero-weight]')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit Demo Student item mark for Practice journal: 0%' })).toBeEnabled()
     expect(screen.getByText('0/10')).toHaveClass('sr-only')
@@ -406,6 +407,8 @@ describe('Gradebook surface owners', () => {
     }
     render(<TooltipProvider><GradebookTable {...makeTableProps({ columns: [column], showWeights: true, ultraCompact, onAssessmentOpen })} /></TooltipProvider>)
     const categoryButton = screen.getByRole('button', { name: 'Edit category for A1: Essay' })
+    expect(categoryButton).not.toHaveClass('truncate')
+    expect(categoryButton.firstElementChild).toHaveClass('truncate')
     categoryButton.focus()
     expect(categoryButton).toHaveFocus()
     await user.keyboard('{Enter}')

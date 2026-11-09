@@ -484,7 +484,8 @@ describe('PageMockups', () => {
     await user.keyboard('{Home}')
     expect(within(gradebook).getByRole('columnheader', { name: 'Last' })).toHaveStyle({ width: '72px' })
     const longLastName = within(gradebook).getByRole('cell', { name: 'Williams-Montgomery' })
-    expect(longLastName).toHaveClass('truncate', 'whitespace-nowrap')
+    expect(within(longLastName).getByText('Williams-Montgomery')).toHaveClass('truncate')
+    expect(longLastName).not.toHaveClass('truncate')
     expect(longLastName).toHaveAttribute('title', 'Williams-Montgomery')
 
     const mayaRow = within(gradebook).getByRole('row', { name: /Maya Chen/ })

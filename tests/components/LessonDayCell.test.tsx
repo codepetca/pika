@@ -277,6 +277,18 @@ describe('LessonDayCell', () => {
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
   })
 
+  it('keeps each grid lesson line and the intervening blank line', () => {
+    const content_markdown = 'First observation\n\nLast observation'
+    const { container } = renderWithTooltip(
+      <LessonDayCell date={lessonPlan.date} day={new Date('2026-03-13T12:00:00')}
+        lessonPlan={{ ...lessonPlan, content_markdown }} isWeekend={false}
+        isToday={false} editable={false} plainTextOnly />,
+    )
+    const preview = container.querySelector('.calendar-lesson-preview')
+    expect(preview?.textContent).toBe(content_markdown)
+    expect(preview?.querySelectorAll('.text-ellipsis')).toHaveLength(3)
+  })
+
   it('labels assignment due dates with the assessment theme', () => {
     renderWithTooltip(
       <LessonDayCell

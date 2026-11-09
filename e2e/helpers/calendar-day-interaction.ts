@@ -197,7 +197,7 @@ async function verifyGridLessonInteraction(page: Page, role: 'teacher' | 'studen
   const preview = day.locator('.calendar-lesson-preview')
   const title = day.getByRole('button', { name: longAnnouncementTitle }).locator('span')
   await expect.poll(() => title.evaluate(element =>
-    element.scrollWidth > element.clientWidth && getComputedStyle(element).textOverflow === 'ellipsis')).toBe(true)
+    element.scrollWidth > element.clientWidth && getComputedStyle(element).maskImage.includes('linear-gradient'))).toBe(true)
 
   const weekend = page.locator('[data-calendar-date="2026-10-04"]')
   for (const name of ['Weekend prep', 'Weekend reminder']) {
@@ -214,8 +214,10 @@ async function verifyGridLessonInteraction(page: Page, role: 'teacher' | 'studen
     return text.textContent?.endsWith('FINAL READING LINE') && !!end
       && end.bottom <= text.getBoundingClientRect().bottom + 1
       && end.bottom <= element.closest('[data-calendar-date]')!.getBoundingClientRect().bottom + 1
-      && getComputedStyle(text).textOverflow === 'ellipsis'
+
   })).toBe(true)
+  await expect(preview.getByText('Discuss the calendar reading and concrete next steps.').first()).toHaveCSS('mask-image', /linear-gradient/)
+  await expect(preview.getByText('Lesson 5', { exact: true })).toHaveCSS('mask-image', 'none')
   await expect(title).toBeInViewport()
   await capture('grid-first-items')
   await preview.evaluate(element => element.scrollIntoView({ block: 'end' }))

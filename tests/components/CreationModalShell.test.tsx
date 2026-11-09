@@ -17,6 +17,7 @@ describe('CreationModalShell', () => {
     const { rerender } = render(<CreationModalContextHeader itemType="Material" classroomName={classroomName} />)
     expect(screen.getByText('Material', { exact: true })).toBeInTheDocument()
     expect(screen.getByTitle(classroomName)).toHaveTextContent(classroomName)
+    expect(screen.getByTitle(classroomName)).toHaveClass('truncate')
     rerender(<CreationModalContextHeader itemType="Assignment" />)
     expect(screen.getByText('Assignment', { exact: true })).toBeInTheDocument()
     expect(screen.queryByTitle(classroomName)).not.toBeInTheDocument()
