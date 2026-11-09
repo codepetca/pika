@@ -36,6 +36,7 @@ describe('fixed sealed300 witness in scoped native plans',()=>{
     for (const token of ['pg_get_triggerdef','t.tgenabled','t.tgdeferrable','t.tginitdeferred','pg_get_functiondef','p.proacl']) expect(witness).toContain(token)
     for (const token of ['epoch=1','not managed_provisioning_enabled','not plan_enforcement_enabled','not billing_access_enabled',
       'not legacy_plan_access_enabled',"t.tgenabled='O'",'t.tgtype=expected.kind','t.tgqual is null','t.tgnargs=0','p.proconfig','expected.attrs']) expect(presence).toContain(token)
+    expect(presence).toContain("array['provider_mode','sandbox_enabled']::text[]")
     expect(withRepoLight300Witness('original',false)).toBe('original')
   })
   it.each(profiles)('%s binds witness to snapshot and contention with sealed source300',(_name,make)=>{

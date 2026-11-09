@@ -1,10 +1,10 @@
-import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { reconcileBillingSubscriptions } from '@/lib/server/billing/reconcile'
-import { logServerError } from '@/lib/server/diagnostics'
 import type { BillingProvider, BillingStore } from '@/lib/server/billing/synchronize'
 import { acceptBillingWebhook, readBillingWebhookBody, type BillingEventReceipt } from '@/lib/server/billing/webhook'
+import { assertBillingWorkerAuthorization } from './request-body'
+import { runOptionalRecoveryLane } from './recovery-lane'
 
 export type BillingHandlerRuntime = {
   store: BillingStore
@@ -13,14 +13,6 @@ export type BillingHandlerRuntime = {
   record(receipt: BillingEventReceipt): Promise<unknown>
   drainProvisioning?(): Promise<unknown>
   processAssignmentReleases?(): Promise<unknown>
-}
-
-async function runOptionalRecoveryLane(run: () => Promise<unknown>) {
-  try {
-    return await run()
-  } catch (error) {
-    return { failed: 1, diagnosticId: logServerError('api.unexpected', error) }
-  }
 }
 
 /** Runtime wiring is separate so no SDK/client is constructed while disabled. */
@@ -49,11 +41,7 @@ export function createBillingHandlers(
     }),
     process: withErrorHandler('StripeBillingWorker', async request => {
       const config = requireConfiguration()
-      const expected = Buffer.from(`Bearer ${config.workerSecret}`)
-      const actual = Buffer.from(request.headers.get('authorization') ?? '')
-      if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
-        throw new ApiError(401, 'Unauthorized')
-      }
+      assertBillingWorkerAuthorization(request, config.workerSecret)
       const runtime = await loadRuntime()
       const upgrades = await runOptionalRecoveryLane(async () => (await loadUpgrades?.())?.processDue({ limit: 1 }))
       const scheduledChanges = await runOptionalRecoveryLane(async () => (await loadScheduledChanges?.())?.processDue({ limit: 1 }))

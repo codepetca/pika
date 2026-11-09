@@ -10,6 +10,28 @@ const json = (data: unknown, status = 200) => Promise.resolve({ ok: status === 2
 describe('BillingPage', () => {
   beforeEach(() => { sessionStorage.clear(); history.replaceState({}, '', '/billing') })
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+  it('loads and starts a trial without catalog or checkout access', async () => {
+    const pendingCheckoutId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+    history.replaceState({}, '', `/billing?checkout=${pendingCheckoutId}&result=success`)
+    const activeTrial = { ...free, state: 'trial', plan: 'pro', classroomLimit: 5, canStartPaidWork: true,
+      accessEndsAt: '2026-12-08T18:00:00Z', options: { ...free.options, trialAvailable: false } }
+    let started = false
+    const fetch = vi.fn((url: string) => {
+      if (url === '/api/billing/subscription') return json(started ? activeTrial : {
+        ...free, options: { ...free.options, pendingCheckoutId },
+      })
+      if (url === '/api/billing/trial') { started = true; return json(activeTrial) }
+      throw new Error(`Unexpected request ${url}`)
+    })
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" purchaseAvailable={false} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Start 30-day Pro trial' }))
+    expect(await screen.findByText('5 active classrooms')).toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Checkout status' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('heading', { name: 'Choose a paid plan' })).not.toBeInTheDocument()
+    expect(fetch.mock.calls.every(([url]) => ['/api/billing/subscription', '/api/billing/trial'].includes(url))).toBe(true)
+  })
+
   it('starts the explicit cardless trial and reports ineligibility', async () => {
     const fetch = vi.fn((url: string) => url.endsWith('/subscription') ? json(free) : url.endsWith('/catalog') ? json({ items: [item] }) : json({}, 409))
     vi.stubGlobal('fetch', fetch)

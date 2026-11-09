@@ -29,9 +29,10 @@ async function read(response: Response) {
   return response.json()
 }
 
-export function BillingPage({ userId, billingAvailable = true, portalAvailable = false, upgradesAvailable = false }: {
+export function BillingPage({ userId, billingAvailable = true, purchaseAvailable = true, portalAvailable = false, upgradesAvailable = false }: {
   userId: string
   billingAvailable?: boolean
+  purchaseAvailable?: boolean
   portalAvailable?: boolean
   upgradesAvailable?: boolean
 }) {
@@ -53,32 +54,33 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     try {
       const [status, offers] = await Promise.all([
         fetch('/api/billing/subscription', { cache: 'no-store' }).then(read),
-        fetch('/api/billing/catalog', { cache: 'no-store' }).then(read),
+        purchaseAvailable ? fetch('/api/billing/catalog', { cache: 'no-store' }).then(read) : null,
       ])
       if (request !== generation.current) return
       const verified = BillingSubscriptionStatusSchema.parse(status)
       setSubscription(verified)
-      if (verified.options?.pendingCheckoutId) setReturnId(verified.options.pendingCheckoutId)
-      setCatalog(offers.items)
-      setSelected(current => offers.items.some((item: BillingCatalogItem) => item.offeringVersionId === current) ? current : offers.items[0]?.offeringVersionId ?? '')
+      if (purchaseAvailable && verified.options?.pendingCheckoutId) setReturnId(verified.options.pendingCheckoutId)
+      const items: BillingCatalogItem[] = purchaseAvailable ? offers.items : []
+      setCatalog(items)
+      setSelected(current => items.some(item => item.offeringVersionId === current) ? current : items[0]?.offeringVersionId ?? '')
       setState('ready')
     } catch (error) {
       if (request !== generation.current) return
       setState((error as { status?: number }).status === 404 ? 'unavailable' : 'error')
     }
-  }, [])
+  }, [purchaseAvailable])
   useEffect(() => {
     if (!billingAvailable) return
     const params = new URLSearchParams(window.location.search)
     const checkout = params.get('checkout')
-    if (checkout && uuid.test(checkout)) {
+    if (purchaseAvailable && checkout && uuid.test(checkout)) {
       const id = checkout.toLowerCase()
       setReturnId(id)
       setStripeReturn({ id, result: params.get('result') })
     }
     void load()
     return () => { generation.current++; actionGeneration.current++ }
-  }, [billingAvailable, load])
+  }, [billingAvailable, load, purchaseAvailable])
   const checkPurchase = useCallback(async (id: string) => {
     const request = ++purchaseGeneration.current
     try {
@@ -105,7 +107,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
   }, [load, userId])
   const successReturn = stripeReturn?.id === returnId && stripeReturn.result === 'success'
   useEffect(() => {
-    if (!returnId) return
+    if (!purchaseAvailable || !returnId) return
     let active = true
     let timer: ReturnType<typeof setTimeout>
     let remaining = 12
@@ -117,7 +119,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
     }
     void poll()
     return () => { active = false; purchaseGeneration.current++; clearTimeout(timer) }
-  }, [returnId, checkPurchase, successReturn])
+  }, [returnId, checkPurchase, successReturn, purchaseAvailable])
   async function startTrial() {
     const request = ++actionGeneration.current
     setBusy(true); setMessage('')
@@ -130,7 +132,13 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
       void load(true)
     } catch (error) {
       if (request !== actionGeneration.current) return
-      setMessage((error as { status?: number }).status === 409 ? 'This account cannot start a trial. A trial is available once per teacher.' : 'Could not start the trial. Please try again.')
+      const status = (error as { status?: number }).status
+      if (status === 409 || status === 404) {
+        setMessage('This account cannot start a trial right now.')
+        void load(true)
+      } else {
+        setMessage('Could not start the trial. Please try again.')
+      }
     } finally { if (request === actionGeneration.current) setBusy(false) }
   }
   async function checkout() {
@@ -194,7 +202,7 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
         {terms ? <p className="mt-1 text-sm text-text-muted">
           {terms.currency.toUpperCase()} {(terms.unitAmount / 100).toFixed(2)} / {terms.interval === 'year' ? 'year' : 'month'}
         </p> : null}
-        {portalAvailable && subscription.options?.hasBillingCustomer
+        {purchaseAvailable && portalAvailable && subscription.options?.hasBillingCustomer
           ? <Button variant="secondary" className="mt-3" onClick={() => void openPortal()} disabled={busy}>Invoices and payment method</Button>
           : null}
         {subscription.state === 'synchronization_pending' ? <p className="mt-2 text-sm">Your plan is synchronizing. Check again shortly.</p> : null}
@@ -203,15 +211,15 @@ export function BillingPage({ userId, billingAvailable = true, portalAvailable =
         <p className="mt-1 text-sm text-text-muted">Start a 30-day Pro trial without a card or automatic charge. One trial is available per teacher.</p>
         <Button className="mt-4" onClick={() => void startTrial()} disabled={busy}>Start 30-day Pro trial</Button>
       </Card> : null}
-      {subscription.options?.checkoutAvailable && catalog.length > 0 ? <Card><h2 className="text-lg font-semibold">Choose a paid plan</h2>
+      {purchaseAvailable && subscription.options?.checkoutAvailable && catalog.length > 0 ? <Card><h2 className="text-lg font-semibold">Choose a paid plan</h2>
         <div className="mt-3"><FormField label="Plan, currency and billing interval"><Select disabled={busy} value={selected} onChange={event => setSelected(event.target.value)} options={catalog.map(item => ({ value: item.offeringVersionId, label: `${item.name} · ${item.currency.toUpperCase()} ${(item.unitAmount / 100).toFixed(2)} / ${item.interval === 'year' ? 'year' : 'month'}` }))} /></FormField></div>
         {offer ? <p className="mt-2 text-sm text-text-muted">{offer.classroomLimit} active classrooms. {offer.interval === 'year' ? 'Full annual amount charged upfront. ' : ''}Prices exclude applicable tax.</p> : null}
         <Button className="mt-4" onClick={() => void checkout()} disabled={busy || !selected}>Continue to checkout</Button>
       </Card> : null}
-      {upgradesAvailable
+      {purchaseAvailable && upgradesAvailable
         ? <BillingUpgradeCard userId={userId} offers={upgradeOffers} catalog={catalog} onActivated={() => void load(true)} />
         : null}
-      {returnId ? <Card><h2 className="text-lg font-semibold">Checkout status</h2>
+      {purchaseAvailable && returnId ? <Card><h2 className="text-lg font-semibold">Checkout status</h2>
         <p className="mt-2 text-sm" role="status">{currentPurchase?.status === 'active' ? 'Payment and plan access confirmed.' : currentPurchase?.status === 'attention' ? 'Checkout needs attention. Please contact support.' : currentPurchase?.status === 'expired' ? 'Checkout expired.' : currentPurchase?.status === 'checkout_open' && !successReturn ? 'Checkout is ready to continue.' : 'Payment or plan access is being checked.'}</p>
         {currentPurchase?.status === 'checkout_open' && currentPurchase.checkoutUrl && !successReturn
           ? <Button className="mt-3 mr-2" onClick={() => window.location.assign(currentPurchase.checkoutUrl!)}>Resume checkout</Button>

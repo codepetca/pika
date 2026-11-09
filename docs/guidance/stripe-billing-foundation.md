@@ -604,6 +604,24 @@ database writer gates, and rollout authorization. Use
 `scripts/check-billing-live-target.sql` for the rollback-only proof on an owned
 disposable replay through 311.
 
+### Live Pro trial source
+
+Migration 313 binds live trial admission, status and expiry to the exact
+production target. The application lifecycle and admission flags default off
+and the database repeats both checks. Stopping admission keeps existing trial
+status and expiry available. The Billing page shows the plan and cardless trial
+without needing a purchase catalog. The trial worker uses a dedicated bearer
+at `POST /api/billing/trial/process`. It processes expiry and due assignment
+releases and then attempts the separate RepoLight provisioning outbox.
+
+The teacher view reuses the existing Billing cards and shared action. The
+browser proof covers eligibility, keyboard start, the five-classroom trial and
+expired status on desktop and mobile in both themes. The page remains
+teacher-only. The sealed 313 database proof separately checks the exact cutoff,
+RepoLight eligibility and retained learner work. The rollout still needs an
+authorized worker caller and resolution of existing future assignments for
+eligible teachers. The runtime declines admission while those assignments exist.
+
 ### Release sequence
 
 1. Keep live billing disabled. Finish the source contracts for live/test

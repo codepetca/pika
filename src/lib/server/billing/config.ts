@@ -16,12 +16,14 @@ export type BillingSandboxConfig = {
   supabaseOrigin: string
 }
 
-/** No hosted mode exists in this foundation. Enabling it requires a later rollout. */
+/** The sandbox runtime is limited to local targets. */
 export function readBillingSandboxConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): BillingSandboxConfig | null {
   if (env.BILLING_SANDBOX_ENABLED !== 'true') return null
-  if (env.BILLING_LIVE_TARGET_CHECK_ENABLED === 'true') {
+  if (env.BILLING_LIVE_TARGET_CHECK_ENABLED === 'true'
+    || env.BILLING_LIVE_TRIAL_LIFECYCLE_ENABLED === 'true'
+    || env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true') {
     throw new Error('Billing sandbox configuration is invalid')
   }
   const parsed = billingSandboxEnvironmentSchema.safeParse(env)

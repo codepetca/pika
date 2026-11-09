@@ -5,6 +5,59 @@ import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-stude
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
 
+test('teacher starts and views a Pro trial with checkout closed', async ({ page }, info) => {
+  const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+  await page.addInitScript(value => localStorage.setItem('theme', value), theme)
+  await page.route('**/api/auth/me', route => route.fulfill({ json: {
+    user: { id: 'pattern-billing-teacher', email: 'teacher@example.invalid', role: 'teacher' },
+  } }))
+  const eligible = { state: 'free', plan: 'free', classroomLimit: 0, accessEndsAt: null, renewalAt: null,
+    canStartPaidWork: false, retryable: false, options: { trialAvailable: true, checkoutAvailable: false,
+      hasBillingCustomer: false, pendingCheckoutId: null, paidTerms: null } }
+  const expired = { ...eligible, options: { ...eligible.options, trialAvailable: false } }
+  const active = { ...expired, state: 'trial', plan: 'pro', classroomLimit: 5, canStartPaidWork: true,
+    accessEndsAt: '2026-12-08T18:00:00Z' }
+  let subscription: typeof active | typeof eligible = eligible
+  let operationId: string | undefined
+  const unexpected: string[] = []
+  await page.route('**/api/billing/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/billing/subscription' && route.request().method() === 'GET') {
+      await route.fulfill({ json: subscription })
+    } else if (path === '/api/billing/trial' && route.request().method() === 'POST') {
+      operationId = route.request().postDataJSON().operationId
+      subscription = active
+      await route.fulfill({ json: active })
+    } else {
+      unexpected.push(path)
+      await route.fulfill({ status: 404, json: {} })
+    }
+  })
+  const capture = async (name: string) => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await page.screenshot({ path: info.outputPath(`${name}.png`), animations: 'disabled' })
+  }
+  await page.goto('/pattern-lab?role=teacher&fixture=billing-trial&checkout=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&result=success')
+  const start = page.getByRole('button', { name: 'Start 30-day Pro trial' })
+  await expect(start).toBeEnabled()
+  await expect(page.getByRole('heading', { name: 'Choose a paid plan' })).toHaveCount(0)
+  await capture('billing-trial-eligible')
+  await start.focus()
+  await start.press('Enter')
+  await expect(page.getByText('Your Pro trial is active.')).toBeVisible()
+  await expect(page.getByText('5 active classrooms')).toBeVisible()
+  await expect(page.getByText(/Access ends/)).toBeVisible()
+  expect(operationId).toMatch(/^[0-9a-f-]{36}$/i)
+  await capture('billing-trial-active')
+  subscription = expired
+  await page.reload()
+  await expect(page.getByText('Free', { exact: true })).toBeVisible()
+  await expect(start).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Checkout status' })).toHaveCount(0)
+  await capture('billing-trial-expired')
+  expect(unexpected).toEqual([])
+})
+
 test('teacher sees pending and missed assignment releases and cancels the observed generation', async ({ page }, info) => {
   const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
   await page.addInitScript((value) => localStorage.setItem('theme', value), theme)

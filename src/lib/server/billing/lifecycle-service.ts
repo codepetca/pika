@@ -3,7 +3,7 @@ import { BillingAccessStatusSchema, type BillingAccessStatus } from './lifecycle
 
 export class BillingLifecycleEligibilityError extends Error {
   readonly code = 'billing_trial_ineligible'
-  constructor() { super('This account is not eligible to start a trial.') }
+  constructor(message = 'This account is not eligible to start a trial.') { super(message) }
 }
 export type BillingLifecycleStore = {
   startTrial(input: { subject_user_id: string; operation_id: string }): Promise<unknown>
