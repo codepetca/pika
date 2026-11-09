@@ -679,8 +679,8 @@ Each tick makes one attempt per enabled lane. It records a failed invocation
 on transport or HTTP failure, invalid receipts, or an application receipt
 that reports failures, exceptions or attention. The Worker requests redirects
 in manual mode and treats redirect responses as failures. Structured logs
-contain the lane, scheduled time, delay, outcome and approved counts. They omit request
-headers, response bodies and provider identifiers.
+use a fixed allowlist of lane, scheduled time, delay, outcome and numeric
+counts.
 
 Both caller switches are false in the checked-in configuration. Worker and
 Preview URLs are disabled. For local verification, package with Wrangler
@@ -692,8 +692,8 @@ CI also runs the 322–325 rollback fixtures after replaying the schema.
 [Cloudflare request redirect behavior](https://developers.cloudflare.com/workers/runtime-apis/request/)
 
 For an authorized deployment, pin the approved Cloudflare account and Worker
-name. Use separate generated bearer tokens for
-`BILLING_LIVE_PAYMENT_WORKER_SECRET` and `BILLING_LIVE_TRIAL_WORKER_SECRET`.
+name. Generate separate bearer tokens for `BILLING_LIVE_PAYMENT_WORKER_SECRET`
+and `BILLING_LIVE_TRIAL_WORKER_SECRET` using 32 to 256 base64url characters each.
 Set the matching value for each lane in Cloudflare and Pika using their
 protected secret inputs. Cloudflare's secret command deploys a Worker
 version, so stage credentials while the caller switches are off. After the
@@ -720,8 +720,9 @@ age. Resolve and document those checks before opening paid admission.
 During an admission pause, keep the appropriate recovery caller running for
 existing paid subscriptions and trials. For a caller incident, stop the
 affected lane with its own variable and use a scoped operator invocation of
-the same POST endpoint while resolving the issue. Keep the two credentials
-independent during rotation.
+the same POST endpoint while resolving the issue. During rotation, an enabled
+lane uses only its own binding. Both lanes reject a shared token when enabled
+together.
 
 ### Live scheduled Max-to-Pro changes
 

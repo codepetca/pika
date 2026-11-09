@@ -67,6 +67,8 @@ describe('Pika billing recovery scheduler', () => {
     }
     expect(fetchStub).toHaveBeenCalledTimes(2)
     expect(console.info).toHaveBeenCalledTimes(2)
+    expect(console.info).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome: 'ok',
+      counts: { purchases: { processed: 1 }, reconciliation: { processed: 0 }, closeouts: { processed: 0 }, expiry: { processed: 0 } } }))
     expect(console.error).not.toHaveBeenCalled()
   })
 
@@ -105,6 +107,25 @@ describe('Pika billing recovery scheduler', () => {
   it('rejects a reused token before either invocation', async () => {
     await expect(worker.scheduled(tick, { ...enabled, BILLING_LIVE_TRIAL_WORKER_SECRET: paidSecret })).rejects.toThrow('distinct')
     expect(fetchStub).not.toHaveBeenCalled()
+  })
+
+  it('keeps the enabled lane running while the other credential is disabled', async () => {
+    fetchStub.mockResolvedValue(Response.json(paidReceipt))
+    await expect(worker.scheduled(tick, { ...enabled, BILLING_TRIAL_RECOVERY_ENABLED: 'false',
+      BILLING_LIVE_TRIAL_WORKER_SECRET: paidSecret })).resolves.toBeUndefined()
+    expect(fetchStub).toHaveBeenCalledExactlyOnceWith(paidPath, expect.anything())
+  })
+
+  it('records approved success counts from sparse receipts without logging arbitrary fields', async () => {
+    fetchStub.mockResolvedValue(Response.json({ ...paidReceipt,
+      assignmentReleases: { released: 2, suppressed: 1, assignmentId: paidSecret },
+      scheduledInstallations: { installed: 1, debug: paidSecret },
+      scheduledCancellations: { restored_after_cutoff: 1, providerId: paidSecret } }))
+    await expect(worker.scheduled(tick, { ...enabled, BILLING_TRIAL_RECOVERY_ENABLED: 'false' })).resolves.toBeUndefined()
+    expect(console.info).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome: 'ok',
+      counts: expect.objectContaining({ assignmentReleases: { released: 2, suppressed: 1 },
+        scheduledInstallations: { installed: 1 }, scheduledCancellations: { restored_after_cutoff: 1 } }) }))
+    expect(JSON.stringify(vi.mocked(console.info).mock.calls)).not.toContain(paidSecret)
   })
 
   it('fails a 200 with partial recovery failures and emits only sanitized issue counts', async () => {

@@ -23,6 +23,17 @@ const lanes = {
   },
 }
 const issueNames = ['failed', 'exceptions', 'attention']
+const progressNames = {
+  purchases: ['processed'],
+  reconciliation: ['processed', 'applied', 'replayed', 'deferred'],
+  closeouts: ['processed', 'closed', 'paymentWon', 'deferred'],
+  expiry: ['processed'],
+  lifecycle: ['processed'],
+  assignmentReleases: ['released', 'suppressed', 'superseded', 'noop', 'busy', 'disabled'],
+  scheduledInstallations: ['installed', 'expired', 'retry', 'deferred', 'busy', 'lost_claim'],
+  scheduledCancellations: ['canceled', 'restored', 'restored_after_cutoff', 'unchanged_after_cutoff', 'completed',
+    'retry', 'deferred', 'busy', 'lost_claim'],
+}
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const isCount = value => Number.isSafeInteger(value) && value >= 0
 
@@ -53,9 +64,10 @@ async function readReceipt(response) {
   }
 }
 
-function receiptIssues(receipt, lane) {
+function summarizeReceipt(receipt, lane) {
   if (!isRecord(receipt)) return null
   const issues = {}
+  const counts = {}
   for (const key of lane.required) {
     if (!isRecord(receipt[key])) return null
   }
@@ -70,8 +82,15 @@ function receiptIssues(receipt, lane) {
       if (!isCount(count)) return null
       if (count > 0) (issues[key] ??= {})[name] = count
     }
+    for (const name of progressNames[key]) {
+      if (!Object.hasOwn(section, name)) continue
+      const count = section[name]
+      if (!isCount(count)) return null
+      const sectionCounts = counts[key] ??= {}
+      sectionCounts[name] = count
+    }
   }
-  return issues
+  return { issues, counts }
 }
 
 async function invokeLane(lane, secret) {
@@ -91,9 +110,9 @@ async function invokeLane(lane, secret) {
       await response.body?.cancel().catch(() => undefined)
       return { outcome: 'http_error', status: response.status, elapsedMs: elapsedMs() }
     }
-    const issues = receiptIssues(await readReceipt(response), lane)
-    if (issues === null) return { outcome: signal.aborted ? 'timeout' : 'invalid_receipt', elapsedMs: elapsedMs() }
-    return { outcome: Object.keys(issues).length ? 'needs_attention' : 'ok', elapsedMs: elapsedMs(), issues }
+    const summary = summarizeReceipt(await readReceipt(response), lane)
+    if (summary === null) return { outcome: signal.aborted ? 'timeout' : 'invalid_receipt', elapsedMs: elapsedMs() }
+    return { outcome: Object.keys(summary.issues).length ? 'needs_attention' : 'ok', elapsedMs: elapsedMs(), ...summary }
   } catch {
     return { outcome: signal.aborted ? 'timeout' : 'request_failed', elapsedMs: Date.now() - startedAt }
   }
@@ -107,7 +126,8 @@ export default {
     const active = Object.entries(lanes).filter(([, lane]) => env[lane.enabled] !== undefined && env[lane.enabled] !== 'false')
     if (active.length === 0) return
     const paidSecret = env[lanes.paid.secret]
-    if (typeof paidSecret === 'string' && paidSecret === env[lanes.trial.secret]) {
+    if (env[lanes.paid.enabled] === 'true' && env[lanes.trial.enabled] === 'true'
+      && typeof paidSecret === 'string' && paidSecret === env[lanes.trial.secret]) {
       throw new Error('Pika billing recovery credentials must be distinct')
     }
     const delayMs = Math.max(0, Date.now() - controller.scheduledTime)
