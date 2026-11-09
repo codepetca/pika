@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Progressive teacher Classwork prototype
-
-Legacy assignment and survey summaries can render before statistics, with explicit
-unknown counts and incomplete-list action guards. Shared reads retain their full
-owner-scoped contract and cache; cache invalidation and permission failure guards
-protect delayed results. Independent review and CI remain pending.
-
 ## 2026-11-03 — Classwork progressive read review fixes
 
 Prevent invalidated summary reuse, join in-flight full prefetches, fall back
@@ -98,6 +91,10 @@ Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
 Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
 content, preserving scoped filtering; local verification and independent review
 remain required before release. Roster intent PR #1745 remains separately owned.
+
+## 2026-11-05 Test roster intent loading
+
+Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.
 
 ## 2026-11-06 — Protect authoring progress
 

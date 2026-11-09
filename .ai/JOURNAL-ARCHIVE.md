@@ -51310,3 +51310,11 @@ Start a bounded teacher Tests read on navigation intent, share only in-flight wo
 ## 2026-11-03 — Progressive teacher Tests list
 
 Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
+
+<!-- pika-session-log-archive-batch:5145ceabe86fb53375c4e3445e3044d0d497f9c02bd3c9a7f6a56831f9336c79 -->
+## 2026-11-03 — Progressive teacher Classwork prototype
+
+Legacy assignment and survey summaries can render before statistics, with explicit
+unknown counts and incomplete-list action guards. Shared reads retain their full
+owner-scoped contract and cache; cache invalidation and permission failure guards
+protect delayed results. Independent review and CI remain pending.
