@@ -51494,3 +51494,21 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Keep enough recent entries for weekly automations to inspect roughly the last week of work.
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:f27d33eea4d8198c2a726ff688ebd5f058dd47c07906a4c669011931d0a78df7 -->
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.

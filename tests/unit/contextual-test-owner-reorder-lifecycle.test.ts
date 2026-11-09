@@ -100,7 +100,7 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
 })
 
 describe('closed reorder lifecycle source contracts', () => {
-  it('binds the 300 fixture to dormant state and all four exact trigger bindings', () => {
+  it('binds the current fixture to dormant state and all four exact trigger bindings', () => {
     const setup = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd()).sql.setup
     for (const token of ['private.repolight_managed_connections', 'private.repolight_provision_outbox',
       'private.repolight_provision_control', 'epoch=1', 'not managed_provisioning_enabled',
@@ -109,6 +109,9 @@ describe('closed reorder lifecycle source contracts', () => {
       'repolight_provision_access_gate_hint', 'repolight_provision_billing_gate_hint',
       "t.tgenabled='O'", 'not t.tgdeferrable', 'not t.tginitdeferred', 't.tgtype=expected.kind',
       'p.proname=expected.fn', 'p.prosecdef', 'expected.attrs']) expect(setup).toContain(token)
+    expect(setup).toContain(
+      "array['live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled']::text[]",
+    )
   })
 
   it('validates four required RPC arguments and Json return as supplemental AST evidence', () => {

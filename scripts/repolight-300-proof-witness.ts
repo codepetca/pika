@@ -20,7 +20,10 @@ export function repoLight300WitnessSql(): string {
 }
 
 /** Prove the fresh isolated fixture starts dormant with exactly the reviewed triggers. */
-export function repoLight300PresenceSql(): string {
+export function repoLight300PresenceSql(liveTrialBilling = false): string {
+  const billingColumns = liveTrialBilling
+    ? "'live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled'"
+    : "'provider_mode','sandbox_enabled'"
   return `do $repolight300$ begin
  if (select count(*) from private.repolight_settings)<>1
  or not exists(select 1 from private.repolight_settings where singleton and not plan_enforcement_enabled and not legacy_plan_access_enabled and not billing_access_enabled and not managed_provisioning_enabled)
@@ -31,7 +34,7 @@ export function repoLight300PresenceSql(): string {
  ('public.billing_account_access','repolight_provision_billing_hint','repolight_provision_account_hint_v1',21,array[]::text[]),
  ('public.account_plans','repolight_provision_plan_hint','repolight_provision_account_hint_v1',21,array[]::text[]),
  ('private.repolight_settings','repolight_provision_access_gate_hint','repolight_provision_gate_hint_v1',17,array['billing_access_enabled','legacy_plan_access_enabled','managed_provisioning_enabled']::text[]),
- ('private.stripe_billing_settings','repolight_provision_billing_gate_hint','repolight_provision_gate_hint_v1',17,array['provider_mode','sandbox_enabled']::text[])
+ ('private.stripe_billing_settings','repolight_provision_billing_gate_hint','repolight_provision_gate_hint_v1',17,array[${billingColumns}]::text[])
  ) expected(rel,name,fn,kind,attrs) where not exists(select 1 from pg_catalog.pg_trigger t
  join pg_catalog.pg_proc p on p.oid=t.tgfoid join pg_catalog.pg_namespace n on n.oid=p.pronamespace
  where t.tgrelid=pg_catalog.to_regclass(expected.rel) and t.tgname=expected.name and not t.tgisinternal
