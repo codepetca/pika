@@ -10,14 +10,14 @@ declare
   tax_features constant jsonb:='{"billing_tax_mode":"stripe_exclusive"}';
   tax_snapshot constant jsonb:='{"tax_mode":"stripe_exclusive"}';
   teacher uuid:=gen_random_uuid(); other_teacher uuid:=gen_random_uuid();
-  attempt uuid:=gen_random_uuid(); operation uuid:=gen_random_uuid();
+  attempt uuid:=gen_random_uuid(); legacy_attempt uuid:=gen_random_uuid(); operation uuid:=gen_random_uuid();
   cancellation uuid:=gen_random_uuid(); closeout uuid:=gen_random_uuid();
-  max_tax uuid; pro_tax uuid; max_legacy uuid; pro_legacy uuid; test_version uuid; subscription uuid;
+  max_tax uuid; pro_tax uuid; max_legacy uuid; pro_legacy uuid; test_version uuid; subscription uuid; legacy_subscription uuid;
   effective_at timestamptz:=date_trunc('second',clock_timestamp())+interval '2 days';
   period_start timestamptz:=effective_at-interval '1 month';
   paid_invoice constant text:='in_Tax326Paid';
   provider_schedule constant text:='sub_sched_Tax326';
-  terms record; bad_mode jsonb; reg jsonb; replay jsonb; req jsonb; result jsonb; offering jsonb;
+  terms record; bad_mode jsonb; reg jsonb; replay jsonb; req jsonb; result jsonb; offering jsonb; legacy_offering jsonb;
   checkout_request jsonb; claim jsonb; fence jsonb; binding jsonb; renew_request jsonb; catalog_request jsonb;
   rpc text;
 begin
@@ -46,7 +46,7 @@ begin
     reg:=jsonb_build_object('plan_key',terms.plan_key,'version',326001,'stripe_account',account,
       'provider_mode','live','stripe_product_id','prod_Tax326'||terms.display_name,'stripe_price_id','price_Tax326'||terms.display_name,
       'currency','cad','unit_amount',terms.amount,'interval','month','classroom_limit',terms.classroom_limit,
-      'features',jsonb_build_object('catalog_key','pika:repolight-2026-10-29:'||terms.public_plan||':cad:month',
+      'features',jsonb_build_object('catalog_key','pika:repolight-2026-10-29:'||terms.public_plan||':cad:month:stripe-exclusive',
         'display_name',terms.display_name,'release_tag','repolight-2026-10-29','repolight_analysis',true)||tax_features,
       'ai_definition',null);
     result:=public.billing_register_live_checkout_offering_v1(project,account,reg);
@@ -67,13 +67,27 @@ begin
     end loop;
     begin
       perform public.billing_register_live_checkout_offering_v1(project,account,reg#-'{features,billing_tax_mode}');
+      raise exception 'Tax catalog key accepted without its tax mode';
+    exception when invalid_parameter_value then
+      if sqlerrm<>'live_checkout_offering_invalid' then raise; end if;
+    end;
+    reg:=jsonb_set(reg,'{features,catalog_key}',to_jsonb('pika:repolight-2026-10-29:'||terms.public_plan||':cad:month'));
+    begin
+      perform public.billing_register_live_checkout_offering_v1(project,account,reg);
+      raise exception 'Tax mode accepted without its catalog suffix';
+    exception when invalid_parameter_value then
+      if sqlerrm<>'live_checkout_offering_invalid' then raise; end if;
+    end;
+    reg:=reg#-'{features,billing_tax_mode}';
+    begin
+      perform public.billing_register_live_checkout_offering_v1(project,account,reg);
       raise exception 'Registration replay stripped immutable tax custody';
     exception when unique_violation then
       if sqlerrm<>'live_checkout_offering_conflict' then raise; end if;
     end;
 
     result:=public.billing_register_live_checkout_offering_v1(project,account,
-      (reg#-'{features,billing_tax_mode}')||jsonb_build_object('version',326002,
+      reg||jsonb_build_object('version',326002,
         'stripe_price_id','price_Legacy326'||terms.display_name,'availability',jsonb_build_object('is_available',true)));
     if terms.plan_key='pro' then max_legacy:=(result->>'offering_version_id')::uuid;
     else pro_legacy:=(result->>'offering_version_id')::uuid; end if;
@@ -104,14 +118,14 @@ begin
     or private.billing_live_scheduled_target_valid_v1(max_tax,test_version,account) then
     raise exception 'Live tax custody crossed the account or provider mode';
   end if;
-  perform public.billing_set_live_checkout_offering_availability_v1(project,account,
-    jsonb_build_object('offering_version_id',max_legacy,'is_available',false));
+  legacy_offering:=result;
   perform public.billing_set_live_checkout_offering_availability_v1(project,account,
     jsonb_build_object('offering_version_id',max_tax,'is_available',true));
   offering:=public.billing_get_live_checkout_offering_v1(project,account,
     jsonb_build_object('offering_version_id',max_tax,'stripe_account',account));
   if offering is distinct from result||jsonb_build_object(
-    'offering_version_id',max_tax,'stripe_price_id','price_Tax326Max','tax_mode','stripe_exclusive') then
+    'offering_version_id',max_tax,'stripe_price_id','price_Tax326Max','tax_mode','stripe_exclusive',
+    'catalog_key',(result->>'catalog_key')||':stripe-exclusive') then
     raise exception 'Tax catalog projection changed commercial terms or version identity';
   end if;
 
@@ -193,8 +207,6 @@ begin
     if sqlerrm<>'billing_scheduled_change_ineligible' then raise; end if;
   end;
   perform public.billing_set_live_checkout_offering_availability_v1(project,account,
-    jsonb_build_object('offering_version_id',pro_legacy,'is_available',false));
-  perform public.billing_set_live_checkout_offering_availability_v1(project,account,
     jsonb_build_object('offering_version_id',pro_tax,'is_available',true));
   if public.billing_list_live_scheduled_change_offerings_v1(project,account,catalog_request)
     is distinct from jsonb_build_object('items',jsonb_build_array(public.billing_get_live_checkout_offering_v1(project,account,
@@ -203,6 +215,32 @@ begin
       is distinct from '{"items":[]}'::jsonb then
     raise exception 'Scheduled catalog lost the compatible price or crossed teacher scope';
   end if;
+  perform public.set_account_plan_v1(gen_random_uuid(),other_teacher,'free','test:tax326','fixture',
+    coalesce((select revision from public.account_plans where subject_user_id=other_teacher),0));
+  perform public.billing_reserve_live_checkout_v1(project,account,jsonb_build_object(
+    'attempt_id',legacy_attempt,'subject_user_id',other_teacher,'offering',legacy_offering,
+    'lookup_key',legacy_offering->>'catalog_key',
+    'success_url','https://pika.codepet.ca/billing?checkout='||legacy_attempt||'&result=success',
+    'cancel_url','https://pika.codepet.ca/billing?checkout='||legacy_attempt||'&result=cancel'));
+  claim:=public.billing_claim_live_checkout_v1(project,account,jsonb_build_object('attempt_id',legacy_attempt,'lease_seconds',120));
+  fence:=jsonb_build_object('attempt_id',legacy_attempt,'lease_token',claim->'lease_token','fencing_token',claim->'fencing_token');
+  perform public.billing_save_live_checkout_progress_v1(project,account,
+    fence||'{"customer_id":"cus_Legacy326","session_id":"cs_live_Legacy326"}');
+  perform public.billing_finish_live_checkout_v1(project,account,fence||'{"outcome":"bound","subscription_id":"sub_Legacy326"}');
+  select id into strict legacy_subscription from public.stripe_billing_subscription_bindings where subject_user_id=other_teacher;
+  claim:=public.billing_claim_live_subscription_v1(project,account,jsonb_build_object('subscription_id',legacy_subscription,'lease_seconds',120));
+  result:=public.billing_finish_live_lifecycle_v1(project,account,jsonb_build_object('subscription_id',legacy_subscription,
+    'lease_token',claim->'lease_token','fencing_token',claim->'fencing_token',
+    'expected_subscription_revision',claim->'subscription_revision','expected_account_plan_revision',claim->'expected_account_plan_revision',
+    'outcome','paid','invoice_id','in_Legacy326Paid','period_start',period_start,'period_end',effective_at,
+    'provider_status','active','cancel_at_period_end',false,'obligations_cleared',false));
+  if result->>'status' is distinct from 'applied' or
+    public.billing_list_live_scheduled_change_offerings_v1(project,account,jsonb_build_object('subject_user_id',other_teacher))
+    is distinct from jsonb_build_object('items',jsonb_build_array(public.billing_get_live_checkout_offering_v1(project,account,
+      jsonb_build_object('offering_version_id',pro_legacy,'stripe_account',account)))) then
+    raise exception 'Legacy Max lost its Pro target when the taxed Pro price became available';
+  end if;
+
   update public.stripe_billing_offering_availability set available_from=clock_timestamp()+interval '1 day' where offering_version_id=pro_tax;
   if public.billing_list_live_scheduled_change_offerings_v1(project,account,catalog_request) is distinct from '{"items":[]}'::jsonb then
     raise exception 'Scheduled catalog exposed an offer before its availability window';

@@ -72,7 +72,7 @@ describe('live scheduled change routes', () => {
   it('uses the authenticated Max binding to list a matching taxed Pro renewal offer', async () => {
     const taxed = { offering_version_id: offeringVersionId, plan_key: 'plus', stripe_account: target.p_stripe_account,
       provider_mode: 'live', stripe_product_id: 'prod_Pro', stripe_price_id: 'price_TaxedPro', currency: 'cad',
-      interval: 'year', unit_amount: 27900, classroom_limit: 5, catalog_key: 'pika:repolight-2026-10-29:pro:cad:year',
+      interval: 'year', unit_amount: 27900, classroom_limit: 5, catalog_key: 'pika:repolight-2026-10-29:pro:cad:year:stripe-exclusive',
       tax_mode: 'stripe_exclusive' }
     mocks.rpc.mockReturnValueOnce(response(true)).mockReturnValueOnce(response({ items: [taxed] }))
     const offers = await GET(new NextRequest(url), context)

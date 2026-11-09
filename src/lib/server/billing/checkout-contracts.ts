@@ -2,6 +2,8 @@ import { z } from 'zod'
 
 const uuid = z.string().uuid().transform(value => value.toLowerCase())
 const time = z.string().datetime({ offset: true })
+export const EXCLUSIVE_TAX_CATALOG_SUFFIX = ':stripe-exclusive'
+
 export const CheckoutOfferingSchema = z.object({
   offering_version_id: uuid,
   plan_key: z.enum(['basic', 'plus', 'pro']),

@@ -684,8 +684,11 @@ taxed offerings. Pika verifies the pinned Stripe account, active Tax settings,
 Canadian standard registration, and the portal policy before showing the
 catalog. Keep the flag false until the reviewed provider and database
 configuration is ready. Existing attempts and subscriptions continue to use
-their saved tax mode during an admission pause. New scheduled Pro quotes use
-the teacher's current paid Max binding and matching tax mode.
+their saved tax mode during an admission pause. Pause live Checkout admission
+before turning the tax flag off, since the false setting selects legacy
+offerings. New scheduled Pro quotes use the teacher's current paid Max
+binding and matching tax mode. Keep legacy Pro targets available for existing
+untaxed Max subscriptions that can schedule a downgrade.
 
 Pika verifies the exact pre-tax line, exclusive tax entries at both line and
 invoice level, and gross amount due. A paid effect requires one bound captured
@@ -699,7 +702,8 @@ entitlement. [Stripe Checkout Tax](https://docs.stripe.com/tax/checkout/page)
 Use the reviewed catalog provisioner to preview the exact products, Prices
 and inactive offering versions. The command requires a reviewed hosted
 software tax code already configured on both Stripe products. The tax
-variant has separate provider Price identities and starts unavailable.
+variant uses the `:stripe-exclusive` suffix on the database catalog key and
+Stripe Price lookup key. Each version starts unavailable.
 
 ```sh
 pnpm exec tsx scripts/provision-live-tax-catalog.ts --dry-run \

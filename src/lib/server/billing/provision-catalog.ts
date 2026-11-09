@@ -8,6 +8,7 @@ import {
   type LaunchCatalogVariant,
   type LaunchPlanKey,
 } from '@/lib/billing/launch-catalog'
+import { EXCLUSIVE_TAX_CATALOG_SUFFIX } from '@/lib/server/billing/checkout-contracts'
 import { readBillingSandboxConfig } from '@/lib/server/billing/config'
 import type { Json } from '@/types/database.generated'
 
@@ -372,8 +373,8 @@ export type LiveTaxCatalogPorts = Omit<StripeCatalogProvisioningPorts, 'register
 /**
  * Plans or applies only new live exclusive-tax versions. Dry runs perform reads,
  * never create prices or register offerings. Availability always starts false.
- * Price identities differ from the legacy catalog, while catalog_key remains
- * the commercial release identity required by the live registration RPC.
+ * Taxed and legacy offerings use different catalog and Price lookup keys so
+ * both can remain available to their respective Checkout and renewal paths.
  */
 export async function provisionLiveExclusiveTaxCatalog(input: Readonly<{
   ports: LiveTaxCatalogPorts
@@ -423,7 +424,7 @@ export async function provisionLiveExclusiveTaxCatalog(input: Readonly<{
   }
   for (const variant of variants) {
     const productId = productIds[variant.plan as 'pro' | 'max']
-    const lookupKey = `${variant.catalogKey}:stripe-exclusive`
+    const lookupKey = `${variant.catalogKey}${EXCLUSIVE_TAX_CATALOG_SUFFIX}`
     const listed = await noProviderDetails(() => input.ports.listPricesByLookupKey(lookupKey))
     if (!isRecord(listed) || !Array.isArray(listed.data) || listed.hasMore !== false || listed.data.length > 1) fail('price_ambiguous')
     candidates.push({ variant, productId, lookupKey, price: listed.data.length ? check(listed.data[0], variant, productId, lookupKey) : null })
@@ -440,15 +441,15 @@ export async function provisionLiveExclusiveTaxCatalog(input: Readonly<{
     }
     const version = versionFor(variant, base)
     if (input.action === 'apply' && price) {
+      const baseRegistration = registrationFor(variant, input.stripeAccount, productId, price.id, base, false)
       const registration: LiveTaxCatalogRegistration = {
-        ...registrationFor(variant, input.stripeAccount, productId, price.id, base, false),
+        ...baseRegistration,
         provider_mode: 'live',
-        features: { ...registrationFor(variant, input.stripeAccount, productId, price.id, base, false).features,
-          billing_tax_mode: 'stripe_exclusive' },
+        features: { ...baseRegistration.features, catalog_key: lookupKey, billing_tax_mode: 'stripe_exclusive' },
       }
       if (!registrationFrom(await noProviderDetails(() => input.ports.registerOffering(registration)))) fail('registration_invalid')
     }
-    items.push({ catalogKey: variant.catalogKey, lookupKey, version, productId, priceId: price?.id ?? null })
+    items.push({ catalogKey: lookupKey, lookupKey, version, productId, priceId: price?.id ?? null })
   }
   return { action: input.action, items }
 }

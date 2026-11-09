@@ -17,7 +17,8 @@ create or replace function private.billing_live_checkout_terms_valid_v1(
       and terms.amount=p_amount and terms.classroom_limit=p_limit and p_ai is null
       and (not (p_features ? 'billing_tax_mode') or p_features->'billing_tax_mode'='"stripe_exclusive"'::jsonb)
       and p_features-'billing_tax_mode'=jsonb_build_object(
-        'catalog_key','pika:repolight-2026-10-29:'||terms.public_plan||':'||terms.currency||':'||terms.billing_interval,
+        'catalog_key','pika:repolight-2026-10-29:'||terms.public_plan||':'||terms.currency||':'||terms.billing_interval
+          ||case when p_features ? 'billing_tax_mode' then ':stripe-exclusive' else '' end,
         'display_name',case terms.public_plan when 'pro' then 'Pro' else 'Max' end,
         'release_tag','repolight-2026-10-29','repolight_analysis',true)
   ),false);

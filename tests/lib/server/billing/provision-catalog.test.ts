@@ -211,7 +211,7 @@ describe('live exclusive-tax catalog provisioning', () => {
     const { ports } = liveFixture()
     const result = await provisionLiveExclusiveTaxCatalog({ ...input, ports })
     expect(result.items).toHaveLength(8)
-    expect(result.items.every(item => item.lookupKey === `${item.catalogKey}:stripe-exclusive` && item.priceId === null)).toBe(true)
+    expect(result.items.every(item => item.lookupKey === item.catalogKey && item.catalogKey.endsWith(':stripe-exclusive') && item.priceId === null)).toBe(true)
     expect(ports.createPrice).not.toHaveBeenCalled()
     expect(ports.registerOffering).not.toHaveBeenCalled()
   })
@@ -223,7 +223,12 @@ describe('live exclusive-tax catalog provisioning', () => {
     expect(ports.createPrice).toHaveBeenCalledTimes(8)
     expect(ports.createPrice).toHaveBeenCalledWith(expect.objectContaining({ tax_behavior: 'exclusive', transfer_lookup_key: false }), expect.stringContaining('stripe-exclusive'))
     expect(registrations).toHaveLength(16)
-    expect(registrations.every(value => { const r = value as { provider_mode: string; features: { billing_tax_mode: string }; availability: { is_available: boolean } }; return r.provider_mode === 'live' && r.features.billing_tax_mode === 'stripe_exclusive' && !r.availability.is_available })).toBe(true)
+    const expectedKeys = repolightCatalog.filter(variant => variant.plan !== 'basic')
+      .map(variant => `${variant.catalogKey}:stripe-exclusive`)
+    expect(registrations).toEqual([...expectedKeys, ...expectedKeys].map(catalog_key => expect.objectContaining({
+      provider_mode: 'live', features: expect.objectContaining({ catalog_key, billing_tax_mode: 'stripe_exclusive' }),
+      availability: { is_available: false },
+    })))
   })
   it('requires explicit mode, reviewed SaaS category, account and matching live products', async () => {
     for (const override of [{ action: 'unknown' }, { taxMode: undefined }, { reviewedProductTaxCode: 'txcd_10000000' }, { projectRef: 'foreign' }]) {

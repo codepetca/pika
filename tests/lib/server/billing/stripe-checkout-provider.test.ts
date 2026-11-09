@@ -222,7 +222,11 @@ describe('explicit live checkout boundary', () => {
 })
 
 describe('exclusive Stripe Tax checkout', () => {
-  const taxedAttempt: CheckoutAttempt = { ...liveAttempt, offering: { ...liveAttempt.offering, tax_mode: 'stripe_exclusive' } }
+  const catalogKey = `${liveAttempt.offering.catalog_key}:stripe-exclusive`
+  const taxedAttempt: CheckoutAttempt = {
+    ...liveAttempt, lookup_key: catalogKey,
+    offering: { ...liveAttempt.offering, catalog_key: catalogKey, tax_mode: 'stripe_exclusive' },
+  }
   function taxedSession(status: 'open' | 'complete' | 'expired' = 'open') {
     const raw = liveSession()
     return { ...raw, status, subscription: status === 'complete' ? 'sub_live' : null,
