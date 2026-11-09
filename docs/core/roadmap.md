@@ -85,6 +85,20 @@ and documentation improvements retain their own task-specific checks.
   and a separately gated eventual deletion policy. This is proposed future work, not
   enabled behavior; see the [classroom lifecycle roadmap](../guidance/classroom-lifecycle-archives.md#future-archived-classroom-retention-proposal-not-enabled).
 
+## Backlog
+
+Ideas recorded from closed PRs; not scheduled or approved. Rebuild from current
+`main` rather than reviving the old branches.
+
+- **Teacher workflow analytics (PostHog).** Privacy-reviewed, inert-by-default
+  teacher workflow events with no student data. Prior attempt: closed
+  codepetca/pika#1551 (branch `codex/posthog-foundation`). Design after the
+  [student-data egress audit](../guidance/student-data-egress-audit.md).
+- **Calendar chip drag.** Drag and keyboard movement of calendar chips to
+  reschedule items. Owner hold. Prior prototype: closed codepetca/pika#1217
+  (branch `codex/calendar-chip-drag-prototype`), which predates the term
+  List/Grid calendar; rebuild against the current calendar.
+
 ## Deferred maintenance
 
 - [ ] **DEP-01 — `braces` dependency advisory (GHSA-vfj7-8cjw-p6xm).** Deferred
