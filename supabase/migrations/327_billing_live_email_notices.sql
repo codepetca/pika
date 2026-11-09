@@ -223,9 +223,11 @@ begin
   from interrupted where notice.id=interrupted.id;
   get diagnostics v_attention=row_count;
 
+  -- Deferred undo work must not consume the scan limit for unrelated accounts.
   for v_notice in
     select * from private.billing_live_email_notices
     where project_ref=p_project_ref and stripe_account=p_stripe_account and state='pending' and due_at<=v_now
+      and (source='trial' or not private.billing_live_undo_awaiting_proof_v1(source_id))
     order by due_at,id limit 20
   loop
     -- Match lifecycle lock order (settings, binding, plan, feature/access).

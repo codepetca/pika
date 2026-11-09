@@ -228,6 +228,25 @@ begin
       and kind in ('cancellation','ending_7_days') and state='pending')<>2 then
     raise exception 'Unresolved undo claimed or permanently suppressed a pending notice';
   end if;
+
+  -- Model a backlog of older notices for the paused source. None may occupy
+  -- the bounded scan slots needed by the other teacher's due reminder.
+  insert into private.billing_live_email_notices(project_ref,stripe_account,subject_user_id,source,source_id,
+    access_revision,access_ends_at,kind,due_at)
+    select project,account,paid_user,'paid',paid_subscription,revision,paid_cutoff,'ending_7_days',now_at-interval '2 minutes'
+    from generate_series(100,120) as fixture(revision);
+  update public.users set role='teacher' where id=trial_user;
+  update private.billing_live_email_notices set state='pending',finished_at=null,due_at=now_at
+    where subject_user_id=trial_user and kind='ending_24_hours';
+  result:=pg_temp.claim_notice_327();
+  notice:=result->'notice';
+  if result->>'status' is distinct from 'claimed' or notice->>'source' is distinct from 'trial'
+    or notice->>'kind' is distinct from 'ending_24_hours'
+    or pg_temp.finish_notice_327(notice,'sent') is distinct from '{"status":"sent"}'::jsonb then
+    raise exception 'Deferred undo backlog blocked an unrelated eligible notice';
+  end if;
+  delete from private.billing_live_email_notices where subject_user_id=paid_user and access_revision between 100 and 120;
+
   -- Clear the synthetic undo without rewriting the still-current cancellation.
   delete from private.billing_live_scheduled_cancellations where id=undo_id;
   delete from private.billing_scheduled_plan_changes where id=schedule_id;

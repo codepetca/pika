@@ -166,7 +166,7 @@ if (paths.length >= 313) {
 const paymentTailPath = 'scripts/disposable-live-payment-replay-tail.json'
 if (paths.length >= 314) {
   const bytes = readFileSync(join(root, paymentTailPath))
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), 'a59756ea59906eea593dd9c585678c9d44e1a854617d92ca7090e24cd3664116', 'Unreviewed live payment replay seal')
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), '2e791d0813340eaa210bec55cc5e0e956ad1cc1a0d341cb8b52053eee2a5c1cb', 'Unreviewed live payment replay seal')
   const tail = JSON.parse(bytes.toString('utf8'))
   assert.equal(tail.length, 14)
   for (const [offset, { name, sha256 }] of tail.slice(0, paths.length - 313).entries()) {
