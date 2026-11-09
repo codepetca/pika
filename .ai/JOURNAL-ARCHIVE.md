@@ -51305,3 +51305,8 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 ## 2026-11-02 — Teacher Tests intent prefetch
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+<!-- pika-session-log-archive-batch:878a1a9f0de60a498bd52bb2e2aec35135982df95388bbbc9e4a91817dc08b9a -->
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.

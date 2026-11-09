@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Progressive teacher Tests list
-
-Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
-
 ## 2026-11-03 — Progressive teacher Classwork prototype
 
 Legacy assignment and survey summaries can render before statistics, with explicit
@@ -95,6 +91,13 @@ no production timing or deployment is implied.
 - Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
 
 - 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+## 2026-11-05 Investigate classroom tab loading
+
+Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
+Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
+content, preserving scoped filtering; local verification and independent review
+remain required before release. Roster intent PR #1745 remains separately owned.
 
 ## 2026-11-06 — Protect authoring progress
 
