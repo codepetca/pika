@@ -11,35 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Rebase Tests pagination onto main
-
-Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
-7d1c121fb. The rebase preserved the prior source tree and continuity histories;
-PR 1727 remains draft pending focused checks and exact-head review.
-
-## 2026-11-03 — Classwork refresh browser fixture
-
-The Classwork continuity fixture now models summary and full reads separately.
-Its first refresh fails the summary and then exercises the full-read fallback,
-including retained editor, failure, retry, recovery, and controlled navigation.
-
-## 2026-11-03 List order toggle
-
-- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
-
-## 2026-11-03 — Student Test submission reassurance
-
-Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
-
-## 2026-11-03 Investigate test contention
-
-Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
-
-## 2026-11-04 — Classwork access recovery
-
-- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
-- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
-
 ## 2026-11-04 Header message loading feedback
 
 - Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
@@ -294,6 +265,79 @@ migrations 302–303 cover pending renewal recovery, undo-cancellation after a
 verified prorated upgrade, and advisory account actions. RepoLight's migration
 301 tier rule and exact cutoff stay in place. See the billing foundation
 checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, closeout, replacement, customer UI and profile admission are pending.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
 
 ## 2026-11-09 — Sync billing launch with main
 

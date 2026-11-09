@@ -33,9 +33,12 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
     || ['closed', 'payment_won', 'superseded', 'attention'].includes(claim.stage)) {
     throw new Error('Billing closeout claim is unavailable')
   }
-  const request = { binding: claim.binding, invoiceId: claim.invoice_id, paidThrough: claim.paid_through, cutoff: claim.cutoff }
+  const { scheduled } = claim
+  const request = { binding: claim.binding, invoiceId: claim.invoice_id, paidThrough: claim.paid_through, cutoff: claim.cutoff,
+    ...(scheduled ? { scheduled } : {}) }
   async function finish(input: Omit<RenewalCloseoutFinishRequest, keyof RenewalCloseoutFence>): Promise<Result> {
-    const parsedFinish = RenewalCloseoutFinishSchema.safeParse(await args.store.finish({ ...fence(claim), ...input }))
+    const parsedFinish = RenewalCloseoutFinishSchema.safeParse(await args.store.finish({ ...fence(claim), ...input,
+      ...(scheduled ? { scheduled_operation_id: scheduled.operation_id, provider_schedule_id: scheduled.provider_schedule_id } : {}) }))
     if (!parsedFinish.success) throw new Error('Billing closeout completion is unavailable')
     // A malformed store cannot claim a different successful financial outcome.
     if (['closed', 'payment_won', 'deferred', 'attention'].includes(parsedFinish.data.status)
@@ -106,7 +109,9 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
     try {
       if (action === 'pause') await args.provider.pauseInvoiceCollection({ ...mutationRequest, idempotencyKey: `${claim.operation_id}:pause` })
       else if (action === 'void') await args.provider.voidInvoice({ ...mutationRequest, idempotencyKey: `${claim.operation_id}:void` })
-      else await args.provider.cancelSubscription(mutationRequest)
+      else await args.provider.cancelSubscription(scheduled
+        ? { ...mutationRequest, idempotencyKey: `${claim.operation_id}:cancel` }
+        : mutationRequest)
     } catch {
       if (writeCheckpointFailed) throw new Error('Billing closeout checkpoint is unavailable')
       return finish({ outcome: 'deferred', reason: 'provider_unavailable' })

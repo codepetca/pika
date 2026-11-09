@@ -11,6 +11,8 @@ export function createStripeCloseoutPort(stripe: Stripe): StripeCloseoutPort {
   const read = createStripeBillingReadPort(stripe)
   return {
     ...read,
+    retrieveSchedule: id => stripe.subscriptionSchedules.retrieve(id),
+    cancelSchedule: (id, input, options) => stripe.subscriptionSchedules.cancel(id, input, options),
     subscriptions: { ...read.subscriptions, cancel: (id, input) => stripe.subscriptions.cancel(id, input) },
     invoices: { ...read.invoices,
       list: input => stripe.invoices.list(input),
@@ -23,7 +25,7 @@ export function createStripeCloseoutPort(stripe: Stripe): StripeCloseoutPort {
 export function createBillingCloseoutRuntime(config: BillingSandboxConfig) {
   const stripe = new Stripe(config.secretKey, { apiVersion: STRIPE_BILLING_API_VERSION, timeout: 5_000, maxNetworkRetries: 0 })
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
-  const store = createBillingCloseoutStore(client)
+  const store = createBillingCloseoutStore(client, process.env.BILLING_SCHEDULED_RENEWALS_ENABLED === 'true')
   const provider = createStripeCloseoutProvider(createStripeCloseoutPort(stripe))
   return { closeDueRenewals: (input: { limit: number }) => closeDueRenewals({ store, provider, ...input, leaseSeconds: 120 }) }
 }

@@ -9,6 +9,8 @@ type BillingRpcName =
   | 'billing_finish_lifecycle_v1'
   | 'billing_list_work_v1'
   | 'billing_get_applied_upgrade_v1'
+  | 'billing_get_scheduled_renewal_v1'
+  | 'billing_finish_scheduled_renewal_v1'
 
 /** Narrow transport seam; the runtime supplies the generated Supabase client. */
 export type BillingRpcClient = {
@@ -23,7 +25,7 @@ const billingEventReceiptResultSchema = z.object({
   event_inbox_id: z.string().uuid(),
 }).strict()
 
-export function createBillingStore(client: BillingRpcClient): BillingStore & {
+export function createBillingStore(client: BillingRpcClient, scheduledRenewalsEnabled = false): BillingStore & {
   recordEvent(receipt: BillingEventReceipt): Promise<z.infer<typeof billingEventReceiptResultSchema>>
 } {
   async function call(name: BillingRpcName, request: Json): Promise<unknown> {
@@ -37,6 +39,10 @@ export function createBillingStore(client: BillingRpcClient): BillingStore & {
     finishSubscription: request => call('billing_finish_lifecycle_v1', request),
     listWork: request => call('billing_list_work_v1', request),
     getAppliedUpgrade: request => call('billing_get_applied_upgrade_v1', request),
+    ...(scheduledRenewalsEnabled ? {
+      getScheduledRenewal: request => call('billing_get_scheduled_renewal_v1', request),
+      finishScheduledRenewal: request => call('billing_finish_scheduled_renewal_v1', request),
+    } : {}),
     async recordEvent(receipt) {
       const result = billingEventReceiptResultSchema.safeParse(
         await call('billing_record_event_v1', receipt),

@@ -2881,6 +2881,7 @@ export type Database = {
           paid_through: string
           reason: string | null
           revision: number
+          scheduled_operation_id: string | null
           stage: string
           status: string
           subscription_id: string
@@ -2900,6 +2901,7 @@ export type Database = {
           paid_through: string
           reason?: string | null
           revision?: number
+          scheduled_operation_id?: string | null
           stage?: string
           status?: string
           subscription_id: string
@@ -2919,6 +2921,7 @@ export type Database = {
           paid_through?: string
           reason?: string | null
           revision?: number
+          scheduled_operation_id?: string | null
           stage?: string
           status?: string
           subscription_id?: string
@@ -10183,11 +10186,23 @@ export type Database = {
         Returns: Json
       }
       billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_confirm_scheduled_plan_change_v1: {
+        Args: {
+          p_operation_id: string
+          p_stripe_account: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       billing_confirm_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_finish_scheduled_renewal_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
@@ -10206,6 +10221,10 @@ export type Database = {
         Returns: Json
       }
       billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_scheduled_renewal_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_get_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_checkout_offerings_v1: {
         Args: { p_request: Json }
@@ -10219,6 +10238,10 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_list_scheduled_installations_v1: {
+        Args: { p_limit: number; p_stripe_account: string }
+        Returns: Json
+      }
       billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
@@ -10228,9 +10251,27 @@ export type Database = {
         Returns: Json
       }
       billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_reserve_scheduled_plan_change_v1: {
+        Args: {
+          p_operation_id: string
+          p_stripe_account: string
+          p_subject_user_id: string
+          p_target_offering_version_id: string
+        }
+        Returns: Json
+      }
       billing_reserve_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_save_checkout_progress_v1: {
         Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_scheduled_installation_v1: {
+        Args: {
+          p_action: string
+          p_fence?: Json
+          p_operation_id: string
+          p_schedule_id?: string
+        }
         Returns: Json
       }
       billing_start_trial_v1: { Args: { p_request: Json }; Returns: Json }

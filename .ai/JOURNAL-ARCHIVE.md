@@ -51332,3 +51332,36 @@ On PR 1726's head, page legacy teacher Tests statistics in stable ID order to av
 PostgREST's row cap silently truncating question, attempt, response, and access
 counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
 regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+<!-- pika-session-log-archive-batch:995b5ac444b1034cd5342b92e9c6ae806c58b48b2f70c8318f17b0b8e490198a -->
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.
+
+<!-- pika-session-log-archive-batch:719dc1aae1363556b8f9dea56a90cf99058cd16796a4c5e55c8a14fc77d648c8 -->
+## 2026-11-03 — Classwork refresh browser fixture
+
+The Classwork continuity fixture now models summary and full reads separately.
+Its first refresh fails the summary and then exercises the full-read fallback,
+including retained editor, failure, retry, recovery, and controlled navigation.
+
+<!-- pika-session-log-archive-batch:d06ca0bdcc9d79b13234dc923dad1018b498e8451d31dc8d4db17eed44825cad -->
+## 2026-11-03 List order toggle
+
+- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
+
+## 2026-11-03 — Student Test submission reassurance
+
+Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
+
+<!-- pika-session-log-archive-batch:6c7974dc3e3c4403c980c10202091834693fb33d7f6562756197c02cc75bc4c7 -->
+## 2026-11-03 Investigate test contention
+
+Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
+
+## 2026-11-04 — Classwork access recovery
+
+- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
+- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.

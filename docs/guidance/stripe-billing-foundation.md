@@ -590,8 +590,9 @@ plan status, while the new page hides unsupported actions.
 2. Complete renewal-boundary changes and the customer cancellation path.
    Persist the confirmed source and target offering, exact effective date and
    provider schedule identity. Require verified target payment to advance the
-   purchased version. Record the owner's grace capacity choice before
-   implementing failed scheduled-renewal behavior. Fence replacement,
+   purchased version. The 2026-11-08 owner decision retains the last paid Max
+   classroom limit if the scheduled Pro renewal payment fails. Keep target
+   invoice proof separate from the offering supplying grace access. Fence replacement,
    cancellation and upgrade against outstanding financial operations. Use
    Stripe schedule phases with no immediate proration for eligible scheduled
    changes. [Stripe schedule contract](https://docs.stripe.com/billing/subscriptions/subscription-schedules)
@@ -640,3 +641,75 @@ The shared local environment has no configured Stripe sandbox credentials for
 this worktree. Provider-port fixtures and database replays are separate from
 the actual provider rehearsal. The September 27 receipt is historical first
 purchase evidence only.
+
+### Worker recovery follow-up
+
+Keep the base sandbox and its validated local app origin configured when
+stopping new checkout and upgrade admissions. The authenticated worker still
+drains checkout and upgrade operations already recorded in Pika. Customer
+mutations continue to check their respective admission gates. A blank app
+origin leaves the base subscription, expiry and closeout paths available.
+Invalid optional recovery configuration or a failed checkout or upgrade
+recovery call returns a diagnostic for that lane while the other work continues.
+
+Migration 304 isolates expiry conflicts. A stale account-plan or entitlement
+revision stays available for investigation, and a limited batch can still
+expire an unrelated healthy account. The worker rechecks revisions after
+taking the same account and entitlement locks used by the writer. The isolated
+rollback fixture places both conflict types ahead of a healthy expired trial
+and verifies that a batch of one completes only the healthy expiry.
+
+### Scheduled Max-to-Pro sandbox checkpoint
+
+Migrations 305–306 add an exact same-interval, same-currency renewal quote,
+teacher confirmation, and leased Stripe schedule installation. The worker
+records each possible attach or configure request before sending it, pins its
+replay window, and commits a schedule only after checking its identity and
+terms. Recovery is independent of the customer admission flag. A verified
+target renewal payment changes the purchased version atomically. A failed
+target invoice enters the exact seven-day grace period on the paid Max terms.
+
+Both application flags and the database admission flag default to off. This
+checkpoint has a sealed disposable replay and a separate draft review. Customer
+scheduling and replacement controls are still pending. Migration 307 reserves
+due scheduled closeout work before ordinary reconciliation can lease it and
+ties the claim to the exact target invoice. A verified capture that wins the
+closeout race commits the Pro term. A verified void plus terminal schedule and
+invoice evidence keeps Free in force and retires the payer binding. Keep the
+scheduling flags off outside the isolated rehearsal until the remaining
+contracts pass.
+
+A verified target payment first observed after the grace window can settle
+under the existing lease if closeout has yet to take ownership. The SQL
+settlement and closeout checks both derive the exact UTC cycle end from the
+immutable target offering. Admission and installation listing are scoped to the
+configured Stripe test account. After Stripe cancels a scheduled subscription,
+a fresh read of the saved terminal schedule and exact target phase supports
+failed-invoice closeout or settlement of an already captured target payment.
+The first verified paid term keeps its actual paid-through date.
+
+The November 8 isolated Stripe rehearsal reused all 12 existing sandbox prices.
+Hosted Pro and Max test payments produced one verified receipt each, with five
+and twelve classrooms and eligible RepoLight access. The signed webhook reached
+the local app, and the paid Pro account opened the invoice and payment-method
+portal. The cardless Pro trial granted five classrooms for 720 hours and reused
+the same cutoff on replay. An accelerated rollback test confirmed RepoLight
+denied new work after the trial cutoff, before the expiry worker applied Free.
+The disposable rehearsal needed Free plan rows for its synthetic teachers. The
+live rollout depends on the separately governed account-plan provisioning step.
+
+The installed same-interval Stripe schedule issued its exact target renewal as
+`subscription_update` with a full, non-prorated line at the phase boundary.
+Reconciliation accepts that reason only after a fresh read verifies the exact
+installed schedule and target phase. Closeout applies the same distinction.
+Ordinary renewal and upgrade verifiers keep their existing invoice contracts.
+
+The real scheduled decline preserved Max's twelve classrooms and RepoLight
+with an exact 168-hour cutoff. Successful retry of the same invoice changed the
+account to Pro with five classrooms and retained both distinct receipts. A
+separate historical test clock used a seeded exact schedule and verified the
+unpaid closeout through the actual worker. Stripe retained the original amount
+remaining after void. The worker used the void status, canceled payment and
+complete outstanding-invoice checks before canceling the schedule without
+proration or a final invoice. Pika retired the binding and kept Free with
+RepoLight denied. The audited requeue resumed the saved stage after the fix.
