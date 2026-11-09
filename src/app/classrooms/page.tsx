@@ -8,6 +8,7 @@ import { listActiveTeacherClassrooms } from '@/lib/server/classroom-order'
 import { getServerLoginRedirectPath } from '@/lib/server/auth-redirect'
 import { classroomStudentRecord, hydrateClassroomRecords } from '@/lib/server/classrooms'
 import { AppShell } from '@/components/AppShell'
+import { ClassroomBillingNotice } from '@/components/billing/ClassroomBillingNotice'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from './StudentClassroomsIndex'
 import { isContextualClassroomHomeAdmitted, loadContextualClassroomHome } from '@/lib/server/contextual-classroom-home'
@@ -64,6 +65,7 @@ export default async function ClassroomsIndexPage() {
     }
     return (
       <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" billingAvailable={billingAvailable} mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+        {billingAvailable ? <ClassroomBillingNotice key={user.id} /> : null}
         <TeacherClassroomsIndex initialClassrooms={initialClassrooms} initialReadError={initialReadError} contextualHome={contextualHome} />
       </AppShell>
     )
@@ -94,6 +96,7 @@ export default async function ClassroomsIndexPage() {
     return (
       <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" billingAvailable={billingAvailable} mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         {offer}
+        {billingAvailable ? <ClassroomBillingNotice key={user.id} /> : null}
         <TeacherClassroomsIndex
           initialClassrooms={error ? [] : hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}
           initialReadError={Boolean(error)}

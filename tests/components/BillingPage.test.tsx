@@ -106,6 +106,30 @@ describe('BillingPage', () => {
     await user.keyboard('{Enter}')
     expect(fetch).toHaveBeenCalledWith('/api/billing/portal', { method: 'POST' })
   })
+  it('shows the exact grace deadline, opens payment management, and clears the notice after recovery', async () => {
+    const user = userEvent.setup()
+    let settled = false
+    const fetch = vi.fn((url: string) => url.endsWith('/subscription') ? json(settled ? paidMax : {
+      ...paidMax, state: 'renewal_grace', accessNotice: 'payment_overdue', accessEndsAt: effectiveAt, renewalAt: null,
+    }) : url.endsWith('/catalog') ? json({ items: [] }) : json({}, 503))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" portalAvailable portalCancellationAvailable />)
+    const action = await screen.findByRole('button', { name: 'Update payment method' })
+    expect(screen.getByRole('status').querySelector('time')).toHaveAttribute('datetime', effectiveAt)
+    expect(screen.queryByRole('button', { name: 'Manage billing' })).not.toBeInTheDocument()
+    action.focus()
+    await user.keyboard('{Enter}')
+    expect(fetch).toHaveBeenCalledWith('/api/billing/portal', { method: 'POST' })
+
+    const catalogReads = fetch.mock.calls.filter(([url]) => url.endsWith('/catalog')).length
+    settled = true
+    fireEvent.focus(window)
+    expect(await screen.findByRole('button', { name: 'Manage billing' })).toBeInTheDocument()
+    expect(screen.queryByText('Payment overdue')).not.toBeInTheDocument()
+    expect(screen.getByText(/Renews on/)).toBeInTheDocument()
+    expect(fetch.mock.calls.filter(([url]) => url.endsWith('/catalog'))).toHaveLength(catalogReads)
+  })
+
   it('loads and starts a trial without catalog or checkout access', async () => {
     const pendingCheckoutId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
     history.replaceState({}, '', `/billing?checkout=${pendingCheckoutId}&result=success`)
