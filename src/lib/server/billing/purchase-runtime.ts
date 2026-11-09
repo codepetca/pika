@@ -8,6 +8,7 @@ import { createBillingPurchaseStore, createLiveBillingPurchaseStore } from '@/li
 import { createCheckoutService } from '@/lib/server/billing/checkout-service'
 import { createStripeCheckoutPort, createStripeCheckoutProvider } from '@/lib/server/billing/stripe-checkout-provider'
 import { listLaunchPurchaseCatalog, validateLaunchCheckoutOffering } from '@/lib/server/billing/purchase-catalog'
+import { isStripeTaxReady } from '@/lib/server/billing/stripe-tax-readiness'
 import { verifyPortalConfiguration } from '@/lib/server/billing/portal-provider'
 import type { BillingPurchaseRuntime } from '@/lib/server/billing/purchase-handlers'
 
@@ -20,6 +21,7 @@ export function createBillingPurchaseRuntime(config: BillingPurchaseConfig | Bil
   const port = createStripeCheckoutPort(stripe)
   if ('providerMode' in config) {
     const liveConfig = config
+    const taxMode = process.env.BILLING_LIVE_STRIPE_TAX_ADMISSION_ENABLED === 'true' ? 'stripe_exclusive' : undefined
     const store = createLiveBillingPurchaseStore({
       rpc: (name, args) => client.rpc(name, args).abortSignal(AbortSignal.timeout(5_000)),
     }, config)
@@ -32,7 +34,9 @@ export function createBillingPurchaseRuntime(config: BillingPurchaseConfig | Bil
         if (error || data !== true) return false
         await verifyPortalConfiguration({ getAccount: () => stripe.accounts.retrieve(null),
           getConfiguration: id => stripe.billingPortal.configurations.retrieve(id) },
-        { account: liveConfig.stripeAccount, configurationId: liveConfig.portalConfigurationId, providerMode: 'live' })
+        { account: liveConfig.stripeAccount, configurationId: liveConfig.portalConfigurationId, providerMode: 'live',
+          ...(taxMode && { requireBillingAddressUpdates: true }) })
+        if (taxMode && !await isStripeTaxReady(stripe, liveConfig.stripeAccount)) return false
         return true
       } catch { return false }
     }
@@ -46,12 +50,12 @@ export function createBillingPurchaseRuntime(config: BillingPurchaseConfig | Bil
         providerWritesEnabled: config.providerWritesEnabled,
         authorizeProviderWrite: store.authorizeProviderWrite,
         authorizeNewCheckout,
-        validateOffering: offering => validateLaunchCheckoutOffering(offering, REPOLIGHT_CATALOG_RELEASE_TAG),
+        validateOffering: offering => validateLaunchCheckoutOffering(offering, REPOLIGHT_CATALOG_RELEASE_TAG, taxMode),
       }),
       async listCatalog() {
         if (!await authorizeNewCheckout()) return []
         return listLaunchPurchaseCatalog({
-          stripeAccount: config.stripeAccount, providerMode: config.providerMode, release: REPOLIGHT_CATALOG_RELEASE_TAG,
+          stripeAccount: config.stripeAccount, providerMode: config.providerMode, release: REPOLIGHT_CATALOG_RELEASE_TAG, taxMode,
           listOfferings: () => store.listOfferings({ stripe_account: config.stripeAccount }),
         })
       },

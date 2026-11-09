@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { createPortalSession, type PortalPort } from '@/lib/server/billing/portal-provider'
+import { createPortalSession, verifyPortalConfiguration, type PortalPort } from '@/lib/server/billing/portal-provider'
 import { createBillingPortalHandler } from '@/lib/server/billing/portal-handlers'
 import { readBillingPortalConfig } from '@/lib/server/billing/portal-config'
 
@@ -77,6 +77,18 @@ describe('live portal provider', () => {
     expect(p.getStripeCustomer).toHaveBeenCalledWith('cus_123')
     expect(p.createSession).toHaveBeenCalledWith({ customer: 'cus_123', configuration: 'bpc_123', return_url: liveInput.returnUrl })
   })
+  it('allows only billing-address edits for the tax-ready portal and retains access while admissions pause', async () => {
+    const p = livePort()
+    await expect(verifyPortalConfiguration(p, { ...liveInput, requireBillingAddressUpdates: true })).rejects.toThrow()
+    p.getConfiguration = vi.fn().mockResolvedValue({ ...liveConfig, features: { ...liveConfig.features,
+      customer_update: { enabled: true, allowed_updates: ['address'] } } })
+    await expect(verifyPortalConfiguration(p, { ...liveInput, requireBillingAddressUpdates: true })).resolves.toBeUndefined()
+    await expect(createPortalSession(p, liveInput)).resolves.toBe(liveSession.url)
+    p.getConfiguration = vi.fn().mockResolvedValue({ ...liveConfig, features: { ...liveConfig.features,
+      customer_update: { enabled: true, allowed_updates: ['address', 'tax_id'] } } })
+    await expect(createPortalSession(p, liveInput)).rejects.toThrow()
+  })
+
   it.each([
     { ...liveConfig, livemode: false },
     { ...liveConfig, features: { ...liveConfig.features, customer_update: { enabled: true } } },

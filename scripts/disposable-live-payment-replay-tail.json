@@ -46,5 +46,9 @@
   {
     "name": "325_billing_live_scheduled_cancellation.sql",
     "sha256": "8b2b67dd7896ed39f30329bc253fcb1c3c99daeebb43efc87ac85ae823e67dc7"
+  },
+  {
+    "name": "326_billing_live_stripe_exclusive_tax.sql",
+    "sha256": "3c3f11125f21f503da61a19528b53cd0b28dac514ebb91ab9ecc38a593064b46"
   }
 ]

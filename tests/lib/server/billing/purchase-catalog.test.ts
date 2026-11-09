@@ -52,6 +52,15 @@ describe('available launch purchase catalog', () => {
     expect(result).toHaveLength(1)
     expect(result[0].offeringVersionId).toBe(historical.offering_version_id)
   })
+  it('selects exactly one tax mode for fresh offerings', async () => {
+    const legacy = offering()
+    const taxed = { ...legacy, offering_version_id: offering(1).offering_version_id, tax_mode: 'stripe_exclusive' as const }
+    for (const taxMode of [undefined, 'stripe_exclusive'] as const) {
+      const items = await listLaunchPurchaseCatalog({ stripeAccount: 'acct_fixture', release: REPOLIGHT_CATALOG_RELEASE_TAG, taxMode, listOfferings: async () => ({ items: [legacy, taxed] }) })
+      expect(items.map(item => item.offeringVersionId)).toEqual([taxMode ? taxed.offering_version_id : legacy.offering_version_id])
+      expect(validateLaunchCheckoutOffering(taxMode ? legacy : taxed, REPOLIGHT_CATALOG_RELEASE_TAG, taxMode)).toBeNull()
+    }
+  })
   it('does not choose between duplicate available versions arbitrarily', async () => {
     await expect(listLaunchPurchaseCatalog({ stripeAccount: 'acct_fixture', release: REPOLIGHT_CATALOG_RELEASE_TAG,
       listOfferings: async () => ({ items: [offering(), { ...offering(), offering_version_id: offering(1).offering_version_id }] }),

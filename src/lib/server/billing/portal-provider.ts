@@ -4,7 +4,7 @@ import { PRODUCTION_APP_ORIGIN } from './live-target'
 const configurationSchema = z.object({
   id: z.string(), object: z.literal('billing_portal.configuration'), active: z.literal(true), livemode: z.boolean(),
   features: z.object({
-    customer_update: z.object({ enabled: z.boolean() }).optional(),
+    customer_update: z.object({ enabled: z.boolean(), allowed_updates: z.array(z.string()).max(10).optional() }).optional(),
     invoice_history: z.object({ enabled: z.literal(true) }),
     payment_method_update: z.object({ enabled: z.literal(true) }),
     subscription_cancel: z.object({ enabled: z.boolean(), mode: z.string().optional(), proration_behavior: z.string().optional(),
@@ -31,7 +31,7 @@ export type PortalPort = {
 
 /** Verify the exact configured account and portal policy before advertising sales. */
 export async function verifyPortalConfiguration(port: Pick<PortalPort, 'getAccount' | 'getConfiguration'>, input: {
-  account: string; configurationId: string; providerMode: 'test' | 'live'
+  account: string; configurationId: string; providerMode: 'test' | 'live'; requireBillingAddressUpdates?: boolean
 }): Promise<void> {
   if (!/^acct_[A-Za-z0-9]+$/.test(input.account) || !/^bpc_[A-Za-z0-9]+$/.test(input.configurationId)) {
     throw new Error('Portal configuration mismatch')
@@ -40,8 +40,10 @@ export async function verifyPortalConfiguration(port: Pick<PortalPort, 'getAccou
   if (account.id !== input.account) throw new Error('Portal account mismatch')
   const config = configurationSchema.parse(await port.getConfiguration(input.configurationId))
   const live = input.providerMode === 'live'
+  const updates = config.features.customer_update
+  const addressOnly = updates?.enabled === true && updates.allowed_updates?.length === 1 && updates.allowed_updates[0] === 'address'
   if (config.id !== input.configurationId || config.livemode !== live
-    || (live && config.features.customer_update?.enabled !== false)
+    || (live && (input.requireBillingAddressUpdates ? !addressOnly : !addressOnly && updates?.enabled !== false))
     || (live ? !config.features.subscription_cancel.enabled || config.features.subscription_cancel.mode !== 'at_period_end'
       || config.features.subscription_cancel.proration_behavior !== 'none' : config.features.subscription_cancel.enabled)) {
     throw new Error('Portal configuration mismatch')

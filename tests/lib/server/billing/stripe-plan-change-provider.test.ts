@@ -62,6 +62,30 @@ function schedule(configured: boolean, after = false) {
   }
 }
 
+const merchantAutomaticTax = { enabled: true, liability: { type: 'self' }, disabled_reason: null }
+function liveTaxSubscription(scheduleId: string | null, after = false) {
+  const sub = subscription(scheduleId, after)
+  return {
+    ...sub, livemode: true, customer: { ...sub.customer, livemode: true }, automatic_tax: merchantAutomaticTax,
+    latest_invoice: { ...sub.latest_invoice, livemode: true, id: after ? 'in_Target' : 'in_Paid' },
+    items: { ...sub.items, data: sub.items.data.map(item => ({ ...item,
+      price: { ...item.price, livemode: true, tax_behavior: 'exclusive' },
+    })) },
+  }
+}
+
+function liveTaxSchedule(configured: boolean, after = false) {
+  const raw = schedule(configured, after)
+  return {
+    ...raw, livemode: true, default_settings: { ...raw.default_settings, automatic_tax: merchantAutomaticTax },
+    phases: raw.phases.map(phase => ({ ...phase, automatic_tax: configured ? merchantAutomaticTax : undefined })),
+  }
+}
+
+function liveTaxPrice(id: string) {
+  return { ...price(id === operation.target.priceId ? operation.target : operation.source), livemode: true, tax_behavior: 'exclusive' }
+}
+
 function creationEvents(key: string | null) {
   return { has_more: false, data: [{
     type: 'subscription_schedule.created', created, livemode: false,
@@ -298,6 +322,104 @@ describe('live plan change scope', () => {
     f.configure.beforeMutation.mockResolvedValue(false)
     await expect(f.provider.configure(f.configure)).resolves.toEqual({ kind: 'stale' })
     expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+})
+
+describe('live Stripe Tax schedule evidence', () => {
+  const scope = { providerMode: 'live', stripeAccount: operation.stripeAccount } as const
+  const liveFields = { providerMode: 'live', lastPaidInvoiceId: 'in_Paid', taxMode: 'stripe_exclusive' } as const
+  function taxedFixture() {
+    const f = fixture()
+    const sub = liveTaxSubscription(attachedId)
+    const shell = liveTaxSchedule(false)
+    const configured = liveTaxSchedule(true)
+    f.port.retrieveSubscription.mockResolvedValue(sub)
+    f.port.retrieveSchedule.mockResolvedValueOnce(shell).mockResolvedValue(configured)
+    f.port.retrievePrice.mockImplementation(async id => liveTaxPrice(id))
+    f.port.attachSchedule.mockResolvedValue(shell)
+    f.port.updateSchedule.mockResolvedValue(configured)
+    return { ...f, sub, shell, configured,
+      attach: { ...f.attach, operation: { ...f.attach.operation, ...liveFields } },
+      configure: { ...f.configure, operation: { ...f.configure.operation, ...liveFields } },
+      provider: createStripePlanChangeProvider(f.port, f.now, scope) }
+  }
+
+  it('attaches with inherited source tax and configures explicit merchant automatic tax on both exact phases', async () => {
+    const f = taxedFixture()
+    f.port.retrieveSubscription.mockResolvedValueOnce(liveTaxSubscription(null))
+    f.port.retrieveSchedule.mockReset().mockResolvedValueOnce(f.shell).mockResolvedValueOnce(f.shell).mockResolvedValue(f.configured)
+    await expect(f.provider.attach(f.attach)).resolves.toEqual({ kind: 'attached', scheduleId: attachedId })
+    expect(f.port.attachSchedule).toHaveBeenCalledExactlyOnceWith({ from_subscription: operation.stripeSubscriptionId },
+      { idempotencyKey: f.attach.idempotencyKey })
+    await expect(f.provider.configure(f.configure)).resolves.toEqual({ kind: 'configured', scheduleId: attachedId })
+    const automatic_tax = { enabled: true, liability: { type: 'self' } }
+    expect(f.port.updateSchedule).toHaveBeenCalledExactlyOnceWith(attachedId, expect.objectContaining({
+      end_behavior: 'release', proration_behavior: 'none', phases: [
+        expect.objectContaining({ automatic_tax, start_date: starts, end_date: effective, proration_behavior: 'none' }),
+        expect.objectContaining({ automatic_tax, start_date: effective, billing_cycle_anchor: 'phase_start', proration_behavior: 'none' }),
+      ],
+    }), { idempotencyKey: f.configure.idempotencyKey })
+  })
+
+  it.each(['source price', 'target price', 'subscription tax', 'connected liability', 'paid invoice'] as const)(
+    'refuses attachment with mismatched %s before authorizing a write', async failure => {
+      const f = taxedFixture()
+      const source = liveTaxSubscription(null)
+      if (failure === 'source price') source.items.data[0].price.tax_behavior = 'unspecified'
+      if (failure === 'target price') f.port.retrievePrice.mockResolvedValue({ ...liveTaxPrice(operation.target.priceId), tax_behavior: 'inclusive' })
+      if (failure === 'subscription tax') source.automatic_tax = { ...merchantAutomaticTax, enabled: false }
+      if (failure === 'connected liability') source.automatic_tax = { ...merchantAutomaticTax, liability: { type: 'account' } }
+      if (failure === 'paid invoice') source.latest_invoice.id = 'in_Other'
+      f.port.retrieveSubscription.mockResolvedValue(source)
+      await expect(f.provider.attach(f.attach)).rejects.toThrow(StripePlanChangeContractError)
+      expect(f.attach.beforeMutation).not.toHaveBeenCalled()
+      expect(f.port.attachSchedule).not.toHaveBeenCalled()
+    })
+
+  it('requires explicit phase tax and the exclusive active price after the exact cutoff', async () => {
+    const f = taxedFixture()
+    f.now.mockReturnValue(effective * 1000)
+    const target = liveTaxSubscription(attachedId, true)
+    const next = liveTaxSchedule(true, true)
+    f.port.retrieveSubscription.mockResolvedValue(target)
+    f.port.retrieveSchedule.mockReset().mockResolvedValue(next)
+    await expect(f.provider.verify(f.configure.operation)).resolves.toMatchObject({ kind: 'configured' })
+    next.phases[1].automatic_tax = undefined
+    await expect(f.provider.verify(f.configure.operation)).rejects.toThrow(StripePlanChangeContractError)
+    next.phases[1].automatic_tax = merchantAutomaticTax
+    target.items.data[0].price.tax_behavior = 'inclusive'
+    await expect(f.provider.verify(f.configure.operation)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+
+  it('preserves merchant automatic tax on cancel and both restored phases on undo', async () => {
+    const f = taxedFixture()
+    const cancellationOperationId = 'c87b8adf-3637-4c93-a017-abf7ef171d64'
+    const input = { operation: f.configure.operation, cancellationOperationId, replayUntil, beforeMutation: vi.fn(async () => true) }
+    const provider = createLiveScheduledCancellationProvider(f.port, scope, f.now)
+    f.port.retrieveSchedule.mockReset().mockResolvedValue(f.configured)
+    f.port.updateSchedule.mockImplementation(async (_id, params) => {
+      const canceled = params.end_behavior === 'cancel'
+      const raw = { ...f.configured, end_behavior: params.end_behavior,
+        phases: canceled ? f.configured.phases.slice(0, 1) : f.configured.phases,
+        metadata: { ...f.configured.metadata, ...(canceled ? { pika_cancellation_operation: cancellationOperationId } : {}) } }
+      f.port.retrieveSubscription.mockResolvedValue({ ...f.sub, cancel_at: canceled ? effective : null })
+      f.port.retrieveSchedule.mockResolvedValue(raw)
+      return raw
+    })
+    const automatic_tax = { enabled: true, liability: { type: 'self' } }
+    await expect(provider.cancel(input)).resolves.toEqual({ kind: 'cancel_scheduled' })
+    expect(f.port.updateSchedule).toHaveBeenNthCalledWith(1, attachedId, expect.objectContaining({ end_behavior: 'cancel',
+      phases: [expect.objectContaining({ automatic_tax, start_date: starts, end_date: effective })],
+    }), { idempotencyKey: stripeScheduledCancellationIdempotencyKey(cancellationOperationId, 'cancel') })
+    f.port.retrievePrice.mockResolvedValueOnce({ ...liveTaxPrice(operation.target.priceId), tax_behavior: 'unspecified' })
+    await expect(provider.undo(input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).toHaveBeenCalledOnce()
+    await expect(provider.undo(input)).resolves.toEqual({ kind: 'scheduled' })
+    expect(f.port.updateSchedule).toHaveBeenNthCalledWith(2, attachedId, expect.objectContaining({ end_behavior: 'release', phases: [
+      expect.objectContaining({ automatic_tax, start_date: starts, end_date: effective }),
+      expect.objectContaining({ automatic_tax, start_date: effective, billing_cycle_anchor: 'phase_start' }),
+    ] }), { idempotencyKey: stripeScheduledCancellationIdempotencyKey(cancellationOperationId, 'undo') })
   })
 })
 

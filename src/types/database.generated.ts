@@ -10406,6 +10406,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_list_live_scheduled_change_offerings_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_list_live_scheduled_installations_v1: {
         Args: {
           p_project_ref: string

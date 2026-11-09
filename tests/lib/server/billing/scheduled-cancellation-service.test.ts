@@ -21,6 +21,11 @@ const snapshot = { stripeAccount: 'acct_live', liveMode: true, isCurrent: true, 
   cancelAtPeriodEnd: false, terminalObligationsCleared: true, items: [{ priceId: 'price_max', productId: 'prod_max',
     unitAmount: 3000, currency: 'usd', interval: 'month', intervalCount: 1, quantity: 1, priceLiveMode: true,
     currentPeriodStart: '2026-12-01T00:00:00Z', currentPeriodEnd: effective }], latestInvoice: null }
+const paidInvoice = { id: 'in_paid', status: 'paid', billingReason: 'subscription_cycle',
+  subtotal: 3000, total: 3000, startingBalance: 0, endingBalance: 0, totalDiscountAmount: 0, totalTaxAmount: 0,
+  hasDiscounts: false, hasTaxes: false, prePaymentCreditNotesAmount: 0, postPaymentCreditNotesAmount: 0,
+  amountDue: 3000, amountPaid: 3000, currency: 'usd', customerId: 'cus_live', subscriptionId: 'sub_live',
+  linesFullyEnumerated: true, lines: [], paymentsFullyEnumerated: true, payments: [] }
 function fixture() {
   const store = { claim: vi.fn<CancellationStore['claim']>().mockResolvedValue(claim),
     authorize: vi.fn<CancellationStore['authorize']>().mockResolvedValue(claim), finish: vi.fn<CancellationStore['finish']>().mockResolvedValue(true) }
@@ -42,15 +47,34 @@ describe('live scheduled cancellation worker', () => {
   })
   it('retires only after current terminal subscription and cleared obligations', async () => {
     const f = fixture(); vi.mocked(f.provider.read).mockResolvedValue({ kind: 'completed' })
-    f.retrieveSubscription.mockResolvedValue({ ...snapshot, latestInvoice: { id: 'in_paid', status: 'paid', billingReason: 'subscription_cycle',
-      subtotal: 3000, total: 3000, startingBalance: 0, endingBalance: 0, totalDiscountAmount: 0, totalTaxAmount: 0,
-      hasDiscounts: false, hasTaxes: false, prePaymentCreditNotesAmount: 0, postPaymentCreditNotesAmount: 0,
-      amountDue: 3000, amountPaid: 3000, currency: 'usd', customerId: 'cus_live', subscriptionId: 'sub_live',
-      linesFullyEnumerated: true, lines: [], paymentsFullyEnumerated: true, payments: [] } })
+    f.retrieveSubscription.mockResolvedValue({ ...snapshot, latestInvoice: paidInvoice })
     expect(await f.run()).toBe('completed')
     expect(f.store.finish).toHaveBeenCalledWith(claim.fence, 'completed', { ended_at: effective, obligations_cleared: true })
     f.retrieveSubscription.mockResolvedValue({ ...snapshot, terminalObligationsCleared: false })
     expect(await f.run()).toBe('retry')
+  })
+  it('requires consistent durable tax mode and fresh terminal Stripe Tax evidence', async () => {
+    const f = fixture()
+    const taxMode = 'stripe_exclusive' as const
+    const taxedClaim = { ...claim, operation: { ...claim.operation, taxMode }, binding: { ...claim.binding, tax_mode: taxMode } }
+    f.store.claim.mockResolvedValueOnce({ ...taxedClaim, binding: claim.binding })
+    await expect(f.run()).rejects.toThrow('Invalid scheduled cancellation claim')
+    expect(f.provider.read).not.toHaveBeenCalled()
+
+    f.store.claim.mockResolvedValue(taxedClaim)
+    vi.mocked(f.provider.read).mockResolvedValue({ kind: 'completed' })
+    const taxedSnapshot = { ...snapshot, automaticTaxEnabled: true,
+      items: [{ ...snapshot.items[0], priceTaxBehavior: 'exclusive' }],
+      latestInvoice: { ...paidInvoice, hasTaxes: true, totalTaxAmount: 390, total: 3390, amountDue: 3390, amountPaid: 3390,
+        exclusiveTax: { status: 'complete', subtotal: 3000 } } }
+    f.retrieveSubscription.mockResolvedValueOnce({ ...taxedSnapshot, automaticTaxEnabled: undefined })
+      .mockResolvedValueOnce({ ...taxedSnapshot, items: snapshot.items })
+      .mockResolvedValueOnce({ ...taxedSnapshot, terminalObligationsCleared: false })
+      .mockResolvedValueOnce({ ...taxedSnapshot, latestInvoice: { ...taxedSnapshot.latestInvoice, id: 'in_Other' } })
+      .mockResolvedValue(taxedSnapshot)
+    for (let i = 0; i < 4; i++) await expect(f.run()).resolves.toBe('retry')
+    await expect(f.run()).resolves.toBe('completed')
+    expect(f.store.finish).toHaveBeenLastCalledWith(claim.fence, 'completed', { ended_at: effective, obligations_cleared: true })
   })
   it.each([['undo', 'restored_after_cutoff'], ['cancel', 'unchanged_after_cutoff']] as const)(
     'hands off a verified target phase after cutoff for %s', async (action, outcome) => {

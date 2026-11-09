@@ -486,7 +486,7 @@ export function buildTestOwnerReorderNativeContractsManifest(original: Assignmen
   const names = readdirSync(resolve(repository, 'supabase/migrations')).filter(name => /^\d{3}_.+\.sql$/.test(name)).sort()
   const billingTriggerMigration = names.includes('319_billing_live_paid_access.sql') ? 319
     : names.includes('313_billing_live_trial_lifecycle.sql') ? 313 : 300
-  const repoLight300 = [300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325].includes(names.length)
+  const repoLight300 = [300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326].includes(names.length)
     ? repoLight300PresenceSql(billingTriggerMigration) : ''
   const setup = `${guard}\nbegin read only;set local lock_timeout='1s';set local statement_timeout='8s';
 ${repoLight300}

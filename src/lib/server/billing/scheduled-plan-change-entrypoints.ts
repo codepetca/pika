@@ -73,15 +73,15 @@ export const scheduledPlanChangeHandlers = createScheduledPlanChangeHandlers({
 export async function getLiveScheduledChangeOffers() {
   const config = readBillingLiveScheduledChangeConfig()
   if (!config) throw new ApiError(404, 'Not found')
-  await requireRole('teacher')
+  const user = await requireRole('teacher')
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
   const target = { p_project_ref: config.projectRef, p_stripe_account: config.stripeAccount }
   await assertLiveSchedulingReady(client, target)
   const offers = await listLaunchPurchaseCatalog({
-    stripeAccount: config.stripeAccount, providerMode: 'live', release: REPOLIGHT_CATALOG_RELEASE_TAG,
+    stripeAccount: config.stripeAccount, providerMode: 'live', release: REPOLIGHT_CATALOG_RELEASE_TAG, taxMode: 'all',
     async listOfferings() {
-      const { data, error } = await client.rpc('billing_list_live_checkout_offerings_v1', {
-        ...target, p_request: { stripe_account: config.stripeAccount },
+      const { data, error } = await client.rpc('billing_list_live_scheduled_change_offerings_v1', {
+        ...target, p_request: { subject_user_id: user.id },
       }).abortSignal(AbortSignal.timeout(5_000))
       if (error) throw new Error('Scheduled plan change offers are unavailable')
       return data

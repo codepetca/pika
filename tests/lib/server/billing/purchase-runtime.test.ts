@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  rpc: vi.fn(), rpcResult: vi.fn(), service: vi.fn(), list: vi.fn(), verify: vi.fn(),
+  taxReady: vi.fn(), rpc: vi.fn(), rpcResult: vi.fn(), service: vi.fn(), list: vi.fn(), verify: vi.fn(),
   stripe: { accounts: { retrieve: vi.fn() }, billingPortal: { configurations: { retrieve: vi.fn() } } },
   store: { listOfferings: vi.fn(), authorizeProviderWrite: vi.fn() },
 }))
@@ -12,6 +12,7 @@ vi.mock('@/lib/server/billing/stripe-checkout-provider', () => ({ createStripeCh
 vi.mock('@/lib/server/billing/purchase-store', () => ({ createLiveBillingPurchaseStore: () => mocks.store, createBillingPurchaseStore: () => mocks.store }))
 vi.mock('@/lib/server/billing/checkout-service', () => ({ createCheckoutService: mocks.service }))
 vi.mock('@/lib/server/billing/purchase-catalog', () => ({ listLaunchPurchaseCatalog: mocks.list, validateLaunchCheckoutOffering: vi.fn() }))
+vi.mock('@/lib/server/billing/stripe-tax-readiness', () => ({ isStripeTaxReady: mocks.taxReady }))
 vi.mock('@/lib/server/billing/portal-provider', () => ({ verifyPortalConfiguration: mocks.verify }))
 import { createBillingPurchaseRuntime } from '@/lib/server/billing/purchase-runtime'
 
@@ -21,6 +22,8 @@ const config = { providerMode: 'live' as const, projectRef: 'zhioqbapgfcrronyuid
 let authorize: () => Promise<boolean>
 beforeEach(() => {
   vi.resetAllMocks()
+  delete process.env.BILLING_LIVE_STRIPE_TAX_ADMISSION_ENABLED
+  mocks.taxReady.mockResolvedValue(true)
   mocks.rpc.mockReturnValue({ abortSignal: mocks.rpcResult })
   mocks.rpcResult.mockResolvedValue({ data: true, error: null })
   mocks.verify.mockResolvedValue(undefined)
@@ -32,6 +35,19 @@ beforeEach(() => {
 })
 
 describe('live purchase portal admission', () => {
+  it('requires tax readiness only when the tax admission flag is enabled', async () => {
+    process.env.BILLING_LIVE_STRIPE_TAX_ADMISSION_ENABLED = 'true'
+    const runtime = createBillingPurchaseRuntime(config)
+    mocks.taxReady.mockResolvedValue(false)
+    expect(await authorize()).toBe(false)
+    expect(await runtime.listCatalog('unused')).toEqual([])
+    expect(mocks.list).not.toHaveBeenCalled()
+    mocks.taxReady.mockResolvedValue(true)
+    expect(await authorize()).toBe(true)
+    await runtime.listCatalog('unused')
+    expect(mocks.list).toHaveBeenCalledWith(expect.objectContaining({ taxMode: 'stripe_exclusive' }))
+    delete process.env.BILLING_LIVE_STRIPE_TAX_ADMISSION_ENABLED
+  })
   it('checks exact database activation before each fresh portal verification and catalog lookup', async () => {
     const runtime = createBillingPurchaseRuntime(config)
     expect(await authorize()).toBe(true)

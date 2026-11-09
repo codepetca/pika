@@ -1,3 +1,4 @@
+import { exclusiveInvoiceTaxEvidenceSchema, stripeExclusiveTaxModeSchema } from './billing-tax'
 import { z } from 'zod'
 import { BillingLifecycleClaimFactsSchema } from './lifecycle-contracts'
 
@@ -38,8 +39,11 @@ export const BillingReconciliationScopeSchema = z.object({
 
 export type BillingReconciliationScope = z.infer<typeof BillingReconciliationScopeSchema>
 
-const liveSubscriptionBindingSchema = BillingSubscriptionBindingSchema.extend({ provider_mode: z.literal('live') })
-export type BillingReconciliationBinding = BillingSubscriptionBinding | z.infer<typeof liveSubscriptionBindingSchema>
+export const LiveBillingSubscriptionBindingSchema = BillingSubscriptionBindingSchema.extend({
+  provider_mode: z.literal('live'),
+  tax_mode: stripeExclusiveTaxModeSchema.optional(),
+})
+export type BillingReconciliationBinding = BillingSubscriptionBinding | z.infer<typeof LiveBillingSubscriptionBindingSchema>
 
 /** Existing callers stay sandbox-only when no explicit scope is supplied. */
 export function matchesBillingReconciliationScope(
@@ -56,7 +60,7 @@ export const BillingScheduledRenewalSchema = z.object({
   provider_schedule_id: z.string().regex(/^sub_sched_[A-Za-z0-9]{1,240}$/),
   effective_at: isoDateTimeSchema,
   state: z.enum(['scheduled', 'applied']),
-  target_binding: z.discriminatedUnion('provider_mode', [BillingSubscriptionBindingSchema, liveSubscriptionBindingSchema]),
+  target_binding: z.discriminatedUnion('provider_mode', [BillingSubscriptionBindingSchema, LiveBillingSubscriptionBindingSchema]),
 }).strict()
 
 export type BillingScheduledRenewal = z.infer<typeof BillingScheduledRenewalSchema>
@@ -87,7 +91,7 @@ export type BillingSubscriptionClaim = z.infer<typeof BillingSubscriptionClaimSc
 export type BillingClaimedSubscription = z.infer<typeof claimedSubscriptionSchema>
 
 const liveClaimedSubscriptionSchema = claimedSubscriptionSchema.extend({
-  binding: liveSubscriptionBindingSchema,
+  binding: LiveBillingSubscriptionBindingSchema,
   lifecycle: BillingLifecycleClaimFactsSchema,
 })
 export const LiveBillingSubscriptionClaimSchema = z.discriminatedUnion('status', [
@@ -122,8 +126,8 @@ export const BillingWorkListSchema = z.object({
 
 export const LiveBillingWorkListSchema = BillingWorkListSchema.extend({
   items: z.array(z.discriminatedUnion('kind', [
-    eventWorkItemSchema.extend({ binding: liveSubscriptionBindingSchema }),
-    reconcileWorkItemSchema.extend({ binding: liveSubscriptionBindingSchema }),
+    eventWorkItemSchema.extend({ binding: LiveBillingSubscriptionBindingSchema }),
+    reconcileWorkItemSchema.extend({ binding: LiveBillingSubscriptionBindingSchema }),
   ])).max(100),
 })
 
@@ -149,6 +153,7 @@ const providerItemSchema = z.object({
   interval: z.enum(['month', 'year']),
   intervalCount: z.number().int().positive(),
   priceLiveMode: z.boolean(),
+  priceTaxBehavior: z.literal('exclusive').optional(),
   quantity: z.number().int().nonnegative(),
   currentPeriodStart: isoDateTimeSchema,
   currentPeriodEnd: isoDateTimeSchema,
@@ -177,6 +182,7 @@ const providerInvoiceSchema = z.object({
   endingBalance: safeIntegerSchema.nullable(),
   totalDiscountAmount: safeMoneySchema,
   totalTaxAmount: safeMoneySchema,
+  exclusiveTax: exclusiveInvoiceTaxEvidenceSchema.optional(),
   hasDiscounts: z.boolean(),
   hasTaxes: z.boolean(),
   prePaymentCreditNotesAmount: safeMoneySchema,
@@ -242,6 +248,7 @@ export const BillingProviderSubscriptionSnapshotSchema = z.object({
   cancelAt: isoDateTimeSchema.nullable(),
   cancelAtPeriodEnd: z.boolean(),
   pauseCollection: z.boolean(),
+  automaticTaxEnabled: z.literal(true).optional(),
   scheduleId: providerReferenceSchema.nullable(),
   items: z.array(providerItemSchema).max(100),
   latestInvoice: providerInvoiceSchema.nullable(),

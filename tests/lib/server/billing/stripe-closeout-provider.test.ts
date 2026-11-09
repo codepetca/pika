@@ -3,6 +3,7 @@ import { createStripeCloseoutProvider, verifyInstalledStripeSchedule } from '@/l
 import type { RenewalCloseoutWriteRequest } from '@/lib/server/billing/closeout-contracts'
 import { BillingProviderSubscriptionSnapshotSchema } from '@/lib/server/billing/contracts'
 import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
+import { attachStripeExclusiveTax } from '../../../helpers/stripe-exclusive-tax-fixture'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -140,6 +141,41 @@ function liveFixture() {
   } }
   return { ...f, sdk, provider: createStripeCloseoutProvider(sdk, liveScope) }
 }
+
+describe('Stripe exclusive-tax renewal closeout', () => {
+  const taxedRequest = { ...liveRequest, binding: { ...liveRequest.binding, tax_mode: 'stripe_exclusive' as const } }
+  function taxedFixture() {
+    const f = liveFixture()
+    const { gross } = attachStripeExclusiveTax(f.subscription, f.invoice)
+    f.invoice.amount_remaining = gross
+    f.invoice.payments.data[0].amount_requested = gross
+    f.intent.amount = gross
+    f.charge.amount = gross
+    return { ...f, gross }
+  }
+
+  it('checks the gross obligation before pausing a tax-bearing renewal', async () => {
+    const f = taxedFixture()
+    const beforeMutation = vi.fn(async () => true)
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'unpaid' })
+    await f.provider.pauseInvoiceCollection({ ...taxedRequest, beforeMutation, idempotencyKey: 'tax-closeout-fixture' })
+    expect(f.sdk.invoices.update).toHaveBeenCalledOnce()
+    f.intent.amount = 2000
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'attention' })
+  })
+
+  it('lets a captured gross payment win over tax-bearing closeout', async () => {
+    const f = taxedFixture()
+    paid(f)
+    f.invoice.amount_paid = f.gross
+    f.invoice.payments.data[0].amount_paid = f.gross
+    f.intent.amount_received = f.gross
+    f.charge.amount_captured = f.gross
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'paid', invoiceId: 'in_fixture' })
+    f.charge.amount_captured = 2000
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'attention' })
+  })
+})
 
 describe('live Stripe renewal closeout scope', () => {
   it('requires the explicit matching scope and rejects live scheduled proof before Stripe reads', async () => {
@@ -669,6 +705,32 @@ describe('live installed schedule evidence', () => {
     f.sdk.accounts.retrieve.mockResolvedValue({ id: 'acct_other' })
     await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
   })
+  it('requires the matching taxed Pro phase and its gross payment before settlement', async () => {
+    const f = scheduledFixture()
+    f.subscription.livemode = true; f.subscription.items.data[0].price.livemode = true
+    f.invoice.livemode = true; f.invoice.payments.data[0].livemode = true
+    f.intent.livemode = true; f.charge.livemode = true; f.schedule.livemode = true
+    const { gross } = attachStripeExclusiveTax(f.subscription, f.invoice)
+    paid(f)
+    f.invoice.amount_paid = gross
+    f.invoice.payments.data[0].amount_paid = gross
+    f.invoice.payments.data[0].amount_requested = gross
+    f.intent.amount = gross; f.intent.amount_received = gross
+    f.charge.amount = gross; f.charge.amount_captured = gross
+    const phase = f.schedule.phases[0]
+    Object.assign(phase, { billing_cycle_anchor: 'phase_start', automatic_tax: { enabled: true, liability: { type: 'self' } } })
+    const target = { ...binding, provider_mode: 'live' as const, tax_mode: 'stripe_exclusive' as const }
+    const paidSource = { ...scheduledRequest.binding, provider_mode: 'live' as const, tax_mode: 'stripe_exclusive' as const }
+    const taxedSchedule = { ...scheduledRequest, binding: paidSource,
+      scheduled: { ...scheduledRequest.scheduled, target_binding: target } }
+    const provider = createStripeCloseoutProvider(f.sdk, liveScope)
+    await expect(provider.readCloseoutEvidence(taxedSchedule)).resolves.toMatchObject({ kind: 'paid', invoiceId: 'in_fixture' })
+    Object.assign(phase, { automatic_tax: { enabled: false } })
+    await expect(provider.readCloseoutEvidence(taxedSchedule)).resolves.toMatchObject({ kind: 'attention' })
+    await expect(provider.readCloseoutEvidence({ ...taxedSchedule, binding: { ...paidSource, tax_mode: undefined } }))
+      .resolves.toMatchObject({ kind: 'attention', reason: 'identity_mismatch' })
+  })
+
   it('cancels only the verified live schedule after a fresh fence', async () => {
     const f = scheduledFixture()
     f.subscription.livemode = true; f.subscription.items.data[0].price.livemode = true

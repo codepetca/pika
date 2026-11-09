@@ -5,6 +5,7 @@ import {
   type BillingProviderSubscriptionSnapshot,
   type BillingReconciliationScope,
 } from '@/lib/server/billing/contracts'
+import { readExclusiveStripeInvoiceTax, stripeMerchantAutomaticTaxSchema, usesStripeExclusiveTax } from './billing-tax'
 import type { BillingProvider } from '@/lib/server/billing/synchronize'
 
 type ReadResource = { retrieve(id: string): Promise<unknown> }
@@ -30,6 +31,7 @@ const stripeInvoiceListSchema = z.object({
 })
 const stripeSubscriptionSchema = z.object({
   id: z.string(), livemode: z.boolean(), customer: referenceSchema, status: z.string(),
+  automatic_tax: z.object({ enabled: z.boolean() }).passthrough().optional(),
   pending_update: z.unknown(), cancel_at: timestampSchema.nullable(),
   cancel_at_period_end: z.boolean(), pause_collection: z.unknown(),
   schedule: referenceSchema.nullable(), latest_invoice: referenceSchema.nullable(),
@@ -38,6 +40,7 @@ const stripeSubscriptionSchema = z.object({
     current_period_end: timestampSchema,
     price: z.object({ id: z.string(), livemode: z.boolean(), currency: z.string(),
       product: referenceSchema, unit_amount: z.number().int().nonnegative(),
+      tax_behavior: z.string().nullable().optional(),
       recurring: z.object({ interval: z.string(), interval_count: z.number().int() }),
     }),
   })).max(100) }),
@@ -60,6 +63,7 @@ const stripeInvoicePaymentSchema = z.union([
 ])
 const stripeInvoiceSchema = z.object({
   id: z.string(), livemode: z.boolean(), customer: referenceSchema,
+  automatic_tax: z.object({ enabled: z.boolean() }).optional(),
   currency: z.string(), status: z.enum(['draft', 'open', 'paid', 'uncollectible', 'void']), amount_due: z.number().int(),
   amount_paid: z.number().int().nonnegative(), amount_remaining: z.number().int().nonnegative(),
   amount_paid_off_stripe: z.number().int().optional(),
@@ -121,6 +125,7 @@ export function createStripeBillingProvider(
       try {
         if (!matchesBillingReconciliationScope(binding, scope)) return null
         const liveMode = binding.provider_mode === 'live'
+        const taxed = usesStripeExclusiveTax(binding)
         const account = stripeAccountSchema.parse(await sdk.accounts.retrieve())
         if (account.id !== binding.stripe_account) return null
         const subscription = stripeSubscriptionSchema.parse(
@@ -131,10 +136,16 @@ export function createStripeBillingProvider(
           || subscription.customer !== binding.stripe_customer_id
           || subscription.livemode !== liveMode
           || subscription.items.data.some(item => item.price.livemode !== liveMode)
+          || (taxed ? !stripeMerchantAutomaticTaxSchema.safeParse(subscription.automatic_tax).success
+            || subscription.items.data.some(item => item.price.tax_behavior !== 'exclusive')
+            : subscription.automatic_tax?.enabled === true)
         ) return null
         let latestInvoice = null
         if (subscription.latest_invoice) {
-          const invoice = stripeInvoiceSchema.parse(await sdk.invoices.retrieve(subscription.latest_invoice))
+          const rawInvoice = await sdk.invoices.retrieve(subscription.latest_invoice)
+          const invoice = stripeInvoiceSchema.parse(rawInvoice)
+          const exclusiveTax = taxed ? readExclusiveStripeInvoiceTax(rawInvoice) : null
+          if ((taxed && !exclusiveTax) || (!taxed && invoice.automatic_tax?.enabled === true)) return null
           if (invoice.id !== subscription.latest_invoice || invoice.livemode !== liveMode
             || invoice.customer !== binding.stripe_customer_id
             || invoice.parent.subscription_details.subscription !== subscription.id
@@ -191,6 +202,7 @@ export function createStripeBillingProvider(
             totalTaxAmount: (invoice.total_taxes ?? []).reduce((sum, item) => sum + item.amount, 0),
             hasDiscounts: invoice.discounts.length > 0 || (invoice.total_discount_amounts?.length ?? 0) > 0,
             hasTaxes: (invoice.total_taxes?.length ?? 0) > 0,
+            ...(exclusiveTax && { exclusiveTax }),
             customerId: invoice.customer, subscriptionId: invoice.parent.subscription_details.subscription,
             linesFullyEnumerated: true,
             lines: invoice.lines.data.map(line => ({
@@ -216,10 +228,12 @@ export function createStripeBillingProvider(
           pendingUpdate: subscription.pending_update !== null,
           cancelAt: subscription.cancel_at, cancelAtPeriodEnd: subscription.cancel_at_period_end,
           pauseCollection: subscription.pause_collection !== null, scheduleId: subscription.schedule,
+          ...(taxed && { automaticTaxEnabled: true as const }),
           items: subscription.items.data.map(item => ({
             priceId: item.price.id, currency: item.price.currency, interval: item.price.recurring.interval,
             intervalCount: item.price.recurring.interval_count, priceLiveMode: item.price.livemode,
             productId: item.price.product, unitAmount: item.price.unit_amount,
+            ...(taxed && { priceTaxBehavior: 'exclusive' as const }),
             quantity: item.quantity, currentPeriodStart: item.current_period_start, currentPeriodEnd: item.current_period_end,
           })),
           latestInvoice,

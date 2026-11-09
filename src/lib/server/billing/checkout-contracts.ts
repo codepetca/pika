@@ -7,6 +7,7 @@ export const CheckoutOfferingSchema = z.object({
   plan_key: z.enum(['basic', 'plus', 'pro']),
   stripe_account: z.string().regex(/^acct_[A-Za-z0-9]+$/),
   provider_mode: z.enum(['test', 'live']).optional(),
+  tax_mode: z.literal('stripe_exclusive').optional(),
   stripe_product_id: z.string().regex(/^prod_[A-Za-z0-9]+$/),
   stripe_price_id: z.string().regex(/^price_[A-Za-z0-9]+$/),
   currency: z.enum(['usd', 'cad']),
