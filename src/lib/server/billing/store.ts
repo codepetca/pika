@@ -21,6 +21,29 @@ export type BillingRpcClient = {
   }>
 }
 
+type LiveBillingRpcName = 'billing_list_live_work_v1' | 'billing_claim_live_subscription_v1' | 'billing_finish_live_lifecycle_v1'
+export type LiveBillingRpcClient = {
+  rpc(name: LiveBillingRpcName, args: { p_project_ref: string; p_stripe_account: string; p_request: Json }):
+    PromiseLike<{ data: unknown; error: unknown }>
+}
+
+export function createLiveBillingStore(client: LiveBillingRpcClient, target: {
+  projectRef: string; stripeAccount: string
+}): BillingStore {
+  async function call(name: LiveBillingRpcName, payload: Json) {
+    const { data, error } = await client.rpc(name, {
+      p_project_ref: target.projectRef, p_stripe_account: target.stripeAccount, p_request: payload,
+    })
+    if (error) throw new Error('Live billing database operation failed')
+    return data
+  }
+  return {
+    listWork: request => call('billing_list_live_work_v1', request),
+    claimSubscription: request => call('billing_claim_live_subscription_v1', request),
+    finishSubscription: request => call('billing_finish_live_lifecycle_v1', request),
+  }
+}
+
 const billingEventReceiptResultSchema = z.object({
   status: z.enum(['accepted', 'duplicate']),
   event_inbox_id: z.string().uuid(),

@@ -110,7 +110,7 @@ describe('closed reorder lifecycle source contracts', () => {
       "t.tgenabled='O'", 'not t.tgdeferrable', 'not t.tginitdeferred', 't.tgtype=expected.kind',
       'p.proname=expected.fn', 'p.prosecdef', 'expected.attrs']) expect(setup).toContain(token)
     expect(setup).toContain(
-      "array['live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled']::text[]",
+      "array['live_payment_lifecycle_enabled','live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled']::text[]",
     )
   })
 

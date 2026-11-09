@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 import { getServiceRoleClient } from '@/lib/supabase'
 import type { BillingSandboxConfig } from '@/lib/server/billing/config'
 import type { BillingHandlerRuntime } from '@/lib/server/billing/handlers'
-import { createBillingStore } from '@/lib/server/billing/store'
+import { createBillingStore, createLiveBillingStore } from '@/lib/server/billing/store'
 import { createTargetBoundFetch } from '@/lib/server/supabase-target'
 import {
   createStripeBillingProvider,
@@ -13,10 +13,18 @@ import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 import { BillingSubscriptionClaimSchema } from './contracts'
 import { verifyInstalledStripeSchedule } from './stripe-closeout-provider'
 import { processDueBillingAssignmentReleases } from './assignment-releases'
+import type { BillingLiveCheckoutConfig } from './live-target'
+import { reconcileBillingSubscriptions } from './reconcile'
 
 /** Pinned to the API version whose response shapes this foundation validates. */
 export const STRIPE_BILLING_API_VERSION = '2026-08-26.dahlia' as const
 const STRIPE_REQUEST_TIMEOUT_MS = 5_000
+
+export function createBillingStripeClient(secretKey: string) {
+  return new Stripe(secretKey, {
+    apiVersion: STRIPE_BILLING_API_VERSION, timeout: STRIPE_REQUEST_TIMEOUT_MS, maxNetworkRetries: 0,
+  })
+}
 
 /**
  * The SDK has different call signatures from the narrow read seam. Keep
@@ -39,11 +47,7 @@ export function createStripeBillingReadPort(stripe: Stripe): StripeBillingReadPo
 
 /** Constructs SDK and database clients only after the local sandbox gate passes. */
 export function createBillingRuntime(config: BillingSandboxConfig): BillingHandlerRuntime {
-  const stripe = new Stripe(config.secretKey, {
-    apiVersion: STRIPE_BILLING_API_VERSION,
-    timeout: STRIPE_REQUEST_TIMEOUT_MS,
-    maxNetworkRetries: 0,
-  })
+  const stripe = createBillingStripeClient(config.secretKey)
   const client = getServiceRoleClient({
     // The shared guard pins this client to loopback and rejects redirect responses.
     fetch: createTargetBoundFetch(config.supabaseOrigin),
@@ -74,4 +78,16 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     processAssignmentReleases: () => processDueBillingAssignmentReleases(client),
     drainProvisioning: () => attemptRepoLightProvisionOutbox({ client, teacherId: provisioningSubject }),
   }
+}
+
+/** Reads and reconciles only live bindings owned by the pinned target. */
+export async function reconcileLiveBillingSubscriptions(config: BillingLiveCheckoutConfig, limit: number) {
+  const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
+  const store = createLiveBillingStore({
+    rpc: (name, args) => client.rpc(name, args).abortSignal(AbortSignal.timeout(5_000)),
+  }, config)
+  const stripe = createBillingStripeClient(config.secretKey)
+  const scope = { providerMode: config.providerMode, stripeAccount: config.stripeAccount }
+  const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe), scope)
+  return reconcileBillingSubscriptions({ store, provider, scope, limit, leaseSeconds: 120 })
 }
