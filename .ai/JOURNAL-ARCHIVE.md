@@ -51366,7 +51366,7 @@ Observed production learner and owner busy errors during class tests. Prepared b
 - Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
 - Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
 
-<!-- pika-session-log-archive-batch:3c46fbceb317bea82c94efdfda00bc6430efc46bbf65f20620fa91aa53a428b3 -->
+<!-- pika-session-log-archive-batch:cd39a7b3d6bad3a91b0da79ff82649edb6e78b2e792fb41e7db16a33a5c87357 -->
 ## 2026-11-04 Header message loading feedback
 
 - Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
@@ -51376,12 +51376,18 @@ Observed production learner and owner busy errors during class tests. Prepared b
 
 Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
 
-<!-- pika-session-log-archive-batch:55e4762dea85672db137c3277296324f4a1a5e00b630a55e8cbfdd78d8173bf9 -->
 ## 2026-11-04 Clarify busy Test errors
 
 Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
 
-<!-- pika-session-log-archive-batch:c2ab61a6987ce06d91604507d679dfd3b7a17fbbd6f3200fce4fc25fed416e5f -->
 ## 2026-11-04 Calendar empty lesson text
 
 Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.

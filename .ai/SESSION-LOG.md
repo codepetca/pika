@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-05 Reuse teacher Tests intent summaries
-
-Retain the legacy teacher Tests intent summary briefly within the current
-teacher/classroom view, retry failed or expired intent reads, and discard the
-provisional list on authorization denial. The shared-admission full read remains
-unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
-no production timing or deployment is implied.
-
 ## 2026-11-05 — Reverse order display preferences
 
 - Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
@@ -347,6 +339,12 @@ continued editing and student submission of already released work, and both
 Classroom-lock and paid-access cutoff races. Native generated types and the
 shared schema matched. The existing future schedules need conversion and a
 durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -369,9 +367,7 @@ The sealed disposable 001–307 replay passed.
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
-Independent review identified gaps in paid re-entry, ordinary terminal
-retirement, legacy bulk publication and the 307 source replay profile. The
-remediation preserves cutoff history and sends publish-capable bulk requests
-through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
-and treats newly created rows as drafts. Both RPCs preflight classroom ownership
-and assignment binding before taking caller-supplied locks.
+
+## 2026-11-09 — Classroom cutoff rebase
+
+Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
