@@ -26,10 +26,14 @@ export function readBillingSandboxConfig(
     throw new Error('Billing sandbox configuration is invalid')
   }
   const url = new URL(parsed.data.NEXT_PUBLIC_SUPABASE_URL)
+  const pinnedOrigin = env.BILLING_SANDBOX_SUPABASE_ORIGIN
+  const validPort = pinnedOrigin
+    ? pinnedOrigin === url.origin && url.port !== '' && Number(url.port) >= 1024
+    : url.port === '54321'
   if (
     url.protocol !== 'http:' ||
     !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
-    url.port !== '54321' || url.username || url.password ||
+    !validPort || url.username || url.password ||
     url.pathname !== '/' || url.search || url.hash
   ) throw new Error('Billing sandbox configuration is invalid')
   return {

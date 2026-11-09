@@ -42,6 +42,20 @@ function setup(evidence: RenewalCloseoutEvidence[] = [unpaid, paused, voided, cl
 const execute = (f: ReturnType<typeof setup>) => closeFailedRenewal({ ...f, subscriptionId: claim.subscription_id, leaseSeconds: 120 })
 
 describe('failed renewal closeout orchestration', () => {
+  it('carries the installed schedule through provider reads and the fenced terminal write', async () => {
+    const f = setup([voided, closed])
+    const scheduled = { operation_id: '66666666-6666-4666-8666-666666666666', provider_schedule_id: 'sub_sched_fixture',
+      effective_at: claim.paid_through, target_binding: claim.binding }
+    const scheduledClaim = { ...claim, scheduled }
+    vi.mocked(f.store.claim).mockResolvedValue(scheduledClaim)
+    vi.mocked(f.store.checkpoint).mockImplementation(async input => ({ ...scheduledClaim,
+      stage: input.stage, operation_revision: input.operation_revision + 1 }))
+    await expect(execute(f)).resolves.toEqual({ status: 'closed' })
+    expect(f.provider.readCloseoutEvidence).toHaveBeenCalledWith(expect.objectContaining({ scheduled }))
+    expect(f.provider.cancelSubscription).toHaveBeenCalledWith(expect.objectContaining({ scheduled, idempotencyKey: `${claim.operation_id}:cancel` }))
+    expect(f.store.finish).toHaveBeenCalledWith(expect.objectContaining({ scheduled_operation_id: scheduled.operation_id,
+      provider_schedule_id: scheduled.provider_schedule_id, evidence: closed }))
+  })
   it('checkpoints every mutation, refreshes fences and verifies terminal state', async () => {
     const f = setup(); await expect(execute(f)).resolves.toEqual({ status: 'closed' })
     expect(f.events).toEqual(['read', 'pause_requested', 'pause_requested', 'pause', 'read', 'collection_paused', 'void_requested', 'void_requested', 'void', 'read', 'invoice_voided', 'cancel_requested', 'cancel_requested', 'cancel', 'read', 'closed'])

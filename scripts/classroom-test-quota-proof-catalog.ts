@@ -59,7 +59,7 @@ export function classroomTestQuotaProofCatalog(
 }
 
 /** Owned disposable replays use the full sealed source. The billing tail
- * changes routines only, so the table fingerprint catalog still comes from 301.
+ * adds one private table at 305; fingerprint it only after the complete 307 tail.
  */
 export function disposableClassroomTestQuotaProofCatalog(
   canonicalTables: readonly string[],
@@ -67,5 +67,8 @@ export function disposableClassroomTestQuotaProofCatalog(
 ): readonly string[] {
   if (migrations.length <= 301) return classroomTestQuotaProofCatalog(canonicalTables, migrations)
   validateDisposableBillingReplayMigrations(migrations)
-  return classroomTestQuotaProofCatalog(canonicalTables, migrations.slice(0, 301))
+  const base = classroomTestQuotaProofCatalog(canonicalTables, migrations.slice(0, 301))
+  return migrations.length === 307
+    ? Object.freeze([...new Set([...base, 'private.billing_scheduled_plan_changes'])].sort())
+    : base
 }

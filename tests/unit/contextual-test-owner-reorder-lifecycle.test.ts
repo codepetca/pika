@@ -536,11 +536,12 @@ describe('reorder snapshot/completion admission', () => {
     const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
     const current = actual.loadAssignmentListReviewedMigrations(process.cwd())
     expect(() => validateTestOwnerReorderReviewedMigrations(current)).not.toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, 303))).not.toThrow()
     const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current)
-    expect(fullCatalog).toEqual(testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)))
+    expect(fullCatalog).toEqual([...testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)), 'private.billing_scheduled_plan_changes'].sort())
     const changed = current.map(migration => ({ ...migration }))
-    changed[302].sql += '\n'
-    changed[302].sha256 = testOwnerDigest(changed[302].sql)
+    changed[303].sql += '\n'
+    changed[303].sha256 = testOwnerDigest(changed[303].sql)
     expect(() => validateTestOwnerReorderReviewedMigrations(changed)).toThrow()
     expect(() => testOwnerReorderTableCatalogFromCanonical(canonical, changed)).toThrow()
     const withTail = graph()
@@ -548,7 +549,7 @@ describe('reorder snapshot/completion admission', () => {
     expect(validateTestOwnerReorderSnapshotCatalog(withTail, fullCatalog)).toEqual(withTail)
     for (const table of ['private.repolight_settings', 'private.repolight_managed_connections',
       'private.repolight_provision_control', 'private.repolight_provision_outbox',
-      'private.stripe_billing_settings', 'public.account_plans', 'public.billing_account_access']) {
+      'private.stripe_billing_settings', 'private.billing_scheduled_plan_changes', 'public.account_plans', 'public.billing_account_access']) {
       expect(fullCatalog).toContain(table)
       const missing = structuredClone(withTail)
       missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== table)

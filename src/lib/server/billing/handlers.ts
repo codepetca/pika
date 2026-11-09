@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { NextResponse } from 'next/server'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { reconcileBillingSubscriptions } from '@/lib/server/billing/reconcile'
+import { logServerError } from '@/lib/server/diagnostics'
 import type { BillingProvider, BillingStore } from '@/lib/server/billing/synchronize'
 import { acceptBillingWebhook, readBillingWebhookBody, type BillingEventReceipt } from '@/lib/server/billing/webhook'
 
@@ -13,6 +14,14 @@ export type BillingHandlerRuntime = {
   drainProvisioning?(): Promise<unknown>
 }
 
+async function runOptionalRecoveryLane(run: () => Promise<unknown>) {
+  try {
+    return await run()
+  } catch (error) {
+    return { failed: 1, diagnosticId: logServerError('api.unexpected', error) }
+  }
+}
+
 /** Runtime wiring is separate so no SDK/client is constructed while disabled. */
 export function createBillingHandlers(
   configuration: () => { stripeAccount: string; workerSecret: string } | null,
@@ -21,6 +30,7 @@ export function createBillingHandlers(
   loadLifecycle?: () => Promise<{ applyDue(input: { limit: number }): Promise<{ processed: number }> } | null>,
   loadCloseouts?: () => Promise<{ closeDueRenewals(input: { limit: number }): Promise<unknown> } | null>,
   loadUpgrades?: () => Promise<{ processDue(input: { limit: number }): Promise<unknown> } | null>,
+  loadScheduledChanges?: () => Promise<{ processDue(input: { limit: number }): Promise<unknown> } | null>,
 ) {
   function requireConfiguration() {
     const config = configuration()
@@ -44,15 +54,14 @@ export function createBillingHandlers(
         throw new ApiError(401, 'Unauthorized')
       }
       const runtime = await loadRuntime()
-      const upgradeRuntime = loadUpgrades ? await loadUpgrades() : null
-      const upgrades = upgradeRuntime ? await upgradeRuntime.processDue({ limit: 1 }) : undefined
+      const upgrades = await runOptionalRecoveryLane(async () => (await loadUpgrades?.())?.processDue({ limit: 1 }))
+      const scheduledChanges = await runOptionalRecoveryLane(async () => (await loadScheduledChanges?.())?.processDue({ limit: 1 }))
       const result = await reconcileBillingSubscriptions({
         store: runtime.store, provider: runtime.provider, limit: 1, leaseSeconds: 120,
       })
       // A newly completed purchase is bound here; the next worker pass verifies
       // its captured invoice before applying paid access. Neither needs a redirect.
-      const purchaseRuntime = loadPurchases ? await loadPurchases() : null
-      const purchases = purchaseRuntime ? await purchaseRuntime.reconcileCheckouts({ limit: 1 }) : undefined
+      const purchases = await runOptionalRecoveryLane(async () => (await loadPurchases?.())?.reconcileCheckouts({ limit: 1 }))
       const lifecycleRuntime = loadLifecycle ? await loadLifecycle() : null
       const lifecycle = lifecycleRuntime ? await lifecycleRuntime.applyDue({ limit: 25 }) : undefined
       const closeoutRuntime = loadCloseouts ? await loadCloseouts() : null
@@ -61,7 +70,7 @@ export function createBillingHandlers(
       // owns retry and exact entitlement checks; billing success is unchanged.
       await runtime.drainProvisioning?.()
       return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}),
-        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}) })
+        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}), ...(scheduledChanges ? { scheduledChanges } : {}) })
     }),
   }
 }

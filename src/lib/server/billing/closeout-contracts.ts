@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BillingSubscriptionBindingSchema, type BillingSubscriptionBinding } from './contracts'
+import { BillingScheduledRenewalSchema, BillingSubscriptionBindingSchema, type BillingSubscriptionBinding } from './contracts'
 
 const timestamp = z.string().datetime({ offset: true })
 const reference = z.string().min(1).max(255)
@@ -14,14 +14,20 @@ export const RenewalCloseoutEvidenceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('attention'), reason: z.enum(['identity_mismatch', 'unsupported_payment', 'partial_payment', 'unknown_invoice', 'incomplete_evidence', 'unexpected_money']) }).strict(),
 ])
 export type RenewalCloseoutEvidence = z.infer<typeof RenewalCloseoutEvidenceSchema>
+export const RenewalCloseoutScheduleSchema = BillingScheduledRenewalSchema.omit({ state: true })
+export type RenewalCloseoutSchedule = z.infer<typeof RenewalCloseoutScheduleSchema>
 export type RenewalCloseoutReadRequest = {
   binding: BillingSubscriptionBinding
   invoiceId: string
   paidThrough: string
   cutoff: string
+  scheduled?: RenewalCloseoutSchedule
 }
 /** Recheck the durable lease after provider reads, immediately before the actual write. */
-export type RenewalCloseoutMutationRequest = RenewalCloseoutReadRequest & { beforeMutation(): Promise<boolean> }
+export type RenewalCloseoutMutationRequest = RenewalCloseoutReadRequest & {
+  beforeMutation(): Promise<boolean>
+  idempotencyKey?: string
+}
 export type RenewalCloseoutWriteRequest = RenewalCloseoutMutationRequest & { idempotencyKey: string }
 /** Every read independently verifies complete raw payment facts; normalized empty payments are insufficient. */
 export type RenewalCloseoutProvider = {
@@ -37,6 +43,7 @@ export const RenewalCloseoutClaimSchema = z.object({
   expected_account_plan_revision: z.number().int().positive(), operation_revision: z.number().int().positive(),
   binding: BillingSubscriptionBindingSchema, stage: RenewalCloseoutStageSchema,
   invoice_id: reference, paid_through: timestamp, cutoff: timestamp,
+  scheduled: RenewalCloseoutScheduleSchema.optional(),
 }).strict()
 export type RenewalCloseoutClaim = z.infer<typeof RenewalCloseoutClaimSchema>
 export const RenewalCloseoutClaimResultSchema = z.union([RenewalCloseoutClaimSchema,
@@ -51,6 +58,8 @@ export type RenewalCloseoutFinishRequest = RenewalCloseoutFence & {
   outcome: 'closed' | 'payment_won' | 'deferred' | 'attention'
   reason?: string
   evidence?: RenewalCloseoutEvidence
+  scheduled_operation_id?: string
+  provider_schedule_id?: string
 }
 export const RenewalCloseoutFinishSchema = z.object({ status: z.enum(['closed', 'payment_won', 'deferred', 'attention', 'lost_claim', 'plan_conflict', 'superseded']) }).strict()
 export type RenewalCloseoutStore = {
