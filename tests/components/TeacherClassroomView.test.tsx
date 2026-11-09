@@ -701,7 +701,6 @@ async function getSelectedStudentAction(
     | 'AI Grade 2 students'
     | 'Copy grade to 1 selected'
     | 'Copy grade to 2 selected'
-    | 'Copy comment to 2 selected'
     | `AI Grade ${string}`
     | `Analyze repos for ${number} students`
     | 'Return',
@@ -3414,7 +3413,7 @@ describe('TeacherClassroomView', () => {
     expect(gradePreview).toHaveTextContent('Workflow910')
     expect(gradePreview).toHaveTextContent('Final grade24/3080%Final')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -3441,7 +3440,10 @@ describe('TeacherClassroomView', () => {
     })
   })
 
-  it('copies the active inspector comments to checked students after confirmation', async () => {
+  it.each([
+    ['comment only', false, 'comments'],
+    ['grade and comment', true, 'grade-and-comments'],
+  ] as const)('copies %s from the same dialog', async (_label, includeGrade, applyTarget) => {
     mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
     mockStudentSelectionState.selectedCount = 2
 
@@ -3510,21 +3512,31 @@ describe('TeacherClassroomView', () => {
       expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1')
     })
 
-    const commentsSelectedOption = await getSelectedStudentAction('Copy comment to 2 selected')
-    await waitFor(() => {
-      expect(commentsSelectedOption).not.toBeDisabled()
-    })
+    const copyOption = await getSelectedStudentAction('Copy grade to 2 selected')
+    await waitFor(() => expect(copyOption).not.toBeDisabled())
 
     mockClearSelection.mockClear()
-    fireEvent.click(commentsSelectedOption)
-    expect(screen.getByText('Copy comment to 2 selected students')).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveTextContent(
+    fireEvent.click(copyOption)
+    const dialog = within(screen.getByRole('dialog', { name: 'Copy grade to 2 selected students' }))
+    const grade = dialog.getByRole('checkbox', { name: 'Grade' })
+    const comment = dialog.getByRole('checkbox', { name: 'Comment' })
+    const copy = dialog.getByRole('button', { name: 'Copy' })
+    expect(grade).toBeChecked()
+    expect(comment).not.toBeChecked()
+    expect(dialog.queryByRole('textbox', { name: 'Comment to copy' })).not.toBeInTheDocument()
+
+    fireEvent.click(grade)
+    expect(dialog.queryByRole('group', { name: 'Grade to copy' })).not.toBeInTheDocument()
+    expect(copy).toBeDisabled()
+    fireEvent.click(comment)
+    expect(dialog.getByRole('textbox', { name: 'Comment to copy' })).toHaveTextContent(
       'Use this feedback for the selected students.',
     )
-    expect(screen.getByRole('textbox', { name: 'Comment to copy' })).toHaveClass('break-words')
-    expect(screen.getByRole('textbox', { name: 'Comment to copy' }).parentElement).toHaveClass('min-h-0', 'overflow-y-auto')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    if (includeGrade) {
+      fireEvent.click(grade)
+      expect(dialog.getByRole('group', { name: 'Grade to copy' })).toBeInTheDocument()
+    }
+    fireEvent.click(copy)
 
     await waitFor(() => {
       expect(gradeSelectedBodies).toHaveLength(1)
@@ -3532,23 +3544,29 @@ describe('TeacherClassroomView', () => {
 
     expect(gradeSelectedBodies[0]).toEqual({
       student_ids: ['student-1', 'student-2'],
-      apply_target: 'comments',
+      apply_target: applyTarget,
       expected_doc_updated_at_by_student: {
         'student-1': '2026-04-10T12:00:00Z',
         'student-2': '2026-04-10T12:00:00Z',
       },
       feedback: 'Use this feedback for the selected students.',
+      ...(includeGrade ? {
+        score_completion: '7',
+        score_thinking: '8',
+        score_workflow: '9',
+        save_mode: 'graded',
+      } : {}),
     })
     expect(mockClearSelection).not.toHaveBeenCalled()
     await waitFor(() => {
       expect(mockShowMessage).toHaveBeenCalledWith({
-        text: 'Copied comment to 2 selected students',
+        text: `Copied ${includeGrade ? 'grade and comment' : 'comment'} to 2 selected students`,
         tone: 'info',
       })
     })
   })
 
-  it('highlights the matching inspector card while hovering apply menu actions', async () => {
+  it('offers one copy action and highlights the grade while hovering', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
     mockStudentSelectionState.selectedCount = 2
 
@@ -3585,11 +3603,8 @@ describe('TeacherClassroomView', () => {
 
     const workPanel = await screen.findByTestId('teacher-work-panel')
     const applyGradeOption = await getSelectedStudentAction('Copy grade to 2 selected')
-    const applyCommentsOption = screen.getByRole('menuitem', { name: 'Copy comment to 2 selected' })
-    await waitFor(() => {
-      expect(applyGradeOption).not.toBeDisabled()
-      expect(applyCommentsOption).not.toBeDisabled()
-    })
+    expect(screen.queryByRole('menuitem', { name: /Copy comment/ })).not.toBeInTheDocument()
+    await waitFor(() => expect(applyGradeOption).not.toBeDisabled())
 
     fireEvent.mouseEnter(applyGradeOption)
     expect(workPanel).toHaveAttribute('data-highlighted-sections', 'grades')
@@ -3597,16 +3612,59 @@ describe('TeacherClassroomView', () => {
     fireEvent.mouseLeave(applyGradeOption)
     expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
 
-    fireEvent.mouseEnter(applyCommentsOption)
-    expect(workPanel).toHaveAttribute('data-highlighted-sections', 'comments')
+  })
 
-    fireEvent.mouseLeave(applyCommentsOption)
-    expect(workPanel).toHaveAttribute('data-highlighted-sections', '')
+  it('dismisses a copy dialog when its source or checked students change', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+    const first = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    const second = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-2')
+    const updateSearchParams = vi.fn()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/teacher/assignments/assignment-1') {
+        return { ok: true, json: async () => ({ ...first, students: [...first.students, ...second.students] }) }
+      }
+      return { ok: false, json: async () => ({ error: `Unhandled fetch: ${input}` }) }
+    })
+    const workspace = (studentId: string) => (
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId="assignment-1"
+        selectedAssignmentStudentId={studentId}
+        updateSearchParams={updateSearchParams}
+      />
+    )
+    const { rerender } = render(workspace('student-1'))
+    const dialogName = 'Copy grade to 2 selected students'
+
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1'))
+    rerender(workspace('student-2'))
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-2'))
+    fireEvent.click(await getSelectedStudentAction('Copy grade to 2 selected'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: dialogName })).getByRole('checkbox', { name: 'Comment' }))
+
+    rerender(workspace('student-1'))
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1'))
+    expect(screen.queryByRole('dialog', { name: dialogName })).not.toBeInTheDocument()
+
+    rerender(workspace('student-2'))
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-2'))
+    expect(screen.queryByRole('dialog', { name: dialogName })).not.toBeInTheDocument()
+    fireEvent.click(await getSelectedStudentAction('Copy grade to 2 selected'))
+    expect(within(screen.getByRole('dialog', { name: dialogName })).getByRole('checkbox', { name: 'Comment' })).not.toBeChecked()
+
+    mockStudentSelectionState.selectedIds = new Set(['student-2'])
+    mockStudentSelectionState.selectedCount = 1
+    rerender(workspace('student-2'))
+    expect(screen.queryByRole('dialog', { name: /^Copy grade/ })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/grade-selected'))).toBe(false)
   })
 
   it('keeps checked students selected when copying a grade fails', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1'])
     mockStudentSelectionState.selectedCount = 1
+    const failedCopy = createDeferred<{ ok: false; json: () => Promise<{ error: string }> }>()
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
@@ -3619,10 +3677,7 @@ describe('TeacherClassroomView', () => {
       }
 
       if (url === '/api/teacher/assignments/assignment-1/grade-selected') {
-        return Promise.resolve({
-          ok: false,
-          json: async () => ({ error: 'Batch save failed' }),
-        })
+        return failedCopy.promise
       }
 
       return Promise.resolve({
@@ -3646,10 +3701,14 @@ describe('TeacherClassroomView', () => {
     })
 
     fireEvent.click(gradeSelectedOption)
-    expect(screen.getByText('Copy grade to 1 selected student')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Copy grade to 1 selected student' }))
+    fireEvent.click(dialog.getByRole('button', { name: 'Copy' }))
+    expect(dialog.getByRole('checkbox', { name: 'Grade' })).toHaveAttribute('disabled')
+    expect(dialog.getByRole('checkbox', { name: 'Comment' })).toHaveAttribute('disabled')
 
-    expect(await screen.findByText('Batch save failed')).toBeInTheDocument()
+    failedCopy.resolve({ ok: false, json: async () => ({ error: 'Batch save failed' }) })
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Batch save failed')
+    expect(dialog.getByRole('button', { name: 'Copy' })).toBeEnabled()
     expect(mockClearSelection).not.toHaveBeenCalled()
   })
 
