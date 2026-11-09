@@ -6,6 +6,7 @@ import { usePersistentBoolean } from '@/hooks/usePersistentBoolean'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
 import { executeRepoLightBatch, type RepoLightBatchProgress, type RepoLightBatchResult } from '@/lib/repolight-batch'
+import type { AssignmentGradeApplyTarget } from '@/lib/validations/assignment-grading'
 import { repoLightContextReplySchema } from '@/lib/validations/repolight'
 
 import { useCallback, useMemo, useState, useEffect, useId, useRef, type MouseEvent } from 'react'
@@ -36,7 +37,6 @@ import {
   EllipsisVertical,
   GripVertical,
   Lock,
-  MessageSquare,
   Pencil,
   Plus,
   Reply,
@@ -44,7 +44,7 @@ import {
   Trash2,
   Unlock,
 } from 'lucide-react'
-import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
+import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, TableSelectionCheckbox, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
 import { AssignmentWorkspaceViewToggle } from '@/components/assignment-workspace/AssignmentWorkspaceViewToggle'
 import { useTableSelection } from '@/hooks/useTableSelection'
@@ -156,7 +156,14 @@ type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
   student_id: string
   updated_at?: string | null
 }
-type GradeSelectedApplyTarget = 'grade' | 'comments'
+type GradeCopyFields = { grade: boolean; comment: boolean }
+
+const gradeCopyLabel: Record<AssignmentGradeApplyTarget, string> = {
+  grade: 'grade',
+  comments: 'comment',
+  'grade-and-comments': 'grade and comment',
+}
+
 type UpdateSearchParamsFn = (
   updater: (params: URLSearchParams) => void,
   options?: { replace?: boolean },
@@ -741,10 +748,9 @@ export function TeacherClassroomView({
   const [repoApproval, setRepoApproval] = useState<{ key: string; ready: boolean } | null>(null)
   const repoBatchAbort = useRef<AbortController | null>(null)
   const repoBatchTitleId = useId()
-  const [gradeSelectedConfirmTarget, setGradeSelectedConfirmTarget] =
-    useState<GradeSelectedApplyTarget | null>(null)
+  const [gradeCopyFields, setGradeCopyFields] = useState<GradeCopyFields | null>(null)
   const gradeSelectedConfirmTitleId = useId()
-  const [highlightedApplyTarget, setHighlightedApplyTarget] = useState<GradeSelectedApplyTarget | null>(null)
+  const [isGradeCopyHighlighted, setIsGradeCopyHighlighted] = useState(false)
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
     useState<TeacherAssignmentGradeTemplate | null>(null)
   const [gradeSelectedRefreshCounter, setGradeSelectedRefreshCounter] = useState(0)
@@ -1679,7 +1685,7 @@ export function TeacherClassroomView({
     options: { updateUrl?: boolean; replace?: boolean } = {},
   ) => {
     setSelectedStudentId(studentId)
-    setGradeSelectedConfirmTarget(null)
+    setGradeCopyFields(null)
     if (options.updateUrl === false || !updateSearchParams || selection.mode !== 'assignment') return
 
     updateSearchParams((params) => {
@@ -2013,22 +2019,24 @@ export function TeacherClassroomView({
     }
   }
 
-  async function handleGradeSelected(applyTarget: GradeSelectedApplyTarget) {
+  async function handleGradeSelected(applyTarget: AssignmentGradeApplyTarget) {
     if (!selectedAssignmentData || !gradeSelectedTemplate || batchSelectedCount === 0) return
 
     if (gradeSelectedTemplate.studentId !== activeSelectedStudentId || gradeSelectedTemplate.studentId !== selectedStudentId) {
       setGradeSelectedTemplate(null)
-      setGradeSelectedConfirmTarget(null)
+      setGradeCopyFields(null)
       return
     }
 
-    if (applyTarget === 'grade' && !isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
+    const copyGrade = applyTarget !== 'comments'
+    const copyComment = applyTarget !== 'grade'
+    if (copyGrade && !isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
       setError('Scores must be blank or integers 0–10')
       return
     }
 
     const studentIds = Array.from(batchSelectedIds)
-    const copyTargetLabel = applyTarget === 'comments' ? 'comment' : 'grade'
+    const copyTargetLabel = gradeCopyLabel[applyTarget]
     const expectedDocUpdatedAtByStudent = Object.fromEntries(
       studentIds.map((studentId) => {
         const student = selectedAssignmentData.students.find((row) => row.student_id === studentId)
@@ -2047,16 +2055,15 @@ export function TeacherClassroomView({
           student_ids: studentIds,
           expected_doc_updated_at_by_student: expectedDocUpdatedAtByStudent,
           apply_target: applyTarget,
-          ...(applyTarget === 'grade'
+          ...(copyGrade
             ? {
                 score_completion: gradeSelectedTemplate.scoreCompletion,
                 score_thinking: gradeSelectedTemplate.scoreThinking,
                 score_workflow: gradeSelectedTemplate.scoreWorkflow,
                 save_mode: gradeSelectedTemplate.gradeMode,
               }
-            : {
-                feedback: gradeSelectedTemplate.feedbackDraft,
-              }),
+            : {}),
+          ...(copyComment ? { feedback: gradeSelectedTemplate.feedbackDraft } : {}),
         }),
       })
       const data = await res.json()
@@ -2096,13 +2103,13 @@ export function TeacherClassroomView({
 
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
       setInfo(`Copied ${copyTargetLabel} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
-      setGradeSelectedConfirmTarget(null)
+      setGradeCopyFields(null)
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
         setGradeSelectedRefreshCounter((count) => count + 1)
       }
     } catch (err: any) {
-      setError(err.message || `Failed to apply ${applyTarget}`)
+      setError(err.message || `Failed to copy ${copyTargetLabel}`)
     } finally {
       setIsGradeSelectedSaving(false)
     }
@@ -2423,12 +2430,7 @@ export function TeacherClassroomView({
       : null
   const activeWorkspaceMode: AssignmentWorkspaceMode = splitPaneView === 'content-grading' ? 'details' : 'overview'
   const activeWorkspaceLayout = assignmentGradingLayout[activeWorkspaceMode]
-  const highlightedInspectorSections =
-    highlightedApplyTarget === 'grade'
-      ? (['grades'] as const)
-      : highlightedApplyTarget === 'comments'
-        ? (['comments'] as const)
-        : undefined
+  const highlightedInspectorSections = isGradeCopyHighlighted ? (['grades'] as const) : undefined
   const canCycleSplitPaneView =
     selection.mode === 'assignment' &&
     !selectedAssignmentLoading &&
@@ -2463,38 +2465,20 @@ export function TeacherClassroomView({
       ? gradeSelectedTemplate
       : null
   const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(activeGradeSelectedTemplate)
-  const isApplyGradeSelectedDisabled =
-    isGradeSelectedSaving ||
-    isAutoGrading ||
-    hasActiveAssignmentAiRun ||
-    isReturning ||
-    workspaceGradeBusy ||
-    isReadOnly ||
-    batchSelectedCount === 0 ||
-    !activeGradeSelectedTemplate ||
-    !gradeSelectedTemplateIsValid
-  const isApplyCommentsSelectedDisabled =
-    isGradeSelectedSaving ||
-    isAutoGrading ||
-    hasActiveAssignmentAiRun ||
-    isReturning ||
-    workspaceGradeBusy ||
-    isReadOnly ||
-    batchSelectedCount === 0 ||
-    !activeGradeSelectedTemplate
-  const isGradeSelectedConfirmDisabled =
-    gradeSelectedConfirmTarget === 'grade'
-      ? isApplyGradeSelectedDisabled
-      : gradeSelectedConfirmTarget === 'comments'
-        ? isApplyCommentsSelectedDisabled
-        : true
+  const isGradeCopyDisabled =
+    selectedStudentActionsBusy || batchSelectedCount === 0 || !activeGradeSelectedTemplate
+  const gradeCopyTarget: AssignmentGradeApplyTarget | null = gradeCopyFields?.grade
+    ? gradeCopyFields.comment ? 'grade-and-comments' : 'grade'
+    : gradeCopyFields?.comment ? 'comments' : null
+  const isGradeCopyConfirmDisabled =
+    isGradeCopyDisabled || !gradeCopyTarget || (gradeCopyFields?.grade && !gradeSelectedTemplateIsValid)
   const assignmentAiPollUnavailable = unavailableAssignmentAiPollKey === `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
   const showAssignmentAiRunOverlay = isAutoGrading || (hasActiveAssignmentAiRun && !assignmentAiPollUnavailable)
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
     ? `Grading ${Math.min(activeAssignmentAiRun.processed_count, activeAssignmentAiRun.requested_count)} of ${activeAssignmentAiRun.requested_count} students…`
     : `Starting grading for ${batchProgressCount} student${batchProgressCount === 1 ? '' : 's'}…`
   const gradeSelectedSavingLabel =
-    gradeSelectedConfirmTarget === 'comments' ? 'Copying comment' : 'Copying grade'
+    gradeCopyTarget ? `Copying ${gradeCopyLabel[gradeCopyTarget]}` : 'Copying'
   const activeWorkMessage = showAssignmentAiRunOverlay
     ? assignmentAiRunOverlayLabel
     : isReturning
@@ -2619,23 +2603,12 @@ export function TeacherClassroomView({
       id: 'grade-selected',
       label: `Copy grade to ${batchSelectedCount} selected`,
       icon: <Copy className="h-4 w-4" aria-hidden="true" />,
-      onHoverChange: (active: boolean) => setHighlightedApplyTarget(active ? 'grade' : null),
+      onHoverChange: setIsGradeCopyHighlighted,
       onSelect: () => {
-        setHighlightedApplyTarget(null)
-        setGradeSelectedConfirmTarget('grade')
+        setIsGradeCopyHighlighted(false)
+        setGradeCopyFields({ grade: gradeSelectedTemplateIsValid, comment: false })
       },
-      disabled: isApplyGradeSelectedDisabled,
-    },
-    {
-      id: 'comments-selected',
-      label: `Copy comment to ${batchSelectedCount} selected`,
-      icon: <MessageSquare className="h-4 w-4" aria-hidden="true" />,
-      onHoverChange: (active: boolean) => setHighlightedApplyTarget(active ? 'comments' : null),
-      onSelect: () => {
-        setHighlightedApplyTarget(null)
-        setGradeSelectedConfirmTarget('comments')
-      },
-      disabled: isApplyCommentsSelectedDisabled,
+      disabled: isGradeCopyDisabled,
     }]),
     {
       id: 'return-selected',
@@ -3295,45 +3268,66 @@ export function TeacherClassroomView({
 
 
       <DialogPanel
-        isOpen={!!gradeSelectedConfirmTarget}
-        onClose={() => {
-          if (!isGradeSelectedSaving) setGradeSelectedConfirmTarget(null)
-        }}
+        isOpen={!!gradeCopyFields && !!activeGradeSelectedTemplate}
+        onClose={() => setGradeCopyFields(null)}
+        closeDisabled={isGradeSelectedSaving}
         maxWidth="max-w-sm"
         ariaLabelledBy={gradeSelectedConfirmTitleId}
       >
-        <h2 id={gradeSelectedConfirmTitleId} className="shrink-0 text-base font-semibold text-text-default">
-          {gradeSelectedConfirmTarget === 'comments'
-            ? `Copy comment to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`
-            : `Copy grade to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`}
+        <h2 id={gradeSelectedConfirmTitleId} className="text-base font-semibold text-text-default">
+          {`Copy grade to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`}
         </h2>
-        <div className="mt-3 min-h-0 overflow-y-auto">
-          {activeGradeSelectedTemplate
-            ? gradeSelectedConfirmTarget === 'comments'
-              ? <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />
-              : <CopyGradePreview template={activeGradeSelectedTemplate} />
-            : null}
-        </div>
+        <fieldset className="flex shrink-0 gap-4" disabled={isGradeSelectedSaving}>
+          <legend className="sr-only">Fields to copy</legend>
+          <label className="inline-flex min-h-control items-center gap-2 text-sm text-text-default">
+            <TableSelectionCheckbox
+              ariaLabel="Grade"
+              checked={gradeCopyFields?.grade ?? false}
+              disabled={!gradeSelectedTemplateIsValid}
+              onChange={(grade) => setGradeCopyFields((fields) => fields && { ...fields, grade })}
+            />
+            Grade
+          </label>
+          <label className="inline-flex min-h-control items-center gap-2 text-sm text-text-default">
+            <TableSelectionCheckbox
+              ariaLabel="Comment"
+              checked={gradeCopyFields?.comment ?? false}
+              onChange={(comment) => setGradeCopyFields((fields) => fields && { ...fields, comment })}
+            />
+            Comment
+          </label>
+        </fieldset>
+        {activeGradeSelectedTemplate && gradeCopyTarget && (
+          <div
+            role="region"
+            aria-label="Copy preview"
+            tabIndex={0}
+            className="min-h-0 space-y-3 overflow-y-auto rounded-md focus:outline-none focus-visible:ring-foundation focus-visible:ring-inset focus-visible:ring-focus"
+          >
+            {gradeCopyFields?.grade && <CopyGradePreview template={activeGradeSelectedTemplate} />}
+            {gradeCopyFields?.comment && <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />}
+          </div>
+        )}
         <div className="mt-4 flex shrink-0 gap-2">
           <Button
             type="button"
             variant="secondary"
             className="flex-1"
             disabled={isGradeSelectedSaving}
-            onClick={() => setGradeSelectedConfirmTarget(null)}
+            onClick={() => setGradeCopyFields(null)}
           >
             Cancel
           </Button>
           <Button
             type="button"
             className="flex-1"
-            disabled={isGradeSelectedSaving || isGradeSelectedConfirmDisabled}
+            disabled={isGradeCopyConfirmDisabled}
             onClick={() => {
-              if (!gradeSelectedConfirmTarget) return
-              void handleGradeSelected(gradeSelectedConfirmTarget)
+              if (!gradeCopyTarget || isGradeCopyConfirmDisabled) return
+              void handleGradeSelected(gradeCopyTarget)
             }}
           >
-            {isGradeSelectedSaving ? 'Copying...' : 'Confirm'}
+            {isGradeSelectedSaving ? 'Copying...' : 'Copy'}
           </Button>
         </div>
       </DialogPanel>
