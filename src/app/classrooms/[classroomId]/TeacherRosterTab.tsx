@@ -892,8 +892,8 @@ export function TeacherRosterTab({ classroom }: Props) {
                       onChange={() => toggleSelect(row.id)}
                       ariaLabel={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
                     />
-                    <DataTableCell className="truncate" title={row.first_name ?? undefined}>{row.first_name ?? '—'}</DataTableCell>
-                    <DataTableCell className="truncate" title={row.last_name ?? undefined}>{row.last_name ?? '—'}</DataTableCell>
+                    <DataTableCell title={row.first_name ?? undefined}><span className="block truncate">{row.first_name ?? '—'}</span></DataTableCell>
+                    <DataTableCell title={row.last_name ?? undefined}><span className="block truncate">{row.last_name ?? '—'}</span></DataTableCell>
                     <DataTableCell className="hidden text-text-muted md:table-cell">
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="truncate" title={row.email}>{row.email}</span>

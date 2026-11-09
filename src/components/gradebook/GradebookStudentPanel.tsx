@@ -102,11 +102,11 @@ export function GradebookStudentPanel({
                         {column.assessment_type === 'item' && onItemOpen ? (
                           <Button
                             type="button" variant="ghost" size="sm"
-                            className={cn('min-w-0 truncate px-1 text-left font-normal', compactZero && 'text-text-muted')}
+                            className={cn('min-w-0 px-1 text-left font-normal', compactZero && 'text-text-muted')}
                             disabled={isReadOnly} aria-label={`Edit item: ${column.title}`}
                             onClick={() => onItemOpen(column)}
                           >
-                            {column.title}
+                            <span className="min-w-0 truncate">{column.title}</span>
                           </Button>
                         ) : (
                           <span className={cn('truncate text-sm font-normal', compactZero ? 'text-text-muted' : 'text-text-default')} title={column.title}>{column.title}</span>
