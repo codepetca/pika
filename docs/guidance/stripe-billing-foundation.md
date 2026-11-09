@@ -642,6 +642,52 @@ this worktree. Provider-port fixtures and database replays are separate from
 the actual provider rehearsal. The September 27 receipt is historical first
 purchase evidence only.
 
+### Classroom activity fallback
+
+On a verified drop in classroom capacity, consider the owner's current
+classrooms that are neither ordinarily archived nor already restricted by a
+subscription. A confirmed selection applies to that specific downgrade. A
+selection of fewer classrooms than the cap keeps only those eligible selected
+classrooms. Free keeps none. Preserve earlier restrictions across renewals and
+resubscription until the teacher explicitly restores a classroom within capacity.
+
+When there is no selection, order eligible classrooms by the latest recorded
+assignment release, assignment submission, Test attempt start or Test
+submission. Use only activity at or before the effective reduction. Sort
+classrooms without recorded activity after classrooms with activity, then break
+ties by classroom creation time (newest first) and classroom UUID (ascending).
+Draft edits, page views and classroom renames do not affect the ranking. For a
+scheduled downgrade, the reduction takes effect when Pika verifies the target
+payment and commits the smaller entitlement. A failed target invoice leaves
+the Max classroom limit and selection unchanged through grace.
+An expired trial or a closed paid term still requires explicit classroom
+restoration when payment is reconciled before expiry processing. Verified
+unpaid payer retirement records the same restrictions when Stripe has already
+closed the obligations.
+
+### Scheduled assignment release contract
+
+For classrooms governed by the billing cutoff, keep a scheduled assignment
+in its canonical draft state until an authorized worker releases it. Store the
+schedule generation, classroom, owner, due time and result separately. Owner
+views need to show that schedule, and draft cleanup must preserve its work.
+Student reads and submissions can continue using the canonical publication
+state. Convert existing future schedules only within the enabled cohort and
+after verifying that the assignments have no learner work.
+
+Apply migration 310 and verify the legacy bulk RPC in the Data API schema
+cache before deploying the application route. The atomic legacy writer
+preserves edits to Blueprint-retired history in a mixed batch.
+
+Release under the existing assignment and classroom locks, then acquire the
+owner account and entitlement locks. Require eligible access both at the
+scheduled time and after any lock wait. For the scheduled time, use an
+entitlement audit recorded by that time and the classroom's restriction
+history. A grant written later with an earlier period start cannot rescue a
+missed release. Persist the suppressed generation and its teacher notice in
+one transaction. A teacher can explicitly reschedule or release it after
+regaining access. Released assignments keep their existing student rules.
+
 ### Worker recovery follow-up
 
 Keep the base sandbox and its validated local app origin configured when

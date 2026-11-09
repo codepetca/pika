@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -122,6 +123,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
       .single()
 
     if (error) {
+      throwBillingClassroomPublicationError(error)
       logServerError('assignment.release', error)
       return NextResponse.json(
         { error: 'Failed to release assignment' },

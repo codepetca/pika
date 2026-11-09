@@ -136,6 +136,34 @@ describe('contextual existing-assignment owner mutation routes', () => {
     }))
   })
 
+  it.each([
+    ['PT403', 'billing_classroom_new_work_unavailable', 403, 'Assignment release is unavailable for this classroom.'],
+    ['PT409', 'billing_assignment_publication_busy', 409, 'Assignment changed during this update. Refresh and try again.'],
+  ])('surfaces a legacy publication error with code %s', async (code, message, status, errorText) => {
+    vi.mocked(authorizeContextualAssignmentOwnerMutationRequest).mockResolvedValue({
+      mode: 'legacy', user: user as any, assignmentId,
+    })
+    const update = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({
+            data: null, error: { code, message },
+          }),
+        })),
+      })),
+    }))
+    mockSupabase.from.mockReturnValue({ ...selectAssignment(), update })
+
+    const response = await releaseAssignment(new NextRequest(
+      `http://localhost/api/teacher/assignments/${assignmentId}/release`,
+      { method: 'POST', body: '{}' },
+    ), { params: Promise.resolve({ id: assignmentId }) })
+
+    expect(response.status).toBe(status)
+    expect(await response.json()).toMatchObject({ error: errorText })
+    expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
+  })
+
   it('routes contextual pristine discard through the actor-bound RPC', async () => {
     vi.mocked(discardPristineAssignmentDraftForOwner).mockResolvedValue({ discarded: true })
     const response = await discardAssignment(new NextRequest(

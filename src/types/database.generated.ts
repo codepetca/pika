@@ -13924,6 +13924,10 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_billing_classroom_v1: {
+        Args: { p_classroom: string; p_subject: string }
+        Returns: boolean
+      }
       restore_removed_classroom_students: {
         Args: {
           p_classroom_id: string
@@ -14246,6 +14250,14 @@ export type Database = {
         }
         Returns: Json
       }
+      save_legacy_assignments_bulk_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignments: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       save_lesson_plan_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -14356,6 +14368,10 @@ export type Database = {
           p_valid_until: string
         }
         Returns: Json
+      }
+      set_billing_classroom_selection_v1: {
+        Args: { p_keep: string[]; p_operation: string; p_subject: string }
+        Returns: undefined
       }
       set_classroom_auto_admission_enabled_v1: {
         Args: { p_enabled: boolean }

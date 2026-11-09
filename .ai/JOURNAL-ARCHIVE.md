@@ -51366,39 +51366,51 @@ Observed production learner and owner busy errors during class tests. Prepared b
 - Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
 - Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
 
-<!-- pika-session-log-archive-batch:6ebabb08cca58fd39897b5944e96284a418cd02e9d8ea5396988e8fbacd2948b -->
-## 2026-11-03 List order toggle
-
-- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
-
-## 2026-11-03 — Student Test submission reassurance
-
-Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
-
-## 2026-11-03 Investigate test contention
-
-Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
-
-## 2026-11-04 — Classwork access recovery
-
-- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
-- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
-
+<!-- pika-session-log-archive-batch:7b1739c3c313debb64386cb72d5dd327291a5bcd2bbe84c57b66f2fb5a1ae64e -->
 ## 2026-11-04 Header message loading feedback
 
 - Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
 - Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
 
+<!-- pika-session-log-archive-batch:a210273b9bf59dab0cc661c150275c801474ee7809e4ee8bec7bb440c3d521f0 -->
 ## 2026-11-04 — AI provider gate rebase
 
 Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
 
-<!-- pika-session-log-archive-batch:b20955b8816964c9cb53e87b8a3f1488fe7b755752f3f420263694361ee9acb0 -->
 ## 2026-11-04 Clarify busy Test errors
 
 Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
 
-<!-- pika-session-log-archive-batch:9a106ca5efc9568613fe4df6d70f352aa419c6c528530979c1616ea6c780ccc8 -->
 ## 2026-11-04 Calendar empty lesson text
 
 Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+## 2026-11-05 Investigate classroom tab loading
+
+Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
+Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
+content, preserving scoped filtering; local verification and independent review
+remain required before release. Roster intent PR #1745 remains separately owned.
+
+## 2026-11-05 Test roster intent loading
+
+Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
