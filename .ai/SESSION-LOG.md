@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-05 Investigate classroom tab loading
-
-Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
-Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
-content, preserving scoped filtering; local verification and independent review
-remain required before release. Roster intent PR #1745 remains separately owned.
-
 ## 2026-11-05 Test roster intent loading
 
 Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.
@@ -368,3 +361,7 @@ Rebased the reviewed classroom cutoff patch onto main after the scheduled billin
 ## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
 
 Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.
+
+## 2026-11-09 — Seal the Test publication cutoff proof
+
+Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.

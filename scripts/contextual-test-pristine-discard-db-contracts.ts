@@ -1,4 +1,4 @@
-import { billingTestPublicationCatalogSql, billingTestPublicationTriggerRowSql } from './billing-test-publication-proof-catalog'
+import { billingTestPublicationProofCatalog } from './billing-test-publication-proof-catalog'
 import { teacherAuthoringImageTriggerRowsSql, teacherAuthoringImagesCatalogSql } from './teacher-authoring-images-proof-catalog'
 /** Inert rollback-SQL source preparation for migration251. Importing this file
  * performs no IO or database operation. Root must separately accept and run the
@@ -170,7 +170,8 @@ function quota253CatalogSql() {
  then raise exception 'Quota253 function or dormant settings differ';end if;end;`
 }
 
-function catalogProbe() {
+function catalogProbe(repository: string) {
+  const billingCatalog = billingTestPublicationProofCatalog(repository)
   const triggers = `values ${triggerPairs.map(([table,name,schema,fn,type]) => `(${q(table)},${q(name)},${q(schema)},${q(fn)},${type})`).join(',')}`
   const fks = `values ${directFks.map(name => `(${q(name)})`).join(',')}`
   const functionBody = `declare p pg_proc;actual text[];begin select proc.* into p from pg_proc proc where proc.oid='public.discard_pristine_test_draft_for_owner_v1(uuid,uuid,integer,timestamp with time zone,timestamp with time zone)'::regprocedure;
@@ -186,8 +187,8 @@ function catalogProbe() {
   const legacyBody = `begin if not pg_catalog.has_function_privilege('service_role','public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)','EXECUTE')
  or pg_catalog.has_function_privilege('anon','public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)','EXECUTE')
  or pg_catalog.has_function_privilege('authenticated','public.discard_pristine_test_draft_atomic(uuid,uuid,integer,timestamp with time zone)','EXECUTE') then raise exception 'Legacy discard capability differs';end if;end;`
-  const triggerBody = `declare bad integer;begin select count(*) into bad from (((select c.relname::text,t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace nf on nf.oid=p.pronamespace where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal) except (select * from (${triggers} union all ${teacherAuthoringImageTriggerRowsSql(['tests', 'assessment_drafts'], true)} union all ${billingTestPublicationTriggerRowSql(true)}) expected(table_name,trigger_name,function_schema,function_name,trigger_type))) union all ((select * from (${triggers} union all ${teacherAuthoringImageTriggerRowsSql(['tests', 'assessment_drafts'], true)} union all ${billingTestPublicationTriggerRowSql(true)}) expected(table_name,trigger_name,function_schema,function_name,trigger_type)) except (select c.relname::text,t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace nf on nf.oid=p.pronamespace where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal))) delta;
- if bad<>0 or exists(select 1 from pg_trigger where tgrelid in ('public.tests'::regclass,'public.assessment_drafts'::regclass) and not tgisinternal and (tgenabled<>'O' or tgdeferrable or tginitdeferred)) then raise exception 'Exact18 trigger closure differs';end if;${quota253CatalogSql()}${teacherAuthoringImagesCatalogSql()}${billingTestPublicationCatalogSql()}end;`
+  const triggerBody = `declare bad integer;begin select count(*) into bad from (((select c.relname::text,t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace nf on nf.oid=p.pronamespace where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal) except (select * from (${triggers} union all ${teacherAuthoringImageTriggerRowsSql(['tests', 'assessment_drafts'], true)} union all ${billingCatalog.triggerRowSql(true)}) expected(table_name,trigger_name,function_schema,function_name,trigger_type))) union all ((select * from (${triggers} union all ${teacherAuthoringImageTriggerRowsSql(['tests', 'assessment_drafts'], true)} union all ${billingCatalog.triggerRowSql(true)}) expected(table_name,trigger_name,function_schema,function_name,trigger_type)) except (select c.relname::text,t.tgname::text,nf.nspname::text,p.proname::text,t.tgtype::integer from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace join pg_proc p on p.oid=t.tgfoid join pg_namespace nf on nf.oid=p.pronamespace where n.nspname='public' and c.relname in ('tests','assessment_drafts') and not t.tgisinternal))) delta;
+ if bad<>0 or exists(select 1 from pg_trigger where tgrelid in ('public.tests'::regclass,'public.assessment_drafts'::regclass) and not tgisinternal and (tgenabled<>'O' or tgdeferrable or tginitdeferred)) then raise exception 'Exact18 trigger closure differs';end if;${quota253CatalogSql()}${teacherAuthoringImagesCatalogSql()}${billingCatalog.checkSql}end;`
   const fkBody = `declare bad integer;begin select count(*) into bad from (((select c.conname::text from pg_constraint c where c.confrelid='public.tests'::regclass and c.contype='f') except (select * from (${fks}) expected(name))) union all ((select * from (${fks}) expected(name)) except (select c.conname::text from pg_constraint c where c.confrelid='public.tests'::regclass and c.contype='f'))) delta;
  if bad<>0 or exists(select 1 from pg_constraint c where c.confrelid='public.tests'::regclass and c.contype='f' and (not (c.confdeltype='c') or c.condeferrable or c.condeferred))
  or exists(select 1 from pg_constraint c where c.conrelid='public.assessment_drafts'::regclass and c.confrelid='public.tests'::regclass) then raise exception 'Exact direct Test FK actions differ; confdeltype=''c'' required';end if;end;`
@@ -261,7 +262,7 @@ function faultProbes(f: TestOwnerPristineDiscardFixture) {
   ].join('\n')
 }
 
-export function testOwnerPristineDiscardDbContractsSql(f: TestOwnerPristineDiscardFixture, projectId: string) {
+export function testOwnerPristineDiscardDbContractsSql(f: TestOwnerPristineDiscardFixture, projectId: string, repository = process.cwd()) {
   validateFixture(f, projectId)
   const planCase = f.cases.find(c => c.label === 'restored-privilege-success')!
   const planObjectIds = testOwnerPristineDiscardDbPlanObjectIds(f)
@@ -270,7 +271,7 @@ export function testOwnerPristineDiscardDbContractsSql(f: TestOwnerPristineDisca
 create temp table owner_discard_evidence(label text primary key,ok boolean not null,code text not null) on commit drop;
 create function pg_temp.owner_discard_note(p_label text,p_ok boolean,p_code text) returns void language plpgsql set search_path='' as $note$ begin if pg_catalog.octet_length(p_label)>80 or p_code!~'^[A-Z0-9]{5}$' then raise exception 'Evidence bound differs';end if;insert into pg_temp.owner_discard_evidence values(p_label,p_ok,p_code);end;$note$;
 ${snapshotFunction(f)}create temp table owner_discard_initial on commit drop as select pg_temp.owner_discard_snapshot() value;
-${catalogProbe()}${f.cases.map(c => caseProbe(f,c)).join('\n')}${blockerProbes(f)}${faultProbes(f)}
+${catalogProbe(repository)}${f.cases.map(c => caseProbe(f,c)).join('\n')}${blockerProbes(f)}${faultProbes(f)}
 do $final$ begin if pg_temp.owner_discard_snapshot() is distinct from (select value from pg_temp.owner_discard_initial) then raise exception using errcode=${q(failureCode('final-fixture-equality'))},message='Final rollback scope differs';end if;end;$final$;
 insert into public.managed_storage_objects(id,storage_bucket,storage_path,classroom_id,purpose,status,created_by_user_id,resource_type,resource_id)
 select object_id,'test-documents',${q(f.tag + '/managed-plan/')}||ordinality::text,

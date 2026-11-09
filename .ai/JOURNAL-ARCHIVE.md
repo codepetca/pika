@@ -51399,3 +51399,11 @@ no production timing or deployment is implied.
 - Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
 
 - 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+<!-- pika-session-log-archive-batch:7310c8d4240f414f4fffdd995987c77c45d02de81262bba3e2cb62fd1ae27227 -->
+## 2026-11-05 Investigate classroom tab loading
+
+Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
+Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
+content, preserving scoped filtering; local verification and independent review
+remain required before release. Roster intent PR #1745 remains separately owned.
