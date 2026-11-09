@@ -158,4 +158,50 @@ begin
  raise notice 'PASS status-only apply, stale discard, question rotation and material publication';
 end
 $review_proofs$;
+-- A legacy response must bind the entire question snapshot, not just old IDs.
+do $response_snapshot$
+declare
+  owner_id uuid := 'c2890000-0000-4000-8000-000000000001';
+  v_classroom_id uuid := 'c2890000-0000-4000-8000-000000000010';
+  v_student_id uuid := 'c2890000-0000-4000-8000-000000000003';
+  first_id uuid := gen_random_uuid(); second_id uuid := gen_random_uuid();
+  v_survey_id uuid; revision uuid := gen_random_uuid(); source text;
+  content jsonb := '{"show_results":true,"dynamic_responses":false}'::jsonb;
+  projection jsonb; result jsonb; old_questions jsonb; current_questions jsonb; answers jsonb;
+begin
+  insert into public.classroom_enrollments(classroom_id,student_id) values(v_classroom_id,v_student_id);
+  projection := jsonb_build_object('title','Snapshot poll','show_results',true,'dynamic_responses',false,'questions',
+    jsonb_build_array(jsonb_build_object('id',first_id,'question_type','short_text','question_text','First','options','[]'::jsonb,'response_max_chars',500)));
+  result := public.create_classwork_authoring_draft(owner_id,v_classroom_id,'survey',revision,content,projection);
+  v_survey_id := (result->'item'->>'id')::uuid;
+  perform public.apply_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id,revision,true,jsonb_build_object('source',content,'values',projection));
+  old_questions := public.get_survey_for_member_v1(v_student_id,v_survey_id)->'questions';
+  source := public.read_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id)->>'sourceRevision';
+  revision := gen_random_uuid();
+  projection := jsonb_set(projection,'{questions}',(projection->'questions') || jsonb_build_array(
+    jsonb_build_object('id',second_id,'question_type','short_text','question_text','Second','options','[]'::jsonb,'response_max_chars',500)));
+  perform public.save_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id,revision,content,source,null,false,projection);
+  perform public.apply_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id,revision,false,jsonb_build_object('source',content,'values',projection));
+  current_questions := public.get_survey_for_member_v1(v_student_id,v_survey_id)->'questions';
+  if jsonb_array_length(current_questions) <> 2 or not exists(select 1 from public.survey_questions where id=first_id and public.survey_questions.survey_id=v_survey_id) then
+    raise exception 'question addition did not preserve original ID';
+  end if;
+  answers := jsonb_build_object(first_id::text,jsonb_build_object('question_type','short_text','response_text','First answer'),
+    second_id::text,jsonb_build_object('question_type','short_text','response_text','Second answer'));
+  begin
+    perform public.respond_to_survey_for_member_v1(v_student_id,v_survey_id,v_classroom_id,old_questions,answers);
+    raise exception 'stale question snapshot accepted';
+  exception when sqlstate 'PT409' then
+    if sqlerrm <> 'survey_questions_changed' then raise; end if;
+  end;
+  if exists(select 1 from public.survey_responses where public.survey_responses.student_id=v_student_id and public.survey_responses.survey_id=v_survey_id) then
+    raise exception 'stale snapshot committed a response';
+  end if;
+  result := public.respond_to_survey_for_member_v1(v_student_id,v_survey_id,v_classroom_id,current_questions,answers);
+  if result->>'success' <> 'true' or (select count(*) from public.survey_responses r where r.student_id=v_student_id and r.survey_id=v_survey_id) <> 2 then
+    raise exception 'current snapshot did not commit both responses';
+  end if;
+  raise notice 'PASS survey response question snapshot';
+end
+$response_snapshot$;
 rollback;

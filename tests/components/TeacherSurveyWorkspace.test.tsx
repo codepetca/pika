@@ -152,6 +152,7 @@ describe('TeacherSurveyWorkspace', () => {
     }
     render(<Shell />)
     const title = await screen.findByLabelText('Survey title')
+    await waitFor(() => expect(title).toBeEnabled())
     fireEvent.change(title, { target: { value: 'Changed survey' } })
     fireEvent.keyDown(title, { key: 'Escape' })
     expect(screen.getByRole('dialog', { name: 'Close survey editor?' })).toBeInTheDocument()
@@ -1084,15 +1085,22 @@ describe('SurveySnapshotWorkspace', () => {
     const live = makeSurvey({ status: 'active', title: 'Published title' })
     const question = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
     const content = { title: 'Private title', show_results: true, dynamic_responses: true, questions: [question] }
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
-      if (init?.method === 'POST') return jsonResponse({ item: { ...live, title: 'Private title' }, sourceRevision: 'b'.repeat(64) })
+    let completeApply!: (response: ReturnType<typeof jsonResponse>) => void
+    const pendingApply = new Promise<ReturnType<typeof jsonResponse>>(resolve => { completeApply = resolve })
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return pendingApply
       return jsonResponse({ item: { ...live, questions: [question] }, draft: { revision: 'revision-1', content }, sourceRevision: 'a'.repeat(64) })
     })
     vi.stubGlobal('fetch', fetchMock)
     render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={() => {}} />)
     expect(await screen.findByDisplayValue('Private title')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown' }))
+    const markdown = await screen.findByLabelText('Survey markdown editor')
+    expect(markdown).not.toHaveAttribute('readonly')
     fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+    expect(markdown).toHaveAttribute('readonly')
+    await act(async () => completeApply(jsonResponse({ item: { ...live, title: 'Private title', questions: [question] }, sourceRevision: 'b'.repeat(64) })))
     await waitFor(() => expect(onSurveyUpdated).toHaveBeenCalledWith(expect.objectContaining({ title: 'Private title' })))
     expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('/classwork-authoring/survey/survey-1'), expect.objectContaining({ method: 'POST', body: JSON.stringify({ revision: 'revision-1' }) }))
   })

@@ -1913,7 +1913,7 @@ export function SurveySnapshotWorkspace({
                 <Button
                   size="sm"
                   variant="secondary"
-                  disabled={!editor.markdownDirty || locked}
+                  disabled={!editor.markdownDirty || locked || busy}
                   onClick={() =>
                     update({
                       ...content,
@@ -1933,7 +1933,7 @@ export function SurveySnapshotWorkspace({
                 </Button>
                 <Button
                   size="sm"
-                  disabled={!editor.markdownDirty || locked}
+                  disabled={!editor.markdownDirty || locked || busy}
                   onClick={applyMarkdown}
                 >
                   Apply Markdown
@@ -1944,7 +1944,7 @@ export function SurveySnapshotWorkspace({
                 data-testid="survey-markdown-editor"
                 className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm"
                 value={editor.markdown}
-                readOnly={locked}
+                readOnly={locked || busy}
                 onChange={(event) =>
                   update({
                     ...content,
