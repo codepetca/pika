@@ -10167,6 +10167,10 @@ export type Database = {
         Returns: Json
       }
       billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_attest_live_target_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
       billing_checkpoint_renewal_closeout_v1: {
         Args: { p_request: Json }
@@ -10290,6 +10294,14 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: boolean
+      }
+      cancel_assignment_release_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_intent_id: string
+        }
+        Returns: Json
       }
       claim_assignment_ai_grading_run: {
         Args: {
@@ -12498,6 +12510,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_assignment_release_states_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_ids: string[]
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       get_assignment_repolight_source_v1: {
         Args: {
           p_actor_id: string
@@ -12865,6 +12885,10 @@ export type Database = {
         Args: { p_at: string; p_limit?: number }
         Returns: Json
       }
+      list_due_billing_assignment_releases_v1: {
+        Args: { p_limit: number }
+        Returns: Json
+      }
       lock_effective_feature_entitlement_v1: {
         Args: { p_feature_key: string; p_subject_user_id: string }
         Returns: undefined
@@ -13184,6 +13208,18 @@ export type Database = {
       }
       preview_classroom_authoring_guidance_for_owner_v1: {
         Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      process_billing_assignment_release_v1: {
+        Args: { p_intent_id: string }
+        Returns: string
+      }
+      publish_scheduled_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_intent_id: string
+        }
         Returns: Json
       }
       publish_test_from_draft_atomic: {
@@ -14333,6 +14369,15 @@ export type Database = {
           p_rows: Json
           p_teacher_id: string
           p_test_id: string
+        }
+        Returns: Json
+      }
+      schedule_assignment_for_billing_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_intent_id?: string
+          p_scheduled_for: string
         }
         Returns: Json
       }

@@ -12,6 +12,7 @@ export type BillingHandlerRuntime = {
   verify(raw: Buffer, signature: string): unknown
   record(receipt: BillingEventReceipt): Promise<unknown>
   drainProvisioning?(): Promise<unknown>
+  processAssignmentReleases?(): Promise<unknown>
 }
 
 async function runOptionalRecoveryLane(run: () => Promise<unknown>) {
@@ -66,11 +67,13 @@ export function createBillingHandlers(
       const lifecycle = lifecycleRuntime ? await lifecycleRuntime.applyDue({ limit: 25 }) : undefined
       const closeoutRuntime = loadCloseouts ? await loadCloseouts() : null
       const closeouts = closeoutRuntime ? await closeoutRuntime.closeDueRenewals({ limit: 1 }) : undefined
+      const assignmentReleases = await runOptionalRecoveryLane(async () => runtime.processAssignmentReleases?.())
       // Subscription/upgrade transactions have committed. The separate outbox
       // owns retry and exact entitlement checks; billing success is unchanged.
       await runtime.drainProvisioning?.()
       return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}),
-        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}), ...(scheduledChanges ? { scheduledChanges } : {}) })
+        ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}), ...(scheduledChanges ? { scheduledChanges } : {}),
+        ...(assignmentReleases ? { assignmentReleases } : {}) })
     }),
   }
 }

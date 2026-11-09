@@ -40,6 +40,7 @@ describe('billing sandbox isolation', () => {
     { BILLING_WORKER_SECRET: 'short' },
     { VERCEL_ENV: 'production' },
     { VERCEL: '1' },
+    { BILLING_LIVE_TARGET_CHECK_ENABLED: 'true' },
     { NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co' },
     { NEXT_PUBLIC_SUPABASE_URL: 'http://127.0.0.1.example.com:54321' },
     { NEXT_PUBLIC_SUPABASE_URL: 'http://user:password@127.0.0.1:54321' },

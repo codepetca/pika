@@ -70,6 +70,7 @@ export function disposableClassroomTestQuotaProofCatalog(
   const base = classroomTestQuotaProofCatalog(canonicalTables, migrations.slice(0, 301))
   return Object.freeze([...new Set([...base,
     ...(migrations.length >= 307 ? ['private.billing_scheduled_plan_changes'] : []),
-    ...(migrations.length === 310 ? ['private.billing_classroom_restrictions'] : []),
+    ...(migrations.length >= 310 ? ['private.billing_classroom_restrictions'] : []),
+    ...(migrations.length >= 312 ? ['private.billing_assignment_release_intents'] : []),
   ])].sort())
 }

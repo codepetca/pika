@@ -18,6 +18,7 @@ import { validateContextualRemovedMembershipCleanupReviewedMigration } from './c
 import assert from 'node:assert/strict'
 import disposableBillingReplayTail from './disposable-billing-replay-tail.json'
 import disposableClassroomCutoffReplayTail from './disposable-classroom-cutoff-replay-tail.json'
+import disposableAssignmentReleaseReplayTail from './disposable-assignment-release-replay-tail.json'
 import { createHash } from 'node:crypto'
 import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
 import { validateDataApiGrantsReviewedMigration } from './data-api-grants-reviewed-migration'
@@ -85,7 +86,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304, 307, 310].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307 or 310')
+  assert([303, 304, 307, 310, 311, 312].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311 or 312')
   assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
     '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
   assert.equal(disposableBillingReplayTail.length, 6)
@@ -95,12 +96,23 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
     assert.equal(migration.sha256, sha256)
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
   }
-  if (migrations.length === 310) {
+  if (migrations.length >= 310) {
     assert.equal(createHash('sha256').update(JSON.stringify(disposableClassroomCutoffReplayTail)).digest('hex'),
       '88085cc556ede00ad3cd9b295e2f0242428a3ec85189d08b736681648abcee44', 'Unreviewed classroom cutoff replay seal')
     assert.equal(disposableClassroomCutoffReplayTail.length, 3)
     for (const [offset, { name, sha256 }] of disposableClassroomCutoffReplayTail.entries()) {
       const migration = migrations[307 + offset]
+      assert.equal(migration.name, name)
+      assert.equal(migration.sha256, sha256)
+      assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+    }
+  }
+  if (migrations.length >= 311) {
+    assert.equal(createHash('sha256').update(JSON.stringify(disposableAssignmentReleaseReplayTail)).digest('hex'),
+      '3380e8783aecbde7362d33cc5c481b616cfa91c2cce6f975781df931a4245a85', 'Unreviewed assignment release replay seal')
+    assert.equal(disposableAssignmentReleaseReplayTail.length, 2)
+    for (const [offset, { name, sha256 }] of disposableAssignmentReleaseReplayTail.slice(0, migrations.length - 310).entries()) {
+      const migration = migrations[310 + offset]
       assert.equal(migration.name, name)
       assert.equal(migration.sha256, sha256)
       assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)

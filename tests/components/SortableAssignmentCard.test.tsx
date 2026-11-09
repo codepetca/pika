@@ -2,8 +2,16 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
+import { AssignmentControllerPattern } from '@/app/__ui/AssignmentControllerPattern'
+import type { Assignment } from '@/types'
 import userEvent from '@testing-library/user-event'
 import { TooltipProvider } from '@/ui'
+
+vi.mock('@/components/AssignmentModal', () => ({
+  AssignmentModal: ({ isOpen, assignment }: { isOpen: boolean; assignment: Assignment | null }) => (
+    isOpen && assignment ? <div role="dialog" aria-label={assignment.title}>{assignment.release_schedule?.state}</div> : null
+  ),
+}))
 
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: vi.fn(() => ({
@@ -69,6 +77,19 @@ function renderCard({
 }
 
 describe('SortableAssignmentCard', () => {
+  it('keeps past-due queued work distinct from a missed release and opens the owner editor', async () => {
+    const user = userEvent.setup()
+    render(<TooltipProvider><AssignmentControllerPattern /></TooltipProvider>)
+    expect(screen.getByText('Scheduled', { exact: true })).toBeInTheDocument()
+    expect(screen.getByText('Release pending')).toBeInTheDocument()
+    expect(screen.getByText('Release missed')).toBeInTheDocument()
+    expect(screen.queryByText('Draft', { exact: true })).not.toBeInTheDocument()
+    const queued = screen.getByRole('button', { name: 'Scheduled field observations' })
+    queued.focus()
+    await user.keyboard('{Enter}')
+    expect(screen.getByRole('dialog', { name: 'Scheduled field observations' })).toHaveTextContent('pending')
+  })
+
   it('presents pending survey counts without enabling the card', () => {
     const onOpen = vi.fn()
     render(<TooltipProvider><SortableSurveyCard survey={{ ...assignment, status: 'active', stats: undefined } as any}

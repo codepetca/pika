@@ -209,6 +209,11 @@ export interface TiptapMark {
   attrs?: Record<string, any>
 }
 
+export type AssignmentReleaseSchedule = { id: string; scheduled_for: string } & (
+  | { state: 'pending'; notice_code: null }
+  | { state: 'suppressed'; notice_code: 'access_unavailable' | 'classroom_unavailable' | 'deadline_before_schedule' }
+)
+
 export interface Assignment {
   id: string
   artifact_id?: string
@@ -223,6 +228,7 @@ export interface Assignment {
   position: number
   is_draft: boolean  // Whether assignment is a draft (not visible to students)
   released_at: string | null  // When the assignment was released to students
+  release_schedule?: AssignmentReleaseSchedule | null // Owner-only schedule state
   track_authenticity: boolean
   points_possible?: number
   include_in_final?: boolean

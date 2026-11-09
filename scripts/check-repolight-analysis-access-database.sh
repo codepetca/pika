@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions 296–310 are sealed below and do not modify Auth/Storage.
+# Source extensions 296–312 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 310)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307 or 310'); validateDisposableBillingReplayMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 312)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311 or 312'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -148,13 +148,23 @@ if ((10#$replay_version >= 307)); then
   fi
   echo 'PASS rollback-only scheduled plan change admission contracts.'
 fi
-if [[ "$replay_version" == 310 ]]; then
+if ((10#$replay_version >= 310)); then
   for proof in check-billing-classroom-test-start-cutoff.sql check-billing-classroom-capacity-restrictions.sql check-billing-assignment-publication-cutoff.sql; do
     if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
       tail -25 "$scratch/$proof.log" >&2
       exit 1
     fi
   done
+fi
+if ((10#$replay_version >= 311)); then
+  sql < "$root/scripts/check-billing-live-target.sql" > "$scratch/billing-live-target.log" 2>&1 || { tail -25 "$scratch/billing-live-target.log" >&2; exit 1; }
+fi
+if ((10#$replay_version >= 312)); then
+  sql < "$root/scripts/check-billing-assignment-release-intents.sql" > "$scratch/billing-assignment-release-intents.log" 2>&1 || { tail -25 "$scratch/billing-assignment-release-intents.log" >&2; exit 1; }
+fi
+# The multi-session fixture commits in the owned clone, so run it after
+# rollback proofs that verify the default-off state.
+if ((10#$replay_version >= 310)); then
   node "$root/scripts/check-billing-classroom-cutoff-contention.mjs" "$clone_id" "$$:$token" > "$scratch/classroom-cutoff-contention.log" 2>&1 || { tail -30 "$scratch/classroom-cutoff-contention.log" >&2; exit 1; }
   echo 'PASS classroom cutoff rollback and contention contracts.'
 fi

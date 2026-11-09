@@ -188,3 +188,79 @@ await verifyCutoff('310', ids => ({
     assert.equal(sql(`select (is_draft and released_at is null)::text from public.assignments where id=${ids.work};`), 'true')
   },
 }))
+
+async function verifyReleaseGenerationContention() {
+  const [actor, classroom, canceledAssignment, releasedAssignment] = [1, 2, 3, 4].map(index =>
+    `'b3120000-0000-4000-8000-00000000000${index}'::uuid`)
+  const [cancelGeneration, releaseGeneration, due] = sql(`
+    begin;
+    insert into public.users(id,email,role) values(${actor},'race312-owner@example.invalid','teacher');
+    select public.set_account_plan_v1(gen_random_uuid(),${actor},'free','test:billing-schedule-race','fixture',0)
+      where not exists(select 1 from public.account_plans where subject_user_id=${actor});
+    select public.billing_start_trial_v1(jsonb_build_object('subject_user_id',${actor},'operation_id',gen_random_uuid()));
+    insert into public.classrooms(id,teacher_id,title,class_code) values(${classroom},${actor},'Release race','CUT31202');
+    insert into public.assignments(id,classroom_id,created_by,title,due_at) values
+      (${canceledAssignment},${classroom},${actor},'Cancel wins',clock_timestamp()+interval '1 day'),
+      (${releasedAssignment},${classroom},${actor},'Worker wins',clock_timestamp()+interval '1 day');
+    with release_time as (select clock_timestamp()+interval '3 seconds' as scheduled_for)
+    select public.schedule_assignment_for_billing_v1(${actor},${canceledAssignment},scheduled_for)#>>'{release_schedule,id}',
+      public.schedule_assignment_for_billing_v1(${actor},${releasedAssignment},scheduled_for)#>>'{release_schedule,id}',
+      ceil(extract(epoch from scheduled_for)*1000) from release_time;
+    commit;`).split('\n').at(-1).split('|')
+  assert.match(cancelGeneration, /^[a-f0-9-]{36}$/)
+  assert.match(releaseGeneration, /^[a-f0-9-]{36}$/)
+  assert.ok(Number.isFinite(Number(due)))
+  await wait(Math.max(0, Number(due) - Date.now() + 100))
+
+  const holder = session('billing-release-generation-holder')
+  const entrant = session('billing-release-generation-entrant')
+  try {
+    holder.send(`begin;
+      select public.cancel_assignment_release_for_owner_v1(${actor},${canceledAssignment},'${cancelGeneration}');
+      select 'cancel-held';`)
+    await holder.marker('cancel-held')
+    assert.equal(sql(`select public.process_billing_assignment_release_v1('${cancelGeneration}');`), 'busy')
+    holder.send(`commit; select 'cancel-committed';`)
+    await holder.marker('cancel-committed')
+    assert.equal(sql(`select public.process_billing_assignment_release_v1('${cancelGeneration}');`), 'noop')
+    assert.equal(sql(`select (is_draft and released_at is null)::text from public.assignments where id=${canceledAssignment};`), 'true')
+
+    holder.send(`begin; select public.process_billing_assignment_release_v1('${releaseGeneration}');`)
+    await holder.marker('released')
+    const foreignActor = "'b3120000-0000-4000-8000-000000000005'::uuid"
+    sql(`set lock_timeout='1s'; set role service_role;
+      do $$ begin
+        perform public.cancel_assignment_release_for_owner_v1(${foreignActor},${releasedAssignment},'${releaseGeneration}');
+        raise exception 'An unbound actor could enter the release generation';
+      exception when insufficient_privilege then
+        if sqlerrm<>'Forbidden' then raise; end if;
+      end $$;`)
+    entrant.send(`do $$ begin
+      perform public.cancel_assignment_release_for_owner_v1(${actor},${releasedAssignment},'${releaseGeneration}');
+      raise exception 'Cancellation reused the pending generation after publication';
+    exception when sqlstate 'PT409' then
+      if sqlerrm<>'billing_assignment_schedule_changed' then raise; end if;
+    end $$; select 'stale';`)
+    let blocked = false
+    for (let i = 0; i < 25; i++) {
+      blocked = sql(`select count(*) from pg_stat_activity
+        where application_name='billing-release-generation-entrant' and wait_event='advisory';`) === '1'
+      if (blocked) break
+      await wait(40)
+    }
+    assert.ok(blocked, 'Cancellation must wait for the worker to resolve the observed generation')
+    holder.send('commit;')
+    await holder.close()
+    await entrant.marker('stale')
+    await entrant.close()
+    assert.equal(sql(`select (not is_draft and released_at is not null)::text from public.assignments where id=${releasedAssignment};`), 'true')
+    console.log('PASS 312 worker and owner cancellation preserved the winner in both lock orders.')
+  } finally {
+    holder.child.kill()
+    entrant.child.kill()
+  }
+}
+
+if (sql(`select to_regprocedure('public.cancel_assignment_release_for_owner_v1(uuid,uuid,uuid)') is not null;`) === 't') {
+  await verifyReleaseGenerationContention()
+}

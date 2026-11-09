@@ -21,6 +21,9 @@ export function readBillingSandboxConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): BillingSandboxConfig | null {
   if (env.BILLING_SANDBOX_ENABLED !== 'true') return null
+  if (env.BILLING_LIVE_TARGET_CHECK_ENABLED === 'true') {
+    throw new Error('Billing sandbox configuration is invalid')
+  }
   const parsed = billingSandboxEnvironmentSchema.safeParse(env)
   if (!parsed.success || env.VERCEL === '1' || env.VERCEL_ENV === 'production') {
     throw new Error('Billing sandbox configuration is invalid')
