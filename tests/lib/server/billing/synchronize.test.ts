@@ -123,7 +123,99 @@ function providerWith(snapshot: unknown): BillingProvider {
   return { retrieveSubscription: vi.fn().mockResolvedValue(snapshot) }
 }
 
+const liveScope = { stripeAccount: 'acct_liveplatform', providerMode: 'live' } as const
+const liveBinding = { ...binding, stripe_account: liveScope.stripeAccount, provider_mode: liveScope.providerMode }
+const liveClaim = {
+  ...claim,
+  binding: liveBinding,
+  lifecycle: {
+    paid_through: null, paid_period_start: null, last_paid_invoice_id: null, access_ends_at: null,
+    end_reason: null, assignment_revision: null, is_current: true,
+  },
+}
+const liveInput = { subscriptionId: binding.subscription_id, eventInboxId: null, leaseSeconds: 60 }
+
+function livePaidSnapshot() {
+  const snapshot = paidSnapshot()
+  return {
+    ...snapshot,
+    stripeAccount: liveScope.stripeAccount,
+    liveMode: true,
+    items: snapshot.items.map(item => ({ ...item, priceLiveMode: true })),
+    latestInvoice: {
+      ...snapshot.latestInvoice,
+      modeEvidence: { invoice: true, invoicePayments: [true], paidPayment: {
+        paymentIntent: true, charge: true, amountCaptured: 2000,
+      } },
+    },
+  }
+}
+
 describe('synchronizeBillingSubscription', () => {
+  it('requires explicit matching scope before a live claim can read provider or write a finish', async () => {
+    const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue(liveClaim) })
+    const provider = providerWith(livePaidSnapshot())
+    const input = { store, provider, ...liveInput }
+
+    await expect(synchronizeBillingSubscription(input)).rejects.toThrow('claim is unavailable')
+    await expect(synchronizeBillingSubscription({ ...input, scope: { ...liveScope, stripeAccount: 'acct_other' } }))
+      .rejects.toThrow('claim does not match the configured scope')
+    expect(provider.retrieveSubscription).not.toHaveBeenCalled()
+    expect(store.finishSubscription).not.toHaveBeenCalled()
+
+    await expect(synchronizeBillingSubscription({ ...input, scope: liveScope })).resolves.toEqual({ kind: 'applied' })
+    expect(provider.retrieveSubscription).toHaveBeenCalledExactlyOnceWith(liveBinding)
+    expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      outcome: 'paid', invoice_id: 'in_paid_1', lease_token: claim.lease_token, fencing_token: claim.fencing_token,
+    }))
+  })
+
+  it('rejects a live claim missing current lifecycle facts', async () => {
+    const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue({ ...liveClaim, lifecycle: undefined }) })
+    const provider = providerWith(livePaidSnapshot())
+
+    await expect(synchronizeBillingSubscription({ store, provider, scope: liveScope, ...liveInput }))
+      .rejects.toThrow('claim is unavailable')
+    expect(provider.retrieveSubscription).not.toHaveBeenCalled()
+    expect(store.finishSubscription).not.toHaveBeenCalled()
+  })
+
+  it.each(['invoice', 'invoicePayment', 'paymentIntent', 'charge', 'capturedAmount', 'missingEvidence'] as const)(
+    'does not apply a live payment or fall back to sandbox upgrade/renewal for invalid normalized %s evidence',
+    async signal => {
+      const snapshot = livePaidSnapshot()
+      const evidence = snapshot.latestInvoice.modeEvidence
+      if (signal === 'invoice') evidence.invoice = false
+      if (signal === 'invoicePayment') evidence.invoicePayments = [false]
+      if (signal === 'paymentIntent') evidence.paidPayment.paymentIntent = false
+      if (signal === 'charge') evidence.paidPayment.charge = false
+      if (signal === 'capturedAmount') evidence.paidPayment.amountCaptured -= 1
+      if (signal === 'missingEvidence') Reflect.deleteProperty(snapshot.latestInvoice, 'modeEvidence')
+      const store = storeWith({
+        claimSubscription: vi.fn().mockResolvedValue(liveClaim),
+        getAppliedUpgrade: vi.fn(),
+        getScheduledRenewal: vi.fn(),
+        finishScheduledRenewal: vi.fn(),
+      })
+      const provider = {
+        ...providerWith({ ...snapshot, scheduleId: 'sub_sched_unapproved' }),
+        retrieveAppliedUpgrade: vi.fn(),
+        verifyScheduledRenewal: vi.fn(),
+      }
+
+      await expect(synchronizeBillingSubscription({ store, provider, scope: liveScope, ...liveInput }))
+        .resolves.toMatchObject({ kind: 'exception', reason: 'provider_environment_invalid' })
+      expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+        outcome: 'exception', invoice_id: null, reason_code: 'provider_environment_invalid',
+      }))
+      expect(store.getAppliedUpgrade).not.toHaveBeenCalled()
+      expect(store.getScheduledRenewal).not.toHaveBeenCalled()
+      expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
+      expect(provider.retrieveAppliedUpgrade).not.toHaveBeenCalled()
+      expect(provider.verifyScheduledRenewal).not.toHaveBeenCalled()
+    },
+  )
+
   it('reuses durable event and invoice effects when a duplicate retry fetches the current subscription', async () => {
     const store = storeWith({
       finishSubscription: vi.fn()

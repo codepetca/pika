@@ -1,4 +1,10 @@
-import { BillingWorkListSchema } from '@/lib/server/billing/contracts'
+import {
+  BillingReconciliationScopeSchema,
+  BillingWorkListSchema,
+  LiveBillingWorkListSchema,
+  matchesBillingReconciliationScope,
+  type BillingReconciliationScope,
+} from '@/lib/server/billing/contracts'
 import {
   synchronizeBillingSubscription,
   type BillingProvider,
@@ -20,13 +26,16 @@ export async function reconcileBillingSubscriptions(args: {
   provider: BillingProvider
   limit: number
   leaseSeconds: number
+  scope?: BillingReconciliationScope
 }): Promise<BillingReconciliationResult> {
   if (!Number.isInteger(args.limit) || args.limit < 1 || args.limit > 100) {
     throw new Error('Billing reconciliation limit is invalid')
   }
 
+  const scope = BillingReconciliationScopeSchema.optional().parse(args.scope)
   const rawWork = await args.store.listWork({ limit: args.limit })
-  const work = BillingWorkListSchema.safeParse(rawWork)
+  const workSchema = scope?.providerMode === 'live' ? LiveBillingWorkListSchema : BillingWorkListSchema
+  const work = workSchema.safeParse(rawWork)
   if (!work.success || work.data.items.length > args.limit) {
     throw new Error('Billing reconciliation work is unavailable')
   }
@@ -42,6 +51,10 @@ export async function reconcileBillingSubscriptions(args: {
 
   for (const item of work.data.items) {
     result.processed += 1
+    if (item.subscription_id !== item.binding.subscription_id || !matchesBillingReconciliationScope(item.binding, scope)) {
+      result.exceptions += 1
+      continue
+    }
     try {
       const outcome = await synchronizeBillingSubscription({
         store: args.store,
@@ -49,6 +62,7 @@ export async function reconcileBillingSubscriptions(args: {
         subscriptionId: item.subscription_id,
         eventInboxId: item.event_inbox_id,
         leaseSeconds: args.leaseSeconds,
+        scope,
       })
       if (outcome.kind === 'applied') result.applied += 1
       else if (outcome.kind === 'replayed') result.replayed += 1

@@ -1,7 +1,7 @@
 import { createTargetBoundFetch, verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
 
 // These identify Pika's production target independently of caller-supplied URLs.
-const PRODUCTION_APP_ORIGIN = 'https://pika.codepet.ca'
+export const PRODUCTION_APP_ORIGIN = 'https://pika.codepet.ca'
 const PRODUCTION_PROJECT_REF = 'zhioqbapgfcrronyuidm'
 
 type BillingLiveTargetConfig = Readonly<{
@@ -48,6 +48,43 @@ export type BillingLiveTrialConfig = BillingLiveTargetConfig & Readonly<{
   workerSecret: string
   admissionEnabled: boolean
 }>
+
+/** Ingress only needs its signing secret. It cannot call the Stripe API. */
+export function readBillingLiveWebhookConfig(env: NodeJS.ProcessEnv = process.env) {
+  if (env.BILLING_LIVE_WEBHOOK_ENABLED !== 'true') return null
+  const target = readExactLiveBillingTarget(env)
+  const webhookSecret = env.STRIPE_LIVE_WEBHOOK_SECRET
+  if (!webhookSecret || !/^whsec_[A-Za-z0-9]{16,255}$/.test(webhookSecret)
+    || webhookSecret === env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error('Invalid live webhook configuration')
+  }
+  return { ...target, webhookSecret }
+}
+
+export type BillingLiveCheckoutConfig = BillingLiveTargetConfig & Readonly<{
+  providerMode: 'live'
+  appOrigin: typeof PRODUCTION_APP_ORIGIN
+  secretKey: string
+  checkoutAdmissionEnabled: boolean
+  providerWritesEnabled: boolean
+}>
+
+/** Keep recovery available while either admission or new provider writes is paused. */
+export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveCheckoutConfig | null {
+  const checkoutAdmissionEnabled = env.BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED === 'true'
+  const providerWritesEnabled = env.BILLING_LIVE_CHECKOUT_WRITES_ENABLED === 'true'
+  if (env.BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED !== 'true') {
+    if (checkoutAdmissionEnabled || providerWritesEnabled) throw new Error('Invalid live checkout configuration')
+    return null
+  }
+  const target = readExactLiveBillingTarget(env)
+  const secretKey = env.STRIPE_LIVE_SECRET_KEY
+  if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
+    throw new Error('Invalid live checkout configuration')
+  }
+  return { ...target, providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
+    checkoutAdmissionEnabled, providerWritesEnabled }
+}
 
 /** Existing trial status and expiry stay available while new admission is stopped. */
 export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveTrialConfig | null {

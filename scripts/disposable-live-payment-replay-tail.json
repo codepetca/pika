@@ -1,0 +1,14 @@
+[
+  {
+    "name": "314_billing_live_payment_scope.sql",
+    "sha256": "047f640edd52bb9bad230985a5f39442b2dd13689e8e410f60cce142116e979c"
+  },
+  {
+    "name": "315_billing_live_checkout_catalog.sql",
+    "sha256": "40d49a66518351e85c90cb243c17d4c1836951316a5652c92ec2e702f1a7de4e"
+  },
+  {
+    "name": "316_billing_live_checkout.sql",
+    "sha256": "d87d3c2999e86db9a943f42f6b6afc762625e1c0d2d4531a88a0fab6844b8f3f"
+  }
+]

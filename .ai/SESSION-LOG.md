@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-06 — Survey authoring CI timeout
-
-Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
-
-## 2026-11-06 — Dark browser CI partitions
-
-Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
-
-## 2026-11-06 — Gradebook PDF test timeout
-
-Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
-
 ## 2026-11-06 — Parent report score alignment
 
 Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
@@ -203,6 +191,23 @@ payment handling remains a separate source slice.
 
 Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
 
+## 2026-11-08 — Scoped live Stripe evidence
+
+Added explicit account and mode checks for Checkout and verified invoice
+reconciliation. Live session creation verifies the active product, price and
+remaining write window. Paused writes preserve recovery for known sessions.
+Signed live snapshots require a dedicated account endpoint and live evidence.
+The sandbox store rejects live receipts. Synthetic provider and service tests
+passed. The live SQL store, runtime and operator rollout still need work.
+
+## 2026-11-08 Live Stripe receipt intake
+
+Added a dedicated default-off live snapshot webhook with the official Stripe signature verifier and a target-bound database writer. Migration 314 separates payment recovery, admission and provider-write flags. First activation records a durable target identity and keeps the classroom cutoff in force. The inbox deduplicates by account, mode and event ID and rejects conflicting bytes. The sealed 001–314 replay passed both trial/payment activation orders and receipt persistence, with matching generated types and preserved shared schema. Live checkout persistence, subscription binding and paid entitlement writes are still pending.
+
+## 2026-11-08 Live checkout catalog and persistence
+
+Migrations 315 and 316 add the exact Pro and Max catalog, scoped checkout attempts and leases, and live subscription binding. They preserve an existing checkout across catalog retirement and a pause in Stripe writes. New Stripe creates require renewed database authorization under the lease. The owned 001–316 replay passed all eight catalog terms, stale claims, receipt adoption, trial expiry and independent grants, with generated types matching and the shared schema preserved. Targeted service, store and provider checks passed. Paid entitlement reconciliation is required before enabling the live checkout entry points.
+
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
@@ -280,6 +285,10 @@ The isolated Test reorder fixture now selects the exact RepoLight billing trigge
 ## 2026-11-09 — Sync the reviewed live trial with main
 
 The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
+
+## 2026-11-09 — Rebase reviewed live checkout after the trial merge
+
+Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
 
 ## 2026-11-09 — Preserve legacy scheduling for retired Blueprint drafts
 
