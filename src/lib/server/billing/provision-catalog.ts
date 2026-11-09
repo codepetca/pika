@@ -1,6 +1,8 @@
 import Stripe from 'stripe'
 import {
   LAUNCH_CATALOG_RELEASE_TAG,
+  REPOLIGHT_CATALOG_RELEASE_TAG,
+  repolightCatalog,
   launchCatalog,
   launchPlanKeys,
   type LaunchCatalogVariant,
@@ -47,7 +49,8 @@ export type BillingOfferingRegistration = Readonly<{
   features: Readonly<{
     catalog_key: string
     display_name: string
-    release_tag: typeof LAUNCH_CATALOG_RELEASE_TAG
+    release_tag: typeof LAUNCH_CATALOG_RELEASE_TAG | typeof REPOLIGHT_CATALOG_RELEASE_TAG
+    repolight_analysis?: boolean
   }>
   ai_definition: null
   availability: Readonly<{ is_available: boolean }>
@@ -83,7 +86,7 @@ export type LaunchCatalogProvisioningBinding = Readonly<{
 }>
 
 export type LaunchCatalogProvisioningResult = Readonly<{
-  releaseTag: typeof LAUNCH_CATALOG_RELEASE_TAG
+  releaseTag: typeof LAUNCH_CATALOG_RELEASE_TAG | typeof REPOLIGHT_CATALOG_RELEASE_TAG
   bindings: readonly LaunchCatalogProvisioningBinding[]
 }>
 
@@ -189,9 +192,9 @@ function versionFor(variant: LaunchCatalogVariant, releaseVersionBase: number): 
   return releaseVersionBase + versionOffsets[`${variant.currency}:${variant.interval}`]
 }
 
-function assertCatalogShape(): void {
-  if (launchCatalog.length !== 12 || new Set(launchCatalog.map(variant => variant.catalogKey)).size !== 12
-    || new Set(launchCatalog.map(variant => variant.offeringVersionId)).size !== 12) fail('catalog_invalid')
+function assertCatalogShape(catalog: readonly LaunchCatalogVariant[]): void {
+  if (catalog.length !== 12 || new Set(catalog.map(variant => variant.catalogKey)).size !== 12
+    || new Set(catalog.map(variant => variant.offeringVersionId)).size !== 12) fail('catalog_invalid')
 }
 
 function assertProduct(product: unknown, variant: LaunchCatalogVariant, expectedId: string): void {
@@ -235,7 +238,8 @@ function registrationFor(
     features: {
       catalog_key: variant.catalogKey,
       display_name: variant.displayName,
-      release_tag: LAUNCH_CATALOG_RELEASE_TAG,
+      release_tag: variant.releaseTag,
+      ...(variant.repolightAnalysis === undefined ? {} : { repolight_analysis: variant.repolightAnalysis }),
     },
     ai_definition: null,
     availability: { is_available: publish },
@@ -309,6 +313,7 @@ export async function provisionLaunchCatalog(input: Readonly<{
   ports: StripeCatalogProvisioningPorts
   productIds: unknown
   releaseVersionBase: unknown
+  releaseTag?: unknown
   /** Applied only when the immutable database version is first registered. */
   publish?: unknown
   env?: NodeJS.ProcessEnv
@@ -318,20 +323,23 @@ export async function provisionLaunchCatalog(input: Readonly<{
   const productIds = checkedProductIds(input.productIds)
   const releaseVersionBase = checkedReleaseVersionBase(input.releaseVersionBase)
   const publish = checkedPublish(input.publish)
-  assertCatalogShape()
+  const releaseTag = input.releaseTag ?? LAUNCH_CATALOG_RELEASE_TAG
+  if (releaseTag !== LAUNCH_CATALOG_RELEASE_TAG && releaseTag !== REPOLIGHT_CATALOG_RELEASE_TAG) fail('release_invalid')
+  const catalog = releaseTag === REPOLIGHT_CATALOG_RELEASE_TAG ? repolightCatalog : launchCatalog
+  assertCatalogShape(catalog)
 
   const account = await noProviderDetails(() => input.ports.retrieveAccount())
   if (!isRecord(account) || account.id !== config.stripeAccount) fail('stripe_account_invalid')
 
   for (const plan of launchPlanKeys) {
-    const variant = launchCatalog.find(item => item.plan === plan)
+    const variant = catalog.find(item => item.plan === plan)
     if (!variant) fail('catalog_invalid')
     const product = await noProviderDetails(() => input.ports.retrieveProduct(productIds[plan]))
     assertProduct(product, variant, productIds[plan])
   }
 
   const bindings: LaunchCatalogProvisioningBinding[] = []
-  for (const variant of launchCatalog) {
+  for (const variant of catalog) {
     const stripeProductId = productIds[variant.plan]
     const price = await ensurePrice(input.ports, variant, stripeProductId)
     const registration = await noProviderDetails(() => input.ports.registerOffering(registrationFor(
@@ -348,5 +356,5 @@ export async function provisionLaunchCatalog(input: Readonly<{
       offeringVersionId: registered.offeringVersionId,
     }))
   }
-  return Object.freeze({ releaseTag: LAUNCH_CATALOG_RELEASE_TAG, bindings: Object.freeze(bindings) })
+  return Object.freeze({ releaseTag, bindings: Object.freeze(bindings) })
 }

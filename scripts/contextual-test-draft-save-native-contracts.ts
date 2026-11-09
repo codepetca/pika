@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { assertDockerInventoryEnvironment } from './ci-supabase-registry-auth.mjs'
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { readFileSync, realpathSync, statSync } from 'node:fs'
+import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { isAbsolute, normalize, resolve } from 'node:path'
 import { StringDecoder } from 'node:string_decoder'
 import { isDeepStrictEqual } from 'node:util'
@@ -480,12 +480,39 @@ export function buildTestOwnerReorderNativeContractsManifest(original: Assignmen
   const actors = fixture.actors.map(a => `${q(a.id)}::uuid`).join(',')
   const testIds = `select id from public.tests where classroom_id=any(array[${classes}])`
   const guard = testOwnerGuardSql(projectId)
+  // The caller first seals and admits the full migration chain; this selects
+  // additional fixture checks only for the complete 300/301 profiles.
+  const names = readdirSync(resolve(repository, 'supabase/migrations')).filter(name => /^\d{3}_.+\.sql$/.test(name)).sort()
+  const repoLight300 = [300, 301].includes(names.length) ? `
+ or (select count(*) from private.repolight_settings)<>1
+ or not exists(select 1 from private.repolight_settings where singleton and not plan_enforcement_enabled and not legacy_plan_access_enabled and not billing_access_enabled and not managed_provisioning_enabled)
+ or (select count(*) from private.repolight_provision_control)<>1
+ or not exists(select 1 from private.repolight_provision_control where singleton and epoch=1)
+ or exists(select 1 from private.repolight_managed_connections)
+ or exists(select 1 from private.repolight_provision_outbox)
+ or exists (
+   select 1 from (values
+     ('public.billing_account_access','repolight_provision_billing_hint','repolight_provision_account_hint_v1',21,array[]::text[]),
+     ('public.account_plans','repolight_provision_plan_hint','repolight_provision_account_hint_v1',21,array[]::text[]),
+     ('private.repolight_settings','repolight_provision_access_gate_hint','repolight_provision_gate_hint_v1',17,array['billing_access_enabled','legacy_plan_access_enabled','managed_provisioning_enabled']::text[]),
+     ('private.stripe_billing_settings','repolight_provision_billing_gate_hint','repolight_provision_gate_hint_v1',17,array['provider_mode','sandbox_enabled']::text[])
+   ) expected(rel,name,fn,kind,attrs)
+   where not exists(select 1 from pg_catalog.pg_trigger t
+     join pg_catalog.pg_proc p on p.oid=t.tgfoid
+     join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+     where t.tgrelid=pg_catalog.to_regclass(expected.rel) and t.tgname=expected.name and not t.tgisinternal
+       and t.tgenabled='O' and not t.tgdeferrable and not t.tginitdeferred and t.tgtype=expected.kind
+       and n.nspname='private' and p.proname=expected.fn and p.prosecdef
+       and coalesce((select array_agg(a.attname::text order by a.attname::text) from pg_catalog.unnest(t.tgattr::smallint[]) x(attnum)
+         join pg_catalog.pg_attribute a on a.attrelid=t.tgrelid and a.attnum=x.attnum),array[]::text[])=expected.attrs)
+ )` : ''
   const setup = `${guard}\nbegin read only;set local lock_timeout='1s';set local statement_timeout='8s';
 do $presence$ begin
  if current_database()<>'postgres' or current_user<>'postgres'
  or to_regprocedure('public.reorder_tests_for_owner_v1(uuid,uuid,uuid[],timestamp with time zone)') is null
  or (select count(*) from private.classroom_test_quota_settings)<>1
  or not exists(select 1 from private.classroom_test_quota_settings where singleton and not enabled)
+ ${repoLight300}
  or (select count(*) from public.users where id=any(array[${actors}]) and email like ${q(fixture.tag + '%@example.invalid')})<>5
  or (select count(*) from public.classrooms where id=any(array[${classes}]))<>7
  or (select count(*) from public.tests where classroom_id=any(array[${classes}]))<>3012

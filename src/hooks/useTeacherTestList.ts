@@ -3,6 +3,7 @@ import { TEACHER_TESTS_UPDATED_EVENT } from '@/lib/events'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
 import { readTestsFromPayload } from '@/lib/test-api-contract'
 import { applyTestSummaryPatchToTest } from '@/lib/test-summary-patch'
+import { ApiError } from '@/lib/api-error'
 import type { AssessmentEditorSummaryUpdate, TestAssessment, TestAssessmentWithStats } from '@/types'
 
 type TeacherTestListResponse = {
@@ -15,6 +16,7 @@ type UseTeacherTestListOptions = {
   selectedTestDraftSummary: AssessmentEditorSummaryUpdate | null
   apiBasePath?: string
   progressive?: boolean
+  summaryCacheKey?: string
 }
 
 export type UseTeacherTestListResult = {
@@ -36,6 +38,7 @@ export function useTeacherTestList({
   selectedTestDraftSummary,
   apiBasePath = '/api/teacher/tests',
   progressive = false,
+  summaryCacheKey = `teacher-tests-summary:${classroomId}`,
 }: UseTeacherTestListOptions): UseTeacherTestListResult {
   const latestRequestIdRef = useRef(0)
   const currentClassroomIdRef = useRef(classroomId)
@@ -63,7 +66,9 @@ export function useTeacherTestList({
     const requestId = latestRequestIdRef.current + 1
     latestRequestIdRef.current = requestId
     const requestedClassroomId = classroomId
+    let accessDenied = false
     const isCurrentRequest = () => (
+      !accessDenied &&
       latestRequestIdRef.current === requestId &&
       currentClassroomIdRef.current === requestedClassroomId
     )
@@ -74,7 +79,7 @@ export function useTeacherTestList({
     if (progressive && loadedTestsClassroomIdRef.current !== requestedClassroomId) {
       const query = new URLSearchParams({ classroom_id: requestedClassroomId })
       void fetchCachedJSON<{ tests?: TestAssessment[] }>(
-        `teacher-tests-summary:${requestedClassroomId}`,
+        summaryCacheKey,
         `${apiBasePath}/summary?${query.toString()}`,
         { ttlMs: 0, errorMessage: 'Failed to load test summary' },
       ).then((data) => {
@@ -110,17 +115,26 @@ export function useTeacherTestList({
       setErrorState(null)
     } catch (error) {
       if (!isCurrentRequest()) return
+      if (error instanceof ApiError && [401, 403, 404].includes(error.statusCode)) {
+        accessDenied = true
+        invalidateCachedJSON(summaryCacheKey)
+        setSummaryState(null)
+        setTests([])
+        setLoadedTestsClassroomId(null)
+        loadedTestsClassroomIdRef.current = null
+        setLoadedSnapshotRequestId(null)
+      }
       console.error('Error loading tests:', error)
       setErrorState({
         classroomId: requestedClassroomId,
         message: error instanceof Error ? error.message : 'Failed to load tests',
       })
     } finally {
-      if (isCurrentRequest()) {
+      if (latestRequestIdRef.current === requestId && currentClassroomIdRef.current === requestedClassroomId) {
         setLoading(false)
       }
     }
-  }, [apiBasePath, classroomId, progressive])
+  }, [apiBasePath, classroomId, progressive, summaryCacheKey])
 
   // Refresh invalidates latestRequestIdRef synchronously. Tie eligibility to
   // the snapshot actually committed by this render, not a queued loading flag
@@ -133,9 +147,9 @@ export function useTeacherTestList({
 
   const retryTests = useCallback(async () => {
     invalidateCachedJSON(`teacher-tests:${classroomId}`)
-    invalidateCachedJSON(`teacher-tests-summary:${classroomId}`)
+    invalidateCachedJSON(summaryCacheKey)
     await loadTests(undefined, true)
-  }, [classroomId, loadTests])
+  }, [classroomId, loadTests, summaryCacheKey])
 
   useEffect(() => {
     selectedTestIdRef.current = selectedTestId
@@ -153,13 +167,13 @@ export function useTeacherTestList({
     function handleTestsUpdated(event: Event) {
       const detail = (event as CustomEvent<{ classroomId?: string; canonicalTitleTestId?: string }>).detail
       if (!detail || detail.classroomId !== classroomId) return
-      invalidateCachedJSON(`teacher-tests-summary:${classroomId}`)
+      invalidateCachedJSON(summaryCacheKey)
       void loadTests(detail.canonicalTitleTestId)
     }
 
     window.addEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
     return () => window.removeEventListener(TEACHER_TESTS_UPDATED_EVENT, handleTestsUpdated)
-  }, [classroomId, loadTests])
+  }, [classroomId, loadTests, summaryCacheKey])
 
   return {
     tests,

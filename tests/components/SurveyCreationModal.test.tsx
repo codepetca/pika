@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { SurveyCreationModal } from '@/components/surveys/SurveyCreationModal'
 
 describe('SurveyCreationModal', () => {
@@ -23,4 +23,26 @@ describe('SurveyCreationModal', () => {
     expect(screen.getByLabelText('Allow students to update answers while open')).toBeInTheDocument()
     expect(screen.getByRole('dialog')).toHaveClass('!max-w-2xl')
   })
+
+  it('confirms before discarding changed input and lets the teacher keep editing', () => {
+    const onClose = vi.fn()
+    render(<SurveyCreationModal isOpen classroomId="classroom-1" onClose={onClose} onSuccess={vi.fn()} />)
+    fireEvent.change(screen.getByPlaceholderText('Enter survey title'), { target: { value: 'Feedback' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey modal' }))
+    expect(screen.getByRole('dialog', { name: 'Discard survey changes?' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Keep editing' }))
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByPlaceholderText('Enter survey title')).toHaveValue('Feedback')
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey modal' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Discard changes' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
+  it('closes a pristine form immediately', () => {
+    const onClose = vi.fn()
+    render(<SurveyCreationModal isOpen classroomId="classroom-1" onClose={onClose} onSuccess={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close survey modal' }))
+    expect(onClose).toHaveBeenCalledOnce()
+  })
+
 })

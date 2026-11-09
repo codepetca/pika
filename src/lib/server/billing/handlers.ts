@@ -10,6 +10,7 @@ export type BillingHandlerRuntime = {
   provider: BillingProvider
   verify(raw: Buffer, signature: string): unknown
   record(receipt: BillingEventReceipt): Promise<unknown>
+  drainProvisioning?(): Promise<unknown>
 }
 
 /** Runtime wiring is separate so no SDK/client is constructed while disabled. */
@@ -56,6 +57,9 @@ export function createBillingHandlers(
       const lifecycle = lifecycleRuntime ? await lifecycleRuntime.applyDue({ limit: 25 }) : undefined
       const closeoutRuntime = loadCloseouts ? await loadCloseouts() : null
       const closeouts = closeoutRuntime ? await closeoutRuntime.closeDueRenewals({ limit: 1 }) : undefined
+      // Subscription/upgrade transactions have committed. The separate outbox
+      // owns retry and exact entitlement checks; billing success is unchanged.
+      await runtime.drainProvisioning?.()
       return NextResponse.json({ ...result, ...(purchases ? { purchases } : {}), ...(lifecycle ? { lifecycle } : {}),
         ...(closeouts ? { closeouts } : {}), ...(upgrades ? { upgrades } : {}) })
     }),

@@ -85,6 +85,36 @@ describe('upgrade application runtime', () => {
       .toEqual({ operationId, status: 'active', quote: null })
     expect(mocks.process).not.toHaveBeenCalled()
   })
+  it('kicks automatic provisioning for the exact subject only after stored upgrade activation', async () => {
+    const f = setup()
+    f.operation.confirmed = true
+    const order: string[] = []
+    const onActivated = vi.fn().mockImplementation(async () => { order.push('provision'); throw new Error('transient provisioning failure') })
+    mocks.process.mockImplementationOnce(async () => {
+      order.push('commit')
+      Object.assign(f.operation, { stage: 'applied', status: 'applied', payment_intent_id: 'pi_private' })
+      return { kind: 'applied' }
+    })
+    const runtime = createUpgradeApplication({ store: f.store, provider: f.provider, stripeAccount: config.stripeAccount,
+      now: () => Date.parse(now), onActivated })
+    expect(await runtime.confirmUpgrade({ subjectUserId, operationId, quoteRevision: 3, quoteDigest: f.operation.quote_digest }))
+      .toEqual({ operationId, status: 'active', quote: null })
+    expect(order).toEqual(['commit', 'provision'])
+    expect(onActivated).toHaveBeenCalledExactlyOnceWith(subjectUserId)
+  })
+  it('does not kick provisioning for a quote, uncommitted processor success, or a status read', async () => {
+    const f = setup()
+    const onActivated = vi.fn()
+    const runtime = createUpgradeApplication({ store: f.store, provider: f.provider, stripeAccount: config.stripeAccount,
+      now: () => Date.parse(now), onActivated })
+    await runtime.startUpgrade({ subjectUserId, operationId, offeringVersionId })
+    f.operation.confirmed = true
+    mocks.process.mockResolvedValue({ kind: 'applied' })
+    await runtime.confirmUpgrade({ subjectUserId, operationId, quoteRevision: 3, quoteDigest: f.operation.quote_digest })
+    Object.assign(f.operation, { stage: 'applied', status: 'applied', payment_intent_id: 'pi_private' })
+    await runtime.getUpgrade({ subjectUserId, operationId })
+    expect(onActivated).not.toHaveBeenCalled()
+  })
   it.each(['payment_verified', 'change_requested'])('projects %s as synchronizing', async stage => {
     const f = setup(); f.operation.stage = stage; f.operation.confirmed = true
     expect(await f.runtime.getUpgrade({ subjectUserId, operationId })).toMatchObject({ status: 'synchronizing', quote: null })

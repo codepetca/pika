@@ -174,7 +174,7 @@ describe('Gradebook surface owners', () => {
     const view = render(<TooltipProvider><GradebookTable {...props} /></TooltipProvider>)
     const header = screen.getByRole('button', { name: 'Edit A1: Practice' }).closest('th')!
     expect(header).toHaveAttribute('data-compact-zero-weight', 'true')
-    expect(header).toHaveTextContent('0 wt')
+    expect(header).not.toHaveTextContent('0 wt')
     expect(screen.getByRole('button', { name: 'Edit A2: Excluded essay' }).closest('th')).not.toHaveAttribute('data-compact-zero-weight')
     const mark = screen.getByRole('button', { name: 'Edit Demo Student mark for Practice: 0%' })
     expect(mark).toBeEnabled()
@@ -298,7 +298,7 @@ describe('Gradebook surface owners', () => {
     expect(new Set(dots.map((dot) => dot.getAttribute('cx'))).size).toBe(1)
     expect(new Set(dots.map((dot) => dot.getAttribute('cy'))).size).toBe(3)
     fireEvent.click(screen.getByRole('button', { name: '1 selected' }))
-    expect(within(screen.getByRole('menu', { name: 'Student actions' })).getByRole('menuitem', { name: 'Copy email 2' })).toBeDisabled()
+    expect(within(screen.getByRole('menu', { name: 'Student actions' })).getByRole('menuitem', { name: 'Copy guardian email' })).toBeDisabled()
   })
 
   it('keeps empty assessment space and keyboard student selection in the matrix', () => {

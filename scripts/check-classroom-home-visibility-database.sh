@@ -23,7 +23,9 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-((10#$source_version >= 234 && 10#$source_version <= 297)) || exit 1
+# Sealed 298–301 touch application schemas only; replay retains the same
+# Auth/Storage platform-source assumption. The manifest below pins their bytes.
+((10#$source_version >= 234 && 10#$source_version <= 301)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"
@@ -79,7 +81,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Seal the exact dirty-tree SQL inventory, rather than asserting a reviewed SHA.
-# This validates contiguous001–297 and binds all migration and proof bytes.
+# This validates contiguous001–297,001–300 or001–301 and binds all migration and proof bytes.
 manifest() {
   node - "$root" <<'NODE'
 const assert = require('node:assert/strict')
@@ -88,7 +90,7 @@ const { readFileSync, readdirSync } = require('node:fs')
 const { join } = require('node:path')
 const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
-assert.equal(paths.length, 297, 'Expected exactly297 migrations')
+assert([297, 300, 301].includes(paths.length), 'Expected exactly297, 300 or301 migrations')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
 // Preserve the reviewed293 pin and require the exact admission294/calendar295/attendance296 tails.
 const reviewed293 = '293_repolight_report_service.sql'
@@ -102,6 +104,21 @@ assert.equal(paths[295], '296_attendance_named_schedules.sql', 'Unreviewed migra
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[295]))).digest('hex'), '4a640c6bd6f1217314387b2122861f286986cd4c07e6a7f1be9b149388e5c917', 'Unreviewed migration 296 source')
 assert.equal(paths[296], '297_classroom_public_auto_admission.sql', 'Unreviewed migration 297 filename')
 assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', paths[296]))).digest('hex'), 'e7ee574ff2cb2d97deec109b4bbea49a564a892a3db8a7748db21a92745a5be1', 'Unreviewed migration 297 source')
+if ([300, 301].includes(paths.length)) {
+  for (const [index, name, digest] of [
+    [297, '298_repolight_analysis_access.sql', '63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'],
+    [298, '299_repolight_managed_registry.sql', '8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'],
+    [299, '300_repolight_provision_outbox.sql', '47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf'],
+  ]) {
+    assert.equal(paths[index], name, `Unreviewed migration ${index + 1} filename`)
+    assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), digest, `Unreviewed migration ${index + 1} source`)
+  }
+}
+if (paths.length === 301) {
+  const name = '301_repolight_universal_tier_benefit.sql'
+  assert.equal(paths[300], name, 'Unreviewed migration 301 filename')
+  assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), '871db1a388284f8a4178f7d36385b7db267c26b0b936bdd25a78f85ac24956e3', 'Unreviewed migration 301 source')
+}
 for (const path of [...paths.map(name => `supabase/migrations/${name}`), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-public-auto-admission.sql', 'scripts/check-classroom-public-auto-admission-native-catalog.sql', 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)
 }
@@ -134,7 +151,7 @@ done
 manifest > "$scratch/replay-manifest.sha256"
 cmp -s "$scratch/source-manifest.sha256" "$scratch/replay-manifest.sha256" || { echo 'Source changed before replay.' >&2; exit 1; }
 if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then tail -25 "$scratch/replay.log" >&2; exit 1; fi
-echo 'PASS isolated replay001–297.'
+echo 'PASS isolated replay of the sealed migration inventory.'
 # Native 297 coverage uses the real users table. Adapt only fixture identities;
 # the isolated synthetic contract remains unchanged and is sealed in manifest.
 if ! sql < "$root/scripts/check-classroom-public-auto-admission-native-catalog.sql" > "$scratch/auto-catalog.log" 2>&1; then tail -25 "$scratch/auto-catalog.log" >&2; exit 1; fi

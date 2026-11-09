@@ -1681,7 +1681,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
-        run: pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light
+        # Light inventory is validated before any partition executes.
+        run: node scripts/ci-browser-light-partitions.mjs
 
       - name: Prepare bounded failure diagnostics
         id: failure-diagnostics
@@ -1815,7 +1816,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
-        run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark
+        run: node scripts/ci-browser-dark-partitions.mjs
 
       - name: Prepare bounded failure diagnostics
         id: failure-diagnostics

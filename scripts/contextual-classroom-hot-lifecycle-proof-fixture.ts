@@ -36,13 +36,19 @@ return g||jsonb_build_object('__catalog',(select md5(coalesce(string_agg(x.defin
  union all select pg_get_triggerdef(trigger_row.oid)||trigger_row.tgenabled::text from pg_trigger trigger_row join pg_class c on c.oid=trigger_row.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','private','storage') and not trigger_row.tgisinternal) x));end;$graph$;`
 export const hotSnapshotSelect=`select pg_temp.hot_graph() as result;`
 export function hotLifecycleSnapshotSql(){return `${hotGraphFunctions}begin read only;set local statement_timeout='8s';${hotSnapshotSelect}rollback;`}
-export function hotLifecycleSetupSql(f:HotLifecycleFixture) {
+export function hotLifecycleSetupSql(f:HotLifecycleFixture, reviewed300 = false) {
   const ids=f.allocatedIds.map(q).join(',')
   return `${testOwnerGuardSql(f.projectId)}
 begin;set local lock_timeout='1s';set local statement_timeout='12s';
 do $collision$ begin if exists(select 1 from public.users where id in (${ids}) or email like ${q(f.tag+'%')})
  or exists(select 1 from public.classrooms where id in (${ids}) or class_code like ${q(f.tag+'%')})
  then raise exception 'Hot lifecycle synthetic namespace collision';end if;end;$collision$;
+${reviewed300 ? `do $repolight$ begin if (select count(*) from private.repolight_settings)<>1
+ or not exists(select 1 from private.repolight_settings where singleton and not plan_enforcement_enabled and not legacy_plan_access_enabled and not billing_access_enabled and not managed_provisioning_enabled)
+ or (select count(*) from private.repolight_provision_control)<>1
+ or not exists(select 1 from private.repolight_provision_control where singleton and epoch=1)
+ or exists(select 1 from private.repolight_managed_connections) or exists(select 1 from private.repolight_provision_outbox)
+ then raise exception 'Hot lifecycle RepoLight dormant fixture differs';end if;end;$repolight$;` : ''}
 insert into public.users(id,email,role) values ${f.actors.map(a=>`(${q(a.id)},${q(a.email)},${q(a.role)})`).join(',')};
 do $grants$ begin ${f.grants.map(g=>`perform public.set_effective_feature_entitlement_v1(${q(g.id)},${q(g.actor)},'classrooms.create','manual',true,clock_timestamp(),null,${g.capacity},'test:classroom-hot-lifecycle',${q(f.tag)},0);`).join('\n')} end;$grants$;
 insert into public.classrooms(id,teacher_id,title,class_code,position,archived_at,feature_visibility) values ${f.classes.map(c=>`(${q(c.id)},${q(c.owner)},${q(c.title)},${q(c.code)},${c.position},${c.archived?`${q(f.now)}::timestamptz`:'null'},'{"tests":true}'::jsonb)`).join(',')};

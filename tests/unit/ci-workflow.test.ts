@@ -186,11 +186,19 @@ describe('CI workflow', () => {
   it('preserves the full configured browser inventory with only independent auth setup repeated', () => {
     const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { scripts: Record<string, string> }
     const jobs = extractWorkflow(readFileSync(workflowPath, 'utf8'))
-    const commands = ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark'].map(id => {
+    const commands = ['browser-pattern-lab-dark'].map(id => {
       const runs = jobs[id].steps.filter(step => step.run?.startsWith('pnpm e2e:ci'))
       expect(runs).toHaveLength(1)
       return runs[0].run!.split(/\s+/).slice(2)
     })
+    expect(jobs['browser-experience-dark'].steps.filter(step => step.run === 'node scripts/ci-browser-dark-partitions.mjs')).toHaveLength(1)
+    expect(jobs['browser-experience-matrix'].steps.filter(step => step.run === 'node scripts/ci-browser-light-partitions.mjs')).toHaveLength(1)
+    commands.unshift(['--project=chromium-desktop', '--project=chromium-mobile-light', '--project=pattern-lab-desktop-light', '--project=pattern-lab-mobile-light'], ['--project=chromium-desktop-dark', '--project=chromium-mobile-dark'])
+    const lightPartitions = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs', '--verify-only'], { encoding: 'utf8', timeout: 90_000 })
+    expect(lightPartitions.status, lightPartitions.stderr).toBe(0)
+    expect(lightPartitions.stdout).toMatch(/partitions of (?:\d+, ){6}\d+; required setup repeats for each partition; lifecycle runs alone/)
+    const partitions = spawnSync('node', ['scripts/ci-browser-dark-partitions.mjs', '--verify-only'], { encoding: 'utf8', timeout: 90_000 })
+    expect(partitions.status, partitions.stderr).toBe(0)
     const inventory = (flags: string[]) => {
       const result = spawnSync('pnpm', ['exec', ...pkg.scripts['e2e:ci'].split(/\s+/), '--list', '--reporter=json', ...flags],
         { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024, env: { ...process.env, CI: 'true' } })
@@ -215,7 +223,51 @@ describe('CI workflow', () => {
     expect(full).toHaveLength(646)
     expect(light.length + dark.length + patternDark.length).toBe(648)
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
-  }, 20_000)
+  }, 180_000)
+
+  it('runs lifecycle tests in their own fresh light browser invocation', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'pika-light-isolation-test-'))
+    try {
+      const pnpm = spawnSync('which', ['pnpm'], { encoding: 'utf8' }).stdout.trim()
+      expect(pnpm).not.toBe('')
+      writeFileSync(join(dir, 'pnpm'), `#!/bin/sh
+case " $* " in *" --list "*) exec "$REAL_PNPM" "$@" ;; esac
+for arg in "$@"; do
+  case "$arg" in --test-list=*) path="\${arg#--test-list=}"; cp "$path" "$CAPTURE_DIR/$(basename "$path")" ;; esac
+done
+`, { mode: 0o755 })
+      const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs'], {
+        encoding: 'utf8', timeout: 90_000, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, REAL_PNPM: pnpm, CAPTURE_DIR: dir },
+      })
+      expect(result.status, result.stderr).toBe(0)
+      const partitions = readdirSync(dir).filter(name => /^part-\d+\.txt$/.test(name)).sort().map(name => readFileSync(join(dir, name), 'utf8').trim().split('\n'))
+      expect(partitions).toHaveLength(7)
+      expect(partitions[4]).toHaveLength(3)
+      expect(partitions[4].every(row => row.includes('test-lifecycle-ci.spec.ts'))).toBe(true)
+      expect(partitions.filter((_, index) => index !== 4).flat().some(row => row.includes('test-lifecycle-ci.spec.ts'))).toBe(false)
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  }, 100_000)
+
+  it.each(['dark', 'light'])('fails before %s browser execution when a partition selects the wrong inventory', mode => {
+    const dir = mkdtempSync(join(tmpdir(), 'pika-dark-inventory-test-'))
+    try {
+      const spec = (title: string, line: number, projects: string[]) => ({ title, file: 'experience-matrix.spec.ts', line, column: 1, tests: projects.map(projectName => ({ projectName })) })
+      const projects = mode === 'dark' ? ['chromium-desktop-dark', 'chromium-mobile-dark'] : ['chromium-desktop', 'chromium-mobile-light', 'pattern-lab-desktop-light', 'pattern-lab-mobile-light']
+      const inventory = { suites: [
+        { specs: [{ title: 'auth', file: 'auth.setup.ts', line: 1, column: 1, tests: [{ projectName: 'setup' }] }] },
+        { specs: [1, 2, 3, 4].map(n => spec(`test ${n}`, n, projects)) },
+        { specs: [{ ...spec('lifecycle', 1, projects), file: 'test-lifecycle-ci.spec.ts' }] },
+        { specs: [{ ...spec('after', 1, projects), file: 'ui-pattern-lab.spec.ts' }] },
+      ] }
+      writeFileSync(join(dir, 'inventory.json'), JSON.stringify(inventory))
+      writeFileSync(join(dir, 'pnpm'), '#!/bin/sh\ncase " $* " in *" --list "*) cat "$FAKE_INVENTORY" ;; *) exit 99 ;; esac\n', { mode: 0o755 })
+      const result = spawnSync('node', [`scripts/ci-browser-${mode}-partitions.mjs`], {
+        encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_INVENTORY: join(dir, 'inventory.json') },
+      })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toMatch(/Partition 1 inventory mismatch|Unexpected chromium-desktop inventory/)
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
 
   it('accepts complete selected evidence and preserves documented unselected modes', () => {
     expect(runGate().status).toBe(0)
@@ -553,7 +605,7 @@ describe('CI workflow', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
 
     expect(workflow).toContain('name: Run combined browser contracts')
-    expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(3)
+    expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(1)
     for (const id of ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
       const body = jobSource(workflow, id)
       expect(body).toContain("if: needs.classify-changes.outputs.run_browser == 'true'")

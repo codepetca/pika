@@ -2021,7 +2021,7 @@ test('student calendar distinguishes future placement, release and advance visib
   const within = page.getByRole('button', { name: /Within-window material/ }).first()
   await expect(within).toBeVisible()
   await expect(page.getByRole('button', { name: /Within-window announcement/ }).first()).toBeVisible()
-  for (const view of ['Week', 'Month', 'All']) {
+  for (const view of ['List', 'Grid']) {
     await page.getByRole('button', { name: view, exact: true }).click()
     await expect(within).toBeVisible()
     await expect(page.getByText('Beyond-window material', { exact: true })).toHaveCount(0)

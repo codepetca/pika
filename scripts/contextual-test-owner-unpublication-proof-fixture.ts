@@ -1,3 +1,4 @@
+import { repoLight300WitnessSql } from './repolight-300-proof-witness'
 /** Fixed no-work fixture reuses publication/pristine rows, never learner Start. */
 import assert from 'node:assert/strict'
 import type { AssignmentListProofFixture } from './contextual-assignment-list-proof-fixture'
@@ -63,4 +64,9 @@ insert into public.classroom_enrollments(id,classroom_id,student_id) values(${q(
   assert(Buffer.byteLength(sql) <= 256 * 1024, 'Fixed unpublication preparation exceeds native input cap')
   return sql
 }
-export function testOwnerUnpublicationSnapshotSql(f: TestOwnerUnpublicationFixture) { return testOwnerPublicationSnapshotSql(f.publicationBase) }
+export function testOwnerUnpublicationSnapshotSql(f: TestOwnerUnpublicationFixture, reviewed300 = false) {
+  const sql = testOwnerPublicationSnapshotSql(f.publicationBase)
+  if (!reviewed300) return sql
+  assert(sql.endsWith(';rollback;'))
+  return `${sql.slice(0, -';rollback;'.length)} || jsonb_build_object('__repolight300',${repoLight300WitnessSql()});rollback;`
+}

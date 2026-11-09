@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { AssessmentSetupDialog } from '@/components/assessment/AssessmentSetupDialog'
 import { AssessmentSetupCheckbox, AssessmentSetupForm } from '@/components/assessment/AssessmentSetupForm'
+import { ConfirmDialog } from '@/ui'
 import type { Survey } from '@/types'
 
 interface SurveyModalProps {
@@ -24,6 +25,7 @@ export function SurveyModal({
   const [dynamicResponses, setDynamicResponses] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -31,6 +33,7 @@ export function SurveyModal({
     setShowResults(survey.show_results)
     setDynamicResponses(survey.dynamic_responses)
     setError('')
+    setCloseConfirmOpen(false)
 
     setTimeout(() => {
       titleInputRef.current?.focus()
@@ -70,10 +73,17 @@ export function SurveyModal({
     }
   }
 
+  function requestClose() {
+    if (saving) return
+    if (title !== survey.title || showResults !== survey.show_results || dynamicResponses !== survey.dynamic_responses) setCloseConfirmOpen(true)
+    else onClose()
+  }
+
   return (
+    <>
     <AssessmentSetupDialog
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={requestClose}
       isCompact
       compactMaxWidth="max-w-md"
       title="Edit Survey"
@@ -90,7 +100,7 @@ export function SurveyModal({
         saving={saving}
         submitLabel="Save"
         onTitleChange={setTitle}
-        onCancel={onClose}
+        onCancel={requestClose}
         onSubmit={handleSubmit}
       >
         <div className="space-y-3">
@@ -112,5 +122,7 @@ export function SurveyModal({
         </div>
       </AssessmentSetupForm>
     </AssessmentSetupDialog>
+    <ConfirmDialog isOpen={isOpen && closeConfirmOpen} title="Discard survey changes?" description="Your changes will be lost." confirmLabel="Discard changes" cancelLabel="Keep editing" confirmVariant="danger" onCancel={() => setCloseConfirmOpen(false)} onConfirm={() => { setCloseConfirmOpen(false); onClose() }} />
+    </>
   )
 }

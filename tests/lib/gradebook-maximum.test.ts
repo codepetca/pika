@@ -9,9 +9,9 @@ describe('maximum override display and calculation', () => {
     expect(score).toMatchObject({ earned: 80, possible: 50, percent: 160 })
   })
   it('preserves percentages by rescaling earned marks and calculated undo marks', () => {
-    const score = { ...cell(), is_manual_override: true, calculated_earned: 70 }
+    const score = { ...cell(), is_manual_override: true, calculated_earned: 70, calculation_earned: 80.125 }
     applyMaximumToCell(score, previewMaximumChange(column, 50, 'preserve_percentages'))
-    expect(score).toMatchObject({ earned: 40, possible: 50, percent: 80, calculated_earned: 35 })
+    expect(score).toMatchObject({ earned: 40, possible: 50, percent: 80, calculated_earned: 35, calculation_earned: 40.0625 })
   })
   it('uses the current maximum for subsequent changes', () => {
     const displayed = { ...column }; applyMaximumToColumn(displayed, previewMaximumChange(column, 50, 'preserve_percentages'))

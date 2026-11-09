@@ -14,6 +14,13 @@ import { assignmentListEphemeralPlan } from '../../scripts/contextual-assignment
 describe('assignment-list native platform proof contracts (offline)', () => {
   it('omits only discarded table scans from metadata safety snapshots', () => {
     const full = assignmentListSnapshotSql('digests'); const rows = assignmentListSnapshotSql('rows'); const metadata = assignmentListSnapshotSql('metadata')
+    for (const name of ['repolight_provision_billing_hint', 'repolight_provision_plan_hint',
+      'repolight_provision_access_gate_hint', 'repolight_provision_billing_gate_hint',
+      'repolight_provision_account_hint_v1', 'repolight_provision_gate_hint_v1']) {
+      expect(metadata).toContain(name)
+    }
+    expect(metadata).toContain('pg_get_triggerdef(t.oid)')
+    expect(metadata).toContain('md5(pg_get_functiondef(p.oid))')
     const safety = (value: string) => value.slice(value.indexOf("select jsonb_build_object('metadata'"))
     expect(safety(metadata)).toBe(safety(full)); expect(safety(rows)).toBe(safety(full))
     expect(metadata.startsWith("begin isolation level repeatable read read only;\nset local statement_timeout='20s';set local lock_timeout='3s';")).toBe(true)

@@ -404,6 +404,50 @@ quota enforcement with silent/generic failures; its refusal and recovery UX must
 be explicitly reconciled before activation. Subscription UI remains separately
 owned billing work.
 
+### SUB-17 — RepoLight repository analysis (owner decision 2026-10-29)
+
+Include Pika's RepoLight repository analysis in **Pro** and **Max**, including
+an active **Pro trial**. Free and Basic do not include it. Analysis is
+rule-based; this decision does not enable AI grading or an AI provider.
+
+This is a product-policy decision, not a claim that plan enforcement, trial
+lifecycle, paid billing, or self-service workspace connection is live. A teacher
+also needs an active, correctly scoped RepoLight workspace connection and the
+existing classroom ownership authorization. Provision a separate managed RepoLight
+workspace and scoped connection automatically for each eligible Pika teacher;
+no separate RepoLight login or GitHub App installation should be required for
+public repositories. Provisioning must be idempotent and recover safely from
+uncertain responses. Preserve the controlled pilot and existing rollout holds
+until an independently reviewed activation plan is approved.
+
+Cancellation retains access until the applicable paid-through deadline (or
+approved renewal grace). At expiry or an effective downgrade to Free or Basic,
+stop new analysis admissions without deleting existing reports or feedback.
+Re-eligibility restores access to the same retained workspace. Existing work
+and legally required cleanup remain accessible under their established ownership
+and lifecycle safeguards.
+
+Owner clarification 2026-11-08: RepoLight is an additive benefit for **every**
+valid Pro or Max tier, including an active Pro trial, regardless of whether a
+purchased offering version recorded the RepoLight feature flag. This specific
+benefit is an explicit exception to the feature-inclusion rule in SUB-07 and
+SUB-08. Historical offering records, prices, payment terms, classroom limits,
+AI allowances and all other purchased terms remain unchanged; the exception does
+not authorize a paid billing launch. A tier label alone is insufficient: the
+resolver must still verify the purchased version, payment, binding, revisions,
+access period and effective entitlement. The legacy runtime keys are `plus` for
+public Pro and `pro` for public Max. Trial eligibility must use the actual active
+trial period and authoritative entitlement state, including expiry.
+
+Implement server-side checks at new-analysis admission and remote-work
+(including retry) boundaries, with race-safe plan changes and fail-closed handling
+of missing, inconsistent, or unavailable entitlement state. Preserve access to
+past classroom work, feedback and required cleanup after downgrade or expiry.
+The existing sandbox-only billing access RPC is not a production eligibility
+resolver. Activation requires migration and lifecycle verification, clear behavior
+for existing pilot accounts, and separately authorized rollout; no account grants,
+provider settings, charges or production changes follow from this policy alone.
+
 ## Remaining launch prerequisites
 
 - Validate AI unit costs, publish final quantities, and specify reset anchors,

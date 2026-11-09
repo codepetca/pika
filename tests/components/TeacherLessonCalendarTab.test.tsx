@@ -1,3 +1,4 @@
+import * as timezone from '@/lib/timezone'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { TeacherLessonCalendarTab } from '@/app/classrooms/[classroomId]/TeacherLessonCalendarTab'
@@ -53,9 +54,11 @@ vi.mock('@/contexts/MarkdownPreferenceContext', () => ({
 }))
 
 vi.mock('@/components/LessonCalendar', () => ({
-  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange }: any) => (
+  LessonCalendar: ({ lessonPlans, assignments, materials = [], onMaterialClick, announcements, tests = [], onContentChange, initialSourcesLoading, currentDate }: any) => (
     <div
       data-testid="lesson-calendar"
+      data-current-date={currentDate.toISOString().slice(0, 10)}
+      data-initial-sources-loading={String(initialSourcesLoading)}
       data-material-ids={materials.map((material: { id: string }) => material.id).join(',')}
       data-test-count={tests.length}
       data-test-ids={tests.map((test: { id: string }) => test.id).join(',')}
@@ -152,6 +155,28 @@ describe('TeacherLessonCalendarTab', () => {
     vi.restoreAllMocks()
   })
 
+  it.each([
+    [null, null], ['2026-01-01', null], [null, '2026-12-31'],
+  ])('navigates and fetches prior months with incomplete dates (%s, %s)', async (start_date, end_date) => {
+    let now = new Date(2026, 9, 15, 12)
+    vi.spyOn(timezone, 'nowInToronto').mockImplementation(() => now)
+    const incomplete = { ...classroom, id: `incomplete-Teacher-${start_date}-${end_date}`, start_date, end_date }
+    fetchMock.mockImplementation(async (url: string) => ({ ok: true, json: async () => ({
+      lesson_plans: String(url).includes('2026-09-01') ? [{ id: 'prior-lesson', classroom_id: incomplete.id, date: '2026-09-15', content_markdown: 'Previous lesson' }] : [],
+      assignments: [], materials: [], announcements: [], tests: [], max_date: null,
+    }) }))
+    render(<TeacherLessonCalendarTab showTests={false} classroom={incomplete} />, { wrapper: Wrapper })
+    await screen.findByTestId('lesson-calendar')
+    fireEvent.click(screen.getByRole('button', { name: 'Previous month' }))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-09-01') && String(url).includes('end=2026-09-30'))).toBe(true))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-lesson-count', '1'))
+    expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-09-15')
+    now = new Date(2026, 10, 2, 12)
+    fireEvent.click(screen.getByRole('button', { name: 'Today' }))
+    await waitFor(() => expect(screen.getByTestId('lesson-calendar')).toHaveAttribute('data-current-date', '2026-11-02'))
+    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => String(url).includes('start=2026-11-01') && String(url).includes('end=2026-11-30'))).toBe(true))
+  })
+
   it('refreshes an already-mounted calendar after a confirmed announcement edit in this classroom', async () => {
     let published_at = '2026-10-22T04:00:00Z'
     let reads = 0
@@ -176,20 +201,32 @@ describe('TeacherLessonCalendarTab', () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], announcements: [] }) })
     render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
     await screen.findByTestId('lesson-calendar')
-    expect(screen.getByRole('button', { name: 'Week', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    const list = screen.getByRole('button', { name: 'List', exact: true })
+    expect(list.closest('.sticky')?.querySelector('[aria-live]')).toBeNull()
+    expect(list).toHaveAttribute('aria-pressed', 'true')
     const readCount = fetchMock.mock.calls.length
     fireEvent.click(screen.getByRole('button', { name: 'More actions' }))
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Edit calendar in Markdown' }))
     expect(sidebarState.toggle).toHaveBeenCalledTimes(1)
-    const week = screen.getByRole('button', { name: 'Week', exact: true })
-    week.focus()
-    fireEvent.keyDown(week, { key: 'ArrowRight' })
-    expect(screen.getByRole('button', { name: 'Month', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByRole('button', { name: 'Next', exact: true })).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Term', exact: true }))
-    expect(screen.getByRole('button', { name: 'Term', exact: true })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.queryByRole('button', { name: 'Next', exact: true })).not.toBeInTheDocument()
+    list.focus()
+    fireEvent.keyDown(list, { key: 'ArrowRight' })
+    expect(screen.getByRole('button', { name: 'Grid', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Today' })).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledTimes(readCount)
+  })
+
+  it('exposes refresh status and forwards source settlement to the teacher calendar', async () => {
+    classDaysState.isLoading = true
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ lesson_plans: [], assignments: [], materials: [], announcements: [] }) })
+    const view = render(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />, { wrapper: Wrapper })
+    const calendar = await screen.findByTestId('lesson-calendar')
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'true'))
+    expect(screen.getByText('Refreshing calendar')).toBeInTheDocument()
+    classDaysState.isLoading = false
+    view.rerender(<TeacherLessonCalendarTab showTests={false} classroom={classroom} />)
+    await waitFor(() => expect(calendar).toHaveAttribute('data-initial-sources-loading', 'false'))
+    expect(screen.queryByText('Refreshing calendar')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Calendar workspace' })).toBeInTheDocument()
   })
 
   it('does not fetch or display classroom features hidden from teachers', async () => {
