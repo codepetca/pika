@@ -2,7 +2,7 @@
 
 Owner-approved prototype, 2026-11-06. Scope: classroom lesson calendar for teachers and students. The existing term calendar and Pattern Lab `calendar-identity` are the Pika references; the approved prototype defines the revised layout.
 
-- Show the complete term in List or Grid, with a compact sticky action bar and Today action. Center today on entry and on demand; if outside the term, use the nearest term boundary.
+- Show the complete term in List or Grid, with a compact sticky action bar and Today action. On entry and when using Today, List centers the target date. Grid places the target week in the upper half, with the full previous week above it when it fits. When the previous week is too tall, the target week starts below the sticky weekday headings. If today is outside the term, use the nearest term boundary.
 - Grid keeps sticky weekday headings, vertical month labels spanning weeks assigned to the majority month, and a subtle outline following each calendar month's actual dates.
 - List keeps the current month and year in the action bar and uses quiet month and week separators.
 - Preserve day content, editing, permissions, category identities, navigation, and source states. Dragging chips to change dates is separate future work.

@@ -212,6 +212,32 @@ describe('LessonCalendar', () => {
     expect(screen.getByRole('button', { name: 'Today' })).toBeEnabled()
   })
 
+  it.each([
+    { state: 'previous week fits', previousTop: 200, keyboardScroll: false, expectedScroll: 288 },
+    { state: 'previous week is tall', previousTop: 60, keyboardScroll: false, expectedScroll: 368 },
+    { state: 'keyboard user has scrolled', previousTop: 200, keyboardScroll: true, expectedScroll: 120 },
+  ])('positions the loaded Grid when $state', ({ previousTop, keyboardScroll, expectedScroll }) => {
+    vi.useFakeTimers()
+    const today = new Date('2026-03-16T16:00:00Z')
+    vi.setSystemTime(today)
+    const classroom = { ...mockClassroom, start_date: '2026-03-01', end_date: '2026-04-01' }
+    const calendar = (loading: boolean) => <LessonCalendar classroom={classroom} lessonPlans={[]} viewMode="grid"
+      currentDate={today} editable={false} initialSourcesLoading={loading}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} />
+    const { rerender } = render(calendar(true), { wrapper: Wrapper })
+    const scroller = screen.getByRole('region', { name: 'Calendar dates' })
+    scroller.style.scrollPaddingTop = '32px'
+    scroller.scrollTop = 120
+    Object.defineProperty(scroller, 'clientHeight', { value: 300 })
+    vi.spyOn(scroller.querySelector('[data-calendar-date="2026-03-16"]')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 280))
+    vi.spyOn(scroller.querySelector('[data-calendar-date="2026-03-09"]')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, previousTop))
+    if (keyboardScroll) fireEvent.keyDown(scroller, { key: 'PageDown' })
+    rerender(calendar(false))
+    expect(scroller.scrollTop).toBe(expectedScroll)
+  })
+
   it('opens a focused day dialog from the week header', () => {
     render(
       <LessonCalendar

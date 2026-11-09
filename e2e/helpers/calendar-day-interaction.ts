@@ -41,6 +41,7 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
       id: `lesson-${index}`, classroom_id: classroomId, date: date(index + 1), content: null,
       content_markdown: index === 4
         ? '# Lesson 5\n\n' + Array(8).fill('Discuss the calendar reading and concrete next steps.').join('\n\n') + '\n\nFINAL READING LINE'
+        : index === 18 ? Array.from({ length: 16 }, (_, line) => `Future lab step ${line + 1}`).join('\n')
         : `Lesson ${index + 1}`,
       created_at: '2026-10-01T12:00:00Z', updated_at: '2026-10-01T12:00:00Z',
     })) }
@@ -60,7 +61,7 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
     else if (path.endsWith('/classrooms')) body = { classrooms: [] }
     await route.fulfill({ json: body })
   })
-  await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar`, { waitUntil: 'domcontentloaded' })
+  await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar&calendarTerm=true`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('region', { name: 'Calendar workspace' })).toBeVisible()
   const verifiedDate = await page.evaluate(() => ({ iso: new Date().toISOString(),
     toronto: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto',
@@ -80,6 +81,24 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   expect(page.viewportSize()).toEqual(testInfo.project.metadata.viewport === 'desktop'
     ? { width: 1440, height: 900 } : { width: 390, height: 844 })
   expect(await page.locator('html').evaluate(element => element.classList.contains('dark'))).toBe(theme === 'dark')
+  const dates = page.getByRole('region', { name: 'Calendar dates' })
+  await expect(dates.getByRole('button', { name: longAnnouncementTitle })).toBeVisible()
+  const heading = dates.getByText('Mon', { exact: true })
+  const expectGridPosition = () => expect.poll(() => heading.evaluate(element => {
+    const scroller = element.closest<HTMLElement>('[role="region"]')!
+    const previousWeek = scroller.querySelector('[data-calendar-date="2026-09-28"]')!.getBoundingClientRect()
+    const today = scroller.querySelector('[data-calendar-date="2026-10-05"]')!.getBoundingClientRect()
+    const headingBounds = element.getBoundingClientRect()
+    const contentTop = headingBounds.bottom
+    return scroller.scrollTop > 0 && Math.abs(previousWeek.top - contentTop) <= 1
+      && Math.abs(previousWeek.bottom - today.top) <= 1
+      && today.top <= contentTop + (scroller.clientHeight - headingBounds.height) / 2
+  })).toBe(true)
+  await expectGridPosition()
+  await page.screenshot({ path: testInfo.outputPath(`${role}-${motion}-grid-opening.png`) })
+  await dates.evaluate(element => { element.scrollTop = 0 })
+  await page.getByRole('button', { name: 'Today', exact: true }).click()
+  await expectGridPosition()
   await page.getByRole('button', { name: 'List', exact: true }).click()
   const opener = page.getByRole('button', { name: /Open Monday, October 5, 2026/i })
   await opener.focus()

@@ -1,7 +1,7 @@
 'use client'
 
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react'
+import { useMemo, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react'
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, isWeekend, addDays, parseISO } from 'date-fns'
 import { ChevronLeft, ChevronRight, PanelRight, PanelRightClose } from 'lucide-react'
 import { LessonDayCell } from './LessonDayCell'
@@ -206,24 +206,35 @@ export function LessonCalendar({
     start: startOfWeek(termStart, { weekStartsOn: 0 }),
     end: endOfWeek(termEnd, { weekStartsOn: 0 }),
   }), [termStart, termEnd])
-  const calendarRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const gridHeadingRef = useRef<HTMLDivElement>(null)
   const [localTodayRequest, setLocalTodayRequest] = useState(0)
-  const centerToday = useCallback(() => {
+  const positionToday = useCallback(() => {
+    const scroller = scrollRef.current
+    if (!scroller) return
     const target = today < termStart ? termStart : today > termEnd ? termEnd : today
     const key = format(target, 'yyyy-MM-dd')
-    const element = calendarRef.current?.querySelector<HTMLElement>(`[data-calendar-date="${key}"]`)
-    const scroller = scrollRef.current
-    if (!element || !scroller) return
-    const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-    // For a week taller than the viewport, start at its date and first items.
+    const element = scroller.querySelector<HTMLElement>(`[data-calendar-date="${key}"]`)
+    if (!element) return
+    const targetTop = element.getBoundingClientRect().top
     const scrollPadding = parseFloat(getComputedStyle(scroller).scrollPaddingTop) || 0
-    const top = Math.max(scrollPadding, (scroller.clientHeight - element.offsetHeight) / 2)
-    scroller.scrollTop += offset - top
-  }, [termStart, termEnd, today])
+    let top: number
+    if (viewMode === 'grid') {
+      const headingHeight = gridHeadingRef.current?.offsetHeight || scrollPadding
+      const previousWeek = subWeeks(target, 1)
+      const previousKey = format(previousWeek < termStart ? termStart : previousWeek, 'yyyy-MM-dd')
+      const previousCell = scroller.querySelector<HTMLElement>(`[data-calendar-date="${previousKey}"]`)
+      const previousHeight = previousCell ? targetTop - previousCell.getBoundingClientRect().top : 0
+      // Keep the previous week in view when Today can still open in the upper half.
+      top = headingHeight + (previousHeight <= (scroller.clientHeight - headingHeight) / 2 ? previousHeight : 0)
+    } else {
+      top = Math.max(scrollPadding, (scroller.clientHeight - element.offsetHeight) / 2)
+    }
+    scroller.scrollTop += targetTop - scroller.getBoundingClientRect().top - top
+  }, [termStart, termEnd, today, viewMode])
   const lastTodayRequest = useRef({ external: todayRequest, local: localTodayRequest })
-  useEffect(() => {
-    centerToday()
+  useLayoutEffect(() => {
+    positionToday()
     const requested = lastTodayRequest.current.external !== todayRequest || lastTodayRequest.current.local !== localTodayRequest
     lastTodayRequest.current = { external: todayRequest, local: localTodayRequest }
     if (requested && constrainToWorkspace && scrollRef.current) {
@@ -234,19 +245,19 @@ export function LessonCalendar({
         scroller.scrollIntoView({ block: 'nearest' })
       }
     }
-  }, [centerToday, viewMode, classroom.id, todayRequest, localTodayRequest, constrainToWorkspace])
+  }, [positionToday, classroom.id, todayRequest, localTodayRequest, constrainToWorkspace])
 
   // Source snapshots may arrive after the first render and change row heights.
-  // Recenter once after the initial load, unless the user has taken control.
+  // Reposition once after the initial load, unless the user has taken control.
   const initialLoad = useRef({ classroomId: classroom.id, complete: false, interacted: false })
   if (initialLoad.current.classroomId !== classroom.id) {
     initialLoad.current = { classroomId: classroom.id, complete: false, interacted: false }
   }
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (initialSourcesLoading || initialLoad.current.complete) return
     initialLoad.current.complete = true
-    if (!initialLoad.current.interacted) centerToday()
-  }, [initialSourcesLoading, centerToday, classroom.id])
+    if (!initialLoad.current.interacted) positionToday()
+  }, [initialSourcesLoading, positionToday, classroom.id])
   const markUserInteraction = () => { initialLoad.current.interacted = true }
 
   // Group days into weeks for rendering
@@ -323,7 +334,7 @@ export function LessonCalendar({
   }, [presentedDay, plansByDate, assignmentsByDate, testsByDate, materialsByDate, announcementsByDate, today, classDays.length, classDayDates])
 
   return (
-    <div ref={calendarRef} className={constrainToWorkspace ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}>
+    <div className={constrainToWorkspace ? "flex min-h-0 min-w-0 flex-1 flex-col" : "min-w-0"}>
       {showHeader && <div className="flex items-center justify-center gap-2">
         <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange}
           options={[{ value: 'list', label: 'List' }, { value: 'grid', label: 'Grid' }]} />
@@ -355,7 +366,7 @@ export function LessonCalendar({
       ) : (
         <div className="min-w-0">
           <div className="grid" style={{ gridTemplateColumns: GRID_COLUMNS_8, gridTemplateRows: `auto ${weeks.map(() => 'auto').join(' ')}` }}>
-            <div className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface" style={{ gridColumn: 1, gridRow: 1 }} />
+            <div ref={gridHeadingRef} className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface" style={{ gridColumn: 1, gridRow: 1 }} />
             {DAY_LABELS.map((label, idx) => <div key={label} className="sticky top-0 z-sticky-table border-b border-r border-border bg-surface py-1 text-center text-sm font-medium text-text-muted" style={{ gridColumn: idx + 2, gridRow: 1 }}>{idx === 0 || idx === 6 ? label.charAt(0) : label}</div>)}
             {monthSpans.map(span => <div key={span.month} className="relative flex items-center justify-center overflow-hidden border-b border-r border-border bg-surface-3" style={{ gridColumn: 1, gridRow: `${span.startIdx + 2} / span ${span.count}` }}><span className="whitespace-nowrap text-xs font-semibold text-text-default" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>{span.monthName}</span></div>)}
             {weeks.flatMap((week, weekIdx) => week.map((day, dayIdx) => {
