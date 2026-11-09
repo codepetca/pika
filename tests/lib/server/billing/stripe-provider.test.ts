@@ -63,6 +63,20 @@ function fixture() {
   return { sdk, subscription, invoice, intent, charge }
 }
 
+const liveBinding = { ...binding, provider_mode: 'live' } as const
+const liveScope = { stripeAccount: liveBinding.stripe_account, providerMode: 'live' } as const
+
+function liveFixture() {
+  const f = fixture()
+  f.subscription.livemode = true
+  f.subscription.items.data[0].price.livemode = true
+  f.invoice.livemode = true
+  Object.assign(f.invoice.payments.data[0], { livemode: true, currency: 'usd' })
+  f.intent.livemode = true
+  Object.assign(f.charge, { livemode: true, amount_captured: 2000 })
+  return f
+}
+
 function makeUnpaidInvoice(
   fixture: ReturnType<typeof fixture>,
   status: 'draft' | 'open' | 'uncollectible' | 'void' = 'open',
@@ -83,6 +97,83 @@ function unpaidPayment(status: 'open' | 'canceled' = 'open', amountPaid: number 
 }
 
 describe('Stripe current-state adapter', () => {
+  it('verifies a live card payment only under the explicitly configured account and mode', async () => {
+    const f = liveFixture()
+
+    await expect(createStripeBillingProvider(f.sdk).retrieveSubscription(liveBinding)).resolves.toBeNull()
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(binding)).resolves.toBeNull()
+    await expect(createStripeBillingProvider(f.sdk, { ...liveScope, stripeAccount: 'acct_other' })
+      .retrieveSubscription(liveBinding)).resolves.toBeNull()
+    expect(f.sdk.accounts.retrieve).not.toHaveBeenCalled()
+
+    const snapshot = await createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)
+    expect(verifyPaidSubscriptionSnapshot(liveBinding, snapshot, liveScope)).toMatchObject({ invoiceId: 'in_fixture' })
+    expect(verifyPaidSubscriptionSnapshot(liveBinding, snapshot)).toBe('provider_environment_invalid')
+    expect(f.sdk.accounts.retrieve).toHaveBeenCalledBefore(f.sdk.subscriptions.retrieve)
+    expect(f.sdk.accounts.retrieve).toHaveBeenCalledBefore(f.sdk.paymentIntents.retrieve)
+  })
+
+  it.each([
+    ['foreign', { id: 'acct_other' }],
+    ['missing', {}],
+  ])('refuses every financial read when the current Stripe account is %s', async (_label, account) => {
+    const f = liveFixture()
+    f.sdk.accounts.retrieve.mockResolvedValue(account)
+
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)).resolves.toBeNull()
+    expect(f.sdk.subscriptions.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
+  })
+
+  it.each(['subscription', 'price', 'invoice', 'invoicePayment', 'paymentIntent', 'charge'] as const)(
+    'rejects cross-mode or missing raw livemode on %s',
+    async signal => {
+      for (const mode of [false, undefined]) {
+        const f = liveFixture()
+        const objects = {
+          subscription: f.subscription, price: f.subscription.items.data[0].price, invoice: f.invoice,
+          invoicePayment: f.invoice.payments.data[0], paymentIntent: f.intent, charge: f.charge,
+        }
+        Object.assign(objects[signal], { livemode: mode })
+
+        await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)).resolves.toBeNull()
+      }
+    },
+  )
+
+  it.each([
+    ['foreign invoice', (f: ReturnType<typeof liveFixture>) => { f.invoice.customer = 'cus_other' }],
+    ['foreign InvoicePayment', (f: ReturnType<typeof liveFixture>) => { f.invoice.payments.data[0].invoice = 'in_other' }],
+    ['foreign InvoicePayment currency', (f: ReturnType<typeof liveFixture>) => {
+      Object.assign(f.invoice.payments.data[0], { currency: 'cad' })
+    }],
+    ['foreign intent', (f: ReturnType<typeof liveFixture>) => { f.intent.customer = 'cus_other' }],
+    ['foreign charge', (f: ReturnType<typeof liveFixture>) => { f.charge.payment_intent = 'pi_other' }],
+    ['partial capture', (f: ReturnType<typeof liveFixture>) => { Object.assign(f.charge, { amount_captured: 1999 }) }],
+    ['missing capture amount', (f: ReturnType<typeof liveFixture>) => { Object.assign(f.charge, { amount_captured: undefined }) }],
+  ] as const)('fails closed for a live payment with %s', async (_label, mutate) => {
+    const f = liveFixture()
+    mutate(f)
+
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)).resolves.toBeNull()
+  })
+
+  it('checks live mode on an unpaid InvoicePayment without fetching its intent', async () => {
+    const f = liveFixture()
+    makeUnpaidInvoice(f)
+    f.invoice.payments.data = [unpaidPayment()]
+    const provider = createStripeBillingProvider(f.sdk, liveScope)
+
+    await expect(provider.retrieveSubscription(liveBinding)).resolves.toBeNull()
+    f.invoice.payments.data[0].livemode = true
+    await expect(provider.retrieveSubscription(liveBinding)).resolves.toMatchObject({
+      latestInvoice: { status: 'open', payments: [], modeEvidence: { invoice: true, invoicePayments: [true] } },
+    })
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+  })
+
   it('fetches the bound objects and proves an actual Stripe payment before assignment', async () => {
     const { sdk } = fixture()
     const snapshot = await createStripeBillingProvider(sdk).retrieveSubscription(binding)

@@ -9,6 +9,13 @@ const receipt = {
 }
 
 describe('billing persistence boundary', () => {
+  it('rejects live evidence before calling the sandbox receipt RPC', async () => {
+    const rpc = vi.fn()
+    await expect(createBillingStore({ rpc }).recordEvent({ ...receipt, provider_mode: 'live' }))
+      .rejects.toThrow('Live billing events require a scoped store')
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
   it('only confirms an explicitly durable accepted or duplicate receipt', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: {
       status: 'duplicate', event_inbox_id: '11111111-1111-4111-8111-111111111111',

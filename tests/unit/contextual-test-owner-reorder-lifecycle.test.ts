@@ -541,7 +541,7 @@ describe('reorder snapshot/completion admission', () => {
     expect(() => validateTestOwnerReorderReviewedMigrations(current)).not.toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, 303))).not.toThrow()
     const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current)
-    expect(fullCatalog).toEqual([...testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)), 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources'].sort())
+    expect(fullCatalog).toEqual([...testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)), 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'private.billing_live_payment_target'].sort())
     const changed = current.map(migration => ({ ...migration }))
     changed[303].sql += '\n'
     changed[303].sha256 = testOwnerDigest(changed[303].sql)
@@ -552,7 +552,7 @@ describe('reorder snapshot/completion admission', () => {
     expect(validateTestOwnerReorderSnapshotCatalog(withTail, fullCatalog)).toEqual(withTail)
     for (const table of ['private.repolight_settings', 'private.repolight_managed_connections',
       'private.repolight_provision_control', 'private.repolight_provision_outbox',
-      'private.stripe_billing_settings', 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'public.account_plans', 'public.billing_account_access']) {
+      'private.stripe_billing_settings', 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'private.billing_live_payment_target', 'public.account_plans', 'public.billing_account_access']) {
       expect(fullCatalog).toContain(table)
       const missing = structuredClone(withTail)
       missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== table)
