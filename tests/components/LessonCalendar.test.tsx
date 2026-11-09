@@ -103,17 +103,16 @@ describe('LessonCalendar', () => {
     expect(container.querySelectorAll('.overflow-auto')).toHaveLength(1)
   })
 
-  it.each([true, false])('keeps neighboring preview density unchanged when selecting a day (editable=%s)', editable => {
+  it('keeps the neighboring preview in place when editing a lesson', () => {
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
-      viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable={editable}
+      viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
-    const neighborPreview = screen.getByText(/Neighboring long preview/).closest('button')!
-    const initialPreview = neighborPreview.innerHTML
+    const neighborPreview = screen.getByRole('button', { name: 'Edit lesson for March 17, 2026' })
     fireEvent.click(screen.getByText('All mode lesson'))
-    expect(neighborPreview.innerHTML).toBe(initialPreview)
+    expect(screen.getByRole('button', { name: 'Edit lesson for March 17, 2026' })).toBe(neighborPreview)
   })
 
-  it('does not collapse a newly selected date when the previous same-week editor closes', () => {
+  it('keeps the next editor open when a same-week editor closes', () => {
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
@@ -122,10 +121,9 @@ describe('LessonCalendar', () => {
     fireEvent.click(screen.getByText(/Neighboring long preview/))
     fireEvent.blur(oldEditor)
     expect(screen.getByRole('textbox', { name: 'Lesson plan for March 17, 2026' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Lesson plan for March 17, 2026' })).toBeInTheDocument()
   })
 
-  it('keeps an editing grid week expanded when placing the caret again', () => {
+  it('keeps the grid editor mounted when placing the caret again', () => {
     const onContentChange = vi.fn()
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
@@ -138,7 +136,7 @@ describe('LessonCalendar', () => {
     expect(onContentChange).not.toHaveBeenCalled()
   })
 
-  it.each(['Escape', 'blur'])('closes the grid editor and its own expanded week on %s', command => {
+  it.each(['Escape', 'blur'])('closes the grid editor on %s', command => {
     const onContentChange = vi.fn()
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable

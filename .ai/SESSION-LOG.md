@@ -11,12 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Rebase Tests pagination onto main
-
-Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
-7d1c121fb. The rebase preserved the prior source tree and continuity histories;
-PR 1727 remains draft pending focused checks and exact-head review.
-
 ## 2026-11-03 — Classwork refresh browser fixture
 
 The Classwork continuity fixture now models summary and full reads separately.
@@ -298,3 +292,7 @@ checkpoint for the remaining provider, scheduling, classroom and production gate
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+
+## 2026-11-09 — Show all classroom Calendar Grid entries
+
+Removed the three-line lesson preview cap and showed each weekend event in its own chip. Grid weeks grow with their contents; long chip titles still use horizontal ellipsis. Retained inline teacher editing and covered busy cells and read-only student previews in the browser matrix.

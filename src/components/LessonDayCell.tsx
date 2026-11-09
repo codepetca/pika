@@ -24,23 +24,12 @@ function isScheduled(announcement: Announcement): boolean {
   return isCalendarAnnouncementScheduled(announcement)
 }
 
-function AnnouncementTooltipContent({ announcements }: { announcements: Announcement[] }) {
+function AnnouncementTooltipContent({ announcement }: { announcement: Announcement }) {
+  const title = normalizeAnnouncementTitle(announcement.title)
   return (
     <div className="w-[min(14rem,calc(100vw-2rem))] md:w-[28rem] text-left text-sm leading-5 break-words">
-      {announcements.map((announcement, index) => {
-        const title = normalizeAnnouncementTitle(announcement.title)
-
-        return (
-          <div key={announcement.id} className={index > 0 ? 'mt-3' : undefined}>
-            {title && (
-              <p className="mb-1 text-xs font-semibold text-text-default">
-                {title}
-              </p>
-            )}
-            <AnnouncementContent content={announcement.content} />
-          </div>
-        )
-      })}
+      {title && <p className="mb-1 text-xs font-semibold text-text-default">{title}</p>}
+      <AnnouncementContent content={announcement.content} />
     </div>
   )
 }
@@ -57,13 +46,10 @@ interface LessonDayCellProps {
   isToday: boolean
   isClassDay?: boolean // undefined means class days not initialized
   editable: boolean
-  compact?: boolean
   plainTextOnly?: boolean
   layout?: 'grid' | 'agenda'
   denseAgenda?: boolean
   onPresentDay?: () => void
-  onEditingStart?: () => void
-  onEditingEnd?: () => void
   onContentChange?: (date: string, contentMarkdown: string) => void
   onTestClick?: (test: TestAssessment) => void
   onAssignmentClick?: (assignment: Assignment) => void
@@ -83,13 +69,10 @@ export const LessonDayCell = memo(function LessonDayCell({
   isToday,
   isClassDay,
   editable,
-  compact = false,
   plainTextOnly = false,
   layout = 'grid',
   denseAgenda = false,
   onPresentDay,
-  onEditingStart,
-  onEditingEnd,
   onContentChange,
   onTestClick,
   onAssignmentClick,
@@ -99,8 +82,9 @@ export const LessonDayCell = memo(function LessonDayCell({
   const markdown = useMemo(() => getLessonPlanMarkdown(lessonPlan).markdown, [lessonPlan])
   const { showMarkdown } = useMarkdownPreference()
   const [editingDate, setEditingDate] = useState<string | null>(null)
-  const isEditing = editingDate === date && editable && !isWeekend
-  const { outerRef, innerRef, prepare, settle: settleMotion } = useLessonCellMotion(isEditing, `${date}:${layout}:${editable}`, compact)
+  const canEdit = editable && !isWeekend
+  const isEditing = editingDate === date && canEdit
+  const { outerRef, innerRef, prepare, settle: settleMotion } = useLessonCellMotion(isEditing, `${date}:${layout}:${canEdit}`)
   const [localMarkdown, setLocalMarkdown] = useState(markdown)
   const agendaHeadingId = useId()
   const editActionRef = useRef<HTMLButtonElement | null>(null)
@@ -117,7 +101,7 @@ export const LessonDayCell = memo(function LessonDayCell({
   useLayoutEffect(() => {
     setEditingDate(null)
     focusReturnRef.current = false
-  }, [date, layout, editable])
+  }, [date, layout, canEdit])
   useLayoutEffect(() => {
     if (!isEditing && focusReturnRef.current) {
       focusReturnRef.current = false
@@ -126,18 +110,16 @@ export const LessonDayCell = memo(function LessonDayCell({
   }, [isEditing])
 
   const handleStartEditing = useCallback(() => {
-    if (!editable || isWeekend || isEditing) return
+    if (!canEdit || isEditing) return
     focusReturnRef.current = false
     prepare()
     setLocalMarkdown(markdown)
     setEditingDate(date)
-    onEditingStart?.()
-  }, [date, editable, isEditing, isWeekend, markdown, onEditingStart, prepare])
+  }, [date, canEdit, isEditing, markdown, prepare])
 
   const finishEditing = (restoreFocus = false) => {
     prepare()
     setEditingDate(null)
-    onEditingEnd?.()
     focusReturnRef.current = restoreFocus
   }
 
@@ -187,7 +169,6 @@ export const LessonDayCell = memo(function LessonDayCell({
 
   if (layout === 'agenda') {
     const nonClassDay = isWeekend || isClassDay === false
-    const canEdit = editable && !isWeekend
 
     return (
       <article
@@ -291,7 +272,7 @@ export const LessonDayCell = memo(function LessonDayCell({
               {announcements.map(announcement => {
                 const calendarLabel = getAnnouncementCalendarLabel(announcement, isScheduled(announcement))
                 return (
-                  <Tooltip key={announcement.id} content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                  <Tooltip key={announcement.id} content={<AnnouncementTooltipContent announcement={announcement} />}
                     className="md:max-w-none" align="start" interactive>
                     <Button variant="ghost" size="sm" onClick={onAnnouncementClick} aria-label={calendarLabel}
                       className="h-auto min-w-0 max-w-full whitespace-normal bg-calendar-announcement-bg px-3 py-2 text-left text-calendar-announcement hover:bg-calendar-announcement-hover">
@@ -308,84 +289,19 @@ export const LessonDayCell = memo(function LessonDayCell({
     )
   }
 
-  // Weekend cells are narrow and minimal
-  if (isWeekend) {
-    const assignmentTitles = assignments.map(a => a.is_draft ? `[Draft] ${a.title}` : a.title).join(', ')
-    const announcementCount = announcements.length
-
-    return (
-      <div
-        className={`
-          h-full bg-surface-2
-          ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
-        `}
-      >
-        <div className="px-0.5 py-0 text-center">
-          <span className="font-medium text-text-muted text-xs">
-            {format(day, 'd')}
-          </span>
-        </div>
-        {tests.length > 0 && <div className="space-y-0.5 px-0.5">{testLinks}</div>}
-        {materials.length > 0 && <div className="space-y-0.5 px-0.5">{materialLinks}</div>}
-        {/* Weekend assignment pill - no text, tooltip on hover */}
-        {assignments.length > 0 && (
-          <div className="px-0.5 flex items-start justify-center">
-            <Tooltip content={assignmentTitles} side="right">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  if (assignments.length === 1) {
-                    onAssignmentClick?.(assignments[0])
-                  }
-                }}
-                className={`w-full min-w-[12px] rounded bg-calendar-assessment-bg hover:bg-calendar-assessment-hover cursor-pointer h-4 ${
-                  assignments.some(a => a.is_draft) ? 'opacity-50' : ''
-                }`}
-              />
-            </Tooltip>
-          </div>
-        )}
-        {/* Weekend announcement pill - no text, tooltip on hover */}
-        {announcementCount > 0 && (
-          <div className="px-0.5 mt-0.5 flex items-start justify-center">
-            <Tooltip
-              content={<AnnouncementTooltipContent announcements={announcements} />}
-              className="md:max-w-none"
-              side="right"
-              align="start"
-              interactive
-            >
-              <button
-                type="button"
-                aria-label={announcements.map(announcement => getAnnouncementCalendarLabel(announcement, isScheduled(announcement))).join(', ')}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onAnnouncementClick?.()
-                }}
-                className={`inline-flex w-full min-w-[12px] items-center justify-center overflow-hidden rounded cursor-pointer h-4 text-calendar-announcement ${
-                  announcements.some(isScheduled)
-                    ? 'bg-calendar-announcement-bg hover:bg-calendar-announcement-hover ring-1 ring-inset ring-calendar-announcement'
-                    : 'bg-calendar-announcement-bg hover:bg-calendar-announcement-hover'
-                }`}
-              >
-                <Megaphone className="h-3 w-3 shrink-0" aria-hidden="true" />
-              </button>
-            </Tooltip>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  // Non-class day (explicitly false, not undefined) gets a gray background
-  // Class days data is the source of truth - no special holiday styling
   const isNonClassDay = isClassDay === false
+  const lessonPreview = hasContent ? (
+    renderPlainText ? (
+      <div className="overflow-hidden text-ellipsis whitespace-pre text-text-muted">{plainText}</div>
+    ) : (
+      <LimitedMarkdown content={markdown} className="calendar-lesson-markdown" emptyPlaceholder={null} />
+    )
+  ) : null
 
   return (
     <div
       onClick={event => {
-        if (editable) {
+        if (canEdit) {
           event.stopPropagation()
           if (!isEditing) handleStartEditing()
         }
@@ -394,19 +310,18 @@ export const LessonDayCell = memo(function LessonDayCell({
         relative h-full min-w-0 overflow-hidden flex flex-col
         ${isToday ? 'ring-2 ring-inset ring-blue-500' : ''}
         ${isEditing && !isToday ? 'ring-2 ring-inset ring-primary' : ''}
-        ${isNonClassDay ? 'bg-surface-2/50' : ''}
-        ${!editable && !hasContent && !isNonClassDay ? 'bg-surface-2/50' : ''}
+        ${isWeekend ? 'bg-surface-2' : isNonClassDay || (!editable && !hasContent) ? 'bg-surface-2/50' : ''}
       `}
     >
-      <div ref={outerRef} className="relative shrink-0 transition-[height] duration-standard ease-standard motion-reduce:transition-none">
-        <div ref={innerRef}>
+      <div ref={canEdit ? outerRef : undefined} className="relative shrink-0 transition-[height] duration-standard ease-standard motion-reduce:transition-none">
+        <div ref={canEdit ? innerRef : undefined}>
           {/* Date header */}
-          <div className="px-1 py-0 text-right">
+          <div className={isWeekend ? 'px-0.5 py-0 text-center' : 'px-1 py-0 text-right'}>
             <span
               className={`
                 font-medium
                 text-xs
-                ${isToday ? 'text-primary' : 'text-text-muted'}
+                ${isToday && !isWeekend ? 'text-primary' : 'text-text-muted'}
               `}
             >
               {format(day, 'd')}
@@ -445,7 +360,7 @@ export const LessonDayCell = memo(function LessonDayCell({
                 return (
                   <Tooltip
                     key={announcement.id}
-                    content={<AnnouncementTooltipContent announcements={[announcement]} />}
+                    content={<AnnouncementTooltipContent announcement={announcement} />}
                     className="md:max-w-none"
                     align="start"
                     interactive
@@ -475,26 +390,22 @@ export const LessonDayCell = memo(function LessonDayCell({
 
           {/* Preview stays painted until the lazy editor can replace it in place. */}
           <div className="calendar-day-text calendar-grid-text min-h-0 overflow-hidden px-0.5 text-[10px] leading-tight text-text-default">
-            <button
-              ref={element => {
-                editActionRef.current = element
-                element?.toggleAttribute('inert', isEditing)
-              }}
-              type="button"
-              disabled={isEditing}
-              aria-hidden={isEditing || undefined}
-              aria-label={editable ? `${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}` : undefined}
-              onClick={handleStartEditing}
-              className={`calendar-lesson-preview block w-full text-left ${editable ? 'cursor-text' : 'cursor-default'}`}
-            >
-              {hasContent ? (
-                renderPlainText ? (
-                  <div className={`text-[10px] leading-tight text-text-muted whitespace-pre-wrap ${compact ? 'line-clamp-3' : ''}`}>{plainText}</div>
-                ) : (
-                  <LimitedMarkdown content={markdown} className="calendar-lesson-markdown" emptyPlaceholder={null} />
-                )
-              ) : null}
-            </button>
+            {canEdit ? (
+              <button
+                ref={element => {
+                  editActionRef.current = element
+                  element?.toggleAttribute('inert', isEditing)
+                }}
+                type="button"
+                disabled={isEditing}
+                aria-hidden={isEditing || undefined}
+                aria-label={`${hasContent ? 'Edit' : 'Add'} lesson for ${format(day, 'MMMM d, yyyy')}`}
+                onClick={handleStartEditing}
+                className="calendar-lesson-preview block w-full cursor-text text-left"
+              >
+                {lessonPreview}
+              </button>
+            ) : lessonPreview && <div className="calendar-lesson-preview">{lessonPreview}</div>}
             {isEditing && (
               <MarkdownContentEditor
                 markdown={localMarkdown}

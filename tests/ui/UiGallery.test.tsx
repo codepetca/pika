@@ -84,6 +84,12 @@ describe('UiGallery accessibility contracts', () => {
     survey.focus()
     await user.keyboard('{Enter}')
     expect(screen.getByRole('status')).toHaveTextContent('Open survey')
+    const grid = screen.getByRole('button', { name: 'Grid', exact: true })
+    grid.focus()
+    await user.keyboard('{Enter}')
+    expect(grid).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText(/Share one question/)).toBeVisible()
+    expect(screen.queryByRole('button', { name: /Edit lesson/ })).not.toBeInTheDocument()
   })
 
   it.each(['teacher', 'student'] as const)('offers the shared calendar identity example for %s', (role) => {

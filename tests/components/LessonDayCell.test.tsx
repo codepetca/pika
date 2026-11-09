@@ -83,7 +83,7 @@ describe('LessonDayCell', () => {
   it('keeps a retired preview available for the editor handoff without duplicate edit targets', async () => {
     const { container } = renderWithTooltip(<LessonDayCell date={lessonPlan.date}
       day={new Date('2026-03-13T12:00:00')} lessonPlan={lessonPlan}
-      isWeekend={false} isToday={false} editable compact />)
+      isWeekend={false} isToday={false} editable />)
     const preview = screen.getByRole('button', { name: 'Edit lesson for March 13, 2026' })
     fireEvent.click(preview)
     const editor = await screen.findByRole('textbox')
@@ -160,7 +160,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={true}
-        compact={false}
         onContentChange={(date, contentMarkdown) => {
           setPlan((current) => {
             if (!contentMarkdown.trim()) {
@@ -190,7 +189,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={true}
-        compact={false}
       />
     )
 
@@ -209,7 +207,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={true}
-        compact={false}
       />
     )
 
@@ -229,7 +226,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={true}
-        compact={false}
       />
     )
 
@@ -274,7 +270,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={false}
         plainTextOnly={true}
       />
     )
@@ -282,32 +277,7 @@ describe('LessonDayCell', () => {
     expect(screen.getByText('Lesson text').closest('.calendar-day-text')).toBeTruthy()
   })
 
-  it.each([false, true])('reveals expanded plain text regardless of rendering preference (plainTextOnly=%s)', (plainTextOnly) => {
-    localStorage.setItem('pika_show_markdown', 'false')
-    const text = 'First line\nSecond line\nThird line\nFourth line\nFinal lesson line'
-    const cell = (compact: boolean) => (
-      <MarkdownPreferenceProvider>
-        <LessonDayCell date={lessonPlan.date} day={new Date('2026-03-13T12:00:00')}
-          lessonPlan={{ ...lessonPlan, content_markdown: text }} isWeekend={false}
-          isToday={false} editable={false} compact={compact} plainTextOnly={plainTextOnly} />
-      </MarkdownPreferenceProvider>
-    )
-    try {
-      const { rerender } = renderWithTooltip(cell(true))
-      const preview = screen.getByText(/Final lesson line/)
-      expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
-      rerender(<TooltipProvider>{cell(false)}</TooltipProvider>)
-      expect(screen.getByText(/Final lesson line/)).toBe(preview)
-      expect(preview).toHaveClass('text-[10px]', 'leading-tight')
-      expect(preview).not.toHaveClass('line-clamp-3')
-      rerender(<TooltipProvider>{cell(true)}</TooltipProvider>)
-      expect(preview).toHaveClass('line-clamp-3', 'text-[10px]', 'leading-tight')
-    } finally {
-      localStorage.removeItem('pika_show_markdown')
-    }
-  })
-
-  it.each([false, true])('labels assignment due dates with the assessment theme (compact=%s)', (compact) => {
+  it('labels assignment due dates with the assessment theme', () => {
     renderWithTooltip(
       <LessonDayCell
         date="2026-03-13"
@@ -317,7 +287,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={compact}
       />
     )
 
@@ -338,7 +307,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={false}
       />
     )
 
@@ -358,7 +326,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={false}
       />
     )
 
@@ -379,16 +346,12 @@ describe('LessonDayCell', () => {
         isWeekend={isWeekend}
         isToday={false}
         editable={false}
-        compact={false}
       />
     )
 
     const button = screen.getByRole('button', { name: titledAnnouncementTitle })
     expect(button.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
-    if (!isWeekend) {
-      expect(button).toHaveClass('truncate')
-      expect(button).toHaveAttribute('title', titledAnnouncementTitle)
-    }
+    expect(button).toHaveAttribute('title', titledAnnouncementTitle)
 
     fireEvent.focus(button)
 
@@ -407,7 +370,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={false}
       />
     )
 
@@ -430,7 +392,6 @@ describe('LessonDayCell', () => {
         isWeekend={false}
         isToday={false}
         editable={false}
-        compact={false}
       />
     )
 
@@ -583,7 +544,7 @@ describe('LessonDayCell agenda', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
   })
 
-  it('makes every weekend event readable and independently navigable without editing', () => {
+  it.each(['agenda', 'grid'] as const)('makes every weekend event independently navigable in %s without editing', layout => {
     const assignments = [
       { id: 'assignment-1', title: 'First weekend assignment with a complete title', is_draft: false } as Assignment,
       { id: 'assignment-2', title: 'Second weekend assignment', is_draft: false } as Assignment,
@@ -591,7 +552,7 @@ describe('LessonDayCell agenda', () => {
     const announcements = [titledAnnouncement, { ...longAnnouncement, id: 'announcement-other', title: 'Weekend reminder' }]
     const onAssignmentClick = vi.fn()
     const onAnnouncementClick = vi.fn()
-    renderWithTooltip(<LessonDayCell {...agendaProps} isWeekend={true} isClassDay={false}
+    renderWithTooltip(<LessonDayCell {...agendaProps} layout={layout} isWeekend={true} isClassDay={false}
       assignments={assignments} announcements={announcements}
       onAssignmentClick={onAssignmentClick} onAnnouncementClick={onAnnouncementClick} />)
     for (const assignment of assignments) {

@@ -52,8 +52,6 @@ const GRID_DAY_MIN_WIDTH = 'var(--size-control-min)'
 const GRID_COLUMNS_7 = [0.5, 2, 2, 2, 2, 2, 0.5]
   .map(fraction => `minmax(${GRID_DAY_MIN_WIDTH}, ${fraction}fr)`).join(' ')
 const GRID_COLUMNS_8 = `24px ${GRID_COLUMNS_7}`
-const MONTH_ROW_MIN_HEIGHT = '4.5rem'
-const MONTH_ROW_EXPANDED_MIN_HEIGHT = '9rem'
 // Determine which month a week belongs to (month with 3+ days wins)
 function getWeekMonth(week: Date[]): { key: string; name: string } {
   const monthCounts = new Map<string, { count: number; date: Date }>()
@@ -108,7 +106,6 @@ export function LessonCalendar({
 }: LessonCalendarProps) {
   const currentTorontoDate = useTorontoToday()
   const today = useMemo(() => parseISO(currentTorontoDate), [currentTorontoDate])
-  const [expandedDate, setExpandedDate] = useState<string | null>(null)
   const [presentedDay, setPresentedDay] = useState<Date | null>(null)
   const handlePresentedDayPrev = useCallback(() => {
     setPresentedDay((d) => (d ? addDays(d, -1) : d))
@@ -219,7 +216,10 @@ export function LessonCalendar({
     const scroller = scrollRef.current
     if (!element || !scroller) return
     const offset = element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-    scroller.scrollTop += offset - (scroller.clientHeight - element.offsetHeight) / 2
+    // For a week taller than the viewport, start at its date and first items.
+    const scrollPadding = parseFloat(getComputedStyle(scroller).scrollPaddingTop) || 0
+    const top = Math.max(scrollPadding, (scroller.clientHeight - element.offsetHeight) / 2)
+    scroller.scrollTop += offset - top
   }, [termStart, termEnd, today])
   const lastTodayRequest = useRef({ external: todayRequest, local: localTodayRequest })
   useEffect(() => {
@@ -259,7 +259,6 @@ export function LessonCalendar({
   }, [days])
 
   useEffect(() => {
-    setExpandedDate(null)
     setPresentedDay(null)
   }, [viewMode])
 
@@ -363,18 +362,15 @@ export function LessonCalendar({
               const dateString = format(day, 'yyyy-MM-dd')
               const inTerm = day >= termStart && day <= termEnd
               const isWeekendDay = isWeekend(day)
-              const isExpanded = expandedDate === dateString
               const sameMonth = (other: Date | undefined) => other && other.getMonth() === day.getMonth() && other.getFullYear() === day.getFullYear()
               return <div key={dateString} data-calendar-date={inTerm ? dateString : undefined}
                 className={`overflow-hidden border-b border-r border-border ${!sameMonth(weeks[weekIdx - 1]?.[dayIdx]) ? 'border-t border-t-border-strong' : ''} ${!sameMonth(weeks[weekIdx + 1]?.[dayIdx]) ? 'border-b-border-strong' : ''} ${dayIdx === 0 || !sameMonth(week[dayIdx - 1]) ? 'border-l border-l-border-strong' : ''} ${dayIdx === 6 || !sameMonth(week[dayIdx + 1]) ? 'border-r-border-strong' : ''}`}
-                style={{ gridColumn: dayIdx + 2, gridRow: weekIdx + 2 }}
-                onClick={() => inTerm && setExpandedDate(current => current === dateString ? null : dateString)}>
+                style={{ gridColumn: dayIdx + 2, gridRow: weekIdx + 2 }}>
                 {inTerm && <LessonDayCell date={dateString} day={day} lessonPlan={plansByDate.get(dateString) || null}
                   tests={testsByDate.get(dateString) || []} assignments={assignmentsByDate.get(dateString) || []}
                   materials={materialsByDate.get(dateString) || []} announcements={announcementsByDate.get(dateString) || []}
                   isWeekend={isWeekendDay} isToday={isSameDay(day, today)} isClassDay={classDays.length > 0 ? classDayDates.has(dateString) : undefined}
-                  editable={editable && !isWeekendDay} compact={!isExpanded} plainTextOnly
-                  onEditingStart={() => setExpandedDate(dateString)} onEditingEnd={() => setExpandedDate(current => current === dateString ? null : current)}
+                  editable={editable && !isWeekendDay} plainTextOnly
                   onContentChange={onContentChange} onTestClick={onTestClick} onAssignmentClick={onAssignmentClick}
                   onMaterialClick={onMaterialClick} onAnnouncementClick={onAnnouncementClick} />}
               </div>

@@ -17,3 +17,10 @@ Owner-approved prototype, 2026-11-06. Scope: classroom lesson calendar for teach
 | Scrolling | Existing term scroller | extend | Align sticky controls and headings to one scroll owner |
 
 This is a scoped calendar composition; it does not promote a new shared pattern. Pattern Lab remains the executable calendar identity reference.
+
+2026-11-09 refinement: Grid shows each lesson line and calendar entry on first
+render. Weeks grow with their contents; weekend entries use the same individual
+chips as weekdays. Long lesson lines and chip titles truncate horizontally.
+Full lessons are readable in List, and chip tooltips expose their full labels.
+Reference: Pattern Lab `calendar-identity` Grid. Verify populated and empty cells and teacher editing
+for both roles, desktop/mobile, and light/dark. No composite control changes.

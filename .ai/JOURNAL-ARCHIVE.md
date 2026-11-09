@@ -51332,3 +51332,10 @@ On PR 1726's head, page legacy teacher Tests statistics in stable ID order to av
 PostgREST's row cap silently truncating question, attempt, response, and access
 counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
 regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+<!-- pika-session-log-archive-batch:c3c59dc681b13c32ac8da4c1e8c39c686deb5cf22c6b600df1458a5b80dd106b -->
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.

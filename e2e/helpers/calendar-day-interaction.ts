@@ -1,5 +1,7 @@
 import { expect, type Page, type TestInfo } from '@playwright/test'
 
+const longAnnouncementTitle = 'Calendar reading reminder: bring your notes and questions about the field observations to the next class'
+
 /** Real ClassroomPageClient Calendar owner; synthetic reads never reach a backend. */
 export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInfo,
   role: 'teacher' | 'student', motion: 'no-preference' | 'reduce') {
@@ -37,20 +39,28 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
     })) }
     else if (path.endsWith('/lesson-plans')) body = { max_date: date(31), lesson_plans: Array.from({ length: 31 }, (_, index) => ({
       id: `lesson-${index}`, classroom_id: classroomId, date: date(index + 1), content: null,
-      content_markdown: `# Lesson ${index + 1}\n\n` + Array(8).fill('Discuss the calendar reading and concrete next steps.').join('\n\n') + '\n\nFINAL READING LINE',
+      content_markdown: index === 4
+        ? '# Lesson 5\n\n' + Array(8).fill('Discuss the calendar reading and concrete next steps.').join('\n\n') + '\n\nFINAL READING LINE'
+        : `Lesson ${index + 1}`,
       created_at: '2026-10-01T12:00:00Z', updated_at: '2026-10-01T12:00:00Z',
     })) }
-    else if (path.endsWith('/announcements')) body = { announcements: [{ id: 'calendar-announcement', classroom_id: classroomId,
-      title: 'Calendar reading reminder', content: 'FINAL EVENT LINE', is_draft: false, scheduled_for: null,
-      published_at: `${date(5)}T12:00:00Z`, created_at: `${date(5)}T12:00:00Z`, updated_at: `${date(5)}T12:00:00Z`,
-      created_by: '30000000-0000-4000-8000-000000000012' }] }
+    else if (path.endsWith('/announcements')) body = { announcements: [
+      { title: longAnnouncementTitle, content: 'FINAL EVENT LINE', day: 5 },
+      { title: 'Weekend prep', content: 'Review the reading.', day: 4 },
+      { title: 'Weekend reminder', content: 'Bring your notes.', day: 4 },
+    ].map(({ title, content, day }, index) => ({
+      id: `calendar-announcement-${index}`, classroom_id: classroomId, title, content, is_draft: false,
+      scheduled_for: null, calendar_date: date(day),
+      published_at: `${date(day)}T12:00:00Z`, created_at: `${date(day)}T12:00:00Z`, updated_at: `${date(day)}T12:00:00Z`,
+      created_by: '30000000-0000-4000-8000-000000000012',
+    })) }
     else if (path.endsWith('/assignments')) body = { assignments: [] }
     else if (path.endsWith('/notifications')) body = { notifications: [] }
     else if (path.endsWith('/materials')) body = { materials: [] }
     else if (path.endsWith('/classrooms')) body = { classrooms: [] }
     await route.fulfill({ json: body })
   })
-  await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar`, { waitUntil: 'networkidle' })
+  await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar`, { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('region', { name: 'Calendar workspace' })).toBeVisible()
   const verifiedDate = await page.evaluate(() => ({ iso: new Date().toISOString(),
     toronto: new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto',
@@ -173,29 +183,56 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
   await expect.poll(() => page.locator('[data-modal-state]').count()).toBe(0)
-  await verifyGridLessonInteraction(page, role)
+  await verifyGridLessonInteraction(page, role, capture)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
     viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
 }
 
-/** Grid retains teacher editing and student lesson disclosure. */
-async function verifyGridLessonInteraction(page: Page, role: 'teacher' | 'student') {
+/** Grid shows every entry on first paint and retains teacher editing. */
+async function verifyGridLessonInteraction(page: Page, role: 'teacher' | 'student', capture: (state: string) => Promise<void>) {
   await page.getByRole('button', { name: 'Grid', exact: true }).click()
-  const preview = page.locator('.calendar-lesson-preview').filter({ hasText: /Lesson 5/ })
-  await preview.scrollIntoViewIfNeeded()
-  await preview.click()
+  const day = page.locator('[data-calendar-date="2026-10-05"]')
+  const preview = day.locator('.calendar-lesson-preview')
+  const title = day.getByRole('button', { name: longAnnouncementTitle }).locator('span')
+  await expect.poll(() => title.evaluate(element =>
+    element.scrollWidth > element.clientWidth && getComputedStyle(element).textOverflow === 'ellipsis')).toBe(true)
+
+  const weekend = page.locator('[data-calendar-date="2026-10-04"]')
+  for (const name of ['Weekend prep', 'Weekend reminder']) {
+    await expect(weekend.getByRole('button', { name })).toBeInViewport()
+  }
+
+  // DOM presence alone would pass with a line clamp. Check that the last
+  // line is inside both the painted preview and the cell before any click.
+  await expect.poll(() => preview.evaluate(element => {
+    const text = element.querySelector('div')!
+    const range = document.createRange()
+    range.selectNodeContents(text)
+    const end = Array.from(range.getClientRects()).at(-1)
+    return text.textContent?.endsWith('FINAL READING LINE') && !!end
+      && end.bottom <= text.getBoundingClientRect().bottom + 1
+      && end.bottom <= element.closest('[data-calendar-date]')!.getBoundingClientRect().bottom + 1
+      && getComputedStyle(text).textOverflow === 'ellipsis'
+  })).toBe(true)
+  await expect(title).toBeInViewport()
+  await capture('grid-first-items')
+  await preview.evaluate(element => element.scrollIntoView({ block: 'end' }))
+  await capture('grid-last-line')
+
   if (role === 'teacher') {
+    await preview.press('Enter')
     const editor = page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })
     await expect(editor).toBeFocused()
+    await expect.poll(() => editor.evaluate(element =>
+      element.getBoundingClientRect().bottom <= element.closest('[data-calendar-date]')!.getBoundingClientRect().bottom + 1)).toBe(true)
+    await capture('grid-editing')
     await page.keyboard.press('Escape')
     await expect(editor).toHaveCount(0)
+    await expect(preview).toBeFocused()
   } else {
-    const text = preview.locator(':scope > div')
-    await expect(text).not.toHaveClass(/line-clamp-3/)
-    await preview.click()
-    await expect(text).toHaveClass(/line-clamp-3/)
+    await expect(day.getByRole('button', { name: /edit lesson|add lesson/i })).toHaveCount(0)
   }
 }
 
