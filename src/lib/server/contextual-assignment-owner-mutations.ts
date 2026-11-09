@@ -6,6 +6,7 @@ import {
   type AssignmentSubmissionRequirementDraft,
 } from '@/lib/assignment-submission-requirements'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import type { AssignmentSubmissionRequirement } from '@/types'
 import type { TableRow } from '@/types/database'
 import type { Json } from '@/types/database.generated'
@@ -81,6 +82,7 @@ function parseIds(actorId: string, assignmentId: string) {
 }
 
 function mapRpcError(error: RpcError): never {
+  throwBillingClassroomPublicationError(error)
   if (error.code === 'P0002') throw new ApiError(404, 'Assignment not found')
   if (error.code === '42501') throw new ApiError(403, 'Unauthorized')
   if (error.code === '55000') throw new ApiError(403, 'Classroom is archived')

@@ -11,48 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-04 — AI provider gate rebase
-
-Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
-
-## 2026-11-04 Clarify busy Test errors
-
-Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
-
-## 2026-11-04 Calendar empty lesson text
-
-Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
-
-## 2026-11-05 Reuse teacher Tests intent summaries
-
-Retain the legacy teacher Tests intent summary briefly within the current
-teacher/classroom view, retry failed or expired intent reads, and discard the
-provisional list on authorization denial. The shared-admission full read remains
-unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
-no production timing or deployment is implied.
-
-## 2026-11-05 — Reverse order display preferences
-
-- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
-- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
-
-- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
-
-## 2026-11-05 Investigate classroom tab loading
-
-Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
-Roster. Prepared a focused legacy Course Guide read that avoids unrelated site
-content, preserving scoped filtering; local verification and independent review
-remain required before release. Roster intent PR #1745 remains separately owned.
-
-## 2026-11-05 Test roster intent loading
-
-Teacher Roster uses the existing cache and error path on navigation intent, with no prefetch on constrained connections. Synthetic 45-row browser fixture with a 600 ms response and 350 ms hover: click-to-row 838–850 ms before, 336–351 ms after; one roster request per completed visit. This is not a production measurement. Focused component tests, TypeScript, policy checks and synthetic teacher desktop/mobile light/dark screenshots passed; student view is unaffected. Independent review and PR gates remain required.
-
-## 2026-11-06 — Protect authoring progress
-
-- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
-
 ## 2026-11-06 — RepoLight sync after gradebook PDF
 
 Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
@@ -316,6 +274,56 @@ follow-up preserves ordinary cancellation after settlement and keeps terminal
 markers out of authorization once Stripe proves the exact canceled phase.
 The sealed disposable 001–307 replay passed.
 
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
+
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
@@ -343,3 +351,19 @@ Merged the latest main into the sandbox billing launch candidate. Preserved the 
 Consolidated teacher bulk grade and comment copying into one menu item and dialog. Grade is selected when available; teachers can choose the comment separately, and each unchecked field hides its preview and stays unchanged. Reused the existing atomic request for grade only, comment only, or both. Verified the three request shapes in component tests and the teacher workspace in desktop and mobile light and dark browser runs.
 
 Independent review prompted three follow-ups: dismiss the dialog if its source or recipients change, retain keyboard access to the preview while copying, and show a failed save in the dialog. Added regressions for source and recipient changes and the failed save.
+
+## 2026-11-09 — Classroom cutoff rebase
+
+Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
+
+## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
+
+Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.
+
+## 2026-11-09 — Seal the Test publication cutoff proof
+
+Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
+
+## 2026-11-09 — Sync the classroom cutoff proof with main
+
+Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.

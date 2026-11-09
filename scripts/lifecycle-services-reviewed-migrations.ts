@@ -17,6 +17,7 @@ import { validatePalOwnerQueueStopReviewedMigration } from './pal-owner-queue-st
 import { validateContextualRemovedMembershipCleanupReviewedMigration } from './contextual-removed-membership-cleanup-reviewed-migration'
 import assert from 'node:assert/strict'
 import disposableBillingReplayTail from './disposable-billing-replay-tail.json'
+import disposableClassroomCutoffReplayTail from './disposable-classroom-cutoff-replay-tail.json'
 import { createHash } from 'node:crypto'
 import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
 import { validateDataApiGrantsReviewedMigration } from './data-api-grants-reviewed-migration'
@@ -84,14 +85,25 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304, 307].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304 or 307')
+  assert([303, 304, 307, 310].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307 or 310')
   assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
     '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
   assert.equal(disposableBillingReplayTail.length, 6)
-  for (const [offset, { name, sha256 }] of disposableBillingReplayTail.slice(0, migrations.length - 301).entries()) {
+  for (const [offset, { name, sha256 }] of disposableBillingReplayTail.slice(0, Math.min(migrations.length - 301, 6)).entries()) {
     const migration = migrations[301 + offset]
     assert.equal(migration.name, name)
     assert.equal(migration.sha256, sha256)
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+  }
+  if (migrations.length === 310) {
+    assert.equal(createHash('sha256').update(JSON.stringify(disposableClassroomCutoffReplayTail)).digest('hex'),
+      '88085cc556ede00ad3cd9b295e2f0242428a3ec85189d08b736681648abcee44', 'Unreviewed classroom cutoff replay seal')
+    assert.equal(disposableClassroomCutoffReplayTail.length, 3)
+    for (const [offset, { name, sha256 }] of disposableClassroomCutoffReplayTail.entries()) {
+      const migration = migrations[307 + offset]
+      assert.equal(migration.name, name)
+      assert.equal(migration.sha256, sha256)
+      assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+    }
   }
 }

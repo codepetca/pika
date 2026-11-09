@@ -209,7 +209,7 @@ do $presence$ begin
  or exists(select 1 from public.assessment_drafts where classroom_id=any(array[${classIds}]))
  then raise exception 'Migration250 fixture presence differs';end if;
 end;$presence$;rollback;`
-  const contracts = testOwnerCreateContractsManifest(fixture)
+  const contracts = testOwnerCreateContractsManifest(fixture, repository)
   const concurrency = testOwnerCreateConcurrencyManifest(fixture)
   const snapshot = testOwnerCreateSnapshotSql(fixture)
   const sourceSha256 = testOwnerDigest(readFileSync(resolve(repository, 'supabase/migrations/250_contextual_test_owner_create.sql'), 'utf8'))
@@ -322,7 +322,7 @@ do $presence$ begin
  or (select count(*) from public.classroom_archive_revisions where classroom_id=any(array[${classes}]))<>4
  then raise exception 'Migration251 fixture presence differs';end if;
 end;$presence$;rollback;`
-  const contracts = freeze({ contracts: testOwnerPristineDiscardDbContractsSql(fixture, projectId),
+  const contracts = freeze({ contracts: testOwnerPristineDiscardDbContractsSql(fixture, projectId, repository),
     caps: TEST_OWNER_PRISTINE_DISCARD_DB_CAPS,
     expectedLabels: [...TEST_OWNER_PRISTINE_DISCARD_DB_CHECK_LABELS].sort(),
     limitations: TEST_OWNER_PRISTINE_DISCARD_DB_LIMITATIONS,
@@ -445,7 +445,7 @@ do $presence$ begin
  or (select count(*) from public.course_blueprint_versions where course_blueprint_id=${q(fixture.blueprint.id)}::uuid)<>1
  then raise exception 'Migration252 fixture presence differs';end if;
 end;$presence$;rollback;`
-  const contracts = testOwnerPublicationDbContractsManifest(fixture, projectId)
+  const contracts = testOwnerPublicationDbContractsManifest(fixture, projectId, repository)
   const concurrency = testOwnerPublicationConcurrencyManifest(fixture)
   const committed = testOwnerPublicationCommittedManifest(fixture)
   const snapshot = testOwnerPublicationSnapshotSql(fixture)
@@ -483,7 +483,7 @@ export function buildTestOwnerReorderNativeContractsManifest(original: Assignmen
   // The caller first seals and admits the full migration chain; this selects
   // additional fixture checks for complete profiles with the RepoLight outbox.
   const names = readdirSync(resolve(repository, 'supabase/migrations')).filter(name => /^\d{3}_.+\.sql$/.test(name)).sort()
-  const repoLight300 = [300, 301, 303, 304, 307].includes(names.length) ? `
+  const repoLight300 = [300, 301, 303, 304, 307, 310].includes(names.length) ? `
  or (select count(*) from private.repolight_settings)<>1
  or not exists(select 1 from private.repolight_settings where singleton and not plan_enforcement_enabled and not legacy_plan_access_enabled and not billing_access_enabled and not managed_provisioning_enabled)
  or (select count(*) from private.repolight_provision_control)<>1

@@ -34,14 +34,15 @@ describe('externally sealed Test quota proof table addition', () => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const canonical = ['public.tests']
     const at301 = classroomTestQuotaProofCatalog(canonical, current.slice(0, 301))
-    expect(disposableClassroomTestQuotaProofCatalog(canonical, current)).toEqual([...at301, 'private.billing_scheduled_plan_changes'].sort())
+    expect(disposableClassroomTestQuotaProofCatalog(canonical, current)).toEqual([...at301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions'].sort())
     expect(disposableClassroomTestQuotaProofCatalog(canonical, current.slice(0, 303))).toEqual(at301)
+    expect(disposableClassroomTestQuotaProofCatalog(canonical, current.slice(0, 307))).toEqual([...at301, 'private.billing_scheduled_plan_changes'].sort())
     expect(() => classroomTestQuotaProofCatalog(canonical, current)).toThrow()
     const changed = current.map(row => ({ ...row }))
     changed[301].sql += '\n'
     changed[301].sha256 = createHash('sha256').update(changed[301].sql).digest('hex')
-    const future = { name: '308_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }
-    for (const inventory of [current.slice(0, 302), current.slice(0, 305), current.slice(0, 306), changed, [...current, future]]) {
+    const future = { name: '311_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }
+    for (const inventory of [current.slice(0, 302), current.slice(0, 305), current.slice(0, 306), current.slice(0, 308), current.slice(0, 309), changed, [...current, future]]) {
       expect(() => disposableClassroomTestQuotaProofCatalog(canonical, inventory)).toThrow()
     }
   })

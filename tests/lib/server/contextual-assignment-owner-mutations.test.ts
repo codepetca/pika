@@ -17,6 +17,15 @@ function assignment() {
 }
 
 describe('contextual assignment owner mutation adapters', () => {
+  it('maps the shared publication denial on the contextual release RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null, error: { code: 'PT403', message: 'billing_classroom_new_work_unavailable' },
+    })
+    await expect(releaseAssignmentForOwner({
+      supabase: { rpc }, actorId, assignmentId, releasedAt: '2026-11-08T20:00:00Z', scheduled: false,
+    })).rejects.toMatchObject({ statusCode: 403, message: 'Assignment release is unavailable for this classroom.' })
+  })
+
   it('binds an update and every returned requirement to the requested assignment', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: {

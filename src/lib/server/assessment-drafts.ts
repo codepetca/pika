@@ -544,7 +544,7 @@ function mapTestDraftRpcError(
   if (details.includes('test_archived')) {
     return { ok: false, status: 403, error: 'Classroom is archived' }
   }
-  if (details.includes('forbidden')) {
+  if (details.includes('forbidden') || (error.code === 'PT403' && error.message === 'billing_classroom_new_work_unavailable')) {
     return { ok: false, status: 403, error: 'Forbidden' }
   }
   if (details.includes('test_not_found') || details.includes('test_draft_not_found')) {
