@@ -81,7 +81,6 @@ create function private.billing_live_email_notice_valid_v1(
         and private.billing_live_reconciliation_plan_valid_v1(p_access.subscription_id,p_project_ref,p_stripe_account)
         and (p_kind='expired' or exists(select 1 from public.stripe_billing_subscription_bindings binding
           where binding.id=p_access.subscription_id and binding.is_current))
-        and not private.billing_live_undo_awaiting_proof_v1(p_access.subscription_id)
       when 'trial' then exists(
         select 1 from public.account_plans plan
         join public.effective_feature_entitlements entitlement on entitlement.subject_user_id=plan.subject_user_id
@@ -257,6 +256,11 @@ begin
         and private.billing_live_email_notice_source_v1(v_access,p_project_ref,p_stripe_account)=v_notice.source_id
         and (v_notice.kind not in ('ending_7_days','ending_24_hours') or v_now<v_notice.due_at+interval '24 hours')
         and private.billing_live_email_notice_valid_v1(v_access,p_project_ref,p_stripe_account,v_notice.kind,v_now) then
+        -- An authorized undo can still leave the cancellation in effect.
+        -- Keep the notice pending while provider proof is unresolved.
+        if v_notice.source='paid' and private.billing_live_undo_awaiting_proof_v1(v_notice.source_id) then
+          raise lock_not_available;
+        end if;
         select subject.email into v_recipient from public.users subject where subject.id=v_notice.subject_user_id
           and subject.role='teacher' and subject.email_verified_at is not null
           and char_length(subject.email)<=254 and subject.email ~ '^[^[:space:]@]+@[^[:space:]@]+$'

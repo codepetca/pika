@@ -791,12 +791,20 @@ future reminders for eligible terms already in progress. It does not replay
 old confirmations or expiry messages. Pause the database control to halt
 collection and new claims.
 
+Apply the migration and deploy both recovery endpoints and their caller with
+the switches off. For the canary, enable the application switch before the
+database control. To stop delivery, pause the database control first and check
+in-flight claims before rolling back the application. A claim committed before
+the pause can still reach Brevo.
+
 The paid and trial recovery endpoints each attempt at most two deliveries
 after their access work. Each claim checks the current billing source,
 revision, cutoff, and verified teacher email. A reminder must still precede
 the cutoff and be within 24 hours of its scheduled send. The app uses the
 existing Brevo sender and links to the authenticated Billing page. An accepted
 Brevo receipt records submission to the provider.
+An authorized cancellation undo awaiting Stripe proof defers the notice
+within its existing delivery window.
 
 Alert on `emailNotices.attention` and lane failures in the recovery receipts.
 Inspect scoped outbox counts and notice IDs through authorized database

@@ -73,7 +73,8 @@ declare
   trial_user uuid:=gen_random_uuid(); paused_user uuid:=gen_random_uuid(); sandbox_user uuid:=gen_random_uuid();
   paid_user uuid:=gen_random_uuid(); failed_user uuid:=gen_random_uuid(); expired_user uuid:=gen_random_uuid();
   operation uuid:=gen_random_uuid(); paid_subscription uuid; failed_subscription uuid; expired_subscription uuid;
-  version_id uuid; offering jsonb; result jsonb; notice jsonb; rpc text; subject uuid;
+  version_id uuid; max_version_id uuid; offering jsonb; result jsonb; notice jsonb; rpc text; subject uuid;
+  schedule_id uuid:=gen_random_uuid(); undo_id uuid:=gen_random_uuid();
   now_at timestamptz:=date_trunc('second',clock_timestamp());
   paid_cutoff timestamptz:=now_at+interval '10 days';
   through_at timestamptz:=now_at-interval '1 day';
@@ -194,7 +195,14 @@ begin
   version_id:=(result->>'offering_version_id')::uuid;
   offering:=public.billing_get_live_checkout_offering_v1(project,account,
     jsonb_build_object('offering_version_id',version_id,'stripe_account',account));
-  paid_subscription:=pg_temp.bind_notice_327(paid_user,offering,'Paid');
+  result:=public.billing_register_live_checkout_offering_v1(project,account,jsonb_build_object(
+    'plan_key','pro','version',327001,'stripe_account',account,'provider_mode','live','stripe_product_id','prod_Notice327Max',
+    'stripe_price_id','price_Notice327Max','currency','cad','unit_amount',5500,'interval','month','classroom_limit',12,
+    'features','{"catalog_key":"pika:repolight-2026-10-29:max:cad:month","display_name":"Max","release_tag":"repolight-2026-10-29","repolight_analysis":true}'::jsonb,
+    'ai_definition',null,'availability',jsonb_build_object('is_available',true)));
+  max_version_id:=(result->>'offering_version_id')::uuid;
+  paid_subscription:=pg_temp.bind_notice_327(paid_user,public.billing_get_live_checkout_offering_v1(project,account,
+    jsonb_build_object('offering_version_id',max_version_id,'stripe_account',account)),'Paid');
   if pg_temp.observe_notice_327(paid_subscription,'paid','in_Notice327Paid',paid_cutoff-interval '1 month',paid_cutoff,true)
     is distinct from 'applied' then raise exception 'Could not observe paid cancellation'; end if;
   if pg_temp.observe_notice_327(paid_subscription,'paid','in_Notice327Paid',paid_cutoff-interval '1 month',paid_cutoff,true)
@@ -203,6 +211,28 @@ begin
     raise exception 'Paid cancellation replay added notices';
   end if;
   update public.users set email='notice327-current@example.invalid' where id=paid_user;
+  insert into private.billing_scheduled_plan_changes(id,subject_user_id,subscription_id,source_offering_version_id,
+    target_offering_version_id,paid_period_start,effective_at,quote_expires_at,last_paid_invoice_id,expected_plan_revision,
+    expected_access_revision,expected_entitlement_revision,state,confirmed_at,provider_schedule_id)
+    select schedule_id,paid_user,paid_subscription,max_version_id,version_id,paid_period_start,paid_cutoff,
+      now_at-interval '1 hour',last_paid_invoice_id,account_plan_revision,revision,entitlement_revision,
+      'scheduled',now_at-interval '2 hours','sub_sched_Notice327'
+    from public.billing_account_access where subject_user_id=paid_user;
+  insert into private.billing_live_scheduled_cancellations(id,schedule_operation_id,subscription_id,state,requested_action,
+    action_requested_at,write_authorized_at,next_attempt_at)
+    values(undo_id,schedule_id,paid_subscription,'undo_pending','undo',now_at,now_at,now_at);
+  update private.billing_live_email_notices set due_at=now_at-interval '1 minute'
+    where subject_user_id=paid_user and kind='ending_7_days';
+  if pg_temp.claim_notice_327() is distinct from '{"status":"empty","attention":0}'::jsonb
+    or (select count(*) from private.billing_live_email_notices where subject_user_id=paid_user
+      and kind in ('cancellation','ending_7_days') and state='pending')<>2 then
+    raise exception 'Unresolved undo claimed or permanently suppressed a pending notice';
+  end if;
+  -- Clear the synthetic undo without rewriting the still-current cancellation.
+  delete from private.billing_live_scheduled_cancellations where id=undo_id;
+  delete from private.billing_scheduled_plan_changes where id=schedule_id;
+  update private.billing_live_email_notices set due_at=paid_cutoff-interval '168 hours'
+    where subject_user_id=paid_user and kind='ending_7_days';
   result:=pg_temp.claim_notice_327();
   notice:=result->'notice';
   if result->>'status' is distinct from 'claimed' or notice->>'kind' is distinct from 'cancellation'
