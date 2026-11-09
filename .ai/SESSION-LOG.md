@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-06 — Term calendar List and Grid
-
-Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
-
 ## 2026-11-06 — Survey authoring CI timeout
 
 Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
@@ -284,3 +280,7 @@ The isolated Test reorder fixture now selects the exact RepoLight billing trigge
 ## 2026-11-09 — Sync the reviewed live trial with main
 
 The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
+
+## 2026-11-09 — Preserve legacy scheduling for retired Blueprint drafts
+
+Kept new schedules for Blueprint-retired legacy drafts on the existing publication writer. The database publication and release-intent guards still enforce billing cutoff and intent generation, and explicit rescheduling retains the RPC path. The patch adds route coverage for the legacy write and the two guard errors without changing the migration set.
