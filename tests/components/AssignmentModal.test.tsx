@@ -100,6 +100,31 @@ describe('AssignmentModal', () => {
       expect(screen.getByLabelText(/Title/)).toHaveValue(second.title)
     })
 
+    it('leaves stale saved edits readable until the teacher confirms discarding them', async () => {
+      const source = { ...baseAssignment, is_draft: false }
+      const revision = '30200000-0000-4000-8000-000000000001'
+      const fetchMock = vi.mocked(fetch)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
+        item: source,
+        sourceRevision: 'a'.repeat(64),
+        draft: { revision, stale: true, content: {
+          title: 'Saved private title', instructions_markdown: '', due_at: source.due_at, submission_requirements: [],
+        } },
+      }) } as Response)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: source }) } as Response)
+      const onClose = vi.fn()
+      render(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" assignment={source} onClose={onClose} onSuccess={vi.fn()} />)
+      const discard = await screen.findByRole('button', { name: 'Discard saved edits' })
+      expect(screen.getByLabelText(/Title/)).toHaveValue('Saved private title')
+      expect(screen.getByLabelText(/Title/)).toBeDisabled()
+      fireEvent.click(discard)
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+      const confirmation = screen.getByRole('dialog', { name: 'Discard saved edits?' })
+      fireEvent.click(within(confirmation).getByRole('button', { name: 'Discard saved edits' }))
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(JSON.parse(fetchMock.mock.calls[1][1]?.body as string)).toEqual({ revision, discard: true })
+    })
+
     it('saves posted edits privately, then applies the saved revision only on request', async () => {
       const source = { ...baseAssignment, is_draft: false }
       const sourceRevision = 'a'.repeat(64)

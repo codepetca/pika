@@ -6,11 +6,11 @@ insert into public.classrooms(id,teacher_id,title,class_code) values ('c2890000-
 do $$
 declare a uuid := 'c2890000-0000-4000-8000-000000000001'; c uuid := 'c2890000-0000-4000-8000-000000000010'; k text; r jsonb; rr jsonb; i uuid; req uuid; rev uuid; expected uuid; content jsonb; projection jsonb; vals jsonb; q uuid := gen_random_uuid(); signature text; source_revision text;
 begin
- foreach signature in array array['public.create_classwork_authoring_draft(uuid,uuid,text,uuid,jsonb,jsonb)','public.read_classwork_authoring_draft(uuid,uuid,text,uuid)','public.save_classwork_authoring_draft(uuid,uuid,text,uuid,uuid,jsonb,text,uuid,boolean,jsonb)','public.apply_classwork_authoring_draft(uuid,uuid,text,uuid,uuid,boolean,jsonb)'] loop
+ foreach signature in array array['public.create_classwork_authoring_draft(uuid,uuid,text,uuid,jsonb,jsonb)','public.read_classwork_authoring_draft(uuid,uuid,text,uuid)','public.save_classwork_authoring_draft(uuid,uuid,text,uuid,uuid,jsonb,text,uuid,boolean,jsonb)','public.apply_classwork_authoring_draft(uuid,uuid,text,uuid,uuid,boolean,jsonb,boolean)'] loop
  if has_function_privilege('anon',signature,'execute') or has_function_privilege('authenticated',signature,'execute') or not has_function_privilege('service_role',signature,'execute') then raise exception 'bad grants %', signature; end if; end loop;
  foreach k in array array['assignment','material','survey'] loop
  req := gen_random_uuid(); rev := gen_random_uuid(); content := '{"title":"saved","show_results":true,"dynamic_responses":false}'::jsonb;
- projection := case k when 'assignment' then '{"title":"Original","description":"","instructions_markdown":"","rich_instructions":{"type":"doc","content":[]},"due_at":"2030-01-01T00:00:00Z","submission_requirements":[]}'::jsonb when 'material' then '{"title":"Original","content":{"type":"doc","content":[]},"posted_on":"2026-01-01"}'::jsonb else '{"title":"Original"}'::jsonb end;
+ projection := case k when 'assignment' then '{"title":"Original","description":"","instructions_markdown":"","rich_instructions":{"type":"doc","content":[]},"due_at":"2030-01-01T00:00:00Z","submission_requirements":[]}'::jsonb when 'material' then '{"title":"Original","content":{"type":"doc","content":[]},"posted_on":"2026-01-01"}'::jsonb else '{"title":"Original","show_results":true,"dynamic_responses":false,"questions":[]}'::jsonb end;
  r := public.create_classwork_authoring_draft(a,c,k,req,content,projection); i := (r->'item'->>'id')::uuid;
  rr := public.create_classwork_authoring_draft(a,c,k,req,content,projection); if (rr->'item'->>'id')::uuid <> i then raise exception 'create retry %',k; end if;
  begin perform public.read_classwork_authoring_draft('c2890000-0000-4000-8000-000000000002',c,k,i); raise exception 'non-owner read accepted %', k; exception when sqlstate 'PT403' or insufficient_privilege then null; end;
@@ -22,14 +22,14 @@ begin
  if k='assignment' then update public.assignments set title='Concurrent' where id=i;
  elsif k='material' then update public.classwork_materials set title='Concurrent' where id=i;
  else update public.surveys set title='Concurrent' where id=i; end if;
- begin perform public.save_classwork_authoring_draft(a,c,k,i,rev,content,source_revision,expected); raise exception 'stale source accepted %',k; exception when sqlstate 'PT409' then null; end;
+ begin perform public.save_classwork_authoring_draft(a,c,k,i,rev,content,source_revision,expected,false,projection); raise exception 'stale source accepted %',k; exception when sqlstate 'PT409' then null; end;
  if k='assignment' then update public.assignments set title='Original' where id=i;
  elsif k='material' then update public.classwork_materials set title='Original' where id=i;
  else update public.surveys set title='Original' where id=i; end if;
  source_revision := public.read_classwork_authoring_draft(a,c,k,i)->>'sourceRevision';
- perform public.save_classwork_authoring_draft(a,c,k,i,rev,content,source_revision,expected);
+ perform public.save_classwork_authoring_draft(a,c,k,i,rev,content,source_revision,expected,false,projection);
  if (case k when 'assignment' then (select title from public.assignments where id=i) when 'material' then (select title from public.classwork_materials where id=i) else (select title from public.surveys where id=i) end) <> 'Original' then raise exception 'save changed live %',k; end if;
- begin perform public.save_classwork_authoring_draft(a,c,k,i,gen_random_uuid(),content,source_revision,gen_random_uuid()); raise exception 'stale save accepted %',k; exception when sqlstate 'PT409' then null; end;
+ begin perform public.save_classwork_authoring_draft(a,c,k,i,gen_random_uuid(),content,source_revision,gen_random_uuid(),false,projection); raise exception 'stale save accepted %',k; exception when sqlstate 'PT409' then null; end;
  vals := case k when 'assignment' then '{"title":"Applied","submission_requirements":[]}'::jsonb when 'material' then '{"title":"Applied"}'::jsonb else jsonb_build_object('title','Applied','show_results',true,'dynamic_responses',false,'questions',jsonb_build_array(jsonb_build_object('id',q,'question_type','short_text','question_text','Q','options','[]'::jsonb,'response_max_chars',500))) end;
  begin perform public.apply_classwork_authoring_draft(a,c,k,i,gen_random_uuid(),k='survey',jsonb_build_object('source',content,'values',vals)); raise exception 'stale apply accepted %',k; exception when sqlstate 'PT409' then null; end;
  r := public.apply_classwork_authoring_draft(a,c,k,i,rev,k='survey',jsonb_build_object('source',content,'values',vals));
@@ -91,4 +91,71 @@ begin
   end loop;
 end
 $canonical$;
+do $review_proofs$
+declare
+ a uuid := 'c2890000-0000-4000-8000-000000000001'; c uuid := 'c2890000-0000-4000-8000-000000000010';
+ student uuid := 'c2890000-0000-4000-8000-000000000003';
+ survey uuid; material uuid; question uuid := gen_random_uuid(); rev uuid; source text;
+ r jsonb; projection jsonb; content jsonb := '{"show_results":true,"dynamic_responses":false}'::jsonb;
+begin
+ projection := jsonb_build_object('title','Poll','show_results',true,'dynamic_responses',false,'questions',
+   jsonb_build_array(jsonb_build_object('id',question,'question_type','short_text','question_text','Question','options','[]'::jsonb,'response_max_chars',500)));
+ rev := gen_random_uuid(); r := public.create_classwork_authoring_draft(a,c,'survey',rev,content,projection);
+ survey := (r->'item'->>'id')::uuid;
+ if r->'item'->'questions'->0->>'id' <> question::text then raise exception 'survey creation lost canonical question'; end if;
+ source := r->>'sourceRevision';
+ projection := jsonb_set(projection,'{questions,0,question_text}','"Saved while draft"');
+ r := public.save_classwork_authoring_draft(a,c,'survey',survey,gen_random_uuid(),content,source,rev,false,projection);
+ rev := (r->'draft'->>'revision')::uuid;
+ if r->'item'->'questions'->0->>'question_text' <> 'Saved while draft' then raise exception 'unpublished survey save not canonical'; end if;
+ r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,true,jsonb_build_object('source',content,'values',projection));
+ source := r->>'sourceRevision'; rev := gen_random_uuid();
+ projection := jsonb_set(projection,'{title}','"Edited privately"');
+ r := public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
+ if r->'item'->>'title' <> 'Poll' or r->>'sourceRevision' is null then raise exception 'posted survey save changed canonical title'; end if;
+ update public.surveys set status='closed' where id=survey;
+ r := public.read_classwork_authoring_draft(a,c,'survey',survey);
+ if (r->'draft'->>'stale')::boolean then raise exception 'status-only change marked draft stale'; end if;
+ r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,jsonb_build_object('source',content,'values',projection));
+ if r->'item'->>'title' <> 'Edited privately' or r->'item'->>'status' <> 'closed' then raise exception 'status-only change prevented apply'; end if;
+ source := r->>'sourceRevision'; rev := gen_random_uuid();
+ r := public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
+ update public.surveys set title='Concurrent edit' where id=survey;
+ r := public.read_classwork_authoring_draft(a,c,'survey',survey);
+ if (r->'draft'->>'stale')::boolean is distinct from true then raise exception 'content conflict not marked stale'; end if;
+ begin perform public.apply_classwork_authoring_draft(a,c,'survey',survey,gen_random_uuid(),false,'{}',true); raise exception 'wrong revision discard accepted'; exception when sqlstate 'PT409' then null; end;
+ perform public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,'{}',true);
+ if public.read_classwork_authoring_draft(a,c,'survey',survey)->'draft' <> 'null'::jsonb then raise exception 'discard did not clear draft'; end if;
+ -- A posted unanswered question changing type/options must receive a fresh ID.
+ source := public.read_classwork_authoring_draft(a,c,'survey',survey)->>'sourceRevision'; rev := gen_random_uuid();
+ projection := jsonb_set(projection,'{questions,0,question_type}','"multiple_choice"');
+ projection := jsonb_set(projection,'{questions,0,options}','["One","Two"]');
+ perform public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
+ r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,jsonb_build_object('source',content,'values',projection));
+ if exists(select 1 from public.survey_questions where id=question) or not exists(select 1 from public.survey_questions where survey_id=survey and question_type='multiple_choice' and id<>question) then raise exception 'posted question ID not rotated'; end if;
+ begin insert into public.survey_responses(survey_id,question_id,student_id,response_text) values(survey,question,student,'legacy'); raise exception 'old question ID accepted'; exception when foreign_key_violation then null; end;
+ -- Response-bearing questions cannot change type or options.
+ select id into question from public.survey_questions where survey_id=survey;
+ insert into public.survey_responses(survey_id,question_id,student_id,selected_option) values(survey,question,student,0);
+ projection := jsonb_set(projection,'{questions,0,id}',to_jsonb(question));
+ projection := jsonb_set(projection,'{questions,0,options}','["Different","Two"]');
+ source := public.read_classwork_authoring_draft(a,c,'survey',survey)->>'sourceRevision'; rev := gen_random_uuid();
+ perform public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
+ begin perform public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,jsonb_build_object('source',content,'values',projection)); raise exception 'response-bearing option change accepted'; exception when sqlstate 'PT409' then null; end;
+ if not exists(select 1 from public.survey_responses where question_id=question) then raise exception 'response lost on rejected question edit'; end if;
+ projection := jsonb_set(projection,'{questions,0,question_type}','"short_text"');
+ projection := jsonb_set(projection,'{questions,0,options}','[]');
+ begin perform public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,jsonb_build_object('source',content,'values',projection)); raise exception 'response-bearing type change accepted'; exception when sqlstate 'PT409' then null; end;
+ -- Material publication accepts only publication fields and the exact current source.
+ r := public.create_classwork_authoring_draft(a,c,'material',gen_random_uuid(),content,'{"title":"Material original","content":{"type":"doc","content":[]},"posted_on":"2026-01-01"}');
+ material := (r->'item'->>'id')::uuid; source := r->>'sourceRevision';
+ update public.classwork_materials set title='Current draft' where id=material;
+ begin perform public.publish_classwork_authoring_material(a,c,material,source,'{"is_draft":false}'); raise exception 'stale material publication accepted'; exception when sqlstate 'PT409' then null; end;
+ source := public.read_classwork_authoring_draft(a,c,'material',material)->>'sourceRevision';
+ begin perform public.publish_classwork_authoring_material(a,c,material,source,'{"is_draft":false,"title":"Injected"}'); raise exception 'material content injection accepted'; exception when sqlstate 'PT400' then null; end;
+ r := public.publish_classwork_authoring_material(a,c,material,source,'{"is_draft":false}');
+ if r->'item'->>'title' <> 'Current draft' or (r->'item'->>'is_draft')::boolean then raise exception 'material publication changed existing draft content'; end if;
+ raise notice 'PASS status-only apply, stale discard, question rotation and material publication';
+end
+$review_proofs$;
 rollback;

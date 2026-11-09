@@ -9,7 +9,7 @@ import { classworkAuthoringContent, type ClassworkAuthoringKind } from '@/lib/va
 import type { Json } from '@/types/database.generated'
 
 export const classworkDraftResponse = z.object({
-  draft: z.object({ revision: z.string().uuid(), content: z.json() }).nullable(),
+  draft: z.object({ revision: z.string().uuid(), content: z.json(), stale: z.boolean().optional() }).nullable(),
 })
 
 export const classworkItemResponse = z.object({
@@ -20,7 +20,7 @@ export const classworkItemResponse = z.object({
 export function prepareClassworkContent(kind: ClassworkAuthoringKind, raw: unknown, action: 'save' | 'create' | 'apply' | 'draft') {
   const content = classworkAuthoringContent[kind].parse(raw)
   const draft = z.json().parse(content) as Json
-  if (action === 'save') return { draft, projection: {} }
+  if (action === 'save' && kind !== 'survey') return { draft, projection: {} }
 
   const title = content.title.trim()
   if (action === 'apply' && !title) throw new ApiError(400, 'Title is required')
@@ -43,8 +43,7 @@ export function prepareClassworkContent(kind: ClassworkAuthoringKind, raw: unkno
   if ('posted_on' in content) {
     return { draft, projection: z.json().parse({ ...content, title: resolvedTitle }) as Json }
   }
-  if (action === 'create') return { draft, projection: { title: resolvedTitle } }
-  if (content.editor?.unresolved || content.editor?.markdownDirty) throw new ApiError(400, 'Finish or discard the unfinished survey edit before applying.')
+  if (action === 'apply' && (content.editor?.unresolved || content.editor?.markdownDirty)) throw new ApiError(400, 'Finish or discard the unfinished survey edit before applying.')
   const ids = new Set<string>()
   const questions = content.questions.map(({ id, ...question }) => {
     if (ids.has(id)) throw new ApiError(400, 'A survey question is duplicated')

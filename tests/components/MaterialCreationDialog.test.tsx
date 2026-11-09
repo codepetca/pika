@@ -53,6 +53,20 @@ describe('Material formatted editing', () => {
     expect(handlers.onSave).not.toHaveBeenCalled()
   })
 
+  it('offers recovery for a stale saved edit while keeping the posted editor read-only', async () => {
+    const user = userEvent.setup()
+    const onDiscardSavedEdits = vi.fn()
+    const handlers = props()
+    render(
+      <MaterialCreationDialog {...handlers} isExisting isDraft={false} autosave readOnly onDiscardSavedEdits={onDiscardSavedEdits} />,
+      { wrapper: TooltipProvider },
+    )
+    expect(screen.getByPlaceholderText('Title')).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Discard saved edits' }))
+    expect(onDiscardSavedEdits).toHaveBeenCalledOnce()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+  })
+
   it('uses the TeacherClassroomView classroom context for image uploads', async () => {
     const user = userEvent.setup()
     vi.mocked(uploadMarkdownImage).mockResolvedValue('/api/storage/authoring-images?object_id=11111111-1111-4111-8111-111111111111')

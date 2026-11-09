@@ -1208,8 +1208,8 @@ export function SurveySnapshotWorkspace({
   onBack: () => void
   onCloseReady: (close: (() => Promise<void>) | null) => void
   onCloseDisabledChange: (disabled: boolean) => void
-  onSurveyCreated: (survey: Survey) => void
-  onSurveyUpdated: (survey: Survey) => void
+  onSurveyCreated: (survey: Survey & { questions?: SurveyQuestion[] }) => void
+  onSurveyUpdated: (survey: Survey & { questions?: SurveyQuestion[] }) => void
   onSurveyDeleted: (surveyId: string) => void
 }) {
   const [item, setItem] = useState<Survey | null>(null)
@@ -1225,6 +1225,8 @@ export function SurveySnapshotWorkspace({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [stale, setStale] = useState(false)
+  const [discardOpen, setDiscardOpen] = useState(false)
   const [numberDraft, setNumberDraft] = useState('1')
   const titleRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(true)
@@ -1249,6 +1251,8 @@ export function SurveySnapshotWorkspace({
     expectedSourceRevision: string | null
     snapshot: SurveySnapshot
   } | null>(null)
+  const updatedRef = useRef(onSurveyUpdated)
+  updatedRef.current = onSurveyUpdated
   const createdRef = useRef(onSurveyCreated)
   createdRef.current = onSurveyCreated
   contentRef.current = content
@@ -1281,6 +1285,7 @@ export function SurveySnapshotWorkspace({
             response_max_chars: q.response_max_chars,
           })),
         }
+        setStale(!isReadOnly && data.draft?.stale === true)
         revisionRef.current = isReadOnly ? null : (data.draft?.revision ?? null)
         sourceRevisionRef.current = isReadOnly ? null : data.sourceRevision
         savedRef.current = JSON.stringify(next)
@@ -1359,6 +1364,9 @@ export function SurveySnapshotWorkspace({
               idRef.current = data.item.id
               setItem(data.item)
               if (mountedRef.current) createdRef.current(data.item)
+            } else if (data.item && data.item.status === 'draft') {
+              setItem(data.item)
+              if (mountedRef.current) updatedRef.current(data.item)
             }
           }
           setError('')
@@ -1381,13 +1389,13 @@ export function SurveySnapshotWorkspace({
   )
 
   useEffect(() => {
-    if (loading || isReadOnly || !changedRef.current) return
+    if (loading || isReadOnly || stale || !changedRef.current) return
     setStatus('unsaved')
     const timer = setTimeout(() => {
       void flush()
     }, 600)
     return () => clearTimeout(timer)
-  }, [content, flush, isReadOnly, loading])
+  }, [content, flush, isReadOnly, loading, stale])
   useEffect(() => {
     onCloseReady(async () => {
       if ((await flush()) && mountedRef.current) onBack()
@@ -1491,6 +1499,52 @@ export function SurveySnapshotWorkspace({
     })
     setError('')
   }
+  function adoptCanonical(item: Survey & { questions: SurveyQuestion[] }, sourceRevision: string) {
+    const next: SurveySnapshot = {
+      title: getDisplayAssessmentTitle(item.title, 'Untitled Survey'),
+      show_results: item.show_results,
+      dynamic_responses: item.dynamic_responses,
+      questions: (item.questions || []).map((question) => ({
+        id: question.id,
+        question_type: question.question_type,
+        question_text: question.question_text,
+        options: question.options,
+        response_max_chars: question.response_max_chars,
+      })),
+    }
+    revisionRef.current = null
+    sourceRevisionRef.current = sourceRevision
+    changedRef.current = false
+    requestRef.current = null
+    savedRef.current = JSON.stringify(next)
+    contentRef.current = next
+    setContent(next)
+    setItem(item)
+    setStale(false)
+    onSurveyUpdated(item)
+  }
+
+  async function discardSavedEdits() {
+    if (!idRef.current || !revisionRef.current) return
+    setBusy(true)
+    try {
+      const response = await fetch(`${base}/${idRef.current}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revision: revisionRef.current, discard: true }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to discard saved edits')
+      adoptCanonical(data.item, data.sourceRevision)
+      setError('')
+      setDiscardOpen(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to discard saved edits')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function deleteSurvey() {
     deletingRef.current = true
     setBusy(true)
@@ -1537,12 +1591,7 @@ export function SurveySnapshotWorkspace({
       })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to apply survey changes')
-      revisionRef.current = null
-      sourceRevisionRef.current = data.sourceRevision
-      changedRef.current = false
-      savedRef.current = JSON.stringify(contentRef.current)
-      setItem(data.item)
-      onSurveyUpdated(data.item)
+      adoptCanonical(data.item, data.sourceRevision)
       setError('')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to apply survey changes')
@@ -1567,6 +1616,7 @@ export function SurveySnapshotWorkspace({
         </Button>
       </div>
     )
+  const locked = isReadOnly || stale
   const displaySurvey = {
     ...(item || {}),
     title: content.title,
@@ -1644,7 +1694,7 @@ export function SurveySnapshotWorkspace({
                   onSelect: () => setDeleteOpen(true),
                 },
               ]}
-              disabled={isReadOnly || busy}
+              disabled={locked || busy}
             />
           }
         >
@@ -1653,11 +1703,19 @@ export function SurveySnapshotWorkspace({
             aria-label="Survey title"
             value={content.title}
             placeholder="Title"
-            disabled={isReadOnly || busy}
+            disabled={locked || busy}
             onChange={(event) => update({ ...content, title: event.target.value })}
           />
         </CreationModalTitleField>
         <p className="text-sm">Questions: {content.questions.length}</p>
+        {stale && (
+          <div className="space-y-2 text-sm text-warning" role="alert">
+            <p>These saved edits conflict with the current survey. Review them or discard them to continue editing.</p>
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => setDiscardOpen(true)}>
+              Discard saved edits
+            </Button>
+          </div>
+        )}
         {error && (
           <p
             role="alert"
@@ -1694,7 +1752,7 @@ export function SurveySnapshotWorkspace({
             size="sm"
             disabled={
               busy ||
-              isReadOnly ||
+              locked ||
               (!changedRef.current && !revisionRef.current && item?.status !== 'draft') ||
               editor.unresolved ||
               !content.questions.length
@@ -1723,7 +1781,7 @@ export function SurveySnapshotWorkspace({
                 tooltip="Question actions"
                 menuAriaLabel="Question actions"
                 variant="primary"
-                disabled={busy || isReadOnly}
+                disabled={busy || locked}
                 items={[
                   ...(['multiple_choice', 'short_text', 'link'] as const).map((type) => ({
                     id: type,
@@ -1855,7 +1913,7 @@ export function SurveySnapshotWorkspace({
                 <Button
                   size="sm"
                   variant="secondary"
-                  disabled={!editor.markdownDirty}
+                  disabled={!editor.markdownDirty || locked}
                   onClick={() =>
                     update({
                       ...content,
@@ -1875,7 +1933,7 @@ export function SurveySnapshotWorkspace({
                 </Button>
                 <Button
                   size="sm"
-                  disabled={!editor.markdownDirty || isReadOnly}
+                  disabled={!editor.markdownDirty || locked}
                   onClick={applyMarkdown}
                 >
                   Apply Markdown
@@ -1886,7 +1944,7 @@ export function SurveySnapshotWorkspace({
                 data-testid="survey-markdown-editor"
                 className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm"
                 value={editor.markdown}
-                readOnly={isReadOnly}
+                readOnly={locked}
                 onChange={(event) =>
                   update({
                     ...content,
@@ -1910,13 +1968,13 @@ export function SurveySnapshotWorkspace({
                 questionText={raw.question_text}
                 optionsText={raw.optionsText}
                 responseMaxChars={raw.responseMaxChars}
-                disabled={isReadOnly || busy}
+                disabled={locked || busy}
                 promptLabel={raw.id ? 'Prompt' : 'New question'}
                 onTextChange={(question_text) => editQuestion({ ...raw, question_text })}
                 onOptionsChange={(optionsText) => editQuestion({ ...raw, optionsText })}
                 onLimitChange={(responseMaxChars) => editQuestion({ ...raw, responseMaxChars })}
               />
-              {editor.unresolved && (
+              {editor.unresolved && !locked && (
                 <Button
                   variant="secondary"
                   size="sm"
@@ -1942,6 +2000,18 @@ export function SurveySnapshotWorkspace({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={discardOpen}
+        title="Discard saved edits?"
+        description="Your saved edits will be removed. The current survey will remain available."
+        confirmLabel="Discard edits"
+        cancelLabel="Keep edits"
+        confirmVariant="danger"
+        isConfirmDisabled={busy}
+        isCancelDisabled={busy}
+        onCancel={() => setDiscardOpen(false)}
+        onConfirm={() => { void discardSavedEdits() }}
+      />
       <ConfirmDialog
         isOpen={deleteOpen}
         title="Delete survey?"

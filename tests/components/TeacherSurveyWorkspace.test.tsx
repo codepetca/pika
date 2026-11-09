@@ -1149,4 +1149,68 @@ describe('SurveySnapshotWorkspace', () => {
     expect(screen.getByRole('textbox', { name: 'Prompt' })).toHaveValue('Choose a project')
   })
 
+
+  it('shows a stale snapshot read-only and discards it only after confirmation', async () => {
+    const live = makeSurvey({ status: 'active', title: 'Current survey' })
+    const question = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
+    const onSurveyUpdated = vi.fn()
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return jsonResponse({ item: { ...live, questions: [question] }, sourceRevision: 'b'.repeat(64) })
+      return jsonResponse({ item: { ...live, questions: [question] }, draft: { revision: 'stale-revision', stale: true, content: { title: 'Saved edits', show_results: true, dynamic_responses: true, questions: [question] } }, sourceRevision: 'a'.repeat(64) })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={() => {}} />)
+    expect(await screen.findByDisplayValue('Saved edits')).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Discard saved edits' }))
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Discard edits' }))
+    await waitFor(() => expect(screen.getByDisplayValue('Current survey')).toBeEnabled())
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.any(String), expect.objectContaining({ method: 'POST', body: JSON.stringify({ revision: 'stale-revision', discard: true }) }))
+    expect(onSurveyUpdated).toHaveBeenCalledWith(expect.objectContaining({ title: 'Current survey' }))
+  })
+
+  it('reconciles question IDs returned by Apply', async () => {
+    const live = makeSurvey({ status: 'active' })
+    const oldQuestion = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
+    const newQuestion = { ...oldQuestion, id: '9f16d74c-0a43-4de5-8c8a-e8137c144a46', question_text: 'Canonical result' }
+    const content = { title: live.title, show_results: true, dynamic_responses: true, questions: [oldQuestion] }
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'POST'
+      ? jsonResponse({ item: { ...live, questions: [newQuestion] }, sourceRevision: 'b'.repeat(64) })
+      : jsonResponse({ item: { ...live, questions: [oldQuestion] }, draft: { revision: 'revision-1', content }, sourceRevision: 'a'.repeat(64) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Apply changes' }))
+    expect(await screen.findByDisplayValue('Canonical result')).toBeInTheDocument()
+  })
+
+  it('reports the canonical draft from autosave to the classroom', async () => {
+    let close: (() => Promise<void>) | null = null
+    const onSurveyUpdated = vi.fn()
+    const live = makeSurvey({ status: 'draft' })
+    const question = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => init?.method === 'PUT'
+      ? jsonResponse({ item: { ...live, title: 'New title', questions: [question] }, draft: { revision: 'revision-1' }, sourceRevision: 'b'.repeat(64) })
+      : jsonResponse({ item: { ...live, questions: [question] }, draft: null, sourceRevision: 'a'.repeat(64) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={value => { close = value }} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={() => {}} />)
+    fireEvent.change(await screen.findByDisplayValue(live.title), { target: { value: 'New title' } })
+    await act(async () => { await close?.() })
+    expect(onSurveyUpdated).toHaveBeenCalledWith(expect.objectContaining({ title: 'New title', questions: [question] }))
+  })
+
+
+  it('closes a stale saved snapshot without attempting to overwrite it', async () => {
+    let close: (() => Promise<void>) | null = null
+    const onBack = vi.fn()
+    const live = makeSurvey({ status: 'active' })
+    const content = { title: 'Saved edits', show_results: true, dynamic_responses: false, questions: [] }
+    const fetchMock = vi.fn(async () => jsonResponse({ item: { ...live, questions: [] }, draft: { revision: 'revision-1', stale: true, content }, sourceRevision: 'a'.repeat(64) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={onBack} onCloseReady={value => { close = value }} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    await screen.findByDisplayValue('Saved edits')
+    await act(async () => { await close?.() })
+    expect(onBack).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledOnce()
+  })
+
 })

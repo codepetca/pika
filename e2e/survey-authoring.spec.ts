@@ -65,14 +65,19 @@ for (const mobile of [false, true]) {
             surveys[newSurveyId] = { ...surveys[surveyId], id: newSurveyId, title: 'Untitled Survey', status: 'draft', stats: { total_students: 2, responded: 0, questions_count: 0 } }
             questions[newSurveyId] = []
             drafts[newSurveyId] = { revision: `revision-${++revisionNumber}`, content: input.content }
-            body = { item: surveys[newSurveyId], draft: drafts[newSurveyId], sourceRevision }
+            body = { item: { ...surveys[newSurveyId], questions: questions[newSurveyId] }, draft: drafts[newSurveyId], sourceRevision }
           } else if (method === 'PUT') {
             const input = request.postDataJSON() as { content: Snapshot; expectedRevision: string | null; expectedSourceRevision: string }
             expect(input.expectedRevision).toBe(drafts[id]?.revision ?? null)
             expect(input.expectedSourceRevision).toBe(sourceRevision)
             writes += 1
             drafts[id] = { revision: `revision-${++revisionNumber}`, content: input.content }
-            body = { draft: drafts[id] }
+            if (surveys[id].status === 'draft') {
+              surveys[id] = { ...surveys[id], title: input.content.title || surveys[id].title, show_results: input.content.show_results, dynamic_responses: input.content.dynamic_responses,
+                stats: { ...surveys[id].stats, questions_count: input.content.questions.length } }
+              questions[id] = input.content.questions.map((question, position) => ({ ...question, survey_id: id, position, created_at: timestamp, updated_at: timestamp }))
+            }
+            body = { item: { ...surveys[id], questions: questions[id] }, draft: drafts[id], sourceRevision }
           } else if (method === 'POST') {
             const input = request.postDataJSON() as { revision: string; publish?: boolean }
             expect(input.revision).toBe(drafts[id].revision)
@@ -117,7 +122,7 @@ for (const mobile of [false, true]) {
 
       await prompt.fill('Which activity helped you learn today?')
       await expect.poll(() => drafts[surveyId]?.content.questions[0]?.question_text).toBe('Which activity helped you learn today?')
-      expect(questions[surveyId][0].question_text).toBe('Which activity helped you learn?')
+      expect(questions[surveyId][0].question_text).toBe('Which activity helped you learn today?')
       await dialog.getByRole('button', { name: 'Next question' }).click()
       await expect(prompt).toContainText('What would you like to practise next?')
       await expect(dialog.getByRole('spinbutton', { name: 'Question number' })).toHaveValue('2')
@@ -133,7 +138,7 @@ for (const mobile of [false, true]) {
       await markdown.fill(originalMarkdown.replace('Title: Class feedback', 'Title: Updated class feedback'))
       await dialog.getByRole('button', { name: 'Apply Markdown' }).click()
       await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated class feedback')
-      expect(surveys[surveyId].title).toBe('Class feedback')
+      await expect.poll(() => surveys[surveyId].title).toBe('Updated class feedback')
       await dialog.getByRole('button', { name: 'Close survey editor' }).click()
       await expect(dialog).toHaveCount(0)
       await openEditor()

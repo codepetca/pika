@@ -275,6 +275,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   const sourceRevisionRef = useRef<string | null>(null)
   const [loadingEditDraft, setLoadingEditDraft] = useState(false)
   const [editDraftUnavailable, setEditDraftUnavailable] = useState(false)
+  const [staleEditDraft, setStaleEditDraft] = useState(false)
+  const [confirmDiscardEdit, setConfirmDiscardEdit] = useState(false)
   const [retryEditDraft, setRetryEditDraft] = useState(0)
   const creationAttempt = useRef<{ requestId: string; values: AssignmentEditorValues } | null>(null)
   const editAttempt = useRef<{ requestId: string; values: AssignmentEditorValues } | null>(null)
@@ -371,6 +373,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     finishInProgress.current = false
     setLoadingEditDraft(false)
     setEditDraftUnavailable(false)
+    setStaleEditDraft(false)
+    setConfirmDiscardEdit(false)
     pendingValuesRef.current = null
     lastSaveAtRef.current = 0
     resetForAssignment(assignment)
@@ -423,7 +427,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         void fetchJSON<{
           item: Assignment
           sourceRevision: string
-          draft: { revision: string; content: AssignmentAuthoringContent } | null
+          draft: { revision: string; content: AssignmentAuthoringContent; stale?: boolean } | null
         }>(
           `${authoringUrl}/${assignment.id}`, { errorMessage: 'Unable to load saved assignment edits' },
         ).then(({ item, draft, sourceRevision }) => {
@@ -446,6 +450,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           publishedValues.current = source
           editRevisionRef.current = draft?.revision ?? null
           setEditRevision(editRevisionRef.current)
+          setStaleEditDraft(draft?.stale === true)
+          if (draft?.stale) setError('The posted assignment changed after this draft was saved.')
           setTitle(values.title)
           setInstructionsMarkdown(values.instructionsMarkdown)
           setSubmissionRequirements(values.submissionRequirements)
@@ -1098,7 +1104,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   }
 
   async function finishClassworkEditor(apply = false) {
-    if (finishInProgress.current || releasing || (apply && !ensureTitleBeforeRelease())) return
+    if (finishInProgress.current || releasing || (apply && (staleEditDraft || !ensureTitleBeforeRelease()))) return
     const session = editorSessionRef.current
     finishInProgress.current = true
     setSaving(true)
@@ -1130,6 +1136,36 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       if (ownsSession(session)) {
         finishInProgress.current = false
         setSaving(false)
+      }
+    }
+  }
+
+  async function discardSavedEdits() {
+    const item = currentAssignmentRef.current
+    const revision = editRevisionRef.current
+    if (!item || !revision || finishInProgress.current) return
+    const session = editorSessionRef.current
+    finishInProgress.current = true
+    setSaving(true)
+    try {
+      const { item: updated } = await fetchJSON<{ item: Assignment }>(`${authoringUrl}/${item.id}`, {
+        init: {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ revision, discard: true }),
+        },
+        errorMessage: 'Unable to discard saved assignment edits',
+      })
+      if (!ownsSession(session)) return
+      onSuccess(updated)
+      onClose()
+    } catch (cause: unknown) {
+      if (ownsSession(session)) setError(cause instanceof Error ? cause.message : 'Unable to discard saved assignment edits')
+    } finally {
+      if (ownsSession(session)) {
+        finishInProgress.current = false
+        setSaving(false)
+        setConfirmDiscardEdit(false)
       }
     }
   }
@@ -1264,7 +1300,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           sourceArtifactId={assignment?.id}
           requirements={submissionRequirements}
           onRequirementsChange={activeInput(handleSubmissionRequirementsChange)}
-          requirementsDisabled={loadingEditDraft || editDraftUnavailable || saving || releasing || creating}
+          requirementsDisabled={loadingEditDraft || editDraftUnavailable || staleEditDraft || saving || releasing || creating}
           fillHeight
           desktopSplit
           title={title}
@@ -1298,7 +1334,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
               ) : null}
             </div>
           )}
-          disabled={saving || releasing || creating || loadingEditDraft || editDraftUnavailable}
+          disabled={saving || releasing || creating || loadingEditDraft || editDraftUnavailable || staleEditDraft}
           error={error}
           titleInputRef={titleInputRef}
           onBlur={activeInput(flushAutosave)}
@@ -1309,7 +1345,11 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
             </span>
           ) : undefined}
           topRowActions={
-            classworkAuthoring && currentAssignment && !isDraft && (!isScheduled || editRevision || saveStatus !== 'saved') ? (
+            staleEditDraft ? (
+              <Button variant="secondary" className="w-full" disabled={saving} onClick={() => setConfirmDiscardEdit(true)}>
+                Discard saved edits
+              </Button>
+            ) : classworkAuthoring && currentAssignment && !isDraft && (!isScheduled || editRevision || saveStatus !== 'saved') ? (
               <Button className="w-full" onClick={() => { void finishClassworkEditor(true) }}
                 disabled={saving || releasing || loadingEditDraft || editDraftUnavailable || (!editRevision && saveStatus === 'saved')}>
                 Apply changes
@@ -1403,6 +1443,18 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           className="border-0 bg-transparent p-0 shadow-none"
         />
       </DialogPanel>
+
+      <ConfirmDialog
+        isOpen={isOpen && confirmDiscardEdit}
+        title="Discard saved edits?"
+        description="This removes the private draft."
+        confirmLabel="Discard saved edits"
+        confirmVariant="danger"
+        isConfirmDisabled={saving}
+        isCancelDisabled={saving}
+        onCancel={() => setConfirmDiscardEdit(false)}
+        onConfirm={discardSavedEdits}
+      />
 
       <ConfirmDialog
         isOpen={isOpen && closeConfirmOpen}

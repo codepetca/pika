@@ -184,12 +184,21 @@ returns text language sql immutable set search_path = '' as $$
 $$;
 revoke all on function private.classwork_authoring_fingerprint(jsonb) from public, anon, authenticated, service_role;
 
-create function private.classwork_authoring_snapshot(p_draft private.classwork_authoring_drafts)
+create function private.classwork_authoring_edit_fingerprint(p_item jsonb)
+returns text language sql immutable set search_path = '' as $$
+  select private.classwork_authoring_fingerprint(
+    p_item - array['status', 'is_draft', 'released_at', 'opens_at']::text[]
+  )
+$$;
+revoke all on function private.classwork_authoring_edit_fingerprint(jsonb) from public, anon, authenticated, service_role;
+
+create function private.classwork_authoring_snapshot(p_draft private.classwork_authoring_drafts, p_live_content text default null)
 returns jsonb language sql stable set search_path = '' as $$
   select case when p_draft.content is null then null
-    else jsonb_build_object('revision', p_draft.revision, 'content', p_draft.content) end
+    else jsonb_build_object('revision', p_draft.revision, 'content', p_draft.content,
+      'stale', p_live_content is not null and p_draft.base_fingerprint is distinct from p_live_content) end
 $$;
-revoke all on function private.classwork_authoring_snapshot(private.classwork_authoring_drafts) from public, anon, authenticated, service_role;
+revoke all on function private.classwork_authoring_snapshot(private.classwork_authoring_drafts, text) from public, anon, authenticated, service_role;
 
 create function public.create_classwork_authoring_draft(
   p_actor_id uuid, p_classroom_id uuid, p_kind text, p_request_id uuid, p_content jsonb, p_projection jsonb
@@ -244,6 +253,10 @@ begin
     raise exception using errcode = 'PT503', message = 'Unable to create Classwork draft';
   end if;
   v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, v_item_id);
+  if p_kind = 'survey' then
+    perform private.apply_classwork_survey_draft(v_item_id, p_projection, false, true);
+    v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, v_item_id);
+  end if;
   insert into private.classwork_authoring_drafts
     (classroom_id, kind, item_id, creation_request_id, revision, content, base_fingerprint)
   values (
@@ -251,11 +264,11 @@ begin
     case when p_kind = 'survey' then p_request_id end,
     case when p_kind = 'survey' then p_content end,
     case when p_kind = 'survey' then
-      private.classwork_authoring_fingerprint(v_item)
+      private.classwork_authoring_edit_fingerprint(v_item)
     end
   ) returning * into v_draft;
   return jsonb_build_object('item', v_item,
-    'sourceRevision', coalesce(v_draft.base_fingerprint, private.classwork_authoring_fingerprint(v_item)),
+    'sourceRevision', private.classwork_authoring_fingerprint(v_item),
     'draft', private.classwork_authoring_snapshot(v_draft));
 end;
 $$;
@@ -273,7 +286,7 @@ begin
     where kind = p_kind and item_id = p_item_id and classroom_id = p_classroom_id;
   return jsonb_build_object('item', v_item,
     'sourceRevision', private.classwork_authoring_fingerprint(v_item),
-    'draft', private.classwork_authoring_snapshot(v_draft));
+    'draft', private.classwork_authoring_snapshot(v_draft, private.classwork_authoring_edit_fingerprint(v_item)));
 end;
 $$;
 
@@ -318,12 +331,14 @@ declare
   v_item jsonb;
   v_draft private.classwork_authoring_drafts;
   v_fingerprint text;
+  v_edit_fingerprint text;
 begin
   if p_request_id is null or p_content is null or jsonb_typeof(p_content) <> 'object' then
     raise exception using errcode = 'PT400', message = 'Invalid edit draft';
   end if;
   v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, p_item_id);
   v_fingerprint := private.classwork_authoring_fingerprint(v_item);
+  v_edit_fingerprint := private.classwork_authoring_edit_fingerprint(v_item);
   select * into v_draft from private.classwork_authoring_drafts
     where kind = p_kind and item_id = p_item_id and classroom_id = p_classroom_id for update;
   if p_save_as_draft and p_kind in ('assignment', 'material') then
@@ -351,7 +366,8 @@ begin
     return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item), 'draft', null);
   end if;
   if v_draft.revision = p_request_id and v_draft.content = p_content then
-    return jsonb_build_object('draft', private.classwork_authoring_snapshot(v_draft));
+    return jsonb_build_object('item', v_item, 'sourceRevision', v_fingerprint,
+      'draft', private.classwork_authoring_snapshot(v_draft, v_edit_fingerprint));
   end if;
   if v_fingerprint is distinct from p_expected_source_revision then
     raise exception using errcode = 'PT409', message = 'The Classwork item changed in another editor. Reopen it before saving.';
@@ -359,27 +375,36 @@ begin
   if (case when v_draft.content is not null then v_draft.revision end) is distinct from p_expected_revision then
     raise exception using errcode = 'PT409', message = 'This draft changed in another editor. Reopen it before saving.';
   end if;
-  if v_draft.content is not null and v_draft.base_fingerprint is distinct from v_fingerprint then
+  if v_draft.content is not null and v_draft.base_fingerprint is distinct from v_edit_fingerprint then
     raise exception using errcode = 'PT409', message = 'The Classwork item changed since this draft was saved.';
   end if;
+  if p_kind = 'survey' and v_item->>'status' = 'draft' then
+    perform private.apply_classwork_survey_draft(p_item_id, p_projection, false, true);
+    v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, p_item_id);
+    v_fingerprint := private.classwork_authoring_fingerprint(v_item);
+    v_edit_fingerprint := private.classwork_authoring_edit_fingerprint(v_item);
+  end if;
   insert into private.classwork_authoring_drafts (classroom_id, kind, item_id, revision, content, base_fingerprint)
-    values (p_classroom_id, p_kind, p_item_id, p_request_id, p_content, v_fingerprint)
+    values (p_classroom_id, p_kind, p_item_id, p_request_id, p_content, v_edit_fingerprint)
   on conflict (kind, item_id) do update set
     revision = excluded.revision, content = excluded.content, base_fingerprint = excluded.base_fingerprint
   returning * into v_draft;
-  return jsonb_build_object('draft', private.classwork_authoring_snapshot(v_draft));
+  return jsonb_build_object('item', v_item, 'sourceRevision', v_fingerprint,
+    'draft', private.classwork_authoring_snapshot(v_draft));
 end;
 $$;
 
 create function private.apply_classwork_survey_draft(
-  p_survey_id uuid, p_content jsonb, p_publish boolean
+  p_survey_id uuid, p_content jsonb, p_publish boolean, p_save_draft boolean default false
 ) returns jsonb language plpgsql set search_path = '' as $$
 declare
   v_survey public.surveys;
   v_question record;
+  v_question_id uuid;
 begin
   select * into strict v_survey from public.surveys where id = p_survey_id;
-  if p_publish is distinct from (v_survey.status = 'draft') then
+  if (p_save_draft and v_survey.status <> 'draft')
+    or (not p_save_draft and p_publish is distinct from (v_survey.status = 'draft')) then
     raise exception using errcode = 'PT409', message = 'The survey publication status changed. Reopen it and try again.';
   end if;
   if p_publish and jsonb_array_length(p_content->'questions') = 0 then
@@ -406,10 +431,22 @@ begin
     select value, (ordinality - 1)::integer as position
       from jsonb_array_elements(p_content->'questions') with ordinality
   loop
+    v_question_id := (v_question.value->>'id')::uuid;
+    if v_survey.status <> 'draft' and exists (
+      select 1 from public.survey_questions current_question
+      where current_question.id = v_question_id and current_question.survey_id = p_survey_id
+        and (current_question.question_type is distinct from v_question.value->>'question_type'
+          or current_question.options is distinct from v_question.value->'options')
+    ) then
+      -- Existing responses were checked under the survey/classroom lock.
+      -- A request holding the old question ID can no longer insert its answer.
+      delete from public.survey_questions where id = v_question_id and survey_id = p_survey_id;
+      v_question_id := gen_random_uuid();
+    end if;
     insert into public.survey_questions
       (id, survey_id, question_type, question_text, options, response_max_chars, position)
     values (
-      (v_question.value->>'id')::uuid, p_survey_id,
+      v_question_id, p_survey_id,
       v_question.value->>'question_type', v_question.value->>'question_text',
       v_question.value->'options', (v_question.value->>'response_max_chars')::integer,
       v_question.position
@@ -434,11 +471,11 @@ begin
   return to_jsonb(v_survey);
 end;
 $$;
-revoke all on function private.apply_classwork_survey_draft(uuid, jsonb, boolean) from public, anon, authenticated, service_role;
+revoke all on function private.apply_classwork_survey_draft(uuid, jsonb, boolean, boolean) from public, anon, authenticated, service_role;
 
 create function public.apply_classwork_authoring_draft(
   p_actor_id uuid, p_classroom_id uuid, p_kind text, p_item_id uuid,
-  p_revision uuid, p_publish boolean, p_projection jsonb
+  p_revision uuid, p_publish boolean, p_projection jsonb, p_discard boolean default false
 ) returns jsonb language plpgsql security definer set search_path = ''
 set lock_timeout = '2s' set statement_timeout = '8s' as $$
 declare
@@ -453,13 +490,16 @@ begin
   if p_revision is null or v_draft.revision is distinct from p_revision then
     raise exception using errcode = 'PT409', message = 'This draft changed in another editor. Reopen it before applying.';
   end if;
-  if v_draft.content is null then
+  if p_discard then
+    update private.classwork_authoring_drafts set content = null, base_fingerprint = null where id = v_draft.id;
+  end if;
+  if v_draft.content is null or p_discard then
     return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item));
   end if;
   if v_draft.content is distinct from p_projection->'source' then
     raise exception using errcode = 'PT409', message = 'This draft changed in another editor. Reopen it before applying.';
   end if;
-  if v_draft.base_fingerprint is distinct from private.classwork_authoring_fingerprint(v_item) then
+  if v_draft.base_fingerprint is distinct from private.classwork_authoring_edit_fingerprint(v_item) then
     raise exception using errcode = 'PT409', message = 'The Classwork item changed since this draft was saved.';
   end if;
   if p_kind = 'assignment' then
@@ -485,13 +525,37 @@ begin
 end;
 $$;
 
+create function public.publish_classwork_authoring_material(
+  p_actor_id uuid, p_classroom_id uuid, p_item_id uuid, p_expected_source_revision text, p_publication jsonb
+) returns jsonb language plpgsql security definer set search_path = ''
+set lock_timeout = '2s' set statement_timeout = '8s' as $$
+declare v_item jsonb;
+begin
+  if jsonb_typeof(p_publication) is distinct from 'object'
+    or jsonb_typeof(p_publication->'is_draft') is distinct from 'boolean'
+    or (p_publication - array['is_draft', 'scheduled_for']::text[]) <> '{}'::jsonb then
+    raise exception using errcode = 'PT400', message = 'Invalid material publication request';
+  end if;
+  v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, 'material', p_item_id);
+  if private.classwork_authoring_fingerprint(v_item) is distinct from p_expected_source_revision
+    or exists (select 1 from private.classwork_authoring_drafts where kind = 'material' and item_id = p_item_id and content is not null) then
+    raise exception using errcode = 'PT409', message = 'This material changed. Reopen it before posting or scheduling.';
+  end if;
+  perform public.update_classwork_material_for_owner_v1(p_actor_id, p_classroom_id, p_item_id, p_publication);
+  v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, 'material', p_item_id);
+  return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item));
+end;
+$$;
+revoke all on function public.publish_classwork_authoring_material(uuid, uuid, uuid, text, jsonb) from public, anon, authenticated, service_role;
+grant execute on function public.publish_classwork_authoring_material(uuid, uuid, uuid, text, jsonb) to service_role;
+
 revoke all on function public.create_classwork_authoring_draft(uuid, uuid, text, uuid, jsonb, jsonb) from public, anon, authenticated, service_role;
 revoke all on function public.read_classwork_authoring_draft(uuid, uuid, text, uuid) from public, anon, authenticated, service_role;
 revoke all on function public.save_classwork_authoring_draft(uuid, uuid, text, uuid, uuid, jsonb, text, uuid, boolean, jsonb) from public, anon, authenticated, service_role;
-revoke all on function public.apply_classwork_authoring_draft(uuid, uuid, text, uuid, uuid, boolean, jsonb) from public, anon, authenticated, service_role;
+revoke all on function public.apply_classwork_authoring_draft(uuid, uuid, text, uuid, uuid, boolean, jsonb, boolean) from public, anon, authenticated, service_role;
 grant execute on function public.create_classwork_authoring_draft(uuid, uuid, text, uuid, jsonb, jsonb) to service_role;
 grant execute on function public.read_classwork_authoring_draft(uuid, uuid, text, uuid) to service_role;
 grant execute on function public.save_classwork_authoring_draft(uuid, uuid, text, uuid, uuid, jsonb, text, uuid, boolean, jsonb) to service_role;
-grant execute on function public.apply_classwork_authoring_draft(uuid, uuid, text, uuid, uuid, boolean, jsonb) to service_role;
+grant execute on function public.apply_classwork_authoring_draft(uuid, uuid, text, uuid, uuid, boolean, jsonb, boolean) to service_role;
 
 commit;

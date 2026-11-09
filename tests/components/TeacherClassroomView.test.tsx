@@ -2176,6 +2176,46 @@ describe('TeacherClassroomView', () => {
     expect(within(dialog).getByPlaceholderText('Title')).toHaveValue('')
   })
 
+  it('posts a draft material using only the source-checked publication action', async () => {
+    const material = makeMaterialSummary('post-cas', 'Draft', { is_draft: true, released_at: null })
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    vi.mocked(fetch).mockImplementation((_input, init) => Promise.resolve({ ok: true, json: async () =>
+      init?.method === 'POST' ? { item: { ...material, is_draft: false }, sourceRevision: 'b'.repeat(64) } :
+        { item: material, draft: null, sourceRevision: 'a'.repeat(64) },
+    } as Response))
+    render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} />, { wrapper: TooltipProvider })
+    await waitFor(() => expect(screen.getByPlaceholderText('Title')).toBeEnabled(), { timeout: 10000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Post', exact: true }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/classwork-authoring/material/post-cas'), expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ expectedSourceRevision: 'a'.repeat(64), publication: { is_draft: false } }),
+    })))
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false)
+  })
+
+  it('shows stale material edits read-only and discards them only after confirmation', async () => {
+    const material = makeMaterialSummary('stale-material', 'Current')
+    mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
+      key.includes('materials') ? { materials: [material] } : key.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    vi.mocked(fetch).mockImplementation((_input, init) => Promise.resolve({ ok: true, json: async () =>
+      init?.method === 'POST' ? { item: material, sourceRevision: 'b'.repeat(64) } :
+        { item: material, sourceRevision: 'a'.repeat(64), draft: { stale: true, revision: 'saved-revision', content: { title: 'Older edit', content: material.content, posted_on: '2026-04-10' } } },
+    } as Response))
+    render(<TeacherClassroomView classroom={classroom} selectedMaterialId={material.id} />, { wrapper: TooltipProvider })
+    await waitFor(() => expect(screen.getByPlaceholderText('Title')).toHaveValue('Older edit'), { timeout: 10000 })
+    expect(screen.getByPlaceholderText('Title')).toBeDisabled()
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Discard saved edits' }))
+    const confirmation = screen.getByRole('dialog', { name: 'Discard saved edits?' })
+    expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false)
+    fireEvent.click(within(confirmation).getByRole('button', { name: 'Discard saved edits' }))
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/classwork-authoring/material/stale-material'), expect.objectContaining({
+      method: 'POST', body: JSON.stringify({ revision: 'saved-revision', discard: true }),
+    })))
+  })
+
   it('saves an unposted material through the source-checked draft endpoint', async () => {
     const material = makeMaterialSummary('unposted-material', 'Draft', { is_draft: true, released_at: null })
     mockFetchJSONWithCache.mockImplementation((key: string) => Promise.resolve(
@@ -2626,10 +2666,13 @@ describe('TeacherClassroomView', () => {
 
     expect(await screen.findByTestId('mock-survey-results-pane')).toHaveTextContent('Survey results survey-1')
     const openPollButton = screen.getAllByRole('button', { name: 'Open poll' })[0]
-    expect(openPollButton).toBeDisabled()
+    expect(openPollButton).not.toBeDisabled()
     expect(openPollButton).toHaveAttribute('aria-pressed', 'false')
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(screen.queryByTestId('teacher-work-panel')).not.toBeInTheDocument()
+    fireEvent.click(openPollButton)
+    expect(await screen.findByRole('dialog', { name: 'Edit survey' })).toBeInTheDocument()
+    expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([, init]) => init?.method === 'PATCH')).toBe(false)
   })
 
   it('keeps a new survey local until the first edit and creates it before close', async () => {

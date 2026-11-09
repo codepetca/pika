@@ -376,6 +376,8 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
   const [item, setItem] = useState(material)
   const [loading, setLoading] = useState(!!material && !classroom.archived_at)
   const [loadFailed, setLoadFailed] = useState(false)
+  const [draftStale, setDraftStale] = useState(false)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved')
@@ -437,7 +439,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       return
     }
     let cancelled = false
-    void fetchJSON<{ item: ClassworkMaterial; draft: { content: Snapshot; revision: string } | null; sourceRevision: string }>(
+    void fetchJSON<{ item: ClassworkMaterial; draft: { content: Snapshot; revision: string; stale?: boolean } | null; sourceRevision: string }>(
       `${base}/${material.id}`, { init: { cache: 'no-store' }, errorMessage: 'Failed to load material draft' },
     ).then((data) => {
       if (cancelled) return
@@ -449,6 +451,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       itemRef.current = authoritative
       sourceRevision.current = data.sourceRevision
       revision.current = data.draft?.revision ?? null
+      setDraftStale(data.draft?.stale === true)
       latest.current = draft
       saved.current = JSON.stringify(draft)
       setItem(authoritative); setTitle(draft.title); setContent(draft.content); setPostDate(draft.posted_on)
@@ -550,28 +553,42 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
         return
       }
       if (!currentItem.is_draft && scheduledFor === undefined) { if (mounted.current) onClose(); return }
-      {
-        response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials/${currentItem.id}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(currentItem.is_draft
-            ? { title: latest.current.title.trim(), content: latest.current.content, is_draft: nextDraft,
-                ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}), posted_on: latest.current.posted_on }
-            : { scheduled_for: scheduledFor }),
-        })
-      }
+      response = await fetch(`${base}/${currentItem.id}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedSourceRevision: sourceRevision.current, publication: {
+          is_draft: nextDraft, ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}),
+        } }),
+      })
       const data = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(data.error || 'Failed to save material')
-      if (mounted.current) onSaved((data.item ?? data.material) as ClassworkMaterial)
+      if (mounted.current) onSaved(data.item as ClassworkMaterial)
     } catch (err) { setStatus('error'); setError(err instanceof Error ? err.message : 'Failed to save material') }
     finally { if (mounted.current) setBusy(false) }
   }
 
+  async function discardSavedEdits() {
+    const currentItem = itemRef.current
+    if (!currentItem || !revision.current) return
+    setBusy(true); setError(null)
+    try {
+      const response = await fetch(`${base}/${currentItem.id}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revision: revision.current, discard: true }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to discard saved edits')
+      if (mounted.current) { setConfirmDiscard(false); onSaved(data.item as ClassworkMaterial) }
+    } catch (err) { if (mounted.current) setError(err instanceof Error ? err.message : 'Failed to discard saved edits') }
+    finally { if (mounted.current) setBusy(false) }
+  }
+
   return (
+    <>
     <MaterialCreationDialog
       classroomId={classroom.id} classroomName={classroom.title} isOpen
       isExisting={!!item} isDraft={item?.is_draft ?? true} postedOn={postDate}
       releasedAt={item?.released_at} createdAt={item?.created_at}
-      readOnly={isReadOnly || loadFailed} saving={busy || loading} error={error} notice={recoveryNotice} autosave saveStatus={status}
+      readOnly={isReadOnly || loadFailed || draftStale} saving={busy || loading} error={error} notice={recoveryNotice} autosave saveStatus={status}
       title={title} content={content}
       onTitleChange={(value) => { setTitle(value); changed({ title: value }) }}
       onContentChange={(value) => { setContent(value); changed({ content: value }) }}
@@ -579,8 +596,14 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       onSave={(asDraft, scheduledFor, postedOn) => { void saveMaterial(asDraft, scheduledFor, postedOn) }}
       onClose={() => { void close() }}
       onRetry={loadFailed ? () => { setLoading(true); setLoadFailed(false); setError(null); setLoadAttempt((value) => value + 1) } : undefined}
-      onDelete={item && !isReadOnly ? () => onRequestDelete(item) : undefined}
+      onDiscardSavedEdits={draftStale && !isReadOnly ? () => setConfirmDiscard(true) : undefined}
+      onDelete={item && !isReadOnly && !draftStale ? () => onRequestDelete(item) : undefined}
     />
+    <ConfirmDialog isOpen={confirmDiscard} title="Discard saved edits?"
+      description="This removes the private draft."
+      confirmLabel="Discard saved edits" confirmVariant="danger" isConfirmDisabled={busy} isCancelDisabled={busy}
+      onCancel={() => setConfirmDiscard(false)} onConfirm={() => { void discardSavedEdits() }} />
+    </>
   )
 }
 
@@ -2822,9 +2845,7 @@ export function TeacherClassroomView({
     >
       <Tooltip
         content={
-          selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0
-            ? 'Add a question before opening the poll'
-            : selectedSurvey.status === 'active'
+          selectedSurvey.status === 'active'
               ? 'Close poll'
               : 'Open poll'
         }
@@ -2842,9 +2863,8 @@ export function TeacherClassroomView({
               </span>
             }
             onPrimaryClick={() => {
-              void patchSelectedSurvey({
-                status: selectedSurvey.status === 'active' ? 'closed' : 'active',
-              })
+              if (selectedSurvey.status === 'draft') openSurveyModal(selectedSurvey.id)
+              else void patchSelectedSurvey({ status: selectedSurvey.status === 'active' ? 'closed' : 'active' })
             }}
             options={[
               {
@@ -2852,14 +2872,14 @@ export function TeacherClassroomView({
                 label: 'Open poll',
                 checked: selectedSurvey.status === 'active',
                 onSelect: () => {
-                  void patchSelectedSurvey({ status: 'active' })
+                  if (selectedSurvey.status === 'draft') openSurveyModal(selectedSurvey.id)
+                  else void patchSelectedSurvey({ status: 'active' })
                 },
                 disabled:
                   isReadOnly ||
                   surveyActionBusy ||
                   isDeletingSurvey ||
-                  selectedSurvey.status === 'active' ||
-                  selectedSurvey.stats.questions_count === 0,
+                  selectedSurvey.status === 'active',
               },
               {
                 id: 'close-poll',
@@ -2923,8 +2943,7 @@ export function TeacherClassroomView({
               disabled:
                 isReadOnly ||
                 surveyActionBusy ||
-                isDeletingSurvey ||
-                (selectedSurvey.status === 'draft' && selectedSurvey.stats.questions_count === 0),
+                isDeletingSurvey,
             }}
           />
         </span>
@@ -3487,7 +3506,7 @@ export function TeacherClassroomView({
             onCloseDisabledChange={setSurveyCloseDisabled}
             onSurveyCreated={(survey) => {
               if (currentClassroomIdRef.current !== classroom.id) return
-              setSurveys((current) => [...current, { ...survey, stats: { total_students: 0, responded: 0, questions_count: 0 } }])
+              setSurveys((current) => [...current, { ...survey, stats: { total_students: 0, responded: 0, questions_count: survey.questions?.length ?? 0 } }])
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
               void positionCreatedClasswork('survey', survey.id)
             }}
@@ -3497,9 +3516,12 @@ export function TeacherClassroomView({
               invalidateCachedJSON(`student-surveys:${classroom.id}`)
             }}
             onSurveyUpdated={(updatedSurvey) => {
+              if (currentClassroomIdRef.current !== classroom.id) return
               setSurveys((current) =>
                 current.map((survey) =>
-                  survey.id === updatedSurvey.id ? { ...survey, ...updatedSurvey } : survey
+                  survey.id === updatedSurvey.id
+                    ? { ...survey, ...updatedSurvey, stats: { ...survey.stats, questions_count: updatedSurvey.questions?.length ?? survey.stats.questions_count } }
+                    : survey
                 )
               )
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)

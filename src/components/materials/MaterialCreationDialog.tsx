@@ -41,6 +41,7 @@ interface MaterialCreationDialogProps {
   saveStatus?: SaveStatusState
   onPostDateChange?: (date: string) => void
   onRetry?: () => void
+  onDiscardSavedEdits?: () => void
 }
 
 /** Material-owned presentation; callers retain persistence and permission checks. */
@@ -50,7 +51,7 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 
 function MaterialEditor({
   isOpen, isExisting = false, isDraft = true, releasedAt, createdAt, postedOn, readOnly = false, saving = false,
-  classroomId, classroomName, materialKey, recoveryVersion, error, notice, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete, autosave = false, saveStatus, onPostDateChange, onRetry,
+  classroomId, classroomName, materialKey, recoveryVersion, error, notice, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete, autosave = false, saveStatus, onPostDateChange, onRetry, onDiscardSavedEdits,
 }: MaterialCreationDialogProps) {
   const [mode, setMode] = useState<'visual' | 'markdown'>('visual')
   const [markdown, setMarkdown] = useState(() => getMaterialMarkdownDraft(content).markdown)
@@ -212,6 +213,7 @@ function MaterialEditor({
             </FormField>
             {recoveryProblem && <p role="status" className="text-sm text-warning">{recoveryProblem} {staleRecovery && <Button variant="secondary" size="sm" onClick={() => { discardRecovery(); setStaleRecovery(false); setRecoveryProblem(null) }}>Discard previous local edit</Button>}</p>}
             {notice && <p role="status" className="text-sm text-warning">{notice}</p>}
+            {onDiscardSavedEdits && <div role="status" className="text-sm text-warning">The posted material changed since these edits were saved. You can review the saved edits or discard them to return to the current material. <Button variant="secondary" size="sm" disabled={saving} onClick={onDiscardSavedEdits}>Discard saved edits</Button></div>}
             {error && <div role="alert" className="text-sm text-danger">{error} {onRetry && <Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button>}</div>}
             <div className="shrink-0 lg:mt-auto">
               <SplitButton

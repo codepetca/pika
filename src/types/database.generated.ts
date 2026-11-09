@@ -9652,6 +9652,7 @@ export type Database = {
         Args: {
           p_actor_id: string
           p_classroom_id: string
+          p_discard?: boolean
           p_item_id: string
           p_kind: string
           p_projection: Json
@@ -13166,6 +13167,16 @@ export type Database = {
       }
       preview_classroom_authoring_guidance_for_owner_v1: {
         Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
+      publish_classwork_authoring_material: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_expected_source_revision: string
+          p_item_id: string
+          p_publication: Json
+        }
         Returns: Json
       }
       publish_test_from_draft_atomic: {

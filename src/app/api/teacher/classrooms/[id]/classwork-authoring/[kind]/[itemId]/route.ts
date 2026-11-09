@@ -10,6 +10,7 @@ import {
   prepareClassworkContent,
   throwClassworkDraftError,
 } from '@/lib/server/classwork-authoring-drafts'
+import { materialScheduledForSchema, validateMaterialPublication } from '@/lib/validations/material-scheduling'
 import { classworkAuthoringKind } from '@/lib/validations/classwork-authoring-drafts'
 import type { Json } from '@/types/database.generated'
 
@@ -23,7 +24,20 @@ const saveSchema = createSchema.extend({
   saveAsDraft: z.boolean().default(false),
   expectedSourceRevision: z.string().regex(/^[0-9a-f]{64}$/),
 })
-const applySchema = z.object({ revision: uuid, publish: z.boolean().default(false) }).strict()
+const sourceRevisionSchema = z.string().regex(/^[0-9a-f]{64}$/)
+const applySchema = z.object({
+  revision: uuid,
+  publish: z.boolean().default(false),
+  discard: z.boolean().default(false),
+}).strict().refine((input) => !(input.publish && input.discard), 'Choose one draft action.')
+const publicationSchema = z.object({
+  expectedSourceRevision: sourceRevisionSchema,
+  publication: z.object({
+    is_draft: z.boolean(),
+    scheduled_for: materialScheduledForSchema.optional(),
+  }).strict().superRefine(validateMaterialPublication),
+}).strict()
+const postSchema = z.union([applySchema, publicationSchema])
 
 async function getContext(rawParams: unknown) {
   const { id, kind, itemId } = paramsSchema.parse(rawParams)
@@ -68,10 +82,10 @@ export const PUT = withErrorHandler('SaveClassworkAuthoringDraft', async (reques
     p_request_id: input.requestId,
     p_content: draft,
     p_save_as_draft: input.saveAsDraft,
-    p_projection: input.saveAsDraft ? projection : undefined,
+    p_projection: input.saveAsDraft || kind === 'survey' ? projection : undefined,
   })
   if (error) throwClassworkDraftError(error)
-  return NextResponse.json(input.saveAsDraft ? classworkItemResponse.extend(classworkDraftResponse.shape).parse(data) : classworkDraftResponse.parse(data))
+  return NextResponse.json(input.saveAsDraft || kind === 'survey' ? classworkItemResponse.extend(classworkDraftResponse.shape).parse(data) : classworkDraftResponse.parse(data))
 })
 
 export const POST = withErrorHandler('SubmitClassworkAuthoringDraft', async (request, context) => {
@@ -90,7 +104,19 @@ export const POST = withErrorHandler('SubmitClassworkAuthoringDraft', async (req
     return NextResponse.json(classworkItemResponse.extend(classworkDraftResponse.shape).parse(data), { status: 201 })
   }
 
-  const input = applySchema.parse(payload)
+  const input = postSchema.parse(payload)
+  if ('publication' in input) {
+    if (kind !== 'material') throw new ApiError(400, 'Invalid Classwork publication request.')
+    const { data, error } = await db.rpc('publish_classwork_authoring_material', {
+      p_actor_id: args.p_actor_id,
+      p_classroom_id: args.p_classroom_id,
+      p_item_id: itemId,
+      p_expected_source_revision: input.expectedSourceRevision,
+      p_publication: input.publication,
+    })
+    if (error) throwClassworkDraftError(error)
+    return NextResponse.json(classworkItemResponse.parse(data))
+  }
   if (input.publish && kind !== 'survey') throw new ApiError(400, 'Use the post action to release this Classwork item.')
   const itemArgs = { ...args, p_item_id: itemId }
   const { data: saved, error: readError } = await db.rpc('read_classwork_authoring_draft', itemArgs)
@@ -99,11 +125,12 @@ export const POST = withErrorHandler('SubmitClassworkAuthoringDraft', async (req
   if (draft && draft.revision !== input.revision) {
     throw new ApiError(409, 'This draft changed in another editor. Reopen it before applying.')
   }
-  const projection = draft ? prepareClassworkContent(kind, draft.content, 'apply').projection : {}
+  const projection = draft && !input.discard ? prepareClassworkContent(kind, draft.content, 'apply').projection : {}
   const { data, error } = await db.rpc('apply_classwork_authoring_draft', {
     ...itemArgs,
     p_revision: input.revision,
     p_publish: input.publish,
+    p_discard: input.discard,
     p_projection: { source: draft?.content as Json ?? null, values: projection },
   })
   if (error) throwClassworkDraftError(error)

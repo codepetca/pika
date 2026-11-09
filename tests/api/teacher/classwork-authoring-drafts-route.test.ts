@@ -50,6 +50,38 @@ describe('teacher Classwork authoring draft route', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
+  it('posts a material through the source revision check without accepting editor fields', async () => {
+    rpc.mockResolvedValueOnce({ data: { item, sourceRevision }, error: null })
+    const publication = { is_draft: false }
+    const result = await POST(request('POST', { expectedSourceRevision: sourceRevision, publication }), context)
+    expect(result.ok).toBe(true)
+    expect(rpc).toHaveBeenCalledExactlyOnceWith('publish_classwork_authoring_material', {
+      p_actor_id: actor,
+      p_classroom_id: classroom,
+      p_item_id: itemId,
+      p_expected_source_revision: sourceRevision,
+      p_publication: publication,
+    })
+    rpc.mockClear()
+    const invalid = await POST(request('POST', {
+      expectedSourceRevision: sourceRevision, publication: { ...publication, content },
+    }), context)
+    expect(invalid.status).toBe(400)
+    expect(rpc).not.toHaveBeenCalled()
+  })
+
+  it('can discard a stale revision without interpreting its old editor fields', async () => {
+    rpc.mockResolvedValueOnce({ data: { item, sourceRevision, draft: { revision, content: {}, stale: true } }, error: null })
+    rpc.mockResolvedValueOnce({ data: { item, sourceRevision }, error: null })
+    const result = await POST(request('POST', { revision, discard: true }), context)
+    expect(result.ok).toBe(true)
+    expect(rpc).toHaveBeenLastCalledWith('apply_classwork_authoring_draft', expect.objectContaining({
+      p_revision: revision,
+      p_discard: true,
+      p_projection: { source: {}, values: {} },
+    }))
+  })
+
   it('uses the stored snapshot for Apply and rejects an outdated revision', async () => {
     rpc.mockResolvedValueOnce({ data: { item, sourceRevision, draft: { revision: actor, content } }, error: null })
     expect((await POST(request('POST', { revision }), context)).status).toBe(409)
