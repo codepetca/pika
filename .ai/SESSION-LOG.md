@@ -274,16 +274,6 @@ Prepared default-off production trial status, admission and a Stripe-free
 expiry worker against the exact pinned target. The owned 001–313 replay proved
 admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
 and retained learner work. Type generation and targeted route tests passed.
-The Billing page still needs an independent trial-only mode, and the production
-worker caller and existing-schedule conversion require verification before any
-activation. Live payment handling remains a separate source slice.
-
-## 2026-11-08 — Live trial lifecycle source
-
-Prepared default-off production trial status, admission and a Stripe-free
-expiry worker against the exact pinned target. The owned 001–313 replay proved
-admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
-and retained learner work. Type generation and targeted route tests passed.
 Billing now supports trial-only status and admission with no checkout requests.
 The teacher browser matrix passed on desktop and mobile in both themes. The
 canonical sealed replay and CI admit 313. The production worker caller and
@@ -341,8 +331,7 @@ Merged main after the assignment grade and comment copy change. Preserved both c
 ## 2026-11-09 — Guarded assignment release rebase
 
 Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
-Billing now supports trial-only status and admission with no checkout requests.
-The teacher browser matrix passed on desktop and mobile in both themes. The
-canonical sealed replay and CI admit 313. The production worker caller and
-existing-schedule conversion require verification before activation. Live
-payment handling remains a separate source slice.
+
+## 2026-11-09 — Rebase the live Pro trial
+
+Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
