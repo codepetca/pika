@@ -51297,7 +51297,7 @@ PR1719 merged to main as 66e161fc after exact-head full CI. In `codex/tests-list
 
 Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
 
-<!-- pika-session-log-archive-batch:25747cc2159c3646992695df00ef70e451763ac9db61b2c027da39fed63e4313 -->
+<!-- pika-session-log-archive-batch:4bef94ac035cc9c2c6f94a43c947390766b4b99eccf0256569b7b0026257be85 -->
 ## 2026-11-02 — Teacher Tests query overlap
 
 On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list change that overlaps authorized question and attempt reads while preserving question-first errors. A synthetic one-test/one-student probe with 80 ms delays per read measured 168 ms before and 89 ms after, with six table requests in both successful runs; these are mocked timings, not production measurements. Focused route checks cover overlap, authorization, error precedence and late rejections. Production deployment remains pending.
@@ -51305,3 +51305,16 @@ On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list cha
 ## 2026-11-02 — Teacher Tests intent prefetch
 
 Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+<!-- pika-session-log-archive-batch:878a1a9f0de60a498bd52bb2e2aec35135982df95388bbbc9e4a91817dc08b9a -->
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
+
+<!-- pika-session-log-archive-batch:5145ceabe86fb53375c4e3445e3044d0d497f9c02bd3c9a7f6a56831f9336c79 -->
+## 2026-11-03 — Progressive teacher Classwork prototype
+
+Legacy assignment and survey summaries can render before statistics, with explicit
+unknown counts and incomplete-list action guards. Shared reads retain their full
+owner-scoped contract and cache; cache invalidation and permission failure guards
+protect delayed results. Independent review and CI remain pending.
