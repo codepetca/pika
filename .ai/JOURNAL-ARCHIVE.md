@@ -53045,3 +53045,17 @@ resume/save/submit, and a blocked Start crossing cutoff while waiting on the
 account lock. Generated public types and shared schema matched their baselines.
 The flag remains off pending assignment release, per-classroom restrictions,
 and the complete reviewed rollout.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+<!-- pika-session-log-archive-batch:e374dc9d162639afd6bc74a5bed66aec2f684976b0818eee83dad30184343b4c -->
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+<!-- pika-session-log-archive-batch:7409f40b214527ca316166635bb11ba51841b664b9d9e218c5651fc068c157bb -->

@@ -1,0 +1,17 @@
+{
+  "name": "pika-billing-recovery",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-08",
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": ["*/2 * * * *"] },
+  "vars": {
+    "BILLING_PAID_RECOVERY_ENABLED": "false",
+    "BILLING_TRIAL_RECOVERY_ENABLED": "false"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+  }
+}

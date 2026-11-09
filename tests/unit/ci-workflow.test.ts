@@ -37,6 +37,19 @@ function runGate(overrides: Record<string, string | undefined> = {}) {
 }
 
 describe('CI workflow', () => {
+  it('runs scheduled billing rollback proofs in migration order after database replay', () => {
+    const job = extractWorkflow(readFileSync(workflowPath, 'utf8'))['architecture-database-contracts']
+    const start = job.steps.findIndex(step => step.id === 'supabase-start')
+    const billing = job.steps.findIndex(step => step.name === 'Verify account plans and isolated Stripe billing contracts')
+    expect(start).toBeGreaterThanOrEqual(0)
+    expect(billing).toBeGreaterThan(start)
+    const run = job.steps[billing].run ?? ''
+    const names = ['scheduled-installation', 'scheduled-settlement', 'scheduled-renewal-closeout', 'scheduled-cancellation']
+    const commands = names.map(name => `docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-${name}.sql`)
+    for (const command of commands) expect(run.split(command)).toHaveLength(2)
+    expect(commands.map(command => run.indexOf(command))).toEqual([...commands.map(command => run.indexOf(command))].sort((a, b) => a - b))
+  })
+
   it('partitions every database proof at the owner reorder boundary with independent setup', () => {
     const source = readFileSync(workflowPath, 'utf8')
     const jobs = extractWorkflow(source)
