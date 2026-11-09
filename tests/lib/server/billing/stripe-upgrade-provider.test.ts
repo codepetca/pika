@@ -411,6 +411,7 @@ describe('read-only applied-upgrade cancellation observation', () => {
   })
   it('observes terminal cancellation at the cutoff only after complete empty unpaid-invoice enumeration', async () => {
     const f = appliedFixture()
+    Object.assign(f.subscription.items.data[0].price, { unit_amount_decimal: Stripe.Decimal.from('1900.000') })
     Object.assign(f.subscription, { status: 'canceled', cancel_at: seconds(end), cancel_at_period_end: true })
     vi.setSystemTime(end)
     await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'paid',

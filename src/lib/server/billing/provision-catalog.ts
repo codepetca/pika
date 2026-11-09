@@ -11,6 +11,7 @@ import {
 import { EXCLUSIVE_TAX_CATALOG_SUFFIX } from '@/lib/server/billing/checkout-contracts'
 import { readBillingSandboxConfig } from '@/lib/server/billing/config'
 import type { Json } from '@/types/database.generated'
+import { stripeUnitAmountDecimalSchema } from './stripe-unit-amount-decimal'
 
 type StripeCatalogProduct = Readonly<{
   id: string
@@ -411,6 +412,7 @@ export async function provisionLiveExclusiveTaxCatalog(input: Readonly<{
   const candidates: Array<{ variant: LaunchCatalogVariant; productId: string; lookupKey: string; price: StripeCatalogPrice | null }> = []
   const check = (value: unknown, variant: LaunchCatalogVariant, productId: string, lookupKey: string) => {
     const price = priceFrom(value)
+    const decimal = stripeUnitAmountDecimalSchema.safeParse(isRecord(value) ? value.unit_amount_decimal : undefined)
     if (!price || !/^price_[A-Za-z0-9]+$/.test(price.id) || !price.active || !price.livemode || price.lookup_key !== lookupKey || price.product !== productId
       || price.currency !== variant.currency || price.unit_amount !== variant.unitAmountCents || price.billing_scheme !== 'per_unit'
       || price.type !== 'recurring' || !price.recurring || price.recurring.interval !== variant.interval
@@ -418,7 +420,7 @@ export async function provisionLiveExclusiveTaxCatalog(input: Readonly<{
       || price.custom_unit_amount !== null || price.tiers_mode !== null || price.transform_quantity !== null
       || (price.currency_options !== undefined && Object.keys(price.currency_options).length > 0)
       || !isRecord(value) || value.tax_behavior !== 'exclusive'
-      || typeof value.unit_amount_decimal !== 'string' || value.unit_amount_decimal.replace(/\.0+$/, '') !== String(variant.unitAmountCents)
+      || !decimal.success || decimal.data !== String(variant.unitAmountCents)
       || !isRecord(value.recurring) || value.recurring.trial_period_days !== null) fail('price_invalid')
     return price
   }

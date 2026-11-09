@@ -1,5 +1,6 @@
 import type Stripe from 'stripe'
 import { z } from 'zod'
+import { stripeUnitAmountDecimalSchema } from './stripe-unit-amount-decimal'
 import { createStripeBillingProvider, type StripeBillingReadPort } from './stripe-provider'
 import { verifyPaidSubscriptionSnapshot } from './synchronize'
 import { UpgradeQuoteContractError, UpgradeQuoteFactsSchema, UpgradeQuoteInputSchema,
@@ -37,7 +38,7 @@ const empty = z.array(z.unknown()).length(0)
 const emptyNullable = empty.nullable()
 const priceSchema = z.object({
   id: reference, livemode: z.literal(false), active: z.boolean(), product: reference, currency: z.string(),
-  unit_amount: money.positive(), unit_amount_decimal: z.string().regex(/^\d+(?:\.0+)?$/),
+  unit_amount: money.positive(), unit_amount_decimal: stripeUnitAmountDecimalSchema,
   billing_scheme: z.literal('per_unit'), type: z.literal('recurring'),
   recurring: z.object({ interval: z.enum(['month', 'year']), interval_count: z.literal(1), usage_type: z.literal('licensed') }),
   custom_unit_amount: z.null(), transform_quantity: z.null(),

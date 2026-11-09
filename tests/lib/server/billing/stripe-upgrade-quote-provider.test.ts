@@ -102,6 +102,8 @@ type Fixture = ReturnType<typeof fixture>
 describe('read-only Stripe upgrade quote', () => {
   it('quotes signed provider credit and debit, preserving the paid term and archived purchased price', async () => {
     const f = fixture()
+    Object.assign(f.oldPrice, { unit_amount_decimal: Stripe.Decimal.from('2000.000') })
+    Object.assign(f.price, { unit_amount_decimal: Stripe.Decimal.from('4000.000') })
     const quote = await createStripeUpgradeQuoteProvider(f.port).prepareQuote(f.input)
     expect(quote).toMatchObject({ binding, target, subscriptionItemId: 'si_bound', prorationDate: now,
       quotedAt: iso(now), paidPeriodStart: iso(start), paidThrough: iso(end), expiresAt: iso(now + 900),
