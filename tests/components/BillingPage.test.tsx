@@ -130,6 +130,17 @@ describe('BillingPage', () => {
     expect(fetch.mock.calls.filter(([url]) => url.endsWith('/catalog'))).toHaveLength(catalogReads)
   })
 
+  it('describes an expired trial without assuming the teacher purchased a plan', async () => {
+    const fetch = vi.fn(() => json({
+      ...free, accessNotice: 'ended', accessEndsAt: effectiveAt,
+      options: { ...free.options, trialAvailable: false },
+    }))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" purchaseAvailable={false} />)
+    expect((await screen.findByText(/Access to paid features ended/)).closest('[role=status]')).toBeInTheDocument()
+    expect(screen.queryByText(/Your paid access ended/)).not.toBeInTheDocument()
+  })
+
   it('loads and starts a trial without catalog or checkout access', async () => {
     const pendingCheckoutId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
     history.replaceState({}, '', `/billing?checkout=${pendingCheckoutId}&result=success`)

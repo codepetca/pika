@@ -34,6 +34,7 @@ describe('BillingAccessNotice', () => {
     render(<BillingAccessNotice notice="ended" accessEndsAt={cutoff} />)
     const status = screen.getByRole('status')
     expect(status).toHaveTextContent('Access ended')
+    expect(status).toHaveTextContent('Access to paid features ended')
     expect(status).toHaveTextContent('New paid classroom work and new RepoLight analysis are restricted.')
     expect(status).toHaveTextContent('Existing student work remains available.')
     expect(status.querySelector('time')).toHaveAttribute('datetime', cutoff)

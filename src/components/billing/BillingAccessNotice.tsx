@@ -16,7 +16,7 @@ export function BillingAccessNotice({ notice, accessEndsAt, trial = false, actio
       <div role="status" className="min-w-0 flex-1">
         <p className="font-medium text-text-default">{title}</p>
         <p className="text-text-muted">
-          {trial ? 'Your Pro trial' : 'Your paid access'} {expired ? 'ended' : 'ends'}{' '}
+          {expired ? 'Access to paid features ended' : trial ? 'Your Pro trial ends' : 'Your paid access ends'}{' '}
           <time dateTime={accessEndsAt}>{billingDate(accessEndsAt, true)}</time>.
           {expired ? ' New paid classroom work and new RepoLight analysis are restricted.' : null}
           {' '}Existing student work remains available.
