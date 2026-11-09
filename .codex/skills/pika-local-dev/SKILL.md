@@ -26,13 +26,17 @@ The launcher intentionally:
   before passing it credentials;
 - supplies `NEXT_PUBLIC_SUPABASE_URL`, the publishable key, and the secret key
   only to the dev-server process;
+- supports `PORT=<port>` when another server is running;
 - generates a new 64-character `SESSION_SECRET` for that process;
 - disables shell tracing before reading or generating sensitive values;
 - never prints, persists, or commits those values;
 - stops with a clear message if the local Supabase stack is unavailable.
 
 Wait until Next.js reports `Ready`, verify `/login` returns HTTP 200, then report
-the local URL. Keep the server session running. Use `--check` to validate the
+the `http://127.0.0.1:<port>` URL. Keep the server session running. Next.js can
+normalize the request URL to `localhost`; development authentication accepts
+the exact loopback Host and port so sign-in works from `127.0.0.1`. Never bypass
+the origin check or use hosted Supabase credentials to work around a local failure. Use `--check` to validate the
 launcher without starting another server:
 
 ```bash
