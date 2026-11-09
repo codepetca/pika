@@ -11,13 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-05 — Reverse order display preferences
-
-- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
-- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
-
-- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
-
 ## 2026-11-05 Investigate classroom tab loading
 
 Compared Classwork and Tests progressive reads with Gradebook, Course Guide and
@@ -371,3 +364,7 @@ Merged the latest main into the sandbox billing launch candidate. Preserved the 
 ## 2026-11-09 — Classroom cutoff rebase
 
 Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
+
+## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
+
+Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.

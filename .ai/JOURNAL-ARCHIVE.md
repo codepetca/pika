@@ -51391,3 +51391,11 @@ teacher/classroom view, retry failed or expired intent reads, and discard the
 provisional list on authorization denial. The shared-admission full read remains
 unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
 no production timing or deployment is implied.
+
+<!-- pika-session-log-archive-batch:729cbde84c25a2f54405db9317a9903d3142d23d72d909d54348622a1c41b59b -->
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
