@@ -156,7 +156,13 @@ type GradeSelectedUpdatedDoc = NonNullable<StudentSubmissionRow['doc']> & {
   student_id: string
   updated_at?: string | null
 }
-type GradeCopyFields = { grade: boolean; comment: boolean }
+type GradeCopyDialog = {
+  ownerKey: string
+  recipients: ReadonlySet<string>
+  grade: boolean
+  comment: boolean
+  error: string
+}
 
 const gradeCopyLabel: Record<AssignmentGradeApplyTarget, string> = {
   grade: 'grade',
@@ -748,7 +754,7 @@ export function TeacherClassroomView({
   const [repoApproval, setRepoApproval] = useState<{ key: string; ready: boolean } | null>(null)
   const repoBatchAbort = useRef<AbortController | null>(null)
   const repoBatchTitleId = useId()
-  const [gradeCopyFields, setGradeCopyFields] = useState<GradeCopyFields | null>(null)
+  const [gradeCopyDialog, setGradeCopyDialog] = useState<GradeCopyDialog | null>(null)
   const gradeSelectedConfirmTitleId = useId()
   const [isGradeCopyHighlighted, setIsGradeCopyHighlighted] = useState(false)
   const [gradeSelectedTemplate, setGradeSelectedTemplate] =
@@ -1685,7 +1691,7 @@ export function TeacherClassroomView({
     options: { updateUrl?: boolean; replace?: boolean } = {},
   ) => {
     setSelectedStudentId(studentId)
-    setGradeCopyFields(null)
+    setGradeCopyDialog(null)
     if (options.updateUrl === false || !updateSearchParams || selection.mode !== 'assignment') return
 
     updateSearchParams((params) => {
@@ -1781,6 +1787,14 @@ export function TeacherClassroomView({
     [activeSelectedStudentId, isIndividualStudentView, tableSelectedIds],
   )
   const batchSelectedCount = batchSelectedIds.size
+  const gradeCopyOwnerKey = JSON.stringify([classroom.id, selectedAssignmentId, selectedStudentId])
+  const activeGradeCopyDialog = gradeCopyDialog?.ownerKey === gradeCopyOwnerKey &&
+    gradeCopyDialog.recipients === batchSelectedIds
+    ? gradeCopyDialog
+    : null
+  useEffect(() => {
+    if (gradeCopyDialog && !activeGradeCopyDialog) setGradeCopyDialog(null)
+  }, [gradeCopyDialog, activeGradeCopyDialog])
   const repoApprovalStudentId = [...batchSelectedIds][0] ?? null
   const repoApprovalKey = JSON.stringify([selectedAssignmentId, repoApprovalStudentId])
 
@@ -2020,26 +2034,17 @@ export function TeacherClassroomView({
   }
 
   async function handleGradeSelected(applyTarget: AssignmentGradeApplyTarget) {
-    if (!selectedAssignmentData || !gradeSelectedTemplate || batchSelectedCount === 0) return
-
-    if (gradeSelectedTemplate.studentId !== activeSelectedStudentId || gradeSelectedTemplate.studentId !== selectedStudentId) {
-      setGradeSelectedTemplate(null)
-      setGradeCopyFields(null)
-      return
-    }
+    const assignmentData = activeSelectedAssignmentData
+    const template = activeGradeSelectedTemplate
+    if (!assignmentData || !template || !activeGradeCopyDialog || isGradeCopyConfirmDisabled) return
 
     const copyGrade = applyTarget !== 'comments'
     const copyComment = applyTarget !== 'grade'
-    if (copyGrade && !isGradeSelectedTemplateValid(gradeSelectedTemplate)) {
-      setError('Scores must be blank or integers 0–10')
-      return
-    }
-
-    const studentIds = Array.from(batchSelectedIds)
+    const studentIds = Array.from(activeGradeCopyDialog.recipients)
     const copyTargetLabel = gradeCopyLabel[applyTarget]
     const expectedDocUpdatedAtByStudent = Object.fromEntries(
       studentIds.map((studentId) => {
-        const student = selectedAssignmentData.students.find((row) => row.student_id === studentId)
+        const student = assignmentData.students.find((row) => row.student_id === studentId)
         return [studentId, student?.doc?.updated_at ?? null]
       }),
     )
@@ -2047,8 +2052,9 @@ export function TeacherClassroomView({
     setIsGradeSelectedSaving(true)
     setError('')
     setInfo('')
+    setGradeCopyDialog((dialog) => dialog && { ...dialog, error: '' })
     try {
-      const res = await fetch(`/api/teacher/assignments/${selectedAssignmentData.assignment.id}/grade-selected`, {
+      const res = await fetch(`/api/teacher/assignments/${assignmentData.assignment.id}/grade-selected`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -2057,13 +2063,13 @@ export function TeacherClassroomView({
           apply_target: applyTarget,
           ...(copyGrade
             ? {
-                score_completion: gradeSelectedTemplate.scoreCompletion,
-                score_thinking: gradeSelectedTemplate.scoreThinking,
-                score_workflow: gradeSelectedTemplate.scoreWorkflow,
-                save_mode: gradeSelectedTemplate.gradeMode,
+                score_completion: template.scoreCompletion,
+                score_thinking: template.scoreThinking,
+                score_workflow: template.scoreWorkflow,
+                save_mode: template.gradeMode,
               }
             : {}),
-          ...(copyComment ? { feedback: gradeSelectedTemplate.feedbackDraft } : {}),
+          ...(copyComment ? { feedback: template.feedbackDraft } : {}),
         }),
       })
       const data = await res.json()
@@ -2080,7 +2086,7 @@ export function TeacherClassroomView({
 
       if (docsByStudentId.size > 0) {
         setSelectedAssignmentData((prev) => {
-          if (!prev || prev.assignment.id !== selectedAssignmentData.assignment.id) return prev
+          if (!prev || prev.assignment.id !== assignmentData.assignment.id) return prev
 
           const nextStudents = prev.students.map((student) => {
             const updatedDoc = docsByStudentId.get(student.student_id)
@@ -2103,13 +2109,14 @@ export function TeacherClassroomView({
 
       const updatedCount = Number(data.updated_count ?? docsByStudentId.size)
       setInfo(`Copied ${copyTargetLabel} to ${updatedCount} selected student${updatedCount === 1 ? '' : 's'}`)
-      setGradeCopyFields(null)
+      setGradeCopyDialog(null)
 
       if (activeSelectedStudentId && docsByStudentId.has(activeSelectedStudentId)) {
         setGradeSelectedRefreshCounter((count) => count + 1)
       }
-    } catch (err: any) {
-      setError(err.message || `Failed to copy ${copyTargetLabel}`)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : `Failed to copy ${copyTargetLabel}`
+      setGradeCopyDialog((dialog) => dialog && { ...dialog, error: message })
     } finally {
       setIsGradeSelectedSaving(false)
     }
@@ -2467,11 +2474,11 @@ export function TeacherClassroomView({
   const gradeSelectedTemplateIsValid = isGradeSelectedTemplateValid(activeGradeSelectedTemplate)
   const isGradeCopyDisabled =
     selectedStudentActionsBusy || batchSelectedCount === 0 || !activeGradeSelectedTemplate
-  const gradeCopyTarget: AssignmentGradeApplyTarget | null = gradeCopyFields?.grade
-    ? gradeCopyFields.comment ? 'grade-and-comments' : 'grade'
-    : gradeCopyFields?.comment ? 'comments' : null
+  const gradeCopyTarget: AssignmentGradeApplyTarget | null = activeGradeCopyDialog?.grade
+    ? activeGradeCopyDialog.comment ? 'grade-and-comments' : 'grade'
+    : activeGradeCopyDialog?.comment ? 'comments' : null
   const isGradeCopyConfirmDisabled =
-    isGradeCopyDisabled || !gradeCopyTarget || (gradeCopyFields?.grade && !gradeSelectedTemplateIsValid)
+    isGradeCopyDisabled || !gradeCopyTarget || (activeGradeCopyDialog?.grade && !gradeSelectedTemplateIsValid)
   const assignmentAiPollUnavailable = unavailableAssignmentAiPollKey === `${selectedAssignmentKey}:${activeAssignmentAiRunId}`
   const showAssignmentAiRunOverlay = isAutoGrading || (hasActiveAssignmentAiRun && !assignmentAiPollUnavailable)
   const assignmentAiRunOverlayLabel = hasActiveAssignmentAiRun && activeAssignmentAiRun
@@ -2606,7 +2613,13 @@ export function TeacherClassroomView({
       onHoverChange: setIsGradeCopyHighlighted,
       onSelect: () => {
         setIsGradeCopyHighlighted(false)
-        setGradeCopyFields({ grade: gradeSelectedTemplateIsValid, comment: false })
+        setGradeCopyDialog({
+          ownerKey: gradeCopyOwnerKey,
+          recipients: batchSelectedIds,
+          grade: gradeSelectedTemplateIsValid,
+          comment: false,
+          error: '',
+        })
       },
       disabled: isGradeCopyDisabled,
     }]),
@@ -3268,8 +3281,8 @@ export function TeacherClassroomView({
 
 
       <DialogPanel
-        isOpen={!!gradeCopyFields && !!activeGradeSelectedTemplate}
-        onClose={() => setGradeCopyFields(null)}
+        isOpen={!!activeGradeCopyDialog && !!activeGradeSelectedTemplate}
+        onClose={() => setGradeCopyDialog(null)}
         closeDisabled={isGradeSelectedSaving}
         maxWidth="max-w-sm"
         ariaLabelledBy={gradeSelectedConfirmTitleId}
@@ -3277,22 +3290,23 @@ export function TeacherClassroomView({
         <h2 id={gradeSelectedConfirmTitleId} className="text-base font-semibold text-text-default">
           {`Copy grade to ${batchSelectedCount} selected student${batchSelectedCount === 1 ? '' : 's'}`}
         </h2>
-        <fieldset className="flex shrink-0 gap-4" disabled={isGradeSelectedSaving}>
+        <fieldset className="flex shrink-0 gap-4">
           <legend className="sr-only">Fields to copy</legend>
           <label className="inline-flex min-h-control items-center gap-2 text-sm text-text-default">
             <TableSelectionCheckbox
               ariaLabel="Grade"
-              checked={gradeCopyFields?.grade ?? false}
-              disabled={!gradeSelectedTemplateIsValid}
-              onChange={(grade) => setGradeCopyFields((fields) => fields && { ...fields, grade })}
+              checked={activeGradeCopyDialog?.grade ?? false}
+              disabled={isGradeSelectedSaving || !gradeSelectedTemplateIsValid}
+              onChange={(grade) => setGradeCopyDialog((fields) => fields && { ...fields, grade })}
             />
             Grade
           </label>
           <label className="inline-flex min-h-control items-center gap-2 text-sm text-text-default">
             <TableSelectionCheckbox
               ariaLabel="Comment"
-              checked={gradeCopyFields?.comment ?? false}
-              onChange={(comment) => setGradeCopyFields((fields) => fields && { ...fields, comment })}
+              checked={activeGradeCopyDialog?.comment ?? false}
+              disabled={isGradeSelectedSaving}
+              onChange={(comment) => setGradeCopyDialog((fields) => fields && { ...fields, comment })}
             />
             Comment
           </label>
@@ -3302,11 +3316,16 @@ export function TeacherClassroomView({
             role="region"
             aria-label="Copy preview"
             tabIndex={0}
-            className="min-h-0 space-y-3 overflow-y-auto rounded-md focus:outline-none focus-visible:ring-foundation focus-visible:ring-inset focus-visible:ring-focus"
+            className="min-h-0 space-y-3 overflow-y-auto rounded-md focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus focus-visible:ring-offset-foundation focus-visible:ring-offset-surface"
           >
-            {gradeCopyFields?.grade && <CopyGradePreview template={activeGradeSelectedTemplate} />}
-            {gradeCopyFields?.comment && <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />}
+            {activeGradeCopyDialog?.grade && <CopyGradePreview template={activeGradeSelectedTemplate} />}
+            {activeGradeCopyDialog?.comment && <CopyCommentPreview comment={activeGradeSelectedTemplate.feedbackDraft} />}
           </div>
+        )}
+        {activeGradeCopyDialog?.error && (
+          <p role="alert" className="mt-3 shrink-0 break-words text-sm text-danger">
+            {activeGradeCopyDialog.error}
+          </p>
         )}
         <div className="mt-4 flex shrink-0 gap-2">
           <Button
@@ -3314,7 +3333,7 @@ export function TeacherClassroomView({
             variant="secondary"
             className="flex-1"
             disabled={isGradeSelectedSaving}
-            onClick={() => setGradeCopyFields(null)}
+            onClick={() => setGradeCopyDialog(null)}
           >
             Cancel
           </Button>

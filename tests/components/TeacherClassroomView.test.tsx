@@ -3614,9 +3614,57 @@ describe('TeacherClassroomView', () => {
 
   })
 
+  it('dismisses a copy dialog when its source or checked students change', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+    const first = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    const second = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-2')
+    const updateSearchParams = vi.fn()
+    const fetchMock = global.fetch as ReturnType<typeof vi.fn>
+    fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
+      if (String(input) === '/api/teacher/assignments/assignment-1') {
+        return { ok: true, json: async () => ({ ...first, students: [...first.students, ...second.students] }) }
+      }
+      return { ok: false, json: async () => ({ error: `Unhandled fetch: ${input}` }) }
+    })
+    const workspace = (studentId: string) => (
+      <TeacherClassroomView
+        classroom={classroom}
+        selectedAssignmentId="assignment-1"
+        selectedAssignmentStudentId={studentId}
+        updateSearchParams={updateSearchParams}
+      />
+    )
+    const { rerender } = render(workspace('student-1'))
+    const dialogName = 'Copy grade to 2 selected students'
+
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1'))
+    rerender(workspace('student-2'))
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-2'))
+    fireEvent.click(await getSelectedStudentAction('Copy grade to 2 selected'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: dialogName })).getByRole('checkbox', { name: 'Comment' }))
+
+    rerender(workspace('student-1'))
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-1'))
+    expect(screen.queryByRole('dialog', { name: dialogName })).not.toBeInTheDocument()
+
+    rerender(workspace('student-2'))
+    await waitFor(() => expect(screen.getByTestId('teacher-work-panel')).toHaveTextContent('overview:assignment-1:student-2'))
+    expect(screen.queryByRole('dialog', { name: dialogName })).not.toBeInTheDocument()
+    fireEvent.click(await getSelectedStudentAction('Copy grade to 2 selected'))
+    expect(within(screen.getByRole('dialog', { name: dialogName })).getByRole('checkbox', { name: 'Comment' })).not.toBeChecked()
+
+    mockStudentSelectionState.selectedIds = new Set(['student-2'])
+    mockStudentSelectionState.selectedCount = 1
+    rerender(workspace('student-2'))
+    expect(screen.queryByRole('dialog', { name: /^Copy grade/ })).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).endsWith('/grade-selected'))).toBe(false)
+  })
+
   it('keeps checked students selected when copying a grade fails', async () => {
     mockStudentSelectionState.selectedIds = new Set(['student-1'])
     mockStudentSelectionState.selectedCount = 1
+    const failedCopy = createDeferred<{ ok: false; json: () => Promise<{ error: string }> }>()
 
     ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
       const url = String(input)
@@ -3629,10 +3677,7 @@ describe('TeacherClassroomView', () => {
       }
 
       if (url === '/api/teacher/assignments/assignment-1/grade-selected') {
-        return Promise.resolve({
-          ok: false,
-          json: async () => ({ error: 'Batch save failed' }),
-        })
+        return failedCopy.promise
       }
 
       return Promise.resolve({
@@ -3656,10 +3701,14 @@ describe('TeacherClassroomView', () => {
     })
 
     fireEvent.click(gradeSelectedOption)
-    expect(screen.getByText('Copy grade to 1 selected student')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    const dialog = within(screen.getByRole('dialog', { name: 'Copy grade to 1 selected student' }))
+    fireEvent.click(dialog.getByRole('button', { name: 'Copy' }))
+    expect(dialog.getByRole('checkbox', { name: 'Grade' })).toHaveAttribute('disabled')
+    expect(dialog.getByRole('checkbox', { name: 'Comment' })).toHaveAttribute('disabled')
 
-    expect(await screen.findByText('Batch save failed')).toBeInTheDocument()
+    failedCopy.resolve({ ok: false, json: async () => ({ error: 'Batch save failed' }) })
+    expect(await dialog.findByRole('alert')).toHaveTextContent('Batch save failed')
+    expect(dialog.getByRole('button', { name: 'Copy' })).toBeEnabled()
     expect(mockClearSelection).not.toHaveBeenCalled()
   })
 
