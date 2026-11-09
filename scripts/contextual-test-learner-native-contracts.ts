@@ -1,3 +1,4 @@
+import { repoLight300PresenceSql, withRepoLight300Witness } from './repolight-300-proof-witness'
 import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
@@ -46,7 +47,7 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   })
   assert.notEqual(observed[0].attemptId,observed[1].attemptId)
   const reviewedMigrations=loadAssignmentListReviewedMigrations(repository)
-  assert([257,258,259,260,261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
+  assert([257,258,259,260,261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301].includes(reviewedMigrations.length),'Unreviewed learner migration profile')
   if(reviewedMigrations.length>=258)validateStudentTestSessionStatusReviewedMigration(reviewedMigrations[257])
   if(reviewedMigrations.length>=259)validateTestOwnerGradingReviewedMigration(reviewedMigrations[258])
   if(reviewedMigrations.length>=260)validateTestOwnerRecoveryReviewedMigration(reviewedMigrations[259])
@@ -75,7 +76,7 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
   const historyWrite=call('history-write',`pg_catalog.jsonb_build_object('attempt_id',${aid},'draft_revision',(select draft_revision from public.test_attempts where id=${aid}),'expected_last',plan->'result'->'last_history','collapse',false,'patch',null,'snapshot',(select responses from public.test_attempts where id=${aid}),'trigger','baseline','word_count',${metrics.word_count},'char_count',${metrics.char_count},'paste_word_count',0,'keystroke_count',1)`)
   function scoped(table: string,predicate: string) { return `${q(table)},(select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r) order by pg_catalog.to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})` }
   const tests=`select id from public.tests where classroom_id=${cid}`
-  const graph=`pg_catalog.jsonb_build_object(${[
+  const graph=withRepoLight300Witness(`pg_catalog.jsonb_build_object(${[
     scoped('public.users',`id in (${f.actors.map(row=>q(row.id)).join(',')})`),scoped('public.classrooms',`id in (${q(f.classroomId)},${q(f.wrongClassroomId)})`),
     scoped('public.classroom_enrollments',`classroom_id=${cid}`),scoped('public.classroom_archive_revisions',`classroom_id=${cid}`),
     scoped('public.tests',`classroom_id=${cid}`),scoped('public.assessment_drafts',`classroom_id=${cid}`),
@@ -84,7 +85,7 @@ export function testLearnerNativePlan(original: AssignmentListProofFixture, obse
     scoped('public.managed_storage_objects',`classroom_id=${cid}`),scoped('public.managed_storage_json_references',`test_id in (${tests})`),
     scoped('public.test_document_snapshot_storage_cleanup','true'),scoped('public.managed_storage_settings','true'),
     scoped('storage.objects',"bucket_id='test-documents'"),scoped('storage.buckets',"id='test-documents'"),
-  ].join(',')})`
+  ].join(',')})`, [300,301].includes(reviewedMigrations.length))
   const snapshot=bounded(`begin read only;set local statement_timeout='8s';set local lock_timeout='1s';select ${graph} as result;rollback;`)
   const setup=bounded(`${guard}\nbegin read only;set local statement_timeout='8s';set local lock_timeout='1s';
 do $presence$ begin
@@ -98,7 +99,7 @@ do $presence$ begin
  or not exists(select 1 from public.test_attempt_history where test_attempt_id=${aid})
  or not exists(select 1 from public.managed_storage_objects object join public.managed_storage_json_references reference on reference.managed_object_id=object.id where object.id=${q(f.materials[0].objectId)} and object.classroom_id=${cid} and object.storage_path=${q(f.materials[0].path)} and object.status='ready' and object.purpose='teacher_test_material' and object.content_type is null and reference.test_id=${tid} and reference.storage_bucket='test-documents' and reference.storage_path=object.storage_path)
  then raise exception 'Migration257 learner fixture presence differs';end if;
-end;$presence$;rollback;`)
+end;$presence$;${[300,301].includes(reviewedMigrations.length) ? repoLight300PresenceSql() : ''}rollback;`)
   const prefix="begin read only;set local lock_timeout='3s';set local statement_timeout='30s';",terminal="end;$guard$;select 'ok';rollback;"
   const identity=`current_setting('application_name')<>${q(projectId+'_fixture')}`
   assert(guard.startsWith(prefix)&&guard.endsWith(terminal));assert.equal(guard.split(identity).length,2)

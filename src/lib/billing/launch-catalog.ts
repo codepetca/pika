@@ -8,6 +8,7 @@
  */
 
 export const LAUNCH_CATALOG_RELEASE_TAG = 'launch-2026-09-26' as const
+export const REPOLIGHT_CATALOG_RELEASE_TAG = 'repolight-2026-10-29' as const
 
 export const launchPlanKeys = ['basic', 'pro', 'max'] as const
 export type LaunchPlanKey = typeof launchPlanKeys[number]
@@ -30,7 +31,7 @@ type ProvisionalMonthlyAiAllowance = Readonly<{
 export type LaunchCatalogVariant = Readonly<{
   /** Stable provider-independent key for this exact plan, currency, and interval. */
   readonly catalogKey: string
-  readonly releaseTag: typeof LAUNCH_CATALOG_RELEASE_TAG
+  readonly releaseTag: typeof LAUNCH_CATALOG_RELEASE_TAG | typeof REPOLIGHT_CATALOG_RELEASE_TAG
   /** Catalog identifier only, never a database UUID; shared by a plan's variants. */
   readonly offeringId: string
   /** Catalog identifier only, never a database UUID; unique per immutable price variant. */
@@ -42,6 +43,8 @@ export type LaunchCatalogVariant = Readonly<{
   readonly interval: LaunchCatalogInterval
   readonly unitAmountCents: number
   readonly activeClassroomCap: number
+  /** Absent on the historical release; explicit on the RepoLight release. */
+  readonly repolightAnalysis?: boolean
   /** Metadata only; it is never an entitlement or usage reservation. */
   readonly provisionalMonthlyAiAllowance: ProvisionalMonthlyAiAllowance | null
 }>
@@ -129,6 +132,17 @@ export const launchCatalog = Object.freeze(
   ),
 ) as readonly LaunchCatalogVariant[]
 
+/** A separate immutable release: the original launch catalog remains unchanged. */
+export const repolightCatalog: readonly LaunchCatalogVariant[] = Object.freeze(
+  launchCatalog.map(variant => Object.freeze({
+    ...variant,
+    catalogKey: `pika:${REPOLIGHT_CATALOG_RELEASE_TAG}:${variant.plan}:${variant.currency}:${variant.interval}`,
+    releaseTag: REPOLIGHT_CATALOG_RELEASE_TAG,
+    offeringVersionId: `pika:offering:${variant.plan}:${REPOLIGHT_CATALOG_RELEASE_TAG}:${variant.currency}:${variant.interval}`,
+    repolightAnalysis: variant.plan !== 'basic',
+  })),
+)
+
 const catalogBySelection = new Map(
   launchCatalog.map((variant) => [
     `${variant.plan}:${variant.currency}:${variant.interval}`,
@@ -136,7 +150,7 @@ const catalogBySelection = new Map(
   ]),
 )
 
-const catalogByKey = new Map(launchCatalog.map((variant) => [variant.catalogKey, variant]))
+const catalogByKey = new Map([...launchCatalog, ...repolightCatalog].map((variant) => [variant.catalogKey, variant]))
 
 const publicPlanToLegacyPlan = Object.freeze({
   basic: 'basic',

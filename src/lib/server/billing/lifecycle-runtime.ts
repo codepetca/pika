@@ -4,12 +4,17 @@ import type { BillingSandboxConfig } from './config'
 import type { BillingLifecycleRuntime } from './lifecycle-handlers'
 import { createBillingLifecycleStore } from './lifecycle-store'
 import { applyDueBillingAccess, getBillingAccessStatus, startBillingTrial } from './lifecycle-service'
+import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 
 export function createBillingLifecycleRuntime(config: BillingSandboxConfig): BillingLifecycleRuntime {
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
   const store = createBillingLifecycleStore(client)
   return {
-    startTrial: input => startBillingTrial({ store, ...input }),
+    async startTrial(input) {
+      const result = await startBillingTrial({ store, ...input })
+      await attemptRepoLightProvisionOutbox({ client, teacherId: input.subjectUserId })
+      return result
+    },
     getStatus: input => getBillingAccessStatus({ store, ...input }),
     applyDue: input => applyDueBillingAccess({ store, ...input }),
   }

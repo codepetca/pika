@@ -13,6 +13,7 @@ export function applyMaximumToCell(cell: GradebookAssessmentCell, state?: Gradeb
   if (!state || (state.maximum == null && state.score_scale === 1)) return
   cell.possible = state.maximum ?? cell.possible
   if (cell.earned != null) cell.earned = cell.earned * state.score_scale
+  if (cell.calculation_earned != null) cell.calculation_earned *= state.score_scale
   if (cell.calculated_earned != null) cell.calculated_earned = cell.calculated_earned * state.score_scale
   cell.is_graded = cell.earned != null && cell.possible > 0
   cell.percent = cell.is_graded && cell.earned != null && cell.possible > 0 ? round2(cell.earned / cell.possible * 100) : null

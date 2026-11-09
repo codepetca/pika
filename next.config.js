@@ -5,6 +5,12 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   devIndicators: process.env.PIKA_E2E_FIXTURES === 'true' ? false : undefined,
+  webpack(config, { isServer }) {
+    // pdfnative also exports a Node-only stream-to-file helper. The browser
+    // report generator never calls it, but webpack still resolves its import.
+    if (!isServer) config.resolve.fallback = { ...config.resolve.fallback, fs: false }
+    return config
+  },
   env: {
     NEXT_PUBLIC_APP_VERSION: require('./package.json').version,
     NEXT_PUBLIC_GIT_COMMIT: process.env.VERCEL_GIT_COMMIT_SHA

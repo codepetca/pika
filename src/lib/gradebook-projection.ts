@@ -27,6 +27,7 @@ type GradebookAssessmentCell = {
   assessment_id: string
   assessment_type: GradebookAssessmentType
   earned: number | null
+  calculation_earned?: number | null
   possible: number
   percent: number | null
   is_graded: boolean
@@ -373,6 +374,7 @@ export function projectOwnerGradebook(source: OwnerProjectionSource, availabilit
             assessment_id: testId,
             assessment_type: 'test',
             earned: hasAdjustedMaximum('test', testId) ? earned : round2(earned),
+            calculation_earned: earned,
             possible: hasAdjustedMaximum('test', testId) ? possible : round2(possible),
             percent: round2((earned / effectivePossible) * 100),
             is_graded: true,
@@ -440,6 +442,7 @@ export function projectOwnerGradebook(source: OwnerProjectionSource, availabilit
           assessment_id: assignment.id,
           assessment_type: 'assignment',
           earned: manualOverride,
+          calculation_earned: manualOverride,
           possible: adjustedMaximum ? possible : round2(possible),
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
           is_graded: effectivePossible > 0,
@@ -466,6 +469,7 @@ export function projectOwnerGradebook(source: OwnerProjectionSource, availabilit
         assessment_id: assignment.id,
         assessment_type: 'assignment',
         earned: adjustedMaximum ? earned : round2(earned),
+        calculation_earned: earned,
         possible: adjustedMaximum ? possible : round2(possible),
         percent: round2((earned / possible) * 100),
         is_graded: true,
@@ -580,6 +584,7 @@ export function projectOwnerGradebook(source: OwnerProjectionSource, availabilit
         return {
           ...baseCell,
           earned: manualOverride,
+          calculation_earned: manualOverride,
           percent: possible > 0 ? round2((manualOverride / possible) * 100) : null,
           is_graded: (maximumState.states.get(`test:${test.id}`)?.maximum ?? possible) > 0,
           is_manual_override: true,
@@ -592,7 +597,7 @@ export function projectOwnerGradebook(source: OwnerProjectionSource, availabilit
       const possible = Number(item.points_possible)
       if (!score) return blankAssessmentCell('item', item.id, possible)
       const earned = Number(score.earned)
-      return { assessment_id: item.id, assessment_type: 'item', earned, possible,
+      return { assessment_id: item.id, assessment_type: 'item', earned, calculation_earned: earned, possible,
         percent: round2(earned / possible * 100), is_graded: true, returned_at: score.returned_at }
     })
     assessmentScores.push(...standaloneCells)

@@ -716,6 +716,7 @@ async function getSelectedStudentAction(
 // Assignment table scroll containment is covered in the experience matrix browser suite.
 describe('TeacherClassroomView', () => {
   beforeEach(() => {
+    localStorage.removeItem('teacher-classwork:reverse-order:v1')
     mockAssignmentModalRender.mockReset()
     mockExecuteRepoLightBatch.mockReset()
     vi.stubGlobal('fetch', vi.fn())
@@ -2175,6 +2176,37 @@ describe('TeacherClassroomView', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
     await act(async () => response.resolve({ ok: true, json: async () => ({ material }) }))
     expect(screen.getByRole('dialog', { name: 'New Material' })).toBeVisible()
+  })
+
+  it.each(['none', 'same', 'changed'] as const)('cleans a late material save without deleting a replacement editor snapshot (replacement: %s)', async (replacement) => {
+    sessionStorage.clear()
+    const response = createDeferred<any>()
+    vi.mocked(fetch).mockReturnValueOnce(response.promise)
+    const recoveryKey = `pika:material-recovery:teacher-recovery:${classroom.id}:new`
+    const view = render(<TeacherClassroomView classroom={classroom} recoveryUserId="teacher-recovery" />, { wrapper: TooltipProvider })
+    await screen.findByRole('button', { name: 'Assignment One' })
+    openAddClassworkMenu()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+    const dialog = screen.getByRole('dialog', { name: 'New Material' })
+    fireEvent.change(within(dialog).getByPlaceholderText('Title'), { target: { value: 'First material' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Post', exact: true }))
+    expect(sessionStorage.getItem(recoveryKey)).toContain('First material')
+    view.unmount()
+
+    let replacementView: ReturnType<typeof render> | undefined
+    if (replacement !== 'none') {
+      replacementView = render(<TeacherClassroomView classroom={classroom} recoveryUserId="teacher-recovery" />, { wrapper: TooltipProvider })
+      await screen.findByRole('button', { name: 'Assignment One' })
+      openAddClassworkMenu()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+      const newDialog = screen.getByRole('dialog', { name: 'New Material' })
+      fireEvent.change(within(newDialog).getByPlaceholderText('Title'), { target: { value: replacement === 'same' ? 'First material' : 'Replacement material' } })
+    }
+    await act(async () => response.resolve({ ok: true, json: async () => ({ material: makeMaterialSummary('saved', 'First material') }) }))
+    if (replacement !== 'none') expect(sessionStorage.getItem(recoveryKey)).toContain(replacement === 'same' ? 'First material' : 'Replacement material')
+    else expect(sessionStorage.getItem(recoveryKey)).toBeNull()
+    replacementView?.unmount()
+    sessionStorage.clear()
   })
 
   it('uses the assignment formatting toolbar in the single material editor', async () => {

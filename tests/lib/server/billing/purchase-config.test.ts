@@ -21,6 +21,11 @@ describe('purchase origin isolation', () => {
   ])('rejects invalid return origin %s', value => {
     expect(() => readBillingPurchaseConfig({ ...env, BILLING_APP_ORIGIN: value })).toThrow('configuration is invalid')
   })
+  it('uses the historical catalog unless the new release is explicitly enabled', () => {
+    expect(readBillingPurchaseConfig(env)?.catalogRelease).toBe('launch-2026-09-26')
+    expect(readBillingPurchaseConfig({ ...env, BILLING_REPOLIGHT_CATALOG_ENABLED: 'true' })?.catalogRelease).toBe('repolight-2026-10-29')
+    expect(() => readBillingPurchaseConfig({ ...env, BILLING_REPOLIGHT_CATALOG_ENABLED: 'invalid' })).toThrow('configuration is invalid')
+  })
   it('retains the hosted runtime and live key prohibitions', () => {
     expect(() => readBillingPurchaseConfig({ ...env, VERCEL: '1' })).toThrow()
     expect(() => readBillingPurchaseConfig({ ...env, STRIPE_SECRET_KEY: 'sk_live_fixture' })).toThrow()

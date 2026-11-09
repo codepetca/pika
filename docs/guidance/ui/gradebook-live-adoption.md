@@ -58,6 +58,11 @@ other page compositions remain experimental.
   grades; loading/failure disables copying and a failed read has an explicit retry.
   No new personal data field or guessed address convention is introduced.
 
+  On 2026-11-06 the owner clarified that this field is the guardian email. The
+  teacher-facing roster, import and Gradebook labels use `Guardian email`; the
+  stored field and existing roster bindings remain unchanged. Pika stores one
+  address, even where TeachAssist lists multiple guardians.
+
 ## Follow-up menu refinement
 
 - Surface/reference: teacher Gradebook toolbar and approved Pattern Lab Gradebook.

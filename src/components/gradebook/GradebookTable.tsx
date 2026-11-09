@@ -162,7 +162,7 @@ export function GradebookTable({
                 <DataTableHeaderCell key={getAssessmentColumnKey(column)} align="center" data-compact-zero-weight={isCompactZero(column) || undefined} className="overflow-hidden bg-surface-3 !px-1">
                   <Tooltip content={isCompactZero(column) ? `${column.title} · 0 weight` : column.title} side="bottom">
                     <Button type="button" variant="ghost" size="xs" disabled={isReadOnly} onClick={() => onAssessmentOpen(column)} aria-label={`Edit ${column.code}: ${column.title}`} className={cn('w-full overflow-hidden px-1 font-normal', isCompactZero(column) ? 'text-text-muted' : 'text-text-default')}>
-                      <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{ultraCompact || isCompactZero(column) ? column.code : column.title}{isCompactZero(column) ? <span className="block text-xs text-text-muted">0 wt</span> : null}</span>
+                      <span className="line-clamp-2 min-w-0 whitespace-normal break-words text-center leading-tight hyphens-auto">{ultraCompact || isCompactZero(column) ? column.code : column.title}</span>
                     </Button>
                   </Tooltip>
                 </DataTableHeaderCell>

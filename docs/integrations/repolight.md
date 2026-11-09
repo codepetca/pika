@@ -512,3 +512,62 @@ credential provisioning, application promotion, live cleanup and rollout-gate
 activation are separate actions with their own applicable authority. Keep new
 Analyze off until source, native tests, erasure contract and approved credentials
 are complete; report local/test acceptance separately from hosted operation.
+
+## Managed provisioning and plan access (implementation in progress)
+
+Pika's Pro and Max offerings and an active Pro trial include public-repository
+analysis (SUB-17). Pika automatically creates a dedicated managed RepoLight
+workspace for an eligible classroom owner; it must not require a separate
+RepoLight login or share a workspace among teachers. AI remains independently
+disabled. This section is an implementation contract, not an activation receipt.
+
+The Pika server persists an opaque tenant reference, operation ID and encrypted
+analysis credential before provisioning. An installation-scoped control-plane
+credential authenticates the provisioning request. The request contains the key
+ID and SHA-256 of its secret, not the plaintext secret. RepoLight atomically
+creates the managed workspace and scoped key, returns the same binding on an
+exact replay, and rejects conflicting reuse. Pika verifies the returned workspace,
+installation and required scopes before activating a connection. Failures and
+uncertain responses require durable retry without exposing credentials or
+creating duplicate workspaces. Retain old bound credentials until their existing
+subject cleanup is complete; rotate or revoke through reviewed lifecycle paths.
+
+The classroom owner's server-side effective entitlement governs creation of new
+analyses. Include active Pro/Max paid access, the active Pro trial and any valid
+renewal grace, and stop new work at the actual access end or effective downgrade.
+Reconcile retries can create remote work and must be denied after access ends.
+Preserve access to completed reports and feedback and permit required erasure;
+expiry must not delete a workspace, report or classroom work. Entitlement checks
+must fail closed on missing, inconsistent or pending records and must not rely on
+browser claims or the sandbox-only billing access RPC. Existing versioned paid
+offerings retain their terms; newly published offerings explicitly carry the
+benefit. The managed registry, eligibility gate, billing lifecycle and service
+contract require integrated tests before activation; do not change pilot, billing,
+AI or production settings merely by deploying dormant implementation.
+
+### Managed provisioning pilot scope
+
+`REPOLIGHT_MANAGED_ROLLOUT_MODE` is `off` (also the default when absent),
+`scoped`, or `full`. For a controlled pilot set it to `scoped` and set
+`REPOLIGHT_MANAGED_PILOT_TEACHER_IDS_JSON` to a JSON array containing exactly one
+canonical lowercase teacher UUID. Set these in the server environment before
+enabling the runtime and database provisioning gates; never put values in client
+configuration, logs, or source control. Scoped mode requires a valid list; empty,
+malformed, multiple-entry, or oversized lists fail closed. Off and full modes reject a
+present list, so widening requires an explicit configuration change to `full`
+and removal of the list. In full mode the existing plan and database gates govern
+rollout. Configuration changes require a server rollout; in-flight provider calls
+may already have been authorized.
+
+Cron claims the listed teacher explicitly, so other teachers' queued work remains
+unclaimed. Billing kicks outside the list also leave their queue entries untouched.
+The restriction covers new and resumed provisioning and new rotations. Previously ready credentials remain available for authorized report
+and cleanup operations. Saved-locator recovery can replay an exact, already-persisted
+pending rotation even after scope removal or rollout shutdown; it cannot allocate a
+new rotation or provision a workspace. This protects cleanup after a lost response. Teachers outside the pilot continue
+to route through their configured manual connections; without one, readiness
+reports the connection as unavailable. The global `plan_enforcement_enabled`
+gate applies eligibility checks to all connections, including manual connections.
+Leave that gate off during the controlled pilot until its activation is separately
+reviewed and authorized. The pilot scope does not turn on billing, AI, the runtime
+switch, or the database provisioning gate.

@@ -70,6 +70,7 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   expect(page.viewportSize()).toEqual(testInfo.project.metadata.viewport === 'desktop'
     ? { width: 1440, height: 900 } : { width: 390, height: 844 })
   expect(await page.locator('html').evaluate(element => element.classList.contains('dark'))).toBe(theme === 'dark')
+  await page.getByRole('button', { name: 'List', exact: true }).click()
   const opener = page.getByRole('button', { name: /Open Monday, October 5, 2026/i })
   await opener.focus()
   await page.keyboard.press('Enter')
@@ -172,109 +173,30 @@ export async function verifyCalendarDayInteraction(page: Page, testInfo: TestInf
   await page.keyboard.press('Escape')
   await expect(opener).toBeFocused()
   await expect.poll(() => page.locator('[data-modal-state]').count()).toBe(0)
-  await verifyMonthTextAnchor(page, testInfo, role)
-  if (role === 'student') await verifyMonthPlainTextDisclosure(page, testInfo)
+  await verifyGridLessonInteraction(page, role)
   expect(writes).toEqual([])
   expect(errors).toEqual([])
   await testInfo.attach('calendar-day-native-evidence', { body: Buffer.from(JSON.stringify({ role, theme, motion,
     viewport: page.viewportSize(), verifiedDate, liveClock, consoleDiagnostics, media, geometry, initial, afterPage, observations, reads, writes, errors }, null, 2)), contentType: 'application/json' })
 }
 
-async function verifyMonthPlainTextDisclosure(page: Page, testInfo: TestInfo) {
-  await page.evaluate(() => localStorage.setItem('pika_show_markdown', 'false'))
-  await page.reload({ waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Month', exact: true }).click()
-  const preview = page.locator('.calendar-lesson-preview').filter({ hasText: /^Lesson 5\s/ })
-  const text = preview.locator(':scope > div')
-  await expect(text).toHaveClass(/line-clamp-3/)
-  const metrics = () => text.evaluate(element => {
-    const style = getComputedStyle(element)
-    return { font: style.fontSize, lineHeight: style.lineHeight, height: element.getBoundingClientRect().height }
-  })
-  const collapsed = await metrics()
+/** Grid retains teacher editing and student lesson disclosure. */
+async function verifyGridLessonInteraction(page: Page, role: 'teacher' | 'student') {
+  await page.getByRole('button', { name: 'Grid', exact: true }).click()
+  const preview = page.locator('.calendar-lesson-preview').filter({ hasText: /Lesson 5/ })
+  await preview.scrollIntoViewIfNeeded()
   await preview.click()
-  await expect(text).not.toHaveClass(/line-clamp-3/)
-  const expanded = await metrics()
-  expect(expanded.font).toBe(collapsed.font)
-  expect(expanded.lineHeight).toBe(collapsed.lineHeight)
-  expect(expanded.height).toBeGreaterThan(collapsed.height)
-  await expect.poll(() => text.evaluate(element => {
-    const range = document.createRange()
-    range.selectNodeContents(element.lastChild!)
-    const last = Array.from(range.getClientRects()).at(-1)!
-    const bounds = element.closest('.border-r.border-b')!.getBoundingClientRect()
-    return last.bottom <= bounds.bottom + 1
-  })).toBe(true)
-  await page.screenshot({ path: testInfo.outputPath('student-month-plain-text-expanded.png'), animations: 'allow' })
-  await preview.click()
-  await expect(text).toHaveClass(/line-clamp-3/)
-  await page.getByRole('button', { name: /^(All|Term)$/ }).click()
-  await expect(page.locator('.calendar-lesson-preview').filter({ hasText: /^Lesson 5\s/ }).locator(':scope > div'))
-    .toHaveClass(/line-clamp-3/)
-}
-
-/** Text must not resize or scroll inside the expanding Month cell. */
-async function verifyMonthTextAnchor(page: Page, testInfo: TestInfo, role: 'teacher' | 'student') {
-  await page.getByRole('button', { name: 'Month', exact: true }).click()
-  const heading = page.getByRole('heading', { name: 'Lesson 5', exact: true })
-  await heading.scrollIntoViewIfNeeded()
-  const cell = await heading.locator('xpath=ancestor::div[contains(@class,"border-r") and contains(@class,"border-b") and @style][1]').elementHandle()
-  expect(cell).not.toBeNull()
-  const observations: unknown[] = []
-  for (const direction of ['opening', 'closing'] as const) {
-    const framesHandle = await cell!.evaluateHandle(element => {
-      const frames: { font: string; lineHeight: string; text: string; rects: { x: number; y: number; width: number; height: number }[] }[][] = []
-      const started = performance.now()
-      const sample = () => {
-        const root = element.querySelector('.ProseMirror') ?? element.querySelector('.calendar-lesson-preview')!
-        const bounds = element.getBoundingClientRect()
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-        const texts: typeof frames[number] = []
-        let node: Node | null
-        while ((node = walker.nextNode()) && texts.length < 2) {
-          if (!node.textContent?.trim()) continue
-          const range = document.createRange()
-          range.selectNodeContents(node)
-          const styles = getComputedStyle(node.parentElement!)
-          texts.push({ text: node.textContent, font: styles.fontSize, lineHeight: styles.lineHeight,
-            rects: Array.from(range.getClientRects(), rect => ({ x: rect.x - bounds.x, y: rect.y - bounds.y,
-              width: rect.width, height: rect.height })) })
-        }
-        frames.push(texts)
-        if (performance.now() - started < 400) requestAnimationFrame(sample)
-      }
-      sample()
-      return frames
-    })
-    if (direction === 'opening') {
-      await heading.click()
-      if (role === 'teacher') await expect(page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })).toBeFocused()
-    } else if (role === 'teacher') {
-      // Actual click-away path, rather than only Escape.
-      await page.getByRole('button', { name: 'Month', exact: true }).click()
-      await expect(page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })).toHaveCount(0)
-    } else await heading.click()
-    await page.waitForTimeout(450)
-    const frames = await framesHandle.jsonValue()
-    const baseline = frames[0]
-    expect(baseline).toHaveLength(2)
-    expect(frames.length).toBeGreaterThan(2)
-    for (const frame of frames) {
-      expect(frame.map(({ text, font, lineHeight }) => ({ text, font, lineHeight })))
-        .toEqual(baseline.map(({ text, font, lineHeight }) => ({ text, font, lineHeight })))
-      for (let index = 0; index < baseline.length; index++) {
-        expect(frame[index].rects.length).toBe(baseline[index].rects.length)
-        frame[index].rects.forEach((rect, fragment) => {
-          for (const key of ['x', 'y', 'width', 'height'] as const) {
-            expect(Math.abs(rect[key] - baseline[index].rects[fragment][key])).toBeLessThan(1)
-          }
-        })
-      }
-    }
-    observations.push({ direction, frames })
-    await framesHandle.dispose()
+  if (role === 'teacher') {
+    const editor = page.getByRole('textbox', { name: 'Lesson plan for October 5, 2026' })
+    await expect(editor).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(editor).toHaveCount(0)
+  } else {
+    const text = preview.locator(':scope > div')
+    await expect(text).not.toHaveClass(/line-clamp-3/)
+    await preview.click()
+    await expect(text).toHaveClass(/line-clamp-3/)
   }
-  await testInfo.attach('month-cell-text-anchor', { body: Buffer.from(JSON.stringify(observations)), contentType: 'application/json' })
 }
 
 /** Empty non-class weekdays must not let the lesson overlay intercept event clicks. */
@@ -323,10 +245,13 @@ export async function verifyEmptyCalendarLessonTargets(page: Page, testInfo: Tes
     await route.fulfill({ json: body })
   })
   await page.goto('/e2e-fixtures/teacher-student-tables?role=teacher&tab=calendar', { waitUntil: 'networkidle' })
-  await page.getByRole('button', { name: 'Week', exact: true }).click()
+  await page.getByRole('button', { name: 'List', exact: true }).click()
   const add = page.getByRole('button', { name: 'Add lesson for October 6, 2026', exact: true })
   const event = page.getByRole('button', { name: 'Blank day event', exact: true })
-  await event.scrollIntoViewIfNeeded()
+  // Center the row below the sticky month heading, then reveal its hover action
+  // as a pointer user would before clicking it.
+  await event.evaluate(element => element.scrollIntoView({ block: 'center' }))
+  await event.hover()
   const bounds = await add.evaluate(element => {
     const button = element.getBoundingClientRect()
     const region = element.closest('.calendar-day-text')!.getBoundingClientRect()
@@ -335,7 +260,16 @@ export async function verifyEmptyCalendarLessonTargets(page: Page, testInfo: Tes
   expect(bounds.top).toBeGreaterThanOrEqual(-1)
   expect(bounds.bottom).toBeLessThanOrEqual(1)
   expect(bounds.height).toBeGreaterThanOrEqual(44)
+  await expect(add).toHaveCSS('opacity', '1')
+  expect(await add.evaluate(element => {
+    const box = element.getBoundingClientRect()
+    return element.contains(document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2))
+  })).toBe(true)
   await add.click()
+  await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(add).toBeFocused()
+  await page.keyboard.press('Enter')
   await expect(page.getByRole('textbox', { name: 'Lesson plan for October 6, 2026' })).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(add).toBeFocused()

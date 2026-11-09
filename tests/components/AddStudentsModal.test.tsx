@@ -25,22 +25,22 @@ describe('AddStudentsModal', () => {
     const helpButton = screen.getByRole('button', { name: 'Roster format help' })
     expect(rosterInput).toHaveAttribute(
       'placeholder',
-      'Jane Doe jane@example.com [123456] [jane2@example.com]',
+      'Jane Doe jane@example.com [123456] [guardian@example.com]',
     )
     expect(rosterInput).toHaveAttribute('rows', '12')
     expect(helpButton).toBeInTheDocument()
-    expect(screen.queryByText(/student number and secondary email are optional/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/student number and guardian email are optional/i)).not.toBeInTheDocument()
     fireEvent.focus(helpButton)
     const tooltip = await screen.findByRole('tooltip')
     expect(tooltip).toHaveTextContent('One student per line.')
-    expect(tooltip).toHaveTextContent('[First name] [Last name] [Email] [ID] [Email 2]')
-    expect(tooltip).toHaveTextContent('ID and Email2 are optional')
+    expect(tooltip).toHaveTextContent('[First name] [Last name] [Email] [ID] [Guardian email]')
+    expect(tooltip).toHaveTextContent('ID and guardian email are optional')
     const formatLine = tooltip.querySelector('.font-semibold') as HTMLElement
     expect(formatLine).toHaveClass('font-semibold')
-    expect(formatLine).toHaveTextContent('[First name] [Last name] [Email] [ID] [Email 2]')
+    expect(formatLine).toHaveTextContent('[First name] [Last name] [Email] [ID] [Guardian email]')
     expect(formatLine.querySelectorAll('em')).toHaveLength(2)
     expect(formatLine.querySelector('em')).toHaveTextContent('ID')
-    expect(formatLine.querySelectorAll('em')[1]).toHaveTextContent('Email 2')
+    expect(formatLine.querySelectorAll('em')[1]).toHaveTextContent('Guardian email')
     fireEvent.change(rosterInput, {
       target: { value: 'Ada Lovelace ada@example.com 1001 counselor@example.com' },
     })
@@ -84,7 +84,7 @@ describe('AddStudentsModal', () => {
     expect(screen.getByRole('button', { name: 'Add 1 Student' })).toBeEnabled()
   })
 
-  it('submits a secondary email when the manual entry omits a student number', async () => {
+  it('submits a guardian email when the manual entry omits a student number', async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) })
     vi.stubGlobal('fetch', fetchMock)
     renderWithTooltips(

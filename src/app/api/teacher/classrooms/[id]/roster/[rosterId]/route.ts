@@ -100,7 +100,7 @@ export const PATCH = withErrorHandler('PatchRosterEntry', async (request, contex
     }
     if (existing) {
       return NextResponse.json(
-        { error: 'Secondary email changed elsewhere. Review the latest roster and try again.' },
+        { error: 'Guardian email changed elsewhere. Review the latest roster and try again.' },
         { status: 409 }
       )
     }
