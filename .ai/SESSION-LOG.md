@@ -341,3 +341,5 @@ Recorded the shared fade in Design and added a Pattern Lab example for plain tex
 ## 2026-11-09 — Calendar and text fade review
 
 Completed the independent review of PR #1786 after the owner authorized proceeding. The local focused run found two deterministic failures. Updated the browser inventory for the eight new Pattern Lab cases and kept Gradebook score colour on the text span while the wrapper owns the unreturned background.
+
+Hosted coverage identified more Gradebook tests coupled to the score wrapper and a repeat timeout in the teacher gallery contract. Pointed the assertions at the score text and narrowed gallery lookups to their own controls and example.

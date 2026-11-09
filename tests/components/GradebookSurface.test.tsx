@@ -181,11 +181,11 @@ describe('Gradebook surface owners', () => {
     expect(screen.getByRole('button', { name: 'Edit A2: Excluded essay' }).closest('th')).not.toHaveAttribute('data-compact-zero-weight')
     const mark = screen.getByRole('button', { name: 'Edit Demo Student mark for Practice: 0%' })
     expect(mark).toBeEnabled()
-    expect(mark.firstElementChild).toHaveClass('text-text-muted')
+    expect(within(mark).getByText('0%')).toHaveClass('text-text-muted')
     view.rerender(<TooltipProvider><GradebookTable {...props} compactZeroWeightAssessments={false} /></TooltipProvider>)
     expect(header).not.toHaveAttribute('data-compact-zero-weight')
     expect(header).toHaveTextContent('Practice')
-    expect(mark.firstElementChild).not.toHaveClass('text-text-muted')
+    expect(within(mark).getByText('0%')).not.toHaveClass('text-text-muted')
     view.rerender(<TooltipProvider><GradebookTable {...props} students={[{ ...scored, assessment_scores: [{ ...scored.assessment_scores[0], earned: 110, percent: 110 }] }]} /></TooltipProvider>)
     expect(screen.getByRole('button', { name: /mark for Practice: 110%.*above maximum/ })).toHaveAttribute('data-above-maximum', 'true')
   })
@@ -345,7 +345,7 @@ describe('Gradebook surface owners', () => {
     const manualMark = screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 80%, overridden' })
     expect(manualMark).not.toHaveClass('text-primary')
     expect(manualMark.querySelector('svg')).toBeNull()
-    expect(manualMark.querySelector('span:last-child')).toHaveClass('text-text-default')
+    expect(within(manualMark).getByText('80%')).toHaveClass('text-text-default')
     fireEvent.click(manualMark)
     expect(onScoreOpen).toHaveBeenCalledWith(studentWithManualMark, column)
     expect(screen.queryByRole('button', { name: /Undo override for Demo Student/ })).not.toBeInTheDocument()
@@ -396,9 +396,9 @@ describe('Gradebook surface owners', () => {
     }
     render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scoredStudent], columns })} /></TooltipProvider>)
 
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Failing: 49%' }).querySelector('span')).toHaveClass('text-danger')
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Approaching: 50%' }).querySelector('span')).toHaveClass('text-warning')
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Meeting: 70%' }).querySelector('span')).toHaveClass('text-text-default')
+    expect(within(screen.getByRole('button', { name: 'Edit Demo Student mark for Failing: 49%' })).getByText('49%')).toHaveClass('text-danger')
+    expect(within(screen.getByRole('button', { name: 'Edit Demo Student mark for Approaching: 50%' })).getByText('50%')).toHaveClass('text-warning')
+    expect(within(screen.getByRole('button', { name: 'Edit Demo Student mark for Meeting: 70%' })).getByText('70%')).toHaveClass('text-text-default')
   })
 
   it.each([false, true])('opens the assessment dialog from its Category cell with the keyboard (compact=%s)', async (ultraCompact) => {
