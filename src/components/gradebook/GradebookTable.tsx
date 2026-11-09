@@ -276,7 +276,9 @@ export function GradebookTable({
                       className={cn('w-full min-w-0 gap-1 px-1 tabular-nums', (ultraCompact || isCompactZero(column)) && 'gap-0.5 px-0 text-xs', overMaximum && ABOVE_MAXIMUM_CLASS, unreturned && 'disabled:pointer-events-none')}
                       onClick={() => onScoreOpen?.(student, column)}
                     >
-                      <span data-unreturned-mark={unreturned || undefined} className={cn(scoreTone, 'min-w-0', unreturned && 'rounded-sm px-1 py-0.5', unreturned && markStyles.unreturned)}><span className="block truncate">{score}</span></span>
+                      <span data-unreturned-mark={unreturned || undefined} className={cn('min-w-0', unreturned && 'rounded-sm px-1 py-0.5', unreturned && markStyles.unreturned)}>
+                        <span className={cn('block truncate', scoreTone)}>{score}</span>
+                      </span>
                     </Button>
                   )
                   return <DataTableCell key={getAssessmentColumnKey(column)} align="center" className={cn('!px-1 whitespace-nowrap tabular-nums', scoreTone)}>
