@@ -39,7 +39,7 @@ describe('fixed sealed300 witness in scoped native plans',()=>{
     expect(withRepoLight300Witness('original',false)).toBe('original')
   })
   it.each(profiles)('%s binds witness to snapshot and contention with sealed source300',(_name,make)=>{
-    const plan=make();expect(plan.migrations).toHaveLength(301);expect(plan.nativeVerified).toBe(false)
+    const plan=make();expect(plan.migrations).toHaveLength(302);expect(plan.nativeVerified).toBe(false)
     expect(plan.setup).toContain('$repolight300$')
     expect(plan.snapshot).toContain('__repolight300')
     for(const schedule of plan.concurrency.schedules) {
@@ -70,8 +70,8 @@ describe('fixed sealed300 witness in scoped native plans',()=>{
     finally{loader.mockRestore()}
   })
   it.each(profiles)('%s rejects partial, self-hashed changed and future tails',(_name,make)=>{
-    const altered=[297,298,299,300].map(index=>{const result=chain.map(x=>({...x}));result[index].sql+='\n';result[index].sha256=hash(result[index].sql);return result})
-    for(const candidate of [chain.slice(0,298),chain.slice(0,299),...altered,[...chain,{name:'302_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
+    const altered=[297,298,299,300,301].map(index=>{const result=chain.map(x=>({...x}));result[index].sql+='\n';result[index].sha256=hash(result[index].sql);return result})
+    for(const candidate of [chain.slice(0,298),chain.slice(0,299),...altered,[...chain,{name:'303_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
       const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(candidate)
       try{expect(make).toThrow()}finally{loader.mockRestore()}
     }

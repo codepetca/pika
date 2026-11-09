@@ -52,7 +52,7 @@ const plans = new WeakMap<object, TestOwnerUnpublicationNativePlan>()
 export function testOwnerUnpublicationNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const f = newTestOwnerUnpublicationFixture(original), inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
+  assert([261,262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 302].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
   assert.equal(inventory[252].name, '253_classroom_test_tier_caps.sql')
   assert.equal(inventory[252].sha256, '076bb9775a6959ecfc1012a652205968fda74b601daaad3ba6ef0e8f9975cc09')
   assert.equal(hash(inventory[252].sql), inventory[252].sha256)
@@ -92,8 +92,8 @@ or ${f.actors.map(a => `not exists(select 1 from public.users where id=${q(a.id)
 or exists(select 1 from public.test_attempts where test_id in (${f.tests.map(t=>q(t.id)).join(',')}))
 or not exists(select 1 from public.classroom_enrollments where id=${q(f.selfEnrollmentId)} and classroom_id=${q(f.classes[1].id)} and student_id=${q(f.actors[1].id)})
 then raise exception 'Unpublication261 no-work fixture presence differs';end if;end;$presence$;`
-  const setup = bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${[300,301].includes(inventory.length) ? repoLight300PresenceSql() : ''}rollback;`)
-  const preparation = bounded(testOwnerUnpublicationSetupSql(f, projectId)), snapshot = bounded(testOwnerUnpublicationSnapshotSql(f, [300,301].includes(inventory.length)))
+  const setup = bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${[300,301,302].includes(inventory.length) ? repoLight300PresenceSql() : ''}rollback;`)
+  const preparation = bounded(testOwnerUnpublicationSetupSql(f, projectId)), snapshot = bounded(testOwnerUnpublicationSnapshotSql(f, [300,301,302].includes(inventory.length)))
   const template = readFileSync(resolve(repository, 'scripts/check-contextual-test-owner-unpublication.sql'), 'utf8')
   const marker = '-- owner-unpublication-contracts-begin\n', end = '-- owner-unpublication-contracts-end'
   assert(template.split(marker).length === 2 && template.split(end).length === 2)
@@ -128,7 +128,7 @@ then raise exception 'Unpublication261 no-work fixture presence differs';end if;
     ...['tests','test_questions','test_attempts','test_responses','test_student_availability','test_focus_events','test_ai_grading_runs','test_ai_grading_run_items']
       .map(t=>[`public.${t}`, `${t==='tests'?'id':'test_id'} in (${tests})`]),
   ]
-  const graph = withRepoLight300Witness(`jsonb_build_object(${tables.map(([table,predicate])=>`${q(table)},(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`, [300,301].includes(inventory.length))
+  const graph = withRepoLight300Witness(`jsonb_build_object(${tables.map(([table,predicate])=>`${q(table)},(select coalesce(jsonb_agg(to_jsonb(r) order by to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`, [300,301,302].includes(inventory.length))
   const expected = `(select to_jsonb(t) from public.tests t where id=${tid})`
   const call = `public.test_owner_workflow_v1(${owner},${tid},${cid},'unpublish','{}',${expected},clock_timestamp()+interval '25 seconds')`
   const testKey = `hashtextextended(${q(f.testId)},0)`, classKey = `hashtextextended(${q('pika-classroom-operation:'+f.classroomId)},0)`
