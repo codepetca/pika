@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from '../../scripts/repolight-report-service-reviewed-migration'
-import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
+import { classroomTestQuotaProofCatalog, disposableClassroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { TEST_OWNER_CREATE_SNAPSHOT_TABLES } from '../../scripts/contextual-test-owner-create-proof-fixture'
 import { TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES } from '../../scripts/contextual-test-publication-proof-fixture'
@@ -30,6 +30,21 @@ const profiles = [
 ]
 
 describe('externally sealed Test quota proof table addition', () => {
+  it('admits only the exact complete billing tail in disposable quota proof catalogs', () => {
+    const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const canonical = ['public.tests']
+    const at301 = classroomTestQuotaProofCatalog(canonical, current.slice(0, 301))
+    expect(disposableClassroomTestQuotaProofCatalog(canonical, current)).toEqual(at301)
+    expect(() => classroomTestQuotaProofCatalog(canonical, current)).toThrow()
+    const changed = current.map(row => ({ ...row }))
+    changed[301].sql += '\n'
+    changed[301].sha256 = createHash('sha256').update(changed[301].sql).digest('hex')
+    const future = { name: '304_unknown.sql', sql: 'select 1;', sha256: createHash('sha256').update('select 1;').digest('hex') }
+    for (const inventory of [current.slice(0, 302), changed, [...current, future]]) {
+      expect(() => disposableClassroomTestQuotaProofCatalog(canonical, inventory)).toThrow()
+    }
+  })
+
   it('includes all four sealed294 tables and preserves the explicit historical293 catalog', async () => {
     const current = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 295)
     const introduced = [...current[293].sql.matchAll(/^create table ((?:public|private)\.[a-z_]+)/gm)].map(match => match[1]).sort()
@@ -219,7 +234,7 @@ describe('externally sealed Test quota proof table addition', () => {
       const path = `scripts/check-contextual-test-owner-${profile.name === 'discard' ? 'pristine-discard' : profile.name}-lifecycle.ts`
       const source = readFileSync(resolve(process.cwd(), path), 'utf8')
       expect(source).toContain('if (canonicalTables) assert.deepEqual(catalog, canonicalTables)')
-      expect(source).toContain('expectedTables = classroomTestQuotaProofCatalog(catalog, migrations)')
+      expect(source).toContain('expectedTables = disposableClassroomTestQuotaProofCatalog(catalog, migrations)')
       expect(source).not.toContain('expectedTables = catalog;')
     })
   })

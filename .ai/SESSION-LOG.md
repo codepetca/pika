@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-03 — Classwork progressive read review fixes
-
-Prevent invalidated summary reuse, join in-flight full prefetches, fall back
-from non-authorization summary errors, and gate material deep links on complete
-authorized classwork. Real-cache and interaction regressions exercise these paths.
-
-## 2026-11-03 — Teacher Tests statistics pagination
-
-On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
-PostgREST's row cap silently truncating question, attempt, response, and access
-counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
-regressions cover multi-page reads, exact boundaries, and later-page failures.
-
 ## 2026-11-03 — Rebase Tests pagination onto main
 
 Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
@@ -298,3 +285,16 @@ Restored compact month navigation for teacher and student calendars with an inco
 ## 2026-11-08 — Universal RepoLight tier benefit
 
 Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.

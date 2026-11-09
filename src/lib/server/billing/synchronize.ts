@@ -27,6 +27,7 @@ export type BillingStore = {
 
 export type BillingSynchronizationResult =
   | { kind: 'applied' | 'replayed' }
+  | { kind: 'deferred'; retryable: true }
   | { kind: 'busy' | 'not_found' }
   | { kind: 'lost_claim' | 'plan_conflict'; retryable: true }
   | { kind: 'rejected'; retryable: boolean }
@@ -192,7 +193,7 @@ export function verifyBillingLifecycleSnapshot(
     obligations_cleared: snapshot.status === 'canceled' && snapshot.terminalObligationsCleared === true,
     invoice_id: null, period_start: null, period_end: null, reason_code: null,
   }
-  const cancellation = snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled'
+  const cancellation = snapshot.cancelAt !== null || snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled'
   // A paid invoice remains payment evidence while end-of-period cancellation is
   // scheduled. No provider status alone proves a new paid period.
   if (snapshot.latestInvoice?.status === 'paid' && ['active', 'canceled'].includes(snapshot.status)) {
@@ -212,20 +213,24 @@ export function verifyBillingLifecycleSnapshot(
   // https://docs.stripe.com/billing/subscriptions/overview#subscription-statuses
   const failedRenewal = (invoice?.status === 'uncollectible' && ['active', 'past_due', 'unpaid', 'canceled'].includes(snapshot.status))
     || (invoice?.status === 'open' && ['past_due', 'unpaid', 'canceled'].includes(snapshot.status))
-  if (failedRenewal && invoice) {
+  const pendingRenewal = (invoice?.status === 'draft' || invoice?.status === 'open')
+    && snapshot.status === 'active' && !cancellation && facts.end_reason === 'renewal_pending'
+  if ((failedRenewal || pendingRenewal) && invoice) {
     if (invoice.billingReason !== 'subscription_cycle' || invoice.customerId !== binding.stripe_customer_id
       || invoice.subscriptionId !== binding.stripe_subscription_id || invoice.currency !== binding.currency) return 'invoice_not_bound'
-    if (invoice.amountPaid !== 0 || invoice.payments.length !== 0 || (invoice.amountPaidOffStripe ?? 0) !== 0
+    if (binding.unit_amount <= 0 || invoice.amountPaid !== 0 || invoice.payments.length !== 0 || (invoice.amountPaidOffStripe ?? 0) !== 0
       || invoice.subtotal !== binding.unit_amount || invoice.total !== binding.unit_amount || invoice.amountDue !== binding.unit_amount
-      || invoice.startingBalance !== 0 || invoice.endingBalance !== 0 || invoice.hasDiscounts || invoice.hasTaxes
+      || invoice.startingBalance !== 0 || (invoice.endingBalance !== 0 && !(invoice.status === 'draft' && invoice.endingBalance === null))
+      || invoice.hasDiscounts || invoice.hasTaxes
       || invoice.totalDiscountAmount !== 0 || invoice.totalTaxAmount !== 0
       || invoice.prePaymentCreditNotesAmount !== 0 || invoice.postPaymentCreditNotesAmount !== 0 || invoice.lines.length !== 1) return 'financial_terms_unapproved'
     const line = invoice.lines[0]
-    if (line.subscriptionId !== binding.stripe_subscription_id || line.priceId !== binding.stripe_price_id
+    if (invoice.id === facts.last_paid_invoice_id || line.subscriptionId !== binding.stripe_subscription_id || line.priceId !== binding.stripe_price_id
       || line.quantity !== 1 || line.proration || line.hasDiscounts || line.hasTaxes || line.amount !== binding.unit_amount
       || !equalTimestamp(line.periodStart, facts.paid_through) || !equalTimestamp(line.periodStart, item.currentPeriodStart)
       || !equalTimestamp(line.periodEnd, item.currentPeriodEnd) || Date.parse(line.periodEnd) <= Date.parse(line.periodStart)) return 'invoice_line_unverified'
-    return { ...common, outcome: 'renewal_failed', invoice_id: invoice.id, period_start: line.periodStart, period_end: line.periodEnd }
+    return { ...common, outcome: pendingRenewal ? 'renewal_invoice_pending' : 'renewal_failed',
+      invoice_id: invoice.id, period_start: line.periodStart, period_end: line.periodEnd }
   }
   if (cancellation) {
     if (snapshot.latestInvoice && (snapshot.latestInvoice.customerId !== binding.stripe_customer_id
@@ -250,10 +255,15 @@ async function finish(
   })
   const result = BillingFinishResultSchema.safeParse(rawResult)
   if (!result.success) throw new Error('Billing synchronization completion is unavailable')
+  if ((result.data.status === 'deferred' || result.data.status === 'attention') && input.outcome !== 'renewal_invoice_pending') {
+    throw new Error('Billing synchronization returned an unexpected renewal status')
+  }
 
   switch (result.data.status) {
     case 'applied': return { kind: 'applied' }
     case 'replayed': return { kind: 'replayed' }
+    case 'deferred': return { kind: 'deferred', retryable: true }
+    case 'attention': return exception('renewal_invoice_pending')
     case 'lost_claim': return { kind: 'lost_claim', retryable: true }
     case 'plan_conflict': return { kind: 'plan_conflict', retryable: true }
     case 'rejected': return { kind: 'rejected', retryable: result.data.retry_scheduled }

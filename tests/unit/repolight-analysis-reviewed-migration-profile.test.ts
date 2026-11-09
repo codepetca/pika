@@ -4,11 +4,11 @@ import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-a
 import { validateTestMemberListReviewedMigrations } from '../../scripts/check-contextual-test-member-list-lifecycle'
 import { validateTestOwnerReorderReviewedMigrations } from '../../scripts/check-contextual-test-owner-reorder-lifecycle'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
-import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
+import { validateDisposableBillingReplayMigrations, validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 
 // Source admission only: this does not authorize migration or native proof execution.
 describe('RepoLight 298–301 closed source profile', () => {
-  const chain = loadAssignmentListReviewedMigrations(process.cwd())
+  const chain = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 301)
   const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
   it('accepts each exact extension and preserves the historical 297 profile', () => {
@@ -74,5 +74,30 @@ describe('RepoLight 298–301 closed source profile', () => {
     expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 297), chain[298], chain[297]])).toThrow()
     const sql = 'select 1;'
     expect(() => validateLifecycleServicesReviewedMigrations([...chain, { name: '302_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
+  })
+})
+
+describe('Billing 302–303 disposable replay source profile', () => {
+  const chain = loadAssignmentListReviewedMigrations(process.cwd())
+  const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
+
+  it('accepts the exact complete billing suffix for disposable replay only', () => {
+    expect(chain).toHaveLength(303)
+    expect(() => validateDisposableBillingReplayMigrations(chain)).not.toThrow()
+    expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, 301))).not.toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations(chain)).toThrow()
+  })
+
+  it.each([302, 303])('rejects self-hashed changes to migration %i', version => {
+    const changed = chain.map(migration => ({ ...migration }))
+    changed[version - 1].sql += '\n-- source substitution'
+    changed[version - 1].sha256 = hash(changed[version - 1].sql)
+    expect(() => validateDisposableBillingReplayMigrations(changed)).toThrow()
+  })
+
+  it('rejects a partial suffix and a contiguous unknown successor', () => {
+    expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, 302))).toThrow()
+    const sql = 'select 1;'
+    expect(() => validateDisposableBillingReplayMigrations([...chain, { name: '304_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
   })
 })

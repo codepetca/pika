@@ -77,3 +77,9 @@ describe('fixed sealed300 witness in scoped native plans',()=>{
     }
   })
 })
+
+// These scoped native plans exercise the sealed RepoLight-era inventory.
+vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
+  return { ...actual, loadAssignmentListReviewedMigrations: (root: string) => actual.loadAssignmentListReviewedMigrations(root).slice(0, 301) }
+})

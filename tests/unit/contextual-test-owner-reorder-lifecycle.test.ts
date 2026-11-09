@@ -534,8 +534,15 @@ describe('reorder snapshot/completion admission', () => {
   })
   it('requires every added RepoLight, plan and billing whole-row fingerprint', async () => {
     const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
-    const current300 = actual.loadAssignmentListReviewedMigrations(process.cwd())
-    const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current300)
+    const current = actual.loadAssignmentListReviewedMigrations(process.cwd())
+    expect(() => validateTestOwnerReorderReviewedMigrations(current)).not.toThrow()
+    const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current)
+    expect(fullCatalog).toEqual(testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)))
+    const changed = current.map(migration => ({ ...migration }))
+    changed[302].sql += '\n'
+    changed[302].sha256 = testOwnerDigest(changed[302].sql)
+    expect(() => validateTestOwnerReorderReviewedMigrations(changed)).toThrow()
+    expect(() => testOwnerReorderTableCatalogFromCanonical(canonical, changed)).toThrow()
     const withTail = graph()
     withTail.__nontarget_fingerprints = fullCatalog.map(table => ({table, fingerprint:'unchanged'}))
     expect(validateTestOwnerReorderSnapshotCatalog(withTail, fullCatalog)).toEqual(withTail)

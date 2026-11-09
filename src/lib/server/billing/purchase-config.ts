@@ -20,3 +20,8 @@ export function readBillingPurchaseConfig(env: NodeJS.ProcessEnv = process.env):
   }
   return { ...config, appOrigin: url.origin, catalogRelease: release === 'true' ? REPOLIGHT_CATALOG_RELEASE_TAG : LAUNCH_CATALOG_RELEASE_TAG }
 }
+
+/** Navigation is advisory. The page and each API still enforce authorization. */
+export function isBillingPurchaseAvailable(): boolean {
+  try { return readBillingPurchaseConfig() !== null } catch { return false }
+}

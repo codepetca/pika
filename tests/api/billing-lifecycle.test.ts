@@ -58,6 +58,17 @@ describe('billing lifecycle API boundaries', () => {
     expect(mock.getStatus).toHaveBeenCalledWith({ subjectUserId: subject })
     expect(await response.json()).toMatchObject({ state: 'free', plan: 'free', classroomLimit: 0, canStartPaidWork: false })
   })
+  it('projects only customer-safe options and the purchased terms', async () => {
+    mock.getStatus.mockResolvedValue({ ...access, state: 'paid', plan_key: 'pro',
+      customer_options: { trial_available: false, checkout_available: false, pending_checkout_id: null,
+        has_billing_customer: true, paid_terms: { currency: 'cad', interval: 'year', unit_amount: 55900, upgrade_available: false } } })
+    const response = await status(new NextRequest(`${origin}/api/billing/subscription`), context)
+    expect(await response.json()).toMatchObject({ state: 'paid', plan: 'max', options: {
+      trialAvailable: false, checkoutAvailable: false, pendingCheckoutId: null, hasBillingCustomer: true,
+      paidTerms: { currency: 'cad', interval: 'year', unitAmount: 55900, upgradeAvailable: false },
+    } })
+  })
+
   it.each(['https://attacker.example', 'null', 'http://localhost:3001'])('rejects mutation origin %s', async badOrigin => {
     expect((await trial(request(undefined, { origin: badOrigin }), context)).status).toBe(403)
     expect(mock.runtime).not.toHaveBeenCalled()

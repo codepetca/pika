@@ -51318,3 +51318,17 @@ Legacy assignment and survey summaries can render before statistics, with explic
 unknown counts and incomplete-list action guards. Shared reads retain their full
 owner-scoped contract and cache; cache invalidation and permission failure guards
 protect delayed results. Independent review and CI remain pending.
+
+<!-- pika-session-log-archive-batch:84e37eebc326fa298721f8f1f39cad49059a1135c78e758dc13439f76e6604eb -->
+## 2026-11-03 — Classwork progressive read review fixes
+
+Prevent invalidated summary reuse, join in-flight full prefetches, fall back
+from non-authorization summary errors, and gate material deep links on complete
+authorized classwork. Real-cache and interaction regressions exercise these paths.
+
+## 2026-11-03 — Teacher Tests statistics pagination
+
+On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
+PostgREST's row cap silently truncating question, attempt, response, and access
+counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
+regressions cover multi-page reads, exact boundaries, and later-page failures.

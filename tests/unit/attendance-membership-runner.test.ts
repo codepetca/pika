@@ -1,4 +1,4 @@
-import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -28,7 +28,7 @@ resolve_attendance_meta_image`], {
 function sealedReplayPreflight(path: string, repository = process.cwd()) {
   const command = runner(path).match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
   expect(command, 'exercise the same preflight that runs before cloning').toBeDefined()
-  return spawnSync('pnpm', ['exec', 'tsx', '-e', command!.replace('process.cwd()', 'process.env.FIXTURE_REPOSITORY ?? process.cwd()')], {
+  return spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['-e', command!.replace('process.cwd()', 'process.env.FIXTURE_REPOSITORY ?? process.cwd()')], {
     encoding: 'utf8', env: { ...process.env, NODE_OPTIONS: '', FIXTURE_REPOSITORY: repository },
   })
 }
@@ -36,7 +36,7 @@ function sealedReplayPreflight(path: string, repository = process.cwd()) {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -47,7 +47,7 @@ describe('isolated attendance membership database proof', () => {
       const result = spawnSync('/bin/bash', ['-c', `set -euo pipefail\n${source.slice(start, end)}`], {
         encoding: 'utf8', env: { ...process.env, BASH_ENV: '', source_version: version },
       })
-      expect(result.status === 0, path).toBe(path.includes('material-post-date') && ['298','299','300','301'].includes(version) ? false : accepted)
+      expect(result.status === 0, path).toBe(path.includes('material-post-date') && Number(version) > 297 ? false : accepted)
     }
   })
 
@@ -63,11 +63,11 @@ describe('isolated attendance membership database proof', () => {
         mkdirSync(join(repository, 'supabase'))
         const migrations = join(repository, 'supabase/migrations')
         cpSync('supabase/migrations', migrations, { recursive: true })
-        for (const file of ['298_repolight_analysis_access.sql','299_repolight_managed_registry.sql','300_repolight_provision_outbox.sql','301_repolight_universal_tier_benefit.sql']) rmSync(join(migrations,file))
+        for (const file of readdirSync(migrations)) if (Number(file.slice(0, 3)) > 297) rmSync(join(migrations, file))
         const result = sealedReplayPreflight(path, repository)
         expect(result.status, result.stderr).toBe(0)
       } finally { rmSync(repository, {recursive:true,force:true}) }
-    })
+    }, 60_000)
 
   it.each(['tampered293', 'renamed293', 'tampered294', 'renamed294', 'missing294', 'tampered295', 'renamed295', 'missing295', 'tampered296', 'renamed296', 'missing296', 'tampered297', 'renamed297', 'missing297', 'unknown298'] as const)('rejects %s before any clone or replay using the actual runner preflight', defect => {
     const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-reviewed-profile-'))
@@ -76,7 +76,7 @@ describe('isolated attendance membership database proof', () => {
       const migrations = join(repository, 'supabase/migrations')
       cpSync('supabase/migrations', migrations, { recursive: true })
       // Exercise the unchanged historical297 target for both existing runners.
-      for (const file of ['298_repolight_analysis_access.sql','299_repolight_managed_registry.sql','300_repolight_provision_outbox.sql','301_repolight_universal_tier_benefit.sql']) rmSync(join(migrations,file))
+      for (const file of readdirSync(migrations)) if (Number(file.slice(0, 3)) > 297) rmSync(join(migrations, file))
       const reviewed = join(migrations, '293_repolight_report_service.sql')
       if (defect === 'tampered293') appendFileSync(reviewed, '\n-- unreviewed source substitution\n')
       if (defect === 'renamed293') renameSync(reviewed, join(migrations, '293_unreviewed.sql'))
@@ -99,28 +99,29 @@ describe('isolated attendance membership database proof', () => {
         expect(result.stderr).toMatch(/AssertionError|Unreviewed|Expected/)
       }
     } finally { rmSync(repository, { recursive: true, force: true }) }
-  })
+  }, 60_000)
 
-  it.each(['tampered298', 'tampered299', 'tampered300', 'tampered301', 'renamed301', 'renamed299', 'missing300', 'partial298', 'partial299', 'unknown302'] as const)(
-    'rejects %s from the 300 attendance source preflight', defect => {
-      const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-300-profile-'))
+  it.each(['tampered298', 'tampered299', 'tampered300', 'tampered301', 'renamed301', 'renamed299', 'missing300', 'partial298', 'partial299', 'tampered302', 'tampered303', 'renamed302', 'renamed303', 'partial302', 'missing302', 'unknown304'] as const)(
+    'rejects %s from the attendance replay preflight', defect => {
+      const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-replay-profile-'))
       try {
         mkdirSync(join(repository, 'supabase'))
         const migrations = join(repository, 'supabase/migrations')
         cpSync('supabase/migrations', migrations, { recursive: true })
-        const files = ['298_repolight_analysis_access.sql','299_repolight_managed_registry.sql','300_repolight_provision_outbox.sql','301_repolight_universal_tier_benefit.sql']
-        if (defect.startsWith('tampered')) appendFileSync(join(migrations, files[Number(defect.slice(-3))-298]), '\n-- changed\n')
-        if (defect === 'renamed301') renameSync(join(migrations, files[3]),join(migrations, '301_unknown.sql'))
-        if (defect === 'renamed299') renameSync(join(migrations, files[1]),join(migrations, '299_unknown.sql'))
-        if (defect === 'missing300' || defect === 'partial299' || defect === 'partial298') rmSync(join(migrations, files[2]))
-        if (defect === 'partial298') rmSync(join(migrations, files[1]))
-        if (defect === 'unknown302') writeFileSync(join(migrations, '302_unknown.sql'), 'select 1;')
+        const files = readdirSync(migrations).sort()
+        const version = Number(defect.slice(-3))
+        const file = join(migrations, files[version - 1] ?? `${version}_unknown.sql`)
+        if (defect.startsWith('tampered')) appendFileSync(file, '\n-- changed\n')
+        if (defect.startsWith('renamed')) renameSync(file, join(migrations, `${version}_unknown.sql`))
+        if (defect.startsWith('missing')) rmSync(file)
+        if (defect.startsWith('partial')) for (const later of files.slice(version)) rmSync(join(migrations, later))
+        if (defect === 'unknown304') writeFileSync(file, 'select 1;')
         expect(sealedReplayPreflight('scripts/check-attendance-membership-adoption-database.sh', repository).status).not.toBe(0)
       } finally { rmSync(repository, {recursive:true,force:true}) }
-    },
+    }, 60_000,
   )
   it('binds its platform-source extension to application-only migration bytes', () => {
-    for (const file of ['298_repolight_analysis_access.sql','299_repolight_managed_registry.sql','300_repolight_provision_outbox.sql','301_repolight_universal_tier_benefit.sql']) {
+    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-3])_/.test(name))) {
       const sql=readFileSync(join('supabase/migrations',file),'utf8')
       expect(sql).not.toMatch(/\b(?:auth|storage)\s*\.|\b(?:create|alter|drop)\s+schema\b/i)
     }
@@ -190,8 +191,8 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('pika.attendance-membership.owner')
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
-    expect(source).toContain('validateLifecycleServicesReviewedMigrations')
-    expect(source).toContain("assert([297,300,301].includes(migrations.length)")
+    expect(source).toContain('validateDisposableBillingReplayMigrations')
+    expect(source).toContain("assert([297,300,301,303].includes(migrations.length)")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {

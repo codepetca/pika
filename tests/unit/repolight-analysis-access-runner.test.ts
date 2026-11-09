@@ -1,5 +1,6 @@
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
@@ -7,7 +8,7 @@ import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifec
 const runner = readFileSync('scripts/check-repolight-analysis-access-database.sh', 'utf8')
 
 describe('RepoLight offline replay source boundary', () => {
-  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', false], ['x', false]])(
+  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', false], ['x', false]])(
     'admits source version %s: %s', (version, accepted) => {
       const start = runner.indexOf('[[ "$source_version" =~')
       const end = runner.indexOf('pnpm --dir "$root"', start)
@@ -20,9 +21,17 @@ describe('RepoLight offline replay source boundary', () => {
     },
   )
 
+  it('runs the actual preflight on the current inventory and gates renewal proof on migration 303', () => {
+    const command = runner.match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
+    expect(command).toBeDefined()
+    const result = spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['-e', command!], { encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(runner).toMatch(/if \[\[ "\$replay_version" == 303 \]\]; then\n  if ! sql < "\$root\/scripts\/check-billing-renewal-pending-database.sql"/)
+  }, 60_000)
+
   it('checks the exact reviewed 296/297 bytes and leaves platform schemas outside their scope', () => {
     const chain = loadAssignmentListReviewedMigrations(process.cwd()).slice(0, 297)
-    expect(runner).toContain('validateLifecycleServicesReviewedMigrations(migrations.slice(0,297))')
+    expect(runner).toContain('validateDisposableBillingReplayMigrations(migrations)')
     expect(() => validateLifecycleServicesReviewedMigrations(chain)).not.toThrow()
     for (const index of [295, 296]) {
       expect(chain[index].sql).not.toMatch(/\b(?:auth|storage)\s*\./i)

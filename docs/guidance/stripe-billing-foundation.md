@@ -557,3 +557,86 @@ External prerequisites: locally configured Stripe test credentials/account/signi
 secret, an isolated runtime, and reviewed authorization for exact schema changes.
 Never paste keys into task messages or commit them. Missing prerequisites prevent
 a real provider rehearsal, not the authorized code and fixture implementation.
+
+## Customer billing and recovery checkpoint — 2026-11-08
+
+The teacher billing page uses the authenticated Pika account and the existing
+local sandbox. It displays stored purchased terms, starts the cardless Pro
+trial, opens versioned checkout, recovers an unfinished checkout, and shows
+payment and plan activation only after server verification. An optional Stripe
+portal configuration supports invoices and payment methods. It must disable
+subscription changes and cancellation. The separate upgrade gate enables the
+existing same-currency, same-interval confirmed quote. The page displays
+Toronto timestamps and uses legacy `plus` and `pro` only at the internal boundary.
+
+Migration 302 handles a verified end-of-term cancellation being undone after
+an applied prorated upgrade. It keeps the original invoice, offering and
+cutoff. It also schedules a read of a verified pending renewal every 15
+minutes through 73 hours after the paid term. While the invoice is pending, the
+last verified access end remains authoritative. A later verified capture can
+settle without a fresh webhook. Migration 303 projects eligible customer
+actions and immutable purchased terms without sending Stripe identifiers to
+the browser. Its extra fields are opt-in; an earlier schema can still return
+plan status, while the new page hides unsupported actions.
+
+### Release sequence
+
+1. Keep live billing disabled. Finish the source contracts for live/test
+   isolation, secure hosted origins, provider account and mode binding on each
+   read/write, and separate controls for new checkout, new trials and upgrades
+   versus continuing processing for existing customers. RepoLight must consume
+   the same authoritative paid/trial state. Preserve the migration 301 legacy
+   path, existing report and feedback reads, and the rule-based provider only.
+2. Complete renewal-boundary changes and the customer cancellation path.
+   Persist the confirmed source and target offering, exact effective date and
+   provider schedule identity. Require verified target payment to advance the
+   purchased version. Record the owner's grace capacity choice before
+   implementing failed scheduled-renewal behavior. Fence replacement,
+   cancellation and upgrade against outstanding financial operations. Use
+   Stripe schedule phases with no immediate proration for eligible scheduled
+   changes. [Stripe schedule contract](https://docs.stripe.com/billing/subscriptions/subscription-schedules)
+3. Complete classroom selection and archive behavior, exact publish/test
+   admission guards, preserved released work and started attempts, and
+   cancellation, failure and expiry notifications. Keep a separate subscription
+   restriction state for retained classrooms. The ordinary archive status blocks
+   student participation and can make data eligible for compaction or purge.
+   Fence Test Start at the shared attempt RPC and preserve Save/Submit for an
+   attempt started before cutoff. Record suppressed scheduled assignment releases
+   durably so resubscription cannot expose work that missed its release.
+   Implement the agreed refund window and confirm Ontario tax treatment. The current provider adapters
+   reject tax and discount adjustments; an operator cannot enable Stripe Tax
+   against those adapters. Do not publish provisional AI allowances.
+4. Rehearse against a designated isolated Stripe sandbox and disposable Pika
+   stack after authorization for synthetic provider writes. Register exact
+   approved recurring prices, bind the scoped account and webhook secret, and
+   select the explicit test portal configuration with invoices and payment
+   updates on and subscription changes off. Use the private billing worker
+   endpoint with a synthetic signer and a bounded periodic caller. Confirm
+   signed duplicate/out-of-order delivery, an eventless capture, cancellation
+   and undo, trial conversion and expiry, grace/closeout races, scheduled
+   downgrades, and preserved RepoLight history. Record account/mode and source
+   revisions without storing credentials. [Stripe event behavior](https://docs.stripe.com/billing/subscriptions/webhooks)
+5. Review the complete final source SHA and obtain the required main CI
+   receipts. Preview the exact pending set on the production database target.
+   For this slice, schema prerequisites are `302_billing_resume_verified_paid_term.sql`
+   and `303_billing_customer_options.sql`, in addition to the verified
+   predecessor inventory. Include later launch migrations in that preview.
+   Apply only the complete exact set authorized for production in the
+   canonical migration workflow, then verify history and ACLs. A source merge
+   does not authorize application, provider writes, or a production promotion.
+6. For the final dormant production candidate, review immutable catalog prices
+   and currency/interval mapping against the approved policy, Stripe tax and
+   payment settings, dedicated signing secrets, mode-specific portal and
+   webhook configuration, collection/retry settings, and the external worker
+   cadence against observed queue latency. Configure and test alerting on
+   unmatched receipts, invoice/entitlement drift, retry exhaustion and closeout
+   attention. Rehearse stopping new sales while continuing to reconcile existing
+   payments. Obtain separate precise authorization for the provider settings,
+   protected production promotion and each activation step. Watch payment,
+   entitlement and RepoLight decisions on the first authorized cohort before
+   expanding admission.
+
+The shared local environment has no configured Stripe sandbox credentials for
+this worktree. Provider-port fixtures and database replays are separate from
+the actual provider rehearsal. The September 27 receipt is historical first
+purchase evidence only.

@@ -9,7 +9,7 @@ import { testOwnerDigest, testOwnerGuardSql } from './contextual-test-owner-deta
 import { TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES } from './contextual-test-publication-proof-fixture'
 import { contextualTestListTestSchema } from '../src/lib/validations/contextual-test-list-read'
 import { boundedAssignmentListJson } from '../src/lib/validations/contextual-assignment-list-read'
-import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
+import { disposableClassroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 
 // Fixed 999/1,000/1,001 bulk sources exercise the supported boundary and refusal.
 // Full immutable-row digests preserve the complete over-limit Classroom.
@@ -260,7 +260,9 @@ export function testOwnerReorderTableCatalogFromCanonical(value: unknown, migrat
     z.object({ count: z.number().int().nonnegative().safe(), digest: z.string().regex(/^[a-f0-9]{32}$/) }).strict()).parse(JSON.parse(receipt.rowDigests))
   const tables = Object.keys(rows).sort(); assert(tables.length > 0 && tables.length <= TEST_OWNER_REORDER_CAPS.fingerprintTables)
   for (const t of [...TEST_OWNER_PUBLICATION_SNAPSHOT_TABLES, 'storage.objects', 'storage.buckets']) assert(tables.includes(t), 'Incomplete canonical catalog')
-  const result = freeze(migrations ? classroomTestQuotaProofCatalog(tables, migrations) : tables); acceptedCatalogs.add(result); return result
+  const result = freeze(migrations ? disposableClassroomTestQuotaProofCatalog(tables, migrations) : tables)
+  acceptedCatalogs.add(result)
+  return result
 }
 function instant(v: unknown) {
   const s = timestamp.parse(v); const fraction = /(?:\.(\d+))?(?:Z|[+-]\d{2}:\d{2})$/.exec(s)?.[1] ?? ''

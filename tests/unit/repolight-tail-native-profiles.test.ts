@@ -10,7 +10,8 @@ import { TEST_MEMBER_LIST_CANONICAL_TABLES_248 } from '../../scripts/contextual-
 import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
 
 const repository = process.cwd()
-const chain = platform.loadAssignmentListReviewedMigrations(repository)
+const current = platform.loadAssignmentListReviewedMigrations(repository)
+const chain = current.slice(0, 301)
 const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 const original = newAssignmentListProofFixture(new Date('2026-10-07T03:00:00Z'))
 
@@ -27,14 +28,36 @@ describe('sealed 300 native source profiles (offline only)', () => {
   })
 
   it('constructs hot lifecycle with a dormant setup guard and whole-schema witness', () => {
-    const plan = classroomHotLifecycleNativePlan(original, 'a'.repeat(40), repository)
-    expect(plan.migrations).toHaveLength(301)
-    expect(plan.nativeVerified).toBe(false)
-    for (const value of ['not managed_provisioning_enabled', 'private.repolight_provision_control',
-      'epoch=1', 'private.repolight_provision_outbox', 'private.repolight_managed_connections']) expect(plan.setup).toContain(value)
-    expect(plan.snapshot).toContain("n.nspname in ('public','private','storage')")
-    expect(plan.snapshot).toContain('pg_get_functiondef(p.oid)')
-    expect(plan.snapshot).toContain('pg_get_triggerdef(trigger_row.oid)')
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(chain)
+    try {
+      const plan = classroomHotLifecycleNativePlan(original, 'a'.repeat(40), repository)
+      expect(plan.migrations).toHaveLength(301)
+      expect(plan.nativeVerified).toBe(false)
+      for (const value of ['not managed_provisioning_enabled', 'private.repolight_provision_control',
+        'epoch=1', 'private.repolight_provision_outbox', 'private.repolight_managed_connections']) expect(plan.setup).toContain(value)
+      expect(plan.snapshot).toContain("n.nspname in ('public','private','storage')")
+      expect(plan.snapshot).toContain('pg_get_functiondef(p.oid)')
+      expect(plan.snapshot).toContain('pg_get_triggerdef(trigger_row.oid)')
+    } finally { loader.mockRestore() }
+  })
+
+  it('keeps the complete billing replay tail out of the historical native plan and catalog', () => {
+    expect(() => classroomHotLifecycleNativePlan(original, 'a'.repeat(40), repository)).toThrow()
+    expect(() => classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toThrow()
+  })
+
+  it('admits the sealed billing suffix for member-list disposable replay and keeps the 301 catalog', () => {
+    expect(() => validateTestMemberListReviewedMigrations(current)).not.toThrow()
+    const catalog301 = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, chain)
+    expect(testMemberListReviewedIsolatedCatalog(catalog301, current)).toEqual(catalog301)
+    expect(testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toEqual(catalog301)
+    const changed = current.map(row => ({ ...row }))
+    changed[302].sql += '\n'
+    changed[302].sha256 = hash(changed[302].sql)
+    for (const inventory of [changed, current.slice(0, 302)]) {
+      expect(() => validateTestMemberListReviewedMigrations(inventory)).toThrow()
+      expect(() => testMemberListReviewedIsolatedCatalog(catalog301, inventory)).toThrow()
+    }
   })
 
   it('copies only the historical learner prefix after validating the full current chain', () => {
@@ -58,7 +81,8 @@ describe('sealed 300 native source profiles (offline only)', () => {
   })
 
   it('rejects partial and unknown source tails', () => {
-    for (const inventory of [chain.slice(0, 298), chain.slice(0, 299), [...chain, {name:'302_unknown.sql',sql:'select 1;',sha256:hash('select 1;')} ]]) {
+    for (const inventory of [chain.slice(0, 298), chain.slice(0, 299), [...chain, {name:'302_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}],
+      [...current, {name:'304_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
       const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(inventory)
       try {
         expect(() => createOfflineTestLearnerRepository(repository)).toThrow()

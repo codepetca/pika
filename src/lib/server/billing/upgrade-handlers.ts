@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { billingUpgradeRequestSchema, billingUpgradeConfirmSchema, billingUpgradeIdSchema,
-  publicBillingUpgradeSchema, type PublicBillingUpgrade } from '@/lib/validations/billing-upgrades'
+  billingUpgradeOperationMissing, publicBillingUpgradeSchema, type PublicBillingUpgrade } from '@/lib/validations/billing-upgrades'
 import { UpgradeConfirmationError, UpgradeEligibilityError } from './upgrade-contracts'
 
 export type BillingUpgradeRuntime = {
@@ -90,7 +90,7 @@ export function createBillingUpgradeHandlers(deps: {
       const operationId = billingUpgradeIdSchema.parse((await context.params).id)
       const runtime = await deps.loadRuntime()
       const result = await runtime.getUpgrade({ subjectUserId: user.id, operationId })
-      if (!result) throw new ApiError(404, 'Not found')
+      if (!result) throw new ApiError(404, billingUpgradeOperationMissing)
       return json(result, operationId)
     }),
   }

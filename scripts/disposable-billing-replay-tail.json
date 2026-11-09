@@ -1,0 +1,10 @@
+[
+  {
+    "name": "302_billing_resume_verified_paid_term.sql",
+    "sha256": "29d34a059f44900eff66589cf7a4fd8f4f32a9455ea9c96bd5d4994c8bac7536"
+  },
+  {
+    "name": "303_billing_customer_options.sql",
+    "sha256": "2949a66a761481c57b25d130706e71a9cb47a3b24f86eff9ef9dca56ffa964cc"
+  }
+]

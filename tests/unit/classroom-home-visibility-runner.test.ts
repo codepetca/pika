@@ -40,7 +40,7 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
+  it.each([['233', false], ['234', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', false], ['0293', false], ['293+0', false]] as const)('executes the closed source-version guard for %s', (version, accepted) => {
     const start = runner.indexOf('[[ "$source_version" =~')
     const end = runner.indexOf('registry=', start)
     expect(start).toBeGreaterThan(-1); expect(end).toBeGreaterThan(start)
@@ -48,20 +48,20 @@ describe('isolated home visibility proof runner source contracts', () => {
     expect(result.status === 0).toBe(accepted)
   })
 
-  it('executes the complete current301 manifest and seals the exact reviewed extension', () => {
+  it('executes the complete current 303 manifest and seals the exact reviewed extension', () => {
     const result = runManifest()
     expect(result.status, result.stderr).toBe(0)
-    expect(result.stdout.trim().split('\n')).toHaveLength(310)
+    expect(result.stdout.trim().split('\n')).toHaveLength(313)
     expect(result.stdout).toContain(`${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.sha256}  supabase/migrations/${REPOLIGHT_REPORT_SERVICE_REVIEWED_MIGRATION.name}`)
   })
 
-  it.each(['tampered293', 'renamed293', 'renamed294', 'renamed295', 'tampered296', 'renamed296', 'missing296', 'tampered297', 'renamed297', 'missing297', 'tampered298', 'renamed298', 'tampered299', 'renamed299', 'tampered300', 'tampered301', 'renamed301', 'historical300', 'missing300', 'partial298', 'partial299', 'historical297', 'unknown301', 'historicalDirtyTree', 'tampered294', 'tampered295', 'tamperedAdmissionProof', 'tamperedBuilder'] as const)('executes manifest compatibility rules for %s', defect => {
+  it.each(['tampered293', 'renamed293', 'renamed294', 'renamed295', 'tampered296', 'renamed296', 'missing296', 'tampered297', 'renamed297', 'missing297', 'tampered298', 'renamed298', 'tampered299', 'renamed299', 'tampered300', 'tampered301', 'renamed301', 'tampered302', 'tampered303', 'renamed302', 'renamed303', 'missing302', 'partial302', 'unknown304', 'historical301', 'historical300', 'missing300', 'partial298', 'partial299', 'historical297', 'unknown301', 'historicalDirtyTree', 'tampered294', 'tampered295', 'tamperedAdmissionProof', 'tamperedBuilder'] as const)('executes manifest compatibility rules for %s', defect => {
     const repository = mkdtempSync(join(tmpdir(), 'pika-home-reviewed-profile-'))
     try {
       mkdirSync(join(repository, 'supabase')); mkdirSync(join(repository, 'scripts'))
       const migrations = join(repository, 'supabase/migrations')
       cpSync('supabase/migrations', migrations, { recursive: true })
-      for (const proof of ['check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs', 'check-classroom-admission-registry-database.sql', 'check-classroom-admission-registry-contention.mjs', 'check-classroom-public-auto-admission.sql', 'check-classroom-public-auto-admission-native-catalog.sql', 'check-classroom-home-visibility-database.sh']) cpSync(join('scripts', proof), join(repository, 'scripts', proof))
+      for (const proof of ['disposable-billing-replay-tail.json', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs', 'check-classroom-admission-registry-database.sql', 'check-classroom-admission-registry-contention.mjs', 'check-classroom-public-auto-admission.sql', 'check-classroom-public-auto-admission-native-catalog.sql', 'check-classroom-home-visibility-database.sh']) cpSync(join('scripts', proof), join(repository, 'scripts', proof))
       mkdirSync(join(repository, 'src/lib/server'), { recursive: true })
       cpSync('src/lib/server/classroom-admission-manifest.ts', join(repository, 'src/lib/server/classroom-admission-manifest.ts'))
       const before = runManifest(repository)
@@ -82,9 +82,16 @@ describe('isolated home visibility proof runner source contracts', () => {
       if (defect === 'tampered300') appendFileSync(join(migrations, '300_repolight_provision_outbox.sql'), '\n-- unreviewed\n')
       if (defect === 'tampered301') appendFileSync(join(migrations, '301_repolight_universal_tier_benefit.sql'), '\n-- unreviewed\n')
       if (defect === 'renamed301') renameSync(join(migrations, '301_repolight_universal_tier_benefit.sql'), join(migrations, '301_unreviewed.sql'))
-      if (defect === 'historical300') rmSync(join(migrations, '301_repolight_universal_tier_benefit.sql'))
-      if (defect === 'historical297' || defect === 'partial298' || defect === 'partial299') {
-        const keep = defect === 'historical297' ? 297 : defect === 'partial298' ? 298 : 299
+      if (defect === 'tampered302' || defect === 'tampered303' || defect === 'renamed302' || defect === 'renamed303' || defect === 'missing302') {
+        const version = defect.slice(-3)
+        const file = readdirSync(migrations).find(name => name.startsWith(`${version}_`))!
+        if (defect.startsWith('tampered')) appendFileSync(join(migrations, file), '\n-- unreviewed billing bytes\n')
+        if (defect.startsWith('renamed')) renameSync(join(migrations, file), join(migrations, `${version}_unreviewed.sql`))
+        if (defect.startsWith('missing')) rmSync(join(migrations, file))
+      }
+      if (defect === 'unknown304') writeFileSync(join(migrations, '304_unreviewed.sql'), 'select 1;\n')
+      if (/^(?:historical|partial)\d{3}$/.test(defect)) {
+        const keep = Number(defect.slice(-3))
         for (const name of readdirSync(migrations)) if (Number(name.slice(0, 3)) > keep) rmSync(join(migrations, name))
       }
       if (defect === 'renamed299') renameSync(join(migrations, '299_repolight_managed_registry.sql'), join(migrations, '299_unreviewed.sql'))
@@ -96,7 +103,7 @@ describe('isolated home visibility proof runner source contracts', () => {
       if (defect === 'tamperedBuilder') appendFileSync(join(repository, 'src/lib/server/classroom-admission-manifest.ts'), '\n// actual dirty-tree builder bytes\n')
       if (defect === 'historicalDirtyTree') appendFileSync(join(migrations, readdirSync(migrations).find(name => name.startsWith('001_'))!), '\n-- historical dirty-tree manifest remains supported\n')
       const result = runManifest(repository)
-      if (['historical297', 'historical300', 'historicalDirtyTree', 'tamperedAdmissionProof', 'tamperedBuilder'].includes(defect)) {
+      if (['historical297', 'historical300', 'historical301', 'historicalDirtyTree', 'tamperedAdmissionProof', 'tamperedBuilder'].includes(defect)) {
         expect(result.status, result.stderr).toBe(0)
         expect(result.stdout).not.toBe(before.stdout)
       }
@@ -105,7 +112,7 @@ describe('isolated home visibility proof runner source contracts', () => {
   })
 
   it('binds the source extension to application-only migration bytes', () => {
-    for (const file of ['298_repolight_analysis_access.sql', '299_repolight_managed_registry.sql', '300_repolight_provision_outbox.sql', '301_repolight_universal_tier_benefit.sql']) {
+    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-3])_/.test(name))) {
       const sql = readFileSync(join('supabase/migrations', file), 'utf8')
       expect(sql).not.toMatch(/\b(?:auth|storage)\s*\./i)
       expect(sql).not.toMatch(/\b(?:create|alter|drop)\s+schema\s+(?:auth|storage)\b/i)
@@ -134,7 +141,7 @@ ${guard}`], {
   })
 
   it('validates a contiguous reviewed inventory and seals SQL/proof bytes before and after execution', () => {
-    for (const token of ["assert([297, 300, 301].includes(paths.length)", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
+    for (const token of ["assert([297, 300, 301, 303].includes(paths.length)", "String(index + 1).padStart(3, '0')", "createHash('sha256')", 'source-manifest.sha256', 'replay-manifest.sha256', 'final-manifest.sha256', 'check-classroom-home-visibility-database.sql', 'check-classroom-home-recovery-database.sql', 'check-classroom-home-visibility-contention.mjs']) {
       expect(runner).toContain(token)
     }
     expect(runner).not.toContain('validateLifecycleServicesReviewedMigrations')
