@@ -43,6 +43,8 @@ export function BillingScheduledChangeCard({ userId, eligibleTerms, onChanged }:
   const [error, setError] = useState('')
   const latest = useRef<ScheduledCancellationStatus['state'] | undefined>(undefined)
   const generation = useRef(0)
+  const heading = useRef<HTMLHeadingElement>(null)
+  const focusStatus = useRef(false)
   const currency = eligibleTerms?.currency
   const interval = eligibleTerms?.interval
 
@@ -101,6 +103,12 @@ export function BillingScheduledChangeCard({ userId, eligibleTerms, onChanged }:
     return () => { abort.abort(); clearTimeout(timer) }
   }, [pending, refresh])
 
+  useEffect(() => {
+    if (quote || action || !focusStatus.current) return
+    focusStatus.current = false
+    heading.current?.focus()
+  }, [quote, action])
+
   const quoteKey = offer && `pika-billing-schedule:${userId}:${offer.offeringVersionId}`
   async function review() {
     if (!offer || !quoteKey || status !== null) return
@@ -132,6 +140,7 @@ export function BillingScheduledChangeCard({ userId, eligibleTerms, onChanged }:
       const result = quoteSchema.parse(await post(`${route}/confirm`, { operationId: quote.operationId }))
       if (result.operationId !== quote.operationId || !['confirmed', 'scheduled'].includes(result.state)) throw new Error('Confirmation mismatch')
       sessionStorage.removeItem(quoteKey)
+      focusStatus.current = true
       setQuote(undefined)
       acceptStatus({ scheduleOperationId: result.operationId, cancellationOperationId: null,
         state: 'install_pending', effectiveAt: result.effectiveAt, canCancel: false, canUndo: false })
@@ -152,6 +161,7 @@ export function BillingScheduledChangeCard({ userId, eligibleTerms, onChanged }:
         throw new Error('Cancellation mismatch')
       }
       generation.current++
+      focusStatus.current = true
       acceptStatus(value)
       setAction(undefined)
     } catch { setError(action === 'cancel' ? 'Could not confirm cancellation. Try again.' : 'Could not restore renewal. Try again.') }
@@ -159,12 +169,13 @@ export function BillingScheduledChangeCard({ userId, eligibleTerms, onChanged }:
   }
 
   if (!status && !(status === null && offer) && !error) return null
-  const ending = status?.state === 'cancel_scheduled' || status?.state === 'completed'
+  const dateLabel = status?.state === 'completed' ? 'Max access ended'
+    : status?.state === 'cancel_scheduled' ? 'Max access ends' : 'Renewal date'
   return <Card>
-    <h2 className="text-lg font-semibold">Scheduled plan change</h2>
+    <h2 ref={heading} tabIndex={-1} className="text-lg font-semibold">Scheduled plan change</h2>
     {status ? <>
       <p className="mt-2 text-sm" role="status">{statusCopy[status.state]}</p>
-      <p className="mt-1 text-sm text-text-muted">{ending ? 'Max access ends' : 'Renewal date'} {billingDate(status.effectiveAt)}</p>
+      <p className="mt-1 text-sm text-text-muted">{dateLabel} {billingDate(status.effectiveAt)}</p>
       {status.canCancel ? <Button variant="secondary" className="mt-3" disabled={busy} onClick={() => { setError(''); setAction('cancel') }}>Cancel renewal</Button> : null}
       {status.canUndo ? <Button variant="secondary" className="mt-3" disabled={busy} onClick={() => { setError(''); setAction('undo') }}>Undo cancellation</Button> : null}
     </> : status === null && offer ? <Button variant="secondary" className="mt-3" loading={busy && !quote} onClick={() => void review()}>Review change to Pro</Button> : null}

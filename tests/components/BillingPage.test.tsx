@@ -37,8 +37,11 @@ describe('BillingPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Review change to Pro' }))
     const dialog = await screen.findByRole('dialog', { name: 'Schedule a change to Pro?' })
     expect(within(dialog).getByText(/CAD 279.00 per year/)).toHaveTextContent('No payment is due today.')
-    await user.click(within(dialog).getByRole('button', { name: 'Schedule change' }))
+    const confirm = within(dialog).getByRole('button', { name: 'Schedule change' })
+    confirm.focus()
+    await user.keyboard('{Enter}')
     expect(await screen.findByText('Your change to Pro is being scheduled.')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Scheduled plan change' })).toHaveFocus()
     expect(screen.queryByRole('button', { name: 'Review change to Pro' })).not.toBeInTheDocument()
   })
 
@@ -72,6 +75,19 @@ describe('BillingPage', () => {
     await user.click(screen.getByRole('button', { name: 'Undo cancellation' }))
     await user.click(within(await screen.findByRole('dialog', { name: 'Undo cancellation?' })).getByRole('button', { name: 'Restore renewal' }))
     expect(await screen.findByText('Renewal restored. Change to Pro scheduled.')).toBeInTheDocument()
+  })
+
+  it('keeps the completed BillingScheduledChangeCard visible after returning on Free', async () => {
+    const fetch = vi.fn((url: string) => url.endsWith('/subscription')
+      ? json({ ...free, options: { ...free.options, hasBillingCustomer: true } })
+      : url.endsWith('/catalog') ? json({ items: [] })
+      : json({ scheduleOperationId: scheduleId, cancellationOperationId: cancellationId,
+        state: 'completed', effectiveAt, canCancel: false, canUndo: false }))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" scheduledBillingAvailable />)
+    expect(await screen.findByText('Your paid Max term ended.')).toBeInTheDocument()
+    expect(screen.getByText(/Max access ended Dec/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo cancellation' })).not.toBeInTheDocument()
   })
 
   it.each([

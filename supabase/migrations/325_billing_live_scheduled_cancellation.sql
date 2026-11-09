@@ -144,12 +144,22 @@ begin
   select change.* into c from private.billing_scheduled_plan_changes change
     join public.stripe_billing_subscription_bindings binding on binding.id=change.subscription_id
       and binding.subject_user_id=change.subject_user_id and binding.provider_mode='live'
-      and binding.stripe_account=p_stripe_account and binding.is_current
+      and binding.stripe_account=p_stripe_account
     join public.users subject on subject.id=binding.subject_user_id and subject.role='teacher'
-    where change.subject_user_id=v_subject and change.state in ('confirmed','scheduled');
+    where change.subject_user_id=v_subject and (
+      (binding.is_current and change.state in ('confirmed','scheduled'))
+      or (not binding.is_current and change.state='canceled' and binding.obligations_cleared_at is not null
+        and exists(select 1 from public.billing_account_access access
+          where access.subject_user_id=v_subject and access.subscription_id=binding.id and access.source='paid'
+            and access.end_reason='cancellation' and access.paid_through=change.effective_at and access.expiry_applied_at is not null)
+        and not exists(select 1 from public.stripe_billing_subscription_bindings current_binding
+          where current_binding.subject_user_id=v_subject and current_binding.provider_mode='live'
+            and current_binding.stripe_account=p_stripe_account and current_binding.is_current)));
   if not found then return null; end if;
   select * into o from private.billing_live_scheduled_cancellations where schedule_operation_id=c.id
+    and (c.state<>'canceled' or state='completed')
     order by (state in ('cancel_pending','cancel_scheduled','undo_pending','attention')) desc,created_at desc,id desc limit 1;
+  if c.state='canceled' and not found then return null; end if;
   return private.billing_live_cancellation_status_v1(c,o,
     v_settings.live_scheduled_cancellation_admission_enabled and v_settings.live_scheduled_cancellation_provider_writes_enabled
       and private.billing_live_cancellation_source_valid_v1(c,p_project_ref,p_stripe_account),clock_timestamp());

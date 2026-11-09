@@ -224,6 +224,19 @@ begin
       and obligations_cleared_at is not null and lease_token is null)
     or (select count(*) from public.stripe_billing_invoice_effects where subscription_id=complete.subscription_id)<>1 then
     raise exception 'Scheduled cancellation created a Pro receipt/grace or failed to expire and retire'; end if;
+  req:=jsonb_build_object('subject_user_id',complete.subject_id);
+  r:=public.billing_get_live_scheduled_cancellation_v1(project,account,req);
+  if r->>'state' is distinct from 'completed' or r->>'scheduleOperationId' is distinct from complete.schedule_id::text
+    or r->>'cancellationOperationId' is distinct from completed_op::text
+    or (r->>'effectiveAt')::timestamptz is distinct from complete.effective_at
+    or r->'canCancel' is distinct from 'false'::jsonb or r->'canUndo' is distinct from 'false'::jsonb then
+    raise exception 'Completed cancellation lost the exact historical status'; end if;
+  insert into public.stripe_billing_subscription_bindings(subject_user_id,stripe_account,provider_mode,
+    stripe_customer_id,stripe_subscription_id,offering_version_id)
+    select subject_user_id,stripe_account,provider_mode,stripe_customer_id,'sub_Live325NewTerm',offering_version_id
+    from public.stripe_billing_subscription_bindings where id=complete.subscription_id;
+  if public.billing_get_live_scheduled_cancellation_v1(project,account,req) is not null then
+    raise exception 'Completed cancellation overrode a newer current subscription'; end if;
 end;
 $$;
 
