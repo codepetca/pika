@@ -1,0 +1,10 @@
+[
+  {
+    "name": "311_billing_live_target_attestation.sql",
+    "sha256": "3dcf51cd4c509bec4d5aff6702ea1b58e29fb5b594ac8247433e66b574d3cf22"
+  },
+  {
+    "name": "312_billing_assignment_release_intents.sql",
+    "sha256": "812e874e6de1513e3e80fb700b347908844a19505b733b285728a5428ccdfa25"
+  }
+]

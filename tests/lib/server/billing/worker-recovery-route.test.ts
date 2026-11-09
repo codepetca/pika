@@ -91,6 +91,15 @@ describe('worker recovery independent of admission', () => {
     expect(mocks.reconcile).toHaveBeenCalledWith({ limit: 1 })
     expect(mocks.closeDue).toHaveBeenCalledWith({ limit: 1 })
   })
+
+  it('processes due assignments after the verified billing work', async () => {
+    const processAssignmentReleases = vi.fn().mockResolvedValue({ suppressed: 1 })
+    mocks.base.mockReturnValueOnce({ store: { listWork: vi.fn().mockResolvedValue({ items: [] }) }, processAssignmentReleases })
+    const response = await POST(request(`Bearer ${env.BILLING_WORKER_SECRET}`), context)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ assignmentReleases: { suppressed: 1 } })
+    expect(mocks.closeDue).toHaveBeenCalledBefore(processAssignmentReleases)
+  })
   it.each([undefined, ''])('allows the base, lifecycle and closeout worker without a configured app origin (%s)', async origin => {
     vi.stubEnv('BILLING_APP_ORIGIN', origin)
     const response = await POST(request(`Bearer ${env.BILLING_WORKER_SECRET}`), context)

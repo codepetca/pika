@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
 import { PATCH, DELETE } from '@/app/api/teacher/assignments/[id]/route'
-import { POST as releaseAssignment } from '@/app/api/teacher/assignments/[id]/release/route'
+import { POST as releaseAssignment, DELETE as cancelRelease } from '@/app/api/teacher/assignments/[id]/release/route'
 import { POST as discardAssignment } from '@/app/api/teacher/assignments/[id]/discard-pristine/route'
 import { authorizeContextualAssignmentOwnerMutationRequest } from '@/lib/server/contextual-assignment-owner-mutation-access'
 import {
@@ -16,6 +16,7 @@ import {
 const actorId = '11111111-1111-4111-8111-111111111111'
 const assignmentId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const classroomId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'
+const intentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
 const user = { id: actorId, role: 'student', email: 'owner@example.com' }
 
 const mockRunCleanup = vi.hoisted(() => vi.fn(async () => ({ claimed: 0, completed: 0, failed: 0 })))
@@ -71,6 +72,7 @@ describe('contextual existing-assignment owner mutation routes', () => {
     vi.mocked(authorizeContextualAssignmentOwnerMutationRequest).mockResolvedValue({
       mode: 'contextual', user: user as any, assignmentId,
     })
+    mockSupabase.rpc.mockResolvedValue({ data: null, error: { code: 'PGRST202' } })
     mockSupabase.from.mockImplementation((table: string) => {
       if (table === 'assignments') return selectAssignment()
       throw new Error(`Unexpected table: ${table}`)
@@ -134,6 +136,98 @@ describe('contextual existing-assignment owner mutation routes', () => {
       assignmentId,
       scheduled: true,
     }))
+  })
+
+  it('returns a guarded schedule while keeping canonical draft evidence', async () => {
+    const scheduledFor = '2099-01-01T00:00:00.000Z'
+    const schedule = { id: intentId, scheduled_for: scheduledFor, state: 'pending', notice_code: null }
+    mockSupabase.rpc.mockResolvedValue({ data: {
+      assignment: assignment(), release_schedule: schedule,
+    }, error: null })
+
+    const response = await releaseAssignment(new NextRequest(
+      `http://localhost/api/teacher/assignments/${assignmentId}/release`,
+      { method: 'POST', body: JSON.stringify({ release_at: scheduledFor }) },
+    ), { params: Promise.resolve({ id: assignmentId }) })
+
+    expect(response.status).toBe(200)
+    expect(mockSupabase.rpc).toHaveBeenCalledExactlyOnceWith('schedule_assignment_for_billing_v1', {
+      p_actor_id: actorId, p_assignment_id: assignmentId, p_scheduled_for: scheduledFor,
+    })
+    expect(await response.json()).toMatchObject({ assignment: { id: assignmentId, is_draft: true, released_at: null, release_schedule: schedule } })
+    expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
+  })
+
+  it('passes the observed generation when rescheduling or canceling', async () => {
+    const scheduledFor = '2099-01-01T00:00:00.000Z'
+    const context = { params: Promise.resolve({ id: assignmentId }) }
+    const url = `http://localhost/api/teacher/assignments/${assignmentId}/release`
+    mockSupabase.rpc.mockResolvedValueOnce({ error: { code: 'PT409', message: 'billing_assignment_schedule_changed' } })
+    const conflict = await releaseAssignment(new NextRequest(url, {
+      method: 'POST', body: JSON.stringify({ release_at: scheduledFor, expected_intent_id: intentId }),
+    }), context)
+    expect(conflict.status).toBe(409)
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('schedule_assignment_for_billing_v1', {
+      p_actor_id: actorId, p_assignment_id: assignmentId, p_scheduled_for: scheduledFor, p_expected_intent_id: intentId,
+    })
+
+    mockSupabase.rpc.mockResolvedValueOnce({ data: { assignment: assignment(), release_schedule: null }, error: null })
+    const response = await cancelRelease(new NextRequest(url, {
+      method: 'DELETE', body: JSON.stringify({ expected_intent_id: intentId }),
+    }), context)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ assignment: { is_draft: true, released_at: null, release_schedule: null } })
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('cancel_assignment_release_for_owner_v1', {
+      p_actor_id: actorId, p_assignment_id: assignmentId, p_expected_intent_id: intentId,
+    })
+    expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
+  })
+
+  it('uses the observed generation for manual posting without falling back when the RPC is unavailable', async () => {
+    const url = `http://localhost/api/teacher/assignments/${assignmentId}/release`
+    const response = await releaseAssignment(new NextRequest(url, {
+      method: 'POST', body: JSON.stringify({ expected_intent_id: intentId }),
+    }), { params: Promise.resolve({ id: assignmentId }) })
+    expect(response.status).toBe(503)
+    expect(mockSupabase.rpc).toHaveBeenCalledWith('publish_scheduled_assignment_for_owner_v1', {
+      p_actor_id: actorId, p_assignment_id: assignmentId, p_expected_intent_id: intentId,
+    })
+    expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
+  })
+
+  it('does not treat a malformed release request as an immediate post', async () => {
+    const response = await releaseAssignment(new NextRequest(
+      `http://localhost/api/teacher/assignments/${assignmentId}/release`,
+      { method: 'POST', body: '{' },
+    ), { params: Promise.resolve({ id: assignmentId }) })
+    expect(response.status).toBe(400)
+    expect(mockSupabase.rpc).not.toHaveBeenCalled()
+    expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
+  })
+
+  it('uses canonical assignment IDs for observed schedules from uppercase legacy URLs', async () => {
+    const uppercaseId = assignmentId.toUpperCase()
+    const context = { params: Promise.resolve({ id: uppercaseId }) }
+    const url = `http://localhost/api/teacher/assignments/${uppercaseId}/release`
+    vi.mocked(authorizeContextualAssignmentOwnerMutationRequest).mockResolvedValue({
+      mode: 'legacy', user: user as any, assignmentId: uppercaseId,
+    })
+    const scheduledFor = '2099-01-01T00:00:00.000Z'
+    mockSupabase.rpc.mockResolvedValueOnce({ data: { assignment: assignment(), release_schedule: {
+      id: intentId, scheduled_for: scheduledFor, state: 'pending', notice_code: null,
+    } }, error: null })
+    const rescheduled = await releaseAssignment(new NextRequest(url, {
+      method: 'POST', body: JSON.stringify({ release_at: scheduledFor, expected_intent_id: intentId }),
+    }), context)
+    expect(rescheduled.status).toBe(200)
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(1, 'schedule_assignment_for_billing_v1', expect.objectContaining({ p_assignment_id: assignmentId }))
+
+    mockSupabase.rpc.mockResolvedValueOnce({ data: { assignment: assignment(), release_schedule: null }, error: null })
+    const canceled = await cancelRelease(new NextRequest(url, {
+      method: 'DELETE', body: JSON.stringify({ expected_intent_id: intentId }),
+    }), context)
+    expect(canceled.status).toBe(200)
+    expect(mockSupabase.rpc).toHaveBeenNthCalledWith(2, 'cancel_assignment_release_for_owner_v1', expect.objectContaining({ p_assignment_id: assignmentId }))
   })
 
   it.each([

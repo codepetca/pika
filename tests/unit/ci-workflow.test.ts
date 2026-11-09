@@ -220,9 +220,8 @@ describe('CI workflow', () => {
     const repeated = light.filter(row => dark.includes(row))
     expect(repeated.sort()).toEqual(full.filter(row => JSON.parse(row)[0] === 'setup').sort())
     expect(patternDark.filter(row => light.includes(row) || dark.includes(row))).toEqual([])
-    // The text fade contract runs for both roles in all four Pattern Lab projects.
-    expect(full).toHaveLength(654)
-    expect(light.length + dark.length + patternDark.length).toBe(656)
+    expect(full).toHaveLength(662)
+    expect(light.length + dark.length + patternDark.length).toBe(664)
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 180_000)
 

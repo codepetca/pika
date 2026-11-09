@@ -5,7 +5,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Trash2 } from 'lucide-react'
 import { TeacherWorkItemCardFrame } from '@/components/teacher-work-surface/TeacherWorkItemCardFrame'
-import { formatDueDate, isAssignmentScheduledForFuture } from '@/lib/assignments'
+import { formatDueDate, getAssignmentOwnerScheduleLabel, getAssignmentScheduledReleaseAt } from '@/lib/assignments'
 import { Button, Tooltip } from '@/ui'
 import type { Assignment, AssignmentStats } from '@/types'
 
@@ -65,11 +65,8 @@ export function SortableAssignmentCard({
   }
 
   const isDraft = assignment.is_draft
-  const isScheduled = isAssignmentScheduledForFuture(assignment)
-  const scheduledOpenLabel =
-    isScheduled && assignment.released_at
-      ? formatScheduledRelease(assignment.released_at)
-      : ''
+  const scheduledAt = getAssignmentScheduledReleaseAt(assignment)
+  const status = getAssignmentOwnerScheduleLabel(assignment) ?? (scheduledAt ? 'Scheduled' : null)
   const handleCardAction = () => {
     if (pending) return
     if (editMode) {
@@ -84,7 +81,7 @@ export function SortableAssignmentCard({
       ref={setNodeRef}
       style={style}
       onClick={handleCardAction}
-      tone={isDraft || isScheduled ? 'muted' : 'default'}
+      tone={isDraft || scheduledAt ? 'muted' : 'default'}
       dragging={isDragging}
       className="cursor-pointer"
     >
@@ -128,12 +125,12 @@ export function SortableAssignmentCard({
           <span className="min-w-0">
             <span className={[
               'flex items-center gap-2 font-medium',
-              isDraft || isScheduled ? 'text-text-muted' : 'text-text-default'
+              isDraft || scheduledAt ? 'text-text-muted' : 'text-text-default'
             ].join(' ')}>
               <ClassworkTypeIcon type="assignment" /><span className="truncate">{assignment.title}</span>
             </span>
-            {isScheduled && (
-              <span className="block text-xs text-warning">{scheduledOpenLabel}</span>
+            {scheduledAt && (
+              <span className="block text-xs text-warning">{formatScheduledRelease(scheduledAt)}</span>
             )}
             <span className="block text-xs text-text-muted">
               Due: {formatDueDate(assignment.due_at)}
@@ -141,13 +138,13 @@ export function SortableAssignmentCard({
           </span>
 
           <span className="whitespace-nowrap px-2 text-center">
-            {isDraft ? (
+            {status ? (
+              <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
+                {status}
+              </span>
+            ) : isDraft ? (
               <span className="inline-flex items-center rounded-badge bg-surface-3 px-2.5 py-1 text-xs font-semibold text-text-muted">
                 Draft
-              </span>
-            ) : isScheduled ? (
-              <span className="inline-flex items-center rounded-badge bg-warning-bg px-2.5 py-1 text-xs font-semibold text-warning">
-                Scheduled
               </span>
             ) : (
               <span className="text-sm text-text-muted">

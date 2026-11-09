@@ -54,6 +54,25 @@ export function isAssignmentScheduledForFuture(
   return getAssignmentReleaseState(input, now) === 'scheduled'
 }
 
+export function getAssignmentScheduledReleaseAt(
+  assignment: Pick<Assignment, 'is_draft' | 'released_at' | 'release_schedule'>,
+): string | null {
+  if (assignment.is_draft && assignment.release_schedule?.state === 'pending') {
+    return assignment.release_schedule.scheduled_for
+  }
+  return isAssignmentScheduledForFuture(assignment) ? assignment.released_at : null
+}
+
+export function getAssignmentOwnerScheduleLabel(
+  assignment: Pick<Assignment, 'is_draft' | 'release_schedule'>,
+  now = Date.now(),
+): 'Scheduled' | 'Release pending' | 'Release missed' | null {
+  const schedule = assignment.release_schedule
+  if (!assignment.is_draft || !schedule) return null
+  if (schedule.state === 'suppressed') return 'Release missed'
+  return Date.parse(schedule.scheduled_for) <= now ? 'Release pending' : 'Scheduled'
+}
+
 export function isAssignmentLive(
   input: AssignmentReleaseInput,
   now: Date = new Date()
