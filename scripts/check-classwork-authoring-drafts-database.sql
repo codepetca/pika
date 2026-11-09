@@ -3,6 +3,11 @@ begin;
 insert into public.users(id,email,role) values ('c2890000-0000-4000-8000-000000000001','draft-owner@example.invalid','teacher'),('c2890000-0000-4000-8000-000000000002','draft-other@example.invalid','teacher'),('c2890000-0000-4000-8000-000000000003','draft-student@example.invalid','student');
 select public.set_effective_feature_entitlement_v1(gen_random_uuid(),'c2890000-0000-4000-8000-000000000001','classrooms.create','manual',true,clock_timestamp(),null,10,'test:draft','draft_rollback',0);
 insert into public.classrooms(id,teacher_id,title,class_code) values ('c2890000-0000-4000-8000-000000000010','c2890000-0000-4000-8000-000000000001','Draft proof','DRAFT123');
+insert into public.course_blueprints(id,teacher_id,title) values
+ ('c2890000-0000-4000-8000-000000000020','c2890000-0000-4000-8000-000000000001','Lineage proof');
+insert into public.course_blueprint_versions(id,course_blueprint_id,version_number,source_draft_revision,snapshot_json,snapshot_sha256,created_by)
+ select 'c2890000-0000-4000-8000-000000000021',id,1,content_revision,'{}',repeat('a',64),teacher_id
+ from public.course_blueprints where id='c2890000-0000-4000-8000-000000000020';
 do $$
 declare a uuid := 'c2890000-0000-4000-8000-000000000001'; c uuid := 'c2890000-0000-4000-8000-000000000010'; k text; r jsonb; rr jsonb; i uuid; req uuid; rev uuid; expected uuid; content jsonb; projection jsonb; vals jsonb; q uuid := gen_random_uuid(); signature text; source_revision text;
 begin
@@ -127,12 +132,27 @@ begin
  perform public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,'{}',true);
  if public.read_classwork_authoring_draft(a,c,'survey',survey)->'draft' <> 'null'::jsonb then raise exception 'discard did not clear draft'; end if;
  -- A posted unanswered question changing type/options must receive a fresh ID.
+ update public.survey_questions set
+   artifact_id='c2890000-0000-4000-8000-000000000022',
+   source_artifact_id='c2890000-0000-4000-8000-000000000023',
+   source_blueprint_version_id='c2890000-0000-4000-8000-000000000021',
+   created_at='2020-01-02T03:04:05Z'::timestamptz
+ where id=question;
+
  source := public.read_classwork_authoring_draft(a,c,'survey',survey)->>'sourceRevision'; rev := gen_random_uuid();
  projection := jsonb_set(projection,'{questions,0,question_type}','"multiple_choice"');
  projection := jsonb_set(projection,'{questions,0,options}','["One","Two"]');
  perform public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
  r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,jsonb_build_object('source',content,'values',projection));
  if exists(select 1 from public.survey_questions where id=question) or not exists(select 1 from public.survey_questions where survey_id=survey and question_type='multiple_choice' and id<>question) then raise exception 'posted question ID not rotated'; end if;
+ if not exists(select 1 from public.survey_questions where survey_id=survey and id<>question
+   and artifact_id='c2890000-0000-4000-8000-000000000022'
+   and source_artifact_id='c2890000-0000-4000-8000-000000000023'
+   and source_blueprint_version_id='c2890000-0000-4000-8000-000000000021'
+   and created_at='2020-01-02T03:04:05Z'::timestamptz) then
+   raise exception 'question rotation lost lineage or creation time';
+ end if;
+
  begin insert into public.survey_responses(survey_id,question_id,student_id,response_text) values(survey,question,student,'legacy'); raise exception 'old question ID accepted'; exception when foreign_key_violation then null; end;
  -- Response-bearing questions cannot change type or options.
  select id into question from public.survey_questions where survey_id=survey;

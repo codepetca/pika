@@ -400,6 +400,7 @@ create function private.apply_classwork_survey_draft(
 declare
   v_survey public.surveys;
   v_question record;
+  v_replaced_question public.survey_questions;
   v_question_id uuid;
 begin
   select * into strict v_survey from public.surveys where id = p_survey_id;
@@ -432,24 +433,27 @@ begin
       from jsonb_array_elements(p_content->'questions') with ordinality
   loop
     v_question_id := (v_question.value->>'id')::uuid;
-    if v_survey.status <> 'draft' and exists (
-      select 1 from public.survey_questions current_question
-      where current_question.id = v_question_id and current_question.survey_id = p_survey_id
+    -- Rotate the response key while preserving the question's Blueprint identity.
+    -- Existing responses were checked under the survey/classroom lock.
+    delete from public.survey_questions current_question
+      where v_survey.status <> 'draft'
+        and current_question.id = v_question_id and current_question.survey_id = p_survey_id
         and (current_question.question_type is distinct from v_question.value->>'question_type'
           or current_question.options is distinct from v_question.value->'options')
-    ) then
-      -- Existing responses were checked under the survey/classroom lock.
-      -- A request holding the old question ID can no longer insert its answer.
-      delete from public.survey_questions where id = v_question_id and survey_id = p_survey_id;
+      returning * into v_replaced_question;
+    if found then
       v_question_id := gen_random_uuid();
     end if;
     insert into public.survey_questions
-      (id, survey_id, question_type, question_text, options, response_max_chars, position)
+      (id, survey_id, question_type, question_text, options, response_max_chars, position,
+        artifact_id, source_artifact_id, source_blueprint_version_id, created_at)
     values (
       v_question_id, p_survey_id,
       v_question.value->>'question_type', v_question.value->>'question_text',
       v_question.value->'options', (v_question.value->>'response_max_chars')::integer,
-      v_question.position
+      v_question.position, coalesce(v_replaced_question.artifact_id, gen_random_uuid()),
+      v_replaced_question.source_artifact_id, v_replaced_question.source_blueprint_version_id,
+      coalesce(v_replaced_question.created_at, now())
     )
     on conflict (id) do update set
       question_type = excluded.question_type,

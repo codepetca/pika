@@ -68,7 +68,8 @@ for (const viewport of ['desktop', 'mobile'] as const) {
         expect(stillHidden.ok()).toBeTruthy()
         expect((await stillHidden.json()).materials.some((item: { id: string }) => item.id === material.id)).toBe(false)
         await expect(dialog.getByRole('button', { name: 'Post', exact: true })).toBeEnabled()
-        const save = page.waitForResponse(response => response.url().endsWith(`${endpoint}/${material.id}`) && response.request().method() === 'PATCH')
+        const publicationPath = `/api/teacher/classrooms/${classroom.id}/classwork-authoring/material/${material.id}`
+        const save = page.waitForResponse(response => new URL(response.url()).pathname === publicationPath && response.request().method() === 'POST')
         await dialog.getByRole('button', { name: 'Post', exact: true }).click()
         expect((await save).ok()).toBeTruthy()
         await expect(dialog).toBeHidden()
