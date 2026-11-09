@@ -10,16 +10,16 @@ const lanes = {
     secret: 'BILLING_LIVE_PAYMENT_WORKER_SECRET',
     path: '/api/billing/stripe/live/process',
     required: ['purchases', 'reconciliation', 'closeouts', 'expiry', 'assignmentReleases'],
-    processed: ['purchases', 'reconciliation', 'closeouts', 'expiry'],
-    optional: ['scheduledInstallations', 'scheduledCancellations'],
+    processed: ['purchases', 'reconciliation', 'closeouts', 'expiry', 'emailNotices'],
+    optional: ['scheduledInstallations', 'scheduledCancellations', 'emailNotices'],
   },
   trial: {
     enabled: 'BILLING_TRIAL_RECOVERY_ENABLED',
     secret: 'BILLING_LIVE_TRIAL_WORKER_SECRET',
     path: '/api/billing/trial/process',
     required: ['lifecycle', 'assignmentReleases'],
-    processed: ['lifecycle'],
-    optional: [],
+    processed: ['lifecycle', 'emailNotices'],
+    optional: ['emailNotices'],
   },
 }
 const issueNames = ['failed', 'exceptions', 'attention']
@@ -29,6 +29,7 @@ const progressNames = {
   closeouts: ['processed', 'closed', 'paymentWon', 'deferred'],
   expiry: ['processed'],
   lifecycle: ['processed'],
+  emailNotices: ['processed', 'sent'],
   assignmentReleases: ['released', 'suppressed', 'superseded', 'noop', 'busy', 'disabled'],
   scheduledInstallations: ['installed', 'expired', 'retry', 'deferred', 'busy', 'lost_claim'],
   scheduledCancellations: ['canceled', 'restored', 'restored_after_cutoff', 'unchanged_after_cutoff', 'completed',

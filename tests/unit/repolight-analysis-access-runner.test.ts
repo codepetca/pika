@@ -8,7 +8,7 @@ import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifec
 const runner = readFileSync('scripts/check-repolight-analysis-access-database.sh', 'utf8')
 
 describe('RepoLight offline replay source boundary', () => {
-  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', true], ['325', true], ['326', true], ['327', false], ['x', false]])(
+  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', true], ['325', true], ['326', true], ['327', true], ['328', false], ['x', false]])(
     'admits source version %s: %s', (version, accepted) => {
       const start = runner.indexOf('[[ "$source_version" =~')
       const end = runner.indexOf('pnpm --dir "$root"', start)

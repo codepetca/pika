@@ -88,7 +88,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325 or 326')
+  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326 or 327')
   assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
     '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
   assert.equal(disposableBillingReplayTail.length, 6)
@@ -132,8 +132,8 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   }
   if (migrations.length >= 314) {
     assert.equal(createHash('sha256').update(JSON.stringify(disposableLivePaymentReplayTail)).digest('hex'),
-      '809e394c0259d23866d08c8d7c393aafe4dec022048a7ec2b8226f7826f5eb49', 'Unreviewed live payment replay seal')
-    assert.equal(disposableLivePaymentReplayTail.length, 13)
+      '38c43b33da96fb84e10617f41b1889dbabea29335af595eb31ddeb45b8b61561', 'Unreviewed live payment replay seal')
+    assert.equal(disposableLivePaymentReplayTail.length, 14)
     for (const [offset, { name, sha256 }] of disposableLivePaymentReplayTail.slice(0, migrations.length - 313).entries()) {
       const migration = migrations[313 + offset]
       assert.equal(migration.name, name)
