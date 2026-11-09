@@ -54,6 +54,10 @@ async function invoke<Name extends SurveyRpcName, T extends z.ZodType>(client: S
   }
   if (result.error) {
     const code = result.error.code
+    if (name === 'respond_to_survey_for_member_v1' && code === 'PT400') {
+      if (result.error.message === 'survey_already_answered') throw new ApiError(400, 'You have already responded to this survey')
+      if (result.error.message === 'survey_not_open') throw new ApiError(400, 'Survey is not open')
+    }
     if (code === 'PT400' || code === '22023' || code === '23505') throw new ApiError(400, 'Invalid Survey operation')
     if (code === 'PT403' || code === '42501') throw new ApiError(403, 'Forbidden')
     if (code === 'PT404' || code === 'P0002') throw new ApiError(404, 'Survey not found')

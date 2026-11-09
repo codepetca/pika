@@ -48,7 +48,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
   // The current native harness asserts265 Return and clear-preservation behavior.
   // Historical source seals remain valid; those schemas cannot execute this proof.
   const inventory=loadAssignmentListReviewedMigrations(repository)
-  assert([265,266,267,268,269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267/268/269/270/271/272/273/274/275/276/277/278/279/280/281/282/283/284/285/286/287/288/289/290/291/292/293/294/295/296/297 extensions')
+  assert([265,266,267,268,269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 302].includes(inventory.length),'Owner grading native proof requires the exact migration265 profile or its reviewed266/267/268/269/270/271/272/273/274/275/276/277/278/279/280/281/282/283/284/285/286/287/288/289/290/291/292/293/294/295/296/297 extensions')
   validateStudentTestSessionStatusReviewedMigration(inventory[257])
   validateTestOwnerGradingReviewedMigration(inventory[258])
   if(inventory.length>=260)validateTestOwnerRecoveryReviewedMigration(inventory[259])
@@ -76,7 +76,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
     ['public.classroom_enrollments',`classroom_id=${cid}`],['public.managed_storage_settings','true'],
     ...['tests','test_questions','test_attempts','test_responses','test_student_availability','test_focus_events','test_ai_grading_runs','test_ai_grading_run_items']
       .map(table=>[`public.${table}`,`${table==='tests'?'id':'test_id'} in (${tid},${q(f.emptyTestId)}::uuid)`])]
-  const graph=withRepoLight300Witness(`pg_catalog.jsonb_build_object(${tables.map(([table,predicate])=>`${q(table)},(select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r) order by pg_catalog.to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`, [300,301].includes(inventory.length))
+  const graph=withRepoLight300Witness(`pg_catalog.jsonb_build_object(${tables.map(([table,predicate])=>`${q(table)},(select coalesce(pg_catalog.jsonb_agg(pg_catalog.to_jsonb(r) order by pg_catalog.to_jsonb(r)::text),'[]'::jsonb) from ${table} r where ${predicate})`).join(',')})`, [300,301,302].includes(inventory.length))
   const snapshot=bounded(`begin read only;set local lock_timeout='1s';set local statement_timeout='8s';select ${graph} as result;rollback;`)
   const presence=`do $presence$ begin if not exists(select 1 from public.classrooms where id=${cid} and teacher_id=${owner} and archived_at is null)
     or not exists(select 1 from public.tests where id=${tid} and classroom_id=${cid} and created_by=${q(f.actors[3].id)} and status='active' and blueprint_archived_at is null and show_results=false)
@@ -88,7 +88,7 @@ export function testOwnerGradingNativePlan(original:AssignmentListProofFixture,o
     or (select count(*) from public.classroom_enrollments where classroom_id=${cid} and student_id in (${f.actors.slice(0,3).map(a=>q(a.id)).join(',')}))<>3
     or (select count(*) from public.test_student_availability where test_id=${tid} and student_id in (${f.actors.slice(1,3).map(a=>q(a.id)).join(',')}) and state='closed')<>2
     then raise exception 'Migration259 grading fixture presence differs';end if;end;$presence$;`
-  const setup=bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${[300,301].includes(inventory.length) ? repoLight300PresenceSql() : ''}rollback;`)
+  const setup=bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${[300,301,302].includes(inventory.length) ? repoLight300PresenceSql() : ''}rollback;`)
   const template=readFileSync(resolve(repository,'scripts/check-contextual-test-owner-grading.sql'),'utf8')
   const marker='-- owner-grading-contracts-begin\n',end='-- owner-grading-contracts-end'
   assert(template.split(marker).length===2&&template.split(end).length===2)

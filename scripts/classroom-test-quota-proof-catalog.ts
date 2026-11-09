@@ -16,7 +16,7 @@ export function classroomTestQuotaProofCatalog(
   migrations: readonly { name: string; sql: string; sha256: string }[],
 ): readonly string[] {
   // Admit only the explicitly enumerated and sealed preservation tail.
-  assert(migrations.length <= 301, 'Unreviewed quota proof catalog migration profile')
+  assert(migrations.length <= 302, 'Unreviewed quota proof catalog migration profile')
   assert(canonicalTables.length > 0 && canonicalTables.length <= 1024)
   assert(canonicalTables.every(name => /^(public|private|storage)\.[a-z_0-9]+$/.test(name)))
   assert.equal(new Set(canonicalTables).size, canonicalTables.length)
@@ -40,7 +40,9 @@ export function classroomTestQuotaProofCatalog(
   if (hasPublicAutoAdmission || hasDecommission || hasMembership || hasMembershipAdoption || hasLearnerMembership || hasAuthoringImages || hasHomeVisibility || hasRepoLight || hasAdmissionRegistry || hasNamedSchedules) validateLifecycleServicesReviewedMigrations(migrations)
   const hasManagedRepoLight = migrations.length >= 299
   const hasProvisionOutbox = migrations.length >= 300
+  const hasClassworkDrafts = migrations.length >= 302
   const expected = [...new Set([...canonicalTables, quotaTable,
+    ...(hasClassworkDrafts ? ['private.classwork_authoring_drafts'] : []),
     ...(hasManagedRepoLight ? ['private.repolight_managed_connections'] : []),
     ...(hasProvisionOutbox ? ['private.repolight_provision_control', 'private.repolight_provision_outbox',
       'private.stripe_billing_settings', 'public.account_plans', 'public.billing_account_access'] : []),

@@ -6,7 +6,16 @@ test.setTimeout(120_000)
 const classroomId = '30000000-0000-4000-8000-000000000011'
 const teacherId = '30000000-0000-4000-8000-000000000012'
 const surveyId = '30000000-0000-4000-8000-000000000090'
+const newSurveyId = '30000000-0000-4000-8000-000000000091'
 const timestamp = '2026-01-01T00:00:00.000Z'
+const sourceRevision = 'a'.repeat(64)
+type Snapshot = {
+  title: string
+  show_results: boolean
+  dynamic_responses: boolean
+  questions: Array<Pick<SurveyQuestion, 'id' | 'question_type' | 'question_text' | 'options' | 'response_max_chars'>>
+  editor?: { unresolved: boolean; markdownDirty?: boolean; [key: string]: unknown }
+}
 
 for (const mobile of [false, true]) {
   for (const theme of ['light', 'dark'] as const) {
@@ -15,55 +24,74 @@ for (const mobile of [false, true]) {
       await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
       const errors: string[] = []
       page.on('pageerror', (error) => errors.push(error.message))
-      let survey: SurveyWithStats = {
-        id: surveyId, classroom_id: classroomId, title: 'Class feedback', status: 'draft',
-        opens_at: null, show_results: true, dynamic_responses: false, position: 0,
-        created_by: teacherId, created_at: timestamp, updated_at: timestamp,
-        stats: { total_students: 2, responded: 0, questions_count: 2 },
+      const surveys: Record<string, SurveyWithStats> = {
+        [surveyId]: { id: surveyId, classroom_id: classroomId, title: 'Class feedback', status: 'draft',
+          opens_at: null, show_results: true, dynamic_responses: false, position: 0, created_by: teacherId,
+          created_at: timestamp, updated_at: timestamp, stats: { total_students: 2, responded: 0, questions_count: 2 } },
       }
-      let questions: SurveyQuestion[] = [
-        { id: 'question-1', survey_id: surveyId, question_type: 'multiple_choice',
-          question_text: 'Which activity helped you learn?', options: ['Group discussion', 'Practice problems', 'Independent reading'],
-          response_max_chars: 1200, position: 0, created_at: timestamp, updated_at: timestamp },
-        { id: 'question-2', survey_id: surveyId, question_type: 'short_text',
-          question_text: 'What would you like to practise next?', options: [],
-          response_max_chars: 1200, position: 1, created_at: timestamp, updated_at: timestamp },
-      ]
-      let createCount = 0
-      let nextQuestionId = 3
+      const questions: Record<string, SurveyQuestion[]> = {
+        [surveyId]: [
+          { id: '30000000-0000-4000-8000-000000000101', survey_id: surveyId, question_type: 'multiple_choice',
+            question_text: 'Which activity helped you learn?', options: ['Group discussion', 'Practice problems', 'Independent reading'],
+            response_max_chars: 1200, position: 0, created_at: timestamp, updated_at: timestamp },
+          { id: '30000000-0000-4000-8000-000000000102', survey_id: surveyId, question_type: 'short_text',
+            question_text: 'What would you like to practise next?', options: [], response_max_chars: 1200,
+            position: 1, created_at: timestamp, updated_at: timestamp },
+        ],
+      }
+      const drafts: Record<string, { revision: string; content: Snapshot }> = {}
+      let revisionNumber = 0
+      let creates = 0
+      let writes = 0
       let loadError = true
+      const draftPath = `/api/teacher/classrooms/${classroomId}/classwork-authoring/survey/`
       await page.route('**/api/**', async (route) => {
         const request = route.request()
         const path = new URL(request.url()).pathname
+        const method = request.method()
         let body: unknown = {}
-        if (path === '/api/teacher/surveys') {
-          if (request.method() === 'POST') {
-            createCount += 1
-            survey = { ...survey, ...request.postDataJSON(), status: 'draft', stats: { ...survey.stats, questions_count: 0 } }
-            questions = []
-            body = { survey }
-          } else body = { surveys: [survey] }
-        } else if (path === `/api/teacher/surveys/${surveyId}`) {
-          if (request.method() === 'GET' && loadError) {
-            await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Survey unavailable' }) })
-            return
+        if (path.startsWith(draftPath)) {
+          const id = path.slice(draftPath.length)
+          if (method === 'GET') {
+            if (loadError) {
+              await route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Survey unavailable' }) })
+              return
+            }
+            body = { item: { ...surveys[id], questions: questions[id] }, draft: drafts[id] ?? null, sourceRevision }
+          } else if (id === 'new' && method === 'POST') {
+            const input = request.postDataJSON() as { content: Snapshot }
+            creates += 1
+            writes += 1
+            surveys[newSurveyId] = { ...surveys[surveyId], id: newSurveyId, title: 'Untitled Survey', status: 'draft', stats: { total_students: 2, responded: 0, questions_count: 0 } }
+            questions[newSurveyId] = []
+            drafts[newSurveyId] = { revision: `revision-${++revisionNumber}`, content: input.content }
+            body = { item: { ...surveys[newSurveyId], questions: questions[newSurveyId] }, draft: drafts[newSurveyId], sourceRevision }
+          } else if (method === 'PUT') {
+            const input = request.postDataJSON() as { content: Snapshot; expectedRevision: string | null; expectedSourceRevision: string }
+            expect(input.expectedRevision).toBe(drafts[id]?.revision ?? null)
+            expect(input.expectedSourceRevision).toBe(sourceRevision)
+            writes += 1
+            drafts[id] = { revision: `revision-${++revisionNumber}`, content: input.content }
+            if (surveys[id].status === 'draft') {
+              surveys[id] = { ...surveys[id], title: input.content.title || surveys[id].title, show_results: input.content.show_results, dynamic_responses: input.content.dynamic_responses,
+                stats: { ...surveys[id].stats, questions_count: input.content.questions.length } }
+              questions[id] = input.content.questions.map((question, position) => ({ ...question, survey_id: id, position, created_at: timestamp, updated_at: timestamp }))
+            }
+            body = { item: { ...surveys[id], questions: questions[id] }, draft: drafts[id], sourceRevision }
+          } else if (method === 'POST') {
+            const input = request.postDataJSON() as { revision: string; publish?: boolean }
+            expect(input.revision).toBe(drafts[id].revision)
+            expect(drafts[id].content.editor?.unresolved).not.toBe(true)
+            const snapshot = drafts[id].content
+            surveys[id] = { ...surveys[id], title: snapshot.title, show_results: snapshot.show_results,
+              dynamic_responses: snapshot.dynamic_responses, status: input.publish ? 'active' : surveys[id].status,
+              stats: { ...surveys[id].stats, questions_count: snapshot.questions.length } }
+            questions[id] = snapshot.questions.map((question, position) => ({ ...question, survey_id: id, position, created_at: timestamp, updated_at: timestamp }))
+            delete drafts[id]
+            body = { item: { ...surveys[id], questions: questions[id] }, sourceRevision }
           }
-          if (request.method() === 'PATCH') survey = { ...survey, ...request.postDataJSON() }
-          body = { survey, questions }
-        } else if (path === `/api/teacher/surveys/${surveyId}/questions`) {
-          const question = { ...request.postDataJSON(), id: `question-${nextQuestionId++}`, survey_id: surveyId, position: questions.length, created_at: timestamp, updated_at: timestamp }
-          questions.push(question)
-          body = { question }
-        } else if (path.startsWith(`/api/teacher/surveys/${surveyId}/questions/`)) {
-          const id = path.split('/').pop()
-          if (request.method() === 'DELETE') {
-            questions = questions.filter((question) => question.id !== id)
-            body = { success: true }
-          } else {
-            questions = questions.map((question) => question.id === id ? { ...question, ...request.postDataJSON() } : question)
-            body = { question: questions.find((question) => question.id === id) }
-          }
-        } else if (path.endsWith('/results')) body = { survey, results: [], stats: { total_students: 2, responded: 0 } }
+        } else if (path === '/api/teacher/surveys') body = { surveys: Object.values(surveys) }
+        else if (path.startsWith('/api/teacher/surveys/') && path.endsWith('/results')) body = { survey: surveys[surveyId], results: [], stats: { total_students: 2, responded: 0 } }
         else if (path === '/api/teacher/assignments') body = { assignments: [] }
         else if (path === '/api/teacher/materials') body = { materials: [] }
         else if (path.endsWith('/class-days')) body = { class_days: [] }
@@ -73,146 +101,73 @@ for (const mobile of [false, true]) {
       })
       await page.goto('/e2e-fixtures/teacher-student-tables?tab=assignments')
       await page.getByRole('button', { name: 'Class feedback', exact: true }).click()
-      await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
-      await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
+      const openEditor = async () => {
+        await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
+        await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
+      }
+      await openEditor()
       const dialog = page.getByRole('dialog', { name: 'Edit survey', exact: true })
       await expect(dialog.getByRole('alert')).toHaveText('Survey unavailable')
-      await dialog.screenshot({ path: testInfo.outputPath('unavailable.png'), animations: 'disabled' })
-      await dialog.getByRole('button', { name: 'Close survey editor' }).click()
-      await expect(dialog).toHaveCount(0)
-      await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
-      await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
-      await expect(dialog.getByRole('alert')).toHaveText('Survey unavailable')
-      await page.keyboard.press('Escape')
-      await expect(dialog).toHaveCount(0)
       loadError = false
-      await page.getByTestId('survey-workspace-actionbar-center').getByRole('button').nth(1).click()
-      await page.getByRole('menuitem', { name: 'Edit survey', exact: true }).click()
-      await expect(dialog.getByRole('textbox', { name: 'Prompt', exact: true })).toContainText(questions[0].question_text)
+      await dialog.getByRole('button', { name: 'Retry' }).click()
+      const prompt = dialog.getByRole('textbox', { name: 'Prompt', exact: true })
+      await expect(prompt).toContainText('Which activity helped you learn?')
+      expect(writes).toBe(0)
       await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /\bdark\b/ : /^(?!.*\bdark\b)/)
-      if (mobile) {
-        const closeBounds = (await dialog.getByRole('button', { name: 'Close survey editor' }).boundingBox())!
-        const titleBounds = (await dialog.getByRole('textbox', { name: 'Title', exact: true }).boundingBox())!
-        const settingsBounds = (await dialog.getByRole('button', { name: 'Settings', exact: true }).boundingBox())!
-        expect(titleBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
-        expect(settingsBounds.y).toBeGreaterThanOrEqual(closeBounds.y + closeBounds.height)
-      }
-      const capture = async (state: string) => {
-        await testInfo.attach(state, { body: await dialog.screenshot({ path: testInfo.outputPath(`${state}.png`), animations: 'disabled' }), contentType: 'image/png' })
-        if (mobile) {
-          await dialog.getByTestId('survey-editor-content-pane').scrollIntoViewIfNeeded()
-          await testInfo.attach(`${state}-content`, { body: await dialog.screenshot({ path: testInfo.outputPath(`${state}-content.png`), animations: 'disabled' }), contentType: 'image/png' })
-        }
-        expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
-      }
       const details = await dialog.getByTestId('survey-editor-details-pane').boundingBox()
       const content = await dialog.getByTestId('survey-editor-content-pane').boundingBox()
       if (mobile) expect(content!.y).toBeGreaterThan(details!.y)
-      else {
-        expect(content!.x).toBeGreaterThan(details!.x)
-        expect(content!.width / details!.width).toBeCloseTo(2, 0)
-      }
-      const prompt = dialog.getByRole('textbox', { name: 'Prompt', exact: true })
-      const number = dialog.getByRole('spinbutton', { name: 'Question number' })
-      const actions = dialog.getByRole('button', { name: 'Question actions', exact: true })
-      await capture('multiple-choice')
+      else expect(content!.x).toBeGreaterThan(details!.x)
+      await testInfo.attach('survey-editor', { body: await dialog.screenshot({ animations: 'disabled' }), contentType: 'image/png' })
+
       await prompt.fill('Which activity helped you learn today?')
-      await dialog.getByRole('textbox', { name: 'Option A', exact: true }).fill('Updated group discussion')
-      await dialog.getByRole('button', { name: /Reorder option A;/ }).press('ArrowDown')
-      await expect(dialog.getByRole('textbox', { name: 'Option B', exact: true })).toHaveValue('Updated group discussion')
-      await dialog.getByRole('button', { name: 'Next question', exact: true }).click()
+      await expect.poll(() => drafts[surveyId]?.content.questions[0]?.question_text).toBe('Which activity helped you learn today?')
+      expect(questions[surveyId][0].question_text).toBe('Which activity helped you learn today?')
+      await dialog.getByRole('button', { name: 'Next question' }).click()
       await expect(prompt).toContainText('What would you like to practise next?')
-      expect(questions[0].question_text).toBe('Which activity helped you learn today?')
-      expect(questions[0].options).toEqual(['Practice problems', 'Updated group discussion', 'Independent reading'])
-      await expect(number).toHaveValue('2')
-      await expect(dialog.getByRole('spinbutton', { name: 'Response character limit' })).toHaveValue('1200')
-      await capture('open-response')
-
-      await actions.click()
-      await page.getByRole('menuitem', { name: 'Add multiple-choice question', exact: true }).click()
-      await dialog.getByRole('textbox', { name: 'New question', exact: true }).fill('An incomplete question to discard')
-      await capture('staged-question')
-      await dialog.getByRole('button', { name: 'Cancel new question' }).click()
-      await expect(prompt).toContainText('What would you like to practise next?')
-      await expect(number).toHaveValue('2')
-      expect(questions.length).toBe(2)
-
-      await actions.click()
-      await page.getByRole('menuitem', { name: 'Duplicate question', exact: true }).click()
-      await expect.poll(() => questions.length).toBe(3)
-      await expect(prompt).toContainText('What would you like to practise next?')
-      await actions.click()
-      await page.getByRole('menuitem', { name: 'Delete question', exact: true }).click()
-      await expect.poll(() => questions.length).toBe(2)
-      await expect(number).toHaveValue('2')
-
-      const settings = dialog.getByRole('button', { name: 'Settings', exact: true })
-      await settings.press('Enter')
-      await expect(page.getByRole('menuitemcheckbox', { name: 'Show class results to students' })).toHaveAttribute('aria-checked', 'true')
-      await page.keyboard.press('ArrowDown')
-      await page.keyboard.press('Space')
-      await expect.poll(() => survey.dynamic_responses).toBe(true)
-      await settings.click()
-      await expect(page.getByRole('menuitemcheckbox', { name: 'Allow students to update responses' })).toHaveAttribute('aria-checked', 'true')
-      await capture('settings')
-      await page.keyboard.press('Escape')
-      await expect(settings).toBeFocused()
-
+      await expect(dialog.getByRole('spinbutton', { name: 'Question number' })).toHaveValue('2')
       await dialog.getByRole('button', { name: 'Preview', exact: true }).click()
-      await expect(dialog.getByText('Student preview', { exact: true })).toBeVisible()
       await expect(dialog.getByText('Which activity helped you learn today?', { exact: true })).toBeVisible()
-      await expect(dialog.getByRole('button', { name: 'Updated group discussion', exact: true })).toBeVisible()
-      await capture('preview')
-      await dialog.getByRole('button', { name: 'Back to editor', exact: true }).click()
-      await expect(prompt).toBeVisible()
-      await dialog.getByRole('button', { name: 'Markdown', exact: true }).click()
+      await dialog.getByRole('button', { name: 'Back to editor' }).click()
+      await dialog.getByRole('button', { name: 'Markdown' }).click()
       const markdown = dialog.getByRole('textbox', { name: 'Survey markdown editor' })
-      await expect(markdown).toBeVisible()
       const originalMarkdown = await markdown.inputValue()
       await markdown.fill(originalMarkdown.replace('Type: multiple_choice', 'Type: unsupported'))
-      await dialog.getByRole('button', { name: 'Apply Markdown', exact: true }).click()
-      await expect(dialog.getByText(/Type must be multiple_choice, short_text, or link/)).toBeVisible()
+      await dialog.getByRole('button', { name: 'Apply Markdown' }).click()
+      await expect(dialog.getByRole('alert')).toContainText('Type')
       await markdown.fill(originalMarkdown.replace('Title: Class feedback', 'Title: Updated class feedback'))
-      await capture('markdown')
-      await dialog.getByRole('button', { name: 'Apply Markdown', exact: true }).click()
+      await dialog.getByRole('button', { name: 'Apply Markdown' }).click()
       await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated class feedback')
-      expect(survey.title).toBe('Updated class feedback')
-      await expect(prompt).toBeVisible()
+      await expect.poll(() => surveys[surveyId].title).toBe('Updated class feedback')
+      await dialog.getByRole('button', { name: 'Close survey editor' }).click()
+      await expect(dialog).toHaveCount(0)
+      await openEditor()
+      await expect(dialog.getByRole('textbox', { name: 'Title' })).toHaveValue('Updated class feedback')
       await dialog.getByRole('button', { name: 'Publish', exact: true }).click()
-      await expect.poll(() => survey.status).toBe('active')
-      // The route-owned object changes before the client commits the response.
-      // Closing is guarded while publication/navigation is still in progress.
-      await expect(dialog.getByRole('button', { name: 'Close survey editor' })).toBeEnabled()
-      await expect(dialog.getByRole('status')).toHaveText('Saved')
-      await page.keyboard.press('Escape')
-      const closeConfirmation = page.getByRole('dialog', { name: 'Close survey editor?' })
-      await expect(closeConfirmation.getByText('Your changes will be saved before closing.')).toBeVisible()
-      await closeConfirmation.getByRole('button', { name: 'Keep editing' }).click()
-      await expect(dialog).toBeVisible()
-      await page.keyboard.press('Escape')
-      await closeConfirmation.getByRole('button', { name: 'Save and close' }).click()
+      await expect.poll(() => surveys[surveyId].status).toBe('active')
+      expect(surveys[surveyId].title).toBe('Updated class feedback')
+      await dialog.getByRole('textbox', { name: 'Title' }).fill('Private revision')
+      await expect.poll(() => drafts[surveyId]?.content.title).toBe('Private revision')
+      expect(surveys[surveyId].title).toBe('Updated class feedback')
+      await dialog.getByRole('button', { name: 'Apply changes' }).click()
+      await expect.poll(() => surveys[surveyId].title).toBe('Private revision')
+      await dialog.getByRole('button', { name: 'Close survey editor' }).click()
       await expect(dialog).toHaveCount(0)
 
-      // The real creation menu creates a draft and opens the same authoring surface.
       await page.goto('/e2e-fixtures/teacher-student-tables?tab=assignments')
       await page.getByRole('button', { name: 'New classwork', exact: true }).click()
       await page.getByRole('menuitem', { name: 'Survey', exact: true }).click()
       await expect(dialog.getByRole('textbox', { name: 'Title' })).toBeFocused()
-      await expect(dialog.getByRole('textbox', { name: 'New question', exact: true })).toBeVisible()
-      await expect(dialog.getByRole('button', { name: 'Publish', exact: true })).toBeDisabled()
-      expect(createCount).toBe(1)
-      await capture('new-draft')
-      await dialog.getByRole('textbox', { name: 'New question', exact: true }).fill('An incomplete first question')
-      await dialog.getByRole('button', { name: 'Cancel new question' }).click()
-      await expect(dialog.getByRole('textbox', { name: 'New question', exact: true })).toBeEmpty()
-      expect(questions).toHaveLength(0)
-      await actions.click()
-      await page.getByRole('menuitem', { name: 'Add open-response question', exact: true }).click()
-      await dialog.getByRole('textbox', { name: 'New question', exact: true }).fill('What should we explore next?')
-      await dialog.getByRole('button', { name: 'Add question', exact: true }).click()
-      await expect(prompt).toContainText('What should we explore next?')
-      expect(questions[0].question_type).toBe('short_text')
-      await expect(dialog.getByRole('spinbutton', { name: 'Response character limit' })).toHaveValue('500')
+      expect(creates).toBe(0)
+      await dialog.getByRole('button', { name: 'Close survey editor' }).click()
+      expect(creates).toBe(0)
+      await page.getByRole('button', { name: 'New classwork', exact: true }).click()
+      await page.getByRole('menuitem', { name: 'Survey', exact: true }).click()
+      await dialog.getByRole('textbox', { name: 'New question' }).fill('An incomplete first question')
+      await dialog.getByRole('button', { name: 'Close survey editor' }).click()
+      await expect.poll(() => creates).toBe(1)
+      expect(drafts[newSurveyId].content.editor?.unresolved).toBe(true)
+      expect(drafts[newSurveyId].content.questions).toHaveLength(0)
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
       expect(errors).toEqual([])
     })

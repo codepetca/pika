@@ -7,18 +7,18 @@ import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quo
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 
 // Source admission only: this does not authorize migration or native proof execution.
-describe('RepoLight 298–301 closed source profile', () => {
+describe('Closed migration source profiles 298–302', () => {
   const chain = loadAssignmentListReviewedMigrations(process.cwd())
   const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
   it('accepts each exact extension and preserves the historical 297 profile', () => {
-    expect(chain).toHaveLength(301)
-    for (const count of [295, 296, 297, 298, 299, 300, 301]) {
+    expect(chain).toHaveLength(302)
+    for (const count of [295, 296, 297, 298, 299, 300, 301, 302]) {
       expect(() => validateLifecycleServicesReviewedMigrations(chain.slice(0, count))).not.toThrow()
     }
   })
 
-  it.each([298, 299, 300, 301].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
+  it.each([298, 299, 300, 301, 302].flatMap(number => ['name', 'digest', 'bytes', 'self-hashed-bytes'].map(defect => ({ number, defect }))))(
     'rejects changed $number $defect', ({ number, defect }) => {
       const candidate = chain.map(m => ({ ...m }))
       const entry = candidate[number - 1]
@@ -37,12 +37,14 @@ describe('RepoLight 298–301 closed source profile', () => {
     const full = classroomTestQuotaProofCatalog(['public.tests'], chain)
     expect(at298).toEqual(before)
     expect(at299).toEqual([...before, 'private.repolight_managed_connections'].sort())
+    const at301 = classroomTestQuotaProofCatalog(['public.tests'], chain.slice(0, 301))
+    expect(full).toEqual([...at301, 'private.classwork_authoring_drafts'].sort())
     for (const name of ['private.repolight_settings', 'private.repolight_managed_connections',
       'private.repolight_provision_control', 'private.repolight_provision_outbox',
       'private.stripe_billing_settings', 'public.account_plans', 'public.billing_account_access']) expect(full).toContain(name)
     const sql = 'select 1;'
-    expect(() => classroomTestQuotaProofCatalog(['public.tests'], [...chain, {name:'302_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
-    for (const index of [297, 298, 299, 300]) {
+    expect(() => classroomTestQuotaProofCatalog(['public.tests'], [...chain, {name:'303_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
+    for (const index of [297, 298, 299, 300, 301]) {
       const changed = chain.map(entry => ({...entry})); changed[index].sql += '\n'; changed[index].sha256 = hash(changed[index].sql)
       expect(() => classroomTestQuotaProofCatalog(['public.tests'], changed)).toThrow()
     }
@@ -53,26 +55,26 @@ describe('RepoLight 298–301 closed source profile', () => {
     expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 298))).toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(chain.slice(0, 299))).toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(chain)).not.toThrow()
-    for (const index of [297, 298, 299, 300]) {
+    for (const index of [297, 298, 299, 300, 301]) {
       const changed = chain.map(entry => ({...entry})); changed[index].sql += '\n'; changed[index].sha256 = hash(changed[index].sql)
       expect(() => validateTestOwnerReorderReviewedMigrations(changed)).toThrow()
     }
     const sql = 'select 1;'
-    expect(() => validateTestOwnerReorderReviewedMigrations([...chain, {name:'302_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations([...chain, {name:'303_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
     expect(() => validateTestMemberListReviewedMigrations(chain.slice(0, 298))).toThrow()
     expect(() => validateTestMemberListReviewedMigrations(chain.slice(0, 299))).toThrow()
     expect(() => validateTestMemberListReviewedMigrations(chain)).not.toThrow()
-    for (const index of [297, 298, 299, 300]) {
+    for (const index of [297, 298, 299, 300, 301]) {
       const changed = chain.map(entry => ({...entry})); changed[index].sql += '\n'; changed[index].sha256 = hash(changed[index].sql)
       expect(() => validateTestMemberListReviewedMigrations(changed)).toThrow()
     }
-    expect(() => validateTestMemberListReviewedMigrations([...chain, {name:'302_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
+    expect(() => validateTestMemberListReviewedMigrations([...chain, {name:'303_unknown.sql',sql,sha256:hash(sql)}])).toThrow()
   })
 
   it('rejects missing, reordered and unknown tails', () => {
     expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 297), chain[298]])).toThrow()
     expect(() => validateLifecycleServicesReviewedMigrations([...chain.slice(0, 297), chain[298], chain[297]])).toThrow()
     const sql = 'select 1;'
-    expect(() => validateLifecycleServicesReviewedMigrations([...chain, { name: '302_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
+    expect(() => validateLifecycleServicesReviewedMigrations([...chain, { name: '303_unknown.sql', sql, sha256: hash(sql) }])).toThrow()
   })
 })

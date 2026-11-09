@@ -10,6 +10,7 @@ import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
+import { fetchJSON } from '@/lib/request-cache'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import { Button, ConfirmDialog, ContentDialog, DialogPanel, SaveStatus, SplitButton } from '@/ui'
 import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
@@ -82,12 +83,29 @@ function AssignmentActionButton({ interactionActive = true, ...props }: Componen
 
 const AUTOSAVE_DEBOUNCE_MS = 3000
 const AUTOSAVE_MIN_INTERVAL_MS = 10000
+type AssignmentAuthoringContent = {
+  title: string
+  instructions_markdown: string
+  due_at: string
+  submission_requirements: AssignmentSubmissionRequirementDraft[]
+}
+
 type AssignmentEditorValues = {
   title: string
   instructionsMarkdown: string
   dueAt: string
   submissionRequirements: AssignmentSubmissionRequirementDraft[]
 }
+
+function authoringContent(values: AssignmentEditorValues): AssignmentAuthoringContent {
+  return {
+    title: values.title,
+    instructions_markdown: values.instructionsMarkdown,
+    due_at: toTorontoEndOfDayIso(values.dueAt),
+    submission_requirements: values.submissionRequirements,
+  }
+}
+
 
 function getDisplayedAssignmentTitle(title: string): string {
   return /^Untitled(?:\b|\s*\()/.test(title)
@@ -183,12 +201,13 @@ interface AssignmentModalProps {
   assignment?: Assignment | null // null/undefined for create mode
   instructionsMode?: 'visual' | 'markdown'
   classDays?: ClassDay[]
+  classworkAuthoring?: boolean
   onClose: () => void
   onRequestDelete?: () => void
   onSuccess: (assignment: Assignment, options?: { closeModal?: boolean }) => void
 }
 
-export function AssignmentModal({ isOpen, classroomId, classroomName, assignment, instructionsMode = 'visual', classDays, onClose, onRequestDelete, onSuccess }: AssignmentModalProps) {
+export function AssignmentModal({ isOpen, classroomId, classroomName, assignment, instructionsMode = 'visual', classDays, classworkAuthoring = false, onClose, onRequestDelete, onSuccess }: AssignmentModalProps) {
   // Only a new logical open retires the old body's local editor/menu/history state.
   const [bodyLifetime, setBodyLifetime] = useState({ open: isOpen, key: 0 })
   if (bodyLifetime.open !== isOpen) {
@@ -244,7 +263,25 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   }, [cancelTitleFocus])
 
   // The current assignment being edited (created on first save in create mode)
-  const [currentAssignment, setCurrentAssignment] = useState<Assignment | null>(null)
+  const [currentAssignment, setAssignmentState] = useState<Assignment | null>(null)
+  const currentAssignmentRef = useRef<Assignment | null>(null)
+  const setCurrentAssignment = useCallback((value: Assignment | null) => {
+    currentAssignmentRef.current = value
+    setAssignmentState(value)
+  }, [])
+  const authoringUrl = `/api/teacher/classrooms/${classroomId}/classwork-authoring/assignment`
+  const [editRevision, setEditRevision] = useState<string | null>(null)
+  const editRevisionRef = useRef<string | null>(null)
+  const sourceRevisionRef = useRef<string | null>(null)
+  const [loadingEditDraft, setLoadingEditDraft] = useState(false)
+  const [editDraftUnavailable, setEditDraftUnavailable] = useState(false)
+  const [staleEditDraft, setStaleEditDraft] = useState(false)
+  const [confirmDiscardEdit, setConfirmDiscardEdit] = useState(false)
+  const [retryEditDraft, setRetryEditDraft] = useState(0)
+  const creationAttempt = useRef<{ requestId: string; values: AssignmentEditorValues } | null>(null)
+  const editAttempt = useRef<{ requestId: string; values: AssignmentEditorValues } | null>(null)
+  const publishedValues = useRef<AssignmentEditorValues | null>(null)
+  const finishInProgress = useRef(false)
 
   const [title, setTitle] = useState('')
   const [instructionsMarkdown, setInstructionsMarkdown] = useState('')
@@ -327,6 +364,17 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     setCreating(false)
     setDiscarding(false)
     activeSaveRef.current = null
+    creationAttempt.current = null
+    editAttempt.current = null
+    editRevisionRef.current = null
+    sourceRevisionRef.current = null
+    setEditRevision(null)
+    publishedValues.current = null
+    finishInProgress.current = false
+    setLoadingEditDraft(false)
+    setEditDraftUnavailable(false)
+    setStaleEditDraft(false)
+    setConfirmDiscardEdit(false)
     pendingValuesRef.current = null
     lastSaveAtRef.current = 0
     resetForAssignment(assignment)
@@ -373,6 +421,51 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         submissionRequirements: nextRequirements,
       }
       initialEditorValuesRef.current = lastSavedValuesRef.current
+      publishedValues.current = lastSavedValuesRef.current
+      if (classworkAuthoring) {
+        setLoadingEditDraft(true)
+        void fetchJSON<{
+          item: Assignment
+          sourceRevision: string
+          draft: { revision: string; content: AssignmentAuthoringContent; stale?: boolean } | null
+        }>(
+          `${authoringUrl}/${assignment.id}`, { errorMessage: 'Unable to load saved assignment edits' },
+        ).then(({ item, draft, sourceRevision }) => {
+          if (!ownsSession(session)) return
+          const instructions = getAssignmentInstructionsMarkdown(item)
+          const source = {
+            title: getDisplayedAssignmentTitle(item.title),
+            instructionsMarkdown: instructions.markdown,
+            dueAt: formatDateInToronto(new Date(item.due_at)),
+            submissionRequirements: getAssignmentRequirementDrafts(item),
+          }
+          const values = draft ? {
+            title: draft.content.title,
+            instructionsMarkdown: draft.content.instructions_markdown,
+            dueAt: formatDateInToronto(new Date(draft.content.due_at)),
+            submissionRequirements: draft.content.submission_requirements,
+          } : source
+          setCurrentAssignment(item)
+          sourceRevisionRef.current = sourceRevision
+          publishedValues.current = source
+          editRevisionRef.current = draft?.revision ?? null
+          setEditRevision(editRevisionRef.current)
+          setStaleEditDraft(draft?.stale === true)
+          if (draft?.stale) setError('The posted assignment changed after this draft was saved.')
+          setTitle(values.title)
+          setInstructionsMarkdown(values.instructionsMarkdown)
+          setSubmissionRequirements(values.submissionRequirements)
+          setDueAt(values.dueAt)
+          setMarkdownWarning(draft || !instructions.hasLossyConversion ? null : instructions.warnings.join(' '))
+          lastSavedValuesRef.current = values
+        }).catch((cause: unknown) => {
+          if (!ownsSession(session)) return
+          setEditDraftUnavailable(true)
+          setError(cause instanceof Error ? cause.message : 'Unable to load saved assignment edits')
+        }).finally(() => {
+          if (ownsSession(session)) setLoadingEditDraft(false)
+        })
+      }
       initialCreateValuesRef.current = null
       setSaveStatus('saved')
     } else {
@@ -394,9 +487,9 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       }
       initialEditorValuesRef.current = initialValues
       initialCreateValuesRef.current = initialValues
-      lastSavedValuesRef.current = null
-      setSaveStatus('saving')
-      setCreating(true)
+      lastSavedValuesRef.current = classworkAuthoring ? initialValues : null
+      setSaveStatus(classworkAuthoring ? 'saved' : 'saving')
+      setCreating(!classworkAuthoring)
     }
 
     pendingValuesRef.current = null
@@ -419,12 +512,17 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     }
   }, [
     assignment,
+    authoringUrl,
     classroomId,
+    classworkAuthoring,
     cancelTitleFocus,
     defaultDueAt,
     isOpen,
+    ownsSession,
     resetForAssignment,
+    retryEditDraft,
     scheduleTitleFocus,
+    setCurrentAssignment,
     setDueAt,
     setError,
     setPrimaryAction,
@@ -455,6 +553,20 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     session: number
   ): Promise<Assignment | null> => {
     try {
+      if (classworkAuthoring) {
+        const attempt = creationAttempt.current ?? { requestId: crypto.randomUUID(), values }
+        creationAttempt.current = attempt
+        const data = await fetchJSON<{ item: Assignment; sourceRevision: string }>(`${authoringUrl}/new`, {
+          init: {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requestId: attempt.requestId, content: authoringContent(attempt.values) }),
+          },
+          errorMessage: 'Failed to create assignment',
+        })
+        if (ownsSession(session)) sourceRevisionRef.current = data.sourceRevision
+        return data.item
+      }
       const response = await fetch('/api/teacher/assignments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -481,7 +593,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       if (ownsSession(session)) setError(err.message || 'Failed to create assignment')
       return null
     }
-  }, [classroomId, ownsSession, setError])
+  }, [authoringUrl, classroomId, classworkAuthoring, ownsSession, setError])
 
   // Automatically create draft when modal opens in create mode
   useEffect(() => {
@@ -535,7 +647,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     }
 
     void createDraft()
-  }, [assignment, classroomId, creating, createAssignment, defaultDueAt, isOpen, onClose, ownsSession, scheduleTitleFocus, setDueAt])
+  }, [assignment, classroomId, creating, createAssignment, defaultDueAt, isOpen, onClose, ownsSession, scheduleTitleFocus, setCurrentAssignment, setDueAt])
 
   // Save changes to the server (create or update)
   const saveChanges = useCallback(async (
@@ -544,7 +656,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     owner?: { session: number; savedValues: AssignmentEditorValues | null }
   ): Promise<Assignment | null> => {
     const session = owner?.session ?? editorSessionRef.current
-    const validationError = validateAssignmentEditorValues(values, currentAssignment)
+    const target = classworkAuthoring && ownsSession(session) ? currentAssignmentRef.current : currentAssignment
+    const validationError = validateAssignmentEditorValues(values, target)
     if (validationError) {
       if (ownsSession(session)) {
         setError(validationError)
@@ -559,9 +672,68 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     }
 
     try {
-      let savedAssignment: Assignment | null = currentAssignment
+      let savedAssignment = target
+      if (classworkAuthoring && target) {
+        if (!ownsSession(session)) return null
+        const saveAsDraft = target.is_draft && !editRevisionRef.current
+        const baseline = saveAsDraft ? owner?.savedValues ?? lastSavedValuesRef.current : publishedValues.current
+        if (editAttempt.current || !lastSavedValuesRef.current || !areAssignmentEditorValuesEqual(lastSavedValuesRef.current, values)) {
+          const attempt = editAttempt.current ?? { requestId: crypto.randomUUID(), values }
+          editAttempt.current = attempt
+          const content = {
+            ...authoringContent(attempt.values),
+            fields: Object.keys(getChangedFields(attempt.values, baseline) ?? {}),
+          }
+          const data = await fetchJSON<{
+            draft: { revision: string } | null
+            item?: Assignment
+            sourceRevision?: string
+          }>(`${authoringUrl}/${target.id}`, {
+            init: {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                content,
+                requestId: attempt.requestId,
+                expectedRevision: editRevisionRef.current,
+                expectedSourceRevision: sourceRevisionRef.current,
+                saveAsDraft,
+              }),
+            },
+            errorMessage: 'Failed to save assignment edits',
+          })
+          if (!ownsSession(session)) return data.item ?? target
+          editRevisionRef.current = data.draft?.revision ?? null
+          setEditRevision(editRevisionRef.current)
+          editAttempt.current = null
+          lastSavedValuesRef.current = attempt.values
+          if (data.item && data.sourceRevision) {
+            savedAssignment = data.item
+            sourceRevisionRef.current = data.sourceRevision
+            setCurrentAssignment(data.item)
+            const latest = pendingValuesRef.current ?? values
+            if (areAssignmentEditorValuesEqual(latest, attempt.values)) {
+              const requirements = getAssignmentRequirementDrafts(data.item)
+              lastSavedValuesRef.current = { ...attempt.values, submissionRequirements: requirements }
+              setSubmissionRequirements(requirements)
+            }
+          }
+          if (!areAssignmentEditorValuesEqual(attempt.values, values)) {
+            // Recover a preceding request before submitting any newer input.
+            pendingValuesRef.current ??= values
+            setSaveStatus('unsaved')
+            return savedAssignment
+          }
+        }
+        if (!pendingValuesRef.current || areAssignmentEditorValuesEqual(pendingValuesRef.current, values)) {
+          pendingValuesRef.current = null
+          setSaveStatus('saved')
+        }
+        return savedAssignment
+      }
 
-      if (!currentAssignment) {
+      if (!target) {
+        if (classworkAuthoring && !getChangedFields(values, lastSavedValuesRef.current)) return null
         // Create mode: create the assignment first
         savedAssignment = await createAssignment(values, session)
         if (!ownsSession(session)) {
@@ -573,24 +745,41 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           return null
         }
         setCurrentAssignment(savedAssignment)
-        lastSavedValuesRef.current = { ...values }
+        const createdValues = creationAttempt.current?.values ?? values
+        lastSavedValuesRef.current = {
+          ...createdValues,
+          submissionRequirements: getAssignmentRequirementDrafts(savedAssignment),
+        }
+        if (classworkAuthoring) {
+          const latest = pendingValuesRef.current ?? values
+          if (!areAssignmentEditorValuesEqual(latest, createdValues)) {
+            setSaveStatus('unsaved')
+            return savedAssignment
+          }
+          setSubmissionRequirements(lastSavedValuesRef.current.submissionRequirements)
+        }
       } else {
         // Edit mode: update existing assignment
         const changedFields = owner ? getChangedFields(values, owner.savedValues) : getChangedFields(values)
         if (!changedFields) {
-          if (ownsSession(session)) setSaveStatus('saved')
+          if (ownsSession(session)) {
+            if (classworkAuthoring && pendingValuesRef.current && areAssignmentEditorValuesEqual(pendingValuesRef.current, values)) {
+              pendingValuesRef.current = null
+            }
+            setSaveStatus(pendingValuesRef.current && classworkAuthoring ? 'unsaved' : 'saved')
+          }
           if (options?.closeAfter) {
             if (ownsSession(session)) {
-              onSuccess(currentAssignment)
+              onSuccess(target)
               onClose()
             } else {
-              onSuccess(currentAssignment, { closeModal: false })
+              onSuccess(target, { closeModal: false })
             }
           }
-          return currentAssignment
+          return target
         }
 
-        const response = await fetch(`/api/teacher/assignments/${currentAssignment.id}`, {
+        const response = await fetch(`/api/teacher/assignments/${target.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(changedFields),
@@ -649,7 +838,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       }
       return null
     }
-  }, [currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, ownsSession, setError])
+  }, [authoringUrl, classworkAuthoring, currentAssignment, createAssignment, getChangedFields, onClose, onSuccess, ownsSession, setCurrentAssignment, setError])
 
   const startSaveChanges = useCallback((
     values: AssignmentEditorValues,
@@ -661,7 +850,9 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     // Blur flushes must account for the write already in flight, including reverts.
     const promise: Promise<Assignment | null> = previousSave?.session === session
       ? previousSave.promise.then((savedAssignment) => {
-          activeSave.savedValues = savedAssignment ? previousSave.values : previousSave.savedValues
+          activeSave.savedValues = classworkAuthoring && ownsSession(session)
+            ? lastSavedValuesRef.current
+            : savedAssignment ? previousSave.values : previousSave.savedValues
           return saveChanges(values, options, { session, savedValues: activeSave.savedValues })
         })
       : saveChanges(values, options, { session, savedValues })
@@ -673,7 +864,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       }
     })
     return promise
-  }, [saveChanges])
+  }, [classworkAuthoring, ownsSession, saveChanges])
 
   const scheduleSave = useCallback((
     values: AssignmentEditorValues,
@@ -708,6 +899,15 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
 
   const scheduleAutosave = useCallback((values: AssignmentEditorValues) => {
     const session = editorSessionRef.current
+    if (classworkAuthoring && !currentAssignmentRef.current && !activeSaveRef.current && !creationAttempt.current
+      && !values.title.trim() && !values.instructionsMarkdown.trim()
+      && !values.submissionRequirements.length && values.dueAt === lastSavedValuesRef.current?.dueAt) {
+      pendingValuesRef.current = null
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+      setSaveStatus('saved')
+      return
+    }
     pendingValuesRef.current = values
     setSaveStatus('unsaved')
 
@@ -720,7 +920,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       saveTimeoutRef.current = null
       scheduleSave(values)
     }, AUTOSAVE_DEBOUNCE_MS)
-  }, [ownsSession, scheduleSave])
+  }, [classworkAuthoring, ownsSession, scheduleSave])
 
   function handleTitleChange(newTitle: string) {
     setTitle(newTitle)
@@ -774,6 +974,21 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       throttledSaveTimeoutRef.current = null
     }
 
+    if (classworkAuthoring) {
+      const active = activeSaveRef.current
+      if (active?.session === session) await active.promise
+      if (!ownsSession(session)) return
+      // Wait for the in-flight write, then flush the latest values. A replayed
+      // response can restore the preceding revision before a newer save.
+      for (let attempt = 0; pendingValuesRef.current && attempt < 2; attempt += 1) {
+        const result = await startSaveChanges(pendingValuesRef.current)
+        if (!ownsSession(session)) return
+        if (!result) throw new Error('Unable to save assignment changes. Try again.')
+      }
+      if (pendingValuesRef.current) throw new Error('Assignment changes are still pending. Try again.')
+      return
+    }
+
     if ((saveStatus === 'unsaved' || pendingValuesRef.current) && currentAssignment) {
       const valuesToSave = pendingValuesRef.current ?? buildEditorValues()
       const validationError = validateAssignmentEditorValues(valuesToSave, currentAssignment)
@@ -806,6 +1021,10 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   }
 
   async function saveDraftAndClose() {
+    if (classworkAuthoring) {
+      await finishClassworkEditor()
+      return
+    }
     if (saving || releasing) return
     const session = editorSessionRef.current
     if (saveTimeoutRef.current) {
@@ -882,6 +1101,73 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       return
     }
     handleActionSelection(action)
+  }
+
+  async function finishClassworkEditor(apply = false) {
+    if (finishInProgress.current || releasing || (apply && (staleEditDraft || !ensureTitleBeforeRelease()))) return
+    const session = editorSessionRef.current
+    finishInProgress.current = true
+    setSaving(true)
+    setError('')
+    try {
+      await flushPendingChanges()
+      if (!ownsSession(session)) return
+      let result = currentAssignmentRef.current
+      if (apply && result && editRevisionRef.current) {
+        const { item } = await fetchJSON<{ item: Assignment }>(`${authoringUrl}/${result.id}`, {
+          init: {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ revision: editRevisionRef.current }),
+          },
+          errorMessage: 'Unable to apply assignment changes',
+        })
+        if (!ownsSession(session)) {
+          onSuccess(item, { closeModal: false })
+          return
+        }
+        result = item
+      }
+      if (result) onSuccess(result)
+      onClose()
+    } catch (cause: unknown) {
+      if (ownsSession(session)) setError(cause instanceof Error ? cause.message : 'Unable to save assignment changes')
+    } finally {
+      if (ownsSession(session)) {
+        finishInProgress.current = false
+        setSaving(false)
+      }
+    }
+  }
+
+  async function discardSavedEdits() {
+    const item = currentAssignmentRef.current
+    const revision = editRevisionRef.current
+    if (!item || !revision || finishInProgress.current) return
+    const session = editorSessionRef.current
+    finishInProgress.current = true
+    setSaving(true)
+    try {
+      const { item: updated } = await fetchJSON<{ item: Assignment }>(`${authoringUrl}/${item.id}`, {
+        init: {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ revision, discard: true }),
+        },
+        errorMessage: 'Unable to discard saved assignment edits',
+      })
+      if (!ownsSession(session)) return
+      onSuccess(updated)
+      onClose()
+    } catch (cause: unknown) {
+      if (ownsSession(session)) setError(cause instanceof Error ? cause.message : 'Unable to discard saved assignment edits')
+    } finally {
+      if (ownsSession(session)) {
+        finishInProgress.current = false
+        setSaving(false)
+        setConfirmDiscardEdit(false)
+      }
+    }
   }
 
   async function handleClose() {
@@ -990,7 +1276,9 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
             setShowInstructionsPreview(false)
             return
           }
-          if (initialEditorValuesRef.current && !areAssignmentEditorValuesEqual(buildEditorValues(), initialEditorValuesRef.current)) {
+          if (classworkAuthoring) {
+            void finishClassworkEditor()
+          } else if (initialEditorValuesRef.current && !areAssignmentEditorValuesEqual(buildEditorValues(), initialEditorValuesRef.current)) {
             setCloseConfirmOpen(true)
           } else {
             void handleClose()
@@ -999,7 +1287,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         title={modalTitle}
         titleId="assignment-modal-title"
         closeLabel="Close assignment modal"
-        closeDisabled={creating || saving || releasing || discarding}
+        closeDisabled={creating || saving || releasing || discarding || loadingEditDraft}
         maxWidth="!max-w-6xl"
         panelClassName="!p-0"
         tall
@@ -1012,7 +1300,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           sourceArtifactId={assignment?.id}
           requirements={submissionRequirements}
           onRequirementsChange={activeInput(handleSubmissionRequirementsChange)}
-          requirementsDisabled={saving || releasing || creating}
+          requirementsDisabled={loadingEditDraft || editDraftUnavailable || staleEditDraft || saving || releasing || creating}
           fillHeight
           desktopSplit
           title={title}
@@ -1039,10 +1327,14 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           })}
           saveStatusContent={(
             <div className="flex items-center gap-1">
-              <SaveStatus presentation="indicator" status={saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
+              <SaveStatus presentation="indicator" status={loadingEditDraft ? 'saving' : editDraftUnavailable ? 'error' : saveStatus} className={saveStatus === 'saved' ? 'text-text-muted' : undefined} />
+              {editDraftUnavailable ? <Button variant="secondary" size="sm" onClick={() => setRetryEditDraft((value) => value + 1)}>Retry</Button> : null}
+              {classworkAuthoring && !editDraftUnavailable && error && saveStatus === 'unsaved' ? (
+                <Button variant="secondary" size="sm" onClick={() => { setError(''); flushAutosave() }}>Retry</Button>
+              ) : null}
             </div>
           )}
-          disabled={saving || releasing || creating}
+          disabled={saving || releasing || creating || loadingEditDraft || editDraftUnavailable || staleEditDraft}
           error={error}
           titleInputRef={titleInputRef}
           onBlur={activeInput(flushAutosave)}
@@ -1053,7 +1345,16 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
             </span>
           ) : undefined}
           topRowActions={
-            currentAssignment && !isLive ? (
+            staleEditDraft ? (
+              <Button variant="secondary" className="w-full" disabled={saving} onClick={() => setConfirmDiscardEdit(true)}>
+                Discard saved edits
+              </Button>
+            ) : classworkAuthoring && currentAssignment && !isDraft && (!isScheduled || editRevision || saveStatus !== 'saved') ? (
+              <Button className="w-full" onClick={() => { void finishClassworkEditor(true) }}
+                disabled={saving || releasing || loadingEditDraft || editDraftUnavailable || (!editRevision && saveStatus === 'saved')}>
+                Apply changes
+              </Button>
+            ) : currentAssignment && !isLive ? (
               <div className="flex w-full items-end">
                 <AssignmentActionButton
                   key={requirementsOwner.generation}
@@ -1142,6 +1443,18 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           className="border-0 bg-transparent p-0 shadow-none"
         />
       </DialogPanel>
+
+      <ConfirmDialog
+        isOpen={isOpen && confirmDiscardEdit}
+        title="Discard saved edits?"
+        description="This removes the private draft."
+        confirmLabel="Discard saved edits"
+        confirmVariant="danger"
+        isConfirmDisabled={saving}
+        isCancelDisabled={saving}
+        onCancel={() => setConfirmDiscardEdit(false)}
+        onConfirm={discardSavedEdits}
+      />
 
       <ConfirmDialog
         isOpen={isOpen && closeConfirmOpen}

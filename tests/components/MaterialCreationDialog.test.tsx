@@ -41,6 +41,32 @@ const props = () => ({
 // MaterialCreationPattern renders this production owner; shared editor, preview and action
 // contracts below also cover the deterministic Pattern Lab composition.
 describe('Material formatted editing', () => {
+  it('delegates close to the autosave controller and gives posted material an explicit apply action', async () => {
+    const user = userEvent.setup()
+    const handlers = props()
+    render(<MaterialCreationDialog {...handlers} isExisting isDraft={false} autosave saveStatus="unsaved" />, { wrapper: TooltipProvider })
+    const editor = screen.getByRole('dialog', { name: 'Material' })
+    expect(within(editor).getByRole('button', { name: 'Apply changes' })).toBeEnabled()
+    await user.click(within(editor).getByRole('button', { name: 'Close material modal' }))
+    expect(handlers.onClose).toHaveBeenCalledOnce()
+    expect(screen.queryByRole('dialog', { name: 'Unsaved changes' })).not.toBeInTheDocument()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+  })
+
+  it('offers recovery for a stale saved edit while keeping the posted editor read-only', async () => {
+    const user = userEvent.setup()
+    const onDiscardSavedEdits = vi.fn()
+    const handlers = props()
+    render(
+      <MaterialCreationDialog {...handlers} isExisting isDraft={false} autosave readOnly onDiscardSavedEdits={onDiscardSavedEdits} />,
+      { wrapper: TooltipProvider },
+    )
+    expect(screen.getByPlaceholderText('Title')).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Discard saved edits' }))
+    expect(onDiscardSavedEdits).toHaveBeenCalledOnce()
+    expect(handlers.onSave).not.toHaveBeenCalled()
+  })
+
   it('uses the TeacherClassroomView classroom context for image uploads', async () => {
     const user = userEvent.setup()
     vi.mocked(uploadMarkdownImage).mockResolvedValue('/api/storage/authoring-images?object_id=11111111-1111-4111-8111-111111111111')

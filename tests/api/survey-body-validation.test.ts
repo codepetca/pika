@@ -6,28 +6,31 @@ import { POST as CREATE } from '@/app/api/teacher/surveys/route'
 import { PATCH as PATCH_QUESTION } from '@/app/api/teacher/surveys/[id]/questions/[qid]/route'
 import { POST as CREATE_QUESTION } from '@/app/api/teacher/surveys/[id]/questions/route'
 
-const mocks = vi.hoisted(() => ({ role: vi.fn(), teacher: vi.fn(), student: vi.fn(), from: vi.fn(), update: vi.fn(), insert: vi.fn() }))
-const survey = { id: 'survey-1', classroom_id: 'classroom-1', status: 'active', opens_at: null, dynamic_responses: false }
+const mocks = vi.hoisted(() => ({ role: vi.fn(), teacher: vi.fn(), student: vi.fn(), from: vi.fn(), update: vi.fn(), insert: vi.fn(), rpc: vi.fn() }))
+const survey = { id: '30000000-0000-4000-8000-000000000001', classroom_id: '30000000-0000-4000-8000-000000000002', status: 'active', opens_at: null, dynamic_responses: false }
+const userId = '30000000-0000-4000-8000-000000000003'
+const question = { id: '30000000-0000-4000-8000-000000000004', question_type: 'short_text', question_text: 'Feedback', response_max_chars: 500 }
 vi.mock('@/lib/auth', () => ({ requireRole: mocks.role }))
-vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from }) }))
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from, rpc: mocks.rpc }) }))
 vi.mock('@/lib/server/surveys', () => ({ assertTeacherOwnsSurvey: mocks.teacher, assertStudentCanAccessSurvey: mocks.student, isMissingSurveysTableError: () => false }))
 vi.mock('@/lib/server/contextual-classwork-creation-access', () => ({ authorizeContextualClassworkCreationRequest: async () => ({ mode: 'teacher', user: { id: 'teacher-1' } }) }))
 
 function request(body: unknown, method = 'POST') {
   return new NextRequest('http://localhost/api/surveys/survey-1', { method, body: JSON.stringify(body) })
 }
-const context = { params: Promise.resolve({ id: 'survey-1', qid: 'question-1' }) }
+const context = { params: Promise.resolve({ id: survey.id, qid: question.id }) }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mocks.role.mockResolvedValue({ id: 'user-1' })
+  mocks.role.mockResolvedValue({ id: userId })
   mocks.teacher.mockResolvedValue({ ok: true, survey })
   mocks.student.mockResolvedValue({ ok: true, survey })
   const query: any = { select: vi.fn(() => query), eq: vi.fn(() => query), order: vi.fn(() => query),
     limit: vi.fn().mockResolvedValue({ data: [] }), single: vi.fn().mockResolvedValue({ data: survey, error: null }),
-    then: (resolve: any) => Promise.resolve({ data: [{ id: 'question-1', question_type: 'short_text', question_text: 'Feedback', response_max_chars: 500 }], error: null }).then(resolve) }
+    then: (resolve: any) => Promise.resolve({ data: [question], error: null }).then(resolve) }
   mocks.update.mockReturnValue(query)
   mocks.insert.mockResolvedValue({ error: null })
+  mocks.rpc.mockResolvedValue({ data: { success: true, updated: false }, error: null })
   mocks.from.mockReturnValue({ ...query, update: mocks.update, insert: mocks.insert })
 })
 
@@ -64,8 +67,23 @@ describe('survey request boundaries', () => {
     expect(mocks.update).toHaveBeenCalledWith({ title: 'Updated' })
   })
   it('persists valid student responses', async () => {
-    expect((await POST(request({ responses: { 'question-1': { response_text: 'Useful', question_type: 'short_text' } } }), context)).status).toBe(201)
-    expect(mocks.insert).toHaveBeenCalledWith([expect.objectContaining({ question_id: 'question-1', response_text: 'Useful' })])
+    const answer = { response_text: 'Useful', question_type: 'short_text' }
+    expect((await POST(request({ responses: { [question.id]: answer } }), context)).status).toBe(201)
+    expect(mocks.rpc).toHaveBeenCalledWith('respond_to_survey_for_member_v1', {
+      p_actor_id: userId,
+      p_classroom_id: survey.classroom_id,
+      p_survey_id: survey.id,
+      p_expected_questions: [question],
+      p_responses: { [question.id]: answer },
+    })
+    expect(mocks.insert).not.toHaveBeenCalled()
+  })
+  it('rejects an answer if the survey changes between validation and persistence', async () => {
+    mocks.rpc.mockResolvedValue({ data: null, error: { code: 'PT409', message: 'survey_questions_changed' } })
+    const response = await POST(request({ responses: { [question.id]: 'Useful' } }), context)
+    expect(response.status).toBe(409)
+    expect(mocks.rpc).toHaveBeenCalledOnce()
+    expect(mocks.insert).not.toHaveBeenCalled()
   })
   it('authorizes ownership before parsing invalid bodies', async () => {
     mocks.teacher.mockResolvedValue({ ok: false, status: 403, error: 'Forbidden' })

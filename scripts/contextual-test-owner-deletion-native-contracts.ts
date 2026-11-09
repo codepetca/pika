@@ -40,7 +40,7 @@ const plans = new WeakMap<object, TestOwnerDeletionNativePlan>()
 export function testOwnerDeletionNativePlan(original: AssignmentListProofFixture, reviewedHead: string, repository: string) {
   assert.match(reviewedHead, /^[a-f0-9]{40}$/)
   const f = newTestOwnerDeletionFixture(original), inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
+  assert([262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 302].includes(inventory.length)); validateAssignmentListMigrationChain(inventory)
   assert.equal(inventory[252].name, '253_classroom_test_tier_caps.sql')
   assert.equal(inventory[252].sha256, '076bb9775a6959ecfc1012a652205968fda74b601daaad3ba6ef0e8f9975cc09')
   assert.equal(hash(inventory[252].sql), inventory[252].sha256)
@@ -79,8 +79,8 @@ or ${f.tests.map(t=>`not exists(select 1 from public.tests where id=${q(t.id)} a
 or not exists(select 1 from public.test_attempt_history where id=${q(f.history[0].id)})
 or exists(select 1 from public.test_ai_grading_runs where test_id in(${f.tests.map(t=>q(t.id)).join(',')}))
 then raise exception 'Deletion262 owned work fixture differs';end if;end;$presence$;`
-  const setup = bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${[300,301].includes(inventory.length) ? repoLight300PresenceSql() : ''}rollback;`)
-  const preparation = bounded(testOwnerDeletionSetupSql(f, projectId)), snapshot = bounded(testOwnerDeletionSnapshotSql(f, [300,301].includes(inventory.length)))
+  const setup = bounded(`${guard}\nbegin read only;set local statement_timeout='8s';${presence}${[300,301,302].includes(inventory.length) ? repoLight300PresenceSql() : ''}rollback;`)
+  const preparation = bounded(testOwnerDeletionSetupSql(f, projectId)), snapshot = bounded(testOwnerDeletionSnapshotSql(f, [300,301,302].includes(inventory.length)))
   const template = readFileSync(resolve(repository, 'scripts/check-contextual-test-owner-deletion.sql'), 'utf8')
   const marker = '-- owner-deletion-contracts-begin\n', end = '-- owner-deletion-contracts-end'
   assert(template.split(marker).length === 2 && template.split(end).length === 2)
@@ -102,7 +102,7 @@ then raise exception 'Deletion262 owned work fixture differs';end if;end;$presen
   // The monolith is a reconstruction oracle only, never an executable frame.
   const contracts = freeze({ checks,sql:bounded(`${begin}\n${body}${contractTerminal}`),frames })
   assert.equal(sourceSlices.join(''),contracts.sql)
-  const graph = testOwnerDeletionGraphSql(f, [300,301].includes(inventory.length))
+  const graph = testOwnerDeletionGraphSql(f, [300,301,302].includes(inventory.length))
   const expected = `(select to_jsonb(t) from public.tests t where id=${tid})`
   const call = `public.test_owner_workflow_v1(${owner},${tid},${cid},'delete','{}',${expected},clock_timestamp()+interval '25 seconds')`
   const testKey = `hashtextextended(${q(f.testId)},0)`, classKey = `hashtextextended(${q('pika-classroom-operation:'+f.classroomId)},0)`
