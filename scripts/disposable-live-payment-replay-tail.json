@@ -42,5 +42,9 @@
   {
     "name": "324_billing_live_scheduled_renewal_closeout.sql",
     "sha256": "6a7d94c6798b247a398d304e8880c2b08f9c0d278dceab5442f242f18693c1a7"
+  },
+  {
+    "name": "325_billing_live_scheduled_cancellation.sql",
+    "sha256": "4b2255a99fc6130115b0a4e00420ece66d67a63c234dcbff2b33816e564dba29"
   }
 ]

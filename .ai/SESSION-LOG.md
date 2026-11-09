@@ -485,3 +485,17 @@ Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-t
 ## 2026-11-08 Stripe scheduled cancellation provider
 
 The isolated Stripe sandbox confirmed cancel and undo on the installed downgrade. A source-only Max phase preserved the paid cutoff and the original invoice. Undo restored the Pro phase. A second cancellation produced a completed schedule and canceled subscription at the exact cutoff with no Pro invoice. The scoped provider adapter verifies that completed shape and the original paid invoice, fences each write and recovers exact outcomes after lost responses. The customer cancellation operation, worker and route remain to be wired.
+
+## 2026-11-08 Teacher scheduled billing controls
+
+UI brief. Extend the existing teacher Plans and billing surface. Use the paid Billing Pattern Lab fixture and the existing Billing upgrade quote and classroom confirmation dialog as references. Verify paid Max before selection, quote open, installation pending, scheduled, cancellation confirmation, cancellation pending, canceled with undo, and attention on desktop and mobile in light and dark. Student has no billing controls and must still redirect. The primary signal is the exact renewal or access end date and a single next action. Preserve the existing shell, spacing and portal. No new composite widget.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Scheduled status and controls | BillingPage card layout | extend | Keep the workflow on the existing teacher billing surface |
+| Quote and cancel confirmation | ConfirmDialog, Button and Card | reuse | Use existing focus, labels and responsive behavior |
+| Deterministic verification | Anonymous Billing Pattern Lab fixture | extend | The production control can use synthetic responses without touching billing data |
+
+## 2026-11-08 Scheduled change cancellation and recovery
+
+Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.

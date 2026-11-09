@@ -424,12 +424,27 @@ export function createLiveScheduledCancellationProvider(port: StripePlanChangePo
       && operation.stripeAccount === scope.stripeAccount && cancellationOperationId !== operation.operationId)
     return { operation, cancellationOperationId }
   }
-  async function observe(input: CancellationOperation) {
+  async function observe(input: CancellationOperation, retryCrossing = true) {
     const { operation, cancellationOperationId } = operationFor(input)
+    const startedAt = now() / 1000
+    if (startedAt >= operation.effective) {
+      // A restored schedule may have advanced to the target phase while the
+      // undo response was lost. Reuse the installed-schedule verifier; it
+      // proves schedule identity and terms but does not grant paid access.
+      try {
+        const restored = await createStripePlanChangeProvider(port, now, scope).verify(input.operation)
+        if (restored.kind === 'configured') return { kind: 'restored_after_cutoff' as const, operation }
+      } catch (error) {
+        if (!(error instanceof StripePlanChangeContractError)) throw error
+      }
+    }
     const account = decode(z.object({ id: accountId }), await port.retrieveAccount())
     requireFact(account.id === scope.stripeAccount)
-    const subscription = decode(cancellationSubscriptionSchema, await port.retrieveSubscription(operation.stripeSubscriptionId))
-    const schedule = decode(cancellationScheduleSchema, await port.retrieveSchedule(operation.scheduleId!))
+    const rawSubscription = await port.retrieveSubscription(operation.stripeSubscriptionId)
+    const rawSchedule = await port.retrieveSchedule(operation.scheduleId!)
+    if (retryCrossing && startedAt < operation.effective && now() / 1000 >= operation.effective) return observe(input, false)
+    const subscription = decode(cancellationSubscriptionSchema, rawSubscription)
+    const schedule = decode(cancellationScheduleSchema, rawSchedule)
     const invoice = subscription.latest_invoice
     const item = subscription.items.data[0]
     requireFact(subscription.livemode && subscription.id === operation.stripeSubscriptionId
@@ -457,13 +472,13 @@ export function createLiveScheduledCancellationProvider(port: StripePlanChangePo
         && Object.keys(marker).length === 2 && marker.pika_cancellation_operation === cancellationOperationId)
       return { kind: 'completed' as const, operation, schedule }
     }
-    requireFact(at >= operation.starts && at < operation.effective && subscription.status === 'active'
+    requireFact(at >= operation.starts && subscription.status === 'active'
       && schedule.current_phase !== null && schedule.current_phase.start_date === operation.starts
       && schedule.current_phase.end_date === operation.effective && schedule.completed_at == null)
     if (schedule.end_behavior === 'cancel') {
       requireFact(schedule.phases.length === 1 && subscription.cancel_at === operation.effective
         && marker.pika_cancellation_operation === cancellationOperationId && Object.keys(marker).length === 2)
-      return { kind: 'cancel_scheduled' as const, operation, schedule }
+      return { kind: at >= operation.effective ? 'transition_pending' as const : 'cancel_scheduled' as const, operation, schedule }
     }
     requireFact(subscription.cancel_at === null && schedule.phases.length === 2 && !!target
       && Object.keys(marker).length === 1 && matchesPhase(target, operation.target, operation.effective, operation.targetEnd)
@@ -471,7 +486,7 @@ export function createLiveScheduledCancellationProvider(port: StripePlanChangePo
       && (source.default_payment_method ?? null) === (target.default_payment_method ?? null))
     const price = decode(priceSchema, await port.retrievePrice(operation.target.priceId))
     requireFact(price.livemode && sameTerms(price, operation.target))
-    return { kind: 'scheduled' as const, operation, schedule }
+    return { kind: at >= operation.effective ? 'transition_pending' as const : 'scheduled' as const, operation, schedule }
   }
   async function mutate(input: CancellationMutation, action: 'cancel' | 'undo') {
     const replayUntil = Date.parse(decode(time, input.replayUntil))
@@ -479,10 +494,13 @@ export function createLiveScheduledCancellationProvider(port: StripePlanChangePo
     const state = await observe(input)
     const desired = action === 'cancel' ? 'cancel_scheduled' : 'scheduled'
     if (action === 'cancel' && state.kind === 'completed') return { kind: 'completed' } as const
+    if (state.kind === 'restored_after_cutoff') return { kind: 'restored_after_cutoff' } as const
+    if (state.kind === 'transition_pending') return { kind: 'transition_pending' } as const
     if (state.kind === desired) return { kind: desired } as const
     requireFact(action === 'cancel' ? state.kind === 'scheduled' : state.kind === 'cancel_scheduled')
     const { operation, schedule } = state
-    const canWrite = () => requireFact(now() >= operation.starts * 1000 && now() + 5_000 < Math.min(operation.effective * 1000, replayUntil))
+    requireFact(schedule !== undefined)
+    const canWrite = () => now() >= operation.starts * 1000 && now() + 5_000 < Math.min(operation.effective * 1000, replayUntil)
     const defaultPaymentMethod = schedule.phases[0].default_payment_method
     const common = { proration_behavior: 'none', automatic_tax: { enabled: false }, collection_method: 'charge_automatically',
       discounts: '', ...(defaultPaymentMethod ? { default_payment_method: defaultPaymentMethod } : {}) } as const
@@ -500,12 +518,13 @@ export function createLiveScheduledCancellationProvider(port: StripePlanChangePo
         duration: { interval: operation.target.interval, interval_count: 1 }, billing_cycle_anchor: 'phase_start' as const,
         items: [{ price: operation.target.priceId, quantity: 1 }] }] : [])],
     }
-    canWrite()
+    if (!canWrite()) return { kind: 'transition_pending' as const }
     if (await input.beforeMutation() !== true) return { kind: 'stale' as const }
-    canWrite()
+    if (!canWrite()) return { kind: 'transition_pending' as const }
     await port.updateSchedule(operation.scheduleId!, params, { idempotencyKey: stripeScheduledCancellationIdempotencyKey(input.cancellationOperationId, action) })
     const verified = await observe(input)
-    requireFact(verified.kind === desired || (action === 'cancel' && verified.kind === 'completed'))
+    requireFact(verified.kind === desired || (action === 'cancel' && (verified.kind === 'completed' || verified.kind === 'transition_pending'))
+      || verified.kind === 'restored_after_cutoff')
     return { kind: verified.kind }
   }
   return {

@@ -361,6 +361,51 @@ describe('live saved schedule cancellation and undo', () => {
     expect(f.port.retrieveSubscription).toHaveBeenCalledTimes(2)
     expect(f.port.retrieveSchedule).toHaveBeenCalledTimes(2)
   })
+  it('recovers restored target phase after cutoff without any Stripe write', async () => {
+    const f = live(); f.now.mockReturnValue(effective * 1000)
+    const target = subscription(attachedId, true); target.livemode = true; target.customer.livemode = true
+    target.latest_invoice.livemode = true; target.items.data[0].price.livemode = true
+    Object.assign(target.latest_invoice, { id: 'in_Target' })
+    const next = schedule(true, true); next.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(target); f.port.retrieveSchedule.mockResolvedValue(next)
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'restored_after_cutoff' })
+    await expect(f.provider.undo(f.input)).resolves.toEqual({ kind: 'restored_after_cutoff' })
+    expect(f.input.beforeMutation).not.toHaveBeenCalled(); expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('rereads once when one observation crosses the cutoff, with no provider write', async () => {
+    const f = live()
+    const target = subscription(attachedId, true); target.livemode = true; target.customer.livemode = true
+    target.latest_invoice.livemode = true; target.items.data[0].price.livemode = true
+    const next = schedule(true, true); next.livemode = true
+    f.port.retrieveSubscription.mockImplementation(async () => { f.now.mockReturnValue(effective * 1000); return target })
+    f.port.retrieveSchedule.mockResolvedValue(next)
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'restored_after_cutoff' })
+    expect(f.port.retrieveSubscription).toHaveBeenCalledTimes(2)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('does not write when the cutoff arrives during the authorization fence', async () => {
+    const f = live()
+    f.input.beforeMutation.mockImplementation(async () => { f.now.mockReturnValue(effective * 1000); return true })
+    await expect(f.provider.cancel(f.input)).resolves.toEqual({ kind: 'transition_pending' })
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('does not hand off a target phase with a foreign marker or wrong terms', async () => {
+    const f = live(); f.now.mockReturnValue(effective * 1000)
+    const target = subscription(attachedId, true); target.livemode = true; target.customer.livemode = true
+    target.latest_invoice.livemode = true; target.items.data[0].price.livemode = true
+    const next = schedule(true, true); next.livemode = true
+    next.metadata.pika_plan_change_operation = '11111111-1111-4111-8111-111111111111'
+    f.port.retrieveSubscription.mockResolvedValue(target); f.port.retrieveSchedule.mockResolvedValue(next)
+    await expect(f.provider.read(f.input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('defers an exact old source phase while Stripe crosses the cutoff', async () => {
+    const f = live(); f.now.mockReturnValue(effective * 1000)
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'transition_pending' })
+    f.setCanceled()
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'transition_pending' })
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
   it('proves the observed completed terminal shape without initiating a write', async () => {
     const f = live(); f.setCanceled(); f.now.mockReturnValue(effective * 1000)
     Object.assign(f.sub, { status: 'canceled', ended_at: effective, canceled_at: created })

@@ -9,6 +9,8 @@ import { runOptionalRecoveryLane } from './recovery-lane'
 import { reconcileLiveBillingSubscriptions } from './runtime'
 import { closeDueLiveRenewals } from './closeout-runtime'
 import { processDueBillingAssignmentReleases } from './assignment-releases'
+import { createLiveScheduledPlanChangeRuntime } from './scheduled-plan-change-runtime'
+import { processLiveScheduledCancellations } from './scheduled-cancellation-runtime'
 
 const EXPIRY_BATCH_LIMIT = 25
 const expiryResultSchema = z.object({ processed: z.number().int().min(0).max(EXPIRY_BATCH_LIMIT) }).strict()
@@ -22,6 +24,12 @@ export async function processLiveBillingPaymentLifecycle(config: BillingLiveChec
 
   const purchases = await runOptionalRecoveryLane(async () =>
     createBillingPurchaseRuntime(config).reconcileCheckouts({ limit: 1 }))
+  const [scheduledInstallations, scheduledCancellations] = await Promise.all([
+    process.env.BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED === 'true'
+      ? runOptionalRecoveryLane(() => createLiveScheduledPlanChangeRuntime(config).processDue({ limit: 1 })) : undefined,
+    process.env.BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED === 'true'
+      ? runOptionalRecoveryLane(() => processLiveScheduledCancellations(config)) : undefined,
+  ])
   const reconciliation = await runOptionalRecoveryLane(() => reconcileLiveBillingSubscriptions(config, 1))
   const expiry = await runOptionalRecoveryLane(async () => {
     const { data, error } = await client.rpc('billing_apply_due_live_paid_access_v1', {
@@ -33,5 +41,6 @@ export async function processLiveBillingPaymentLifecycle(config: BillingLiveChec
   const closeouts = await runOptionalRecoveryLane(() => closeDueLiveRenewals(config))
   const assignmentReleases = await runOptionalRecoveryLane(() => processDueBillingAssignmentReleases(client))
   await attemptRepoLightProvisionOutbox({ client })
-  return { purchases, reconciliation, closeouts, expiry, assignmentReleases }
+  return { purchases, reconciliation, closeouts, expiry, assignmentReleases,
+    ...(scheduledInstallations && { scheduledInstallations }), ...(scheduledCancellations && { scheduledCancellations }) }
 }

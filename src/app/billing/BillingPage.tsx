@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Card, FormField, PageState, Select } from '@/ui'
 import { BillingSubscriptionStatusSchema, type BillingSubscriptionStatus } from '@/lib/billing/subscription'
 import { BillingUpgradeCard } from './BillingUpgradeCard'
+import { BillingScheduledChangeCard } from './BillingScheduledChangeCard'
+import { billingDate as date, billingOperation as operation } from './billing-client'
 import type { BillingCatalogItem, BillingPurchaseStatus } from '@/lib/server/billing/purchase-handlers'
 
 type LoadState = 'loading' | 'ready' | 'unavailable' | 'error'
@@ -14,29 +16,20 @@ const labels: Record<BillingSubscriptionStatus['state'], string> = {
   free: 'Free', trial: 'Pro trial', paid: 'Paid subscription', renewal_grace: 'Payment overdue',
   synchronization_pending: 'Synchronizing', unmanaged: 'Plan managed separately',
 }
-function date(value: string) {
-  return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Toronto', timeZoneName: 'short' }).format(new Date(value))
-}
-function operation(key: string) {
-  const stored = sessionStorage.getItem(key)
-  if (stored && uuid.test(stored)) return stored
-  const id = crypto.randomUUID()
-  sessionStorage.setItem(key, id)
-  return id
-}
 async function read(response: Response) {
   if (!response.ok) throw Object.assign(new Error('Request failed'), { status: response.status })
   return response.json()
 }
 
 export function BillingPage({ userId, billingAvailable = true, purchaseAvailable = true, portalAvailable = false,
-  portalCancellationAvailable = false, upgradesAvailable = false }: {
+  portalCancellationAvailable = false, upgradesAvailable = false, scheduledBillingAvailable = false }: {
   userId: string
   billingAvailable?: boolean
   purchaseAvailable?: boolean
   portalAvailable?: boolean
   portalCancellationAvailable?: boolean
   upgradesAvailable?: boolean
+  scheduledBillingAvailable?: boolean
 }) {
   const [state, setState] = useState<LoadState>(billingAvailable ? 'loading' : 'unavailable')
   const [subscription, setSubscription] = useState<BillingSubscriptionStatus | null>(null)
@@ -71,6 +64,7 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
       setState((error as { status?: number }).status === 404 ? 'unavailable' : 'error')
     }
   }, [purchaseAvailable])
+  const refreshSubscription = useCallback(() => { void load(true) }, [load])
   useEffect(() => {
     if (!billingAvailable) return
     const params = new URLSearchParams(window.location.search)
@@ -211,6 +205,9 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
           : null}
         {subscription.state === 'synchronization_pending' ? <p className="mt-2 text-sm">Your plan is synchronizing. Check again shortly.</p> : null}
       </Card>
+      {scheduledBillingAvailable && subscription.options?.hasBillingCustomer ? <BillingScheduledChangeCard userId={userId}
+        eligibleTerms={subscription.state === 'paid' && subscription.plan === 'max' && subscription.renewalAt ? terms : null}
+        onChanged={refreshSubscription} /> : null}
       {subscription.options?.trialAvailable ? <Card><h2 className="text-lg font-semibold">Try Pro</h2>
         <p className="mt-1 text-sm text-text-muted">Start a 30-day Pro trial without a card or automatic charge. One trial is available per teacher.</p>
         <Button className="mt-4" onClick={() => void startTrial()} disabled={busy}>Start 30-day Pro trial</Button>

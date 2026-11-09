@@ -10345,6 +10345,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_get_live_scheduled_cancellation_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_get_live_scheduled_renewal_v1: {
         Args: {
           p_project_ref: string
@@ -10390,6 +10398,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_list_live_scheduled_cancellations_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_list_live_scheduled_installations_v1: {
         Args: {
           p_project_ref: string
@@ -10424,6 +10440,18 @@ export type Database = {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean
       }
+      billing_live_scheduled_cancellation_command_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_live_scheduled_customer_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_live_scheduled_installation_command_v1: {
         Args: {
           p_project_ref: string
@@ -10450,6 +10478,14 @@ export type Database = {
         Returns: Json
       }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_request_live_scheduled_cancellation_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_requeue_subscription_v1: {
         Args: { p_request: Json }
         Returns: Json

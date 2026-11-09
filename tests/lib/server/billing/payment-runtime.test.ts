@@ -1,13 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
   rpc: vi.fn(), response: vi.fn(), checkout: vi.fn(), reconcile: vi.fn(), closeout: vi.fn(), assignments: vi.fn(), provision: vi.fn(), diagnostics: vi.fn(),
+  install: vi.fn(), cancel: vi.fn(),
 }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ rpc: mock.rpc }) }))
 vi.mock('@/lib/server/billing/purchase-runtime', () => ({ createBillingPurchaseRuntime: () => ({ reconcileCheckouts: mock.checkout }) }))
 vi.mock('@/lib/server/billing/runtime', () => ({ reconcileLiveBillingSubscriptions: mock.reconcile }))
 vi.mock('@/lib/server/billing/closeout-runtime', () => ({ closeDueLiveRenewals: mock.closeout }))
 vi.mock('@/lib/server/billing/assignment-releases', () => ({ processDueBillingAssignmentReleases: mock.assignments }))
+vi.mock('@/lib/server/billing/scheduled-plan-change-runtime', () => ({ createLiveScheduledPlanChangeRuntime: () => ({ processDue: mock.install }) }))
+vi.mock('@/lib/server/billing/scheduled-cancellation-runtime', () => ({ processLiveScheduledCancellations: mock.cancel }))
 vi.mock('@/lib/server/repolight-provision-runtime', () => ({ attemptRepoLightProvisionOutbox: mock.provision }))
 vi.mock('@/lib/server/diagnostics', () => ({ logServerError: mock.diagnostics }))
 
@@ -22,6 +25,8 @@ const scope = { p_project_ref: config.projectRef, p_stripe_account: config.strip
 
 beforeEach(() => {
   vi.resetAllMocks()
+  vi.stubEnv('BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED', 'false')
+  vi.stubEnv('BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED', 'false')
   mock.rpc.mockReturnValue({ abortSignal: mock.response })
   mock.response.mockResolvedValueOnce({ data: true, error: null })
     .mockResolvedValueOnce({ data: { processed: 1 }, error: null })
@@ -31,6 +36,7 @@ beforeEach(() => {
   mock.assignments.mockResolvedValue({ released: 1 })
   mock.diagnostics.mockReturnValue('payment-diagnostic')
 })
+afterEach(() => vi.unstubAllEnvs())
 
 describe('live paid billing recovery', () => {
   it('does no recovery work when the exact database target is unavailable', async () => {
@@ -53,6 +59,23 @@ describe('live paid billing recovery', () => {
     expect(mock.rpc).toHaveBeenLastCalledWith('billing_apply_due_live_paid_access_v1', { ...scope, p_request: { limit: 25 } })
     expect(mock.rpc.mock.invocationCallOrder[1]).toBeLessThan(mock.closeout.mock.invocationCallOrder[0])
     expect(mock.rpc.mock.invocationCallOrder[1]).toBeLessThan(mock.provision.mock.invocationCallOrder[0])
+    expect(mock.install).not.toHaveBeenCalled()
+    expect(mock.cancel).not.toHaveBeenCalled()
+  })
+
+  it('recovers installed changes and cancellations independently of new admissions', async () => {
+    vi.stubEnv('BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED', 'true')
+    vi.stubEnv('BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED', 'true')
+    vi.stubEnv('BILLING_LIVE_SCHEDULED_CHANGES_ENABLED', 'false')
+    mock.install.mockRejectedValue(new Error('provider unavailable'))
+    mock.cancel.mockResolvedValue({ completed: 1 })
+    await expect(processLiveBillingPaymentLifecycle(config)).resolves.toMatchObject({
+      scheduledInstallations: { failed: 1 }, scheduledCancellations: { completed: 1 }, expiry: { processed: 1 },
+    })
+    expect(mock.install).toHaveBeenCalledWith({ limit: 1 })
+    expect(mock.cancel).toHaveBeenCalledWith(config)
+    expect(mock.install).toHaveBeenCalledBefore(mock.reconcile)
+    expect(mock.cancel).toHaveBeenCalledBefore(mock.reconcile)
   })
 
   it('preserves exact-cutoff expiry and RepoLight recovery if Stripe reconciliation fails', async () => {
