@@ -5,7 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { useRef, useState, type ReactElement, type ReactNode } from 'react'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
 import { TooltipProvider } from '@/ui'
-import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
+import { SurveySnapshotWorkspace, TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import type { Survey, SurveyQuestion } from '@/types'
 
 vi.mock('@/ui', async (importOriginal) => ({
@@ -1042,4 +1042,111 @@ describe('TeacherSurveyWorkspace', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1', expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ show_results: false }) })))
     expect(fetchMock).not.toHaveBeenCalledWith('/api/teacher/surveys/survey-1/results')
   })
+})
+
+
+describe('SurveySnapshotWorkspace', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
+
+  it('does not create an untouched survey and saves incomplete questions before closing', async () => {
+    let close: (() => Promise<void>) | null = null
+    const onBack = vi.fn()
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body))
+      return jsonResponse({ item: makeSurvey(), draft: { revision: 'revision-1', content: body.content }, sourceRevision: 'a'.repeat(64) })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId={null} onBack={onBack} onCloseReady={value => { close = value }} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    expect(fetchMock).not.toHaveBeenCalled()
+    fireEvent.change(screen.getByRole('textbox', { name: 'New question' }), { target: { value: 'Partial question' } })
+    await act(async () => { await close?.() })
+    expect(onBack).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.content.questions).toEqual([])
+    expect(body.content.editor.question.question_text).toBe('Partial question')
+    expect(body.content.editor.unresolved).toBe(true)
+  })
+
+  it('keeps the editor open when saving fails', async () => {
+    let close: (() => Promise<void>) | null = null
+    const onBack = vi.fn()
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, json: async () => ({ error: 'Save failed' }) })))
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId={null} onBack={onBack} onCloseReady={value => { close = value }} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    fireEvent.change(screen.getByRole('textbox', { name: 'Title' }), { target: { value: 'New survey' } })
+    await act(async () => { await close?.() })
+    expect(onBack).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Save failed')
+  })
+
+  it('restores an active survey snapshot and applies it without changing live content first', async () => {
+    const onSurveyUpdated = vi.fn()
+    const live = makeSurvey({ status: 'active', title: 'Published title' })
+    const question = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
+    const content = { title: 'Private title', show_results: true, dynamic_responses: true, questions: [question] }
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return jsonResponse({ item: { ...live, title: 'Private title' }, sourceRevision: 'b'.repeat(64) })
+      return jsonResponse({ item: { ...live, questions: [question] }, draft: { revision: 'revision-1', content }, sourceRevision: 'a'.repeat(64) })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={onSurveyUpdated} onSurveyDeleted={() => {}} />)
+    expect(await screen.findByDisplayValue('Private title')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+    await waitFor(() => expect(onSurveyUpdated).toHaveBeenCalledWith(expect.objectContaining({ title: 'Private title' })))
+    expect(fetchMock).toHaveBeenLastCalledWith(expect.stringContaining('/classwork-authoring/survey/survey-1'), expect.objectContaining({ method: 'POST', body: JSON.stringify({ revision: 'revision-1' }) }))
+  })
+
+
+  it('publishes a legacy draft by creating a snapshot without requiring an edit', async () => {
+    const live = makeSurvey({ status: 'draft' })
+    const question = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
+    const sourceRevision = 'a'.repeat(64)
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'PUT') return jsonResponse({ draft: { revision: 'draft-revision' } })
+      if (init?.method === 'POST') return jsonResponse({ item: { ...live, status: 'active' }, sourceRevision: 'b'.repeat(64) })
+      return jsonResponse({ item: { ...live, questions: [question] }, draft: null, sourceRevision })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Publish' }))
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+    const put = fetchMock.mock.calls[1][1] as RequestInit
+    expect(put.method).toBe('PUT')
+    expect(JSON.parse(String(put.body))).toEqual(expect.objectContaining({ expectedRevision: null, expectedSourceRevision: sourceRevision }))
+    expect(JSON.parse(String((fetchMock.mock.calls[2][1] as RequestInit).body))).toEqual({ revision: 'draft-revision', publish: true })
+  })
+
+  it('offers retry without showing an editable blank survey after loading fails', async () => {
+    const live = makeSurvey()
+    const fetchMock = vi.fn().mockResolvedValueOnce({ ok: false, json: async () => ({ error: 'Load failed' }) }).mockResolvedValueOnce(jsonResponse({ item: { ...live, questions: [] }, draft: null, sourceRevision: 'a'.repeat(64) }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Load failed')
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    expect(await screen.findByDisplayValue('Game Jam Links')).toBeInTheDocument()
+  })
+
+  it('loads only the live detail for read-only classrooms', async () => {
+    const fetchMock = vi.fn(async () => jsonResponse({ survey: makeSurvey(), questions: [] }))
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" isReadOnly onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    expect(await screen.findByDisplayValue('Game Jam Links')).toBeDisabled()
+    expect(fetchMock).toHaveBeenCalledOnce()
+    expect(fetchMock).toHaveBeenCalledWith('/api/teacher/surveys/survey-1')
+  })
+
+
+  it('discards an incomplete edit and restores the existing canonical question', async () => {
+    const question = makeQuestion({ id: '9f16d74c-0a43-4de5-8c8a-e8137c144a45' })
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse({ item: { ...makeSurvey(), questions: [question] }, draft: null, sourceRevision: 'a'.repeat(64) })))
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId="survey-1" onBack={() => {}} onCloseReady={() => {}} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    const prompt = await screen.findByRole('textbox', { name: 'Prompt' })
+    expect(prompt).toHaveValue('Choose a project')
+    fireEvent.change(prompt, { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Discard incomplete question changes' }))
+    expect(screen.getByRole('textbox', { name: 'Prompt' })).toHaveValue('Choose a project')
+  })
+
 })

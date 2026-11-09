@@ -47,6 +47,95 @@ describe('AssignmentModal', () => {
     window.localStorage.clear()
   })
 
+  describe('Classwork authoring', () => {
+    const base = '/api/teacher/classrooms/classroom-1/classwork-authoring/assignment'
+
+    it('opens and closes an untouched new assignment without a server draft', async () => {
+      const onClose = vi.fn()
+      render(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" onClose={onClose} onSuccess={vi.fn()} />)
+      expect(screen.getByLabelText(/Title/)).toBeEnabled()
+      fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(fetch).not.toHaveBeenCalled()
+    })
+
+    it('creates the draft with the first edit and keeps the editor open on a failed close save', async () => {
+      const onClose = vi.fn()
+      const onSuccess = vi.fn()
+      const fetchMock = vi.mocked(fetch)
+      const saved = { ...baseAssignment, title: 'First edit' }
+      fetchMock.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({ error: 'Try again' }) } as Response)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: saved }) } as Response)
+      render(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" onClose={onClose} onSuccess={onSuccess} />)
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: saved.title } })
+      fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Close assignment modal' })).toBeEnabled())
+      expect(onClose).not.toHaveBeenCalled()
+      expect(screen.getByLabelText(/Title/)).toHaveValue(saved.title)
+
+      fireEvent.click(screen.getByRole('button', { name: 'Close assignment modal' }))
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(onSuccess).toHaveBeenCalledWith(saved)
+      expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([base + '/new', base + '/new'])
+      const bodies = fetchMock.mock.calls.map(([, init]) => JSON.parse(init?.body as string))
+      expect(bodies[0]).toEqual(bodies[1])
+      expect(bodies[1].content.title).toBe(saved.title)
+    })
+
+    it('ignores a private draft read that finishes after the editor switches assignments', async () => {
+      const first = { ...baseAssignment, is_draft: false }
+      const second = { ...first, id: 'assignment-2', title: 'Second assignment' }
+      let finishFirst: ((response: Response) => void) | undefined
+      const fetchMock = vi.mocked(fetch)
+      fetchMock.mockReturnValueOnce(new Promise<Response>((resolve) => { finishFirst = resolve }))
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: second, sourceRevision: 'b'.repeat(64), draft: null }) } as Response)
+      const onClose = vi.fn()
+      const onSuccess = vi.fn()
+      const view = render(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" assignment={first} onClose={onClose} onSuccess={onSuccess} />)
+      view.rerender(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" assignment={second} onClose={onClose} onSuccess={onSuccess} />)
+      await waitFor(() => expect(screen.getByLabelText(/Title/)).toHaveValue(second.title))
+      await act(async () => {
+        finishFirst?.({ ok: true, json: async () => ({ item: first, sourceRevision: 'a'.repeat(64), draft: null }) } as Response)
+      })
+      expect(screen.getByLabelText(/Title/)).toHaveValue(second.title)
+    })
+
+    it('saves posted edits privately, then applies the saved revision only on request', async () => {
+      const source = { ...baseAssignment, is_draft: false }
+      const sourceRevision = 'a'.repeat(64)
+      const savedTitle = 'Private edit'
+      const revision = '30200000-0000-4000-8000-000000000001'
+      const onSuccess = vi.fn()
+      const url = base + '/' + source.id
+      const fetchMock = vi.mocked(fetch)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: source, sourceRevision, draft: null }) } as Response)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ draft: { revision } }) } as Response)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: { ...source, title: savedTitle } }) } as Response)
+      render(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" assignment={source} onClose={vi.fn()} onSuccess={onSuccess} />)
+      const title = screen.getByLabelText(/Title/)
+      await waitFor(() => expect(title).toBeEnabled())
+      fireEvent.change(title, { target: { value: savedTitle } })
+      fireEvent.blur(title)
+      await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Saved'))
+      expect(onSuccess).not.toHaveBeenCalled()
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      const save = fetchMock.mock.calls[1]
+      expect(save[0]).toBe(url)
+      expect(save[1]?.method).toBe('PUT')
+      expect(JSON.parse(save[1]?.body as string)).toMatchObject({
+        expectedSourceRevision: sourceRevision,
+        content: { title: savedTitle, fields: ['title'] },
+      })
+
+      fireEvent.click(screen.getByRole('button', { name: 'Apply changes' }))
+      await waitFor(() => expect(onSuccess).toHaveBeenCalledWith({ ...source, title: savedTitle }))
+      const apply = fetchMock.mock.calls[2]
+      expect(apply[0]).toBe(url)
+      expect(apply[1]?.method).toBe('POST')
+      expect(JSON.parse(apply[1]?.body as string)).toEqual({ revision })
+    })
+  })
+
   describe('edit mode', () => {
     it('requests deletion from the edit modal', () => {
       const onRequestDelete = vi.fn()

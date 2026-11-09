@@ -1160,3 +1160,802 @@ export function TeacherSurveyWorkspace({
     </div>
   )
 }
+
+type SnapshotQuestion = Pick<SurveyQuestion, 'id' | 'question_type' | 'question_text' | 'options' | 'response_max_chars'>
+type SnapshotEditor = {
+  mode: 'edit' | 'markdown' | 'preview'
+  selectedQuestionId: string | null
+  question: { id: string | null; question_type: SurveyQuestionType; question_text: string; optionsText: string; responseMaxChars: string } | null
+  markdown: string
+  markdownDirty: boolean
+  unresolved: boolean
+}
+type SurveySnapshot = {
+  title: string
+  show_results: boolean
+  dynamic_responses: boolean
+  questions: SnapshotQuestion[]
+  editor?: SnapshotEditor
+}
+
+function emptySnapshotQuestion(type: SurveyQuestionType = 'multiple_choice'): NonNullable<SnapshotEditor['question']> {
+  return { id: null, question_type: type, question_text: '', optionsText: '\n', responseMaxChars: String(defaultMaxChars(type)) }
+}
+function rawSnapshotQuestion(question: SnapshotQuestion): NonNullable<SnapshotEditor['question']> {
+  return { id: question.id, question_type: question.question_type, question_text: question.question_text, optionsText: question.options.join('\n'), responseMaxChars: String(question.response_max_chars) }
+}
+function snapshotEditor(content: SurveySnapshot): SnapshotEditor {
+  return content.editor ?? { mode: 'edit', selectedQuestionId: content.questions[0]?.id ?? null, question: content.questions[0] ? rawSnapshotQuestion(content.questions[0]) : emptySnapshotQuestion(), markdown: '', markdownDirty: false, unresolved: false }
+}
+
+/** Classroom authoring uses a private, resumable snapshot until explicit publication. */
+export function SurveySnapshotWorkspace({
+  classroomId,
+  classroomName,
+  surveyId: initialSurveyId,
+  isReadOnly = false,
+  onBack,
+  onCloseReady,
+  onCloseDisabledChange,
+  onSurveyCreated,
+  onSurveyUpdated,
+  onSurveyDeleted,
+}: {
+  classroomId: string
+  classroomName?: string
+  surveyId: string | null
+  isReadOnly?: boolean
+  onBack: () => void
+  onCloseReady: (close: (() => Promise<void>) | null) => void
+  onCloseDisabledChange: (disabled: boolean) => void
+  onSurveyCreated: (survey: Survey) => void
+  onSurveyUpdated: (survey: Survey) => void
+  onSurveyDeleted: (surveyId: string) => void
+}) {
+  const [item, setItem] = useState<Survey | null>(null)
+  const [content, setContent] = useState<SurveySnapshot>({
+    title: '',
+    show_results: true,
+    dynamic_responses: false,
+    questions: [],
+  })
+  const [loading, setLoading] = useState(Boolean(initialSurveyId))
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [status, setStatus] = useState<SaveStatusState>('saved')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [numberDraft, setNumberDraft] = useState('1')
+  const titleRef = useRef<HTMLInputElement>(null)
+  const mountedRef = useRef(true)
+  useEffect(() => {
+    mountedRef.current = true
+    return () => {
+      mountedRef.current = false
+    }
+  }, [])
+  const contentRef = useRef(content)
+  const idRef = useRef(initialSurveyId)
+  const revisionRef = useRef<string | null>(null)
+  const sourceRevisionRef = useRef<string | null>(null)
+  const savedRef = useRef(JSON.stringify(content))
+  const changedRef = useRef(false)
+  const pendingRef = useRef<Promise<boolean> | null>(null)
+  const deletingRef = useRef(false)
+  const requestRef = useRef<{
+    id: string | null
+    requestId: string
+    expectedRevision: string | null
+    expectedSourceRevision: string | null
+    snapshot: SurveySnapshot
+  } | null>(null)
+  const createdRef = useRef(onSurveyCreated)
+  createdRef.current = onSurveyCreated
+  contentRef.current = content
+  const base = `/api/teacher/classrooms/${classroomId}/classwork-authoring/survey`
+
+  useEffect(() => {
+    if (!initialSurveyId) return
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      setError('')
+      try {
+        const response = await fetch(
+          isReadOnly ? `/api/teacher/surveys/${initialSurveyId}` : `${base}/${initialSurveyId}`,
+        )
+        const data = await response.json()
+        if (!response.ok) throw new Error(data.error || 'Failed to load survey')
+        if (cancelled) return
+        const live = isReadOnly ? data.survey : data.item
+        const questions: SurveyQuestion[] = isReadOnly ? data.questions || [] : live.questions || []
+        const next: SurveySnapshot = (!isReadOnly && data.draft?.content) || {
+          title: getDisplayAssessmentTitle(live.title, 'Untitled Survey'),
+          show_results: live.show_results,
+          dynamic_responses: live.dynamic_responses,
+          questions: questions.map((q) => ({
+            id: q.id,
+            question_type: q.question_type,
+            question_text: q.question_text,
+            options: q.options,
+            response_max_chars: q.response_max_chars,
+          })),
+        }
+        revisionRef.current = isReadOnly ? null : (data.draft?.revision ?? null)
+        sourceRevisionRef.current = isReadOnly ? null : data.sourceRevision
+        savedRef.current = JSON.stringify(next)
+        contentRef.current = next
+        setContent(next)
+        setItem(live)
+      } catch (err) {
+        if (!cancelled) {
+          setItem(null)
+          setError(err instanceof Error ? err.message : 'Failed to load survey')
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [base, initialSurveyId, isReadOnly, loadAttempt])
+
+  const flush = useCallback(
+    async (force = false): Promise<boolean> => {
+      if (deletingRef.current) return false
+      if (pendingRef.current) {
+        if (!(await pendingRef.current)) return false
+        if (
+          !force &&
+          !requestRef.current &&
+          JSON.stringify(contentRef.current) === savedRef.current
+        )
+          return true
+      }
+      if (
+        !force &&
+        (!changedRef.current ||
+          (!requestRef.current && JSON.stringify(contentRef.current) === savedRef.current))
+      )
+        return true
+      const task = (async () => {
+        try {
+          setStatus('saving')
+          let forceSave = force
+          while (
+            forceSave ||
+            requestRef.current ||
+            JSON.stringify(contentRef.current) !== savedRef.current
+          ) {
+            forceSave = false
+            const request = requestRef.current ?? {
+              id: idRef.current,
+              requestId: crypto.randomUUID(),
+              expectedRevision: revisionRef.current,
+              expectedSourceRevision: sourceRevisionRef.current,
+              snapshot: contentRef.current,
+            }
+            requestRef.current = request
+            const { id, snapshot, requestId, expectedRevision, expectedSourceRevision } = request
+            const key = JSON.stringify(snapshot)
+            const response = await fetch(id ? `${base}/${id}` : `${base}/new`, {
+              method: id ? 'PUT' : 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(
+                id
+                  ? { expectedRevision, expectedSourceRevision, requestId, content: snapshot }
+                  : { requestId, content: snapshot },
+              ),
+            })
+            const data = await response.json().catch(() => ({}))
+            if (!response.ok) throw new Error(data.error || 'Failed to save survey draft')
+            revisionRef.current = data.draft.revision
+            if (data.sourceRevision) sourceRevisionRef.current = data.sourceRevision
+            requestRef.current = null
+            savedRef.current = key
+            if (!id) {
+              idRef.current = data.item.id
+              setItem(data.item)
+              if (mountedRef.current) createdRef.current(data.item)
+            }
+          }
+          setError('')
+          setStatus('saved')
+          return true
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Failed to save survey draft')
+          setStatus('error')
+          return false
+        }
+      })()
+      pendingRef.current = task
+      try {
+        return await task
+      } finally {
+        pendingRef.current = null
+      }
+    },
+    [base],
+  )
+
+  useEffect(() => {
+    if (loading || isReadOnly || !changedRef.current) return
+    setStatus('unsaved')
+    const timer = setTimeout(() => {
+      void flush()
+    }, 600)
+    return () => clearTimeout(timer)
+  }, [content, flush, isReadOnly, loading])
+  useEffect(() => {
+    onCloseReady(async () => {
+      if ((await flush()) && mountedRef.current) onBack()
+    })
+    return () => onCloseReady(null)
+  }, [flush, onBack, onCloseReady])
+  useEffect(() => {
+    onCloseDisabledChange(busy)
+  }, [busy, onCloseDisabledChange])
+
+  function update(next: SurveySnapshot, meaningful = true) {
+    if (meaningful) changedRef.current = true
+    contentRef.current = next
+    setContent(next)
+  }
+  useEffect(() => {
+    if (!initialSurveyId && !loading) titleRef.current?.focus()
+  }, [initialSurveyId, loading])
+
+  const editor = snapshotEditor(content)
+  const raw = editor.question ?? emptySnapshotQuestion()
+  const selectedIndex = content.questions.findIndex((q) => q.id === editor.selectedQuestionId)
+  function editQuestion(nextRaw: NonNullable<SnapshotEditor['question']>) {
+    const input = buildQuestionSavePayload(
+      nextRaw.question_type,
+      nextRaw.question_text,
+      nextRaw.optionsText,
+      nextRaw.responseMaxChars,
+    )
+    const normalized = normalizeSurveyQuestionInput(input)
+    let questions = content.questions
+    let nextId = nextRaw.id
+    if (normalized.valid) {
+      nextId ??= crypto.randomUUID()
+      const nextQuestion = { id: nextId, ...normalized.question }
+      questions = nextRaw.id
+        ? questions.map((q) => (q.id === nextRaw.id ? nextQuestion : q))
+        : [...questions, nextQuestion]
+    }
+    update({
+      ...content,
+      questions,
+      editor: {
+        ...editor,
+        selectedQuestionId: nextId,
+        question: { ...nextRaw, id: nextId },
+        unresolved: !normalized.valid || editor.markdownDirty,
+      },
+    })
+  }
+  useEffect(() => {
+    setNumberDraft(String(Math.max(0, selectedIndex) + 1))
+  }, [selectedIndex])
+  function selectQuestion(question: SnapshotQuestion | null) {
+    if (editor.unresolved) {
+      setError('Finish or discard the current question before switching.')
+      return
+    }
+    update(
+      {
+        ...content,
+        editor: {
+          ...editor,
+          mode: 'edit',
+          selectedQuestionId: question?.id ?? null,
+          question: question ? rawSnapshotQuestion(question) : emptySnapshotQuestion(),
+          unresolved: false,
+        },
+      },
+      false,
+    )
+  }
+  function applyMarkdown() {
+    const parsed = markdownToSurvey(editor.markdown, {
+      defaultShowResults: content.show_results,
+      defaultDynamicResponses: content.dynamic_responses,
+      existingQuestions: content.questions,
+    })
+    if (!parsed.content || parsed.errors.length) {
+      setError(parsed.errors.join('\n') || 'Invalid Markdown')
+      return
+    }
+    const questions = parsed.content.questions.map((q) => ({
+      id: q.id || crypto.randomUUID(),
+      question_type: q.question_type,
+      question_text: q.question_text,
+      options: q.options,
+      response_max_chars: q.response_max_chars,
+    }))
+    update({
+      ...parsed.content,
+      questions,
+      editor: {
+        ...editor,
+        mode: 'edit',
+        markdownDirty: false,
+        unresolved: false,
+        selectedQuestionId: questions[0]?.id ?? null,
+        question: questions[0] ? rawSnapshotQuestion(questions[0]) : emptySnapshotQuestion(),
+      },
+    })
+    setError('')
+  }
+  async function deleteSurvey() {
+    deletingRef.current = true
+    setBusy(true)
+    try {
+      if (pendingRef.current && !(await pendingRef.current)) return
+      const id = idRef.current
+      if (!id) {
+        onBack()
+        return
+      }
+      const response = await fetch(`/api/teacher/surveys/${id}`, { method: 'DELETE' })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to delete survey')
+      onSurveyDeleted(id)
+      onBack()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete survey')
+    } finally {
+      deletingRef.current = false
+      setBusy(false)
+      setDeleteOpen(false)
+    }
+  }
+  async function apply(publish: boolean) {
+    if (editor.unresolved || editor.markdownDirty) {
+      setError('Finish or discard the current question or Markdown before continuing.')
+      return
+    }
+    if (!content.title.trim() || !content.questions.length) {
+      setError('Add a title and at least one question.')
+      return
+    }
+    setBusy(true)
+    try {
+      if (!(await flush(publish && Boolean(idRef.current) && !revisionRef.current))) return
+      if (!idRef.current || !revisionRef.current) return
+      const response = await fetch(`${base}/${idRef.current}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          revision: revisionRef.current,
+          ...(publish ? { publish: true } : {}),
+        }),
+      })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to apply survey changes')
+      revisionRef.current = null
+      sourceRevisionRef.current = data.sourceRevision
+      changedRef.current = false
+      savedRef.current = JSON.stringify(contentRef.current)
+      setItem(data.item)
+      onSurveyUpdated(data.item)
+      setError('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to apply survey changes')
+    } finally {
+      setBusy(false)
+    }
+  }
+  if (loading)
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <Spinner />
+      </div>
+    )
+  if (initialSurveyId && !item)
+    return (
+      <div className="flex flex-col items-center gap-3 p-6">
+        <p className="text-danger" role="alert">
+          {error || 'Survey unavailable'}
+        </p>
+        <Button variant="secondary" onClick={() => setLoadAttempt((attempt) => attempt + 1)}>
+          Retry
+        </Button>
+      </div>
+    )
+  const displaySurvey = {
+    ...(item || {}),
+    title: content.title,
+    show_results: content.show_results,
+    dynamic_responses: content.dynamic_responses,
+  } as Survey
+  const previewQuestions = content.questions.map((q, position) => ({
+    ...q,
+    survey_id: idRef.current || '',
+    position,
+    created_at: '',
+    updated_at: '',
+  }))
+  function changeMode(mode: 'write' | 'markdown') {
+    if (editor.unresolved && mode !== 'markdown') {
+      setError('Finish or discard Markdown edits before switching.')
+      return
+    }
+    const markdown = mode === 'markdown'
+      ? surveyToMarkdown({ survey: displaySurvey, questions: content.questions })
+      : editor.markdown
+    update({ ...content, editor: { ...editor, mode: mode === 'markdown' ? 'markdown' : 'edit', markdown } }, false)
+  }
+
+  function navigateToNumber() {
+    const requested = Number.parseInt(numberDraft, 10)
+    const index = Math.max(0, Math.min(
+      content.questions.length - 1,
+      Number.isFinite(requested) ? requested - 1 : selectedIndex,
+    ))
+    if (index !== selectedIndex) selectQuestion(content.questions[index])
+    setNumberDraft(String(index + 1))
+  }
+
+  return (
+    <div
+      data-testid="survey-split-layout"
+      className="relative grid h-full min-h-0 auto-rows-max grid-cols-1 overflow-y-auto lg:grid-cols-3 lg:grid-rows-1 lg:overflow-hidden"
+    >
+      <div
+        data-testid="survey-editor-details-pane"
+        className="flex min-h-0 min-w-0 flex-col gap-3 bg-surface-2 p-4 lg:overflow-y-auto"
+      >
+        <CreationModalContextLabel itemType="Survey" classroomName={classroomName} />
+        <CreationModalTitleField
+          actions={
+            <TeacherWorkSurfaceIconMenuButton
+              icon={<Settings className="h-4 w-4" />}
+              ariaLabel="Settings"
+              tooltip="Settings"
+              variant="ghost"
+              menuAriaLabel="Survey settings"
+              items={[
+                {
+                  id: 'results',
+                  label: 'Show class results to students',
+                  checked: content.show_results,
+                  checkedRole: 'menuitemcheckbox',
+                  onSelect: () => update({ ...content, show_results: !content.show_results }),
+                },
+                {
+                  id: 'dynamic',
+                  label: 'Allow students to update responses',
+                  checked: content.dynamic_responses,
+                  checkedRole: 'menuitemcheckbox',
+                  onSelect: () =>
+                    update({ ...content, dynamic_responses: !content.dynamic_responses }),
+                },
+                {
+                  id: 'delete',
+                  label: 'Delete survey',
+                  icon: <Trash2 className="h-4 w-4" />,
+                  dividerBefore: true,
+                  destructive: true,
+                  onSelect: () => setDeleteOpen(true),
+                },
+              ]}
+              disabled={isReadOnly || busy}
+            />
+          }
+        >
+          <Input
+            ref={titleRef}
+            aria-label="Survey title"
+            value={content.title}
+            placeholder="Title"
+            disabled={isReadOnly || busy}
+            onChange={(event) => update({ ...content, title: event.target.value })}
+          />
+        </CreationModalTitleField>
+        <p className="text-sm">Questions: {content.questions.length}</p>
+        {error && (
+          <p
+            role="alert"
+            className="whitespace-pre-wrap rounded-md border border-danger bg-danger-bg p-2 text-sm text-danger"
+          >
+            {error}
+          </p>
+        )}
+        <AuthoringModeControl
+          ariaLabel="Survey editing mode"
+          value={editor.mode === 'markdown' ? 'markdown' : 'write'}
+          onChange={changeMode}
+          writeDisabled={busy || editor.markdownDirty}
+          markdownDisabled={busy || editor.unresolved}
+        />
+        <div className="mt-auto grid grid-cols-2 gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy || editor.unresolved || editor.mode === 'markdown'}
+            onClick={() =>
+              update(
+                {
+                  ...content,
+                  editor: { ...editor, mode: editor.mode === 'preview' ? 'edit' : 'preview' },
+                },
+                false,
+              )
+            }
+          >
+            {editor.mode === 'preview' ? 'Back to editor' : 'Preview'}
+          </Button>
+          <Button
+            size="sm"
+            disabled={
+              busy ||
+              isReadOnly ||
+              (!changedRef.current && !revisionRef.current && item?.status !== 'draft') ||
+              editor.unresolved ||
+              !content.questions.length
+            }
+            onClick={() => {
+              void apply(!item || item.status === 'draft')
+            }}
+          >
+            {!item || item.status === 'draft' ? 'Publish' : 'Apply changes'}
+          </Button>
+        </div>
+      </div>
+      <div
+        data-testid="survey-editor-content-pane"
+        className="flex min-h-96 min-w-0 flex-col lg:col-span-2 lg:min-h-0 lg:overflow-hidden"
+      >
+        <QuestionAuthoringHeader
+          testId="survey-question-actionbar"
+          questionNumber={selectedIndex >= 0 ? selectedIndex + 1 : content.questions.length + 1}
+          status={status}
+          actions={
+            editor.mode === 'edit' && (
+              <TeacherWorkSurfaceIconMenuButton
+                icon={<Plus className="h-6 w-6" />}
+                ariaLabel="Question actions"
+                tooltip="Question actions"
+                menuAriaLabel="Question actions"
+                variant="primary"
+                disabled={busy || isReadOnly}
+                items={[
+                  ...(['multiple_choice', 'short_text', 'link'] as const).map((type) => ({
+                    id: type,
+                    label: `Add ${type === 'multiple_choice' ? 'multiple-choice' : type === 'short_text' ? 'open-response' : 'link'} question`,
+                    onSelect: () => {
+                      if (editor.unresolved) {
+                        setError('Finish or discard the current question first.')
+                        return
+                      }
+                      update(
+                        {
+                          ...content,
+                          editor: {
+                            ...editor,
+                            selectedQuestionId: null,
+                            question: emptySnapshotQuestion(type),
+                            mode: 'edit',
+                            unresolved: false,
+                          },
+                        },
+                        false,
+                      )
+                    },
+                  })),
+                  ...(['multiple_choice', 'short_text', 'link'] as const).map((type) => ({
+                    id: `type-${type}`,
+                    label: `Change to ${type === 'multiple_choice' ? 'multiple choice' : type === 'short_text' ? 'open response' : 'link'}`,
+                    checked: raw.question_type === type,
+                    checkedRole: 'menuitemradio' as const,
+                    onSelect: () =>
+                      editQuestion({
+                        ...raw,
+                        question_type: type,
+                        responseMaxChars: String(defaultMaxChars(type)),
+                      }),
+                  })),
+                  {
+                    id: 'duplicate',
+                    label: 'Duplicate question',
+                    disabled: selectedIndex < 0 || editor.unresolved,
+                    onSelect: () => {
+                      const original = content.questions[selectedIndex]
+                      if (!original) return
+                      const question = { ...original, id: crypto.randomUUID() }
+                      update({
+                        ...content,
+                        questions: [...content.questions, question],
+                        editor: {
+                          ...editor,
+                          selectedQuestionId: question.id,
+                          question: rawSnapshotQuestion(question),
+                          unresolved: false,
+                        },
+                      })
+                    },
+                  },
+                  {
+                    id: 'delete',
+                    label: 'Delete question',
+                    destructive: true,
+                    disabled: selectedIndex < 0,
+                    onSelect: () => {
+                      const questions = content.questions.filter(
+                        (q) => q.id !== editor.selectedQuestionId,
+                      )
+                      update({
+                        ...content,
+                        questions,
+                        editor: {
+                          ...editor,
+                          selectedQuestionId: questions[0]?.id ?? null,
+                          question: questions[0]
+                            ? rawSnapshotQuestion(questions[0])
+                            : emptySnapshotQuestion(),
+                          unresolved: false,
+                        },
+                      })
+                    },
+                  },
+                ]}
+              />
+            )
+          }
+          navigation={
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Previous question"
+                disabled={selectedIndex <= 0}
+                onClick={() => selectQuestion(content.questions[selectedIndex - 1])}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              {selectedIndex >= 0 ? (
+                <Input
+                  type="number"
+                  min="1"
+                  max={content.questions.length}
+                  aria-label="Question number"
+                  value={numberDraft}
+                  className="w-14 px-2 text-center"
+                  onChange={(event) => setNumberDraft(event.target.value)}
+                  onBlur={navigateToNumber}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') event.currentTarget.blur()
+                  }}
+                />
+              ) : (
+                <span className="self-center text-sm">New question</span>
+              )}
+              <span className="self-center text-sm"> / {content.questions.length}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Next question"
+                disabled={selectedIndex < 0 || selectedIndex >= content.questions.length - 1}
+                onClick={() => selectQuestion(content.questions[selectedIndex + 1])}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          }
+        />
+        <div className="flex min-h-0 flex-1 flex-col gap-3 p-4 lg:overflow-y-auto">
+          {editor.mode === 'markdown' ? (
+            <>
+              <div className="flex justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={!editor.markdownDirty}
+                  onClick={() =>
+                    update({
+                      ...content,
+                      editor: {
+                        ...editor,
+                        markdown: surveyToMarkdown({
+                          survey: displaySurvey,
+                          questions: content.questions,
+                        }),
+                        markdownDirty: false,
+                        unresolved: false,
+                      },
+                    })
+                  }
+                >
+                  Undo Markdown
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!editor.markdownDirty || isReadOnly}
+                  onClick={applyMarkdown}
+                >
+                  Apply Markdown
+                </Button>
+              </div>
+              <SurveyTextarea
+                aria-label="Survey markdown editor"
+                data-testid="survey-markdown-editor"
+                className="min-h-80 flex-1 rounded-md border border-border bg-surface p-3 font-mono text-sm"
+                value={editor.markdown}
+                readOnly={isReadOnly}
+                onChange={(event) =>
+                  update({
+                    ...content,
+                    editor: {
+                      ...editor,
+                      markdown: event.target.value,
+                      markdownDirty: true,
+                      unresolved: true,
+                    },
+                  })
+                }
+              />
+            </>
+          ) : editor.mode === 'preview' ? (
+            <TeacherSurveyPreview survey={displaySurvey} questions={previewQuestions} />
+          ) : (
+            <>
+              <SurveyQuestionFields
+                classroomId={classroomId}
+                questionType={raw.question_type}
+                questionText={raw.question_text}
+                optionsText={raw.optionsText}
+                responseMaxChars={raw.responseMaxChars}
+                disabled={isReadOnly || busy}
+                promptLabel={raw.id ? 'Prompt' : 'New question'}
+                onTextChange={(question_text) => editQuestion({ ...raw, question_text })}
+                onOptionsChange={(optionsText) => editQuestion({ ...raw, optionsText })}
+                onLimitChange={(responseMaxChars) => editQuestion({ ...raw, responseMaxChars })}
+              />
+              {editor.unresolved && (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    const question = content.questions.find((q) => q.id === raw.id)
+                    update({
+                      ...content,
+                      editor: {
+                        ...editor,
+                        question: question
+                          ? rawSnapshotQuestion(question)
+                          : emptySnapshotQuestion(),
+                        unresolved: false,
+                      },
+                    })
+                    setError('')
+                  }}
+                >
+                  Discard incomplete question changes
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      <ConfirmDialog
+        isOpen={deleteOpen}
+        title="Delete survey?"
+        description={`${content.title || 'Untitled Survey'}\n\nThis cannot be undone.`}
+        confirmLabel={busy ? 'Deleting...' : 'Delete'}
+        cancelLabel="Cancel"
+        confirmVariant="danger"
+        isConfirmDisabled={busy}
+        isCancelDisabled={busy}
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          void deleteSurvey()
+        }}
+      />
+    </div>
+  )
+}

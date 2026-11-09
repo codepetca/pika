@@ -9648,6 +9648,18 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_classwork_authoring_draft: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_item_id: string
+          p_kind: string
+          p_projection: Json
+          p_publish: boolean
+          p_revision: string
+        }
+        Returns: Json
+      }
       apply_course_blueprint_classroom_proposal_atomic: {
         Args: {
           p_classroom_plan: Json
@@ -11433,6 +11445,17 @@ export type Database = {
           p_classroom_id: string
           p_pal_event: Json
           p_student_id: string
+        }
+        Returns: Json
+      }
+      create_classwork_authoring_draft: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_kind: string
+          p_projection: Json
+          p_request_id: string
         }
         Returns: Json
       }
@@ -13286,6 +13309,15 @@ export type Database = {
         Args: { p_actor_id: string }
         Returns: Json
       }
+      read_classwork_authoring_draft: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_item_id: string
+          p_kind: string
+        }
+        Returns: Json
+      }
       read_gradebook_maximum_state: {
         Args: { p_classroom_id: string }
         Returns: Json
@@ -14144,6 +14176,21 @@ export type Database = {
           p_classroom_id: string
           p_policy: Json
           p_scope_mode: string
+        }
+        Returns: Json
+      }
+      save_classwork_authoring_draft: {
+        Args: {
+          p_actor_id: string
+          p_classroom_id: string
+          p_content: Json
+          p_expected_revision?: string
+          p_expected_source_revision: string
+          p_item_id: string
+          p_kind: string
+          p_projection?: Json
+          p_request_id: string
+          p_save_as_draft?: boolean
         }
         Returns: Json
       }

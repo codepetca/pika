@@ -46,6 +46,9 @@ import {
 } from 'lucide-react'
 import { CircularProgress, Button, ConfirmDialog, DialogPanel, PageState, RefreshingIndicator, SplitButton, Tooltip, useAppMessage, useOverlayMessage } from '@/ui'
 import { MaterialCreationDialog } from '@/components/materials/MaterialCreationDialog'
+import { getMaterialMarkdownDraft } from '@/lib/material-markdown'
+import { postDateInputSchema } from '@/lib/validations/post-date'
+import { isGeneratedAssessmentTitle } from '@/lib/assessment-titles'
 import { AssignmentWorkspaceViewToggle } from '@/components/assignment-workspace/AssignmentWorkspaceViewToggle'
 import { useTableSelection } from '@/hooks/useTableSelection'
 import { Spinner } from '@/components/Spinner'
@@ -54,8 +57,7 @@ import { ClassroomBlueprintDraftDialog } from '@/components/ClassroomBlueprintDr
 import { SortableAssignmentCard } from '@/components/SortableAssignmentCard'
 import { SortableSurveyCard } from '@/components/surveys/SortableSurveyCard'
 import { CreationModalShell } from '@/components/creation/CreationModalShell'
-import { getFallbackAssessmentTitle } from '@/lib/assessment-titles'
-import { TeacherSurveyWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
+import { SurveySnapshotWorkspace } from '@/components/surveys/TeacherSurveyWorkspace'
 import { TeacherSurveyResultsPane } from '@/components/surveys/TeacherSurveyResultsPane'
 import {
   TeacherAssignmentStudentTable,
@@ -363,97 +365,221 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
   onSaved: (material: ClassworkMaterial) => void
   onRequestDelete: (material: ClassworkMaterial) => void
 }) {
-  const isOpen = true
-  const [title, setTitle] = useState(material?.title || '')
-  const [content, setContent] = useState<TiptapContent>(material?.content || EMPTY_DOC)
-  const [saving, setSaving] = useState(false)
+  const initialDate = material?.posted_on ?? (material && !material.is_draft && (material.released_at || material.created_at)
+    ? formatInTimeZone(material.released_at || material.created_at, 'America/Toronto', 'yyyy-MM-dd')
+    : formatInTimeZone(new Date(), 'America/Toronto', 'yyyy-MM-dd'))
+  type Snapshot = { title: string; content: TiptapContent; posted_on: string }
+  const initial: Snapshot = { title: material?.is_draft && isGeneratedAssessmentTitle(material.title) ? '' : material?.title || '', content: material?.content || EMPTY_DOC, posted_on: initialDate }
+  const [title, setTitle] = useState(initial.title)
+  const [content, setContent] = useState(initial.content)
+  const [postDate, setPostDate] = useState(initial.posted_on)
+  const [item, setItem] = useState(material)
+  const [loading, setLoading] = useState(!!material && !classroom.archived_at)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState<'saved' | 'saving' | 'unsaved' | 'error'>('saved')
   const [error, setError] = useState<string | null>(null)
-  const { showMessage } = useAppMessage()
+  const [recoveryNotice, setRecoveryNotice] = useState<string | null>(null)
+  const itemRef = useRef(material)
+  const latest = useRef(initial)
+  const saved = useRef(JSON.stringify(initial))
+  const revision = useRef<string | null>(null)
+  const sourceRevision = useRef<string | null>(null)
+  const inFlight = useRef<Promise<void> | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pending = useRef<{ snapshot: string; requestId: string } | null>(null)
+  const mounted = useRef(true)
+  const recoveryChecked = useRef(false)
+  const recoveredBytes = useRef<string | null>(null)
+  const recoveryKey = recoveryUserId ? `pika:material-recovery:${recoveryUserId}:${classroom.id}:${material?.id ?? 'new'}` : null
   const isReadOnly = !!classroom.archived_at
-  const isDraft = material?.is_draft ?? true
-  const activeSaveOwnerRef = useRef(isOpen)
-  const baseVersion = useRef(material?.updated_at ?? 'new').current
+  const base = `/api/teacher/classrooms/${classroom.id}/classwork-authoring/material`
 
-  useEffect(() => {
-    activeSaveOwnerRef.current = isOpen
-    return () => { activeSaveOwnerRef.current = false }
-  }, [isOpen])
-
-  async function saveMaterial(nextDraft: boolean, scheduledFor?: string | null, postedOn?: string) {
-    const cleanTitle = title.trim()
-    if (!cleanTitle) {
-      setError('Title is required')
+  function restoreRecovery(authoritative: ClassworkMaterial | null, hasServerDraft: boolean) {
+    if (isReadOnly || !recoveryKey) return
+    if (recoveryChecked.current) {
+      if (recoveredBytes.current && !timer.current && JSON.stringify(latest.current) !== saved.current) changed({})
       return
     }
-
-    // Capture exactly the local snapshot submitted by this editor. A later
-    // editor may replace it while the request is in flight.
-    const recoveryKey = recoveryUserId ? `pika:material-recovery:${recoveryUserId}:${classroom.id}:${material?.id ?? 'new'}` : null
-    let submittedRecovery: string | null = null
+    recoveryChecked.current = true
     try {
-      const stored = recoveryKey ? sessionStorage.getItem(recoveryKey) : null
-      if (stored && JSON.parse(stored).version === baseVersion) submittedRecovery = stored
-    } catch { /* Recovery is optional when browser storage is unavailable. */ }
-
-    setSaving(true)
-    setError(null)
-    try {
-      const response = await fetch(
-        material
-          ? `/api/teacher/classrooms/${classroom.id}/materials/${material.id}`
-          : `/api/teacher/classrooms/${classroom.id}/materials`,
-        {
-          method: material ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ title: cleanTitle, content, is_draft: nextDraft,
-            ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}),
-            ...(postedOn !== undefined ? { posted_on: postedOn } : {}),
-          }),
-        },
-      )
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Failed to save material')
-      try {
-        if (recoveryKey && submittedRecovery && sessionStorage.getItem(recoveryKey) === submittedRecovery) sessionStorage.removeItem(recoveryKey)
-      } catch { /* Saving succeeded even if browser storage is unavailable. */ }
-      if (!activeSaveOwnerRef.current) {
-        invalidateCachedJSON(`teacher-materials:${classroom.id}`)
-        invalidateCachedJSON(`student-materials:${classroom.id}`)
-        window.dispatchEvent(new CustomEvent(CLASSWORK_MATERIALS_UPDATED_EVENT, { detail: { classroomId: classroom.id } }))
+      const raw = sessionStorage.getItem(recoveryKey)
+      if (!raw) return
+      const local = JSON.parse(raw)
+      if (hasServerDraft || local.version !== (authoritative?.updated_at ?? 'new')) {
+        setRecoveryNotice('A previous local edit could not be restored because this material has changed. It remains in this browser tab.')
         return
       }
-      onSaved(data.material as ClassworkMaterial)
-      showMessage({ text: nextDraft ? 'Material saved as draft.' : scheduledFor ? 'Material scheduled.' : 'Material saved.', tone: 'success' })
-      onClose()
-    } catch (err) {
-      if (activeSaveOwnerRef.current) setError(err instanceof Error ? err.message : 'Failed to save material')
-    } finally {
-      if (activeSaveOwnerRef.current) setSaving(false)
+      if (typeof local.title !== 'string' || !local.content || local.content.type !== 'doc' || typeof local.postDate !== 'string') {
+        setRecoveryNotice('A previous local edit could not be read. It remains in this browser tab.')
+        return
+      }
+      const restored: Snapshot = { title: local.title, content: local.content, posted_on: local.postDate }
+      recoveredBytes.current = raw
+      setTitle(restored.title); setContent(restored.content); setPostDate(restored.posted_on)
+      setRecoveryNotice('Recovered an earlier edit from this browser tab. It will be saved as a draft.')
+      changed(restored)
+    } catch {
+      setRecoveryNotice('A previous local edit could not be read. It remains in this browser tab.')
     }
+  }
+
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; if (timer.current) clearTimeout(timer.current) }
+  }, [])
+
+  useEffect(() => {
+    if (!material || isReadOnly) {
+      setLoading(false)
+      restoreRecovery(material, false)
+      return
+    }
+    let cancelled = false
+    void fetchJSON<{ item: ClassworkMaterial; draft: { content: Snapshot; revision: string } | null; sourceRevision: string }>(
+      `${base}/${material.id}`, { init: { cache: 'no-store' }, errorMessage: 'Failed to load material draft' },
+    ).then((data) => {
+      if (cancelled) return
+      if (!data.item || !/^[a-f0-9]{64}$/.test(data.sourceRevision)) throw new Error('Could not verify material draft')
+      const authoritative = data.item
+      const sourceDate = authoritative.posted_on ?? formatInTimeZone(authoritative.released_at || authoritative.created_at, 'America/Toronto', 'yyyy-MM-dd')
+      const source: Snapshot = { title: authoritative.is_draft && isGeneratedAssessmentTitle(authoritative.title) ? '' : authoritative.title, content: authoritative.content, posted_on: sourceDate }
+      const draft = data.draft?.content ?? source
+      itemRef.current = authoritative
+      sourceRevision.current = data.sourceRevision
+      revision.current = data.draft?.revision ?? null
+      latest.current = draft
+      saved.current = JSON.stringify(draft)
+      setItem(authoritative); setTitle(draft.title); setContent(draft.content); setPostDate(draft.posted_on)
+      setLoadFailed(false); setError(null)
+      restoreRecovery(authoritative, !!data.draft)
+    }).catch((err) => { if (!cancelled) { setLoadFailed(true); setError(err instanceof Error ? err.message : 'Failed to load material draft') } })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+    // Restore only once per mounted material after its authoritative read.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [base, isReadOnly, material, loadAttempt])
+
+  async function flush(): Promise<void> {
+    if (timer.current) { clearTimeout(timer.current); timer.current = null }
+    if (inFlight.current) { await inFlight.current; return flush() }
+    if (!pending.current && JSON.stringify(latest.current) === saved.current) return
+    if (!postDateInputSchema.safeParse(latest.current.posted_on).success) throw new Error('Choose a valid calendar date.')
+    if (!itemRef.current && !pending.current && !latest.current.title.trim()
+      && !getMaterialMarkdownDraft(latest.current.content).markdown.trim()
+      && latest.current.posted_on === initial.posted_on) return
+    if (!pending.current) pending.current = { snapshot: JSON.stringify(latest.current), requestId: crypto.randomUUID() }
+    const { snapshot, requestId } = pending.current
+    const work = (async () => {
+      if (mounted.current) { setStatus('saving'); setError(null) }
+      const currentItem = itemRef.current
+      const draftContent = JSON.parse(snapshot) as Snapshot
+      let url: string
+      let method: string
+      let body: unknown
+      if (!currentItem) {
+        url = `${base}/new`; method = 'POST'; body = { requestId, content: draftContent }
+      } else {
+        url = `${base}/${currentItem.id}`; method = 'PUT'
+        body = { expectedRevision: revision.current, expectedSourceRevision: sourceRevision.current, requestId, content: draftContent,
+          ...(currentItem.is_draft ? { saveAsDraft: true } : {}) }
+      }
+      const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to save material')
+      if (!currentItem) { itemRef.current = data.item; sourceRevision.current = data.sourceRevision; if (mounted.current) setItem(data.item) }
+      else if (!currentItem.is_draft) revision.current = data.draft.revision
+      else { itemRef.current = data.item; sourceRevision.current = data.sourceRevision; if (mounted.current) setItem(data.item) }
+      saved.current = snapshot
+      pending.current = null
+      if (recoveredBytes.current && recoveryKey) {
+        try {
+          if (sessionStorage.getItem(recoveryKey) === recoveredBytes.current) sessionStorage.removeItem(recoveryKey)
+          recoveredBytes.current = null
+          if (mounted.current) setRecoveryNotice(null)
+        } catch { /* Server persistence succeeded; retain any unreadable local copy. */ }
+      }
+    })()
+    inFlight.current = work
+    try { await work } finally { inFlight.current = null }
+    if (JSON.stringify(latest.current) !== saved.current) return flush()
+    if (mounted.current) setStatus('saved')
+  }
+
+  function changed(patch: Partial<Snapshot>) {
+    latest.current = { ...latest.current, ...patch }
+    setStatus('unsaved')
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => { void flush().catch((err) => {
+      if (mounted.current) { setStatus('error'); setError(err instanceof Error ? err.message : 'Failed to save material') }
+    }) }, 600)
+  }
+
+  async function close() {
+    if (loading) return
+    setBusy(true)
+    try {
+      await flush()
+      if (!mounted.current) return
+      if (itemRef.current) onSaved(itemRef.current)
+      else onClose()
+    } catch (err) { setStatus('error'); setError(err instanceof Error ? err.message : 'Failed to save material') }
+    finally { if (mounted.current) setBusy(false) }
+  }
+
+  async function saveMaterial(nextDraft: boolean, scheduledFor?: string | null, postedOn?: string) {
+    if (!latest.current.title.trim()) { setError('Title is required'); return }
+    setBusy(true)
+    try {
+      if (postedOn !== undefined) latest.current = { ...latest.current, posted_on: postedOn }
+      await flush()
+      const currentItem = itemRef.current
+      if (!currentItem) return
+      let response: Response
+      if (!currentItem.is_draft && scheduledFor !== undefined && revision.current) {
+        throw new Error('Apply changes before changing the schedule.')
+      }
+      if (!currentItem.is_draft && scheduledFor === undefined && revision.current) {
+        response = await fetch(`${base}/${currentItem.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ revision: revision.current }) })
+        const applied = await response.json().catch(() => ({}))
+        if (!response.ok) throw new Error(applied.error || 'Failed to apply changes')
+        revision.current = null
+        itemRef.current = applied.item
+        if (mounted.current) onSaved(applied.item as ClassworkMaterial)
+        return
+      }
+      if (!currentItem.is_draft && scheduledFor === undefined) { if (mounted.current) onClose(); return }
+      {
+        response = await fetch(`/api/teacher/classrooms/${classroom.id}/materials/${currentItem.id}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(currentItem.is_draft
+            ? { title: latest.current.title.trim(), content: latest.current.content, is_draft: nextDraft,
+                ...(scheduledFor !== undefined ? { scheduled_for: scheduledFor } : {}), posted_on: latest.current.posted_on }
+            : { scheduled_for: scheduledFor }),
+        })
+      }
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) throw new Error(data.error || 'Failed to save material')
+      if (mounted.current) onSaved((data.item ?? data.material) as ClassworkMaterial)
+    } catch (err) { setStatus('error'); setError(err instanceof Error ? err.message : 'Failed to save material') }
+    finally { if (mounted.current) setBusy(false) }
   }
 
   return (
     <MaterialCreationDialog
-      materialKey={recoveryUserId ? `${recoveryUserId}:${classroom.id}:${material?.id ?? 'new'}` : undefined}
-      classroomId={classroom.id}
-      classroomName={classroom.title}
-      isOpen={isOpen}
-      isExisting={!!material}
-      recoveryVersion={material?.updated_at ?? 'new'}
-      isDraft={isDraft}
-      postedOn={material?.posted_on}
-      releasedAt={material?.released_at}
-      createdAt={material?.created_at}
-      readOnly={isReadOnly}
-      saving={saving}
-      error={error}
-      title={title}
-      content={content}
-      onTitleChange={setTitle}
-      onContentChange={setContent}
+      classroomId={classroom.id} classroomName={classroom.title} isOpen
+      isExisting={!!item} isDraft={item?.is_draft ?? true} postedOn={postDate}
+      releasedAt={item?.released_at} createdAt={item?.created_at}
+      readOnly={isReadOnly || loadFailed} saving={busy || loading} error={error} notice={recoveryNotice} autosave saveStatus={status}
+      title={title} content={content}
+      onTitleChange={(value) => { setTitle(value); changed({ title: value }) }}
+      onContentChange={(value) => { setContent(value); changed({ content: value }) }}
+      onPostDateChange={(value) => { setPostDate(value); changed({ posted_on: value }) }}
       onSave={(asDraft, scheduledFor, postedOn) => { void saveMaterial(asDraft, scheduledFor, postedOn) }}
-      onClose={onClose}
-      onDelete={material && !isReadOnly ? () => onRequestDelete(material) : undefined}
+      onClose={() => { void close() }}
+      onRetry={loadFailed ? () => { setLoading(true); setLoadFailed(false); setError(null); setLoadAttempt((value) => value + 1) } : undefined}
+      onDelete={item && !isReadOnly ? () => onRequestDelete(item) : undefined}
     />
   )
 }
@@ -640,8 +766,6 @@ export function TeacherClassroomView({
   const [isBlueprintDraftOpen, setIsBlueprintDraftOpen] = useState(false)
   const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false)
   const materialUrlOwnerRef = useRef<string | null>(null)
-  const [creatingSurvey, setCreatingSurvey] = useState(false)
-  const surveyCreationPendingRef = useRef(false)
   const surveyCloseRef = useRef<(() => Promise<void>) | null>(null)
   const [surveyCloseDisabled, setSurveyCloseDisabled] = useState(false)
   const [editMaterial, setEditMaterial] = useState<ClassworkMaterial | null>(null)
@@ -652,11 +776,6 @@ export function TeacherClassroomView({
   const [surveyActionBusy, setSurveyActionBusy] = useState(false)
   const [selection, setSelection] = useState<TeacherAssignmentSelection>({ mode: 'summary' })
   const [surveyModalId, setSurveyModalId] = useState<string | null>(null)
-  const [createdSurveyEditorIntent, setCreatedSurveyEditorIntent] = useState<{
-    surveyId: string
-    editMode: 'edit' | 'markdown'
-    focusTitle?: boolean
-  } | null>(null)
   const [isReordering, setIsReordering] = useState(false)
   const [assignmentEditMode, setAssignmentEditMode] = useState(false)
   const [reverseClassworkOrder, setReverseClassworkOrder] = usePersistentBoolean('teacher-classwork:reverse-order:v1', false)
@@ -1034,82 +1153,9 @@ export function TeacherClassroomView({
     }
   }, [classroom.id, editMaterial, positionCreatedClasswork, clearMaterialSelection])
 
-  const handleSurveySaved = useCallback((
-    survey: Survey,
-    options?: { initialEditMode?: 'edit' | 'markdown'; focusTitle?: boolean },
-  ) => {
-    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-    invalidateCachedJSON(`student-surveys:${classroom.id}`)
-    setSurveys((current) => {
-      const withStats = survey as SurveyWithStats
-      const exists = current.some((item) => item.id === survey.id)
-      return exists
-        ? current.map((item) => (item.id === survey.id ? { ...item, ...withStats } : item))
-        : [
-            ...current,
-            {
-              ...withStats,
-              stats: withStats.stats ?? { total_students: 0, responded: 0, questions_count: 0 },
-            },
-          ]
-    })
-    setCreatedSurveyEditorIntent({
-      surveyId: survey.id,
-      editMode: options?.initialEditMode ?? 'edit',
-      focusTitle: options?.focusTitle,
-    })
-    setSurveyModalId(survey.id)
-    writeCookie(`teacherAssignmentsSelection:${classroom.id}`, 'summary')
-    setSelection({ mode: 'summary' })
-    updateSearchParams?.((params) => {
-      params.set('tab', 'assignments')
-      params.delete('assignmentId')
-      params.delete('surveyId')
-      params.delete('assignmentStudentId')
-    }, { replace: true })
-    void positionCreatedClasswork('survey', survey.id)
-  }, [classroom.id, positionCreatedClasswork, updateSearchParams])
-
-  const createSurveyDraft = async () => {
-    if (isReadOnly || surveyCreationPendingRef.current) return
-    surveyCreationPendingRef.current = true
-    setCreatingSurvey(true)
-    try {
-      const response = await fetch('/api/teacher/surveys', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classroom_id: classroom.id, title: getFallbackAssessmentTitle(), show_results: true, dynamic_responses: false }),
-      })
-      const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Failed to create survey')
-      if (currentClassroomIdRef.current !== classroom.id) return
-      handleSurveySaved(data.survey, { initialEditMode: 'edit', focusTitle: true })
-    } catch (err) {
-      if (currentClassroomIdRef.current === classroom.id) {
-        showMessage({ text: err instanceof Error ? err.message : 'Failed to create survey', tone: 'warning' })
-      }
-    } finally {
-      surveyCreationPendingRef.current = false
-      setCreatingSurvey(false)
-    }
+  const createSurveyDraft = () => {
+    if (!isReadOnly) setSurveyModalId('new')
   }
-
-  const handleSurveyQuestionCountChanged = useCallback((surveyId: string, questionsCount: number) => {
-    invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-    setSurveys((current) =>
-      current.map((survey) =>
-        survey.id === surveyId
-          ? {
-              ...survey,
-              stats: {
-                ...survey.stats,
-                questions_count: questionsCount,
-              },
-            }
-          : survey
-      )
-    )
-  }, [classroom.id])
 
   const openSurveyModal = useCallback((surveyId: string) => {
     setSurveyModalId(surveyId)
@@ -1117,7 +1163,6 @@ export function TeacherClassroomView({
 
   const closeSurveyModal = useCallback((options?: { replace?: boolean }) => {
     setSurveyModalId(null)
-    setCreatedSurveyEditorIntent(null)
     if (selection.mode === 'survey') return
     updateSearchParams?.((params) => {
       params.set('tab', 'assignments')
@@ -2856,7 +2901,6 @@ export function TeacherClassroomView({
                   </span>
                 ),
                 onSelect: () => {
-                  setCreatedSurveyEditorIntent({ surveyId: selectedSurvey.id, editMode: 'edit' })
                   openSurveyModal(selectedSurvey.id)
                 },
                 disabled: isReadOnly || surveyActionBusy || isDeletingSurvey,
@@ -2918,7 +2962,7 @@ export function TeacherClassroomView({
       label: 'Survey',
       icon: <ClassworkTypeIcon type="survey" />,
       onSelect: () => { void createSurveyDraft() },
-      disabled: isReadOnly || !completeClasswork || creatingSurvey,
+      disabled: isReadOnly || !completeClasswork,
     },
   ]
 
@@ -3353,6 +3397,7 @@ export function TeacherClassroomView({
       />
 
       <AssignmentModal
+        classworkAuthoring
         isOpen={isCreateModalOpen || !!editAssignment}
         classroomId={classroom.id}
         assignment={editAssignment}
@@ -3431,26 +3476,26 @@ export function TeacherClassroomView({
         tall
       >
         {surveyModalId ? (
-          <TeacherSurveyWorkspace
+          <SurveySnapshotWorkspace
             key={surveyModalId}
             classroomId={classroom.id}
-            surveyId={surveyModalId}
+            surveyId={surveyModalId === 'new' ? null : surveyModalId}
             classroomName={classroom.title}
             isReadOnly={isReadOnly}
-            initialEditMode={
-              createdSurveyEditorIntent?.surveyId === surveyModalId
-                ? createdSurveyEditorIntent.editMode
-                : undefined
-            }
-            autoEditTitle={
-              createdSurveyEditorIntent?.surveyId === surveyModalId &&
-              createdSurveyEditorIntent.focusTitle === true
-            }
-            onInitialEditModeConsumed={() => setCreatedSurveyEditorIntent(null)}
             onBack={() => closeSurveyModal()}
             onCloseReady={(close) => { surveyCloseRef.current = close }}
-            showCloseButton={false}
             onCloseDisabledChange={setSurveyCloseDisabled}
+            onSurveyCreated={(survey) => {
+              if (currentClassroomIdRef.current !== classroom.id) return
+              setSurveys((current) => [...current, { ...survey, stats: { total_students: 0, responded: 0, questions_count: 0 } }])
+              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+              void positionCreatedClasswork('survey', survey.id)
+            }}
+            onSurveyDeleted={(surveyId) => {
+              setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
+              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
+              invalidateCachedJSON(`student-surveys:${classroom.id}`)
+            }}
             onSurveyUpdated={(updatedSurvey) => {
               setSurveys((current) =>
                 current.map((survey) =>
@@ -3459,13 +3504,6 @@ export function TeacherClassroomView({
               )
               invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
               invalidateCachedJSON(`student-surveys:${classroom.id}`)
-            }}
-            onQuestionCountChanged={handleSurveyQuestionCountChanged}
-            onSurveyDeleted={(surveyId) => {
-              setSurveys((current) => current.filter((survey) => survey.id !== surveyId))
-              invalidateCachedJSON(`teacher-surveys:${classroom.id}`)
-              invalidateCachedJSON(`student-surveys:${classroom.id}`)
-              closeSurveyModal({ replace: true })
             }}
           />
         ) : null}
