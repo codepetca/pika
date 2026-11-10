@@ -16,6 +16,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
 
 ## 2026-11-08 Live scheduled renewal closeout
+## 2026-11-06 — Survey authoring CI timeout
 
 Migration 324 gives exact scheduled renewal grace the same live closeout lease as ordinary renewal while keeping old worker calls compatible. The owned 001–324 replay verified both outcomes, rejection of mismatched schedule or stale lease, rollback after a lease expired during a provisional terminal transition, retained classroom restriction, and ordinary fallback. The same sandbox account separately proved that a source-only Stripe schedule can preserve Max through cancellation or restore the target phase on undo. Customer cancellation and installation invocation still require their rollout gate.
 
@@ -196,3 +197,6 @@ Preserved the reviewed email delivery patch and migration 327 after the in-app n
 ## 2026-11-10 — Rebase exact Stripe Decimal handling after email notices
 
 Carried the independently reviewed amount and invoice quantity normalization onto main after the email notice merge. Preserved both continuity histories and the exact billing patch. The final PR adds no migration.
+## 2026-11-09 — Preserve legacy scheduling for retired Blueprint drafts
+
+Kept new schedules for Blueprint-retired legacy drafts on the existing publication writer. The database publication and release-intent guards still enforce billing cutoff and intent generation, and explicit rescheduling retains the RPC path. The patch adds route coverage for the legacy write and the two guard errors without changing the migration set.
