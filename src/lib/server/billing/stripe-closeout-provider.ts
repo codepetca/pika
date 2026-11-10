@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import {
   BillingProviderSubscriptionSnapshotSchema, BillingReconciliationScopeSchema, BillingSubscriptionBindingSchema,
-  matchesBillingReconciliationScope, type BillingProviderSubscriptionSnapshot, type BillingReconciliationScope,
+  matchesBillingReconciliationScope, type BillingProviderSubscriptionSnapshot, type BillingReconciliationScope, type BillingScheduledRenewal,
 } from './contracts'
 import {
-  LiveRenewalCloseoutBindingSchema, RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence,
+  LiveRenewalCloseoutBindingSchema, LiveRenewalCloseoutScheduleSchema, RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence,
   type RenewalCloseoutReadRequest,
 } from './closeout-contracts'
 import { createStripeBillingProvider, type StripeBillingReadPort } from './stripe-provider'
@@ -86,7 +86,7 @@ const liveSchedulePhases = z.object({ phases: z.array(z.object({
 })).max(100) })
 const scopedScheduleSchema = z.union([
   RenewalCloseoutScheduleSchema,
-  RenewalCloseoutScheduleSchema.extend({ target_binding: LiveRenewalCloseoutBindingSchema }),
+  LiveRenewalCloseoutScheduleSchema,
 ])
 type ScopedSchedule = z.infer<typeof scopedScheduleSchema>
 type ScopedReadRequest = Omit<RenewalCloseoutReadRequest, 'scheduled'> & { scheduled?: ScopedSchedule }
@@ -152,14 +152,15 @@ function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled:
 /** A schedule-caused invoice still needs the ordinary financial and payment proof. */
 export async function verifyInstalledStripeSchedule(
   retrieveSchedule: (id: string) => Promise<unknown>,
-  scheduled: ScopedSchedule,
+  candidateSchedule: Omit<BillingScheduledRenewal, 'state'>,
   snapshot: BillingProviderSubscriptionSnapshot,
   configuredScope?: BillingReconciliationScope,
   retrieveAccount?: () => Promise<unknown>,
 ): Promise<boolean> {
   const scope = BillingReconciliationScopeSchema.optional().safeParse(configuredScope)
-  const candidate = scopedScheduleSchema.safeParse(scheduled)
+  const candidate = scopedScheduleSchema.safeParse(candidateSchedule)
   if (!scope.success || !candidate.success || !matchesBillingReconciliationScope(candidate.data.target_binding, scope.data)) return false
+  const scheduled = candidate.data
   if (scope.data?.providerMode === 'live') {
     if (!retrieveAccount) return false
     try {

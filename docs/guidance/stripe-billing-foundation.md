@@ -680,13 +680,21 @@ checkout and receipt with the first verified Pro invoice and updates the plan
 in the same transaction. The worker requires independent Stripe phase evidence
 even when Stripe labels the target invoice as a normal subscription cycle.
 
-Keep both live scheduling flags off until customer cancellation and scheduled
-unpaid closeout are wired and verified. The installation adapter is available
-for scoped verification. Customer routes and the production worker invocation
-are deferred to the same rollout gate. Stripe's portal disables cancellation
-when an update is pending in a schedule, so the customer path must handle
-cancellation without ending the already-paid Max term. Confirm the handling of
-released schedules and exact target invoices before opening admission.
+Migration 324 gives a due scheduled grace the shared closeout lease. Verified
+payment for its exact Pro invoice can still win. Otherwise verified invoice
+voiding and terminal Stripe evidence close the schedule and retire the binding
+in the same transaction. The database flag `live_scheduled_closeout_enabled`
+and worker setting `BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED` default off.
+Deploy and verify the matching database and worker before enabling either
+scheduled admission or Stripe installation writes.
+
+Customer cancellation and undo remain part of that rollout gate. Stripe's
+portal disables cancellation when an update is pending in a schedule. A
+synthetic Stripe sandbox clock confirmed that changing the schedule to its
+existing Max phase with a cancel end behavior preserves the paid term, can be
+undone, and completes at the paid cutoff without a Pro invoice. Confirm the
+customer path, released schedule behavior and production worker invocation
+before opening admission.
 
 ### Release sequence
 

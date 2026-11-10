@@ -7,6 +7,7 @@ import {
   type RenewalCloseoutClaim, type RenewalCloseoutCheckpointStage, type RenewalCloseoutFence,
   type RenewalCloseoutFinishRequest, type RenewalCloseoutProvider, type RenewalCloseoutStore,
 } from './closeout-contracts'
+import { scheduledTermEnd } from './scheduled-plan-change-period'
 
 type Dependencies = {
   store: RenewalCloseoutStore
@@ -45,6 +46,14 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
     throw new Error('Billing closeout claim is unavailable')
   }
   const { scheduled } = claim
+  if (live && scheduled && (!matchesBillingReconciliationScope(scheduled.target_binding, scope)
+    || scheduled.target_binding.subscription_id !== claim.binding.subscription_id
+    || scheduled.target_binding.subject_user_id !== claim.binding.subject_user_id
+    || scheduled.target_binding.stripe_customer_id !== claim.binding.stripe_customer_id
+    || scheduled.target_binding.stripe_subscription_id !== claim.binding.stripe_subscription_id
+    || Date.parse(scheduled.effective_at) !== Date.parse(claim.paid_through))) {
+    throw new Error('Billing closeout claim is unavailable')
+  }
   const request = { binding: claim.binding, invoiceId: claim.invoice_id, paidThrough: claim.paid_through, cutoff: claim.cutoff,
     ...(scheduled ? { scheduled } : {}) }
   async function finish(input: Omit<RenewalCloseoutFinishRequest, keyof RenewalCloseoutFence>): Promise<Result> {
@@ -85,7 +94,8 @@ export async function closeFailedRenewal(args: Dependencies & { subscriptionId: 
     if (state.kind === 'attention') return finish({ outcome: 'attention', reason: state.reason, evidence: state })
     if (state.kind === 'payment_pending') return finish({ outcome: 'deferred', reason: 'payment_pending', evidence: state })
     if (state.kind === 'paid') {
-      if (Date.parse(state.periodStart) !== Date.parse(claim.paid_through) || Date.parse(state.periodEnd) <= Date.parse(state.periodStart)) {
+      if (Date.parse(state.periodStart) !== Date.parse(claim.paid_through) || Date.parse(state.periodEnd) <= Date.parse(state.periodStart)
+        || (live && scheduled && Date.parse(state.periodEnd) !== scheduledTermEnd(scheduled.effective_at, scheduled.target_binding.interval))) {
         return finish({ outcome: 'attention', reason: 'unexpected_money' })
       }
       return finish({ outcome: 'payment_won', evidence: state })

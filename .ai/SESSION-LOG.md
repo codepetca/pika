@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Customer billing and renewal recovery
-
-Prepared the sandbox teacher billing page, portal invoices and payment methods,
-verified upgrade confirmation and customer-safe purchased terms. Forward
-migrations 302–303 cover pending renewal recovery, undo-cancellation after a
-verified prorated upgrade, and advisory account actions. RepoLight's migration
-301 tier rule and exact cutoff stay in place. See the billing foundation
-checkpoint for the remaining provider, scheduling, classroom and production gates.
-
-## 2026-11-08 — Billing worker recovery
-
-Prepared a separate follow-up that keeps admitted checkout and upgrade work
-recoverable when new admissions close. Migration 304 isolates conflicting
-expiry rows so a limited batch still processes healthy accounts. Offline
-001–304 replay, billing/RepoLight contracts and contention passed. Live mode
-and scheduled changes remain open.
-
 ## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
 
 Prepared exact renewal quote, confirmation, leased Stripe schedule installation
@@ -200,6 +183,10 @@ The signed webhook and separate paid worker credential now gate live checkout ad
 
 Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
 
+## 2026-11-08 Live scheduled renewal closeout
+
+Migration 324 gives exact scheduled renewal grace the same live closeout lease as ordinary renewal while keeping old worker calls compatible. The owned 001–324 replay verified both outcomes, rejection of mismatched schedule or stale lease, rollback after a lease expired during a provisional terminal transition, retained classroom restriction, and ordinary fallback. The same sandbox account separately proved that a source-only Stripe schedule can preserve Max through cancellation or restore the target phase on undo. Customer cancellation and installation invocation still require their rollout gate.
+
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
@@ -297,3 +284,7 @@ Carried the reviewed scheduled renewal settlement and verified Max retry onto ma
 ## 2026-11-09 — Sync scheduled renewal settlement with main
 
 The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.
+
+## 2026-11-09 — Rebase reviewed scheduled renewal closeout
+
+Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-to-Pro settlement squash merge. Preserved both continuity histories and the exact migration 324 source. The isolated Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the additional closed profile.

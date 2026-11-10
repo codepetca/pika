@@ -38,5 +38,9 @@
   {
     "name": "323_billing_live_scheduled_settlement.sql",
     "sha256": "f63e2ad4bd7b19edee6133eb54f976c90c0648d9fa351b402cf252fbc34312f9"
+  },
+  {
+    "name": "324_billing_live_scheduled_renewal_closeout.sql",
+    "sha256": "6a7d94c6798b247a398d304e8880c2b08f9c0d278dceab5442f242f18693c1a7"
   }
 ]
