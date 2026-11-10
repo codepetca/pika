@@ -1,3 +1,4 @@
+import Stripe from 'stripe'
 import { describe, expect, it, vi } from 'vitest'
 import { launchCatalog, repolightCatalog, REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import {
@@ -200,7 +201,7 @@ describe('live exclusive-tax catalog provisioning', () => {
       listPricesByLookupKey: vi.fn(async (key: string) => ({ data: prices.has(key) ? [prices.get(key)] : [], hasMore: false })),
       createPrice: vi.fn(async (params: Record<string, unknown>) => {
         const variant = repolightCatalog.find(item => `${item.catalogKey}:stripe-exclusive` === params.lookup_key)!
-        const price = { ...priceFor(variant), id: `price_live${prices.size}`, livemode: true, lookup_key: params.lookup_key, tax_behavior: 'exclusive', unit_amount_decimal: String(variant.unitAmountCents), recurring: { interval: variant.interval, interval_count: 1, usage_type: 'licensed', trial_period_days: null } }
+        const price = { ...priceFor(variant), id: `price_live${prices.size}`, livemode: true, lookup_key: params.lookup_key, tax_behavior: 'exclusive', unit_amount_decimal: Stripe.Decimal.from(String(variant.unitAmountCents)), recurring: { interval: variant.interval, interval_count: 1, usage_type: 'licensed', trial_period_days: null } }
         prices.set(params.lookup_key as string, price); return price
       }),
       registerOffering: vi.fn(async (request: unknown) => { registrations.push(request); return { offering_id: dbId(1), offering_version_id: dbId(registrations.length + 100) } }),

@@ -11,26 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 Live checkout catalog and persistence
-
-Migrations 315 and 316 add the exact Pro and Max catalog, scoped checkout attempts and leases, and live subscription binding. They preserve an existing checkout across catalog retirement and a pause in Stripe writes. New Stripe creates require renewed database authorization under the lease. The owned 001–316 replay passed all eight catalog terms, stale claims, receipt adoption, trial expiry and independent grants, with generated types matching and the shared schema preserved. Targeted service, store and provider checks passed. Paid entitlement reconciliation is required before enabling the live checkout entry points.
-
-## 2026-11-08 Live paid reconciliation and access
-
-Added scoped reconciliation leases, verified invoice effects, paid status, expiry and RepoLight checks for the pinned live account. The isolated 001–319 replay verified first payment, renewal and grace, replay, trial conversion, paid Pro and Max access and denial at the Max cutoff before materialization. Expiry applied Free once on a financially retired binding. Generated types matched and the shared schema was preserved. Targeted worker and provider checks passed. Customer entry points, paid closeout, safe handling of legacy future assignments and operational rollout checks remain.
-
-## 2026-11-08 Live billing entry points
-
-UI brief. Reuse the teacher Billing cards and plan selector from the sandbox Billing rehearsal and the anonymous Pattern Lab Billing fixture. Verify Free with Pro and Max offers, checkout recovery, and paid status with its portal action on desktop and mobile in light and dark. Student access remains excluded and its redirect will be checked. The primary signals are the verified plan status and existing actions. Composite widget review is unnecessary because the native Select contract stays in place.
-
-| Need | Existing candidate | Decision | Reason |
-| --- | --- | --- | --- |
-| Paid plan and recovery | BillingPage and AppShell | reuse | Existing state, cards and navigation cover the same billing flow |
-| Live portal action | BillingPage portal button | extend | The same action now also opens term-end cancellation |
-| Synthetic visual case | Anonymous Billing Pattern Lab fixture | extend | The production Billing component can render the live plan and recovery states with fixed responses |
-
-The signed webhook and separate paid worker credential now gate live checkout admission. The exact pinned closeout lane closes unpaid renewal invoices after grace or records payment if it wins the race. Existing legacy future releases hold new admission and remain intact. The live portal allows invoice history, payment methods and term-end cancellation. Sealed 001–321 replay passed with generated types matching and the shared schema preserved. Browser verification used the existing Billing component with synthetic checkout and portal responses across both viewports and themes. A real synthetic student session redirected away from Billing.
-
 ## 2026-11-08 Live scheduled Max-to-Pro settlement
 
 Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
@@ -74,6 +54,10 @@ The teacher-only status read returns a notice only when the new client opts in. 
 ## 2026-11-08 Billing email notices
 
 Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
+
+## 2026-11-08 Stripe SDK decimal compatibility
+
+The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -189,6 +173,10 @@ Hosted CI requires the scheduled cancellation and offers exports to call withErr
 
 The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
 
+## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
+
+Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+
 ## 2026-11-10 — Rebase the dormant billing recovery caller
 
 Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
@@ -204,3 +192,7 @@ Carried the reviewed reminder UI and opt-in status behavior onto main after the 
 ## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
 
 Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.
+
+## 2026-11-10 — Rebase exact Stripe Decimal handling after email notices
+
+Carried the independently reviewed amount and invoice quantity normalization onto main after the email notice merge. Preserved both continuity histories and the exact billing patch. The final PR adds no migration.

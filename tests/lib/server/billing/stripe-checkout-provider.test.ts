@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import type Stripe from 'stripe'
+import Stripe from 'stripe'
 import { createStripeCheckoutPort, createStripeCheckoutProvider, type StripeCheckoutPort } from '@/lib/server/billing/stripe-checkout-provider'
 import { CheckoutAttemptSchema, type CheckoutAttempt } from '@/lib/server/billing/checkout-contracts'
 
@@ -127,6 +127,31 @@ describe('explicit live checkout boundary', () => {
     expect(vi.mocked(port.retrievePrice).mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(port.createSession).mock.invocationCallOrder[0])
     expect(port.retrieveAccount).toHaveBeenCalledTimes(2)
     expect(port.retrieveCustomer).toHaveBeenCalledWith('cus_live')
+  })
+  it('verifies decoded SDK decimals on the price and hosted session boundaries', async () => {
+    const session = liveSession()
+    const replies = new Map([
+      ['/v1/account', { id: 'acct_live' }],
+      ['/v1/customers/cus_live', { id: 'cus_live', livemode: true }],
+      ['/v1/prices/price_test', livePrice()],
+      ['/v1/checkout/sessions', session],
+      ['/v1/checkout/sessions/cs_live_abc', session],
+    ])
+    const sdk = new Stripe('rk_live_FixtureOnly', {
+      httpClient: Stripe.createFetchHttpClient(async input => {
+        const url = new URL(String(input))
+        const reply = replies.get(url.pathname)
+        if (url.origin !== 'https://api.stripe.com' || !reply) throw new Error('Unexpected Stripe fixture request')
+        return Response.json(reply)
+      }),
+    })
+    const port = createStripeCheckoutPort(sdk)
+    const provider = createStripeCheckoutProvider(port, { providerMode: 'live', stripeAccount: 'acct_live' })
+    expect(await port.retrievePrice('price_test')).toMatchObject({ unit_amount_decimal: Stripe.Decimal.from('1900') })
+    await expect(provider.createSession(liveAttempt, 'cus_live', 'key', assertCanWrite)).resolves.toMatchObject({ id: 'cs_live_abc' })
+    await expect(provider.retrieveSession(liveAttempt)).resolves.toMatchObject({ id: 'cs_live_abc' })
+    session.line_items.data[0].price.unit_amount_decimal = '1900.000000000001'
+    await expect(provider.retrieveSession(liveAttempt)).rejects.toThrow('contract is invalid')
   })
   it('checks the write deadline after provider reads and before creating payable objects', async () => {
     const { port, provider } = liveFixture()
