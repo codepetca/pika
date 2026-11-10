@@ -11,227 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-06 — RepoLight main sync and migration resequence
-
-Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-## 2026-11-06 — RepoLight managed pilot scope
-
-Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
-
-## 2026-11-06 Parent gradebook report refinement
-
-- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
-- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
-
-## 2026-11-06 — Term calendar List and Grid
-
-Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
-
-## 2026-11-06 — Survey authoring CI timeout
-
-Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
-
-## 2026-11-06 — Dark browser CI partitions
-
-Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
-
-## 2026-11-06 — Gradebook PDF test timeout
-
-Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
-
-## 2026-11-06 — Parent report score alignment
-
-Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
-
-## 2026-11-07 — Calendar label and scrolling review
-
-Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
-
-## 2026-11-07 — Calendar list day selection
-
-Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
-
-## 2026-11-08 — Calendar sticky focus
-
-Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
-
-## 2026-11-08 — Restore navigation for calendars without complete dates
-
-Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
-
-## 2026-11-08 — Universal RepoLight tier benefit
-
-Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
-
-## 2026-11-08 — Customer billing and renewal recovery
-
-Prepared the sandbox teacher billing page, portal invoices and payment methods,
-verified upgrade confirmation and customer-safe purchased terms. Forward
-migrations 302–303 cover pending renewal recovery, undo-cancellation after a
-verified prorated upgrade, and advisory account actions. RepoLight's migration
-301 tier rule and exact cutoff stay in place. See the billing foundation
-checkpoint for the remaining provider, scheduling, classroom and production gates.
-
-## 2026-11-08 — Billing worker recovery
-
-Prepared a separate follow-up that keeps admitted checkout and upgrade work
-recoverable when new admissions close. Migration 304 isolates conflicting
-expiry rows so a limited batch still processes healthy accounts. Offline
-001–304 replay, billing/RepoLight contracts and contention passed. Live mode
-and scheduled changes remain open.
-
-## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
-
-Prepared exact renewal quote, confirmation, leased Stripe schedule installation
-and target invoice reconciliation. Disposable 001–306 replay verified stale
-lease rejection, preservation of the paid Max term, Max grace after Pro payment
-failure, and atomic Pro access after capture. Flags remain off. Provider
-rehearsal, replacement, customer UI and profile admission are pending. Replay
-through 307 also verified scheduled-aware closeout ownership, a captured Pro
-invoice winning the cutoff race, and an unpaid closeout preserving Free and
-the original Max receipt.
-
-The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
-webhooks, trial and RepoLight access, the restricted portal, actual Max grace
-and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
-update invoice only with exact fresh phase proof, and the observed retained
-balance on an independently verified void. See the billing foundation receipt.
-
-## 2026-11-08 — Scheduled renewal recovery review fixes
-
-Draft PR 1768 review found delayed first-payment recovery and due-closeout
-lease gaps. The batch permits exact verified late settlement, reserves due
-closeout work in the ordinary queue and claim, and derives the target cycle
-in SQL. It scopes admissions and installation listing to the worker account,
-keeps expiry and closeout running when optional recovery fails, and requires
-fresh terminal schedule proof for detached delinquent subscriptions. The
-follow-up preserves ordinary cancellation after settlement and keeps terminal
-markers out of authorization once Stripe proves the exact canceled phase.
-The sealed disposable 001–307 replay passed.
-fresh terminal schedule proof for detached delinquent subscriptions.
-The sealed disposable 001–307 replay and 186 focused tests passed.
-
-## 2026-11-08 — Classroom Test cutoff checkpoint
-
-Prepared the default-off billing fence for new Test attempts and publication.
-Disposable 001–308 replay verified the legacy and contextual publication
-rollbacks, exact trial cutoff before the expiry worker, existing attempt
-resume/save/submit, and a blocked Start crossing cutoff while waiting on the
-account lock. Generated public types and shared schema matched their baselines.
-The flag remains off pending assignment release, per-classroom restrictions,
-and the complete reviewed rollout.
-
-## 2026-11-08 — Classroom capacity restriction checkpoint
-
-Prepared a private subscription restriction history, deterministic activity
-fallback, explicit downgrade selection and capacity-checked restore. The
-001–309 disposable replay verified trial expiry and paid re-entry, including
-cross-owner denial and the last available seat. A separate fixture exercised
-Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
-with seven classrooms. The existing classroom archive state, shared schema
-and generated public type baseline were checked. The rollout flag is off;
-assignment release and the customer-facing selection and restore remain open.
-
-## 2026-11-08 — Assignment publication cutoff
-
-Prepared the default-off publication fence shared by legacy and contextual
-assignment writers. Disposable 001–310 replay verified draft preservation,
-continued editing and student submission of already released work, and both
-Classroom-lock and paid-access cutoff races. Native generated types and the
-shared schema matched. The existing future schedules need conversion and a
-durable release worker before enabling the cutoff.
-Independent review identified gaps in paid re-entry, ordinary terminal
-retirement, legacy bulk publication and the 307 source replay profile. The
-remediation preserves cutoff history and sends publish-capable bulk requests
-through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
-and treats newly created rows as drafts. Both RPCs preflight classroom ownership
-and assignment binding before taking caller-supplied locks.
-
-## 2026-11-08 — Dormant live billing target
-
-Added a default-off operator check for the exact production app and Supabase
-target and the private Stripe account pin. The 001–311 offline replay verified
-the service-only read, sandbox exclusion, retained test evidence denial,
-unchanged shared schema and generated types. The check leaves all live
-operations closed.
-
-## 2026-11-08 — Scheduled assignment release worker
-
-Prepared durable draft-backed schedules through the assignment Release route
-and the authenticated billing worker. The isolated replay proved eligible
-release, exact-once processing, pristine draft preservation and suppression
-when a later paid term starts retroactively across the missed due time. The
-same draft can be explicitly released after access returns. Migration 312 adds
-owner-only list and detail schedule state. Rescheduling and cancellation check
-the observed generation under the worker's locks. A stale request refreshes the
-editor. Verified teacher and student browser checks on desktop and mobile in
-light and dark mode. The sealed replay covers 311 and 312, including both
-worker and owner lock orders. Existing-schedule conversion, notice delivery and
-final CI still gate activation.
-
-## 2026-11-08 — Live trial lifecycle source
-
-Prepared default-off production trial status, admission and a Stripe-free
-expiry worker against the exact pinned target. The owned 001–313 replay proved
-admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
-and retained learner work. Type generation and targeted route tests passed.
-Billing now supports trial-only status and admission with no checkout requests.
-The teacher browser matrix passed on desktop and mobile in both themes. The
-canonical sealed replay and CI admit 313. The production worker caller and
-existing-schedule conversion require verification before activation. Live
-payment handling remains a separate source slice.
-
-## 2026-11-08 Live Pro trial review fixes
-
-Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
-
-## 2026-11-08 — Scoped live Stripe evidence
-
-Added explicit account and mode checks for Checkout and verified invoice
-reconciliation. Live session creation verifies the active product, price and
-remaining write window. Paused writes preserve recovery for known sessions.
-Signed live snapshots require a dedicated account endpoint and live evidence.
-The sandbox store rejects live receipts. Synthetic provider and service tests
-passed. The live SQL store, runtime and operator rollout still need work.
-
-## 2026-11-08 Live Stripe receipt intake
-
-Added a dedicated default-off live snapshot webhook with the official Stripe signature verifier and a target-bound database writer. Migration 314 separates payment recovery, admission and provider-write flags. First activation records a durable target identity and keeps the classroom cutoff in force. The inbox deduplicates by account, mode and event ID and rejects conflicting bytes. The sealed 001–314 replay passed both trial/payment activation orders and receipt persistence, with matching generated types and preserved shared schema. Live checkout persistence, subscription binding and paid entitlement writes are still pending.
-
-## 2026-11-08 Live checkout catalog and persistence
-
-Migrations 315 and 316 add the exact Pro and Max catalog, scoped checkout attempts and leases, and live subscription binding. They preserve an existing checkout across catalog retirement and a pause in Stripe writes. New Stripe creates require renewed database authorization under the lease. The owned 001–316 replay passed all eight catalog terms, stale claims, receipt adoption, trial expiry and independent grants, with generated types matching and the shared schema preserved. Targeted service, store and provider checks passed. Paid entitlement reconciliation is required before enabling the live checkout entry points.
-
-## 2026-11-08 Live paid reconciliation and access
-
-Added scoped reconciliation leases, verified invoice effects, paid status, expiry and RepoLight checks for the pinned live account. The isolated 001–319 replay verified first payment, renewal and grace, replay, trial conversion, paid Pro and Max access and denial at the Max cutoff before materialization. Expiry applied Free once on a financially retired binding. Generated types matched and the shared schema was preserved. Targeted worker and provider checks passed. Customer entry points, paid closeout, safe handling of legacy future assignments and operational rollout checks remain.
-
-## 2026-11-08 Live billing entry points
-
-UI brief. Reuse the teacher Billing cards and plan selector from the sandbox Billing rehearsal and the anonymous Pattern Lab Billing fixture. Verify Free with Pro and Max offers, checkout recovery, and paid status with its portal action on desktop and mobile in light and dark. Student access remains excluded and its redirect will be checked. The primary signals are the verified plan status and existing actions. Composite widget review is unnecessary because the native Select contract stays in place.
-
-| Need | Existing candidate | Decision | Reason |
-| --- | --- | --- | --- |
-| Paid plan and recovery | BillingPage and AppShell | reuse | Existing state, cards and navigation cover the same billing flow |
-| Live portal action | BillingPage portal button | extend | The same action now also opens term-end cancellation |
-| Synthetic visual case | Anonymous Billing Pattern Lab fixture | extend | The production Billing component can render the live plan and recovery states with fixed responses |
-
-The signed webhook and separate paid worker credential now gate live checkout admission. The exact pinned closeout lane closes unpaid renewal invoices after grace or records payment if it wins the race. Existing legacy future releases hold new admission and remain intact. The live portal allows invoice history, payment methods and term-end cancellation. Sealed 001–321 replay passed with generated types matching and the shared schema preserved. Browser verification used the existing Billing component with synthetic checkout and portal responses across both viewports and themes. A real synthetic student session redirected away from Billing.
-
 ## 2026-11-08 Live scheduled Max-to-Pro settlement
 
 Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
@@ -275,6 +54,10 @@ The teacher-only status read returns a notice only when the new client opts in. 
 ## 2026-11-08 Billing email notices
 
 Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
+
+## 2026-11-08 Stripe SDK decimal compatibility
+
+The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -390,6 +173,10 @@ Hosted CI requires the scheduled cancellation and offers exports to call withErr
 
 The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
 
+## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
+
+Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+
 ## 2026-11-10 — Rebase the dormant billing recovery caller
 
 Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
@@ -405,10 +192,7 @@ Carried the reviewed reminder UI and opt-in status behavior onto main after the 
 ## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
 
 Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.
-## 2026-11-08 Stripe SDK decimal compatibility
 
-The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
+## 2026-11-10 — Rebase exact Stripe Decimal handling after email notices
 
-## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
-
-Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+Carried the independently reviewed amount and invoice quantity normalization onto main after the email notice merge. Preserved both continuity histories and the exact billing patch. The final PR adds no migration.
