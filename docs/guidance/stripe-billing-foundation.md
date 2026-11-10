@@ -862,11 +862,16 @@ Customers can request a refund within seven days of their first purchase.
 An operator reviews the request against the original invoice and recorded
 request time. Handle disputes in Stripe's dispute workflow.
 
-For an approved full refund, cancel the subscription immediately in Stripe
-without proration or a final invoice, and confirm there are no outstanding
-invoices. For a Stripe Tax
-invoice, issue a credit note that refunds the full captured gross, including
-tax. Wait for Stripe to confirm the refund succeeded. The operator tool reads
+Before changing anything in Stripe, use the pinned production database to
+confirm the subscription binding and `billing_account_access.last_paid_invoice_id`
+still identify the requested paid term. Confirm it is the latest invoice on the
+same Stripe subscription. Route any stale or ambiguous request to manual review
+before canceling or refunding. Preserve any newer paid term.
+
+For an approved full refund of the current term, cancel the subscription
+immediately in Stripe without proration or a final invoice, and confirm there
+are no outstanding invoices. For a Stripe Tax invoice, issue a credit note that
+refunds the full captured gross, including tax. Wait for Stripe to confirm the refund succeeded. The operator tool reads
 the exact live account, subscription, invoice, card charge, and refunds again
 before it can record the result. Use a restricted key with read access to
 accounts, subscriptions, invoices, invoice payments, payment intents, charges,

@@ -46,6 +46,9 @@ declare
   target_offering_id uuid;
   schedule_operation uuid:=gen_random_uuid();
   cancel_operation uuid:=gen_random_uuid();
+  replacement_attempt uuid:=gen_random_uuid();
+  replacement_subscription uuid;
+  replacement_start timestamptz;
   subscription uuid;
   offering jsonb;
   checkout_claim jsonb;
@@ -144,6 +147,9 @@ begin
     (draft_assignment,classroom,teacher,'Unreleased assignment',assignment_due);
   result:=public.release_assignment_for_owner_v1(teacher,published_assignment,clock_timestamp(),false);
   if result#>>'{assignment,is_draft}' is distinct from 'false' then raise exception 'Paid assignment publication failed'; end if;
+  -- A separate checkout request would see this release as past. Inside one
+  -- DO statement the guard uses the earlier statement timestamp.
+  update public.assignments set released_at=statement_timestamp() where id=published_assignment;
 
   insert into public.tests(id,classroom_id,title,status,points_possible,created_by)
     values(fixture_test,classroom,'Existing Test','draft',1,teacher);
@@ -336,6 +342,41 @@ begin
   exception when unique_violation then
     if sqlerrm<>'billing_full_refund_evidence_conflict' then raise; end if;
   end;
+
+  -- A new purchase may reuse the verified Stripe customer. The old refund
+  -- reason is carried in the claim, but its paid invoice facts stay unbound.
+  perform public.billing_reserve_live_checkout_v1(project,account,jsonb_build_object(
+    'attempt_id',replacement_attempt,'subject_user_id',teacher,'offering',offering,'lookup_key',offering->>'catalog_key',
+    'success_url','https://pika.codepet.ca/billing?checkout='||replacement_attempt||'&result=success',
+    'cancel_url','https://pika.codepet.ca/billing?checkout='||replacement_attempt||'&result=cancel'));
+  checkout_claim:=public.billing_claim_live_checkout_v1(project,account,
+    jsonb_build_object('attempt_id',replacement_attempt,'lease_seconds',120));
+  checkout_fence:=jsonb_build_object('attempt_id',replacement_attempt,'lease_token',checkout_claim->'lease_token',
+    'fencing_token',checkout_claim->'fencing_token');
+  perform public.billing_save_live_checkout_progress_v1(project,account,checkout_fence||jsonb_build_object(
+    'customer_id',stripe_customer,'session_id','cs_live_Refund328Replacement'));
+  perform public.billing_finish_live_checkout_v1(project,account,
+    checkout_fence||jsonb_build_object('outcome','bound','subscription_id','sub_Refund328Replacement'));
+  select id into strict replacement_subscription from public.stripe_billing_subscription_bindings
+    where subject_user_id=teacher and stripe_subscription_id='sub_Refund328Replacement' and is_current;
+  result:=public.billing_claim_live_subscription_v1(project,account,jsonb_build_object(
+    'subscription_id',replacement_subscription,'lease_seconds',120));
+  if result->>'status' is distinct from 'claimed' or result#>>'{lifecycle,end_reason}' is distinct from 'refund'
+    or result#>'{lifecycle,last_paid_invoice_id}' is distinct from 'null'::jsonb then
+    raise exception 'New subscription claim did not preserve and isolate prior refund facts: %',result;
+  end if;
+  replacement_start:=date_trunc('second',clock_timestamp());
+  result:=public.billing_finish_live_lifecycle_v1(project,account,paid_observation||jsonb_build_object(
+    'subscription_id',replacement_subscription,'lease_token',result->'lease_token','fencing_token',result->'fencing_token',
+    'expected_subscription_revision',result->'subscription_revision','expected_account_plan_revision',result->'expected_account_plan_revision',
+    'invoice_id','in_Refund328Replacement','period_start',replacement_start,'period_end',replacement_start+interval '1 month'));
+  if result->>'status' is distinct from 'applied'
+    or public.billing_apply_live_full_refund_v1(project,account,request)->>'status' is distinct from 'replayed'
+    or not exists(select 1 from public.billing_account_access
+      where subject_user_id=teacher and subscription_id=replacement_subscription
+        and last_paid_invoice_id='in_Refund328Replacement' and expiry_applied_at is null) then
+    raise exception 'Replacement purchase failed or refund replay changed the new term: %',result;
+  end if;
 end;
 $$;
 

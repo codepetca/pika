@@ -20,7 +20,7 @@ describe('exact billing access', () => {
     expect(resolveBillingAccess(base, '2026-03-08T16:29:59.999Z')).toMatchObject({ state: 'paid', classroom_limit: 5, can_start_paid_work: true })
     expect(resolveBillingAccess(base, base.access_ends_at)).toMatchObject({ state: 'synchronization_pending', plan_key: 'plus', can_start_paid_work: false, retryable: true })
   })
-  it.each(['trial', 'cancellation', 'renewal_grace'] as const)('ends known %s access at its exact cutoff without provider availability', end_reason => {
+  it.each(['trial', 'cancellation', 'renewal_grace', 'refund'] as const)('ends known %s access at its exact cutoff without provider availability', end_reason => {
     const facts = { ...base, source: end_reason === 'trial' ? 'trial' as const : 'paid' as const, end_reason }
     expect(resolveBillingAccess(facts, base.access_ends_at)).toMatchObject({ state: 'free', plan_key: 'free', classroom_limit: 0, can_start_paid_work: false, retryable: false })
   })
