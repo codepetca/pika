@@ -7,6 +7,8 @@ import type { BillingLiveCheckoutConfig } from './live-target'
 import { createBillingPurchaseRuntime } from './purchase-runtime'
 import { runOptionalRecoveryLane } from './recovery-lane'
 import { reconcileLiveBillingSubscriptions } from './runtime'
+import { closeDueLiveRenewals } from './closeout-runtime'
+import { processDueBillingAssignmentReleases } from './assignment-releases'
 
 const EXPIRY_BATCH_LIMIT = 25
 const expiryResultSchema = z.object({ processed: z.number().int().min(0).max(EXPIRY_BATCH_LIMIT) }).strict()
@@ -28,6 +30,8 @@ export async function processLiveBillingPaymentLifecycle(config: BillingLiveChec
     if (error) throw new Error('Live paid expiry is unavailable')
     return expiryResultSchema.parse(data)
   })
+  const closeouts = await runOptionalRecoveryLane(() => closeDueLiveRenewals(config))
+  const assignmentReleases = await runOptionalRecoveryLane(() => processDueBillingAssignmentReleases(client))
   await attemptRepoLightProvisionOutbox({ client })
-  return { purchases, reconciliation, expiry }
+  return { purchases, reconciliation, closeouts, expiry, assignmentReleases }
 }

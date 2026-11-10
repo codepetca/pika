@@ -27,7 +27,7 @@ export function createBillingLifecycleRuntime(config: BillingSandboxConfig): Bil
   return lifecycleRuntime(createBillingLifecycleStore(client), client)
 }
 
-export function createLiveTrialLifecycleRuntime(config: BillingLiveTrialConfig): BillingLifecycleRuntime {
+export function createLiveTrialLifecycleRuntime(config: Pick<BillingLiveTrialConfig, 'supabaseOrigin' | 'projectRef' | 'stripeAccount'>): BillingLifecycleRuntime {
   const client = getServiceRoleClient({ fetch: createTargetBoundFetch(config.supabaseOrigin) })
   return lifecycleRuntime(createLiveTrialLifecycleStore(client, config), client)
 }

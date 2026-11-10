@@ -73,6 +73,9 @@ begin
     classroom_new_work_cutoff_enabled=true where singleton;
   update private.stripe_billing_settings set live_payment_lifecycle_enabled=true,
     live_checkout_admission_enabled=true,live_checkout_writes_enabled=true where singleton;
+  if to_regprocedure('public.billing_live_checkout_activation_ready_v1(text,text)') is not null then
+    execute 'update private.stripe_billing_settings set live_closeout_enabled=true where singleton';
+  end if;
   v_version:=(public.billing_register_live_checkout_offering_v1(v_project,v_account,jsonb_build_object(
     'plan_key','plus','version',1,'stripe_account',v_account,'provider_mode','live',
     'stripe_product_id','prod_Live317','stripe_price_id','price_Live317','currency','usd','interval','month',

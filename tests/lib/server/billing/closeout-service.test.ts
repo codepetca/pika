@@ -40,8 +40,51 @@ function setup(evidence: RenewalCloseoutEvidence[] = [unpaid, paused, voided, cl
   return { store, provider, events }
 }
 const execute = (f: ReturnType<typeof setup>) => closeFailedRenewal({ ...f, subscriptionId: claim.subscription_id, leaseSeconds: 120 })
+const liveScope = { stripeAccount: claim.binding.stripe_account, providerMode: 'live' } as const
+const liveClaim = { ...claim, binding: { ...claim.binding, provider_mode: 'live' as const } }
 
 describe('failed renewal closeout orchestration', () => {
+  it('requires explicit scope for live claims and rejects unsupported scheduled closeout', async () => {
+    const f = setup()
+    vi.mocked(f.store.claim).mockResolvedValue(liveClaim)
+    await expect(execute(f)).rejects.toThrow('Billing closeout claim is unavailable')
+    const input = { ...f, subscriptionId: claim.subscription_id, leaseSeconds: 120, scope: liveScope }
+    await expect(closeFailedRenewal({ ...input, scope: { ...liveScope, stripeAccount: 'acct_other' } }))
+      .rejects.toThrow('Billing closeout claim is unavailable')
+    vi.mocked(f.store.claim).mockResolvedValue({ ...liveClaim, scheduled: {
+      operation_id: '66666666-6666-4666-8666-666666666666', provider_schedule_id: 'sub_sched_fixture',
+      effective_at: claim.paid_through, target_binding: claim.binding,
+    } })
+    await expect(closeFailedRenewal(input)).rejects.toThrow('Billing closeout claim is unavailable')
+    expect(f.provider.readCloseoutEvidence).not.toHaveBeenCalled()
+    expect(f.store.finish).not.toHaveBeenCalled()
+  })
+
+  it('runs live due work through the same fenced state machine', async () => {
+    const f = setup()
+    vi.mocked(f.store.claim).mockResolvedValue(liveClaim)
+    vi.mocked(f.store.checkpoint).mockImplementation(async input => ({
+      ...liveClaim, stage: input.stage, operation_revision: input.operation_revision + 1,
+    }))
+    await expect(closeDueRenewals({ ...f, leaseSeconds: 120, limit: 1, scope: liveScope }))
+      .resolves.toMatchObject({ processed: 1, closed: 1, exceptions: 0 })
+    expect(f.provider.readCloseoutEvidence).toHaveBeenCalledWith(expect.objectContaining({ binding: liveClaim.binding }))
+    expect(f.store.finish).toHaveBeenCalledWith(expect.objectContaining({ operation_revision: 9, evidence: closed }))
+  })
+
+  it('stops a live mutation when its final checkpoint swaps Stripe scope', async () => {
+    const f = setup()
+    vi.mocked(f.store.claim).mockResolvedValue(liveClaim)
+    vi.mocked(f.store.checkpoint)
+      .mockResolvedValueOnce({ ...liveClaim, stage: 'pause_requested', operation_revision: 2 })
+      .mockResolvedValueOnce({ ...liveClaim, stage: 'pause_requested', operation_revision: 3,
+        binding: { ...liveClaim.binding, stripe_account: 'acct_other' } })
+    await expect(closeFailedRenewal({ ...f, subscriptionId: claim.subscription_id, leaseSeconds: 120, scope: liveScope }))
+      .rejects.toThrow('Billing closeout checkpoint is unavailable')
+    expect(f.events).toEqual(['read'])
+    expect(f.store.finish).not.toHaveBeenCalled()
+  })
+
   it('carries the installed schedule through provider reads and the fenced terminal write', async () => {
     const f = setup([voided, closed])
     const scheduled = { operation_id: '66666666-6666-4666-8666-666666666666', provider_schedule_id: 'sub_sched_fixture',

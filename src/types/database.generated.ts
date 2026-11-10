@@ -10196,6 +10196,14 @@ export type Database = {
         Returns: boolean
       }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_checkpoint_live_renewal_closeout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_checkpoint_renewal_closeout_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10206,6 +10214,14 @@ export type Database = {
       }
       billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_claim_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_claim_live_renewal_closeout_v1: {
         Args: {
           p_project_ref: string
           p_request: Json
@@ -10251,6 +10267,14 @@ export type Database = {
         Returns: Json
       }
       billing_finish_live_lifecycle_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_renewal_closeout_v1: {
         Args: {
           p_project_ref: string
           p_request: Json
@@ -10334,6 +10358,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_list_live_renewal_closeouts_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_list_live_work_v1: {
         Args: {
           p_project_ref: string
@@ -10352,6 +10384,10 @@ export type Database = {
       }
       billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_live_checkout_activation_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_live_payment_lifecycle_ready_v1: {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean

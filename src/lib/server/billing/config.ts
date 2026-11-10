@@ -23,7 +23,11 @@ export function readBillingSandboxConfig(
   if (env.BILLING_SANDBOX_ENABLED !== 'true') return null
   if (env.BILLING_LIVE_TARGET_CHECK_ENABLED === 'true'
     || env.BILLING_LIVE_TRIAL_LIFECYCLE_ENABLED === 'true'
-    || env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true') {
+    || env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true'
+    || env.BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED === 'true'
+    || env.BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED === 'true'
+    || env.BILLING_LIVE_CHECKOUT_WRITES_ENABLED === 'true'
+    || env.BILLING_LIVE_WEBHOOK_ENABLED === 'true') {
     throw new Error('Billing sandbox configuration is invalid')
   }
   const parsed = billingSandboxEnvironmentSchema.safeParse(env)

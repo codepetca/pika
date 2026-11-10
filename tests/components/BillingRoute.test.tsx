@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   notFound: vi.fn(() => { throw new Error('Fixture not found') }),
   isBillingPurchaseAvailable: vi.fn(),
   isBillingLiveTrialAvailable: vi.fn(),
+  isBillingLivePaymentAvailable: vi.fn(),
   readBillingPortalConfig: vi.fn(),
   readBillingUpgradeConfig: vi.fn(),
 }))
@@ -13,7 +14,8 @@ vi.mock('next/navigation', () => ({ redirect: mocks.redirect, notFound: mocks.no
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mocks.getCurrentUser }))
 vi.mock('@/lib/server/auth-redirect', () => ({ getServerLoginRedirectPath: () => Promise.resolve('/login') }))
 vi.mock('@/lib/server/billing/purchase-config', () => ({ isBillingPurchaseAvailable: mocks.isBillingPurchaseAvailable }))
-vi.mock('@/lib/server/billing/live-target', () => ({ isBillingLiveTrialAvailable: mocks.isBillingLiveTrialAvailable }))
+vi.mock('@/lib/server/billing/live-target', () => ({ isBillingLiveTrialAvailable: mocks.isBillingLiveTrialAvailable,
+  isBillingLivePaymentAvailable: mocks.isBillingLivePaymentAvailable }))
 vi.mock('@/lib/server/billing/portal-config', () => ({ readBillingPortalConfig: mocks.readBillingPortalConfig }))
 vi.mock('@/lib/server/billing/upgrade-runtime', () => ({ readBillingUpgradeConfig: mocks.readBillingUpgradeConfig }))
 vi.mock('@/components/AppShell', () => ({ AppShell: () => null }))
@@ -22,7 +24,11 @@ vi.mock('@/app/__ui/UiGallery', () => ({ UiGallery: () => null }))
 import Page from '@/app/billing/page'
 import PatternLabPage from '@/app/pattern-lab/page'
 
-beforeEach(() => vi.clearAllMocks())
+beforeEach(() => {
+  vi.clearAllMocks()
+  mocks.isBillingLivePaymentAvailable.mockReturnValue(false)
+  mocks.isBillingLiveTrialAvailable.mockReturnValue(false)
+})
 afterEach(() => vi.unstubAllEnvs())
 
 describe('billing page access', () => {
@@ -63,5 +69,17 @@ describe('billing page access', () => {
     await expect(pattern('teacher')).rejects.toThrow('Fixture not found')
     mocks.getCurrentUser.mockResolvedValue(null)
     expect((await pattern('teacher')).props.children.props.purchaseAvailable).toBe(false)
+  })
+
+  it('shows the live paid and portal options with a separate rollout from trials and upgrades', async () => {
+    mocks.getCurrentUser.mockResolvedValue({ id: 'teacher', role: 'teacher' })
+    mocks.isBillingPurchaseAvailable.mockReturnValue(false)
+    mocks.isBillingLivePaymentAvailable.mockReturnValue(true)
+    mocks.readBillingPortalConfig.mockReturnValue({ portalConfigurationId: 'bpc_Live' })
+    expect((await Page()).props.children.props).toMatchObject({
+      billingAvailable: true, purchaseAvailable: true, portalAvailable: true,
+      portalCancellationAvailable: true, upgradesAvailable: false,
+    })
+    expect(mocks.readBillingUpgradeConfig).not.toHaveBeenCalled()
   })
 })
