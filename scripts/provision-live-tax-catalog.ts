@@ -1,4 +1,4 @@
-import { createStripeBillingClient } from '@/lib/server/billing/runtime'
+import { createBillingStripeClient } from '@/lib/server/billing/runtime'
 import { CatalogProvisioningError, createStripeCatalogProvisioningPorts, provisionLiveExclusiveTaxCatalog } from '@/lib/server/billing/provision-catalog'
 import { createTargetBoundFetch, verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -22,7 +22,7 @@ async function main() {
     || !key || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(key)) throw new Error('live_target_invalid')
   const projectRef = 'zhioqbapgfcrronyuidm'
   const origin = verifyHostedSupabaseApiOrigin(process.env.NEXT_PUBLIC_SUPABASE_URL ?? '', projectRef)
-  const stripe = createStripeBillingClient(key)
+  const stripe = createBillingStripeClient(key)
   const stripePorts = createStripeCatalogProvisioningPorts(stripe, async () => { throw new Error('wrong_registration_port') })
   const result = await provisionLiveExclusiveTaxCatalog({
     ports: { ...stripePorts, async registerOffering(request) {

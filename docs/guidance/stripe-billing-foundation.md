@@ -856,6 +856,38 @@ existing schedules. Use the separate database provider-write flags when a
 provider write must be paused. Verify the customer path and alerts for delayed
 or attention work before admitting production customers.
 
+### First-purchase refunds and disputes
+
+Customers can request a refund within seven days of their first purchase.
+An operator reviews the request against the original invoice and recorded
+request time. Handle disputes in Stripe's dispute workflow.
+
+For an approved full refund, cancel the subscription immediately in Stripe
+without proration or a final invoice, and confirm there are no outstanding
+invoices. For a Stripe Tax
+invoice, issue a credit note that refunds the full captured gross, including
+tax. Wait for Stripe to confirm the refund succeeded. The operator tool reads
+the exact live account, subscription, invoice, card charge, and refunds again
+before it can record the result. Use a restricted key with read access to
+accounts, subscriptions, invoices, invoice payments, payment intents, charges,
+refunds, and disputes. [Stripe Tax refunds](https://docs.stripe.com/tax/subscriptions#handle-refunds)
+
+Run the preview and apply with the same subscription, invoice, and operation
+UUID. Use protected production Stripe and Supabase credentials with the pinned
+account and project.
+
+```sh
+pnpm exec tsx scripts/record-live-billing-refund.ts --dry-run <subscription-id> <invoice-id> <operation-uuid>
+pnpm exec tsx scripts/record-live-billing-refund.ts --apply <subscription-id> <invoice-id> <operation-uuid>
+```
+
+The apply ends the exact refunded paid term, sets Free, retires its Stripe
+binding, and records the refund alongside the immutable paid receipt. The
+ordinary classroom restriction preserves released work and started attempts.
+A refund for an older invoice cannot replace a newer term. A partial refund,
+unconfirmed payment reversal, or dispute needs operator review. Verify an
+interrupted operation with the preview before retrying.
+
 ### Release sequence
 
 1. Keep live billing disabled. Finish the source contracts for live/test

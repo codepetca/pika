@@ -54,5 +54,9 @@
   {
     "name": "327_billing_live_email_notices.sql",
     "sha256": "5f38550e17eb924987122e4bb6ff38a80859627ad85e7ec20bbb47b1b6289651"
+  },
+  {
+    "name": "328_billing_live_full_refund.sql",
+    "sha256": "691a47b836d9d935200fceb42844b8dfbe19cfaab66dcf08848d61e9edbf07cc"
   }
 ]
