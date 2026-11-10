@@ -54393,3 +54393,8 @@ UI brief. Reuse the teacher Billing cards and plan selector from the sandbox Bil
 | Synthetic visual case | Anonymous Billing Pattern Lab fixture | extend | The production Billing component can render the live plan and recovery states with fixed responses |
 
 The signed webhook and separate paid worker credential now gate live checkout admission. The exact pinned closeout lane closes unpaid renewal invoices after grace or records payment if it wins the race. Existing legacy future releases hold new admission and remain intact. The live portal allows invoice history, payment methods and term-end cancellation. Sealed 001–321 replay passed with generated types matching and the shared schema preserved. Browser verification used the existing Billing component with synthetic checkout and portal responses across both viewports and themes. A real synthetic student session redirected away from Billing.
+
+<!-- pika-session-log-archive-batch:f045b8fff717bebfeabcb9af3ee4d83263414da51d5218d2bff964973e7d847c -->
+## 2026-11-08 Live scheduled Max-to-Pro settlement
+
+Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
