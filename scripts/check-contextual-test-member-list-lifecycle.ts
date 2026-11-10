@@ -1,4 +1,4 @@
-import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
+import { validateDisposableBillingReplayMigrations } from './lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from './gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from './gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from './classroom-hot-lifecycle-reviewed-migration'
@@ -33,7 +33,7 @@ import { validateAssignmentListProofTarget } from './check-contextual-assignment
 import { parseAssignmentListLifecycleArgs } from './check-contextual-assignment-list-lifecycle'
 import { validateIntegratedGuardResources } from './check-contextual-assignment-learner-integrated-lifecycle'
 import { testOwnerListDockerInventory } from './contextual-test-owner-list-proof-inventory'
-import { classroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
+import { classroomTestQuotaProofCatalog, disposableClassroomTestQuotaProofCatalog } from './classroom-test-quota-proof-catalog'
 import { newTestMemberListFixture, testMemberListSetupSql, testMemberListSnapshotSql, testMemberListGuardSql,
   validateTestMemberListSetupSnapshot, testMemberListExpectedResult, testOwnerDigest, TEST_MEMBER_LIST_CAPS,
   TEST_MEMBER_LIST_TEST_FIELDS, TEST_MEMBER_LIST_CANONICAL_TABLES_248, type TestMemberListFixture } from './contextual-test-member-list-proof-fixture'
@@ -67,8 +67,8 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300].includes(migrations.length), 'Unreviewed member-list migration profile')
-  classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
+  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 303, 304, 307, 310, 311, 312, 313].includes(migrations.length), 'Unreviewed member-list migration profile')
+  disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
     assert.equal(addition.name, '254_contextual_test_owner_reorder.sql')
@@ -91,7 +91,7 @@ export function validateTestMemberListReviewedMigrations(migrations: Parameters<
   if (migrations.length >= 268) validateClassroomHotLifecycleReviewedMigration(migrations[267])
   if (migrations.length >= 269) validateSurveyWorkflowReviewedMigration(migrations[268])
   if (migrations.length >= 270) validateGradebookWorkflowReviewedMigration(migrations[269])
-  validateLifecycleServicesReviewedMigrations(migrations)
+  validateDisposableBillingReplayMigrations(migrations)
 }
 /** Both exact reviewed canonical profiles remain complete. The isolated253
  * union is idempotent and bound to the reviewed migration, never fixture rows. */
@@ -101,7 +101,7 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
   const historical = [...TEST_MEMBER_LIST_CANONICAL_TABLES_248, 'private.classroom_test_quota_settings'].sort()
   assert.equal(historical.length, 184)
   assert.equal(testOwnerDigest(JSON.stringify(historical)), '8474c929e4a87299de8d0ac580aca9f7cfbe0dec364add175d872326b3388874')
-  const expected = classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
+  const expected = disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   const decommission = migrations.length >= 281
     ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 281)) : historical
   const membership = migrations.length >= 283
@@ -120,12 +120,15 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
     ? classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, 294)) : repoLight
   // A canonical source may be any previously reviewed prefix while the isolated
   // target is newer. Preserve each exact catalog, never infer it from live rows.
-  const laterPrefixes = [295, 296, 297, 298, 299]
+  const laterPrefixes = [295, 296, 297, 298, 299, 300, 301]
     .filter(count => migrations.length >= count)
     .map(count => classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, count)))
-  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, admission, ...laterPrefixes, expected]
+  const disposablePrefixes = [303, 304, 307, 310, 311, 312]
+    .filter(count => migrations.length >= count)
+    .map(count => disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, count)))
+  const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, admission, ...laterPrefixes, ...disposablePrefixes, expected]
   assert(accepted.some(profile => JSON.stringify([...catalog].sort()) === JSON.stringify(profile)), 'Unreviewed member-list canonical catalog')
-  return classroomTestQuotaProofCatalog(catalog, migrations)
+  return disposableClassroomTestQuotaProofCatalog(catalog, migrations)
 }
 /** Supplemental equality never removes or replaces the inherited baseline. The
  * prior private once-captured receipt remains coordinator-owned, outside source. */

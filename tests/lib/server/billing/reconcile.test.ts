@@ -67,6 +67,44 @@ const paidSnapshot = {
 }
 
 describe('reconcileBillingSubscriptions', () => {
+  it('rechecks a pending renewal without a paid webhook and applies only the captured invoice', async () => {
+    const eventInboxId = '88888888-8888-4888-8888-888888888888'
+    const dueWork = { subscription_id: binding.subscription_id, binding, next_attempt_at: null }
+    const store: BillingStore = {
+      listWork: vi.fn()
+        .mockResolvedValueOnce({ items: [{ ...dueWork, kind: 'event', event_inbox_id: eventInboxId }] })
+        .mockResolvedValueOnce({ items: [{ ...dueWork, kind: 'reconcile', event_inbox_id: null }] }),
+      claimSubscription: vi.fn().mockResolvedValue({
+        status: 'claimed', subscription_id: binding.subscription_id, binding,
+        lease_token: '55555555-5555-4555-8555-555555555555', fencing_token: 1,
+        lease_expires_at: '2026-09-01T02:00:00.000Z', subscription_revision: 1, expected_account_plan_revision: 1,
+        lifecycle: {
+          paid_through: '2026-09-01T00:00:00.000Z', paid_period_start: '2026-08-01T00:00:00.000Z',
+          last_paid_invoice_id: 'in_previous', access_ends_at: '2026-09-01T00:00:00.000Z',
+          end_reason: 'renewal_pending', assignment_revision: 1, is_current: true,
+        },
+      }),
+      finishSubscription: vi.fn()
+        .mockResolvedValueOnce({ status: 'deferred', retry_scheduled: true })
+        .mockResolvedValueOnce({ status: 'applied', retry_scheduled: false }),
+    }
+    const provider: BillingProvider = { retrieveSubscription: vi.fn()
+      .mockResolvedValueOnce({ ...paidSnapshot, latestInvoice: { ...paidSnapshot.latestInvoice,
+        status: 'draft', endingBalance: null, amountPaid: 0, payments: [] } })
+      .mockResolvedValueOnce(paidSnapshot) }
+    const request = { store, provider, limit: 1, leaseSeconds: 60 }
+
+    await expect(reconcileBillingSubscriptions(request)).resolves.toMatchObject({ applied: 0, deferred: 1, exceptions: 0 })
+    expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      outcome: 'renewal_invoice_pending', event_inbox_id: eventInboxId, invoice_id: 'in_paid_1',
+    }))
+
+    await expect(reconcileBillingSubscriptions(request)).resolves.toMatchObject({ applied: 1, deferred: 0, exceptions: 0 })
+    expect(store.finishSubscription).toHaveBeenLastCalledWith(expect.objectContaining({
+      outcome: 'paid', event_inbox_id: null, invoice_id: 'in_paid_1', period_end: '2026-10-01T00:00:00.000Z',
+    }))
+  })
+
   it('uses the same bounded synchronization path for due, known bindings', async () => {
     const store: BillingStore = {
       listWork: vi.fn().mockResolvedValue({

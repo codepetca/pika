@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
-import { createStripeCloseoutProvider } from '@/lib/server/billing/stripe-closeout-provider'
+import { createStripeCloseoutProvider, verifyInstalledStripeSchedule } from '@/lib/server/billing/stripe-closeout-provider'
+import type { RenewalCloseoutWriteRequest } from '@/lib/server/billing/closeout-contracts'
+import { BillingProviderSubscriptionSnapshotSchema } from '@/lib/server/billing/contracts'
+import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -17,8 +20,8 @@ const write = { ...mutationRequest, idempotencyKey: 'closeout-fixture-pause' }
 function fixture() {
   const subscription = {
     id: 'sub_fixture', livemode: false, customer: 'cus_fixture', status: 'past_due',
-    pending_update: null, cancel_at: null, cancel_at_period_end: false,
-    pause_collection: null, schedule: null, latest_invoice: 'in_fixture',
+    pending_update: null, cancel_at: null as number | null, cancel_at_period_end: false,
+    pause_collection: null, schedule: null as string | null, latest_invoice: 'in_fixture',
     items: { has_more: false, data: [{ quantity: 1,
       current_period_start: 1790812800, current_period_end: 1793491200,
       price: { id: 'price_fixture', livemode: false, currency: 'usd',
@@ -76,6 +79,49 @@ function paid(f: ReturnType<typeof fixture>) {
 function voided(f: ReturnType<typeof fixture>) {
   f.invoice.status = 'void'; f.invoice.amount_remaining = 0; f.invoice.auto_advance = false
   f.invoice.payments.data[0].status = 'canceled'; f.intent.status = 'canceled'
+}
+
+const scheduledRequest = {
+  ...request,
+  binding: { ...binding, offering_version_id: '55555555-5555-4555-8555-555555555555',
+    stripe_price_id: 'price_Max', stripe_product_id: 'prod_Max', unit_amount: 5000, plan_key: 'pro' as const },
+  scheduled: {
+    operation_id: '66666666-6666-4666-8666-666666666666',
+    provider_schedule_id: 'sub_sched_Pika',
+    effective_at: request.paidThrough,
+    target_binding: binding,
+  },
+}
+
+function scheduledFixture() {
+  const f = fixture()
+  const id = scheduledRequest.scheduled.provider_schedule_id
+  f.subscription.schedule = id
+  f.invoice.billing_reason = 'subscription_update'
+  const schedule = {
+    id, object: 'subscription_schedule', livemode: false, customer: binding.stripe_customer_id as string,
+    subscription: binding.stripe_subscription_id as string | null, status: 'active',
+    metadata: { pika_plan_change_operation: scheduledRequest.scheduled.operation_id },
+    end_behavior: 'release', canceled_at: null as number | null,
+    current_phase: { start_date: 1790812800, end_date: 1793491200 } as { start_date: number; end_date: number } | null,
+    phases: [{ start_date: 1790812800, end_date: 1793491200, currency: 'usd', proration_behavior: 'none',
+      items: [{ price: 'price_fixture', quantity: 1 }] }],
+  }
+  const sdk = {
+    ...f.sdk, retrieveSchedule: vi.fn().mockResolvedValue(schedule), cancelSchedule: vi.fn().mockResolvedValue({}),
+  }
+  const provider = createStripeCloseoutProvider(sdk)
+  const beforeMutation = vi.fn(async () => true)
+  const close = { ...scheduledRequest, beforeMutation, idempotencyKey: 'closeout-fixture:cancel' }
+  function canceled() {
+    f.subscription.status = 'canceled'
+    f.subscription.schedule = null
+    schedule.status = 'canceled'
+    schedule.subscription = null
+    schedule.canceled_at = 1791417600
+    schedule.current_phase = null
+  }
+  return { ...f, sdk, schedule, provider, close, beforeMutation, canceled }
 }
 
 describe('Stripe renewal closeout adapter', () => {
@@ -253,7 +299,7 @@ describe('Stripe renewal closeout adapter', () => {
     expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
   })
   it('pins the mutation target before asynchronous SDK observations', async () => {
-    const f = fixture(); const mutable = { ...write, binding: { ...binding } }
+    const f = fixture(); const mutable: RenewalCloseoutWriteRequest = { ...write, binding: { ...binding } }
     f.sdk.accounts.retrieve.mockImplementation(async () => {
       mutable.invoiceId = 'in_foreign'; mutable.binding.stripe_subscription_id = 'sub_foreign'
       mutable.idempotencyKey = 'changed-key'
@@ -274,5 +320,197 @@ describe('Stripe renewal closeout adapter', () => {
   it('propagates read outages for retry', async () => {
     const f = fixture(); f.sdk.paymentIntents.retrieve.mockRejectedValue(new Error('read outage'))
     await expect(f.provider.readCloseoutEvidence(request)).rejects.toThrow('read outage')
+  })
+})
+
+describe('Stripe closeout of an installed scheduled renewal', () => {
+  it('keeps legacy subscription updates outside closeout and accepts a verified scheduled cycle', async () => {
+    const ordinary = fixture()
+    ordinary.invoice.billing_reason = 'subscription_update'
+    await expect(ordinary.provider.readCloseoutEvidence(request)).resolves.toMatchObject({ kind: 'attention' })
+    await ordinary.provider.pauseInvoiceCollection(write)
+    expect(ordinary.sdk.invoices.update).not.toHaveBeenCalled()
+    const scheduled = scheduledFixture()
+    scheduled.invoice.billing_reason = 'subscription_cycle'
+    await expect(scheduled.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'unpaid' })
+  })
+
+  it('uses the Pro invoice terms while the persisted access binding still identifies Max', async () => {
+    const f = scheduledFixture()
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toEqual({
+      kind: 'unpaid', invoiceId: request.invoiceId, invoiceStatus: 'open', collectionPaused: false,
+    })
+    expect(f.sdk.retrieveSchedule).toHaveBeenCalledExactlyOnceWith(scheduledRequest.scheduled.provider_schedule_id)
+    await f.provider.pauseInvoiceCollection({ ...f.close, idempotencyKey: 'closeout-fixture:pause' })
+    expect(f.sdk.invoices.update).toHaveBeenCalledWith(request.invoiceId, { auto_advance: false },
+      { idempotencyKey: 'closeout-fixture:pause' })
+    f.invoice.auto_advance = false
+    await f.provider.voidInvoice({ ...f.close, idempotencyKey: 'closeout-fixture:void' })
+    expect(f.sdk.invoices.voidInvoice).toHaveBeenCalledWith(request.invoiceId, {}, { idempotencyKey: 'closeout-fixture:void' })
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+  })
+
+  it('proves the exact canceled target phase when Stripe cleared both pointers', async () => {
+    const f = scheduledFixture()
+    f.canceled()
+    const snapshot = BillingProviderSubscriptionSnapshotSchema.parse(
+      await createStripeBillingProvider(f.sdk).retrieveSubscription(scheduledRequest.binding),
+    )
+    const verify = () => verifyInstalledStripeSchedule(f.sdk.retrieveSchedule, scheduledRequest.scheduled, snapshot)
+    await expect(verify()).resolves.toBe(true)
+    f.schedule.phases[0].items[0].price = 'price_other'
+    await expect(verify()).resolves.toBe(false)
+  })
+
+  it('preserves the captured target after terminal cancellation without voiding it', async () => {
+    const f = scheduledFixture()
+    paid(f)
+    f.canceled()
+    f.subscription.cancel_at_period_end = true
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({
+      kind: 'paid', invoiceId: request.invoiceId, providerStatus: 'canceled', cancelAtPeriodEnd: true,
+    })
+    await f.provider.voidInvoice(f.close)
+    expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+  })
+
+  it('honors a captured target payment observed before void and never sends a destructive write', async () => {
+    const f = scheduledFixture()
+    f.invoice.auto_advance = false
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'unpaid' })
+    paid(f)
+    await f.provider.voidInvoice(f.close)
+    await f.provider.cancelSubscription(f.close)
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({
+      kind: 'paid', invoiceId: request.invoiceId, periodStart: request.paidThrough, providerStatus: 'active',
+    })
+    expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it('does not mutate an invoice with an in-flight scheduled target capture', async () => {
+    const f = scheduledFixture()
+    f.invoice.auto_advance = false
+    f.intent.status = 'processing'
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'payment_pending' })
+    await f.provider.voidInvoice(f.close)
+    expect(f.beforeMutation).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+  })
+
+  it('uses the saved schedule cancel POST with both no-charge settings after exact void and the database fence', async () => {
+    const f = scheduledFixture()
+    await f.provider.cancelSubscription(f.close)
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+    voided(f)
+    f.beforeMutation.mockResolvedValueOnce(false)
+    await f.provider.cancelSubscription(f.close)
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+    await f.provider.cancelSubscription({ ...f.close, idempotencyKey: undefined })
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+    await f.provider.cancelSubscription(f.close)
+    expect(f.sdk.cancelSchedule).toHaveBeenCalledExactlyOnceWith(scheduledRequest.scheduled.provider_schedule_id,
+      { invoice_now: false, prorate: false }, { idempotencyKey: f.close.idempotencyKey })
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it('reconciles a lost schedule cancel response when both attachment pointers are cleared', async () => {
+    const f = scheduledFixture()
+    voided(f)
+    f.sdk.cancelSchedule.mockImplementation(async () => { f.canceled(); throw new Error('lost response') })
+    await expect(f.provider.cancelSubscription(f.close)).rejects.toThrow('lost response')
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toEqual({
+      kind: 'invoice_voided', invoiceId: request.invoiceId, subscriptionCanceled: true, obligationsCleared: true,
+    })
+    await f.provider.cancelSubscription(f.close)
+    expect(f.sdk.cancelSchedule).toHaveBeenCalledTimes(1)
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it('accepts the original amount remaining on an exact voided invoice with no collectible payment', async () => {
+    const f = scheduledFixture()
+    voided(f)
+    f.invoice.amount_remaining = f.invoice.amount_due
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'invoice_voided' })
+    f.invoice.amount_remaining -= 1
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toEqual({ kind: 'attention', reason: 'unexpected_money' })
+  })
+
+  it('does not claim closure when a terminal subscription still has other invoice obligations', async () => {
+    const f = scheduledFixture()
+    voided(f)
+    f.canceled()
+    f.sdk.invoices.list.mockResolvedValue({ object: 'list', has_more: true, data: [] })
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'attention' })
+    await f.provider.cancelSubscription(f.close)
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it('treats cancellation markers as historical after independently verifying terminal status', async () => {
+    const f = scheduledFixture()
+    f.subscription.cancel_at = 1793491200
+    f.subscription.cancel_at_period_end = true
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'attention' })
+    f.canceled()
+    f.invoice.auto_advance = false
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'unpaid', collectionPaused: true })
+    await f.provider.voidInvoice(f.close)
+    expect(f.sdk.invoices.voidInvoice).toHaveBeenCalledExactlyOnceWith(request.invoiceId, {}, { idempotencyKey: f.close.idempotencyKey })
+    voided(f)
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toEqual({
+      kind: 'invoice_voided', invoiceId: request.invoiceId, subscriptionCanceled: true, obligationsCleared: true,
+    })
+    await f.provider.cancelSubscription(f.close)
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+  })
+
+  it('rejects a scheduled target for a different account before provider reads', async () => {
+    const f = scheduledFixture()
+    const scheduled = { ...scheduledRequest.scheduled, target_binding: { ...binding, stripe_account: 'acct_other' } }
+    await expect(f.provider.readCloseoutEvidence({ ...scheduledRequest, scheduled })).resolves.toEqual({
+      kind: 'attention', reason: 'identity_mismatch',
+    })
+    expect(f.sdk.accounts.retrieve).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['detached active subscription', (f: ReturnType<typeof scheduledFixture>) => { f.subscription.schedule = null }],
+    ['foreign subscription schedule pointer', (f: ReturnType<typeof scheduledFixture>) => { f.subscription.schedule = 'sub_sched_Other' }],
+    ['foreign schedule returned', (f: ReturnType<typeof scheduledFixture>) => { f.schedule.id = 'sub_sched_Other' }],
+    ['foreign schedule customer', (f: ReturnType<typeof scheduledFixture>) => { f.schedule.customer = 'cus_other' }],
+    ['other schedule operation', (f: ReturnType<typeof scheduledFixture>) => {
+      f.schedule.metadata.pika_plan_change_operation = '77777777-7777-4777-8777-777777777777'
+    }],
+    ['released schedule', (f: ReturnType<typeof scheduledFixture>) => { f.canceled(); f.schedule.status = 'released' }],
+    ['null pointer without matching terminal schedule', (f: ReturnType<typeof scheduledFixture>) => {
+      f.subscription.status = 'canceled'; f.subscription.schedule = null
+    }],
+    ['foreign detached schedule link', (f: ReturnType<typeof scheduledFixture>) => { f.canceled(); f.schedule.subscription = 'sub_other' }],
+    ['wrong target price', (f: ReturnType<typeof scheduledFixture>) => { f.invoice.lines.data[0].pricing.price_details.price = 'price_Max' }],
+    ['wrong schedule phase price', (f: ReturnType<typeof scheduledFixture>) => { f.schedule.phases[0].items[0].price = 'price_Max' }],
+    ['prorated schedule phase', (f: ReturnType<typeof scheduledFixture>) => { f.schedule.phases[0].proration_behavior = 'create_prorations' }],
+    ['prorated target invoice', (f: ReturnType<typeof scheduledFixture>) => { f.invoice.lines.data[0].parent.subscription_item_details.proration = true }],
+    ['shortened target term', (f: ReturnType<typeof scheduledFixture>) => {
+      f.invoice.lines.data[0].period.end--; f.subscription.items.data[0].current_period_end--
+    }],
+  ] as const)('rejects %s evidence without writing', async (_, mutate) => {
+    const f = scheduledFixture()
+    voided(f)
+    mutate(f)
+    await expect(f.provider.readCloseoutEvidence(scheduledRequest)).resolves.toMatchObject({ kind: 'attention' })
+    await f.provider.cancelSubscription(f.close)
+    expect(f.beforeMutation).not.toHaveBeenCalled()
+    expect(f.sdk.cancelSchedule).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it('does not fall back to subscription DELETE when schedule cancellation is unavailable', async () => {
+    const f = scheduledFixture()
+    voided(f)
+    const provider = createStripeCloseoutProvider({ ...f.sdk, cancelSchedule: undefined })
+    await provider.cancelSubscription(f.close)
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
   })
 })

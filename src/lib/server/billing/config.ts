@@ -16,20 +16,29 @@ export type BillingSandboxConfig = {
   supabaseOrigin: string
 }
 
-/** No hosted mode exists in this foundation. Enabling it requires a later rollout. */
+/** The sandbox runtime is limited to local targets. */
 export function readBillingSandboxConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): BillingSandboxConfig | null {
   if (env.BILLING_SANDBOX_ENABLED !== 'true') return null
+  if (env.BILLING_LIVE_TARGET_CHECK_ENABLED === 'true'
+    || env.BILLING_LIVE_TRIAL_LIFECYCLE_ENABLED === 'true'
+    || env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true') {
+    throw new Error('Billing sandbox configuration is invalid')
+  }
   const parsed = billingSandboxEnvironmentSchema.safeParse(env)
   if (!parsed.success || env.VERCEL === '1' || env.VERCEL_ENV === 'production') {
     throw new Error('Billing sandbox configuration is invalid')
   }
   const url = new URL(parsed.data.NEXT_PUBLIC_SUPABASE_URL)
+  const pinnedOrigin = env.BILLING_SANDBOX_SUPABASE_ORIGIN
+  const validPort = pinnedOrigin
+    ? pinnedOrigin === url.origin && url.port !== '' && Number(url.port) >= 1024
+    : url.port === '54321'
   if (
     url.protocol !== 'http:' ||
     !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) ||
-    url.port !== '54321' || url.username || url.password ||
+    !validPort || url.username || url.password ||
     url.pathname !== '/' || url.search || url.hash
   ) throw new Error('Billing sandbox configuration is invalid')
   return {

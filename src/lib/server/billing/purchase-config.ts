@@ -4,8 +4,7 @@ import { readBillingSandboxConfig, type BillingSandboxConfig } from '@/lib/serve
 export type BillingPurchaseConfig = BillingSandboxConfig & { appOrigin: string; catalogRelease: typeof LAUNCH_CATALOG_RELEASE_TAG | typeof REPOLIGHT_CATALOG_RELEASE_TAG }
 
 /** Redirect and CSRF origin comes from trusted configuration, never Host headers. */
-export function readBillingPurchaseConfig(env: NodeJS.ProcessEnv = process.env): BillingPurchaseConfig | null {
-  if (env.BILLING_CHECKOUT_ENABLED !== 'true') return null
+function readBillingAppConfig(env: NodeJS.ProcessEnv): BillingPurchaseConfig | null {
   const config = readBillingSandboxConfig(env)
   if (!config) return null
   const release = env.BILLING_REPOLIGHT_CATALOG_ENABLED ?? 'false'
@@ -19,4 +18,19 @@ export function readBillingPurchaseConfig(env: NodeJS.ProcessEnv = process.env):
     throw new Error('Billing purchase configuration is invalid')
   }
   return { ...config, appOrigin: url.origin, catalogRelease: release === 'true' ? REPOLIGHT_CATALOG_RELEASE_TAG : LAUNCH_CATALOG_RELEASE_TAG }
+}
+
+export function readBillingPurchaseConfig(env: NodeJS.ProcessEnv = process.env): BillingPurchaseConfig | null {
+  return env.BILLING_CHECKOUT_ENABLED === 'true' ? readBillingAppConfig(env) : null
+}
+
+/** Worker-only recovery uses the same sandbox/origin validation, independently of admission. */
+export function readBillingRecoveryConfig(env: NodeJS.ProcessEnv = process.env): BillingPurchaseConfig | null {
+  // A base worker may run without any purchase recovery configuration.
+  return env.BILLING_APP_ORIGIN ? readBillingAppConfig(env) : null
+}
+
+/** Navigation is advisory. The page and each API still enforce authorization. */
+export function isBillingPurchaseAvailable(): boolean {
+  try { return readBillingPurchaseConfig() !== null } catch { return false }
 }

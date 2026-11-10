@@ -5,6 +5,152 @@ import { mockTableShellReads, TABLE_CLASSROOM_ID } from './helpers/teacher-stude
 test.setTimeout(90_000)
 test.use({ video: process.env.MOTION_RECORD_VIDEO === 'true' ? 'on' : 'off' })
 
+test('teacher starts and views a Pro trial with checkout closed', async ({ page }, info) => {
+  const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+  await page.addInitScript(value => localStorage.setItem('theme', value), theme)
+  await page.route('**/api/auth/me', route => route.fulfill({ json: {
+    user: { id: 'pattern-billing-teacher', email: 'teacher@example.invalid', role: 'teacher' },
+  } }))
+  const eligible = { state: 'free', plan: 'free', classroomLimit: 0, accessEndsAt: null, renewalAt: null,
+    canStartPaidWork: false, retryable: false, options: { trialAvailable: true, checkoutAvailable: false,
+      hasBillingCustomer: false, pendingCheckoutId: null, paidTerms: null } }
+  const expired = { ...eligible, options: { ...eligible.options, trialAvailable: false } }
+  const active = { ...expired, state: 'trial', plan: 'pro', classroomLimit: 5, canStartPaidWork: true,
+    accessEndsAt: '2026-12-08T18:00:00Z' }
+  let subscription: typeof active | typeof eligible = eligible
+  let operationId: string | undefined
+  const unexpected: string[] = []
+  await page.route('**/api/billing/**', async route => {
+    const path = new URL(route.request().url()).pathname
+    if (path === '/api/billing/subscription' && route.request().method() === 'GET') {
+      await route.fulfill({ json: subscription })
+    } else if (path === '/api/billing/trial' && route.request().method() === 'POST') {
+      operationId = route.request().postDataJSON().operationId
+      subscription = active
+      await route.fulfill({ json: active })
+    } else {
+      unexpected.push(path)
+      await route.fulfill({ status: 404, json: {} })
+    }
+  })
+  const capture = async (name: string) => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await page.screenshot({ path: info.outputPath(`${name}.png`), animations: 'disabled' })
+  }
+  await page.goto('/pattern-lab?role=teacher&fixture=billing-trial&checkout=aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa&result=success')
+  const start = page.getByRole('button', { name: 'Start 30-day Pro trial' })
+  await expect(start).toBeEnabled()
+  await expect(page.getByRole('heading', { name: 'Choose a paid plan' })).toHaveCount(0)
+  await capture('billing-trial-eligible')
+  await start.focus()
+  await start.press('Enter')
+  await expect(page.getByText('Your Pro trial is active.')).toBeVisible()
+  await expect(page.getByText('5 active classrooms')).toBeVisible()
+  await expect(page.getByText(/Access ends/)).toBeVisible()
+  expect(operationId).toMatch(/^[0-9a-f-]{36}$/i)
+  await capture('billing-trial-active')
+  subscription = expired
+  await page.reload()
+  await expect(page.getByText('Free', { exact: true })).toBeVisible()
+  await expect(start).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Checkout status' })).toHaveCount(0)
+  await capture('billing-trial-expired')
+  expect(unexpected).toEqual([])
+})
+
+test('teacher sees pending and missed assignment releases and cancels the observed generation', async ({ page }, info) => {
+  const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+  await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+  let canceledGeneration: string | undefined
+  await page.route('**/api/teacher/assignments/assignment-controller-pending/release', async route => {
+    expect(route.request().method()).toBe('DELETE')
+    canceledGeneration = route.request().postDataJSON().expected_intent_id
+    await route.fulfill({ json: { assignment: {
+      id: 'assignment-controller-pending', classroom_id: 'classroom-controller', title: 'Scheduled field observations',
+      description: 'Original instructions', instructions_markdown: 'Original instructions', rich_instructions: null,
+      due_at: '2030-10-21T03:59:59.999Z', is_draft: true, released_at: null, release_schedule: null,
+    } } })
+  })
+  await page.goto('/pattern-lab?role=teacher&fixture=assignment-controller')
+  const fixture = page.getByTestId('assignment-controller-fixture')
+  await expect(fixture.getByText('Scheduled', { exact: true })).toBeVisible()
+  await expect(fixture.getByText('Release pending', { exact: true })).toBeVisible()
+  await expect(fixture.getByText('Release missed', { exact: true })).toBeVisible()
+  await fixture.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }))
+  await expect(fixture).toBeInViewport({ ratio: 0.85 })
+  await fixture.screenshot({ path: info.outputPath('assignment-release-cards.png'), animations: 'disabled' })
+  const editor = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close assignment modal' }) })
+  const schedule = page.getByRole('dialog', { name: 'Schedule Release' })
+  await fixture.getByRole('button', { name: 'Upcoming field observations', exact: true }).click()
+  await editor.getByRole('button', { name: 'Schedule', exact: true }).press('Enter')
+  await expect(schedule.getByRole('button', { name: 'Save schedule', exact: true })).toBeEnabled()
+  await schedule.screenshot({ path: info.outputPath('assignment-release-future.png'), animations: 'disabled' })
+  await page.keyboard.press('Escape')
+  await expect(schedule).toHaveCount(0)
+  await editor.getByRole('button', { name: 'Close assignment modal' }).click()
+
+  await fixture.getByRole('button', { name: 'Scheduled field observations', exact: true }).click()
+  await expect(editor.getByText(/Release pending ·/)).toBeVisible()
+  await editor.screenshot({ path: info.outputPath('assignment-release-pending.png'), animations: 'disabled' })
+  await editor.getByRole('button', { name: 'Schedule', exact: true }).press('Enter')
+  await expect(schedule.getByRole('button', { name: 'Save schedule', exact: true })).toBeDisabled()
+  await schedule.screenshot({ path: info.outputPath('assignment-release-schedule.png'), animations: 'disabled' })
+  await schedule.getByRole('button', { name: 'Cancel schedule', exact: true }).click()
+  await expect(schedule).toHaveCount(0)
+  expect(canceledGeneration).toBe('3405d674-485b-41e5-8f21-c8cf3ed5ec56')
+  await editor.getByRole('button', { name: 'Close assignment modal' }).click()
+  await fixture.getByRole('button', { name: 'Missed field observations', exact: true }).click()
+  await expect(editor.getByText('Release missed', { exact: true })).toBeVisible()
+  await expect(editor.getByRole('button', { name: 'Post', exact: true })).toBeVisible()
+  await editor.screenshot({ path: info.outputPath('assignment-release-missed.png'), animations: 'disabled' })
+})
+
+test('student Pattern Lab has no owner assignment release controls', async ({ page }, info) => {
+  const theme = info.project.metadata.theme === 'dark' ? 'dark' : 'light'
+  await page.addInitScript((value) => localStorage.setItem('theme', value), theme)
+  await page.goto('/pattern-lab?role=student&fixture=assignment-controller')
+  await expect(page.locator('[data-pattern-lab-ready=true]')).toBeVisible()
+  await expect(page.getByTestId('assignment-controller-fixture')).toHaveCount(0)
+  await page.screenshot({ path: info.outputPath('student-without-owner-release-controls.png'), animations: 'disabled' })
+})
+
+for (const role of ['teacher', 'student'] as const) {
+  test(`horizontal text fade applies only to overflowing labels for ${role}`, async ({ page }, info) => {
+    await openPatternLab(page, info, role)
+    await page.getByRole('combobox', { name: 'Find a pattern', exact: true }).selectOption('horizontal-text-fade')
+    const pattern = page.locator('#horizontal-text-fade')
+    const title = pattern.getByTitle('Biology 11 — Ecosystems and field studies', { exact: true })
+    const lesson = pattern.getByText('Compare the field observations with last week’s notes.', { exact: true })
+    const fitting = pattern.getByText('Bring your notebook.', { exact: true })
+    const button = pattern.getByRole('button', { name: 'Due: Field observations worksheet' })
+    const label = button.locator('span')
+
+    for (const text of [title, lesson, label]) await expect(text).toHaveCSS('mask-image', /linear-gradient/)
+    await expect(fitting).toHaveCSS('mask-image', 'none')
+    await button.focus()
+    await expect(button).toBeFocused()
+    await expect(button).toHaveCSS('mask-image', 'none')
+    await pattern.screenshot({ path: info.outputPath(`${role}-horizontal-text-fade.png`), animations: 'disabled' })
+
+    await page.emulateMedia({ forcedColors: 'active' })
+    await expect(lesson).toHaveCSS('text-overflow', 'ellipsis')
+    await expect(lesson).toHaveCSS('mask-image', 'none')
+    await page.emulateMedia({ forcedColors: 'none' })
+    await expect(lesson).toHaveCSS('mask-image', /linear-gradient/)
+
+    await fitting.evaluate(element => { element.style.width = '60px' })
+    await expect(fitting).toHaveCSS('mask-image', /linear-gradient/)
+    await fitting.evaluate(element => { element.setAttribute('dir', 'rtl') })
+    await expect(fitting).toHaveCSS('mask-image', /to left/)
+    await fitting.evaluate(element => { element.style.removeProperty('width') })
+    await expect(fitting).toHaveCSS('mask-image', 'none')
+
+    // The same fixed-width label can change text without changing its box.
+    await title.evaluate(element => { element.textContent = 'Biology 11' })
+    await expect(title).toHaveCSS('mask-image', 'none')
+  })
+}
+
 for (const role of ['teacher', 'student'] as const) {
   test(`modal corner close stays consistent for ${role}`, async ({ page }, info) => {
     await openPatternLab(page, info, role)
@@ -202,7 +348,6 @@ for (const role of ['teacher', 'student'] as const) {
     const title = page.getByRole('banner').getByTitle(longTitle, { exact: true })
     await expect(title).toHaveText(longTitle)
     await expect(page).toHaveTitle(longTitle)
-    await expect(title).toHaveCSS('text-overflow', 'clip')
     if (testInfo.project.metadata.viewport === 'desktop') {
       await expect(title).toHaveCSS('mask-image', 'none')
       expect(await title.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)

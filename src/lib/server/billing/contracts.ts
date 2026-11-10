@@ -31,6 +31,16 @@ export const BillingSubscriptionBindingSchema = z.object({
 
 export type BillingSubscriptionBinding = z.infer<typeof BillingSubscriptionBindingSchema>
 
+export const BillingScheduledRenewalSchema = z.object({
+  operation_id: uuidSchema,
+  provider_schedule_id: z.string().regex(/^sub_sched_[A-Za-z0-9]{1,240}$/),
+  effective_at: isoDateTimeSchema,
+  state: z.enum(['scheduled', 'applied']),
+  target_binding: BillingSubscriptionBindingSchema,
+}).strict()
+
+export type BillingScheduledRenewal = z.infer<typeof BillingScheduledRenewalSchema>
+
 const claimedSubscriptionSchema = z.object({
   status: z.literal('claimed'),
   subscription_id: uuidSchema,
@@ -78,6 +88,8 @@ export type BillingWorkItem = z.infer<typeof BillingWorkItemSchema>
 export const BillingFinishResultSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('applied'), retry_scheduled: z.literal(false) }).strict(),
   z.object({ status: z.literal('replayed'), retry_scheduled: z.literal(false) }).strict(),
+  z.object({ status: z.literal('deferred'), retry_scheduled: z.literal(true) }).strict(),
+  z.object({ status: z.literal('attention'), retry_scheduled: z.literal(false) }).strict(),
   z.object({ status: z.literal('lost_claim'), retry_scheduled: z.literal(true) }).strict(),
   z.object({ status: z.literal('plan_conflict'), retry_scheduled: z.literal(true) }).strict(),
   z.object({ status: z.literal('rejected'), retry_scheduled: z.boolean() }).strict(),
@@ -198,6 +210,7 @@ export const BillingSynchronizationReasonSchema = z.enum([
   'changed_price',
   'invoice_missing',
   'invoice_not_paid',
+  'renewal_invoice_pending',
   'invoice_paid_out_of_band',
   'invoice_payment_unapproved',
   'invoice_not_bound',
@@ -213,7 +226,7 @@ export type BillingFinishInput = {
   fencing_token: number
   expected_subscription_revision: number
   expected_account_plan_revision: number
-  outcome: 'paid' | 'noop' | 'exception' | 'renewal_failed' | 'canceled' | 'observed'
+  outcome: 'paid' | 'noop' | 'exception' | 'renewal_failed' | 'renewal_invoice_pending' | 'canceled' | 'observed'
   event_inbox_id: string | null
   invoice_id: string | null
   period_start: string | null
@@ -222,4 +235,10 @@ export type BillingFinishInput = {
   provider_status?: string
   cancel_at_period_end?: boolean
   obligations_cleared?: boolean
+}
+
+export type BillingScheduledRenewalFinishInput = BillingFinishInput & {
+  operation_id: string
+  provider_schedule_id: string
+  target_offering_version_id: string
 }

@@ -64,6 +64,7 @@ import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { ApiError } from '@/lib/api-error'
 import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
+import { fetchTeacherRoster } from '@/lib/teacher-roster-read'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -1521,6 +1522,12 @@ function ClassroomPageContent({
     lastTabIntentRef.current[tab] = now
 
     const runPrefetch = () => {
+      if (tab === 'roster' && isTeacher && !mountedTabsRef.current.roster) {
+        const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+        if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {
+          prefetchJSON(`teacher-roster:${classroom.id}`, () => fetchTeacherRoster(classroom.id), 20_000)
+        }
+      }
       if (tab === 'tests' && isTeacher && !mountedTabsRef.current.tests && (testExperienceMode === 'existing' || !prefetchedTeacherTestsRef.current.has(classroom.id))) {
         const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
         if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {

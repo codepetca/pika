@@ -11,6 +11,8 @@ import {
 import { createStripeUpgradePort, createStripeUpgradeProvider } from './stripe-upgrade-provider'
 import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 import { BillingSubscriptionClaimSchema } from './contracts'
+import { verifyInstalledStripeSchedule } from './stripe-closeout-provider'
+import { processDueBillingAssignmentReleases } from './assignment-releases'
 
 /** Pinned to the API version whose response shapes this foundation validates. */
 export const STRIPE_BILLING_API_VERSION = '2026-08-26.dahlia' as const
@@ -46,7 +48,7 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     // The shared guard pins this client to loopback and rejects redirect responses.
     fetch: createTargetBoundFetch(config.supabaseOrigin),
   })
-  const databaseStore = createBillingStore(client)
+  const databaseStore = createBillingStore(client, process.env.BILLING_SCHEDULED_RENEWALS_ENABLED === 'true')
   let provisioningSubject: string | undefined
   const store = { ...databaseStore, async claimSubscription(input: Parameters<typeof databaseStore.claimSubscription>[0]) {
     const raw = await databaseStore.claimSubscription(input)
@@ -55,10 +57,12 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
     return raw
   } }
   const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe))
-  if (process.env.BILLING_UPGRADES_ENABLED === 'true') {
-    const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
-    provider.retrieveAppliedUpgrade = operation => upgrades.readAppliedEvidence(operation)
-  }
+  // Existing purchased terms remain verifiable if new upgrades are disabled.
+  const upgrades = createStripeUpgradeProvider(createStripeUpgradePort(stripe))
+  provider.retrieveAppliedUpgrade = operation => upgrades.readAppliedEvidence(operation)
+  provider.verifyScheduledRenewal = ({ state: _state, ...proof }, snapshot) => (
+    verifyInstalledStripeSchedule(id => stripe.subscriptionSchedules.retrieve(id), proof, snapshot)
+  )
 
   return {
     store,
@@ -67,6 +71,7 @@ export function createBillingRuntime(config: BillingSandboxConfig): BillingHandl
       return stripe.webhooks.constructEvent(raw, signature, config.webhookSecret)
     },
     record: store.recordEvent,
+    processAssignmentReleases: () => processDueBillingAssignmentReleases(client),
     drainProvisioning: () => attemptRepoLightProvisionOutbox({ client, teacherId: provisioningSubject }),
   }
 }

@@ -270,6 +270,16 @@ function mockAssignmentDetailTables(options: {
 describe('GET /api/teacher/assignments/[id]', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
+  it('projects a pending schedule on the owner detail without changing publication fields', async () => {
+    const assignment = makeAssignment({ classroom_id: 'classroom-1', is_draft: true, released_at: null })
+    const schedule = { id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', scheduled_for: '2026-11-09T10:00:00Z', state: 'pending', notice_code: null }
+    mockSupabaseClient.from = mockAssignmentDetailTables({ assignment })
+    mockSupabaseClient.rpc.mockReturnValueOnce({ abortSignal: vi.fn().mockResolvedValue({ data: [{ assignment_id: assignment.id, updated_at: assignment.updated_at, release_schedule: schedule }], error: null }) } as any)
+    const response = await GET(new NextRequest('http://localhost:3000/api/teacher/assignments/a-1'), { params: { id: 'a-1' } })
+    expect(response.status).toBe(200)
+    expect((await response.json()).assignment).toMatchObject({ is_draft: true, released_at: null, release_schedule: schedule })
+  })
+
   it('should return 404 when assignment does not exist', async () => {
     const mockFrom = vi.fn(() => ({
       select: vi.fn(() => ({

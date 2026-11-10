@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
+import { billingTestPublicationProofCatalog } from '../../scripts/billing-test-publication-proof-catalog'
 import { newAssignmentListProofFixture } from '../../scripts/contextual-assignment-list-proof-fixture'
 import { newTestOwnerReorderFixture } from '../../scripts/contextual-test-reorder-proof-fixture'
 import {
@@ -171,6 +173,17 @@ describe('inert contextual Test reorder database contracts', () => {
     // qualifier differs from each source-bound, non-null expected qualifier.
     expect(catalog.sql).toMatch(/if exists\(\(select t\.tgname/)
     expect(catalog.sql).toMatch(/or exists\(\(select \* from \(values/)
+  })
+
+  it('binds the billing cutoff capability to the source profile and checks both routines', () => {
+    const historical = billingTestPublicationProofCatalog(resolve('tests'))
+    expect(historical.triggerRowSql(false)).toContain('where false')
+    expect(historical.checkSql).toContain('Unexpected billing308 Test publication capability')
+    const catalog = manifest.contracts[0].sql
+    expect(catalog).toContain("'billing_test_publication_cutoff'::text,\n 'private'::text,'guard_billing_test_publication_v1'::text,19 where true")
+    expect(catalog).toContain("'private.billing_classroom_can_start_work_v1(uuid)','boolean'::regtype,'01c4c38989192bebff06711ef409d5ff'")
+    expect(catalog).toContain('Billing308 Test publication routine differs')
+    expect(catalog).toContain('Billing308 Test publication setting differs')
   })
 
   it('checks the fixed extraction pattern against realistic nonpretty trigger definitions (inert, not PostgreSQL proof)', () => {

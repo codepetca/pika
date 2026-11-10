@@ -11,9 +11,9 @@ let reduced = false
 let frames: Map<number, FrameRequestCallback>
 let nextFrame = 0
 
-function Harness({ owner = 'day-1', compact = false, editorReady = true }: { owner?: string; compact?: boolean; editorReady?: boolean }) {
+function Harness({ owner = 'day-1', editorReady = true }: { owner?: string; editorReady?: boolean }) {
   const [open, setOpen] = useState(false)
-  const { outerRef, innerRef, prepare } = useLessonCellMotion(open, owner, compact)
+  const { outerRef, innerRef, prepare } = useLessonCellMotion(open, owner)
   return <><button onClick={() => { prepare(); setOpen(value => !value) }}>Toggle</button>
     <div data-testid="outer" ref={outerRef} style={{ '--motion-duration-standard': '200ms' } as CSSProperties}>
       <div data-testid="inner" ref={innerRef}>{open && editorReady ? <div role="textbox">Editor</div> : 'Preview'}</div>
@@ -58,44 +58,10 @@ function setup() {
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
 
 describe('calendar disclosure geometry', () => {
-  it('interpolates a neighboring preview on compact-only disclosure and reversal', () => {
-    const { outer, rerender, flushFrame } = setup()
-    act(() => resize()) // Cache the last committed geometry before density changes.
-    rerender(<Harness compact />)
-    expect(outer.style.height).toBe('80px')
-    flushFrame()
-    expect(outer.style.height).toBe('200px')
-    visibleHeight = 140
-    act(() => resize())
-    naturalHeight = 80
-    rerender(<Harness compact={false} />)
-    expect(outer.style.height).toBe('140px')
-    flushFrame()
-    expect(outer.style.height).toBe('80px')
-    act(() => vi.advanceTimersByTime(250))
-    expect(outer.style.height).toBe('')
-    naturalHeight = 300 // Typing, refresh and resize are not disclosure events.
-    act(() => resize())
-    expect(outer.style.height).toBe('')
-  })
-
-  it('does not use another owner\'s compact geometry or animate compact changes with reduced motion', () => {
-    const { outer, rerender } = setup()
-    act(() => resize())
-    rerender(<Harness owner="day-2" compact />)
-    expect(outer.style.height).toBe('')
-    reduced = true
-    rerender(<Harness owner="day-2" compact={false} />)
-    expect(outer.style.height).toBe('')
-    expect(frames.size).toBe(0)
-  })
-
   it('keeps natural sizing when ResizeObserver is unavailable', () => {
-    const { outer, rerender } = setup()
+    const { outer } = setup()
     vi.stubGlobal('ResizeObserver', undefined)
     fireEvent.click(screen.getByText('Toggle'))
-    expect(outer.style.height).toBe('')
-    rerender(<Harness compact />)
     expect(outer.style.height).toBe('')
     expect(frames.size).toBe(0)
   })

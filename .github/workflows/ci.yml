@@ -213,6 +213,15 @@ jobs:
           bash scripts/check-subscription-lifecycle-database.sh
           bash scripts/check-subscription-renewal-closeout-database.sh
           bash scripts/check-subscription-prorated-upgrades-database.sh
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-renewal-pending-database.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-expiry-conflicts-database.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-scheduled-plan-change-admission-database.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-classroom-test-start-cutoff.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-classroom-capacity-restrictions.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-assignment-publication-cutoff.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-target.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-assignment-release-intents.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-trial-lifecycle.sql
 
       - name: Verify dormant classroom Test quotas and retained-work protection
         run: bash scripts/check-classroom-test-tier-caps-database.sh

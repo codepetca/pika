@@ -557,3 +557,269 @@ External prerequisites: locally configured Stripe test credentials/account/signi
 secret, an isolated runtime, and reviewed authorization for exact schema changes.
 Never paste keys into task messages or commit them. Missing prerequisites prevent
 a real provider rehearsal, not the authorized code and fixture implementation.
+
+## Customer billing and recovery checkpoint — 2026-11-08
+
+The teacher billing page uses the authenticated Pika account and the existing
+local sandbox. It displays stored purchased terms, starts the cardless Pro
+trial, opens versioned checkout, recovers an unfinished checkout, and shows
+payment and plan activation only after server verification. An optional Stripe
+portal configuration supports invoices and payment methods. It must disable
+subscription changes and cancellation. The separate upgrade gate enables the
+existing same-currency, same-interval confirmed quote. The page displays
+Toronto timestamps and uses legacy `plus` and `pro` only at the internal boundary.
+
+Migration 302 handles a verified end-of-term cancellation being undone after
+an applied prorated upgrade. It keeps the original invoice, offering and
+cutoff. It also schedules a read of a verified pending renewal every 15
+minutes through 73 hours after the paid term. While the invoice is pending, the
+last verified access end remains authoritative. A later verified capture can
+settle without a fresh webhook. Migration 303 projects eligible customer
+actions and immutable purchased terms without sending Stripe identifiers to
+the browser. Its extra fields are opt-in; an earlier schema can still return
+plan status, while the new page hides unsupported actions.
+
+### Dormant live target attestation
+
+Migration 311 adds an optional private live Stripe account and Supabase project
+identity. The settings row cannot contain that pair while the sandbox is
+enabled. The service-role RPC returns one boolean for the exact pair on a
+database free of sandbox billing evidence. It can attest a target that already
+contains legacy account plans. The settings row starts with both live fields
+unset. The isolated sandbox can still run against its own loopback database.
+
+The operator command is `pnpm exec tsx scripts/check-billing-live-target.ts`.
+It uses environment variables already supplied by the operator, including
+`BILLING_LIVE_TARGET_CHECK_ENABLED=true` and `STRIPE_LIVE_ACCOUNT_ID`. It requires
+`VERCEL=1`, `VERCEL_ENV=production`, the canonical HTTPS
+`NEXT_PUBLIC_APP_URL`, and the exact production `NEXT_PUBLIC_SUPABASE_URL`.
+The existing Supabase service credential is read only after
+the target passes these checks. The transport permits one read-only RPC and
+rejects redirects. Output is limited to the attestation status. It needs no
+Stripe API key, webhook secret, or worker token.
+
+A successful attestation verifies the dormant database target at the time of
+the read. Operational billing requires separate scoped provider evidence,
+database writer gates, and rollout authorization. Use
+`scripts/check-billing-live-target.sql` for the rollback-only proof on an owned
+disposable replay through 311.
+
+### Live Pro trial source
+
+Migration 313 binds live trial admission, status and expiry to the exact
+production target. The application lifecycle and admission flags default off
+and the database repeats both checks. Stopping admission keeps existing trial
+status and expiry available. The Billing page shows the plan and cardless trial
+without needing a purchase catalog. The trial worker uses a dedicated bearer
+at `POST /api/billing/trial/process`. It processes expiry and due assignment
+releases and then attempts the separate RepoLight provisioning outbox.
+
+The teacher view reuses the existing Billing cards and shared action. The
+browser proof covers eligibility, keyboard start, the five-classroom trial and
+expired status on desktop and mobile in both themes. The page remains
+teacher-only. The sealed 313 database proof separately checks the exact cutoff,
+RepoLight eligibility and retained learner work. The rollout still needs an
+authorized worker caller and resolution of existing future assignments for
+eligible teachers. The runtime declines admission while those assignments exist.
+
+### Release sequence
+
+1. Keep live billing disabled. Finish the source contracts for live/test
+   isolation, secure hosted origins, provider account and mode binding on each
+   read/write, and separate controls for new checkout, new trials and upgrades
+   versus continuing processing for existing customers. RepoLight must consume
+   the same authoritative paid/trial state. Preserve the migration 301 legacy
+   path, existing report and feedback reads, and the rule-based provider only.
+2. Complete renewal-boundary changes and the customer cancellation path.
+   Persist the confirmed source and target offering, exact effective date and
+   provider schedule identity. Require verified target payment to advance the
+   purchased version. The 2026-11-08 owner decision retains the last paid Max
+   classroom limit if the scheduled Pro renewal payment fails. Keep target
+   invoice proof separate from the offering supplying grace access. Fence replacement,
+   cancellation and upgrade against outstanding financial operations. Use
+   Stripe schedule phases with no immediate proration for eligible scheduled
+   changes. [Stripe schedule contract](https://docs.stripe.com/billing/subscriptions/subscription-schedules)
+3. Complete classroom selection and archive behavior, exact publish/test
+   admission guards, preserved released work and started attempts, and
+   cancellation, failure and expiry notifications. Keep a separate subscription
+   restriction state for retained classrooms. The ordinary archive status blocks
+   student participation and can make data eligible for compaction or purge.
+   Fence Test Start at the shared attempt RPC and preserve Save/Submit for an
+   attempt started before cutoff. Record suppressed scheduled assignment releases
+   durably so resubscription cannot expose work that missed its release.
+   Implement the agreed refund window and confirm Ontario tax treatment. The current provider adapters
+   reject tax and discount adjustments; an operator cannot enable Stripe Tax
+   against those adapters. Do not publish provisional AI allowances.
+4. Rehearse against a designated isolated Stripe sandbox and disposable Pika
+   stack after authorization for synthetic provider writes. Register exact
+   approved recurring prices, bind the scoped account and webhook secret, and
+   select the explicit test portal configuration with invoices and payment
+   updates on and subscription changes off. Use the private billing worker
+   endpoint with a synthetic signer and a bounded periodic caller. Confirm
+   signed duplicate/out-of-order delivery, an eventless capture, cancellation
+   and undo, trial conversion and expiry, grace/closeout races, scheduled
+   downgrades, and preserved RepoLight history. Record account/mode and source
+   revisions without storing credentials. [Stripe event behavior](https://docs.stripe.com/billing/subscriptions/webhooks)
+5. Review the complete final source SHA and obtain the required main CI
+   receipts. Preview the exact pending set on the production database target.
+   For this slice, schema prerequisites are `302_billing_resume_verified_paid_term.sql`
+   and `303_billing_customer_options.sql`, in addition to the verified
+   predecessor inventory. Include later launch migrations in that preview.
+   Apply only the complete exact set authorized for production in the
+   canonical migration workflow, then verify history and ACLs. A source merge
+   does not authorize application, provider writes, or a production promotion.
+6. For the final dormant production candidate, review immutable catalog prices
+   and currency/interval mapping against the approved policy, Stripe tax and
+   payment settings, dedicated signing secrets, mode-specific portal and
+   webhook configuration, collection/retry settings, and the external worker
+   cadence against observed queue latency. Configure and test alerting on
+   unmatched receipts, invoice/entitlement drift, retry exhaustion and closeout
+   attention. Rehearse stopping new sales while continuing to reconcile existing
+   payments. Obtain separate precise authorization for the provider settings,
+   protected production promotion and each activation step. Watch payment,
+   entitlement and RepoLight decisions on the first authorized cohort before
+   expanding admission.
+
+The shared local environment has no configured Stripe sandbox credentials for
+this worktree. Provider-port fixtures and database replays are separate from
+the actual provider rehearsal. The September 27 receipt is historical first
+purchase evidence only.
+
+### Classroom activity fallback
+
+On a verified drop in classroom capacity, consider the owner's current
+classrooms that are neither ordinarily archived nor already restricted by a
+subscription. A confirmed selection applies to that specific downgrade. A
+selection of fewer classrooms than the cap keeps only those eligible selected
+classrooms. Free keeps none. Preserve earlier restrictions across renewals and
+resubscription until the teacher explicitly restores a classroom within capacity.
+
+When there is no selection, order eligible classrooms by the latest recorded
+assignment release, assignment submission, Test attempt start or Test
+submission. Use only activity at or before the effective reduction. Sort
+classrooms without recorded activity after classrooms with activity, then break
+ties by classroom creation time (newest first) and classroom UUID (ascending).
+Draft edits, page views and classroom renames do not affect the ranking. For a
+scheduled downgrade, the reduction takes effect when Pika verifies the target
+payment and commits the smaller entitlement. A failed target invoice leaves
+the Max classroom limit and selection unchanged through grace.
+An expired trial or a closed paid term still requires explicit classroom
+restoration when payment is reconciled before expiry processing. Verified
+unpaid payer retirement records the same restrictions when Stripe has already
+closed the obligations.
+
+### Scheduled assignment release contract
+
+For classrooms governed by the billing cutoff, keep a scheduled assignment
+in its canonical draft state until an authorized worker releases it. Store the
+schedule generation, classroom, owner, due time and result separately. Owner
+views need to show that schedule, and draft cleanup must preserve its work.
+Student reads and submissions can continue using the canonical publication
+state. Convert existing future schedules only within the enabled cohort and
+after verifying that the assignments have no learner work.
+
+Apply migration 310 and verify the legacy bulk RPC in the Data API schema
+cache before deploying the application route. The atomic legacy writer
+preserves edits to Blueprint-retired history in a mixed batch.
+
+Release under the existing assignment and classroom locks, then acquire the
+owner account and entitlement locks. Require eligible access both at the
+scheduled time and after any lock wait. For the scheduled time, use an
+entitlement audit recorded by that time and the classroom's restriction
+history. A grant written later with an earlier period start cannot rescue a
+missed release. Persist the suppressed generation and its teacher notice in
+one transaction. A teacher can explicitly reschedule or release it after
+regaining access. Released assignments keep their existing student rules.
+
+Owner Classwork list, summary and detail responses expose the latest relevant
+release generation separately from the assignment draft and publication fields.
+Only the service can query these generations, and the database binds each query
+to the classroom owner. Cancel, reschedule and Post check the generation the
+teacher saw. If a worker completes it first, the editor refreshes the assignment.
+Cancelling preserves the draft even when the cutoff flag is off or access has
+expired. The missed status remains visible until the teacher takes action.
+
+The assignment card and authoring dialog are the reference surfaces. Verify
+scheduled and overdue pending states, missed release, the open schedule dialog
+and cancellation on teacher desktop and mobile in both themes. Check keyboard
+entry to the existing schedule dialog and its focus behavior. The student
+browser check covers absence of owner controls. The database proof covers
+learner assignment access before and after worker publication.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Release status in Classwork | `SortableAssignmentCard` | extend | Keep the current badge and distinguish a pending or missed release. |
+| Teacher scheduling controls | `AssignmentActionButton` and `ScheduleDateTimePicker` | reuse | Preserve the existing date, time and cancel controls. |
+| Visual verification | Pattern Lab assignment controller | extend | Exercise the production owner controls with deterministic records. |
+
+### Worker recovery follow-up
+
+Keep the base sandbox and its validated local app origin configured when
+stopping new checkout and upgrade admissions. The authenticated worker still
+drains checkout and upgrade operations already recorded in Pika. Customer
+mutations continue to check their respective admission gates. A blank app
+origin leaves the base subscription, expiry and closeout paths available.
+Invalid optional recovery configuration or a failed checkout or upgrade
+recovery call returns a diagnostic for that lane while the other work continues.
+
+Migration 304 isolates expiry conflicts. A stale account-plan or entitlement
+revision stays available for investigation, and a limited batch can still
+expire an unrelated healthy account. The worker rechecks revisions after
+taking the same account and entitlement locks used by the writer. The isolated
+rollback fixture places both conflict types ahead of a healthy expired trial
+and verifies that a batch of one completes only the healthy expiry.
+
+### Scheduled Max-to-Pro sandbox checkpoint
+
+Migrations 305–306 add an exact same-interval, same-currency renewal quote,
+teacher confirmation, and leased Stripe schedule installation. The worker
+records each possible attach or configure request before sending it, pins its
+replay window, and commits a schedule only after checking its identity and
+terms. Recovery is independent of the customer admission flag. A verified
+target renewal payment changes the purchased version atomically. A failed
+target invoice enters the exact seven-day grace period on the paid Max terms.
+
+Both application flags and the database admission flag default to off. This
+checkpoint has a sealed disposable replay and a separate draft review. Customer
+scheduling and replacement controls are still pending. Migration 307 reserves
+due scheduled closeout work before ordinary reconciliation can lease it and
+ties the claim to the exact target invoice. A verified capture that wins the
+closeout race commits the Pro term. A verified void plus terminal schedule and
+invoice evidence keeps Free in force and retires the payer binding. Keep the
+scheduling flags off outside the isolated rehearsal until the remaining
+contracts pass.
+
+A verified target payment first observed after the grace window can settle
+under the existing lease if closeout has yet to take ownership. The SQL
+settlement and closeout checks both derive the exact UTC cycle end from the
+immutable target offering. Admission and installation listing are scoped to the
+configured Stripe test account. After Stripe cancels a scheduled subscription,
+a fresh read of the saved terminal schedule and exact target phase supports
+failed-invoice closeout or settlement of an already captured target payment.
+The first verified paid term keeps its actual paid-through date.
+
+The November 8 isolated Stripe rehearsal reused all 12 existing sandbox prices.
+Hosted Pro and Max test payments produced one verified receipt each, with five
+and twelve classrooms and eligible RepoLight access. The signed webhook reached
+the local app, and the paid Pro account opened the invoice and payment-method
+portal. The cardless Pro trial granted five classrooms for 720 hours and reused
+the same cutoff on replay. An accelerated rollback test confirmed RepoLight
+denied new work after the trial cutoff, before the expiry worker applied Free.
+The disposable rehearsal needed Free plan rows for its synthetic teachers. The
+live rollout depends on the separately governed account-plan provisioning step.
+
+The installed same-interval Stripe schedule issued its exact target renewal as
+`subscription_update` with a full, non-prorated line at the phase boundary.
+Reconciliation accepts that reason only after a fresh read verifies the exact
+installed schedule and target phase. Closeout applies the same distinction.
+Ordinary renewal and upgrade verifiers keep their existing invoice contracts.
+
+The real scheduled decline preserved Max's twelve classrooms and RepoLight
+with an exact 168-hour cutoff. Successful retry of the same invoice changed the
+account to Pro with five classrooms and retained both distinct receipts. A
+separate historical test clock used a seeded exact schedule and verified the
+unpaid closeout through the actual worker. Stripe retained the original amount
+remaining after void. The worker used the void status, canceled payment and
+complete outstanding-invoice checks before canceling the schedule without
+proration or a final invoice. Pika retired the binding and kept Free with
+RepoLight denied. The audited requeue resumed the saved stage after the fix.

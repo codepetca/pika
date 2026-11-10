@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { CALENDAR_GRID_CHIP_CLASS_NAME, LessonDayCell } from '@/components/LessonDayCell'
 import { ClassworkTypeIcon, type ClassworkType } from '@/components/ClassworkTypeIcon'
 import { Button, Card, SegmentedControl } from '@/ui'
-import type { Announcement, Assignment, ClassworkMaterial } from '@/types'
+import type { Announcement, Assignment, ClassworkMaterial, LessonPlan } from '@/types'
 import { CALENDAR_REFERENCE_TEST } from './calendar-test-fixtures'
 
 const stamp = '2026-09-01T12:00:00Z'
@@ -25,6 +25,12 @@ const announcement: Announcement = {
   content: 'Bring headphones for the field recordings.', is_draft: false,
   published_at: stamp, scheduled_for: null, created_by: 'reference-teacher', created_at: stamp, updated_at: stamp,
 }
+const gridLesson: LessonPlan = {
+  id: 'identity-lesson', classroom_id: 'calendar-reference', date: '2026-09-15',
+  content: { type: 'doc', content: [] },
+  content_markdown: 'Review the field notes.\nCompare two habitats.\nRecord a sample observation.\nShare one question.',
+  created_at: stamp, updated_at: stamp,
+}
 const identities: { type: ClassworkType; title: string; label: string }[] = [
   { type: 'assignment', title: 'Field observations', label: 'Assignment' },
   { type: 'material', title: 'Ecosystem reading', label: 'Material' },
@@ -40,7 +46,7 @@ export function CalendarIdentityPattern() {
     <SegmentedControl ariaLabel="Identity calendar layout" value={layout} onChange={setLayout}
       options={[{ value: 'agenda', label: 'Week' }, { value: 'grid', label: 'Grid' }]} />
     <Card tone="panel" padding="none" className={layout === 'grid' ? 'max-w-sm' : undefined}>
-      <LessonDayCell date="2026-09-15" day={new Date('2026-09-15T12:00:00')} lessonPlan={null}
+      <LessonDayCell date="2026-09-15" day={new Date('2026-09-15T12:00:00')} lessonPlan={layout === 'grid' ? gridLesson : null} plainTextOnly
         tests={[CALENDAR_REFERENCE_TEST]} assignments={[assignment]} materials={[material]} announcements={[announcement]}
         isWeekend={false} isToday={false} editable={false} layout={layout}
         onTestClick={() => setSelected('Open test')} onAssignmentClick={() => setSelected('Open assignment')}

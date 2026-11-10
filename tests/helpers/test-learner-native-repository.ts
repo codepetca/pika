@@ -1,4 +1,4 @@
-import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
+import { validateDisposableBillingReplayMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 import { validateGradebookWorkflowReviewedMigration } from '../../scripts/gradebook-workflow-reviewed-migration'
 import { validateGradebookCompactZeroWeightAssessmentsReviewedMigration } from '../../scripts/gradebook-compact-zero-weight-assessments-reviewed-migration'
 import { validateClassroomHotLifecycleReviewedMigration } from '../../scripts/classroom-hot-lifecycle-reviewed-migration'
@@ -25,7 +25,7 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   // Validate the complete source inventory before taking an explicit historical
   // prefix; malformed, duplicate or unknown-numeric source must not disappear.
   const inventory = loadAssignmentListReviewedMigrations(repository)
-  assert([257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300].includes(inventory.length), 'Unreviewed offline learner source profile')
+  assert([257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 303, 304, 307, 310, 311, 312, 313].includes(inventory.length), 'Unreviewed offline learner source profile')
   if (inventory.length >= 258) validateStudentTestSessionStatusReviewedMigration(inventory[257])
   if (inventory.length >= 259) validateTestOwnerGradingReviewedMigration(inventory[258])
   if (inventory.length >= 260) validateTestOwnerRecoveryReviewedMigration(inventory[259])
@@ -39,7 +39,7 @@ export function createOfflineTestLearnerRepository(repository: string, count: 25
   if (inventory.length >= 268) validateClassroomHotLifecycleReviewedMigration(inventory[267])
   if (inventory.length >= 269) validateSurveyWorkflowReviewedMigration(inventory[268])
   if (inventory.length >= 270) validateGradebookWorkflowReviewedMigration(inventory[269])
-  validateLifecycleServicesReviewedMigrations(inventory)
+  validateDisposableBillingReplayMigrations(inventory)
   const names = inventory.slice(0, count).map(migration => migration.name)
   assert.deepEqual(names.map(name => Number(name.slice(0, 3))), Array.from({ length: count }, (_, index) => index + 1))
   assert.equal(names.at(-1), count === 257 ? '257_contextual_test_learner_workflow.sql' : '258_student_test_session_status_projection.sql')

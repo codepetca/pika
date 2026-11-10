@@ -60,6 +60,54 @@ describe('useAssignmentScheduling', () => {
     vi.clearAllMocks()
   })
 
+  it('keeps a past-due pending generation scheduled and reconciles a worker win after cancel conflicts', async () => {
+    const pending = makeDraftAssignment({ release_schedule: {
+      id: 'pending-1', scheduled_for: '2020-10-19T15:00:00.000Z', state: 'pending', notice_code: null,
+    } })
+    const live = makeLiveAssignment()
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 409, json: async () => ({ error: 'Assignment changed' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ assignment: live }) })
+    vi.stubGlobal('fetch', fetchSpy)
+    try {
+      const options = makeOptions(pending)
+      const { result } = renderHook(() => useAssignmentScheduling(options))
+      expect(result.current.isScheduled).toBe(true)
+      expect(result.current.isLive).toBe(false)
+      await act(() => result.current.clearScheduledRelease())
+      expect(fetchSpy).toHaveBeenNthCalledWith(1, '/api/teacher/assignments/assignment-1/release', expect.objectContaining({
+        method: 'DELETE', body: JSON.stringify({ expected_intent_id: 'pending-1' }),
+      }))
+      expect(fetchSpy).toHaveBeenNthCalledWith(2, '/api/teacher/assignments/assignment-1', { cache: 'no-store' })
+      expect(options.onAssignmentChange).toHaveBeenCalledWith(live)
+      expect(options.onError).toHaveBeenLastCalledWith('Assignment changed')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('reschedules the observed generation and preserves the canonical draft returned by the server', async () => {
+    const pending = makeDraftAssignment({ release_schedule: {
+      id: 'pending-1', scheduled_for: '2020-10-19T15:00:00.000Z', state: 'pending', notice_code: null,
+    } })
+    const next = makeDraftAssignment({ release_schedule: {
+      id: 'pending-2', scheduled_for: '2099-10-19T15:00:00.000Z', state: 'pending', notice_code: null,
+    } })
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ assignment: next }) })
+    vi.stubGlobal('fetch', fetchSpy)
+    try {
+      const options = makeOptions(pending)
+      const { result } = renderHook(() => useAssignmentScheduling(options))
+      act(() => result.current.setScheduleDate('2099-10-19'))
+      await act(() => result.current.scheduleAssignmentRelease())
+      expect(fetchSpy).toHaveBeenCalledWith('/api/teacher/assignments/assignment-1/release', expect.objectContaining({ method: 'POST' }))
+      expect(JSON.parse(fetchSpy.mock.calls[0][1].body)).toMatchObject({ expected_intent_id: 'pending-1' })
+      expect(options.onAssignmentChange).toHaveBeenCalledWith(next)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   describe('derived status flags', () => {
     it('isDraft is true when assignment is null', () => {
       const { result } = renderHook(() => useAssignmentScheduling(makeOptions(null)))

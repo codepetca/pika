@@ -27,11 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# The exact source seals through 297 are checked in the preflight below.
-# 296/297 do not modify Auth/Storage; the version is not a live schema attestation.
+# Source extensions 296–313 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 297)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateLifecycleServicesReviewedMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert.equal(migrations.length,300,'RepoLight access proof target must be exactly300'); validateLifecycleServicesReviewedMigrations(migrations.slice(0,297)); assert.equal(migrations[297].name,'298_repolight_analysis_access.sql'); assert.equal(migrations[297].sha256,'63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'); assert.equal(migrations[298].name,'299_repolight_managed_registry.sql'); assert.equal(migrations[298].sha256,'8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'); assert.equal(migrations[299].name,'300_repolight_provision_outbox.sql'); assert.equal(migrations[299].sha256,'47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf');"
+((10#$source_version >= 234 && 10#$source_version <= 313)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312 or 313'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -119,7 +118,8 @@ if ! sql < "$scratch/replay.sql" > "$scratch/replay.log" 2>&1; then
   tail -25 "$scratch/replay.log" >&2
   exit 1
 fi
-echo 'PASS replay001–300.'
+replay_version="$number"
+echo "PASS sealed replay through migration $replay_version."
 for proof in check-repolight-database.sql check-repolight-analysis-access-database.sql check-subscription-prorated-upgrades-database.sql check-repolight-provision-combined.sql; do
   if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
     tail -25 "$scratch/$proof.log" >&2
@@ -127,6 +127,50 @@ for proof in check-repolight-database.sql check-repolight-analysis-access-databa
   fi
 done
 echo 'PASS rollback-only RepoLight compatibility and access contracts.'
+if ((10#$replay_version >= 303)); then
+  if ! sql < "$root/scripts/check-billing-renewal-pending-database.sql" > "$scratch/billing-renewal-pending.log" 2>&1; then
+    tail -25 "$scratch/billing-renewal-pending.log" >&2
+    exit 1
+  fi
+  echo 'PASS rollback-only billing renewal contracts.'
+fi
+if ((10#$replay_version >= 304)); then
+  if ! sql < "$root/scripts/check-billing-expiry-conflicts-database.sql" > "$scratch/billing-expiry-conflicts.log" 2>&1; then
+    tail -25 "$scratch/billing-expiry-conflicts.log" >&2
+    exit 1
+  fi
+  echo 'PASS rollback-only billing expiry conflict contracts.'
+fi
+if ((10#$replay_version >= 307)); then
+  if ! sql < "$root/scripts/check-billing-scheduled-plan-change-admission-database.sql" > "$scratch/billing-scheduled-plan-change-admission.log" 2>&1; then
+    tail -25 "$scratch/billing-scheduled-plan-change-admission.log" >&2
+    exit 1
+  fi
+  echo 'PASS rollback-only scheduled plan change admission contracts.'
+fi
+if ((10#$replay_version >= 310)); then
+  for proof in check-billing-classroom-test-start-cutoff.sql check-billing-classroom-capacity-restrictions.sql check-billing-assignment-publication-cutoff.sql; do
+    if ! sql < "$root/scripts/$proof" > "$scratch/$proof.log" 2>&1; then
+      tail -25 "$scratch/$proof.log" >&2
+      exit 1
+    fi
+  done
+fi
+if ((10#$replay_version >= 311)); then
+  sql < "$root/scripts/check-billing-live-target.sql" > "$scratch/billing-live-target.log" 2>&1 || { tail -25 "$scratch/billing-live-target.log" >&2; exit 1; }
+fi
+if ((10#$replay_version >= 312)); then
+  sql < "$root/scripts/check-billing-assignment-release-intents.sql" > "$scratch/billing-assignment-release-intents.log" 2>&1 || { tail -25 "$scratch/billing-assignment-release-intents.log" >&2; exit 1; }
+fi
+if ((10#$replay_version >= 313)); then
+  sql < "$root/scripts/check-billing-live-trial-lifecycle.sql" > "$scratch/billing-live-trial-lifecycle.log" 2>&1 || { tail -25 "$scratch/billing-live-trial-lifecycle.log" >&2; exit 1; }
+fi
+# The multi-session fixture commits in the owned clone, so run it after
+# rollback proofs that verify the default-off state.
+if ((10#$replay_version >= 310)); then
+  node "$root/scripts/check-billing-classroom-cutoff-contention.mjs" "$clone_id" "$$:$token" > "$scratch/classroom-cutoff-contention.log" 2>&1 || { tail -30 "$scratch/classroom-cutoff-contention.log" >&2; exit 1; }
+  echo 'PASS classroom cutoff rollback and contention contracts.'
+fi
 node "$root/scripts/check-repolight-analysis-access-contention.mjs" "$clone_id" "$$:$token" > "$scratch/contention.log" 2>&1 || { tail -30 "$scratch/contention.log" >&2; exit 1; }
 echo 'PASS two-session plan and exact-expiry contention.'
 node "$root/scripts/check-repolight-provision-contention.mjs" "$clone_id" "$$:$token" > "$scratch/provision-contention.log" 2>&1 || { tail -30 "$scratch/provision-contention.log" >&2; exit 1; }
@@ -140,4 +184,4 @@ awk '/^[[:space:]]*$/ { blank_lines += 1; next } { while (blank_lines > 0) { pri
 verify_source || { echo 'Baseline must remain unchanged' >&2; exit 1; }
 if [[ "$mode" == --write-types ]]; then cp "$scratch/normalized.ts" "$root/src/types/database.generated.ts"; fi
 cmp -s "$scratch/normalized.ts" "$root/src/types/database.generated.ts" || { echo 'Generated types differ from the replay schema' >&2; exit 1; }
-echo 'PASS isolated300 replay, rollback behavior, generated-type equality and unchanged shared schema.'
+echo 'PASS isolated replay, rollback behavior, generated-type equality and unchanged shared schema.'

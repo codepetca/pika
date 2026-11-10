@@ -264,6 +264,13 @@ describe('Stripe current-state adapter', () => {
       expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
     },
   )
+  it.each(['draft', 'open'] as const)('rejects an unpaid %s invoice with an unexplained balance change', async status => {
+    const f = fixture()
+    makeUnpaidInvoice(f, status)
+    f.invoice.amount_remaining -= 1
+
+    expect(await createStripeBillingProvider(f.sdk).retrieveSubscription(binding)).toBeNull()
+  })
   it.each(['active', 'past_due', 'unpaid', 'canceled'] as const)(
     'recovers an uncollectible renewal from a complete %s provider snapshot',
     async status => {

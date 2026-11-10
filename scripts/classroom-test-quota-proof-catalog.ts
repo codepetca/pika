@@ -2,7 +2,7 @@ import { CLASSROOM_PUBLIC_AUTO_ADMISSION_REVIEWED_TABLES } from './classroom-pub
 import { CLASSROOM_ADMISSION_REGISTRY_REVIEWED_TABLES } from './classroom-admission-registry-reviewed-migration'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
+import { validateDisposableBillingReplayMigrations, validateLifecycleServicesReviewedMigrations } from './lifecycle-services-reviewed-migrations'
 import { REPOLIGHT_REPORT_SERVICE_REVIEWED_TABLES } from './repolight-report-service-reviewed-migration'
 import { ATTENDANCE_NAMED_SCHEDULES_REVIEWED_TABLES } from './attendance-named-schedules-reviewed-migration'
 
@@ -16,7 +16,7 @@ export function classroomTestQuotaProofCatalog(
   migrations: readonly { name: string; sql: string; sha256: string }[],
 ): readonly string[] {
   // Admit only the explicitly enumerated and sealed preservation tail.
-  assert(migrations.length <= 300, 'Unreviewed quota proof catalog migration profile')
+  assert(migrations.length <= 301, 'Unreviewed quota proof catalog migration profile')
   assert(canonicalTables.length > 0 && canonicalTables.length <= 1024)
   assert(canonicalTables.every(name => /^(public|private|storage)\.[a-z_0-9]+$/.test(name)))
   assert.equal(new Set(canonicalTables).size, canonicalTables.length)
@@ -56,4 +56,22 @@ export function classroomTestQuotaProofCatalog(
     ...(hasPublicAutoAdmission ? CLASSROOM_PUBLIC_AUTO_ADMISSION_REVIEWED_TABLES : [])])].sort()
   assert(expected.length <= 1024)
   return Object.freeze(expected)
+}
+
+/** Owned disposable replays use the full sealed source. The billing tail
+ * adds private tables at 305 and 309; fingerprint each only after its complete tail.
+ */
+export function disposableClassroomTestQuotaProofCatalog(
+  canonicalTables: readonly string[],
+  migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1],
+): readonly string[] {
+  if (migrations.length <= 301) return classroomTestQuotaProofCatalog(canonicalTables, migrations)
+  validateDisposableBillingReplayMigrations(migrations)
+  const base = classroomTestQuotaProofCatalog(canonicalTables, migrations.slice(0, 301))
+  return Object.freeze([...new Set([...base,
+    ...(migrations.length >= 307 ? ['private.billing_scheduled_plan_changes'] : []),
+    ...(migrations.length >= 310 ? ['private.billing_classroom_restrictions'] : []),
+    ...(migrations.length >= 312 ? ['private.billing_assignment_release_intents'] : []),
+    ...(migrations.length >= 313 ? ['private.billing_live_trial_sources'] : []),
+  ])].sort())
 }

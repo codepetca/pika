@@ -148,17 +148,22 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
     if (!a.due_at) {
       errors.push(`Assignment "${a.title || `at position ${i}`}" has no due date`)
     }
+    if (a.id && typeof a.is_draft !== 'boolean') {
+      errors.push(`Assignment at position ${i} needs a draft status`)
+    }
   }
 
   if (errors.length > 0) {
     return NextResponse.json({ errors }, { status: 400 })
   }
 
-  if (access.mode === 'contextual') {
+  // Publish-capable batches must roll back every write if publication fails.
+  if (access.mode === 'contextual' || inputAssignments.some((assignment) => assignment.id && !assignment.is_draft)) {
     const result = await saveAssignmentsBulkForOwner({
       supabase,
       actorId: access.user.id,
       classroomId: access.classroomId,
+      preserveLegacyHistory: access.mode === 'legacy',
       assignments: inputAssignments.map((assignment) => {
         const instructionFields = buildAssignmentInstructionFields(assignment.instructions)
         return {
@@ -168,7 +173,7 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
           instructionsMarkdown: instructionFields.instructions_markdown,
           description: instructionFields.description,
           richInstructions: instructionFields.rich_instructions as unknown as Json,
-          isDraft: assignment.is_draft,
+          isDraft: access.mode === 'legacy' && !assignment.id ? true : assignment.is_draft,
         }
       }),
     })
@@ -337,9 +342,6 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
 
     const instructionFields = buildAssignmentInstructionFields(a.instructions)
 
-    // Determine if we're releasing (draft→released)
-    const isReleasing = existing.is_draft && !a.is_draft
-
     const updateData: Record<string, any> = {
       title: a.title.trim(),
       instructions_markdown: instructionFields.instructions_markdown,
@@ -352,11 +354,6 @@ export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (reques
 
     if (a.is_draft) {
       updateData.released_at = null
-    }
-
-    // Set released_at when releasing
-    if (isReleasing) {
-      updateData.released_at = new Date().toISOString()
     }
 
     const { data, error } = await supabase

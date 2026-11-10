@@ -6,6 +6,7 @@ export const billingUpgradeConfirmSchema = z.object({ operationId: uuid,
   quoteRevision: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
   quoteDigest: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 export const billingUpgradeIdSchema = uuid
+export const billingUpgradeOperationMissing = 'Upgrade operation not found'
 
 const money = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const publicQuoteSchema = z.object({

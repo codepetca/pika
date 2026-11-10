@@ -18,6 +18,8 @@ import { readClassroomHomeVisibility } from '@/lib/server/classroom-home-visibil
 import { loadClassroomHomeCreationAccess } from '@/lib/server/classroom-home-creation'
 import type { ClassroomHomePresentation } from '@/lib/contracts/classroom-home'
 import type { Classroom } from '@/types'
+import { isBillingPurchaseAvailable } from '@/lib/server/billing/purchase-config'
+import { isBillingLiveTrialAvailable } from '@/lib/server/billing/live-target'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -30,6 +32,7 @@ export default async function ClassroomsIndexPage() {
   }
 
   const supabase = getServiceRoleClient()
+  const billingAvailable = user.role === 'teacher' && (isBillingPurchaseAvailable() || isBillingLiveTrialAvailable())
 
   const contextualHomeAdmitted = await isContextualClassroomHomeAdmitted(user)
   if (contextualHomeAdmitted
@@ -59,7 +62,7 @@ export default async function ClassroomsIndexPage() {
       initialReadError = true
     }
     return (
-      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" billingAvailable={billingAvailable} mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         <TeacherClassroomsIndex initialClassrooms={initialClassrooms} initialReadError={initialReadError} contextualHome={contextualHome} />
       </AppShell>
     )
@@ -88,7 +91,7 @@ export default async function ClassroomsIndexPage() {
     ])
 
     return (
-      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
+      <AppShell initialNow={Date.now()} user={{ id: user.id, email: user.email, role: user.role, ...displayInfo }} pageTitle="Classrooms" billingAvailable={billingAvailable} mainClassName="flex-1 min-h-0 w-full max-w-7xl mx-auto px-4 py-3">
         {offer}
         <TeacherClassroomsIndex
           initialClassrooms={error ? [] : hydrateClassroomRecords((classrooms || []) as Record<string, any>[])}

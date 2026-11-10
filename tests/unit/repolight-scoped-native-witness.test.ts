@@ -36,16 +36,22 @@ describe('fixed sealed300 witness in scoped native plans',()=>{
     for (const token of ['pg_get_triggerdef','t.tgenabled','t.tgdeferrable','t.tginitdeferred','pg_get_functiondef','p.proacl']) expect(witness).toContain(token)
     for (const token of ['epoch=1','not managed_provisioning_enabled','not plan_enforcement_enabled','not billing_access_enabled',
       'not legacy_plan_access_enabled',"t.tgenabled='O'",'t.tgtype=expected.kind','t.tgqual is null','t.tgnargs=0','p.proconfig','expected.attrs']) expect(presence).toContain(token)
+    expect(presence).toContain("array['provider_mode','sandbox_enabled']::text[]")
     expect(withRepoLight300Witness('original',false)).toBe('original')
   })
   it.each(profiles)('%s binds witness to snapshot and contention with sealed source300',(_name,make)=>{
-    const plan=make();expect(plan.migrations).toHaveLength(300);expect(plan.nativeVerified).toBe(false)
+    const plan=make();expect(plan.migrations).toHaveLength(301);expect(plan.nativeVerified).toBe(false)
     expect(plan.setup).toContain('$repolight300$')
     expect(plan.snapshot).toContain('__repolight300')
     for(const schedule of plan.concurrency.schedules) {
       expect(schedule.rejectSql.split('__repolight300').length).toBeGreaterThanOrEqual(3)
       expect(schedule.rejectSql).toContain('is distinct from baseline')
     }
+  })
+  it.each(profiles)('%s preserves the source300 witness in the historical sealed profile',(_name,make)=>{
+    const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(chain.slice(0,300))
+    try {const plan=make();expect(plan.migrations).toHaveLength(300);expect(plan.snapshot).toContain('__repolight300');expect(plan.setup).toContain('$repolight300$')}
+    finally{loader.mockRestore()}
   })
   it('rejects snapshot SQL that removes the 300 witness from any native plan',()=>{
     const plans = [testLearnerNativePlan(original,learner,head,repository),testOwnerGradingNativePlan(original,grading,head,repository),
@@ -65,10 +71,16 @@ describe('fixed sealed300 witness in scoped native plans',()=>{
     finally{loader.mockRestore()}
   })
   it.each(profiles)('%s rejects partial, self-hashed changed and future tails',(_name,make)=>{
-    const altered=[297,298,299].map(index=>{const result=chain.map(x=>({...x}));result[index].sql+='\n';result[index].sha256=hash(result[index].sql);return result})
-    for(const candidate of [chain.slice(0,298),chain.slice(0,299),...altered,[...chain,{name:'301_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
+    const altered=[297,298,299,300].map(index=>{const result=chain.map(x=>({...x}));result[index].sql+='\n';result[index].sha256=hash(result[index].sql);return result})
+    for(const candidate of [chain.slice(0,298),chain.slice(0,299),...altered,[...chain,{name:'302_unknown.sql',sql:'select 1;',sha256:hash('select 1;')}]]) {
       const loader=vi.spyOn(platform,'loadAssignmentListReviewedMigrations').mockReturnValue(candidate)
       try{expect(make).toThrow()}finally{loader.mockRestore()}
     }
   })
+})
+
+// These scoped native plans exercise the sealed RepoLight-era inventory.
+vi.mock('../../scripts/contextual-assignment-list-proof-platform', async importOriginal => {
+  const actual = await importOriginal<typeof import('../../scripts/contextual-assignment-list-proof-platform')>()
+  return { ...actual, loadAssignmentListReviewedMigrations: (root: string) => actual.loadAssignmentListReviewedMigrations(root).slice(0, 301) }
 })

@@ -3,7 +3,7 @@ import { validateAttendanceNamedSchedulesReviewedMigration } from './attendance-
 import { validateIndependentCalendarPostDatesReviewedMigration } from './independent-calendar-post-dates-reviewed-migration'
 import { validateClassroomAdmissionRegistryReviewedMigration } from './classroom-admission-registry-reviewed-migration'
 import { validateTeacherAuthoringImagesReviewedMigration } from './teacher-authoring-images-reviewed-migration'
-/** Exact source-only271–300 extension. This does not grant migration, native
+/** Exact source-only271–301 extension. This does not grant migration, native
  * fixture, schema/catalog or activation authority. Historical seals stay owned
  * by their existing validators. */
 import { validateAnnouncementPostDateReviewedMigration } from './announcement-post-date-reviewed-migration'
@@ -16,6 +16,10 @@ import { validateAttendanceLearnerMembershipReviewedMigration } from './attendan
 import { validatePalOwnerQueueStopReviewedMigration } from './pal-owner-queue-stop-reviewed-migration'
 import { validateContextualRemovedMembershipCleanupReviewedMigration } from './contextual-removed-membership-cleanup-reviewed-migration'
 import assert from 'node:assert/strict'
+import disposableBillingReplayTail from './disposable-billing-replay-tail.json'
+import disposableClassroomCutoffReplayTail from './disposable-classroom-cutoff-replay-tail.json'
+import disposableAssignmentReleaseReplayTail from './disposable-assignment-release-replay-tail.json'
+import disposableLiveTrialReplayTail from './disposable-live-trial-replay-tail.json'
 import { createHash } from 'node:crypto'
 import { validateAssignmentListMigrationChain } from './contextual-assignment-list-proof-lifecycle'
 import { validateDataApiGrantsReviewedMigration } from './data-api-grants-reviewed-migration'
@@ -37,7 +41,7 @@ export const LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS = Object.freeze([
 
 export function validateLifecycleServicesReviewedMigrations(migrations: readonly { name: string; sql: string; sha256: string }[]) {
   validateAssignmentListMigrationChain(migrations)
-  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
+  if (migrations.length >= 271) assert([271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 298, 299, 300, 301].includes(migrations.length), 'Unreviewed lifecycle services migration profile')
   for (const seal of LIFECYCLE_SERVICES_REVIEWED_MIGRATIONS) {
     // Data API282 has its own validator; attendance283 follows that exact slot.
     const number = Number(seal.name.slice(0, 3))
@@ -66,11 +70,63 @@ export function validateLifecycleServicesReviewedMigrations(migrations: readonly
     [297, '298_repolight_analysis_access.sql', '63d94e7f301180ff0524e0c0f0214899bb3e048ea303af0b88ede647344cf492'],
     [298, '299_repolight_managed_registry.sql', '8710a091f0d32447074d84b945175a764cba1e0a3f364deb1b845d9d2661788b'],
     [299, '300_repolight_provision_outbox.sql', '47a20f34e9fd03e6b9d8a0e07960c7eb9e199e02ccc09839bd17ac81b98baacf'],
+    [300, '301_repolight_universal_tier_benefit.sql', '871db1a388284f8a4178f7d36385b7db267c26b0b936bdd25a78f85ac24956e3'],
   ] as const) {
     if (migrations.length <= index) continue
     const migration = migrations[index]
     assert.equal(migration.name, name)
     assert.equal(migration.sha256, digest)
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), digest)
+  }
+}
+
+/** Application-routine changes admitted only by the disposable database runners.
+ * The historical lifecycle and native proof validators remain closed at 301.
+ */
+export function validateDisposableBillingReplayMigrations(migrations: Parameters<typeof validateLifecycleServicesReviewedMigrations>[0]) {
+  validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
+  if (migrations.length <= 301) return
+
+  assert([303, 304, 307, 310, 311, 312, 313].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312 or 313')
+  assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
+    '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
+  assert.equal(disposableBillingReplayTail.length, 6)
+  for (const [offset, { name, sha256 }] of disposableBillingReplayTail.slice(0, Math.min(migrations.length - 301, 6)).entries()) {
+    const migration = migrations[301 + offset]
+    assert.equal(migration.name, name)
+    assert.equal(migration.sha256, sha256)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+  }
+  if (migrations.length >= 310) {
+    assert.equal(createHash('sha256').update(JSON.stringify(disposableClassroomCutoffReplayTail)).digest('hex'),
+      '88085cc556ede00ad3cd9b295e2f0242428a3ec85189d08b736681648abcee44', 'Unreviewed classroom cutoff replay seal')
+    assert.equal(disposableClassroomCutoffReplayTail.length, 3)
+    for (const [offset, { name, sha256 }] of disposableClassroomCutoffReplayTail.entries()) {
+      const migration = migrations[307 + offset]
+      assert.equal(migration.name, name)
+      assert.equal(migration.sha256, sha256)
+      assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+    }
+  }
+  if (migrations.length >= 311) {
+    assert.equal(createHash('sha256').update(JSON.stringify(disposableAssignmentReleaseReplayTail)).digest('hex'),
+      '3380e8783aecbde7362d33cc5c481b616cfa91c2cce6f975781df931a4245a85', 'Unreviewed assignment release replay seal')
+    assert.equal(disposableAssignmentReleaseReplayTail.length, 2)
+    for (const [offset, { name, sha256 }] of disposableAssignmentReleaseReplayTail.slice(0, migrations.length - 310).entries()) {
+      const migration = migrations[310 + offset]
+      assert.equal(migration.name, name)
+      assert.equal(migration.sha256, sha256)
+      assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+    }
+  }
+  if (migrations.length >= 313) {
+    assert.equal(createHash('sha256').update(JSON.stringify(disposableLiveTrialReplayTail)).digest('hex'),
+      '1350073dac51c21c697dfa4e3cdf2c2fd833d4396c71944aaca9c2e112a1ce54', 'Unreviewed live trial replay seal')
+    assert.equal(disposableLiveTrialReplayTail.length, 1)
+    const { name, sha256 } = disposableLiveTrialReplayTail[0]
+    const migration = migrations[312]
+    assert.equal(migration.name, name)
+    assert.equal(migration.sha256, sha256)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
   }
 }

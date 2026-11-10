@@ -100,7 +100,7 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
 })
 
 describe('closed reorder lifecycle source contracts', () => {
-  it('binds the 300 fixture to dormant state and all four exact trigger bindings', () => {
+  it('binds the current fixture to dormant state and all four exact trigger bindings', () => {
     const setup = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd()).sql.setup
     for (const token of ['private.repolight_managed_connections', 'private.repolight_provision_outbox',
       'private.repolight_provision_control', 'epoch=1', 'not managed_provisioning_enabled',
@@ -109,6 +109,9 @@ describe('closed reorder lifecycle source contracts', () => {
       'repolight_provision_access_gate_hint', 'repolight_provision_billing_gate_hint',
       "t.tgenabled='O'", 'not t.tgdeferrable', 'not t.tginitdeferred', 't.tgtype=expected.kind',
       'p.proname=expected.fn', 'p.prosecdef', 'expected.attrs']) expect(setup).toContain(token)
+    expect(setup).toContain(
+      "array['live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled']::text[]",
+    )
   })
 
   it('validates four required RPC arguments and Json return as supplemental AST evidence', () => {
@@ -534,14 +537,22 @@ describe('reorder snapshot/completion admission', () => {
   })
   it('requires every added RepoLight, plan and billing whole-row fingerprint', async () => {
     const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
-    const current300 = actual.loadAssignmentListReviewedMigrations(process.cwd())
-    const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current300)
+    const current = actual.loadAssignmentListReviewedMigrations(process.cwd())
+    expect(() => validateTestOwnerReorderReviewedMigrations(current)).not.toThrow()
+    expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, 303))).not.toThrow()
+    const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current)
+    expect(fullCatalog).toEqual([...testOwnerReorderTableCatalogFromCanonical(canonical, current.slice(0, 301)), 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources'].sort())
+    const changed = current.map(migration => ({ ...migration }))
+    changed[303].sql += '\n'
+    changed[303].sha256 = testOwnerDigest(changed[303].sql)
+    expect(() => validateTestOwnerReorderReviewedMigrations(changed)).toThrow()
+    expect(() => testOwnerReorderTableCatalogFromCanonical(canonical, changed)).toThrow()
     const withTail = graph()
     withTail.__nontarget_fingerprints = fullCatalog.map(table => ({table, fingerprint:'unchanged'}))
     expect(validateTestOwnerReorderSnapshotCatalog(withTail, fullCatalog)).toEqual(withTail)
     for (const table of ['private.repolight_settings', 'private.repolight_managed_connections',
       'private.repolight_provision_control', 'private.repolight_provision_outbox',
-      'private.stripe_billing_settings', 'public.account_plans', 'public.billing_account_access']) {
+      'private.stripe_billing_settings', 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'public.account_plans', 'public.billing_account_access']) {
       expect(fullCatalog).toContain(table)
       const missing = structuredClone(withTail)
       missing.__nontarget_fingerprints = missing.__nontarget_fingerprints.filter(row => row.table !== table)

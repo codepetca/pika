@@ -2,13 +2,14 @@
 
 import { useCallback, useState } from 'react'
 import Link from 'next/link'
-import { UserCircle, LogOut, Moon, Sun, Bug } from 'lucide-react'
+import { UserCircle, LogOut, Moon, Sun, Bug, CreditCard } from 'lucide-react'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useDropdownNav } from '@/hooks/use-dropdown-nav'
 import { FeedbackDialog } from '@/components/FeedbackDialog'
 import { Button } from '@/ui'
 
 interface UserMenuProps {
+  billingAvailable?: boolean
   user?: {
     email: string
     role: 'student' | 'teacher'
@@ -69,7 +70,9 @@ function getInitials(firstName?: string | null, lastName?: string | null): strin
  * Shows user name, email, theme toggle, and logout.
  * Supports keyboard navigation.
  */
-export function UserMenu({ user }: UserMenuProps) {
+export function UserMenu({ user, billingAvailable = false }: UserMenuProps) {
+  const showBilling = user?.role === 'teacher' && billingAvailable
+  const logoutIndex = showBilling ? 3 : 2
   const { theme, mounted, toggleTheme } = useTheme()
   const [showFeedback, setShowFeedback] = useState(false)
 
@@ -93,7 +96,7 @@ export function UserMenu({ user }: UserMenuProps) {
     itemRefs,
     containerRef,
   } = useDropdownNav({
-    itemCount: 3, // theme toggle, feedback, logout
+    itemCount: logoutIndex + 1,
   })
 
   if (!user) {
@@ -220,16 +223,35 @@ export function UserMenu({ user }: UserMenuProps) {
           Send Feedback
         </button>
 
+        {showBilling && (
+          <Link
+            href="/billing"
+            id={getItemId(2)}
+            ref={(element) => { itemRefs.current[2] = element }}
+            onClick={() => setIsOpen(false)}
+            onMouseEnter={() => setFocusedIndex(2)}
+            onKeyDown={handleItemKeyDown}
+            className={`flex min-h-11 w-full items-center gap-3 px-4 py-2 text-sm text-text-muted focus:outline-none ${
+              focusedIndex === 2 ? 'bg-surface-2' : 'hover:bg-surface-hover'
+            }`}
+            role="menuitem"
+            tabIndex={isOpen && focusedIndex === 2 ? 0 : -1}
+          >
+            <CreditCard className="h-4 w-4" aria-hidden="true" />
+            Plans and billing
+          </Link>
+        )}
+
         {/* Logout */}
         <form action="/api/auth/workos/logout" method="post" role="none">
           <Button
-            id={getItemId(2)}
-            ref={(el) => { itemRefs.current[2] = el }}
+            id={getItemId(logoutIndex)}
+            ref={(el) => { itemRefs.current[logoutIndex] = el }}
             type="submit"
             variant="ghost"
             size="sm"
             onClick={() => setIsOpen(false)}
-            onMouseEnter={() => setFocusedIndex(2)}
+            onMouseEnter={() => setFocusedIndex(logoutIndex)}
             onKeyDown={handleItemKeyDown}
             className={`min-h-11 w-full justify-start rounded-none px-4 py-2 font-normal ${
               focusedIndex === 2
@@ -237,7 +259,7 @@ export function UserMenu({ user }: UserMenuProps) {
                 : 'hover:bg-surface-hover'
             }`}
             role="menuitem"
-            tabIndex={isOpen && focusedIndex === 2 ? 0 : -1}
+            tabIndex={isOpen && focusedIndex === logoutIndex ? 0 : -1}
           >
             <LogOut className="w-4 h-4" />
             Logout

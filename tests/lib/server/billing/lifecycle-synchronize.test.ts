@@ -149,8 +149,24 @@ describe('verified lifecycle observations', () => {
   it('classifies a canceled open renewal before generic cancellation', () => {
     expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...failedRenewal(), status: 'canceled' })).toMatchObject({ outcome: 'renewal_failed' })
   })
-  it('does not turn an active open invoice into failed-renewal proof', () => {
-    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...failedRenewal(), status: 'active' })).toBe('invoice_not_paid')
+  it.each(['draft', 'open'] as const)('defers an exact %s renewal while Stripe still reports active', status => {
+    const failed = failedRenewal()
+    const snapshot = { ...failed, status: 'active', latestInvoice: { ...failed.latestInvoice, status,
+      endingBalance: status === 'draft' ? null : 0 } }
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, snapshot)).toMatchObject({ outcome: 'renewal_invoice_pending',
+      invoice_id: 'in_paid_1', period_start: lifecycleClaim.lifecycle.paid_through })
+  })
+  it('does not defer a mismatched pending renewal invoice or create first-purchase grace', () => {
+    const failed = failedRenewal()
+    const pending = { ...failed, status: 'active' }
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...pending, latestInvoice: { ...pending.latestInvoice, amountPaid: 1 } }))
+      .toBe('financial_terms_unapproved')
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...pending, latestInvoice: { ...pending.latestInvoice, id: lifecycleClaim.lifecycle.last_paid_invoice_id } }))
+      .toBe('invoice_line_unverified')
+    expect(verifyBillingLifecycleSnapshot(lifecycleClaim, { ...pending, latestInvoice: { ...pending.latestInvoice, billingReason: 'subscription_update' } }))
+      .toBe('invoice_not_bound')
+    expect(verifyBillingLifecycleSnapshot({ ...lifecycleClaim, lifecycle: { ...lifecycleClaim.lifecycle, paid_through: null, last_paid_invoice_id: null } }, pending))
+      .toBe('invoice_not_paid')
   })
   it.each(['active', 'past_due', 'unpaid', 'canceled'])('rejects uncollectible first purchase or partial payment under %s', status => {
     const failed = failedRenewal()

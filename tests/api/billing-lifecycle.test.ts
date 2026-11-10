@@ -1,12 +1,20 @@
 import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mock = vi.hoisted(() => ({ config: vi.fn(), authenticate: vi.fn(), runtime: vi.fn(), startTrial: vi.fn(), getStatus: vi.fn() }))
+const mock = vi.hoisted(() => ({
+  config: vi.fn(), liveConfig: vi.fn(), authenticate: vi.fn(), runtime: vi.fn(), liveRuntime: vi.fn(),
+  startTrial: vi.fn(), getStatus: vi.fn(), liveWorker: vi.fn(),
+}))
 vi.mock('@/lib/auth', () => ({ requireRole: mock.authenticate }))
 vi.mock('@/lib/server/billing/purchase-config', () => ({ readBillingPurchaseConfig: mock.config }))
-vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({ createBillingLifecycleRuntime: mock.runtime }))
+vi.mock('@/lib/server/billing/live-target', () => ({ readBillingLiveTrialConfig: mock.liveConfig }))
+vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({
+  createBillingLifecycleRuntime: mock.runtime, createLiveTrialLifecycleRuntime: mock.liveRuntime,
+  processLiveTrialLifecycle: mock.liveWorker,
+}))
 import { GET as status } from '@/app/api/billing/subscription/route'
 import { POST as trial } from '@/app/api/billing/trial/route'
+import { POST as processLiveTrial } from '@/app/api/billing/trial/process/route'
 import { BillingLifecycleEligibilityError } from '@/lib/server/billing/lifecycle-service'
 
 const subject = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -25,6 +33,7 @@ beforeEach(() => {
   mock.config.mockReturnValue({ appOrigin: origin })
   mock.authenticate.mockResolvedValue({ id: subject })
   mock.runtime.mockReturnValue(mock)
+  mock.liveRuntime.mockReturnValue(mock)
   mock.startTrial.mockResolvedValue(access)
   mock.getStatus.mockResolvedValue(access)
 })
@@ -58,6 +67,49 @@ describe('billing lifecycle API boundaries', () => {
     expect(mock.getStatus).toHaveBeenCalledWith({ subjectUserId: subject })
     expect(await response.json()).toMatchObject({ state: 'free', plan: 'free', classroomLimit: 0, canStartPaidWork: false })
   })
+  it('keeps live status available while new trial admission is off', async () => {
+    const config = { appOrigin: 'https://pika.codepet.ca', admissionEnabled: false }
+    mock.liveConfig.mockReturnValue(config)
+    mock.config.mockReturnValue(null)
+    mock.getStatus.mockResolvedValue({ ...access, customer_options: {
+      trial_available: true, checkout_available: false, pending_checkout_id: null,
+      has_billing_customer: false, paid_terms: null,
+    } })
+
+    const response = await status(new NextRequest(`${config.appOrigin}/api/billing/subscription`), context)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ state: 'trial', options: { trialAvailable: false, checkoutAvailable: false } })
+    expect((await trial(request(), context)).status).toBe(404)
+    expect(mock.liveRuntime).toHaveBeenCalledExactlyOnceWith(config)
+    expect(mock.runtime).not.toHaveBeenCalled()
+    expect(mock.startTrial).not.toHaveBeenCalled()
+  })
+  it('runs live recovery with its own worker bearer when admission is off', async () => {
+    const config = { appOrigin: 'https://pika.codepet.ca', workerSecret: 'trial-worker-secret'.repeat(2), admissionEnabled: false }
+    const workerRequest = (bearer?: string) => new NextRequest(`${config.appOrigin}/api/billing/trial/process`, {
+      method: 'POST', headers: bearer ? { authorization: `Bearer ${bearer}` } : {},
+    })
+    expect((await processLiveTrial(workerRequest(config.workerSecret), context)).status).toBe(404)
+    mock.liveConfig.mockReturnValue(config)
+    expect((await processLiveTrial(workerRequest('wrong'), context)).status).toBe(401)
+    expect(mock.liveWorker).not.toHaveBeenCalled()
+    mock.liveWorker.mockResolvedValue({ lifecycle: { processed: 1 }, assignmentReleases: { released: 1 } })
+    const response = await processLiveTrial(workerRequest(config.workerSecret), context)
+    expect(response.status).toBe(200)
+    expect(response.headers.get('cache-control')).toBe('private, no-store')
+    expect(mock.liveWorker).toHaveBeenCalledExactlyOnceWith(config)
+  })
+  it('projects only customer-safe options and the purchased terms', async () => {
+    mock.getStatus.mockResolvedValue({ ...access, state: 'paid', plan_key: 'pro',
+      customer_options: { trial_available: false, checkout_available: false, pending_checkout_id: null,
+        has_billing_customer: true, paid_terms: { currency: 'cad', interval: 'year', unit_amount: 55900, upgrade_available: false } } })
+    const response = await status(new NextRequest(`${origin}/api/billing/subscription`), context)
+    expect(await response.json()).toMatchObject({ state: 'paid', plan: 'max', options: {
+      trialAvailable: false, checkoutAvailable: false, pendingCheckoutId: null, hasBillingCustomer: true,
+      paidTerms: { currency: 'cad', interval: 'year', unitAmount: 55900, upgradeAvailable: false },
+    } })
+  })
+
   it.each(['https://attacker.example', 'null', 'http://localhost:3001'])('rejects mutation origin %s', async badOrigin => {
     expect((await trial(request(undefined, { origin: badOrigin }), context)).status).toBe(403)
     expect(mock.runtime).not.toHaveBeenCalled()
