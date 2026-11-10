@@ -14,10 +14,12 @@ guides before changing schema or deploying a grading contract.
   an enforced architecture rule.
 - Pika-specific adapters sanitize classroom data, build core inputs, map results
   back to Pika fields, and coordinate durable work.
-- Grading defaults to DeepSeek, with model `deepseek-flash` configurable through
-  `DEEPSEEK_GRADING_MODEL`. `PIKA_AI_GRADING_PROVIDER=openai` selects OpenAI
-  Responses, with the model configured through `OPENAI_GRADING_MODEL`.
-  The matching provider API keys must be configured.
+- Grading defaults to GPT-6.1 Terra through OpenAI Responses and requires
+  `OPENAI_API_KEY`. Set `OPENAI_GRADING_MODEL` to use another OpenAI grading model.
+  DeepSeek uses `DEEPSEEK_API_KEY` and defaults to `deepseek-flash`, configurable
+  through `DEEPSEEK_GRADING_MODEL`. Set `PIKA_AI_GRADING_PROVIDER=deepseek` for a
+  DeepSeek-only installation. The archived test calibration command retains
+  DeepSeek as its default so existing snapshot runs keep the same provider.
 - In OpenAI mode, the router retries the grading request with DeepSeek only if
   OpenAI returns the documented organization or project hard spend-limit error.
   Other errors, including ordinary rate limits, do not trigger a provider switch.
