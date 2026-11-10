@@ -2,7 +2,7 @@ import Stripe from 'stripe'
 import { z } from 'zod'
 
 /** Stripe's SDK decodes decimal fields before Pika checks the wire amount. */
-export const stripeUnitAmountDecimalSchema = z.preprocess(value => {
+function stripeDecimalText(value: unknown) {
   if (value === null || typeof value !== 'object') return value
 
   const sdkDecimal = Stripe.Decimal?.zero
@@ -10,4 +10,9 @@ export const stripeUnitAmountDecimalSchema = z.preprocess(value => {
     return sdkDecimal.toString.call(value)
   }
   return value
-}, z.string().regex(/^\d+(?:\.0+)?$/).transform(value => value.replace(/\.0+$/, '')))
+}
+
+export const stripeUnitAmountDecimalSchema = z.preprocess(stripeDecimalText,
+  z.string().regex(/^\d+(?:\.0+)?$/).transform(value => value.replace(/\.0+$/, '')))
+
+export const stripeSingleQuantityDecimalSchema = z.preprocess(stripeDecimalText, z.string().regex(/^1(?:\.0+)?$/))

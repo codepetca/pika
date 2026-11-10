@@ -1,6 +1,6 @@
 import type Stripe from 'stripe'
 import { z } from 'zod'
-import { stripeUnitAmountDecimalSchema } from './stripe-unit-amount-decimal'
+import { stripeSingleQuantityDecimalSchema, stripeUnitAmountDecimalSchema } from './stripe-decimal'
 import { createStripeBillingProvider, type StripeBillingReadPort } from './stripe-provider'
 import { verifyPaidSubscriptionSnapshot } from './synchronize'
 import { UpgradeQuoteContractError, UpgradeQuoteFactsSchema, UpgradeQuoteInputSchema,
@@ -68,7 +68,7 @@ const previewSchema = z.object({
   parent: z.object({ type: z.literal('subscription_details'), subscription_details: z.object({ subscription: reference }) }),
   lines: z.object({ has_more: z.literal(false), data: z.array(z.object({
     id: reference, livemode: z.literal(false), amount: money, subtotal: money,
-    currency: z.string(), quantity: z.literal(1), quantity_decimal: z.string().regex(/^1(?:\.0+)?$/),
+    currency: z.string(), quantity: z.literal(1), quantity_decimal: stripeSingleQuantityDecimalSchema,
     discounts: empty, discount_amounts: emptyNullable, taxes: emptyNullable, pretax_credit_amounts: emptyNullable,
     parent: z.object({ type: z.literal('subscription_item_details'), subscription_item_details: z.object({
       subscription: reference, subscription_item: reference, proration: z.literal(true),
@@ -84,7 +84,7 @@ const paidInvoiceTermsSchema = z.object({
   amount_shipping: z.literal(0), automatic_tax: z.object({ enabled: z.literal(false) }),
   default_tax_rates: empty, total_pretax_credit_amounts: emptyNullable,
   lines: z.object({ has_more: z.literal(false), data: z.array(z.object({
-    livemode: z.literal(false), currency: z.string(), quantity_decimal: z.string().regex(/^1(?:\.0+)?$/),
+    livemode: z.literal(false), currency: z.string(), quantity_decimal: stripeSingleQuantityDecimalSchema,
     pretax_credit_amounts: emptyNullable,
   })).length(1) }),
 })

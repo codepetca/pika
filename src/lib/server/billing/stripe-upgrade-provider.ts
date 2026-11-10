@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { z } from 'zod'
-import { stripeUnitAmountDecimalSchema } from './stripe-unit-amount-decimal'
+import { stripeSingleQuantityDecimalSchema, stripeUnitAmountDecimalSchema } from './stripe-decimal'
 import { UpgradeOperationSchema, UpgradeProviderContractError, type AppliedUpgradeProvider, type AppliedUpgradeProviderEvidence,
   type UpgradeMutation, type UpgradeOperation,
   type UpgradeProviderEvidence } from './upgrade-contracts'
@@ -69,7 +69,7 @@ const appliedSubscriptionSchema = subscriptionSchema.extend({ status: z.enum(['a
 })
 const emptyInvoiceListSchema = z.object({ object: z.literal('list'), has_more: z.literal(false), data: empty })
 const invoiceLineSchema = z.object({ id: ref, livemode: z.literal(false), amount: integer, subtotal: integer,
-  currency: z.string(), quantity: z.literal(1), quantity_decimal: z.string().regex(/^1(?:\.0+)?$/),
+  currency: z.string(), quantity: z.literal(1), quantity_decimal: stripeSingleQuantityDecimalSchema,
   discounts: empty, discount_amounts: empty.nullable(), taxes: empty.nullable(), pretax_credit_amounts: empty.nullable(),
   parent: z.object({ type: z.literal('invoice_item_details'), invoice_item_details: z.object({ invoice_item: ref,
     subscription: ref, proration: z.literal(false) }) }),

@@ -11,23 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-06 — RepoLight replay source boundary
-
-Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
 ## 2026-11-06 — RepoLight main sync and migration resequence
 
 Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
@@ -425,3 +408,7 @@ Preserved the reviewed email delivery patch and migration 327 after the in-app n
 ## 2026-11-08 Stripe SDK decimal compatibility
 
 The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
+
+## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
+
+Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.

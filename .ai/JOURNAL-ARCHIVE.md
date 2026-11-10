@@ -54152,3 +54152,22 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
 <!-- pika-session-log-archive-batch:472f5df267fec1aea54c8d634c7d5f3e2eedf9c82f571319b5d67d2bb0d211d9 -->
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:57a9ac3e8664c5c96d5b7bbf7ae10be8629db6de28fc92581b746b1801227607 -->

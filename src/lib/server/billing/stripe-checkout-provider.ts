@@ -1,6 +1,6 @@
 import Stripe from 'stripe'
 import { z } from 'zod'
-import { stripeUnitAmountDecimalSchema } from './stripe-unit-amount-decimal'
+import { stripeUnitAmountDecimalSchema } from './stripe-decimal'
 import { CheckoutProviderContractError, CheckoutUrlSchema,
   CheckoutAttemptSchema, type CheckoutAttempt, type CheckoutProvider, type CheckoutSession } from './checkout-contracts'
 

@@ -11,7 +11,7 @@ import {
 import { EXCLUSIVE_TAX_CATALOG_SUFFIX } from '@/lib/server/billing/checkout-contracts'
 import { readBillingSandboxConfig } from '@/lib/server/billing/config'
 import type { Json } from '@/types/database.generated'
-import { stripeUnitAmountDecimalSchema } from './stripe-unit-amount-decimal'
+import { stripeUnitAmountDecimalSchema } from './stripe-decimal'
 
 type StripeCatalogProduct = Readonly<{
   id: string
