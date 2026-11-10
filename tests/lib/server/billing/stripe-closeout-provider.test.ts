@@ -647,3 +647,46 @@ describe('Stripe closeout of an installed scheduled renewal', () => {
     expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
   })
 })
+
+describe('live installed schedule evidence', () => {
+  it('verifies scoped live schedule and rejects account and mode mismatch', async () => {
+    const f = scheduledFixture()
+    f.subscription.livemode = true
+    f.subscription.items.data[0].price.livemode = true
+    f.invoice.livemode = true; f.invoice.payments.data[0].livemode = true; f.intent.livemode = true
+    f.schedule.livemode = true
+    Object.assign(f.schedule.phases[0], { billing_cycle_anchor: 'phase_start' })
+    const liveScheduled = { ...scheduledRequest, binding: { ...scheduledRequest.binding, provider_mode: 'live' as const },
+      scheduled: { ...scheduledRequest.scheduled, target_binding: { ...binding, provider_mode: 'live' as const } } }
+    const provider = createStripeCloseoutProvider(f.sdk, liveScope)
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'unpaid' })
+    f.schedule.livemode = false
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
+    f.schedule.livemode = true
+    Object.assign(f.schedule.phases[0], { discounts: ['coupon'] })
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
+    Object.assign(f.schedule.phases[0], { discounts: [] })
+    f.sdk.accounts.retrieve.mockResolvedValue({ id: 'acct_other' })
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
+  })
+  it('cancels only the verified live schedule after a fresh fence', async () => {
+    const f = scheduledFixture()
+    f.subscription.livemode = true; f.subscription.items.data[0].price.livemode = true
+    f.invoice.livemode = true; f.invoice.payments.data[0].livemode = true; f.intent.livemode = true
+    f.schedule.livemode = true
+    Object.assign(f.schedule.phases[0], { billing_cycle_anchor: 'phase_start' })
+    voided(f)
+    const sdk = { ...f.sdk, invoices: { ...f.sdk.invoices,
+      listCustomer: vi.fn().mockResolvedValue({ object: 'list', has_more: false, data: [] }) } }
+    const provider = createStripeCloseoutProvider(sdk, liveScope)
+    const close = { ...f.close, binding: { ...f.close.binding, provider_mode: 'live' as const },
+      scheduled: { ...f.close.scheduled, target_binding: { ...binding, provider_mode: 'live' as const } } }
+    f.beforeMutation.mockResolvedValueOnce(false)
+    await provider.cancelSubscription(close)
+    expect(sdk.cancelSchedule).not.toHaveBeenCalled()
+    await provider.cancelSubscription(close)
+    expect(sdk.cancelSchedule).toHaveBeenCalledOnce()
+    expect(sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+})

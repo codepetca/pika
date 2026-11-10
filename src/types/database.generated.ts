@@ -10246,6 +10246,14 @@ export type Database = {
         Returns: Json
       }
       billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_confirm_live_scheduled_plan_change_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_confirm_scheduled_plan_change_v1: {
         Args: {
           p_operation_id: string
@@ -10275,6 +10283,14 @@ export type Database = {
         Returns: Json
       }
       billing_finish_live_renewal_closeout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_scheduled_renewal_v1: {
         Args: {
           p_project_ref: string
           p_request: Json
@@ -10329,6 +10345,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_get_live_scheduled_renewal_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_get_scheduled_renewal_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10366,6 +10390,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_list_live_scheduled_installations_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_list_live_work_v1: {
         Args: {
           p_project_ref: string
@@ -10392,6 +10424,14 @@ export type Database = {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean
       }
+      billing_live_scheduled_installation_command_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_live_trial_lifecycle_ready_v1: {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean
@@ -10416,6 +10456,14 @@ export type Database = {
       }
       billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_reserve_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_reserve_live_scheduled_plan_change_v1: {
         Args: {
           p_project_ref: string
           p_request: Json

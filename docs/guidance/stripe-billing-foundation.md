@@ -669,6 +669,25 @@ fixtures before configuring credentials. Before production admission, verify
 successful signed webhook receipts, recurring authenticated worker runs and
 alerts for failed or delayed work on the pinned target.
 
+### Live scheduled Max-to-Pro changes
+
+Migrations 322–323 add target-scoped quote, confirmation, installation and
+settlement contracts. The live installation provider verifies the last paid
+Max invoice before writing a schedule. A failed Pro cycle records the Pro
+invoice while retaining the Max receipt, classroom limit and RepoLight access
+through the exact 168-hour grace period. Settlement pairs the original Max
+checkout and receipt with the first verified Pro invoice and updates the plan
+in the same transaction. The worker requires independent Stripe phase evidence
+even when Stripe labels the target invoice as a normal subscription cycle.
+
+Keep both live scheduling flags off until customer cancellation and scheduled
+unpaid closeout are wired and verified. The installation adapter is available
+for scoped verification. Customer routes and the production worker invocation
+are deferred to the same rollout gate. Stripe's portal disables cancellation
+when an update is pending in a schedule, so the customer path must handle
+cancellation without ending the already-paid Max term. Confirm the handling of
+released schedules and exact target invoices before opening admission.
+
 ### Release sequence
 
 1. Keep live billing disabled. Finish the source contracts for live/test

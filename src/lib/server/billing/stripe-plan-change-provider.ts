@@ -1,5 +1,6 @@
 import type Stripe from 'stripe'
 import { z } from 'zod'
+import { BillingReconciliationScopeSchema, type BillingReconciliationScope } from './contracts'
 import { scheduledTermEnd } from './scheduled-plan-change-period'
 
 const providerId = (prefix: string) => z.string().regex(new RegExp('^' + prefix + '[A-Za-z0-9]+$'))
@@ -33,6 +34,8 @@ export const stripePlanChangeOperationSchema = z.strictObject({
   paidPeriodStart: time,
   effectiveAt: time,
   scheduleId: scheduleId.optional(),
+  providerMode: z.literal('live').optional(),
+  lastPaidInvoiceId: providerId('in_').optional(),
 })
 export type StripePlanChangeOperation = z.infer<typeof stripePlanChangeOperationSchema>
 type PersistedSchedule = StripePlanChangeOperation & { scheduleId: string }
@@ -75,14 +78,14 @@ const unsupportedBillingSettings = {
   transfer_data: z.null().optional(),
 }
 const priceSchema = z.object({
-  id: priceId, product: productId, livemode: z.literal(false), active: z.boolean(),
+  id: priceId, product: productId, livemode: z.boolean(), active: z.boolean(),
   type: z.literal('recurring'), billing_scheme: z.literal('per_unit'), custom_unit_amount: z.null().optional(),
   transform_quantity: z.null().optional(), currency, unit_amount: z.number().int().positive(),
   recurring: z.object({ interval, interval_count: z.literal(1), usage_type: z.literal('licensed') }),
 })
 const subscriptionSchema = z.object({
-  id: subscriptionId, object: z.literal('subscription'), livemode: z.literal(false),
-  customer: z.object({ id: customerId, object: z.literal('customer'), livemode: z.literal(false),
+  id: subscriptionId, object: z.literal('subscription'), livemode: z.boolean(),
+  customer: z.object({ id: customerId, object: z.literal('customer'), livemode: z.boolean(),
     deleted: z.literal(false).optional(), discount: z.null().optional() }),
   customer_account: z.null().optional(), schedule: scheduleId.nullable(),
   status: z.enum(['active', 'past_due', 'unpaid']), currency, collection_method: automaticCollection,
@@ -92,7 +95,7 @@ const subscriptionSchema = z.object({
   default_payment_method: paymentMethod, default_source: z.null().optional(),
   ...unsupportedBillingSettings,
   latest_invoice: z.object({
-    status: z.string().nullable(), livemode: z.literal(false), customer: customerId,
+    id: providerId('in_').optional(), status: z.string().nullable(), livemode: z.boolean(), customer: customerId,
     amount_remaining: z.number().int().nonnegative(), paid_out_of_band: z.literal(false).optional(),
     amount_paid_off_stripe: z.literal(0).optional(),
   }).nullable(),
@@ -122,7 +125,7 @@ const phaseSchema = phaseBounds.extend({
   ...unsupportedBillingSettings,
 })
 const scheduleSchema = z.object({
-  id: scheduleId, object: z.literal('subscription_schedule'), created: timestamp, livemode: z.literal(false),
+  id: scheduleId, object: z.literal('subscription_schedule'), created: timestamp, livemode: z.boolean(),
   application: z.null().optional(), customer_account: z.null().optional(), customer: customerId,
   subscription: subscriptionId, status: z.literal('active'), end_behavior: z.literal('release'),
   canceled_at: z.null().optional(), completed_at: z.null().optional(), released_at: z.null().optional(),
@@ -138,11 +141,11 @@ const scheduleSchema = z.object({
 })
 const eventsSchema = z.object({
   data: z.array(z.object({
-    type: z.literal('subscription_schedule.created'), livemode: z.literal(false), created: timestamp,
+    type: z.literal('subscription_schedule.created'), livemode: z.boolean(), created: timestamp,
     account: accountId.nullish(), context: z.null().optional(),
     request: z.object({ idempotency_key: z.string().nullable() }).nullable(),
     data: z.object({ object: z.object({
-      id: scheduleId, object: z.literal('subscription_schedule'), livemode: z.literal(false),
+      id: scheduleId, object: z.literal('subscription_schedule'), livemode: z.boolean(),
       customer: customerId, subscription: subscriptionId.nullable(),
     }) }),
   })).max(100),
@@ -224,10 +227,19 @@ function configurationState(schedule: Schedule, operation: ParsedOperation, subs
   return 'configured' as const
 }
 
-export function createStripePlanChangeProvider(port: StripePlanChangePort, now = Date.now) {
+export function createStripePlanChangeProvider(port: StripePlanChangePort, now = Date.now, configuredScope?: BillingReconciliationScope) {
+  const scope = BillingReconciliationScopeSchema.optional().parse(configuredScope)
+  const live = scope?.providerMode === 'live'
+  function scopedOperation(candidate: StripePlanChangeOperation) {
+    const operation = parseOperation(candidate)
+    requireFact((!scope || operation.stripeAccount === scope.stripeAccount)
+      && (live ? operation.providerMode === 'live' && operation.lastPaidInvoiceId !== undefined
+        : operation.providerMode === undefined && operation.lastPaidInvoiceId === undefined))
+    return operation
+  }
   async function readPrice(terms: Terms, requireActive = false) {
     const price = decode(priceSchema, await port.retrievePrice(terms.priceId))
-    requireFact(sameTerms(price, terms) && (!requireActive || price.active))
+    requireFact(price.livemode === live && sameTerms(price, terms) && (!requireActive || price.active))
   }
 
   async function readSubscription(operation: ParsedOperation, at: number) {
@@ -237,21 +249,24 @@ export function createStripePlanChangeProvider(port: StripePlanChangePort, now =
     const [item] = subscription.items.data
     const before = at < operation.effective
     const expected = before ? operation.source : operation.target
-    requireFact(subscription.id === operation.stripeSubscriptionId && subscription.customer.id === operation.stripeCustomerId
+    requireFact(subscription.livemode === live && subscription.customer.livemode === live
+      && item.price.livemode === live && (subscription.latest_invoice === null || subscription.latest_invoice.livemode === live)
+      && subscription.id === operation.stripeSubscriptionId && subscription.customer.id === operation.stripeCustomerId
       && subscription.currency === expected.currency && sameTerms(item.price, expected)
       && item.current_period_start === (before ? operation.starts : operation.effective)
       && item.current_period_end === (before ? operation.effective : operation.targetEnd))
     if (before) {
       const invoice = subscription.latest_invoice
       requireFact(subscription.status === 'active' && invoice !== null && invoice.status === 'paid'
-        && invoice.amount_remaining === 0 && invoice.customer === operation.stripeCustomerId)
+        && invoice.amount_remaining === 0 && invoice.customer === operation.stripeCustomerId
+        && (!live || invoice.id === operation.lastPaidInvoiceId))
     }
     return subscription
   }
 
   function scheduleEvidence(raw: unknown, id: string, operation: ParsedOperation) {
     const schedule = decode(scheduleSchema, raw)
-    requireFact(schedule.id === id && schedule.customer === operation.stripeCustomerId
+    requireFact(schedule.livemode === live && schedule.id === id && schedule.customer === operation.stripeCustomerId
       && schedule.subscription === operation.stripeSubscriptionId)
     return schedule
   }
@@ -265,7 +280,7 @@ export function createStripePlanChangeProvider(port: StripePlanChangePort, now =
   function mutationInput<Operation extends StripePlanChangeOperation>(
     input: ScheduleMutation<Operation>, action: 'attach' | 'configure',
   ) {
-    const operation = parseOperation(input.operation)
+    const operation = scopedOperation(input.operation)
     const replayUntil = Date.parse(decode(time, input.replayUntil))
     requireFact(input.idempotencyKey === stripePlanChangeIdempotencyKey(operation.operationId, action)
       && typeof input.beforeMutation === 'function')
@@ -281,7 +296,7 @@ export function createStripePlanChangeProvider(port: StripePlanChangePort, now =
   }
 
   async function verify(candidate: PersistedSchedule) {
-    const operation = parseOperation(candidate)
+    const operation = scopedOperation(candidate)
     requireFact(!!operation.scheduleId)
     const at = now() / 1000
     const subscription = await readSubscription(operation, at)
@@ -307,7 +322,8 @@ export function createStripePlanChangeProvider(port: StripePlanChangePort, now =
           // Stripe does not accept metadata with from_subscription. A matching
           // creation event proves a lost response belongs to this exact request.
           const { data } = decode(eventsSchema, await port.listCreationEvents(schedule.created))
-          if (!data.some(event => event.request?.idempotency_key === input.idempotencyKey
+          if (!data.some(event => event.livemode === live && event.data.object.livemode === live
+            && event.request?.idempotency_key === input.idempotencyKey
             && (event.account == null || event.account === operation.stripeAccount)
             && Math.abs(event.created - schedule.created) <= 1
             && event.data.object.id === id && event.data.object.customer === operation.stripeCustomerId

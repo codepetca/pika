@@ -180,6 +180,90 @@ describe('synchronizeBillingSubscription', () => {
     expect(store.finishSubscription).not.toHaveBeenCalled()
   })
 
+  it.each(['paid', 'renewal_failed', 'unverified'] as const)(
+    'uses exact live schedule proof for a cycle-labelled Pro renewal with outcome %s', async outcome => {
+      const source = { ...liveBinding, plan_key: 'pro', unit_amount: 3900,
+        offering_version_id: '99999999-9999-4999-8999-999999999999', stripe_price_id: 'price_live_max' }
+      const proof = { operation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', provider_schedule_id: 'sub_sched_Live',
+        effective_at: '2026-09-01T00:00:00.000Z', state: 'scheduled', target_binding: liveBinding }
+      const current = { ...liveClaim, binding: source, lifecycle: { ...liveClaim.lifecycle, end_reason: 'renewal_pending',
+        paid_period_start: '2026-08-01T00:00:00.000Z', paid_through: proof.effective_at,
+        access_ends_at: proof.effective_at, last_paid_invoice_id: 'in_live_max' } }
+      const snapshot = livePaidSnapshot()
+      const failed = outcome === 'renewal_failed'
+      const invoice = failed ? { ...snapshot.latestInvoice, status: 'open', amountPaid: 0, payments: [],
+        modeEvidence: { invoice: true, invoicePayments: [] } } : snapshot.latestInvoice
+      const provider = {
+        ...providerWith({ ...snapshot, latestInvoice: invoice, status: failed ? 'past_due' : 'active', scheduleId: proof.provider_schedule_id }),
+        verifyScheduledRenewal: vi.fn().mockResolvedValue(outcome !== 'unverified'),
+      }
+      const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue(current), getScheduledRenewal: vi.fn().mockResolvedValue(proof),
+        finishScheduledRenewal: vi.fn().mockResolvedValue({ status: 'applied', retry_scheduled: false }) })
+      const result = await synchronizeBillingSubscription({ store, provider, scope: liveScope, ...liveInput })
+
+      expect(store.getScheduledRenewal).toHaveBeenCalledExactlyOnceWith({ subscription_id: liveInput.subscriptionId, lease_token: current.lease_token })
+      expect(provider.verifyScheduledRenewal).toHaveBeenCalledOnce()
+      if (outcome === 'unverified') {
+        expect(result).toMatchObject({ kind: 'exception', reason: 'subscription_transition_unapproved' })
+        expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
+      } else {
+        expect(result).toEqual({ kind: 'applied' })
+        expect(store.finishSubscription).not.toHaveBeenCalled()
+        expect(store.finishScheduledRenewal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ outcome,
+          operation_id: proof.operation_id, provider_schedule_id: proof.provider_schedule_id,
+          target_offering_version_id: liveBinding.offering_version_id, invoice_id: 'in_paid_1' }))
+      }
+    },
+  )
+
+  it('retries the exact Max snapshot read just before the live boundary, then settles the Pro invoice', async () => {
+    const source = { ...liveBinding, plan_key: 'pro', unit_amount: 3900,
+      offering_version_id: '99999999-9999-4999-8999-999999999999', stripe_price_id: 'price_live_max' }
+    const proof = { operation_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', provider_schedule_id: 'sub_sched_Live',
+      effective_at: '2026-09-01T00:00:00.000Z', state: 'scheduled', target_binding: liveBinding }
+    const priorStart = '2026-08-01T00:00:00.000Z'
+    const lastPaidInvoiceId = 'in_live_max'
+    const current = { ...liveClaim, binding: source, lifecycle: { ...liveClaim.lifecycle, end_reason: 'renewal_pending',
+      paid_period_start: priorStart, paid_through: proof.effective_at, access_ends_at: proof.effective_at,
+      last_paid_invoice_id: lastPaidInvoiceId } }
+    const targetSnapshot = { ...livePaidSnapshot(), scheduleId: proof.provider_schedule_id }
+    const targetInvoice = targetSnapshot.latestInvoice
+    const sourceSnapshot = { ...targetSnapshot,
+      items: [{ ...targetSnapshot.items[0], priceId: source.stripe_price_id, unitAmount: source.unit_amount,
+        currentPeriodStart: priorStart, currentPeriodEnd: proof.effective_at }],
+      latestInvoice: { ...targetInvoice, id: lastPaidInvoiceId, billingReason: 'subscription_create',
+        subtotal: source.unit_amount, total: source.unit_amount, amountDue: source.unit_amount, amountPaid: source.unit_amount,
+        lines: [{ ...targetInvoice.lines[0], priceId: source.stripe_price_id, amount: source.unit_amount,
+          periodStart: priorStart, periodEnd: proof.effective_at }],
+        payments: [{ ...targetInvoice.payments[0], amountReceived: source.unit_amount }],
+        modeEvidence: { ...targetInvoice.modeEvidence, paidPayment: { ...targetInvoice.modeEvidence.paidPayment,
+          amountCaptured: source.unit_amount } },
+      },
+    }
+    const effective = Date.parse(proof.effective_at)
+    const now = vi.spyOn(Date, 'now').mockReturnValue(effective - 1)
+    try {
+      const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue(current),
+        getScheduledRenewal: vi.fn().mockImplementation(async () => {
+          now.mockReturnValue(effective + 1)
+          return proof
+        }),
+        finishScheduledRenewal: vi.fn().mockResolvedValue({ status: 'applied', retry_scheduled: false }),
+      })
+      const provider = { ...providerWith(targetSnapshot), verifyScheduledRenewal: vi.fn().mockResolvedValue(true) }
+      vi.mocked(provider.retrieveSubscription).mockResolvedValueOnce(sourceSnapshot)
+      const request = { store, provider, scope: liveScope, ...liveInput }
+
+      await expect(synchronizeBillingSubscription(request)).resolves.toEqual({ kind: 'exception', reason: 'provider_unavailable', retryable: true })
+      expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ outcome: 'exception', invoice_id: null }))
+      expect(store.finishScheduledRenewal).not.toHaveBeenCalled()
+      await expect(synchronizeBillingSubscription(request)).resolves.toEqual({ kind: 'applied' })
+      expect(store.finishScheduledRenewal).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ outcome: 'paid', invoice_id: 'in_paid_1' }))
+    } finally {
+      now.mockRestore()
+    }
+  })
+
   it.each(['invoice', 'invoicePayment', 'paymentIntent', 'charge', 'capturedAmount', 'missingEvidence'] as const)(
     'does not apply a live payment or fall back to sandbox upgrade/renewal for invalid normalized %s evidence',
     async signal => {

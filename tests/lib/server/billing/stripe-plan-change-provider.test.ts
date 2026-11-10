@@ -230,3 +230,73 @@ describe('Stripe renewal-boundary plan change', () => {
     expect(port.attachSchedule).not.toHaveBeenCalled()
   })
 })
+
+describe('live plan change scope', () => {
+  const scope = { providerMode: 'live', stripeAccount: operation.stripeAccount } as const
+  function liveFixture() {
+    const f = fixture()
+    const sub = subscription(attachedId)
+    sub.livemode = true; sub.customer.livemode = true; sub.latest_invoice.livemode = true
+    sub.items.data[0].price.livemode = true
+    Object.assign(sub.latest_invoice, { id: 'in_Paid' })
+    f.configure.operation = { ...f.configure.operation, providerMode: 'live', lastPaidInvoiceId: 'in_Paid' }
+    const rawSchedule = schedule(false); rawSchedule.livemode = true
+    const rawConfigured = schedule(true); rawConfigured.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(sub)
+    f.port.retrieveSchedule.mockResolvedValueOnce(rawSchedule).mockResolvedValue(rawConfigured)
+    f.port.retrievePrice.mockImplementation(async id => ({ ...price(id === operation.target.priceId ? operation.target : operation.source), livemode: true }))
+    f.port.updateSchedule.mockResolvedValue(rawConfigured)
+    return { ...f, sub, rawSchedule, rawConfigured, provider: createStripePlanChangeProvider(f.port, f.now, scope) }
+  }
+  it('configures and verifies only matching live evidence under the stale fence', async () => {
+    const f = liveFixture()
+    await expect(f.provider.configure(f.configure)).resolves.toMatchObject({ kind: 'configured' })
+    expect(f.port.updateSchedule).toHaveBeenCalledOnce()
+    await expect(f.provider.verify(f.configure.operation)).resolves.toMatchObject({ kind: 'configured' })
+  })
+  it('rejects mismatched scope, raw account and nested mode before writes', async () => {
+    const f = liveFixture()
+    await expect(createStripePlanChangeProvider(f.port, f.now, { ...scope, stripeAccount: 'acct_Other' }).configure(f.configure)).rejects.toThrow()
+    expect(f.port.retrieveAccount).not.toHaveBeenCalled()
+    f.port.retrieveAccount.mockResolvedValueOnce({ id: 'acct_Other' })
+    await expect(f.provider.configure(f.configure)).rejects.toThrow()
+    f.sub.customer.livemode = false
+    await expect(f.provider.configure(f.configure)).rejects.toThrow()
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('rejects a different current paid invoice before a write', async () => {
+    const f = liveFixture()
+    Object.assign(f.sub.latest_invoice, { id: 'in_Other' })
+    await expect(f.provider.configure(f.configure)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.configure.beforeMutation).not.toHaveBeenCalled()
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('can verify after renewal when the current invoice is the new target invoice', async () => {
+    const f = liveFixture()
+    f.now.mockReturnValue(effective * 1000)
+    const after = subscription(attachedId, true)
+    after.livemode = true; after.customer.livemode = true; after.latest_invoice.livemode = true
+    after.items.data[0].price.livemode = true
+    Object.assign(after.latest_invoice, { id: 'in_NewRenewal' })
+    const afterSchedule = schedule(true, true); afterSchedule.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(after)
+    f.port.retrieveSchedule.mockReset().mockResolvedValue(afterSchedule)
+    await expect(f.provider.verify(f.configure.operation)).resolves.toMatchObject({ kind: 'configured' })
+  })
+  it('rejects live operations missing their exact invoice identity', async () => {
+    const f = liveFixture()
+    delete f.configure.operation.lastPaidInvoiceId
+    await expect(f.provider.configure(f.configure)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.retrieveAccount).not.toHaveBeenCalled()
+  })
+  it('rejects test-mode schedule and does not write when the fence is stale', async () => {
+    const f = liveFixture()
+    f.rawSchedule.livemode = false
+    await expect(f.provider.configure(f.configure)).rejects.toThrow()
+    f.port.retrieveSchedule.mockResolvedValue(f.rawSchedule)
+    f.rawSchedule.livemode = true
+    f.configure.beforeMutation.mockResolvedValue(false)
+    await expect(f.provider.configure(f.configure)).resolves.toEqual({ kind: 'stale' })
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+})

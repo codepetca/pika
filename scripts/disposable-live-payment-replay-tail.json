@@ -30,5 +30,13 @@
   {
     "name": "321_billing_live_checkout_admission.sql",
     "sha256": "bf1d89a464c9ff6ecf793bf68ffc9ffbeca1066f87b366ef17a442b1e384347e"
+  },
+  {
+    "name": "322_billing_live_scheduled_installation.sql",
+    "sha256": "6393841a2cabebeeffac3d6b2e90472cac68082f73efaef56682136f300594be"
+  },
+  {
+    "name": "323_billing_live_scheduled_settlement.sql",
+    "sha256": "f63e2ad4bd7b19edee6133eb54f976c90c0648d9fa351b402cf252fbc34312f9"
   }
 ]

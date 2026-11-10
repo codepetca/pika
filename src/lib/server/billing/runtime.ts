@@ -89,5 +89,9 @@ export async function reconcileLiveBillingSubscriptions(config: BillingLiveCheck
   const stripe = createBillingStripeClient(config.secretKey)
   const scope = { providerMode: config.providerMode, stripeAccount: config.stripeAccount }
   const provider = createStripeBillingProvider(createStripeBillingReadPort(stripe), scope)
+  provider.verifyScheduledRenewal = ({ state: _state, ...proof }, snapshot) => (
+    verifyInstalledStripeSchedule(id => stripe.subscriptionSchedules.retrieve(id), proof, snapshot, scope,
+      () => stripe.accounts.retrieve(null))
+  )
   return reconcileBillingSubscriptions({ store, provider, scope, limit, leaseSeconds: 120 })
 }

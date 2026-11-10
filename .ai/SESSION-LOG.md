@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Calendar sticky focus
-
-Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
-
-## 2026-11-08 — Restore navigation for calendars without complete dates
-
-Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
-
-## 2026-11-08 — Universal RepoLight tier benefit
-
-Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
-
 ## 2026-11-08 — Customer billing and renewal recovery
 
 Prepared the sandbox teacher billing page, portal invoices and payment methods,
@@ -208,6 +196,10 @@ UI brief. Reuse the teacher Billing cards and plan selector from the sandbox Bil
 
 The signed webhook and separate paid worker credential now gate live checkout admission. The exact pinned closeout lane closes unpaid renewal invoices after grace or records payment if it wins the race. Existing legacy future releases hold new admission and remain intact. The live portal allows invoice history, payment methods and term-end cancellation. Sealed 001–321 replay passed with generated types matching and the shared schema preserved. Browser verification used the existing Billing component with synthetic checkout and portal responses across both viewports and themes. A real synthetic student session redirected away from Billing.
 
+## 2026-11-08 Live scheduled Max-to-Pro settlement
+
+Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
+
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
@@ -297,3 +289,11 @@ Carried the reviewed paid reconciliation and access cutoff patch onto main after
 ## 2026-11-09 — Rebase reviewed live billing routing and closeout
 
 Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
+
+## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
+
+Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
+
+## 2026-11-09 — Sync scheduled renewal settlement with main
+
+The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.

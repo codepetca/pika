@@ -56,7 +56,7 @@ export const BillingScheduledRenewalSchema = z.object({
   provider_schedule_id: z.string().regex(/^sub_sched_[A-Za-z0-9]{1,240}$/),
   effective_at: isoDateTimeSchema,
   state: z.enum(['scheduled', 'applied']),
-  target_binding: BillingSubscriptionBindingSchema,
+  target_binding: z.discriminatedUnion('provider_mode', [BillingSubscriptionBindingSchema, liveSubscriptionBindingSchema]),
 }).strict()
 
 export type BillingScheduledRenewal = z.infer<typeof BillingScheduledRenewalSchema>
