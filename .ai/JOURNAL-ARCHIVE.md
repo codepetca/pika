@@ -53019,3 +53019,18 @@ fresh terminal schedule proof for detached delinquent subscriptions. The
 follow-up preserves ordinary cancellation after settlement and keeps terminal
 markers out of authorization once Stripe proves the exact canceled phase.
 The sealed disposable 001–307 replay passed.
+
+<!-- pika-session-log-archive-batch:e31f08819fe42a8756a50b33b35ba42c865ba60f9c1dea6563174ad6afbaf8bb -->
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.

@@ -11,20 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Scheduled renewal recovery review fixes
-
-Draft PR 1768 review found delayed first-payment recovery and due-closeout
-lease gaps. The batch permits exact verified late settlement, reserves due
-closeout work in the ordinary queue and claim, and derives the target cycle
-in SQL. It scopes admissions and installation listing to the worker account,
-keeps expiry and closeout running when optional recovery fails, and requires
-fresh terminal schedule proof for detached delinquent subscriptions. The
-follow-up preserves ordinary cancellation after settlement and keeps terminal
-markers out of authorization once Stripe proves the exact canceled phase.
-The sealed disposable 001–307 replay passed.
-fresh terminal schedule proof for detached delinquent subscriptions.
-The sealed disposable 001–307 replay and 186 focused tests passed.
-
 ## 2026-11-08 — Classroom Test cutoff checkpoint
 
 Prepared the default-off billing fence for new Test attempts and publication.
@@ -263,3 +249,7 @@ Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-t
 ## 2026-11-09 — Rebase scheduled cancellation and undo
 
 Carried the reviewed cancellation and undo changes onto main after the unpaid scheduled closeout merge. Preserved migration 325 and both continuity histories. The isolated reorder proof uses the shared migration 319 trigger witness at profile 325. The cancellation route now exposes its existing error wrapper directly on both exports while preserving no-store for successes and errors.
+
+## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
+
+Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.

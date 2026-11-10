@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { ApiError, withErrorHandler } from '@/lib/api-handler'
+import { ApiError } from '@/lib/api-handler'
 import { REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import { requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -70,7 +70,7 @@ export const scheduledPlanChangeHandlers = createScheduledPlanChangeHandlers({
   },
 })
 
-const getOffers = withErrorHandler('GetLiveScheduledChangeOffers', async () => {
+export async function getLiveScheduledChangeOffers() {
   const config = readBillingLiveScheduledChangeConfig()
   if (!config) throw new ApiError(404, 'Not found')
   await requireRole('teacher')
@@ -88,10 +88,4 @@ const getOffers = withErrorHandler('GetLiveScheduledChangeOffers', async () => {
     },
   })
   return NextResponse.json({ items: offers.filter(offer => offer.plan === 'pro') })
-})
-
-export const getLiveScheduledChangeOffers: typeof getOffers = async (...args) => {
-  const response = await getOffers(...args)
-  response.headers.set('Cache-Control', 'private, no-store')
-  return response
 }
