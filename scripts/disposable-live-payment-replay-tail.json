@@ -50,5 +50,9 @@
   {
     "name": "326_billing_live_stripe_exclusive_tax.sql",
     "sha256": "670824181727040c5429ca878628d624f673f4ae58b3134657e6a0259efc910e"
+  },
+  {
+    "name": "327_billing_live_email_notices.sql",
+    "sha256": "5f38550e17eb924987122e4bb6ff38a80859627ad85e7ec20bbb47b1b6289651"
   }
 ]

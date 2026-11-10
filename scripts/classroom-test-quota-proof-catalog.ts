@@ -75,5 +75,6 @@ export function disposableClassroomTestQuotaProofCatalog(
     ...(migrations.length >= 313 ? ['private.billing_live_trial_sources'] : []),
     ...(migrations.length >= 314 ? ['private.billing_live_payment_target'] : []),
     ...(migrations.length >= 325 ? ['private.billing_live_scheduled_cancellations'] : []),
+    ...(migrations.length >= 327 ? ['private.billing_live_email_notices'] : []),
   ])].sort())
 }

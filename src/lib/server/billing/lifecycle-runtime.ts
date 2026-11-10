@@ -8,6 +8,7 @@ import { createBillingLifecycleStore, createLiveTrialLifecycleStore } from './li
 import { applyDueBillingAccess, getBillingAccessStatus, startBillingTrial, type BillingLifecycleStore } from './lifecycle-service'
 import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 import { processDueBillingAssignmentReleases } from './assignment-releases'
+import { processLiveBillingEmailNotices } from './email-notices'
 import { runOptionalRecoveryLane } from './recovery-lane'
 
 function lifecycleRuntime(store: BillingLifecycleStore, client: ReturnType<typeof getServiceRoleClient>): BillingLifecycleRuntime {
@@ -43,5 +44,6 @@ export async function processLiveTrialLifecycle(config: BillingLiveTrialConfig) 
   const lifecycle = await applyDueBillingAccess({ store, limit: 25 })
   const assignmentReleases = await runOptionalRecoveryLane(() => processDueBillingAssignmentReleases(client))
   await attemptRepoLightProvisionOutbox({ client })
-  return { lifecycle, assignmentReleases }
+  const emailNotices = await processLiveBillingEmailNotices(client, config)
+  return { lifecycle, assignmentReleases, ...(emailNotices && { emailNotices }) }
 }

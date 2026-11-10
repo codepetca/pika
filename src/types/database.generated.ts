@@ -10221,6 +10221,10 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_claim_live_email_notice_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: Json
+      }
       billing_claim_live_renewal_closeout_v1: {
         Args: {
           p_project_ref: string
@@ -10267,6 +10271,14 @@ export type Database = {
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_email_notice_v1: {
         Args: {
           p_project_ref: string
           p_request: Json

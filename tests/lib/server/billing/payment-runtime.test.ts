@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
   rpc: vi.fn(), response: vi.fn(), checkout: vi.fn(), reconcile: vi.fn(), closeout: vi.fn(), assignments: vi.fn(), provision: vi.fn(), diagnostics: vi.fn(),
-  install: vi.fn(), cancel: vi.fn(),
+  install: vi.fn(), cancel: vi.fn(), email: vi.fn(),
 }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ rpc: mock.rpc }) }))
 vi.mock('@/lib/server/billing/purchase-runtime', () => ({ createBillingPurchaseRuntime: () => ({ reconcileCheckouts: mock.checkout }) }))
@@ -11,6 +11,7 @@ vi.mock('@/lib/server/billing/closeout-runtime', () => ({ closeDueLiveRenewals: 
 vi.mock('@/lib/server/billing/assignment-releases', () => ({ processDueBillingAssignmentReleases: mock.assignments }))
 vi.mock('@/lib/server/billing/scheduled-plan-change-runtime', () => ({ createLiveScheduledPlanChangeRuntime: () => ({ processDue: mock.install }) }))
 vi.mock('@/lib/server/billing/scheduled-cancellation-runtime', () => ({ processLiveScheduledCancellations: mock.cancel }))
+vi.mock('@/lib/server/billing/email-notices', () => ({ processLiveBillingEmailNotices: mock.email }))
 vi.mock('@/lib/server/repolight-provision-runtime', () => ({ attemptRepoLightProvisionOutbox: mock.provision }))
 vi.mock('@/lib/server/diagnostics', () => ({ logServerError: mock.diagnostics }))
 
@@ -46,6 +47,7 @@ describe('live paid billing recovery', () => {
     expect(mock.checkout).not.toHaveBeenCalled()
     expect(mock.reconcile).not.toHaveBeenCalled()
     expect(mock.provision).not.toHaveBeenCalled()
+    expect(mock.email).not.toHaveBeenCalled()
   })
 
   it('checks purchase recovery and invoice evidence before applying due access and RepoLight effects', async () => {
@@ -86,5 +88,13 @@ describe('live paid billing recovery', () => {
       closeouts: { failed: 1, diagnosticId: 'payment-diagnostic' }, expiry: { processed: 1 },
     })
     expect(mock.provision).toHaveBeenCalledOnce()
+  })
+
+  it('drains email notices after applying paid access and returns the lane receipt', async () => {
+    const emailNotices = { processed: 1, sent: 0, attention: 1 }
+    mock.email.mockResolvedValueOnce(emailNotices)
+    await expect(processLiveBillingPaymentLifecycle(config)).resolves.toMatchObject({ emailNotices })
+    expect(mock.email).toHaveBeenCalledExactlyOnceWith({ rpc: mock.rpc }, config)
+    expect(mock.provision).toHaveBeenCalledBefore(mock.email)
   })
 })

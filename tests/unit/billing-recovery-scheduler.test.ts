@@ -140,6 +140,19 @@ describe('Pika billing recovery scheduler', () => {
     expect(console.info).toHaveBeenCalledWith(expect.objectContaining({ lane: 'trial', outcome: 'ok' }))
   })
 
+  it('reports email attention on either worker without including recipient data', async () => {
+    fetchStub.mockImplementation(async url => Response.json(url === paidPath ? paidReceipt : {
+      ...trialReceipt, emailNotices: { processed: 2, sent: 1, attention: 1, recipient: 'teacher@example.invalid' },
+    }))
+    await expect(worker.scheduled(tick, enabled)).rejects.toThrow('needs attention')
+    expect(console.error).toHaveBeenCalledWith(expect.objectContaining({
+      lane: 'trial', outcome: 'needs_attention', issues: { emailNotices: { attention: 1 } },
+      counts: expect.objectContaining({ emailNotices: { processed: 2, sent: 1 } }),
+    }))
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain('teacher@example.invalid')
+    expect(console.info).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome: 'ok' }))
+  })
+
   it.each([
     ['redirect', () => new Response(null, { status: 307, headers: { Location: 'https://foreign.example/redirect' } }), 'http_error'],
     ['non-success', () => new Response(paidSecret, { status: 503 }), 'http_error'],

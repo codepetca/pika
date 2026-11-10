@@ -5,6 +5,7 @@ import { createTargetBoundFetch } from '@/lib/server/supabase-target'
 import { attemptRepoLightProvisionOutbox } from '../repolight-provision-runtime'
 import type { BillingLiveCheckoutConfig } from './live-target'
 import { createBillingPurchaseRuntime } from './purchase-runtime'
+import { processLiveBillingEmailNotices } from './email-notices'
 import { runOptionalRecoveryLane } from './recovery-lane'
 import { reconcileLiveBillingSubscriptions } from './runtime'
 import { closeDueLiveRenewals } from './closeout-runtime'
@@ -41,6 +42,7 @@ export async function processLiveBillingPaymentLifecycle(config: BillingLiveChec
   const closeouts = await runOptionalRecoveryLane(() => closeDueLiveRenewals(config))
   const assignmentReleases = await runOptionalRecoveryLane(() => processDueBillingAssignmentReleases(client))
   await attemptRepoLightProvisionOutbox({ client })
+  const emailNotices = await processLiveBillingEmailNotices(client, config)
   return { purchases, reconciliation, closeouts, expiry, assignmentReleases,
-    ...(scheduledInstallations && { scheduledInstallations }), ...(scheduledCancellations && { scheduledCancellations }) }
+    ...(emailNotices && { emailNotices }), ...(scheduledInstallations && { scheduledInstallations }), ...(scheduledCancellations && { scheduledCancellations }) }
 }

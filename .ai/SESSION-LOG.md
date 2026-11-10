@@ -11,19 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Scoped live Stripe evidence
-
-Added explicit account and mode checks for Checkout and verified invoice
-reconciliation. Live session creation verifies the active product, price and
-remaining write window. Paused writes preserve recovery for known sessions.
-Signed live snapshots require a dedicated account endpoint and live evidence.
-The sandbox store rejects live receipts. Synthetic provider and service tests
-passed. The live SQL store, runtime and operator rollout still need work.
-
-## 2026-11-08 Live Stripe receipt intake
-
-Added a dedicated default-off live snapshot webhook with the official Stripe signature verifier and a target-bound database writer. Migration 314 separates payment recovery, admission and provider-write flags. First activation records a durable target identity and keeps the classroom cutoff in force. The inbox deduplicates by account, mode and event ID and rejects conflicting bytes. The sealed 001–314 replay passed both trial/payment activation orders and receipt persistence, with matching generated types and preserved shared schema. Live checkout persistence, subscription binding and paid entitlement writes are still pending.
-
 ## 2026-11-08 Live checkout catalog and persistence
 
 Migrations 315 and 316 add the exact Pro and Max catalog, scoped checkout attempts and leases, and live subscription binding. They preserve an existing checkout across catalog retirement and a pause in Stripe writes. New Stripe creates require renewed database authorization under the lease. The owned 001–316 replay passed all eight catalog terms, stale claims, receipt adoption, trial expiry and independent grants, with generated types matching and the shared schema preserved. Targeted service, store and provider checks passed. Paid entitlement reconciliation is required before enabling the live checkout entry points.
@@ -83,6 +70,10 @@ Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid 
 UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
 
 The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
+
+## 2026-11-08 Billing email notices
+
+Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -209,3 +200,7 @@ Preserved the reviewed exclusive-tax and readiness changes and migration 326. Th
 ## 2026-11-10 — Rebase the teacher billing access reminders
 
 Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
+
+## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
+
+Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.
