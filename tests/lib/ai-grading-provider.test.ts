@@ -20,8 +20,21 @@ const response = { outputText: '{}', tokenUsage: { inputTokens: 1, outputTokens:
 describe('grading provider routing', () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
-  it('uses DeepSeek by default and records its actual model', async () => {
-    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
+  it('uses Terra by default and records its actual model', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', undefined)
+    vi.stubEnv('OPENAI_GRADING_MODEL', undefined)
+    vi.stubEnv('OPENAI_API_KEY', 'test')
+    openai.mockResolvedValue(response)
+    expect(getGradingModel()).toBe('gpt-6.1-terra')
+    expect(await createGradingProvider().generate(request)).toMatchObject({
+      providerUsed: 'openai', modelUsed: 'gpt-6.1-terra',
+    })
+    expect(openai).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-6.1-terra' }))
+    expect(deepseek).not.toHaveBeenCalled()
+  })
+
+  it('uses DeepSeek when explicitly selected and records its actual model', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'deepseek')
     vi.stubEnv('DEEPSEEK_API_KEY', 'test')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'deepseek-model')
     deepseek.mockResolvedValue(response)
@@ -40,8 +53,9 @@ describe('grading provider routing', () => {
     expect(deepseek).not.toHaveBeenCalled()
   })
 
-  it('switches to DeepSeek on a verified spend-limit error', async () => {
-    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+  it('switches from default Terra to DeepSeek on a verified spend-limit error', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
+    vi.stubEnv('OPENAI_GRADING_MODEL', '')
     vi.stubEnv('OPENAI_API_KEY', 'test')
     vi.stubEnv('DEEPSEEK_API_KEY', 'test')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'deepseek-model')
@@ -49,6 +63,7 @@ describe('grading provider routing', () => {
     deepseek.mockResolvedValue(response)
     expect(await createGradingProvider().generate(request)).toMatchObject({ providerUsed: 'deepseek', modelUsed: 'deepseek-model',
       requestCount: 2, tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null } })
+    expect(openai).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-6.1-terra' }))
     expect(deepseek).toHaveBeenCalledWith(expect.objectContaining({ model: 'deepseek-model' }))
   })
 

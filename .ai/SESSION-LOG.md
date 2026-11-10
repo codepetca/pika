@@ -11,33 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 Live scheduled Max-to-Pro settlement
-
-Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
-
-## 2026-11-08 Live scheduled renewal closeout
-## 2026-11-06 — Survey authoring CI timeout
-
-Migration 324 gives exact scheduled renewal grace the same live closeout lease as ordinary renewal while keeping old worker calls compatible. The owned 001–324 replay verified both outcomes, rejection of mismatched schedule or stale lease, rollback after a lease expired during a provisional terminal transition, retained classroom restriction, and ordinary fallback. The same sandbox account separately proved that a source-only Stripe schedule can preserve Max through cancellation or restore the target phase on undo. Customer cancellation and installation invocation still require their rollout gate.
-
-## 2026-11-08 Stripe scheduled cancellation provider
-
-The isolated Stripe sandbox confirmed cancel and undo on the installed downgrade. A source-only Max phase preserved the paid cutoff and the original invoice. Undo restored the Pro phase. A second cancellation produced a completed schedule and canceled subscription at the exact cutoff with no Pro invoice. The scoped provider adapter verifies that completed shape and the original paid invoice, fences each write and recovers exact outcomes after lost responses. The customer cancellation operation, worker and route remain to be wired.
-
-## 2026-11-08 Teacher scheduled billing controls
-
-UI brief. Extend the existing teacher Plans and billing surface. Use the paid Billing Pattern Lab fixture and the existing Billing upgrade quote and classroom confirmation dialog as references. Verify paid Max before selection, quote open, installation pending, scheduled, cancellation confirmation, cancellation pending, canceled with undo, and attention on desktop and mobile in light and dark. Student has no billing controls and must still redirect. The primary signal is the exact renewal or access end date and a single next action. Preserve the existing shell, spacing and portal. No new composite widget.
-
-| Need | Existing candidate | Decision | Reason |
-| --- | --- | --- | --- |
-| Scheduled status and controls | BillingPage card layout | extend | Keep the workflow on the existing teacher billing surface |
-| Quote and cancel confirmation | ConfirmDialog, Button and Card | reuse | Use existing focus, labels and responsive behavior |
-| Deterministic verification | Anonymous Billing Pattern Lab fixture | extend | The production control can use synthetic responses without touching billing data |
-
-## 2026-11-08 Scheduled change cancellation and recovery
-
-Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.
-
 ## 2026-11-08 Billing recovery cadence and CI contracts
 
 Added a private Cloudflare Cron Trigger caller for the existing paid and trial recovery endpoints. The two-minute canary interval and both independent caller switches are explicit in the Worker config. The Worker pins the app origin, rejects redirects, bounds receipt reads, and records sanitized failed invocations even when Pika returns a partial failure in HTTP 200. Wrangler packaged the source and exercised its local schedule with both switches off. An enabled workerd run with all outbound calls bound to a local fixture verified success, swapped-token rejection and a refused redirect. Separate synthetic calls reached both actual Pika POST handlers and proved bearer isolation. The CI database job now executes the scheduled billing rollback fixtures 322–325 in order. The operator runbook records activation, cadence evidence, alert verification and durable queue checks.
@@ -178,6 +151,10 @@ The hosted member-list proof rejected the canonical schema because migration 325
 
 Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
 
+## 2026-11-09 — Preserve legacy scheduling for retired Blueprint drafts
+
+Kept new schedules for Blueprint-retired legacy drafts on the existing publication writer. The database publication and release-intent guards still enforce billing cutoff and intent generation, and explicit rescheduling retains the RPC path. The patch adds route coverage for the legacy write and the two guard errors without changing the migration set.
+
 ## 2026-11-10 — Rebase the dormant billing recovery caller
 
 Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
@@ -197,6 +174,19 @@ Preserved the reviewed email delivery patch and migration 327 after the in-app n
 ## 2026-11-10 — Rebase exact Stripe Decimal handling after email notices
 
 Carried the independently reviewed amount and invoice quantity normalization onto main after the email notice merge. Preserved both continuity histories and the exact billing patch. The final PR adds no migration.
-## 2026-11-09 — Preserve legacy scheduling for retired Blueprint drafts
 
-Kept new schedules for Blueprint-retired legacy drafts on the existing publication writer. The database publication and release-intent guards still enforce billing cutoff and intent generation, and explicit rescheduling retains the RPC path. The patch adds route coverage for the legacy write and the two guard errors without changing the migration set.
+## 2026-11-10 Production billing schema through 327
+
+Production Supabase applied migrations 322–327 from main `e40f58d6e` in [run 42805516214](https://github.com/codepetca/pika/actions/runs/42805516214). Read-only checks confirmed complete history, three replacement schedule checks and the retained paid-invoice check, row-level security on both new private tables, 14 service-role-only RPCs, both notice triggers, empty new queues, and all 12 billing controls off. The isolated Stripe sandbox verified taxed checkout, paid and failed renewal, recovery, scheduled cancellation and undo, and a full tax-inclusive refund. [Promotion PR 1791](https://github.com/codepetca/pika/pull/1791) records the review and rollout receipts.
+
+## 2026-11-10 Confirmed full-refund access transition
+
+The operator policy retains seven days for first-purchase refund requests and leaves disputes to manual review. The Stripe proof checks the exact canceled subscription, settled invoice, captured gross and successful refund records. Migration 328 adds an idempotent operator transition for the currently bound term, using the existing Free and classroom restriction writers while retaining the original receipt and student work. The owned replay verified the cutoff, a stale paid claim, replay, retained submissions and started Tests, and scheduled cancellation retirement. Hosted preflight found the production Stripe target unpinned and billing controls off. The dormant Cloudflare package passed dry run.
+
+## 2026-11-10 Terra grading default
+
+Set OpenAI GPT-6.1 Terra as the shared grading default for assignments, open responses, and repository reviews. DeepSeek Flash remains the fallback for verified OpenAI hard spend-limit errors. The test reference cache uses the same fallback selection as the router. Existing explicit provider/model settings still take precedence, and archived test calibration retains its prior DeepSeek default. The production AI outbound gate remains independently controlled.
+
+## 2026-11-10 Closed Stripe setup and refund PR sync
+
+Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.

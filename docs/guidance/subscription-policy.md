@@ -293,8 +293,10 @@ purchase-order billing. Sponsored/manual grant precedence remains deferred.
   Thereafter cancellation normally stops renewal without refunding unused time,
   subject to applicable requirements. Correct duplicate/incorrect charges;
   handle exceptional refund requests through support with an audit trail.
-- Refund requests, provider refund state and entitlement effects need an explicit
-  implementation contract before activation; do not invent reversal/grant rules.
+- Owner decision 2026-11-10: end the refunded paid term once Stripe confirms
+  the full refund. Apply Free access and preserve student work under SUB-12.
+  Keep the original payment receipt and the audit of the refund. Handle
+  disputes manually.
 
 ### SUB-12 — Teaching access after expiry or classroom downgrade
 
@@ -462,9 +464,10 @@ provider settings, charges or production changes follow from this policy alone.
 - Define deterministic classroom activity ranking and tie-breaking, and implement
   subscription archives that preserve SUB-12 without enabling unrelated archived
   mutations or automatic retention purges.
-- Confirm tax registrations/configuration, refund entitlement effects and
-  disputes/chargeback handling. Currency changes within a subscription and
-  promotional/sponsored/manual grant precedence remain outside launch scope.
+- Confirm tax registrations and configuration. Verify the operator refund and
+  dispute procedures before opening billing. Currency changes within a
+  subscription and promotional, sponsored or manual grant precedence remain
+  outside launch scope.
 - Complete customer checkout UI, authoritative upgrade quotes, scheduled changes, portal,
   grace/expiry, notices and reconciliation with exact-cutoff/concurrency tests.
   Set quote validity and scheduler cadence explicitly; hosting constraints apply.

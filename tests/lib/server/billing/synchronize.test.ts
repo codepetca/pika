@@ -170,6 +170,30 @@ describe('synchronizeBillingSubscription', () => {
     }))
   })
 
+  it('settles a new subscription when the previous term ended in a full refund', async () => {
+    const refundedClaim = {
+      ...liveClaim,
+      lifecycle: {
+        ...liveClaim.lifecycle,
+        access_ends_at: '2026-08-28T12:00:00.000Z',
+        end_reason: 'refund',
+        assignment_revision: claim.expected_account_plan_revision,
+      },
+    }
+    const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue(refundedClaim) })
+    const snapshot = livePaidSnapshot()
+    const provider = providerWith({
+      ...snapshot,
+      latestInvoice: { ...snapshot.latestInvoice, billingReason: 'subscription_create' },
+    })
+
+    await expect(synchronizeBillingSubscription({ store, provider, scope: liveScope, ...liveInput }))
+      .resolves.toEqual({ kind: 'applied' })
+    expect(store.finishSubscription).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      outcome: 'paid', invoice_id: 'in_paid_1', expected_account_plan_revision: claim.expected_account_plan_revision,
+    }))
+  })
+
   it('rejects a live claim missing current lifecycle facts', async () => {
     const store = storeWith({ claimSubscription: vi.fn().mockResolvedValue({ ...liveClaim, lifecycle: undefined }) })
     const provider = providerWith(livePaidSnapshot())

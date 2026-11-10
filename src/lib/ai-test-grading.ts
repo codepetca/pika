@@ -42,7 +42,7 @@ import {
   PIKA_TEST_SINGLE_GRADE_OUTPUT,
   resolvePikaTestPromptGuideline,
 } from '@/lib/grading/profiles/pika-test-open-response'
-import { createGradingProvider, getGradingModel } from '@/lib/ai-grading-provider'
+import { createGradingProvider, getGradingFallbackModel, getGradingModel } from '@/lib/ai-grading-provider'
 import { AIOutboundDisabledError } from '@/lib/ai-outbound-gate'
 import {
   GradingProviderError,
@@ -424,8 +424,7 @@ export function buildTestOpenResponseReferenceCacheKey(input: {
 // An OpenAI spend-limit fallback may generate references with DeepSeek. Reuse those
 // under their actual identity on later ticks, so a long reference call cannot starve a run.
 export function getTestOpenResponseReferenceFallbackModel(): string | null {
-  const mode = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'deepseek'
-  return mode === 'openai' ? process.env.DEEPSEEK_GRADING_MODEL?.trim() || 'deepseek-flash' : null
+  return getGradingFallbackModel()
 }
 
 export function resolveReusableTestOpenResponseReferenceAnswers(input: {

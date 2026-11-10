@@ -10183,6 +10183,14 @@ export type Database = {
         }
         Returns: Json
       }
+      billing_apply_live_full_refund_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_attest_live_target_v1: {
         Args: { p_project_ref: string; p_stripe_account: string }
         Returns: boolean

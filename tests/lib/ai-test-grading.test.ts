@@ -7,6 +7,7 @@ import {
   buildTestOpenResponseReferenceCacheKey,
   normalizeTestOpenResponseReferenceAnswers,
   getTestOpenResponseGradingModel,
+  getTestOpenResponseReferenceFallbackModel,
 } from '@/lib/ai-test-grading'
 
 describe('buildTestOpenResponseReferenceCacheKey (existing, smoke test)', () => {
@@ -66,10 +67,12 @@ describe('normalizeTestOpenResponseReferenceAnswers', () => {
 describe('getTestOpenResponseGradingModel', () => {
   afterEach(() => vi.unstubAllEnvs())
 
-  it('defaults to DeepSeek and its default model', () => {
+  it('defaults to Terra and recognizes DeepSeek fallback references', () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
+    vi.stubEnv('OPENAI_GRADING_MODEL', '')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', '')
-    expect(getTestOpenResponseGradingModel()).toBe('deepseek-flash')
+    expect(getTestOpenResponseGradingModel()).toBe('gpt-6.1-terra')
+    expect(getTestOpenResponseReferenceFallbackModel()).toBe('deepseek-flash')
   })
 
   it('trims the configured OpenAI model', () => {

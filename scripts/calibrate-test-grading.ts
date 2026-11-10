@@ -497,6 +497,9 @@ function summarize(rows: GradedRow[], efforts: EffortLevel[], profiles: TestOpen
 }
 
 async function main(): Promise<void> {
+  // Preserve the provider for existing archived-work calibration runs.
+  const provider = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'deepseek'
+  process.env.PIKA_AI_GRADING_PROVIDER = provider
   const argv = process.argv.slice(2)
   const flag = (name: string): string | null => {
     const index = argv.indexOf(name)
@@ -610,6 +613,7 @@ async function main(): Promise<void> {
     `Loaded ${candidates.length} teacher-scored responses from ${paths.length} snapshot${paths.length > 1 ? 's' : ''}; sampling ${sample.length} (seed ${seed}).`,
   )
   if (comparison) {
+    if (provider !== 'deepseek') throw new Error('Batch comparison requires PIKA_AI_GRADING_PROVIDER=deepseek for request accounting')
     if (argv.includes('--profiles')) throw new Error('Comparison uses one --profile; omit --profiles')
     if (effortArg != null && (efforts.length !== 1 || !['low', 'medium'].includes(efforts[0]))) {
       throw new Error('Comparison --effort must be one level: low or medium (production default)')
@@ -697,8 +701,9 @@ async function main(): Promise<void> {
     return
   }
 
-  if (!process.env.DEEPSEEK_API_KEY?.trim()) {
-    console.error('DEEPSEEK_API_KEY is not configured.')
+  const providerKey = provider === 'openai' ? 'OPENAI_API_KEY' : 'DEEPSEEK_API_KEY'
+  if (!process.env[providerKey]?.trim()) {
+    console.error(`${providerKey} is not configured.`)
     process.exitCode = 1
     return
   }

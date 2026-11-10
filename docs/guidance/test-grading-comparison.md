@@ -3,7 +3,10 @@
 The offline calibrator can compare independent calls with production-shaped batches
 of two and four. It calls the existing grading adapters and never writes Pika grades.
 Use privately exported, deidentified snapshots and separately adjudicated targets.
-Recorded teacher marks remain a second opinion, not ground truth.
+Recorded teacher marks remain a second opinion, not ground truth. The archived
+calibration command defaults to DeepSeek. Batch comparison requires DeepSeek
+because its request observer measures DeepSeek usage. Standard calibration can
+use OpenAI when explicitly selected for the run.
 
 ```bash
 pnpm calibrate:test-grading /private/example.grading-snapshot.json \

@@ -54394,6 +54394,31 @@ UI brief. Reuse the teacher Billing cards and plan selector from the sandbox Bil
 
 The signed webhook and separate paid worker credential now gate live checkout admission. The exact pinned closeout lane closes unpaid renewal invoices after grace or records payment if it wins the race. Existing legacy future releases hold new admission and remain intact. The live portal allows invoice history, payment methods and term-end cancellation. Sealed 001–321 replay passed with generated types matching and the shared schema preserved. Browser verification used the existing Billing component with synthetic checkout and portal responses across both viewports and themes. A real synthetic student session redirected away from Billing.
 
+<!-- pika-session-log-archive-batch:f045b8fff717bebfeabcb9af3ee4d83263414da51d5218d2bff964973e7d847c -->
+## 2026-11-08 Live scheduled Max-to-Pro settlement
+
+Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
+
+<!-- pika-session-log-archive-batch:52eece9776634b1d0c602e84df29d4e54d601f82fff8e40a574af947a45f42be -->
+## 2026-11-08 Live scheduled renewal closeout
+
+Migration 324 gives exact scheduled renewal grace the same live closeout lease as ordinary renewal while keeping old worker calls compatible. The owned 001–324 replay verified both outcomes, rejection of mismatched schedule or stale lease, rollback after a lease expired during a provisional terminal transition, retained classroom restriction, and ordinary fallback. The same sandbox account separately proved that a source-only Stripe schedule can preserve Max through cancellation or restore the target phase on undo. Customer cancellation and installation invocation still require their rollout gate.
+
+<!-- pika-session-log-archive-batch:d7cd4532b8a852ada1e7f96c53aeaaa6fdc6ecc1c9e292cdd4e8875efcd09133 -->
+## 2026-11-08 Stripe scheduled cancellation provider
+
+The isolated Stripe sandbox confirmed cancel and undo on the installed downgrade. A source-only Max phase preserved the paid cutoff and the original invoice. Undo restored the Pro phase. A second cancellation produced a completed schedule and canceled subscription at the exact cutoff with no Pro invoice. The scoped provider adapter verifies that completed shape and the original paid invoice, fences each write and recovers exact outcomes after lost responses. The customer cancellation operation, worker and route remain to be wired.
+
+## 2026-11-08 Teacher scheduled billing controls
+
+UI brief. Extend the existing teacher Plans and billing surface. Use the paid Billing Pattern Lab fixture and the existing Billing upgrade quote and classroom confirmation dialog as references. Verify paid Max before selection, quote open, installation pending, scheduled, cancellation confirmation, cancellation pending, canceled with undo, and attention on desktop and mobile in light and dark. Student has no billing controls and must still redirect. The primary signal is the exact renewal or access end date and a single next action. Preserve the existing shell, spacing and portal. No new composite widget.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Scheduled status and controls | BillingPage card layout | extend | Keep the workflow on the existing teacher billing surface |
+| Quote and cancel confirmation | ConfirmDialog, Button and Card | reuse | Use existing focus, labels and responsive behavior |
+| Deterministic verification | Anonymous Billing Pattern Lab fixture | extend | The production control can use synthetic responses without touching billing data |
+
 ## 2026-10-22 — Roster join dates
 
 Teacher roster Joined cells now pair the existing Lucide check with a compact
@@ -55125,3 +55150,12 @@ Applied local migrations 293–295. Migration 296 initially failed on a reserved
 - Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
 
 <!-- pika-session-log-archive-batch:d021f80f14c3ae639257360e508f008bfe30838572d20e61bf0b99f595586e0b -->
+
+<!-- pika-session-log-archive-batch:d4e25898c22afb095647340413e7e9154e7d77b462576058d037bd591d5f87f3 -->
+## 2026-11-06 — Survey authoring CI timeout
+
+Migration 324 gives exact scheduled renewal grace the same live closeout lease as ordinary renewal while keeping old worker calls compatible. The owned 001–324 replay verified both outcomes, rejection of mismatched schedule or stale lease, rollback after a lease expired during a provisional terminal transition, retained classroom restriction, and ordinary fallback. The same sandbox account separately proved that a source-only Stripe schedule can preserve Max through cancellation or restore the target phase on undo. Customer cancellation and installation invocation still require their rollout gate.
+
+## 2026-11-08 Scheduled change cancellation and recovery
+
+Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.
