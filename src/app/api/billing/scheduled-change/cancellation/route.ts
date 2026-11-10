@@ -13,13 +13,20 @@ function configuration() {
   if (!config) throw new ApiError(404, 'Not found')
   return config
 }
-const get = withErrorHandler('GetBillingScheduledCancellation', async () => {
+function withPrivateNoStore(handler: ReturnType<typeof withErrorHandler>): ReturnType<typeof withErrorHandler> {
+  return async (request, context) => {
+    const response = await handler(request, context)
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
+  }
+}
+export const GET = withPrivateNoStore(withErrorHandler('GetBillingScheduledCancellation', async () => {
   const config = configuration()
   const user = await requireRole('teacher')
   const raw = await createLiveScheduledCancellationRpc(config)('billing_get_live_scheduled_cancellation_v1', { subject_user_id: user.id })
   return NextResponse.json(ScheduledCancellationStatusSchema.nullable().parse(raw))
-})
-const post = withErrorHandler('PostBillingScheduledCancellation', async request => {
+}))
+export const POST = withPrivateNoStore(withErrorHandler('PostBillingScheduledCancellation', async request => {
   const config = configuration()
   const user = await requireRole('teacher')
   if (request.headers.get('origin') !== config.appOrigin) throw new ApiError(403, 'Invalid request origin')
@@ -31,6 +38,4 @@ const post = withErrorHandler('PostBillingScheduledCancellation', async request 
   const result = ScheduledCancellationStatusSchema.parse(raw)
   if (result.scheduleOperationId !== input.scheduleOperationId || result.cancellationOperationId !== input.operationId) throw new Error('Invalid cancellation result')
   return NextResponse.json(result)
-})
-export const GET: typeof get = async (...args) => { const response = await get(...args); response.headers.set('Cache-Control', 'private, no-store'); return response }
-export const POST: typeof post = async (...args) => { const response = await post(...args); response.headers.set('Cache-Control', 'private, no-store'); return response }
+}))
