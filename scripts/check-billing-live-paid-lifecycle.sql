@@ -48,6 +48,9 @@ begin
   update private.stripe_billing_settings set live_payment_lifecycle_enabled=true,
     live_checkout_admission_enabled=true,live_checkout_writes_enabled=true where singleton;
   update private.stripe_billing_settings set live_trial_lifecycle_enabled=true,live_trial_admission_enabled=true where singleton;
+  if to_regprocedure('public.billing_live_checkout_activation_ready_v1(text,text)') is not null then
+    execute 'update private.stripe_billing_settings set live_closeout_enabled=true where singleton';
+  end if;
   perform public.billing_start_live_trial_v1(project,account,jsonb_build_object('subject_user_id',trial_owner,'operation_id',gen_random_uuid()));
   result:=public.billing_register_live_checkout_offering_v1(project,account,jsonb_build_object(
     'plan_key','plus','version',1,'stripe_account',account,'provider_mode','live',
@@ -80,6 +83,9 @@ begin
   end loop;
   select id into binding_id from public.stripe_billing_subscription_bindings where subject_user_id=owner_id;
   select id into trial_binding from public.stripe_billing_subscription_bindings where subject_user_id=trial_owner;
+  if to_regprocedure('public.billing_live_checkout_activation_ready_v1(text,text)') is not null then
+    execute 'update private.stripe_billing_settings set live_closeout_enabled=false where singleton';
+  end if;
   -- Closing checkout gates does not disable reconciliation of an existing payer.
   update private.stripe_billing_settings set live_checkout_admission_enabled=false,live_checkout_writes_enabled=false where singleton;
   old_end:=clock_timestamp()+interval '29 days'; period_start:=old_end-interval '30 days';

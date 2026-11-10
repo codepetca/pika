@@ -26,8 +26,13 @@ function purchaseStore(request: (name: PurchaseRpcName, payload: Json) => Promis
         if (name === 'billing_reserve_checkout_v1' && error.message === 'checkout_account_plan_ineligible') {
           throw new CheckoutEligibilityError()
         }
-        if (live && name === 'billing_reserve_checkout_v1' && error.message === 'billing_live_checkout_admission_unavailable') {
-          throw new CheckoutEligibilityError('New checkout is currently unavailable')
+        if (live && name === 'billing_reserve_checkout_v1') {
+          if (error.message === 'billing_live_checkout_admission_unavailable' || error.message === 'billing_live_checkout_activation_unavailable') {
+            throw new CheckoutEligibilityError('New checkout is currently unavailable')
+          }
+          if (error.message === 'billing_live_checkout_future_releases') {
+            throw new CheckoutEligibilityError('Resolve existing assignment schedules before starting checkout.')
+          }
         }
         if (live && error.message === 'billing_live_payment_lifecycle_unavailable') {
           throw new ApiError(503, 'Live billing is unavailable')

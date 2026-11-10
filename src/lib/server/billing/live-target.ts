@@ -67,7 +67,10 @@ export type BillingLiveCheckoutConfig = BillingLiveTargetConfig & Readonly<{
   secretKey: string
   checkoutAdmissionEnabled: boolean
   providerWritesEnabled: boolean
+  portalConfigurationId?: string
 }>
+
+export type BillingLivePaymentWorkerConfig = BillingLiveCheckoutConfig & Readonly<{ workerSecret: string }>
 
 /** Keep recovery available while either admission or new provider writes is paused. */
 export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveCheckoutConfig | null {
@@ -82,8 +85,31 @@ export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.e
   if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
     throw new Error('Invalid live checkout configuration')
   }
-  return { ...target, providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
+  const portalId = env.BILLING_LIVE_PORTAL_CONFIGURATION_ID
+  const portalConfigurationId = portalId && /^bpc_[A-Za-z0-9]+$/.test(portalId) ? portalId : undefined
+  return { ...target, ...(portalConfigurationId ? { portalConfigurationId } : {}), providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
     checkoutAdmissionEnabled, providerWritesEnabled }
+}
+
+export function readBillingLivePaymentWorkerConfig(env: NodeJS.ProcessEnv = process.env): BillingLivePaymentWorkerConfig | null {
+  const checkout = readBillingLiveCheckoutConfig(env)
+  if (!checkout) return null
+  const workerSecret = env.BILLING_LIVE_PAYMENT_WORKER_SECRET
+  if (!workerSecret || workerSecret.length < 32 || workerSecret === env.BILLING_WORKER_SECRET
+    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret === checkout.secretKey
+    || workerSecret === env.STRIPE_LIVE_WEBHOOK_SECRET) {
+    throw new Error('Invalid live payment worker configuration')
+  }
+  let webhookReady = false
+  if (checkout.checkoutAdmissionEnabled) {
+    try { webhookReady = readBillingLiveWebhookConfig(env) !== null } catch { webhookReady = false }
+  }
+  const checkoutAdmissionEnabled = checkout.checkoutAdmissionEnabled && webhookReady && Boolean(checkout.portalConfigurationId)
+  return { ...checkout, checkoutAdmissionEnabled, workerSecret }
+}
+
+export function isBillingLivePaymentAvailable(): boolean {
+  try { return readBillingLivePaymentWorkerConfig() !== null } catch { return false }
 }
 
 /** Existing trial status and expiry stay available while new admission is stopped. */

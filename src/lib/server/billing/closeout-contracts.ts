@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BillingScheduledRenewalSchema, BillingSubscriptionBindingSchema, type BillingSubscriptionBinding } from './contracts'
+import { BillingScheduledRenewalSchema, BillingSubscriptionBindingSchema, type BillingReconciliationBinding } from './contracts'
 
 const timestamp = z.string().datetime({ offset: true })
 const reference = z.string().min(1).max(255)
@@ -16,8 +16,9 @@ export const RenewalCloseoutEvidenceSchema = z.discriminatedUnion('kind', [
 export type RenewalCloseoutEvidence = z.infer<typeof RenewalCloseoutEvidenceSchema>
 export const RenewalCloseoutScheduleSchema = BillingScheduledRenewalSchema.omit({ state: true })
 export type RenewalCloseoutSchedule = z.infer<typeof RenewalCloseoutScheduleSchema>
+export const LiveRenewalCloseoutBindingSchema = BillingSubscriptionBindingSchema.extend({ provider_mode: z.literal('live') })
 export type RenewalCloseoutReadRequest = {
-  binding: BillingSubscriptionBinding
+  binding: BillingReconciliationBinding
   invoiceId: string
   paidThrough: string
   cutoff: string
@@ -45,13 +46,19 @@ export const RenewalCloseoutClaimSchema = z.object({
   invoice_id: reference, paid_through: timestamp, cutoff: timestamp,
   scheduled: RenewalCloseoutScheduleSchema.optional(),
 }).strict()
-export type RenewalCloseoutClaim = z.infer<typeof RenewalCloseoutClaimSchema>
-export const RenewalCloseoutClaimResultSchema = z.union([RenewalCloseoutClaimSchema,
-  z.object({ status: z.enum(['busy', 'not_found', 'plan_conflict', 'superseded']) }).strict()])
+const liveRenewalCloseoutClaimSchema = RenewalCloseoutClaimSchema.extend({
+  binding: LiveRenewalCloseoutBindingSchema,
+  scheduled: z.never().optional(),
+})
+export type RenewalCloseoutClaim = z.infer<typeof RenewalCloseoutClaimSchema> | z.infer<typeof liveRenewalCloseoutClaimSchema>
+const claimUnavailableSchema = z.object({ status: z.enum(['busy', 'not_found', 'plan_conflict', 'superseded']) }).strict()
+export const RenewalCloseoutClaimResultSchema = z.union([RenewalCloseoutClaimSchema, claimUnavailableSchema])
+export const LiveRenewalCloseoutClaimResultSchema = z.union([liveRenewalCloseoutClaimSchema, claimUnavailableSchema])
 export const RenewalCloseoutCheckpointStageSchema = z.enum(['pause_requested', 'collection_paused', 'void_requested', 'invoice_voided', 'cancel_requested'])
 export type RenewalCloseoutCheckpointStage = z.infer<typeof RenewalCloseoutCheckpointStageSchema>
-export const RenewalCloseoutCheckpointResultSchema = z.union([RenewalCloseoutClaimSchema,
-  z.object({ status: z.enum(['lost_claim', 'plan_conflict', 'superseded']) }).strict()])
+const checkpointUnavailableSchema = z.object({ status: z.enum(['lost_claim', 'plan_conflict', 'superseded']) }).strict()
+export const RenewalCloseoutCheckpointResultSchema = z.union([RenewalCloseoutClaimSchema, checkpointUnavailableSchema])
+export const LiveRenewalCloseoutCheckpointResultSchema = z.union([liveRenewalCloseoutClaimSchema, checkpointUnavailableSchema])
 export const RenewalCloseoutWorkSchema = z.object({ items: z.array(z.object({ subscription_id: z.string().uuid() }).strict()).max(1) }).strict()
 export type RenewalCloseoutFence = Pick<RenewalCloseoutClaim, 'operation_id' | 'subscription_id' | 'lease_token' | 'fencing_token' | 'subscription_revision' | 'expected_account_plan_revision' | 'operation_revision'>
 export type RenewalCloseoutFinishRequest = RenewalCloseoutFence & {
