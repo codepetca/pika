@@ -11,32 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Classroom capacity restriction checkpoint
-
-Prepared a private subscription restriction history, deterministic activity
-fallback, explicit downgrade selection and capacity-checked restore. The
-001–309 disposable replay verified trial expiry and paid re-entry, including
-cross-owner denial and the last available seat. A separate fixture exercised
-Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
-with seven classrooms. The existing classroom archive state, shared schema
-and generated public type baseline were checked. The rollout flag is off;
-assignment release and the customer-facing selection and restore remain open.
-
-## 2026-11-08 — Assignment publication cutoff
-
-Prepared the default-off publication fence shared by legacy and contextual
-assignment writers. Disposable 001–310 replay verified draft preservation,
-continued editing and student submission of already released work, and both
-Classroom-lock and paid-access cutoff races. Native generated types and the
-shared schema matched. The existing future schedules need conversion and a
-durable release worker before enabling the cutoff.
-Independent review identified gaps in paid re-entry, ordinary terminal
-retirement, legacy bulk publication and the 307 source replay profile. The
-remediation preserves cutoff history and sends publish-capable bulk requests
-through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
-and treats newly created rows as drafts. Both RPCs preflight classroom ownership
-and assignment binding before taking caller-supplied locks.
-
 ## 2026-11-08 — Dormant live billing target
 
 Added a default-off operator check for the exact production app and Supabase
@@ -133,6 +107,10 @@ UI brief. Extend the existing teacher Plans and billing surface. Use the paid Bi
 ## 2026-11-08 Scheduled change cancellation and recovery
 
 Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.
+
+## 2026-11-08 Billing recovery cadence and CI contracts
+
+Added a private Cloudflare Cron Trigger caller for the existing paid and trial recovery endpoints. The two-minute canary interval and both independent caller switches are explicit in the Worker config. The Worker pins the app origin, rejects redirects, bounds receipt reads, and records sanitized failed invocations even when Pika returns a partial failure in HTTP 200. Wrangler packaged the source and exercised its local schedule with both switches off. An enabled workerd run with all outbound calls bound to a local fixture verified success, swapped-token rejection and a refused redirect. Separate synthetic calls reached both actual Pika POST handlers and proved bearer isolation. The CI database job now executes the scheduled billing rollback fixtures 322–325 in order. The operator runbook records activation, cadence evidence, alert verification and durable queue checks.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -247,3 +225,7 @@ Hosted CI requires the scheduled cancellation and offers exports to call withErr
 ## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
 
 The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
+
+## 2026-11-10 — Rebase the dormant billing recovery caller
+
+Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.

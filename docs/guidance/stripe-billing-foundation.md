@@ -669,6 +669,61 @@ fixtures before configuring credentials. Before production admission, verify
 successful signed webhook receipts, recurring authenticated worker runs and
 alerts for failed or delayed work on the pinned target.
 
+### Periodic recovery caller
+
+The private Cloudflare Worker in `workers/billing-recovery` calls the existing
+paid and trial POST endpoints every two minutes in UTC. This is the initial
+canary cadence. Pika's database still owns the exact access cutoff, work
+leases, retries and Stripe idempotency. The two calls run independently.
+Each tick makes one attempt per enabled lane. It records a failed invocation
+on transport or HTTP failure, invalid receipts, or an application receipt
+that reports failures, exceptions or attention. The Worker requests redirects
+in manual mode and treats redirect responses as failures. Structured logs
+use a fixed allowlist of lane, scheduled time, delay, outcome and numeric
+counts.
+
+Both caller switches are false in the checked-in configuration. Worker and
+Preview URLs are disabled. For local verification, package with Wrangler
+`deploy --dry-run` and run `dev --local --test-scheduled` with both switches off.
+The scheduler test passes synthetic bearer credentials through the actual
+Pika POST handlers with synthetic configuration and downstream financial work. GitHub
+CI also runs the 322–325 rollback fixtures after replaying the schema.
+[Cloudflare scheduled handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/)
+[Cloudflare request redirect behavior](https://developers.cloudflare.com/workers/runtime-apis/request/)
+
+For an authorized deployment, pin the approved Cloudflare account and Worker
+name. Generate separate bearer tokens for `BILLING_LIVE_PAYMENT_WORKER_SECRET`
+and `BILLING_LIVE_TRIAL_WORKER_SECRET` using 32 to 256 base64url characters each.
+Set the matching value for each lane in Cloudflare and Pika using their
+protected secret inputs. Cloudflare's secret command deploys a Worker
+version, so stage credentials while the caller switches are off. After the
+matching Pika schema and endpoint are verified, enable the corresponding
+caller variable, `BILLING_PAID_RECOVERY_ENABLED` or
+`BILLING_TRIAL_RECOVERY_ENABLED`, through the reviewed Worker configuration
+with customer admission still closed. Cron configuration changes can take
+up to 15 minutes to propagate.
+[Cloudflare secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+[Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
+
+Verify at least five distinct consecutive scheduled times with a successful
+receipt for each enabled lane. Check the observed delay and oldest due work
+before admitting customers. Alert on a failed Worker invocation, a lane's
+`needs_attention` receipt, and a missing heartbeat per enabled lane. Verify
+the alert receiver and trigger an intentional failure using an isolated
+target. Worker receipts describe work attempted on each tick. Check durable
+Stripe inbox and checkout, reconciliation, installation, cancellation and
+closeout backlogs separately for unmatched receipts, retry exhaustion or
+age. Resolve and document those checks before opening paid admission.
+[Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+[Cloudflare Monitors](https://developers.cloudflare.com/notifications/monitors/)
+
+During an admission pause, keep the appropriate recovery caller running for
+existing paid subscriptions and trials. For a caller incident, stop the
+affected lane with its own variable and use a scoped operator invocation of
+the same POST endpoint while resolving the issue. During rotation, an enabled
+lane uses only its own binding. Both lanes reject a shared token when enabled
+together.
+
 ### Live scheduled Max-to-Pro changes
 
 Migrations 322–323 add target-scoped quote, confirmation, installation and
