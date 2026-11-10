@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Universal RepoLight tier benefit
-
-Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
-
 ## 2026-11-08 — Customer billing and renewal recovery
 
 Prepared the sandbox teacher billing page, portal invoices and payment methods,
@@ -297,3 +293,7 @@ Carried the reviewed activation routes, unpaid renewal closeout, and migration 3
 ## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
 
 Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
+
+## 2026-11-09 — Sync scheduled renewal settlement with main
+
+The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.

@@ -112,8 +112,13 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
       )
     }
     releasedAtIso = parsed.toISOString()
-    const scheduledAssignment = await stageBillingAssignmentRelease(supabase, user.id, existing.id, releasedAtIso)
-    if (scheduledAssignment) return NextResponse.json({ assignment: scheduledAssignment })
+    // Retired Blueprint drafts retain legacy scheduling under the database's
+    // publication and release-intent guards. The staging RPC uses the stricter
+    // contextual owner lock and rejects these drafts before checking billing.
+    if (assignmentAccess.mode !== 'legacy' || !existing.blueprint_archived_at) {
+      const scheduledAssignment = await stageBillingAssignmentRelease(supabase, user.id, existing.id, releasedAtIso)
+      if (scheduledAssignment) return NextResponse.json({ assignment: scheduledAssignment })
+    }
   }
 
   let assignment

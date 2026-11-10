@@ -52498,3 +52498,8 @@ Added scroll padding to keep keyboard-focused calendar controls below sticky hea
 ## 2026-11-08 — Restore navigation for calendars without complete dates
 
 Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+<!-- pika-session-log-archive-batch:fae43b345b04a104dc0bb79ac6e608d42570cdb0c1e031d888d61b9577bb08b3 -->
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
