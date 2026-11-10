@@ -4,15 +4,25 @@ import { GradingProviderError, type StructuredOutputProvider } from '@/lib/gradi
 import { assertAIOutboundEnabled } from '@/lib/grading/providers/ai-outbound-gate'
 
 function providerMode(): 'openai' | 'deepseek' {
-  const mode = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'deepseek'
+  const mode = process.env.PIKA_AI_GRADING_PROVIDER?.trim() || 'openai'
   if (mode === 'openai' || mode === 'deepseek') return mode
   throw new GradingProviderError({ kind: 'config', message: 'Invalid AI grading provider', retryable: false })
 }
 
+function getOpenAiGradingModel(): string {
+  return process.env.OPENAI_GRADING_MODEL?.trim() || 'gpt-6.1-terra'
+}
+
+function getDeepSeekGradingModel(): string {
+  return process.env.DEEPSEEK_GRADING_MODEL?.trim() || 'deepseek-flash'
+}
+
 export function getGradingModel(): string {
-  return providerMode() === 'openai'
-    ? process.env.OPENAI_GRADING_MODEL?.trim() || 'gpt-5-mini'
-    : process.env.DEEPSEEK_GRADING_MODEL?.trim() || 'deepseek-flash'
+  return providerMode() === 'openai' ? getOpenAiGradingModel() : getDeepSeekGradingModel()
+}
+
+export function getGradingFallbackModel(): string | null {
+  return providerMode() === 'openai' ? getDeepSeekGradingModel() : null
 }
 
 function key(name: 'OPENAI_API_KEY' | 'DEEPSEEK_API_KEY'): string {
@@ -28,12 +38,12 @@ export function createGradingProvider(): StructuredOutputProvider {
     async generate(request) {
       assertAIOutboundEnabled()
       const mode = providerMode()
-      const deepseekModel = process.env.DEEPSEEK_GRADING_MODEL?.trim() || 'deepseek-flash'
+      const deepseekModel = getDeepSeekGradingModel()
       if (mode === 'deepseek') {
         const result = await createDeepSeekChatProvider({ apiKey: key('DEEPSEEK_API_KEY') }).generate({ ...request, model: deepseekModel })
         return { ...result, providerUsed: 'deepseek', modelUsed: deepseekModel }
       }
-      const openaiModel = process.env.OPENAI_GRADING_MODEL?.trim() || 'gpt-5-mini'
+      const openaiModel = getOpenAiGradingModel()
       try {
         const result = await createOpenAiResponsesProvider({ apiKey: key('OPENAI_API_KEY') }).generate({ ...request, model: openaiModel })
         return { ...result, providerUsed: 'openai', modelUsed: openaiModel }
