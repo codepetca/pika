@@ -158,6 +158,36 @@ describe('contextual existing-assignment owner mutation routes', () => {
     expect(releaseAssignmentForOwner).not.toHaveBeenCalled()
   })
 
+  it.each([
+    { error: null, status: 200 },
+    { error: { code: 'PT403', message: 'billing_classroom_new_work_unavailable' }, status: 403 },
+    { error: { code: 'PT409', message: 'billing_assignment_schedule_changed' }, status: 409 },
+  ])('keeps retired Blueprint drafts on the guarded legacy writer ($status)', async ({ error, status }) => {
+    vi.mocked(authorizeContextualAssignmentOwnerMutationRequest).mockResolvedValue({
+      mode: 'legacy', user: user as any, assignmentId,
+    })
+    const scheduledFor = '2099-01-01T00:00:00.000Z'
+    const existing = assignment({ blueprint_archived_at: '2026-10-01T12:00:00.000Z' })
+    const updated = { ...existing, is_draft: false, released_at: scheduledFor }
+    const update = vi.fn(() => ({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({
+          single: vi.fn().mockResolvedValue({ data: error ? null : updated, error }),
+        })),
+      })),
+    }))
+    mockSupabase.from.mockReturnValue({ ...selectAssignment(existing), update })
+    const response = await releaseAssignment(new NextRequest(
+      `http://localhost/api/teacher/assignments/${assignmentId}/release`,
+      { method: 'POST', body: JSON.stringify({ release_at: scheduledFor }) },
+    ), { params: Promise.resolve({ id: assignmentId }) })
+
+    expect(response.status).toBe(status)
+    expect(mockSupabase.rpc).not.toHaveBeenCalled()
+    expect(update).toHaveBeenCalledExactlyOnceWith({ is_draft: false, released_at: scheduledFor })
+    if (!error) expect(await response.json()).toEqual({ assignment: updated })
+  })
+
   it('passes the observed generation when rescheduling or canceling', async () => {
     const scheduledFor = '2099-01-01T00:00:00.000Z'
     const context = { params: Promise.resolve({ id: assignmentId }) }
