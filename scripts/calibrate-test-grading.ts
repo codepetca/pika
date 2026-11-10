@@ -497,6 +497,10 @@ function summarize(rows: GradedRow[], efforts: EffortLevel[], profiles: TestOpen
 }
 
 async function main(): Promise<void> {
+  // Preserve the provider for existing archived-work calibration runs.
+  if (!process.env.PIKA_AI_GRADING_PROVIDER?.trim()) {
+    process.env.PIKA_AI_GRADING_PROVIDER = 'deepseek'
+  }
   const argv = process.argv.slice(2)
   const flag = (name: string): string | null => {
     const index = argv.indexOf(name)
