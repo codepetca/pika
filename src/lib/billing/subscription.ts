@@ -1,4 +1,10 @@
 import { z } from 'zod'
+import { fetchJSON } from '@/lib/request-cache'
+
+export const BILLING_ACCESS_NOTICE_HEADER = 'x-pika-billing-access-notice'
+
+const BillingAccessNoticeSchema = z.enum(['payment_overdue', 'ending_within_24_hours', 'ending_within_seven_days', 'ended'])
+export type BillingAccessNotice = z.infer<typeof BillingAccessNoticeSchema>
 
 /** Customer-facing state; Stripe references and internal legacy tier keys stay server-side. */
 export const BillingSubscriptionStatusSchema = z.object({
@@ -7,6 +13,7 @@ export const BillingSubscriptionStatusSchema = z.object({
   classroomLimit: z.number().int().nonnegative(),
   accessEndsAt: z.string().datetime({ offset: true }).nullable(),
   renewalAt: z.string().datetime({ offset: true }).nullable(),
+  accessNotice: BillingAccessNoticeSchema.optional(),
   canStartPaidWork: z.boolean(),
   retryable: z.boolean(),
   options: z.object({
@@ -23,3 +30,17 @@ export const BillingSubscriptionStatusSchema = z.object({
   }).strict().optional(),
 }).strict()
 export type BillingSubscriptionStatus = z.infer<typeof BillingSubscriptionStatusSchema>
+
+export async function fetchBillingSubscription(signal?: AbortSignal): Promise<BillingSubscriptionStatus> {
+  const response = await fetchJSON<unknown>('/api/billing/subscription', {
+    init: { cache: 'no-store', headers: { [BILLING_ACCESS_NOTICE_HEADER]: '1' }, signal },
+  })
+  return BillingSubscriptionStatusSchema.parse(response)
+}
+
+export function billingDate(value: string, includeSeconds = false) {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+    ...(includeSeconds && { second: '2-digit' }), timeZone: 'America/Toronto', timeZoneName: 'short',
+  }).format(new Date(value))
+}

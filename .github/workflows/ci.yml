@@ -222,6 +222,19 @@ jobs:
           docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-target.sql
           docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-assignment-release-intents.sql
           docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-trial-lifecycle.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-payment-scope.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-checkout-catalog.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-checkout.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-reconciliation-claims.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-paid-lifecycle.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-renewal-closeout.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-checkout-admission.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-installation.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-settlement.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-renewal-closeout.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-cancellation.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-stripe-exclusive-tax.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-email-notices.sql
 
       - name: Verify dormant classroom Test quotas and retained-work protection
         run: bash scripts/check-classroom-test-tier-caps-database.sh

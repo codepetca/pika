@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ rpc: vi.fn(), provision: vi.fn(), logError: vi.fn() }))
+const mocks = vi.hoisted(() => ({ rpc: vi.fn(), provision: vi.fn(), logError: vi.fn(), email: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ rpc: mocks.rpc }) }))
+vi.mock('@/lib/server/billing/email-notices', () => ({ processLiveBillingEmailNotices: mocks.email }))
 vi.mock('@/lib/server/repolight-provision-runtime', () => ({ attemptRepoLightProvisionOutbox: mocks.provision }))
 vi.mock('@/lib/server/diagnostics', () => ({ logServerError: mocks.logError }))
 
@@ -36,5 +37,14 @@ describe('live trial recovery worker', () => {
     ])
     expect(mocks.rpc).toHaveBeenCalledBefore(mocks.provision)
     expect(mocks.provision).toHaveBeenCalledExactlyOnceWith({ client: { rpc: mocks.rpc } })
+  })
+
+  it('drains email notices after applying trial access and returns the lane receipt', async () => {
+    const emailNotices = { processed: 1, sent: 1, attention: 0 }
+    mocks.rpc.mockResolvedValueOnce({ data: null, error: { code: 'XX000' } })
+    mocks.email.mockResolvedValueOnce(emailNotices)
+    await expect(processLiveTrialLifecycle(config)).resolves.toMatchObject({ emailNotices })
+    expect(mocks.email).toHaveBeenCalledExactlyOnceWith({ rpc: mocks.rpc }, config)
+    expect(mocks.provision).toHaveBeenCalledBefore(mocks.email)
   })
 })

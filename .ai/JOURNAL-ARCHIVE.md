@@ -49703,8 +49703,6 @@ checks and independent review receipts tracked in PR lifecycle. No migration.
 Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
 Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
 
-<!-- pika-session-log-archive-batch:ce351f895cb31a9c12b15ee695cf9bea0d51cbafc04818aa76246cb8408007ad -->
-
 ## 2026-10-24 — Pre-RepoLight CURRENT source checkpoint
 
 Source: main c7ff0f1f0, retained verbatim before startup-budget compaction.
@@ -50055,123 +50053,6 @@ to main. One journal-resolution batch and targeted review/final CI pending; no
 production retry, fixture write, flag, account or provider change.
 
 <!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
-<!-- pika-session-log-archive-batch:bb1ff3d4d63446d183f3908fb5132b01f29a5951a3e4c9ddd67ebfe0b1ed1274 -->
-## 2026-10-22 — Announcement calendar post dates
-
-Owner expanded post-date editing to published announcements in PR1663. Reuse
-material native date field and shared civil-date schema; extend announcement
-card/locked owner patch, refresh mounted teacher calendar, reuse publication
-calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
-Risk none; no new dependency/shared UI pattern. Student editing n/a; student
-saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
-feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
-keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
-Effective model, tokens and active time unknown; weekly99% remaining at start.
-Owner approved brief Docker restart only for disposable verification:001–290
-material/announcement and attendance proofs plus Data API normal/absent-default
-ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
-stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
-/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
-release. Final focused gate and new-scope independent delta review pending.
-
-## 2026-10-22 — PR1663 CI registry repair
-
-Owner authorized fixing CI and merging1663 after all checks pass. Announcement
-469773050 focused5406 and complete independent delta review passed; CI Test &
-Build passed but all seven Supabase setups and an isolated retry hit GHCR
-toomanyrequests before replay. Select public.ecr.aws before setup-cli; upstream
-action preserves the override and both pinned Postgres/metadata OCI indexes are
-byte-identical across registries. Bounded Sol/high read-only worker verified
-upstream behavior/manifests; coordinator owns all edits. Local runner now imports
-only the literal reviewed workflow registry, refuses job/step overrides, retains
-historical no-env plans and all existing isolation/inventory/cleanup guards.
-Regression7 RED then329 affected workflow tests GREEN. Runtime-platform standard
-risk; CI-only delta review and final focused/CI gates pending. No UI, versions,
-dependencies, image contents, shared database or production changes. Docker stays
-stopped. Review budget: one targeted Sol/high wave, one CI fix batch, within60min;
-prior feature review coverage reused, no extra full review wave.
-
-## 2026-10-22 — Production post-date release completed
-
-Owner authorized production289/290, then main promotion after checks. Single
-apply39862570602 returned applied-verified001–290, matching preview39862341945
-and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
-metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
-midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
-parent entries; two cumulative Sol/high reviews and one targeted pass found no
-blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
-ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
-dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
-GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
-retry, fixture/post mutation, flag/account/provider/billing change or Docker
-restart. Attributable tokens/active time unknown. Final receipt docs review/CI
-remains; production promotion worktree retired, shared env target preserved.
-
-## 2026-10-22 — Approved four-editor implementation verification
-
-Actual Assignment/Material/Test/Survey now match the approved compact prototype:
-Markdown source, shared mode/close/status header, question navigation and green
-Plus FAB, Image beside Link, protected classroom uploads capped at2MB. Preserve
-legacy Material until content edit; source-only changes regenerate readers.
-Source/API checks cover publication timing, legacy submitted-Test access and
-literal protected URLs. Migration291 is prepared, NOT APPLIED; reference ledger,
-transactional save attachment, archive/snapshot pins and narrow1h unclaimed
-retention support sequential Survey move/swap/Undo. Generic cleanup unchanged.
-Final migration SHA256016ae0051081bf1c16aa985c168f75db4aae273b41c870949f06255ba994bbf3.
-Blueprint private-image portability is unsupported: reject incoming portable
-assets before copying/applying; preserve existing classroom source.
-
-Actual-source browser16teacher+4student matrix and existing8authoring contracts
-PASS; desktop/mobile light/dark captures inspected. Durable receipts/provenance:
-/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/actual-editors-v1.
-Targeted1802 then222 portability/retention and11 retention/seal cases PASS; final
-canonical one-worker gate PASS:10162tests/500files,8skipped; architecture,
-UI/design policies, TypeScript and lint PASS. Explicit Data API migration policy
-PASS. Audit PASS66changedTSfiles; composite mode,
-menu, dialog, keyboard/focus checklist covered. Native291 proof prepared only;
-generated types and native ACL/schema/behavior receipts pending exact local
-permission. No Docker restart, shared migration or production action. Owned
-Next3036 stopped; owner prototype9026 retained. Current independent-review
-coverage ends94bd0b389;9historical launches consumed, approval for up to3new
-launches pending. PR1662 stays draft. Bounded implementation workers assisted;
-not independent review. Inherited effective models/tokens unknown; serial local
-verification limits honored after correcting an initial unflagged focused run.
-
-## 2026-10-22 — Local291 preflight and independent review
-
-Owner approved local291 and3additional reviews. Supabase local target verified
-Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
-application attempted; asked expanded exact244–291 authority, pending. Existing
-244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
-proofs PASS; shared schema unchanged. Harness final type equality differs only
-new2914-column ledger/2FKs; generated metadata pending official local generation.
-Data API historical/absent-default ACL replay PASS. Native receipts:
-/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
-Owned clones removed, local DB and Docker stopped again.
-
-Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
-and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
-(stale compatibility images and absolute URLs). One correction batch uses SQL's
-canonical source precedence and remaps protected URLs to new relative identity.
-Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
-PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
-suites71PASS. No UI delta; existing visual hashes retained. Launch12
-reserved for correction/integration after metadata/native gates; no further
-launch approved beyond12. Requested model/effort recorded; effective config,
-per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
-
-## 2026-10-22 — Production post-date promotion preparation
-
-Owner authorized one production application of289/290 followed by main promotion.
-Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
-CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
-service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
-checks PASS. Two Sol/high cumulative production→main reviews passed with no
-findings. PR1664 encountered only journal conflict; union preserves both parent
-histories and trim restores chronology. Application/Supabase trees stay identical
-to main. One journal-resolution batch and targeted review/final CI pending; no
-production retry, fixture write, flag, account or provider change.
-
 ## 2026-10-23 — Markdown editor CI correction batch
 
 PR1662 returned to draft after391a CI: Test & Build passed; ECR throttled3setup jobs;
@@ -50220,6 +50101,7 @@ model/effort recorded, effective configuration/tokens/seconds not exposed.
 Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
 Ready-PR CI follows stable exact-head verdict; no merge or production action.
 
+<!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
 ## 2026-10-23 Authenticated CI Supabase registry repair
 
 PR1662's four remaining lanes failed before tests with the anonymous ECR data
@@ -50256,41 +50138,6 @@ then required focused/static checks and one targeted independent correction revi
 before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
 
 <!-- pika-session-log-archive-batch:dcbfd493a7569d7994b83cc3fddf26a352e6deb5ad7bdba77befa1c73a914a0a -->
-<!-- pika-session-log-archive-batch:1a3718ccc2c326813d3ffa3475de4988fc785d6408155acb9f3628e0c4bd3620 -->
-## 2026-10-23 Authenticated CI Supabase registry repair
-
-PR1662's four remaining lanes failed before tests with the anonymous ECR data
-transfer cap, including one failed-only retry. Returned the PR to draft before
-repair. All seven Supabase jobs now select the official GHCR mirror with the
-existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
-image versions, proof commands, selectors and PR Gate remain unchanged; all17
-pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
-The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
-before login, sends the token on stdin, suppresses diagnostics and always removes
-only its own marked directory after stack cleanup. Local CI validates these exact
-credential slots and skips them without importing secrets; historical ECR/no-env
-plans remain supported. 360 focused helper/workflow/parser tests pass, including
-failed startup and rejection cases. Broader focused gate and two independent
-credential/parser reviews precede final stable-SHA CI. Existing human review-limit
-waiver covers this repair; prior13review receipts and7fix batches retained.
-No local Docker operation, migration, dependency or application/UI change in this
-batch. Another chat's bounded local verification hold remains active.
-
-## 2026-10-23 CI registry review corrections
-
-Independent Sol/high launches14/15 completed a39a13d05's credential/security and
-workflow/compatibility assignments. One unique P2 credential issue: empty auths
-allows Docker's platform helper discovery, which can store tokens outside the
-private directory. Seed the fixed GHCR entry to suppress discovery; its regression
-failed before the correction. A daemon-free Docker CLI probe with an isolated
-config and fake helper confirmed empty auths invokes the helper while the seeded
-entry does not; no token, actual credential store or daemon operation. The other
-P2 was the broad focused gate's canonical workflow inventory omission. Register
-both new registry suites in check:workflow; preserve every existing test. Initial
-full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
-then required focused/static checks and one targeted independent correction review
-before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
-
 ## 2026-10-23 Native inventory compatibility with CI registry credentials
 
 Reviewed500720348 passed10206focused tests/8skip and all static gates. RealCI
@@ -50356,24 +50203,6 @@ DB-only window is closed after proof; full focused gate and review21 tracked in
 retained receipts. Superseded7bbc gate deliberately terminated before edits.
 
 <!-- pika-session-log-archive-batch:6e534719264a503fed8f4ea73c6cf8bfbaaa42ac62ecf5ba8e39e1d9c0facaa1 -->
-## 2026-10-22 — Roster join dates
-
-Teacher roster Joined cells now pair the existing Lucide check with a compact
-Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
-and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
-surface reference; extend: joined-cell composition and shared timezone utility.
-No shared component or new pattern; no adjacent refactor needed. Risk: none.
-Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
-joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
-captures in ignored output/playwright/, synthetic roster responses on local stack,
-compared with roster-before and Pattern Lab teacher-patterns. No overflow.
-Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
-from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
-Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
-checks and independent review receipts tracked in PR lifecycle. No migration.
-Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
-Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
-
 ## 2026-10-23 Editor production migration and release correction
 
 Owner approved exact production291 and normal editor release. Preview40003769768
@@ -50403,40 +50232,6 @@ each require final exact-head CI; no production app release claimed yet.
 Promotion keeps both journal histories and reviewed correction bytes. Home292,
 provider, billing and shared-local schema remain outside this release.
 
-## 2026-10-22 — Production post-date promotion preparation
-
-Owner authorized one production application of289/290 followed by main promotion.
-Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
-CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
-service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
-checks PASS. Two Sol/high cumulative production→main reviews passed with no
-findings. PR1664 encountered only journal conflict; union preserves both parent
-histories and trim restores chronology. Application/Supabase trees stay identical
-to main. One journal-resolution batch and targeted review/final CI pending; no
-production retry, fixture write, flag, account or provider change.
-
-<!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
-
-## 2026-10-23 — Final editor/image review candidate
-
-Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
-and no backend remains. Durable native receipts beside actual-editor captures:
-/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
-Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
-17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
-change. Correct archive fixture to real rich_instructions field. All160affected
-startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
-UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
-remain identical to full-checked00ae6b071; closing docs/test-only delta.
-Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
-findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
-model/effort recorded, effective configuration/tokens/seconds not exposed.
-Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
-Ready-PR CI follows stable exact-head verdict; no merge or production action.
-
-<!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
-
-<!-- pika-session-log-archive-batch:c42641fbc6ed9f95cf8c671d17cdbc00501f1d615162e1aaae94dd5ca6dcc527 -->
 ## 2026-10-23 Editor production release verified
 
 Owner-approved production291 single apply40004531458 is applied-verified001–291;
@@ -50517,7 +50312,6 @@ No SQL, UI, provider execution or shared database change. Native292/16-case UI
 evidence remains unchanged; final focused checks and targeted review429 required.
 All deployment/provider/account/cohort/cutover holds stay in place.
 
-<!-- pika-session-log-archive-batch:32a2b59385749ee316b7a0702d59336d352977f3dc3577fff5e6b1fbf05e0684 -->
 ## 2026-10-23 — Correct current-chain native verification pins
 
 Exact b945 CI40004265801 exposed stale291 source/target pins in attendance and
@@ -50594,67 +50388,6 @@ real member-list/cleanup finalCI remains required. Production/provider/shared
 applications/accounts/activation holds remain; no native or Docker action.
 
 <!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
-<!-- pika-session-log-archive-batch:264dc7d415e806283f9cca8f0daa6aadc0ed5eb9a78ac3d201db3dcac98fa702 -->
-## 2026-10-23 — Reconcile home proof with pinned CI image
-
-Review430 and full4544/145+static passed07cceb; normal draft push then one ready
-event started40007133291. CI passed corrected attendance292 native proof, then
-home preflight rejected the CI image before scratch creation. Returned1666 to
-draft before batch44. Tagged upstream CLI2.103.0 manifest specifies17.6.1.132;
-local accepted stack uses17.6.1.044. Add only exact official aliases for132,
-retaining044 and cached/running ID equality. Actual shell regressions RED2/18
-reproduced the mismatch; future/custom/latest/malformed references and mismatched
-IDs remain rejected. No SQL/UI/database/provider change or new dependency.
-Targeted review and final CI remain required; unchanged native/visual evidence
-is reused. Editor1668 main correction is close; wait for actual merged SHA to
-combine compatibility reconciliation before another CI. Release interlock and
-all production/provider/shared application/account/activation holds persist.
-
-Editor1668 actually mergedb03198a9 at19:12:33Z; rebase onto that exact main
-completed without conflicts. All six feature patches remain equivalent; image
-helper's UUID-case-only change and tests are the only upstream delta. Migration
-291/292 hashes unchanged, no renumbering/application or new stash. Combine this
-interaction and image-pin batch44 in targeted431 after affected checks; final
-focused gate/CI still required. Editor1667 release interlock remains held.
-
-## 2026-10-23 — Final home base reconciliation after editor release
-
-Editor release/receipt complete: actual finalmain24c294b1, interlock explicitly
-released by its owner. Rebased home onto docs-only1669, preserving CURRENT and
-exact production receipt. Conflicts only in history journals; keep both histories
-and markers, remove one merge-reinserted historical duplicate only after byte
-equality with its preserved earlier entry. All application/test/script/dependency/
-configuration/SQL bytes match reviewed4772;291/292digests unchanged. No shared
-migration/provider/activation action. Reused4557/145+static/source review431 and
-accepted native/UI evidence; final docs verification/review432 and exact-head CI
-precede normal1666mainmerge. This task's production/provider/account/plan/cohort
-holds remain; tool goal and DeepSeek stay paused.
-
-## 2026-10-23 — Include home preference in closed Test proof catalogs
-
-CI40015415856 passed build, bothSDKs/lifecycle and home132 full replay/rollback/
-contention/types/source-preservation, then an older member-list canonical-before
-check rejected292's unlisted private home table before fixture allocation. Return
-1666 to draft before batch46. RED2/156 reproduced the missing whole fingerprint;
-include the sealed292 table centrally and preserve exact291 source compatibility.
-Test missing/drifted fingerprints for create/publication/discard restoration,
-tampered source and unknown catalogs;1645/3+ESLint/TSC PASS. No app/SQL/role/quota/
-provider behavior changed. Unchanged accepted native/UI evidence reused; full
-focused, independent433 and fresh exact-head member-list/cleanup CI remain gates.
-Prior failed CI is not acceptance. All deployment/provider/shared-application/
-account/activation holds remain unchanged.
-
-## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
-
-Review433 covered the complete shared-catalog delta and accepted one P2: two
-stale reorder CPU graphs omitted the correctly required home-table fingerprint.
-Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
-Batch47 updates only those two test graphs and explicit missing-home denial;
-all original deadline/action/restoration corruption cases remain. Affected387/4
-plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
-real member-list/cleanup finalCI remains required. Production/provider/shared
-applications/accounts/activation holds remain; no native or Docker action.
-
 ## 2026-10-23 — CI runner completion and capacity
 
 Owner requests all-heavy self-hosted CI, smaller artifacts and a public hold until
@@ -50701,215 +50434,6 @@ Full local checks, independent auth/compatibility review and exact-head CI prece
 main merge. No schema, cohort, provider, account or production changes; existing
 failed rehearsal evidence is retained and does not establish workflow acceptance.
 
-## 2026-10-23 — Contextual member notification reads
-
-Owner approved the signed-in mixed-role notification gap after an actual route
-regression reproduced403. Admitted current nonowner members now use compact,
-bounded classroom-root reads for the unchanged four notification counters;
-every payload and terminal page binds active class, actor, owner and enrollment
-generation. Publication/own-resource checks, repeated snapshot validation and a
-final relationship guard reject observed drift without claiming a transaction
-snapshot. Absent/unadmitted behavior retains the original student-role path.
-Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
-pass; final independent review/full focused checks remain coordinator-owned.
-No migration, dependency, account, cohort, provider or production changes.
-
-## 2026-10-23 — Prepare activation-off Home foundation release
-
-Owner explicitly approved292 locally and in production, then reviewed-main
-release with activation off. Local sole292 push and production apply40059138246
-both verified contiguous001–292; production preview40059060682 matched only292.
-Read-only checks match both installed function bodies, private RLS/ACLs and
-validated enrollment PK/FKcascade. No reset, seed, retry or production fixtures.
-Release1673 batches reviewed main3c1be2d39; full focused4738tests/151suites and
-static gates pass. Independent security464/compatibility465 complete clean.
-Reconciled only journal merge history with productioncd7179, retaining both
-parents and unchanged application/SQL/config/dependency bytes. Final delta
-review and exact-head CI precede merge. Home/admission/page settings remain
-absent; existing provider/control metadata unchanged. Live-provider, activation,
-account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
-
-## 2026-10-24 — RepoLight report integration local verification
-
-- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
-- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
-- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
-- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
-- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-<!-- pika-session-log-archive-batch:f88a41eafd560edea05a43d4530969f032eb7bba0e70b20a9417036463a4a7bd -->
-## 2026-10-23 — Contextual member notification reads
-
-Owner approved the signed-in mixed-role notification gap after an actual route
-regression reproduced403. Admitted current nonowner members now use compact,
-bounded classroom-root reads for the unchanged four notification counters;
-every payload and terminal page binds active class, actor, owner and enrollment
-generation. Publication/own-resource checks, repeated snapshot validation and a
-final relationship guard reject observed drift without claiming a transaction
-snapshot. Absent/unadmitted behavior retains the original student-role path.
-Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
-pass; final independent review/full focused checks remain coordinator-owned.
-No migration, dependency, account, cohort, provider or production changes.
-
-## 2026-10-24 — RepoLight report integration local verification
-
-- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
-- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
-- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
-- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
-- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
-
-# Pika Session Log
-
-Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
-
-**Rules:**
-- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
-- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
-- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
-- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
-- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
-- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
-- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
-
-## 2026-10-24 — Release inactive classroom Home foundation
-
-Owner explicitly approved sole292 locally/production and reviewed-main release
-with activation off. Local pinned CLI and production apply40059138246 both
-verified001–292; read-only bodies/grants/RLS/PK/FK checks pass. Release1673
-independently reviewed464–466, local4738/151+1022/73 and exact-head CI40059627420
-all10jobs/PRGate PASS. Protected merge4778514b0 has exact reviewed tree; Vercel
-dpl_DHbxckpbMDrojHGw6uD5ZePPpS54 and public alias READY00:28Toronto. Six public
-unauthenticated GET checks pass, including exact root307→login200; initial
-root200 expectation was a smoke-assumption error, not an app change. Five
-activation settings absent;24provider/controlmetadata records unchanged. No
-retry/reset/seed/production fixture/provider/account/plan/billing/activation
-change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
-
-## 2026-10-24 — Assignment image submission recovery
-
-Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
-
-## 2026-10-24 — Prepare classroom Home recovery and pilot
-
-Prepared a rollback-only creation freeze/getter-permission fault/restoration
-contract in the existing sealed offline owned-clone verifier, plus actual-route,
-adapter and server-page CPU composition tests for both account-role labels.
-The layered evidence intentionally does not claim real PostgREST/browser outage
-or deployed recovery. Pilot packet records compatible477/schema292 floor,
-retained-admission growth stop, canaries, zero-tolerance stop conditions and
-unset operator/cohort/activation authority. Root verified84focused cases and
-TypeScript. Reviews468–470 cover source and corrections; bounded
-Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
-(351s), effective model/tokens unknown. No runtime, migration, dependency,
-production, real-account, provider or activation change. Cutover remains open.
-First isolated attempt stopped on a legacy plain-text work fixture in JSONB
-content; no product defect. Source schema preservation and exact-owned cleanup
-passed; failed evidence retained. Red/green regression now parses the fixture's
-actual JSON document; independent delta review precedes a fresh attempt.
-Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
-fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
-unchanged lock contention, generated types and canonical schema/source equality.
-Exact owned resources absent; full failure/success evidence retained privately.
-Final receipt review/CI/main merge pending; production477 and activation/provider
-holds unchanged. Pilot still requires selected operator/cohort and authorization.
-## 2026-10-22 — Production post-date promotion preparation
-
-Owner authorized one production application of289/290 followed by main promotion.
-Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
-CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
-service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
-checks PASS. Two Sol/high cumulative production→main reviews passed with no
-findings. PR1664 encountered only journal conflict; union preserves both parent
-histories and trim restores chronology. Application/Supabase trees stay identical
-to main. One journal-resolution batch and targeted review/final CI pending; no
-production retry, fixture write, flag, account or provider change.
-
-<!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
-## 2026-10-23 — Final editor/image review candidate
-
-Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
-and no backend remains. Durable native receipts beside actual-editor captures:
-/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
-Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
-17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
-change. Correct archive fixture to real rich_instructions field. All160affected
-startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
-UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
-remain identical to full-checked00ae6b071; closing docs/test-only delta.
-Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
-findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
-model/effort recorded, effective configuration/tokens/seconds not exposed.
-Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
-Ready-PR CI follows stable exact-head verdict; no merge or production action.
-
-<!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
-## 2026-10-23 CI registry review corrections
-
-Independent Sol/high launches14/15 completed a39a13d05's credential/security and
-workflow/compatibility assignments. One unique P2 credential issue: empty auths
-allows Docker's platform helper discovery, which can store tokens outside the
-private directory. Seed the fixed GHCR entry to suppress discovery; its regression
-failed before the correction. A daemon-free Docker CLI probe with an isolated
-config and fake helper confirmed empty auths invokes the helper while the seeded
-entry does not; no token, actual credential store or daemon operation. The other
-P2 was the broad focused gate's canonical workflow inventory omission. Register
-both new registry suites in check:workflow; preserve every existing test. Initial
-full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
-then required focused/static checks and one targeted independent correction review
-before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
-
-<!-- pika-session-log-archive-batch:dcbfd493a7569d7994b83cc3fddf26a352e6deb5ad7bdba77befa1c73a914a0a -->
-## 2026-10-23 — Reconcile authoring-image role boundaries
-
-Cumulative review428 accepted the rebase/native/visual evidence but found new
-upstream image endpoints still globally role-bound. Batch42 adapts existing
-reserve/finalize/cancel and delivery only within exact home/shared admission;
-actual owner/creator/object checks, current-member publication, archived denial,
-retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
-regressions reproduced the mismatch before the fix;79 focused checks then passed.
-No SQL, UI, provider execution or shared database change. Native292/16-case UI
-evidence remains unchanged; final focused checks and targeted review429 required.
-All deployment/provider/account/cohort/cutover holds stay in place.
-
-## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
-
-Review433 covered the complete shared-catalog delta and accepted one P2: two
-stale reorder CPU graphs omitted the correctly required home-table fingerprint.
-Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
-Batch47 updates only those two test graphs and explicit missing-home denial;
-all original deadline/action/restoration corruption cases remain. Affected387/4
-plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
-real member-list/cleanup finalCI remains required. Production/provider/shared
-applications/accounts/activation holds remain; no native or Docker action.
-
-<!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
-## 2026-10-23 — Contextual owner manual-attendance authorization
-
-Signed-in home verification identified the Daily manual-attendance fallback still
-requiring a global teacher role before classroom ownership. Owner approved the
-narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
-shared attendance actor admission; unmatched accounts retain the original teacher
-gate. Actual classroom ownership, archived read/mutation distinction and unchanged
-SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
-26 failures before the fix; affected API/store/hook/migration tests pass afterward.
-Full local checks, independent auth/compatibility review and exact-head CI precede
-main merge. No schema, cohort, provider, account or production changes; existing
-failed rehearsal evidence is retained and does not establish workflow acceptance.
-
 <!-- pika-session-log-archive-batch:0996470dfa6fe293e1e5f974d619eb523a166297a268765a9269db086a34cab9 -->
 ## 2026-10-23 — Contextual member notification reads
 
@@ -50925,6 +50449,27 @@ pass; final independent review/full focused checks remain coordinator-owned.
 No migration, dependency, account, cohort, provider or production changes.
 
 <!-- pika-session-log-archive-batch:28968fefc08ccf4847fcfc6dbdc6ab8ffe8341236a363185580c6c2d5c88c35a -->
+## 2026-10-24 — RepoLight report integration local verification
+
+- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
+- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
+- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
+- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
+- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
 ## 2026-10-24 — Release inactive classroom Home foundation
 
 Owner explicitly approved sole292 locally/production and reviewed-main release
@@ -50938,88 +50483,6 @@ root200 expectation was a smoke-assumption error, not an app change. Five
 activation settings absent;24provider/controlmetadata records unchanged. No
 retry/reset/seed/production fixture/provider/account/plan/billing/activation
 change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
-## 2026-10-24 — Assignment image submission recovery
-
-Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
-
-## 2026-10-24 — Prepare classroom Home recovery and pilot
-
-Prepared a rollback-only creation freeze/getter-permission fault/restoration
-contract in the existing sealed offline owned-clone verifier, plus actual-route,
-adapter and server-page CPU composition tests for both account-role labels.
-The layered evidence intentionally does not claim real PostgREST/browser outage
-or deployed recovery. Pilot packet records compatible477/schema292 floor,
-retained-admission growth stop, canaries, zero-tolerance stop conditions and
-unset operator/cohort/activation authority. Root verified84focused cases and
-TypeScript. Reviews468–470 cover source and corrections; bounded
-Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
-(351s), effective model/tokens unknown. No runtime, migration, dependency,
-production, real-account, provider or activation change. Cutover remains open.
-First isolated attempt stopped on a legacy plain-text work fixture in JSONB
-content; no product defect. Source schema preservation and exact-owned cleanup
-passed; failed evidence retained. Red/green regression now parses the fixture's
-actual JSON document; independent delta review precedes a fresh attempt.
-Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
-fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
-unchanged lock contention, generated types and canonical schema/source equality.
-Exact owned resources absent; full failure/success evidence retained privately.
-Final receipt review/CI/main merge pending; production477 and activation/provider
-holds unchanged. Pilot still requires selected operator/cohort and authorization.
-
-## 2026-10-24 — Assessment diagnostic privacy cleanup
-
-Owner approved orchestration; journal-derived product feedback stays unchanged.
-Three disjoint GPT-6.1 Sol/high implementation workers migrated Assignment/Test
-API and document/helper diagnostics; coordinator owns shared allowlist, guard,
-integration and review. Replaced140 raw server error logs plus one fixed Test
-publication log; browser history warning no longer carries an entry ID. Cleanup
-retry records use fixed stage descriptions instead of provider/database messages.
-Synthetic red/green coverage:35 Assignment boundaries,26 Test assertions and47
-helper cases. Scoped regressions pass242/288/127 tests respectively. Source
-comparison finds no unexpected logic deltas; durable diagnostic changes and
-literal operation branches reviewed separately. No UI/schema/dependency/query/
-authorization changes, production actions or historical log deletion. Remaining
-logging inventory/vendor controls stay open. Focused gate, independent review and
-stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
-Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
-Worker token/effective-model and coordinator active-time telemetry unavailable.
-PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
-TypeScript and lint. Independent privacy review found an immediate JSON-patch
-helper still emitting document trees; compatibility review found no regressions.
-One remediation batch replaces both patch-helper logs with browser-safe fixed
-warnings and strengthens aggregate reconstruction diagnostics tests/guard.
-Targeted review and exact-head CI remain required before readiness/merge.
-
-## 2026-10-24 — Three-account Home pilot acceptance reconciliation
-
-Recorded exact production1da699/schema292 and the retained dedicated three-account
-Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
-code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
-scoped state matched one owned/one joined per reciprocal account, no Control
-membership and unchanged plans/providers. Corrected stale current-state and
-preparation-only wording; private identities/codes/content stay outside Git.
-Kept production replay, classwork/manual-return and direct API negatives distinct
-from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
-provider/cohort change or epic exit; live-provider/expansion holds remain.
-Docs-only focused checks and independent review precede normal main merge.
-
-## 2026-10-24 — Manual grader label owner-read regression
-
-The dedicated pilot saved manual scores, then owner readback failed503 because
-the strict detail schema treated graded_by as an actor UUID. Installed manual
-writer223 stores teacher text; existing grading/list contracts already accept
-text. Align only this metadata field, retaining owner/member UUID checks and
-strict shape/size guards. No migration, stored-data repair or authorization change.
-An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
-AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
-focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
-independent review and exact-head CI follow. Both pilot sessions remain signed
-in; Return/learner feedback remain pending compatible release and readback.
-No production, cohort, provider, plan or schema change; growth stays frozen.
-First CI caught the prior pilot summary's changed controls marker; restored
-the accurate established Controls unchanged prefix without reverting admission
-or provider state. Runtime grader fix unchanged; targeted docs regression and
-independent delta review precede the next stable-SHA CI.
 
 <!-- pika-session-log-archive-batch:a9e6e75f0e4b47861167cb86c998298b47d6e79ea20ac3a5b79c4b77b62ef075 -->
 ## 2026-10-24 — Assignment image submission recovery
@@ -51348,192 +50811,6 @@ process secret used. Draft PR and independent review follow; merge/release requi
 authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
 
 <!-- pika-session-log-archive-batch:14631e61ed1d8f637efa797e106f0d81e869005bfb1a4a7eb97139d01d5459b3 -->
-<!-- pika-session-log-archive-batch:e1fcbb72aaa87a2995a57d25806198c2c0eb71f308b99eb5e1ed0c2114cda6e0 -->
-## 2026-10-24 — RepoLight legacy archive inventory correction
-
-Owner approved one additional proof-only fix batch and ninth targeted review,
-then exact-head CI and conditional main merge. The legacy archive check now
-counts RepoLight's three resources/revision triggers when its table family is
-installed, matching the existing archive-v2 compatibility condition. Strict
-inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
-Owned offline293 replay passes the actual archive lifecycle, compaction/races,
-Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
-clone setup; no shared mutation. Home recovery/contention, warning lint across
-569functions, generated types and canonical aggregate fingerprints pass.
-Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
-review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
-
-## 2026-10-24 — Promote assignment image recovery with production ancestry
-
-Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
-
-## 2026-10-25 — Refresh the grading inspector after Return
-
-The dedicated-account manual canary exposed a stale revision after a successful
-Return. Refresh the open learner inspector only when the acknowledgement marks
-that learner returned/already returned, before awaiting list refresh. Existing
-read fences, dirty-form handling and revision-conflict refusal remain intact.
-RED component regression reproduced unchanged inspector; focused owner/controller
-141 checks pass. Synthetic real-parent/controller browser flow saves and sends
-with the refreshed revision without document reload; teacher/student desktop/
-mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
-comment into view; existing learner recovery coverage is unchanged. Two initial
-driver failures (modal accessibility scope, then same-document navigation counted
-as reload) are retained; corrected semantic/time-origin checks pass unchanged
-app code. CI browser inventory retains all prior cases and adds this scenario.
-Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
-normal reload recovery; this automatic-refresh fix still requires review/CI/main
-merge and separately authorized compatible release. Same3cohort/schema/plans and
-provider holds remain, with no production action or live-provider call.
-
-## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
-
-Owner explicitly overrode task workflow review-budget/low-usage stops through
-completion; keep independent review, strict CI and normal merge/rollout controls.
-Nine targeted reviews are recorded; next delta receives actual tenth review.
-Shared proof catalogue now includes ten literal tables from sealed293; member
-proof retains explicit292 admission and rejects partial/unknown catalogues.
-Historical unit profiles stay pinned; complete293 preservation includes private
-state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
-now fingerprint the same complete source-defined family; assertions unchanged.
-CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
---disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
-config-process heap diagnostics added; no environment/heap dumps, assertion,
-project, timeout or compiler change. Full browser gate still required.
-Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
-upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
-SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
-CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
-
-## 2026-10-25 — RepoLight rebase after green CI
-
-CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
-SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
-(#1684 selected-inspector refresh after Return), creating continuity conflicts.
-Rebased feature commits; only CURRENT/archive conflicts required resolution.
-Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
-receipt and all held controls. No new deployment/query/provider authority.
-SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
-reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
-that equivalence; new-head CI still reruns the actual proof. Focused checks and
-one targeted main-sync review precede ready; task stop override remains active.
-
-## 2026-10-25 — RepoLight local pilot and repeat-click guard
-
-Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
-
-## 2026-10-25 — Reconcile deployed classroom pilot acceptance
-
-Record protected production1685/9a and actual seamless Assignment Return/comment
-persistence. Reviewed bounded API attempt4 passed34requests: normal email-code
-sessions, reciprocal owner/member reads, contextual read/write/student-target
-denials, Free create403 and one-create/exact-replay without duplication. Scoped
-read-only SQL matched five protected fingerprints; Aowns2/B1/Control0, plans and
-original work unchanged. Exact3cohort/provider24metadata/pageflags pre/post match.
-Earlier failed attempts remain spent. Retain the one new empty synthetic class.
-Reconcile receipt/readiness/roadmap/CURRENT; no runtime, schema, UI, account, plan,
-configuration, production or provider action. Remaining work is candidate-specific
-evidence applicability and separately authorized observed expansion; isolated
-domain proofs and layered recovery are not all-domain/deployed outage evidence.
-Main-only docs review/CI follow; no overall-goal completion or production authority.
-
-## 2026-10-25 — RepoLight production migration and release
-
-Human approved production293 once plus reviewed1687 and the coordinated lifecycle
-window. Apply40226843818 verified only293/history001–293 and the approved digest.
-Catalog/RLS/ACL/body/trigger/archive checks pass;13renamed originals preserved.
-PR1687 merged dbd1f62c1; Vercel dpl_tCawB6aLRNnQN6FBxw35QinNZtx8 READY on that SHA.
-All10 CI40222687057 jobs and public HTTP boundaries passed. Cohort/provider
-metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
-released to both coordinated Pika tasks. Connection provisioning and hosted
-integration acceptance remain pending. Standalone inventory diagnostic limitation
-is tracked in the integration guide/PR; no passing claim for that command.
-
-## 2026-10-25 — Controlled RepoLight connection and blank-login regression
-
-User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
-attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
-redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
-Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
-Normal controlled student join/repository save/submit PASS. Teacher overview exposed
-own undefined optional GitHub metadata; mapper now omits absent fields. Regression
-failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
-and source release pending; no report/import/grade/sent-feedback acceptance claimed.
-Private connection/pilot receipts remain outside Git.
-
-## 2026-10-25 RepoLight contextual-owner report admission
-
-Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
-is READY. Overview now loads; pilot stopped before Analyze because report routes
-required global Teacher for admitted contextual owner A. No report/import; AI OFF.
-Draft preparation briefly saved zero marks in Final mode; normal Draft restored
-all synthetic marks/graded/returned fields to null. Production window released
-to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
-shared admission with legacy Teacher fallback, retaining owner/source/lease fences
-and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
-a Student-labelled owner and synthetic creation grant; fixture resources removed.
-Route regressions and independent auth/compatibility review precede CI and specific
-owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
-
-## 2026-10-25 RepoLight release and hosted quota stop
-
-1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
-canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
-promotion review passed; all6276parent journal occurrences preserved. Controlled
-Student-labelled owner access and blank-login overview PASS. One hosted analysis
-failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
-assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
-AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
-released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
-GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
-provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
-
-## 2026-10-25 — Prepare manual-grader reader compatible release
-
-Owner approved this exact grader-label fix after review and CI, retaining only
-the existing three-account cohort, plans, schema and provider holds. PR1682
-merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
-1683 reconciles only journal ancestry with production1da699fdc, preserving both
-histories and all non-history bytes from reviewed main. Independent cumulative
-compatibility review and exact-head CI precede protected production merge. No
-new provider call, migration, cohort expansion or account change is authorized.
-Both owner and learner sessions remain signed in; Return/feedback wait for the
-compatible READY deployment and fresh readback.
-
-## 2026-10-25 — Approved Return inspector compatible release
-
-Prepare production promotion of reviewed main19b5/PR1684 after the owner approved this exact compatible fix. Only runtime change is selected-inspector refresh after acknowledged Return; existing revision/dirty/write fences remain. Reconcile the two history files while preserving both parents; reuse accepted source/component/browser review477 and complete cumulative promotion review before ready CI. Keep exactly three pilot accounts, schema292, plans and live-provider/expansion holds unchanged. Signed-in no-reload Return/comment canary follows actual READY/source/control verification.
-
-## 2026-10-25 — RepoLight release-note reconciliation
-
-Retained both main and production journal batches to resolve the promotion-note
-conflict. Application and SQL sources are unchanged. Production preview40221093743
-verified001–292 and solepending293; no application. Exact migration approval and
-the independently owned permissions-check window remain required. Release1687
-stays draft pending reconciliation/review/CI; Analyze and paid AI remain OFF.
-
-## 2026-10-26 Future post dates
-
-Announcements and posted Classwork materials accept future Post date values.
-Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
-today/past dates retain posted_on. A field hint discloses student hiding. No schema
-or dependency changes. Risk none. Reference/reuse: production Material editor and
-Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
-existing scheduling. No new shared UI pattern or unrelated refactor. Composite
-checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
-contracts retained and interaction-tested; no new ARIA widget.
-Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
-material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
-cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
-corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
-student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
-and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
-Material student editing n/a (teacher-only); existing student release API checks
-reused. Capture source equals this candidate's UI files; deterministic fixtures,
-Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
-process secret used. Draft PR and independent review follow; merge/release require
-authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
-
 <!-- pika-session-log-archive-batch:4f73aea73cdaf39525509adc136d5f601529c76b59f230d80fcdc6c9d5d58fb8 -->
 ## 2026-10-27 Accept the bounded 70-account classroom rollout
 
@@ -51984,335 +51261,6 @@ Applied local migrations 293–295. Migration 296 initially failed on a reserved
 Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
 
 <!-- pika-session-log-archive-batch:f125a64435d30c85b2622cbd95a24694f63b4fb8565e1024653f61623b760155 -->
-<!-- pika-session-log-archive-batch:310bdb60376651d2d17cd1d6333dd886f664393b414c6104b27ba0189f2f3878 -->
-## 2026-10-25 RepoLight contextual-owner report admission
-
-Blank-login fix#1690 and promotion#1691 passed final-head CI; production45a604275
-is READY. Overview now loads; pilot stopped before Analyze because report routes
-required global Teacher for admitted contextual owner A. No report/import; AI OFF.
-Draft preparation briefly saved zero marks in Final mode; normal Draft restored
-all synthetic marks/graded/returned fields to null. Production window released
-to coordinating Pika tasks; roles/cohort/schema unchanged. Source correction uses
-shared admission with legacy Teacher fallback, retaining owner/source/lease fences
-and dormant pair flags. Real owned ephemeral293 rollback contracts passed with
-a Student-labelled owner and synthetic creation grant; fixture resources removed.
-Route regressions and independent auth/compatibility review precede CI and specific
-owner merge/release approval. Hosted report/edited-draft pilot remains incomplete.
-
-## 2026-10-25 RepoLight release and hosted quota stop
-
-1692main73a65fb8b and1693production405ef92cc passed final-head CI/alltenjobs;
-canonicalREADY dpl_9eR44SBCseFRjBik1GRJyJNeNcg5. Two auth reviews plus cumulative
-promotion review passed; all6276parent journal occurrences preserved. Controlled
-Student-labelled owner access and blank-login overview PASS. One hosted analysis
-failed upstream_rate_limited after3worker attempts;0reports/imports. Full before/after
-assignment_doc equality PASS; submitted/privateprefix preserved, marks/returnednull.
-AIoff; original24/Home3/feature3 controls unchanged, schema293 unchanged. Window
-released to coordinated Pika tasks; fixture/lastcleanupcredential retained. Public-read
-GitHubtoken vs Appdiscussion/unauthenticatedwait decision pending; no new token or
-provider change. Contract: docs/integrations/repolight.md. Epic remains incomplete.
-
-## 2026-10-26 Future post dates
-
-Announcements and posted Classwork materials accept future Post date values.
-Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
-today/past dates retain posted_on. A field hint discloses student hiding. No schema
-or dependency changes. Risk none. Reference/reuse: production Material editor and
-Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
-existing scheduling. No new shared UI pattern or unrelated refactor. Composite
-checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
-contracts retained and interaction-tested; no new ARIA widget.
-Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
-material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
-cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
-corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
-student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
-and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
-Material student editing n/a (teacher-only); existing student release API checks
-reused. Capture source equals this candidate's UI files; deterministic fixtures,
-Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
-process secret used. Draft PR and independent review follow; merge/release require
-authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
-
-## 2026-10-27 Accept the bounded 70-account classroom rollout
-
-Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
-and schema293 into the dated70-account acceptance receipt. Retained actual
-signed-in versus isolated/source-qualified boundaries, exact roster checks,
-selected academic preservation and compatible recovery constraints. PPZ keeps
-Tests/native attendance off/no policy/mapping/manual log unchanged. Original
-observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
-passed7timely samples and final exact70/provider/work readbacks. Timed process
-exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
-historical pilot now point to bounded acceptance; wider admission/provider/billing
-holds and incomplete epic/paused goal remain. Documentation only; no live action.
-
-## 2026-10-27 Prepare wider classroom admission design
-
-Prepared a proposal for one durable service-owned admission source, exact70
-bootstrap retention and staged expansion/new-user policy. Current Home/API each
-cap100; Bara also selects protocol behavior from admission. The plan requires
-Home/API consumer migration and frozen bootstrap provider-compatibility decisions
-before widening, with current nonadmitted behavior preserved too. New grants use
-atomic approved batches/growth stop; automatic signup stays off until separately
-approved. Rollout stages and exact-source recovery/verification gates are recorded;
-no code, SQL, cohort, plan, production or provider operation performed. Existing70,
-all other holds and paused goal/DeepSeek remain unchanged.
-
-## 2026-10-27 — Scheduled assignment card date order
-- Branch `codex/scheduled-date-card-order`: reuse SortableAssignmentCard; scheduled release now precedes due date. Existing formatting/status/actions unchanged. Other list owners inspected: Tests have a calendar date/manual access but no due date; materials/announcements have no due date; surveys have no scheduling. Student n/a: future assignments hidden.
-- UI brief: approved Classwork/Tests family and Pattern Lab workspace framing; teacher desktop/mobile, light/dark, scheduled/default + keyboard focus; reading order is the primary signal. No new pattern, component, composite behavior, experimental promotion or refactor.
-- Evidence: focused gate 79 files/1,209 tests plus architecture/UI/design/TypeScript/lint PASS; audit PASS. Playwright actual Classwork list via intercepted fixture APIs 4/4 PASS, y-order/no-overflow assertions and all four screenshots visually reviewed. Screenshots `/tmp/pika-date-order-pattern-lab-{desktop,mobile}-{light,dark}.png`; repeatable driver `/tmp/pika-scheduled-date-order.ui-pattern-lab.spec.ts`; logs `/tmp/pika-date-{unit,browser,audit}.log` and `/tmp/pika-scheduled-date-focused.log`. Browser first launch lacked session secret; rerun with generated process-only secret passed.
-- Draft PR#1698 initially paused at the 4% weekly-usage checkpoint. Owner explicitly authorized continuation despite low usage, then PR and merge, on 2026-10-27 in chat 01a17da9-f37c-7872-bbcc-268e37a3f5fd. This task-scoped low-usage waiver persists through completion; ordinary review/check gates remain. DeepSeek stays paused through 2026-12-31. Review ledger starts at 0 launches/waves/fix batches; one Luna/medium reviewer on a fixed SHA. Risk profile none; no epic status change; production promotion excluded.
-- Independent review1: GPT-6 Luna/medium accepted full four-file diff at c9d2b342f; zero findings. CI40537585928: 22,485 tests passed, eight existing skips, one pre-existing CURRENT-format contract failed; all three browser lanes failed before assertions on GHCR image-download rate limits. PR returned to draft before corrections.
-- Remediation batch1 preserves CURRENT's recorded values while putting DB001–293 at the start of its own line and naming the existing unchanged-controls statement, restoring compatibility with the existing attendance guidance test. No application change or rollout action. Source/tests/UI remain identical to the visually verified implementation. Targeted re-review and fresh required CI follow.
-
-## 2026-10-27 — Investigate CI registry throttling for PR1698
-- Owner authorized orchestrated investigation/fix and merge after all required checks pass. Existing task-scoped low-usage waiver retained; no billing/reset/provider-pause change. Risk profile runtime-platform. Branch remains codex/scheduled-date-card-order; PR1698 returned to draft before implementation.
-- Terra/medium handled bounded read-only CLI2.103.0 source/log investigation, then received sole write ownership of workflow, registry-workflow tests and the two CI workflow/runbook docs; coordinator owns integration/log/review/merge. Native execution accepted despite exhausted ordinary allowance; no credential/provider workaround. Investigation accepted after independent manifest verification; worker/coordinator tokens and exact active time unknown, no savings claim.
-- Auth was used correctly; pinned ghcr.io/supabase/postgres:17.6.1.132 repeatedly returns HTTP429, including public manifest requests outside Actions. Official public.ecr.aws mirror is reachable. Coordinator verified ECR and Docker Hub index bytes share sha256:e09e93a61ed1560caf4be79c9eb29401875bea74b12aec4657cb08bf34ea3a13; linux/amd64 child9d50688a826cf1455a0e91013160171de73b4d31df1509014e73463fb276a84d. GHCR digest parity could not be checked and is not claimed. Primary sources: pinned CLI internal/utils/docker.go and config/templates/Dockerfile; supabase/postgres .github/workflows/mirror.yml. No live database or image-layer download performed.
-- Plan: restore official CLI-default public ECR, remove unnecessary GHCR permissions/login/cleanup from current CI, preserve historical exact-auth safety contracts, all pinned versions, lanes, commands and gates. Existing obsolete exclusion names are out of this repair scope. Verify targeted tests and focused gate, independent risk-matched review on fixed SHA, then one fresh required native CI run and squash merge only after final PR Gate passes.
-- Terra implementation accepted in five owned files (local-ci test ownership explicitly extended after six stale GHCR expectations surfaced). Targeted registry/auth/workflow/local-runner suites PASS430 tests/4files; coordinator inspected diff and confirmed parser/native auth guards unchanged. No files/edits conflicted. Current ECR plan omits all seven GHCR credential blocks and extra permissions; reconstructed historical GHCR plan keeps exact-auth/drift coverage. No registry layers or databases started locally.
-
-## 2026-10-27 Prepare inactive admission registry
-
-Implemented stage0 source: candidate294 service-only registry, exact atomic/idempotent
-batches and growth stop, request-scoped async reads, shared Home audience and frozen
-bootstrap attendance protocol selection. Existing version1 and70 stay active.
-Isolated001–294 replay/ACL/rollback/committed races/source preservation and genuine
-types pass; first harness import failure retained and fixed. Focused11735 tests
-passed, plus architecture/UI/design/TypeScript/lint. All294 tables join sealed whole-row
-proof catalogs; historical profiles retained. Review found a concurrent growth-stop
-race; one correction gives restrictive stops priority, preserves original replay
-binding and records actual predecessor; four review turns are clean. CI coverage
-passed22623 tests but failed one inherited CURRENT-label assertion. Restored the
-factual production/control receipt labels;83 targeted checks and local build pass.
-Fresh final CI remains pending. No shared
-local/prod migration/import/release/config/provider/account action; goal/DeepSeek paused.
-
-## 2026-10-27 Admission registry integration with current main
-
-Rebased1699 onto9756a9751, retaining the reviewed294 SQL and registry behavior.
-Resolved continuity conflicts by preserving canonical production/control labels
-and both substantive journal histories. Main's official ECR image transport and
-scheduled-date display changes remain intact; no UI or SQL behavior changed here.
-Earlier GHCR setup failures remain historical. Focused integration checks and a
-proportional independent delta review precede fresh reviewed-head CI. Existing70,
-provider/schema/release holds and paused goal/DeepSeek remain unchanged.
-
-## 2026-10-27 Restore isolated CI image authentication after quota failures
-
-#1699's current-base build22626 tests, primary SDK and browser matrix passed; five
-other lanes failed ECR image startup in attempts1/3; one serialized attempt2
-failed identically. Kept failed evidence. Normal bounded GHCR Postgres17.6.1.132 pull succeeded
-locally; cache reuse is possible and final CI is still required. Returned draft
-before restoring the previously reviewed GHCR workflow and exact auth/drift tests,
-retaining historical ECR coverage. Registry helper/parser/native guards and every
-noncredential lane step stay unchanged. No SQL, product/UI, version, deadline,
-provider, shared schema, release or70-account configuration changes. Goal/DeepSeek
-remain paused. Targeted checks, focused gate and independent delta review precede
-one stable ready event; no registry fallback or automatic extra retry is added.
-
-## 2026-10-27 Independent calendar post dates
-
-Owner clarified: calendar placement is independent of release, superseding Oct26's
-future-date-as-schedule interpretation (never deployed). PR1695 returned to draft.
-Calendar date defaults today for new posts; past/future edits retain Post/Save.
-Release metadata says Releases; Schedule retains explicit release timing. New,
-draft, posted and scheduled editors retain independent placement. Student lists
-keep published content; every Calendar view applies the server advance horizon
-for announcements/materials, failing closed while unconfirmed. Test exceptions
-remain navigation-only. Existing Material/announcement owners and Pattern Lab
-are reference; reuse FormField/Input/SplitButton, extend feature adapters; no new
-shared visual pattern or dependency. Composite labels/hints/actions and existing
-keyboard/focus contracts retained. Risk none; review high (schema/owner RPCs).
-
-294 adds nullable posted_on and atomic create wrappers. No backfill or historical
-SQL edits. Existing locks/immutable/after-row/ACL guards retained; null mutation
-keys omitted for legacy decoders. Coordinate app/migration rollout; no shared or
-production application authorized. Shared local history292 and normalized schema
-unchanged. Private001–294 replay, rollback/tamper/atomic/date/state/ACL proofs and
-type equality PASS /tmp/pika-material-post-date.Op5td6; all owned clones removed.
-Source seal7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3.
-
-Initial focused5733/175 + static PASS. Added coverage passes175 source/list and175
-interaction tests; corrected browser inventory count and235 regression recheck
-PASS. Final focused gate/review/CI receipts follow in PR1695. Twelve Playwright
-matrix cases PASS across teacher/student1440x900/390x844 light/dark; additional
-new/draft/scheduled editor captures inspected. Evidence /tmp/pika-calendar-post-
-placement-browser, /tmp/pika-calendar-visibility-probe, /tmp/pika-calendar-visibility-
-final and /tmp/pika-post-placement-editor-states-final (desktop-light probes named
-similarly); montage /tmp/pika-calendar-post-placement-matrix.png. Current candidate
-source, synthetic production-owner fixtures, Playwright1.58, localhost3127; calendar
-clock fixed Oct20 for window proof. No live classroom mutation or shared env edit.
-Coordinator edits/API; Sol-medium worker calendar adapter/read tests, Sol-high
-worker SQL/profiles/types; verified deliveries. Weekly remaining82%; DeepSeek pause
-honored. Effective configs, attributable effort/tokens unknown; no savings claim.
-
-Two independent Sol-high full reviews of559ff277e completed their app/compatibility
-and SQL/security scopes, finding one deduplicated blocker: untouched displayed
-dates were omitted during draft/schedule publication changes. Batch1 persists the
-visible date in both editors, including legacy null-date publication transitions.
-Default schedule, draft creation/reopen across midnight and scheduled Post now
-regressions reproduce before correction;217 affected tests, TypeScript and lint
-PASS afterward. Private SQL proof and unchanged visual matrix remain applicable.
-Fresh12 browser editor scenarios PASS across desktop/mobile light/dark; screenshots
-inspected under /tmp/pika-post-date-remediation-browser. Staged audit PASS; composite
-keyboard/focus coverage retained. Default date metadata also respects fixture actions.
-Final focused gate, targeted and cumulative review receipts follow in PR1695.
-
-## 2026-10-27 Calendar date CI proof alignment
-
-Final56ff40d41 review clean; prior implementation canonical5741/175PASS. Exacthead
-broad run5740PASS plus one5s preflight timeout under load; isolated38PASS and all
-static gatesPASS. CI40510181489 found the native announcement reader's old exact
-field inventory, plus main's compact CURRENT labels rejected by the existing
-attendance guidance test (22590other casesPASS/8skip). Returned PR1695 to draft.
-Batch2 extends both native material/announcement inventories narrowly with posted_on
-and asserts published future-calendar rows reach both member roles. Restores
-existing DB/control label anchors in CURRENT without changing any recorded facts.
-No application, SQL, ACL, shared data, visibility or release behavior changed.
-Targeted verification/review and replacement exacthead CI follow; no migration,
-merge or release authorized. Review ledger retains5 prior launches including the
-superseded interpretation;2fix batches, targeted wave2 planned within7launch/60min.
-
-## 2026-10-27 Accept the bounded 70-account classroom rollout
-
-Consolidated the authorized dedicated/owner/P3/P5/PPZ expansions on runtime405
-and schema293 into the dated70-account acceptance receipt. Retained actual
-signed-in versus isolated/source-qualified boundaries, exact roster checks,
-selected academic preservation and compatible recovery constraints. PPZ keeps
-Tests/native attendance off/no policy/mapping/manual log unchanged. Original
-observation gap remains historical; the fresh08:04–08:34 Toronto readonly window
-passed7timely samples and final exact70/provider/work readbacks. Timed process
-exited, watcher deleted, Audit relayed explicit release. CURRENT/roadmap/Home and
-historical pilot now point to bounded acceptance; wider admission/provider/billing
-holds and incomplete epic/paused goal remain. Documentation only; no live action.
-
-## 2026-10-27 Prepare wider classroom admission design
-
-Prepared a proposal for one durable service-owned admission source, exact70
-bootstrap retention and staged expansion/new-user policy. Current Home/API each
-cap100; Bara also selects protocol behavior from admission. The plan requires
-Home/API consumer migration and frozen bootstrap provider-compatibility decisions
-before widening, with current nonadmitted behavior preserved too. New grants use
-atomic approved batches/growth stop; automatic signup stays off until separately
-approved. Rollout stages and exact-source recovery/verification gates are recorded;
-no code, SQL, cohort, plan, production or provider operation performed. Existing70,
-all other holds and paused goal/DeepSeek remain unchanged.
-
-## 2026-10-27 Material owner calendar receipt proof correction
-
-Owner explicitly approved one additional correction batch/eighth targeted review,
-then existing credits for this fix/review only; no purchase/reset or broader waiver.
-CI40514407721 passed22591coverage cases/8skip, TypeScript/build, both future-date
-native read proofs and cleanup. Its later owner-write proof compared the raw
-posted_on:null column with the deliberately omitted legacy receipt key. PR1695
-returned to draft; no application/SQL migration/ACL/UI change. Batch3 normalizes
-only that missing null in the comparison; strict14/15-key cases and unchanged
-historical identity/lineage/release/calendar date checks cover null and future dates.
-Private replay now records each migration after success and includes the complete
-owner-write rollback proof before metadata equality. Reproduced CI failure in
-owned offline clone /tmp/pika-material-post-date.pgrIwt; corrected full001–294
-replay/proofs/types/shared-schema equality PASS /tmp/pika-material-post-date.rnxlag.
-All owned clones removed; shared history292 unchanged. One syntax correction was
-caught locally before the final private pass. Targeted checks, canonical gate,
-review8 and replacementCI receipts follow in PR1695. No merge/release/migration
-application authorized; prior cumulative45a coverage reused for unchanged sources.
-
-## 2026-10-27 — Prepare reviewed main promotion to production
-- Owner authorized main→production and deployment verification. PR1700 batches main9756a9751 from production405ef92cc; no new migrations, API/server changes or dependency changes. Registry/date-order application tree has full CI40563343248 ten-job PASS and clean independent review; operational/provider/admission/billing holds are preserved.
-- Cumulative Sol/high release review found only conflicting continuity history. Terra/medium resolved six archive hunks and retained both parents' entry bodies, occurrence counts and archive markers across SESSION+ARCHIVE. Coordinator independently verifies preservation; payload outside the two journals stays byte-identical to reviewed main. Runtime-platform risk; no fixture, environment, database or provider mutation is part of the release.
-- Initial local release focused gate PASS79files/1210tests plus architecture/UI/design/TypeScript/lint. Resolved-candidate checks and targeted review precede readiness; final exact-head PR Gate and Vercel source/production-alias/read-only smoke verification remain required. Production migration permissions are not requested or consumed.
-
-## 2026-10-28 — Creation action placement
-
-- Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
-- Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.
-
-## 2026-10-28 — Integrate calendar dates after admission294
-
-Human moved coordination to Teacher vs student login and then directed Do next
-after its1699 merge receipt. Rebased this existing calendar worktree onto actual
-main8d3c6e19; preserve admission294 exact908ac8f3 source and rename unchanged
-calendar SQL7b4d0853 to actual nextfree295. Historical001–293 files unchanged.
-40 feature app/e2e/API/component/lib files match a calculated clean three-way merge
-with main; current main guidance and admission awaits preserved. Combined exact
-profiles/catalogs/runner proofs and genuine metadata are being verified before
-independent integration review and fresh stable-head CI. Prior calendar-only294
-receipts stay historical; current294 means admission only. No shared schema
-application, production release, provider/cohort/account or reset action. Durable
-plan and review ledger: private future-post-date/ADMISSION-294-FIRST-v1 receipt.
-
-## 2026-10-28 — Restore hosted browser CI compatibility
-
-- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
-- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
-
-## 2026-10-28 — Update assignment focus test
-
-- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
-
-## 2026-10-28 — RepoLight assignment summary prepared
-
-Prepared a local Pika-only, teacher-editable assignment summary from the current
-fingerprinted source and digest-validated matched-contributor evidence. Saved
-reports and service contracts are unchanged; unavailable and partial evidence is
-explicit. No migration, publication, deployment, provider or credential changes.
-Verification and independent review remain with the coordinating task.
-
-## 2026-10-28 Required repository usernames — base refresh
-
-Rebased the previously reviewed required-username change onto current main. Preserved
-upstream journal history and the prior local preparation evidence; focused verification
-is recorded in the task handoff. No migration, provider or production action.
-
-## 2026-10-29 — Delete from assignment and test editors
-
-- Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
-
-## 2026-10-29 — RepoLight required username integration
-
-Rebased the reviewed username branch onto the merged RepoLight summary. Preserved
-journal history and both integration contracts; application and test patches match
-the previously reviewed branch. Focused checks and final PR review follow.
-
-## 2026-10-29 — RepoLight selected-student drafts
-
-Prepared an approval-gated selected-student repository action beside AI Grade.
-It runs individual public reports sequentially and appends matched assignment
-summaries to revision-checked private drafts while the page remains open. No AI,
-grades, sending or Return. Skips and uncertain outcomes remain visible. Focused
-component and executor checks, policy checks, and synthetic teacher desktop/mobile
-light/dark verification are in progress; publication and rollout remain separate.
-
-## 2026-10-30 — Test and assignment settings menus
-
-Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
-
-## 2026-10-30 — Remove calendar-date help text
-
-At the owner’s request, remove the persistent explanatory sentence from new and
-existing announcement editors and the Classwork material editor. Retain the
-Calendar date label, validation and separate Post/Save/Schedule behavior. Reuse
-existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
-Teacher desktop/mobile and light/dark checks cover future-date editing; student
-view is unaffected because this text appears only in teacher editors.
-Risk profile: none. No production changes or migration are part of this edit.
-
-## 2026-10-30 Scheduling date display
-
-- Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
-- Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
-
-## 2026-10-30 — Named attendance schedules
-
-Prepared date-specific named QR attendance schedules, replacing the proposed manual open override. Regular policy remains the default; migration 296 adds guarded storage and sync source tracking. Focused tests and fixture visual checks are in progress. Local migrations 293–296 require separate explicit authorization; database replay, independent review, and release remain outstanding.
-
-## 2026-10-30 — Local named-schedule migration
-
-Applied local migrations 293–295. Migration 296 initially failed on a reserved SQL alias; corrected the alias and reviewed-source hashes, then applied 296 with renewed authorization. Verified local migration history, database objects and access controls; focused checks passed (4,489 tests). The rollback-only synthetic database harness passed on a temporary isolated copy, which was removed afterward.
-
 ## 2026-10-30 — Named schedule CI fixes
 
 Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
@@ -52626,7 +51574,3554 @@ Added explicit off/scoped/full managed provisioning scope with one-teacher cron 
 - Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
 - Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
 
-<!-- pika-session-log-archive-batch:d021f80f14c3ae639257360e508f008bfe30838572d20e61bf0b99f595586e0b -->
+## 2026-11-02 — Reduce Classwork requirement reads
+
+Batch authorized legacy teacher assignment requirements and overlap them with roster and document reads, preserving error precedence. Synthetic timing and request-count checks cover normal, large, and paginated lists; production user-perceived impact remains unmeasured.
+
+<!-- pika-session-log-archive-batch:a32a4d4065eab4fded7b808c778be390c213703aa90372f737a87a8254ae6c8c -->
+
+## 2026-11-02 — Teacher Tests intent prefetch
+
+Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+<!-- pika-session-log-archive-batch:98fc1375d12a43907ec60469857b8ea93fc30366831a9c6a9b2ac78c1560655a -->
+
+## 2026-11-03 — Progressive teacher Tests list
+
+Prepared a legacy teacher Tests summary read that displays draft-overlaid titles and unknown count placeholders while the original full read runs. Shared admission retains its existing read. Synthetic browser fixture holds statistics for 500 ms; four teacher viewport/theme runs showed titles before counts, with two HTTP reads. This is not a production benchmark. Full verification and review remain required.
+
+<!-- pika-session-log-archive-batch:b1053a5b9386f4026f76f482e02f8dcb6608d3ed09f5edc77d518fa06581c563 -->
+
+## 2026-11-03 — Progressive teacher Classwork prototype
+
+Legacy assignment and survey summaries can render before statistics, with explicit
+unknown counts and incomplete-list action guards. Shared reads retain their full
+owner-scoped contract and cache; cache invalidation and permission failure guards
+protect delayed results. Independent review and CI remain pending.
+
+<!-- pika-session-log-archive-batch:92aec458e06f41e038ea40bb634b542986ad61816df462881562ec72b39057fc -->
+
+## 2026-11-03 — Classwork progressive read review fixes
+
+Prevent invalidated summary reuse, join in-flight full prefetches, fall back
+from non-authorization summary errors, and gate material deep links on complete
+authorized classwork. Real-cache and interaction regressions exercise these paths.
+
+<!-- pika-session-log-archive-batch:e582479255b416671c32dcaccb76955fe61bd0e95f2864692f9e28927c7fee14 -->
+
+## 2026-11-03 — Teacher Tests statistics pagination
+
+On PR 1726's head, page legacy teacher Tests statistics in stable ID order to avoid
+PostgREST's row cap silently truncating question, attempt, response, and access
+counts. Local disposable PostgREST probe reproduced the 1,000-row cap; API
+regressions cover multi-page reads, exact boundaries, and later-page failures.
+
+<!-- pika-session-log-archive-batch:3b8df3df4e58afa009fc666a493e8cf19e2bcd7767999f5977289c7c1dde00ba -->
+
+## 2026-11-03 — Rebase Tests pagination onto main
+
+Rebased PR 1727's pagination-only commit onto main after PR 1726 merged as
+7d1c121fb. The rebase preserved the prior source tree and continuity histories;
+PR 1727 remains draft pending focused checks and exact-head review.
+
+<!-- pika-session-log-archive-batch:62cff90bde8c31134704b8cb19906dd6e86b1d78bf8055504c1e1c12a936a668 -->
+
+## 2026-11-03 — Classwork refresh browser fixture
+
+The Classwork continuity fixture now models summary and full reads separately.
+Its first refresh fails the summary and then exercises the full-read fallback,
+including retained editor, failure, retry, recovery, and controlled navigation.
+
+<!-- pika-session-log-archive-batch:7dd46b02d71130e919d1d1b7bbca3c03136762cc4e22d460c3bcfceeb13eddac -->
+
+## 2026-11-03 List order toggle
+
+- Added teacher Classwork and Tests reverse-order views that preserve drag ordering; defaults follow existing position directions. Focused interaction tests and visual menu checks performed; PR verification in progress.
+
+<!-- pika-session-log-archive-batch:fc0314dab86dcb1897558e274daaf98b46eda34e636247ba62348572cc052d5c -->
+
+## 2026-11-03 — Student Test submission reassurance
+
+Keep answers visible while submitting and show an immediate confirmed receipt. Reconcile ambiguous responses against the saved submitted attempt without claiming success for different answers; suppress competing session closure during reconciliation. Production promotion remains on hold.
+
+<!-- pika-session-log-archive-batch:3c9c6f05cf68f11a65128e4aff61688fb1ce79452d24bbb09330f423b769beaa -->
+
+## 2026-11-03 Investigate test contention
+
+Observed production learner and owner busy errors during class tests. Prepared bounded retries for confirmed rolled-back busy transactions and complete learner detail rechecks. Initial 24-student load exposed retry exhaustion; widened bounded retries passed two isolated 30-student bursts with saved-answer verification and concurrent owner reads. Synthetic harness excludes browser, route, and history paths. Updated diff review, CI, and production release remain pending.
+
+<!-- pika-session-log-archive-batch:c842757d516a991f3da2d2bdf49abcb4e2ba27b889be86b4281d873ff8818d76 -->
+
+## 2026-11-04 — Classwork access recovery
+
+- Restore the existing Classwork loading/error and retry surface when a selected assignment or survey loses access during refresh; preserve selection for a successful retry.
+- Teacher-only behavior; reuse the existing work surface and PageState. Student view is unaffected.
+
+<!-- pika-session-log-archive-batch:2484b7a60ac7f3834d0e52ab1e2ee85d9194a9ff44d8ee4e7e980d70cf46d447 -->
+
+## 2026-11-04 Header message loading feedback
+
+- Reused CircularProgress for stable loading feedback and increased message line height to preserve descenders. Pattern Lab includes an isolated example.
+- Verification: AppMessage tests and UI/design policy checks passed; Playwright inspected teacher/student, desktop/mobile, light/dark; width stayed constant and reduced motion disabled animation.
+
+## 2026-11-04 — AI provider gate rebase
+
+Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
+
+<!-- pika-session-log-archive-batch:557e8495a6a5b2f8c218938c92cb96058e6fe2ab497b48b28bd3bc0e7db3cf78 -->
+
+<!-- pika-session-log-archive-batch:cd8edfe363e66ae2912a826ae7d56ea42570e198fa1b8253b3dbb6875185ca66 -->
+## 2026-11-04 Calendar empty lesson text
+
+Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
 ## 2026-11-06 — Term calendar List and Grid
 
 Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-04 — AI provider gate rebase
+
+Rebased PR 1731 onto current main; preserve DeepSeek as the default, optional OpenAI selection and the outbound AI stop. The proposed $50 limit was withdrawn and never activated. Earlier reviewed-head local checks and CI passed; rebase verification and delta review remain. No production settings changed. Risk: async-grading and runtime-platform. Model recommendation: GPT-6.1 Sol high for cross-provider grading, provenance and durable-run integration.
+
+<!-- pika-session-log-archive-batch:557e8495a6a5b2f8c218938c92cb96058e6fe2ab497b48b28bd3bc0e7db3cf78 -->
+
+## 2026-11-04 Clarify busy Test errors
+
+Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
+
+<!-- pika-session-log-archive-batch:498a968ae1e31228d5d1026189b922d37cbb42991f6b3ef0379c71e76f18fe03 -->
+
+<!-- pika-session-log-archive-batch:180aba56ff34b2b7ac798c94790b5bc6b25c37d77bad42e009e7902018593953 -->
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-04 Clarify busy Test errors
+
+Changed confirmed exhausted Test lock contention to “Test is busy. Try again.” while preserving conflict status and retry limits. Reused ConfirmDialog error feedback so teacher access errors are visible above the overlay. Synthetic Playwright teacher/student desktop/mobile light/dark checks preserved student drafts; focused tests and review follow.
+
+<!-- pika-session-log-archive-batch:498a968ae1e31228d5d1026189b922d37cbb42991f6b3ef0379c71e76f18fe03 -->
+
+## 2026-11-04 Calendar empty lesson text
+
+Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+<!-- pika-session-log-archive-batch:e574954b7f79991b44ffd26870acfa23f77eaf532c21ad0bdd07ba95523c6692 -->
+
+<!-- pika-session-log-archive-batch:15c1544addd7b895a5519b71f401642c7a076337306dc1611cdc5c47acd22433 -->
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-07 — Local loopback sign-in
+
+Fixed development-only `127.0.0.1` sign-in when Next.js normalizes the request URL to `localhost`, retaining exact host, port, protocol and cross-site checks. Documented the launcher and verified local teacher sign-in and calendar access; production origin behavior is unchanged.
+
+## 2026-11-04 Calendar empty lesson text
+
+Removed empty lesson placeholder text from the shared week agenda for teachers and students; preserved the teacher add-lesson control. Component tests and UI/design policy checks pass. Visual verification passed with fixture-enabled Pattern Lab: teacher and student empty cells at 1440 and 390 pixels in light and dark themes; teacher add-lesson control retained. Focused checks passed (1,406 tests, architecture, policies, TypeScript, lint).
+
+<!-- pika-session-log-archive-batch:e574954b7f79991b44ffd26870acfa23f77eaf532c21ad0bdd07ba95523c6692 -->
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+<!-- pika-session-log-archive-batch:120321cd6d52fead38076fc21169dbbcba87d648ea39da1fa28afff0f6908f97 -->
+
+<!-- pika-session-log-archive-batch:61e19a8b859dbcf6736038e87f375974697760c15fce50af7275951708d893d3 -->
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+<!-- pika-session-log-archive-batch:fae43b345b04a104dc0bb79ac6e608d42570cdb0c1e031d888d61b9577bb08b3 -->
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-05 Reuse teacher Tests intent summaries
+
+Retain the legacy teacher Tests intent summary briefly within the current
+teacher/classroom view, retry failed or expired intent reads, and discard the
+provisional list on authorization denial. The shared-admission full read remains
+unchanged. Synthetic browser evidence and focused review/CI are tracked with the PR;
+no production timing or deployment is implied.
+
+<!-- pika-session-log-archive-batch:120321cd6d52fead38076fc21169dbbcba87d648ea39da1fa28afff0f6908f97 -->
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+<!-- pika-session-log-archive-batch:cdefae3ca7dc23c6fcb1d3ddec5de2180d1425246d11288d266ef0d3040a47c5 -->
+
+<!-- pika-session-log-archive-batch:2d876ba27dba7f86599ecc02a1b64d6dab7acd2a4e1062b7db381598ad0c7a45 -->
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-05 — Reverse order display preferences
+
+- Persist teacher Classwork and Tests reverse-order preferences in browser storage; preserve defaults and drag ordering.
+- Focused checks passed (1,387 tests, architecture, UI/design policy, TypeScript and lint); browser reload and teacher desktop/mobile light plus mobile dark menus checked. Full visual matrix and independent review remain before PR.
+
+- 2026-11-06: Removed compact gradebook header 0 wt label; focused checks passed. Pattern Lab header inspected; authenticated visual matrix and PR remain pending.
+
+<!-- pika-session-log-archive-batch:cdefae3ca7dc23c6fcb1d3ddec5de2180d1425246d11288d266ef0d3040a47c5 -->
+
+## 2026-11-06 — Protect authoring progress
+
+- Added close confirmations for changed assignment and survey editors, plus tab-scoped recovery and save/discard choices for material editing. Focused checks and teacher desktop/mobile light/dark visual verification passed. Independent review and CI recorded in PR #1752.
+
+<!-- pika-session-log-archive-batch:8da09969272194c217015d835616489f16b2cb2e568ebb66f41d3089e6077ff1 -->
+
+## 2026-11-06 — RepoLight sync after gradebook PDF
+
+Rebased RepoLight work onto main f69f729e7. Retained main's gradebook PDF sources and dependency/lockfile changes; feature files and migrations 298–300 are byte-identical to the prior branch. Reconciled archive/session entries without loss. Offline RepoLight and gradebook model checks pass. New PDF dependencies were not installed and PDF/native/full CI checks remain pending. No DB, migration, provider, push or release action.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:f3de104d2110b7bb035d594de26f87709be4f8a9aac8c73d63041f46f5d07e0c -->
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+<!-- pika-session-log-archive-batch:e374dc9d162639afd6bc74a5bed66aec2f684976b0818eee83dad30184343b4c -->
+
+<!-- pika-session-log-archive-batch:0fa85f7ce8f2178f85a8ed2cab6011995da1b9765160dbb8b5e11bc9b5d093f7 -->
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, closeout, replacement, customer UI and profile admission are pending.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+
+<!-- pika-session-log-archive-batch:e31f08819fe42a8756a50b33b35ba42c865ba60f9c1dea6563174ad6afbaf8bb -->
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+<!-- pika-session-log-archive-batch:ab81e0de64538e75b345c5889e70ceffbfc82db06a6ad94b571f895c6e0bd941 -->
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-06 Gradebook student PDF export continuation
+
+- Continued draft PR #1741 on current main. Owner clarified Email 2 is guardian email and only Pika’s single guardian is the intended recipient. Teacher labels updated; read-only checks of two open classes found matching populated addresses and missing-address exceptions reported privately. TeachAssist email uses Trillium recipients and attaches its own report; no Pika-PDF upload observed. Board Outlook is accessible only in Chrome; no messages sent.
+- Local implementation adds a PDF/guardian pairing CSV, fail-closed roster matching, unrounded returned-work calculations and a multilingual tagged-text PDF prototype. Synthetic privacy/extraction tests and selected/all local browser ZIP pass; teacher desktop/mobile light/dark visual checks run. Focused gate 1758 tests and static checks pass; production build passes with PDF-library dynamic-import warnings and a 13.5 MB compressed CJK chunk. Independent review and exact-head CI remain. Account weekly ordinary usage exhausted; pr-review requires a human checkpoint before reviewer launch. No PR ready, merge or release.
+
+<!-- pika-session-log-archive-batch:e374dc9d162639afd6bc74a5bed66aec2f684976b0818eee83dad30184343b4c -->
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+<!-- pika-session-log-archive-batch:7409f40b214527ca316166635bb11ba51841b664b9d9e218c5651fc068c157bb -->
+
+<!-- pika-session-log-archive-batch:caf0e6707e0eaf77516e0372223b7cd2cdf4d0e08f2da965e25d0a4091f17c68 -->
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
+
+## 2026-11-06 Gradebook PDF review continuation
+
+- Owner explicitly authorized continuing independent review despite the exhausted weekly allowance; other review budgets and release gates remain. Review of c96921bd against 6dc7c349 used two Sol-high reviewers (effective configuration and elapsed/token telemetry unavailable). Privacy/calculation review found no confirmed defect; PDF review identified one P2 grapheme-splitting defect in long complex-script text.
+- Rebased onto main b91b3dc3, preserving both continuity histories. One remediation batch adds grapheme-safe wrapping and regression coverage for Devanagari vowel marks and conjuncts. Targeted tests/typecheck and synthetic multilingual PDF inspection pass; focused checks and independent delta review follow. No email or production deployment authorized.
+
+<!-- pika-session-log-archive-batch:7409f40b214527ca316166635bb11ba51841b664b9d9e218c5651fc068c157bb -->
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:c7e8458eddedfab318a490cd814488b279c0d02e81322a2704bc6198448badd1 -->
+
+<!-- pika-session-log-archive-batch:c56e00df35ec562354e208c27f6ec1f569ca737cbc5e239f10282cc532e60768 -->
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
+
+## 2026-11-08 — Dormant live billing target
+
+Added a default-off operator check for the exact production app and Supabase
+target and the private Stripe account pin. The 001–311 offline replay verified
+the service-only read, sandbox exclusion, retained test evidence denial,
+unchanged shared schema and generated types. The check leaves all live
+operations closed.
+
+## 2026-11-08 — Scheduled assignment release worker
+
+Prepared durable draft-backed schedules through the assignment Release route
+and the authenticated billing worker. The isolated replay proved eligible
+release, exact-once processing, pristine draft preservation and suppression
+when a later paid term starts retroactively across the missed due time. The
+same draft can be explicitly released after access returns. Migration 312 adds
+owner-only list and detail schedule state. Rescheduling and cancellation check
+the observed generation under the worker's locks. A stale request refreshes the
+editor. Verified teacher and student browser checks on desktop and mobile in
+light and dark mode. The sealed replay covers 311 and 312, including both
+worker and owner lock orders. Existing-schedule conversion, notice delivery and
+final CI still gate activation.
+
+## 2026-11-06 — Scoped Test native 300 witnesses
+
+Added a fixed sealed300-only complete-row witness for RepoLight, Stripe, plans and billing plus four trigger and two function definitions/ACLs to learner, grading, recovery, deletion and unpublication snapshots and contention comparisons. Isolated setup verifies dormant state and trigger bindings; historical source profiles retain their original snapshot SQL. Source guards admit exact300 or historic ≤297 and reject partial, changed or unknown tails. Offline plan, negative and historical tests pass. No DB access or migration; SQL/native behavior, preservation, target caps, CI and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:c7e8458eddedfab318a490cd814488b279c0d02e81322a2704bc6198448badd1 -->
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:044d3cf1432d6dc9f948445116fe3740a0f8a410c4e9da7f2af2f8df41010491 -->
+
+<!-- pika-session-log-archive-batch:b3f28f0aea4d6e24a6ebf8943c3d7fd8314205362e3b6892af3a6fe5f1d4c38f -->
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
+
+## 2026-11-08 — Dormant live billing target
+
+Added a default-off operator check for the exact production app and Supabase
+target and the private Stripe account pin. The 001–311 offline replay verified
+the service-only read, sandbox exclusion, retained test evidence denial,
+unchanged shared schema and generated types. The check leaves all live
+operations closed.
+
+## 2026-11-08 — Scheduled assignment release worker
+
+Prepared durable draft-backed schedules through the assignment Release route
+and the authenticated billing worker. The isolated replay proved eligible
+release, exact-once processing, pristine draft preservation and suppression
+when a later paid term starts retroactively across the missed due time. The
+same draft can be explicitly released after access returns. Migration 312 adds
+owner-only list and detail schedule state. Rescheduling and cancellation check
+the observed generation under the worker's locks. A stale request refreshes the
+editor. Verified teacher and student browser checks on desktop and mobile in
+light and dark mode. The sealed replay covers 311 and 312, including both
+worker and owner lock orders. Existing-schedule conversion, notice delivery and
+final CI still gate activation.
+
+## 2026-11-08 — Live trial lifecycle source
+
+Prepared default-off production trial status, admission and a Stripe-free
+expiry worker against the exact pinned target. The owned 001–313 replay proved
+admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
+and retained learner work. Type generation and targeted route tests passed.
+Billing now supports trial-only status and admission with no checkout requests.
+The teacher browser matrix passed on desktop and mobile in both themes. The
+canonical sealed replay and CI admit 313. The production worker caller and
+existing-schedule conversion require verification before activation. Live
+payment handling remains a separate source slice.
+
+## 2026-11-08 Live Pro trial review fixes
+
+Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
+
+## 2026-11-06 — Sealed 300 member and attendance profiles
+
+Member-list and full-graph hot-lifecycle source guards admit the exact sealed300 chain while retaining historical profiles and rejecting partial/changed/future tails. Member-list accepts explicit historical canonical catalogs and fingerprints every target table; hot fixture checks dormant RepoLight state before synthetic writes. The learner test helper validates the full300 chain before copying only historical257/258. Attendance clone accepts audited application-only source versions through300 and exact sealed297/300 target profiles. Offline tests passed; no database access or migration. Native 300 replay, metadata equality, cleanup, race evidence and independent review remain pending; separately scoped Test runners remain closed.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:044d3cf1432d6dc9f948445116fe3740a0f8a410c4e9da7f2af2f8df41010491 -->
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:7120750d6ee912ff7d65d173b186ddabf1c4c7be8df8e70323a6b775342bf8ee -->
+
+<!-- pika-session-log-archive-batch:e3c9ad73ad1196c33eeeff15778c9ef62bdf53afa319ce919e3af84b1fb493f9 -->
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight replay source boundary
+
+Review found the 001–300 replay harness rejected local source versions 296/297. Audited their sealed SQL: neither references or modifies platform Auth/Storage; 296 dynamic statements target public application tables. Admit 296/297 under the existing platform-schema source assumption, while retaining the exact 297 source seal preflight and 298+ refusal. This is not an attestation of live migration bytes. Corrected replay labels; 39 offline boundary/profile tests pass. No database access or migration; fresh replay/types and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
+
+## 2026-11-08 — Dormant live billing target
+
+Added a default-off operator check for the exact production app and Supabase
+target and the private Stripe account pin. The 001–311 offline replay verified
+the service-only read, sandbox exclusion, retained test evidence denial,
+unchanged shared schema and generated types. The check leaves all live
+operations closed.
+
+## 2026-11-08 — Scheduled assignment release worker
+
+Prepared durable draft-backed schedules through the assignment Release route
+and the authenticated billing worker. The isolated replay proved eligible
+release, exact-once processing, pristine draft preservation and suppression
+when a later paid term starts retroactively across the missed due time. The
+same draft can be explicitly released after access returns. Migration 312 adds
+owner-only list and detail schedule state. Rescheduling and cancellation check
+the observed generation under the worker's locks. A stale request refreshes the
+editor. Verified teacher and student browser checks on desktop and mobile in
+light and dark mode. The sealed replay covers 311 and 312, including both
+worker and owner lock orders. Existing-schedule conversion, notice delivery and
+final CI still gate activation.
+
+## 2026-11-08 — Live trial lifecycle source
+
+Prepared default-off production trial status, admission and a Stripe-free
+expiry worker against the exact pinned target. The owned 001–313 replay proved
+admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
+and retained learner work. Type generation and targeted route tests passed.
+Billing now supports trial-only status and admission with no checkout requests.
+The teacher browser matrix passed on desktop and mobile in both themes. The
+canonical sealed replay and CI admit 313. The production worker caller and
+existing-schedule conversion require verification before activation. Live
+payment handling remains a separate source slice.
+
+## 2026-11-08 Live Pro trial review fixes
+
+Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
+
+## 2026-11-08 — Scoped live Stripe evidence
+
+Added explicit account and mode checks for Checkout and verified invoice
+reconciliation. Live session creation verifies the active product, price and
+remaining write window. Paused writes preserve recovery for known sessions.
+Signed live snapshots require a dedicated account endpoint and live evidence.
+The sandbox store rejects live receipts. Synthetic provider and service tests
+passed. The live SQL store, runtime and operator rollout still need work.
+
+## 2026-11-08 Live Stripe receipt intake
+
+Added a dedicated default-off live snapshot webhook with the official Stripe signature verifier and a target-bound database writer. Migration 314 separates payment recovery, admission and provider-write flags. First activation records a durable target identity and keeps the classroom cutoff in force. The inbox deduplicates by account, mode and event ID and rejects conflicting bytes. The sealed 001–314 replay passed both trial/payment activation orders and receipt persistence, with matching generated types and preserved shared schema. Live checkout persistence, subscription binding and paid entitlement writes are still pending.
+
+## 2026-11-06 — RepoLight reorder preservation profile
+
+Extended only the Test reorder proof to the exact sealed 300 chain; historical through 297 remains accepted and partial 298/299 or unknown/tampered tails fail closed. Shared quota catalog fingerprints new managed/control/outbox rows and affected billing/plan/settings; canonical metadata tracks four triggers and both function definitions/ACLs. Isolated fixture checks dormant settings, control epoch, empty managed/outbox and trigger bindings. Offline tests and typecheck pass. No DB execution or migration; isolated 300 native behavior and preservation, other native profiles, full focused checks and independent review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:7120750d6ee912ff7d65d173b186ddabf1c4c7be8df8e70323a6b775342bf8ee -->
+
+## 2026-11-06 — Home replay source profile after RepoLight sync
+
+Home proof source manifest accepts exact historical 297 or sealed 300 inventory and rejects partial, changed or future tails. The 298–300 migrations contain no Auth/Storage references; source version cap covers these application-only changes under the existing platform-schema assumption. Offline manifest/source boundary tests pass; this does not establish live-source bytes or native 300 replay. Other native proofs and preservation catalogs remain closed at 297 pending explicit table, singleton and trigger coverage; no DB, migration or PR operation.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:472f5df267fec1aea54c8d634c7d5f3e2eedf9c82f571319b5d67d2bb0d211d9 -->
+
+## 2026-11-06 — RepoLight sync after gradebook update
+
+Rebased the RepoLight branch onto main b91b3dc3d. The gradebook source and test match main exactly; RepoLight migration SQL 298–300 is byte-identical to the prior branch. Reconciled archive history without dropping main or branch entries. Gradebook and RepoLight source-boundary checks pass. No database, provider, push or release action; fresh database replay, type verification and cross-service evidence remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:57a9ac3e8664c5c96d5b7bbf7ae10be8629db6de28fc92581b746b1801227607 -->
+
+<!-- pika-session-log-archive-batch:10c5d91e4a0b8972aa90955681458f1bc4b7f8df482f71d0d1b37be67e61522d -->
+## 2026-11-06 — RepoLight main sync and migration resequence
+
+Rebased PR1715 onto main 6dc7c349e. Preserved main 296/297; moved RepoLight source migrations to 298–300 without changing SQL bytes or hashes. Exact source guards and offline tests preserve main's reviewed 297 native catalog boundary and reject the RepoLight tail. No database, provider, flag, push or release operation. Full 001–300 isolated replay, generated-type verification, cross-service E2E and independent rebase-delta review remain pending.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-06 — RepoLight managed pilot scope
+
+Added explicit off/scoped/full managed provisioning scope with one-teacher cron claims, manual connection continuity, and exact pending rotation recovery for saved locators. Verification is recorded in the implementation handoff. No hosted changes or migrations.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+## 2026-11-06 — Term calendar List and Grid
+
+Implemented the approved full-term List/Grid calendar, compact controls, Today centering, sticky headings and subtle month/week boundaries. Teacher/student browser interaction and role/theme/viewport captures were exercised; focused checks and independent review remain in progress on `codex/calendar-term-list-grid`.
+
+## 2026-11-06 — Survey authoring CI timeout
+
+Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+
+## 2026-11-06 — Dark browser CI partitions
+
+Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+
+## 2026-11-06 — Gradebook PDF test timeout
+
+Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+
+## 2026-11-06 — Parent report score alignment
+
+Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+
+## 2026-11-07 — Calendar label and scrolling review
+
+Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+
+## 2026-11-07 — Calendar list day selection
+
+Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+
+## 2026-11-08 — Calendar sticky focus
+
+Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+
+## 2026-11-08 — Restore navigation for calendars without complete dates
+
+Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+
+## 2026-11-08 — Universal RepoLight tier benefit
+
+Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
+
+## 2026-11-08 — Customer billing and renewal recovery
+
+Prepared the sandbox teacher billing page, portal invoices and payment methods,
+verified upgrade confirmation and customer-safe purchased terms. Forward
+migrations 302–303 cover pending renewal recovery, undo-cancellation after a
+verified prorated upgrade, and advisory account actions. RepoLight's migration
+301 tier rule and exact cutoff stay in place. See the billing foundation
+checkpoint for the remaining provider, scheduling, classroom and production gates.
+
+## 2026-11-08 — Billing worker recovery
+
+Prepared a separate follow-up that keeps admitted checkout and upgrade work
+recoverable when new admissions close. Migration 304 isolates conflicting
+expiry rows so a limited batch still processes healthy accounts. Offline
+001–304 replay, billing/RepoLight contracts and contention passed. Live mode
+and scheduled changes remain open.
+
+## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
+
+Prepared exact renewal quote, confirmation, leased Stripe schedule installation
+and target invoice reconciliation. Disposable 001–306 replay verified stale
+lease rejection, preservation of the paid Max term, Max grace after Pro payment
+failure, and atomic Pro access after capture. Flags remain off. Provider
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+
+## 2026-11-08 — Scheduled renewal recovery review fixes
+
+Draft PR 1768 review found delayed first-payment recovery and due-closeout
+lease gaps. The batch permits exact verified late settlement, reserves due
+closeout work in the ordinary queue and claim, and derives the target cycle
+in SQL. It scopes admissions and installation listing to the worker account,
+keeps expiry and closeout running when optional recovery fails, and requires
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+fresh terminal schedule proof for detached delinquent subscriptions.
+The sealed disposable 001–307 replay and 186 focused tests passed.
+
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.
+
+## 2026-11-08 — Classroom capacity restriction checkpoint
+
+Prepared a private subscription restriction history, deterministic activity
+fallback, explicit downgrade selection and capacity-checked restore. The
+001–309 disposable replay verified trial expiry and paid re-entry, including
+cross-owner denial and the last available seat. A separate fixture exercised
+Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
+with seven classrooms. The existing classroom archive state, shared schema
+and generated public type baseline were checked. The rollout flag is off;
+assignment release and the customer-facing selection and restore remain open.
+
+## 2026-11-08 — Assignment publication cutoff
+
+Prepared the default-off publication fence shared by legacy and contextual
+assignment writers. Disposable 001–310 replay verified draft preservation,
+continued editing and student submission of already released work, and both
+Classroom-lock and paid-access cutoff races. Native generated types and the
+shared schema matched. The existing future schedules need conversion and a
+durable release worker before enabling the cutoff.
+Independent review identified gaps in paid re-entry, ordinary terminal
+retirement, legacy bulk publication and the 307 source replay profile. The
+remediation preserves cutoff history and sends publish-capable bulk requests
+through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
+and treats newly created rows as drafts. Both RPCs preflight classroom ownership
+and assignment binding before taking caller-supplied locks.
+
+## 2026-11-08 — Dormant live billing target
+
+Added a default-off operator check for the exact production app and Supabase
+target and the private Stripe account pin. The 001–311 offline replay verified
+the service-only read, sandbox exclusion, retained test evidence denial,
+unchanged shared schema and generated types. The check leaves all live
+operations closed.
+
+## 2026-11-08 — Scheduled assignment release worker
+
+Prepared durable draft-backed schedules through the assignment Release route
+and the authenticated billing worker. The isolated replay proved eligible
+release, exact-once processing, pristine draft preservation and suppression
+when a later paid term starts retroactively across the missed due time. The
+same draft can be explicitly released after access returns. Migration 312 adds
+owner-only list and detail schedule state. Rescheduling and cancellation check
+the observed generation under the worker's locks. A stale request refreshes the
+editor. Verified teacher and student browser checks on desktop and mobile in
+light and dark mode. The sealed replay covers 311 and 312, including both
+worker and owner lock orders. Existing-schedule conversion, notice delivery and
+final CI still gate activation.
+
+## 2026-11-08 — Live trial lifecycle source
+
+Prepared default-off production trial status, admission and a Stripe-free
+expiry worker against the exact pinned target. The owned 001–313 replay proved
+admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
+and retained learner work. Type generation and targeted route tests passed.
+Billing now supports trial-only status and admission with no checkout requests.
+The teacher browser matrix passed on desktop and mobile in both themes. The
+canonical sealed replay and CI admit 313. The production worker caller and
+existing-schedule conversion require verification before activation. Live
+payment handling remains a separate source slice.
+
+## 2026-11-08 Live Pro trial review fixes
+
+Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
+
+## 2026-11-08 — Scoped live Stripe evidence
+
+Added explicit account and mode checks for Checkout and verified invoice
+reconciliation. Live session creation verifies the active product, price and
+remaining write window. Paused writes preserve recovery for known sessions.
+Signed live snapshots require a dedicated account endpoint and live evidence.
+The sandbox store rejects live receipts. Synthetic provider and service tests
+passed. The live SQL store, runtime and operator rollout still need work.
+
+## 2026-11-08 Live Stripe receipt intake
+
+Added a dedicated default-off live snapshot webhook with the official Stripe signature verifier and a target-bound database writer. Migration 314 separates payment recovery, admission and provider-write flags. First activation records a durable target identity and keeps the classroom cutoff in force. The inbox deduplicates by account, mode and event ID and rejects conflicting bytes. The sealed 001–314 replay passed both trial/payment activation orders and receipt persistence, with matching generated types and preserved shared schema. Live checkout persistence, subscription binding and paid entitlement writes are still pending.
+
+## 2026-11-08 Live checkout catalog and persistence
+
+Migrations 315 and 316 add the exact Pro and Max catalog, scoped checkout attempts and leases, and live subscription binding. They preserve an existing checkout across catalog retirement and a pause in Stripe writes. New Stripe creates require renewed database authorization under the lease. The owned 001–316 replay passed all eight catalog terms, stale claims, receipt adoption, trial expiry and independent grants, with generated types matching and the shared schema preserved. Targeted service, store and provider checks passed. Paid entitlement reconciliation is required before enabling the live checkout entry points.
+
+## 2026-11-08 Live paid reconciliation and access
+
+Added scoped reconciliation leases, verified invoice effects, paid status, expiry and RepoLight checks for the pinned live account. The isolated 001–319 replay verified first payment, renewal and grace, replay, trial conversion, paid Pro and Max access and denial at the Max cutoff before materialization. Expiry applied Free once on a financially retired binding. Generated types matched and the shared schema was preserved. Targeted worker and provider checks passed. Customer entry points, paid closeout, safe handling of legacy future assignments and operational rollout checks remain.
+
+## 2026-11-08 Live billing entry points
+
+UI brief. Reuse the teacher Billing cards and plan selector from the sandbox Billing rehearsal and the anonymous Pattern Lab Billing fixture. Verify Free with Pro and Max offers, checkout recovery, and paid status with its portal action on desktop and mobile in light and dark. Student access remains excluded and its redirect will be checked. The primary signals are the verified plan status and existing actions. Composite widget review is unnecessary because the native Select contract stays in place.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Paid plan and recovery | BillingPage and AppShell | reuse | Existing state, cards and navigation cover the same billing flow |
+| Live portal action | BillingPage portal button | extend | The same action now also opens term-end cancellation |
+| Synthetic visual case | Anonymous Billing Pattern Lab fixture | extend | The production Billing component can render the live plan and recovery states with fixed responses |
+
+The signed webhook and separate paid worker credential now gate live checkout admission. The exact pinned closeout lane closes unpaid renewal invoices after grace or records payment if it wins the race. Existing legacy future releases hold new admission and remain intact. The live portal allows invoice history, payment methods and term-end cancellation. Sealed 001–321 replay passed with generated types matching and the shared schema preserved. Browser verification used the existing Billing component with synthetic checkout and portal responses across both viewports and themes. A real synthetic student session redirected away from Billing.
+
+## 2026-10-22 — Roster join dates
+
+Teacher roster Joined cells now pair the existing Lucide check with a compact
+Toronto-calendar enrollment date; absent/invalid timestamps retain joined status,
+and unjoined rows stay empty. Reuse: roster/DataTable and Pattern Lab teacher-work
+surface reference; extend: joined-cell composition and shared timezone utility.
+No shared component or new pattern; no adjacent refactor needed. Risk: none.
+Visual matrix: teacher 1440x900 + 390x844, light/dark, default/hover/selected,
+joined/unjoined/legacy missing-date; student n/a (teacher-only roster). Playwright
+captures in ignored output/playwright/, synthetic roster responses on local stack,
+compared with roster-before and Pattern Lab teacher-patterns. No overflow.
+Composite checklist reviewed: yes; keyboard/semantic regression coverage reused
+from TeacherRosterTab suite, new date/status semantics covered; no manual follow-up.
+Targeted tests54 pass; UI/design policy and precommit audit pass. Broader focused
+checks and independent review receipts tracked in PR lifecycle. No migration.
+Coordinator implemented directly; one low-risk reviewer planned (Luna6/medium).
+Weekly remaining22%; storage276GB healthy; task token/active-time attribution unknown.
+
+<!-- pika-session-log-archive-batch:ce351f895cb31a9c12b15ee695cf9bea0d51cbafc04818aa76246cb8408007ad -->
+
+## 2026-10-22 — Production post-date promotion preparation
+
+Owner authorized one production application of289/290 followed by main promotion.
+Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
+CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
+service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
+checks PASS. Two Sol/high cumulative production→main reviews passed with no
+findings. PR1664 encountered only journal conflict; union preserves both parent
+histories and trim restores chronology. Application/Supabase trees stay identical
+to main. One journal-resolution batch and targeted review/final CI pending; no
+production retry, fixture write, flag, account or provider change.
+
+<!-- pika-session-log-archive-batch:a4aeb7110134734fa409446243e62c5a3f89ee15610f8ed0e4fadc37e5b4cc60 -->
+<!-- pika-session-log-archive-batch:bb1ff3d4d63446d183f3908fb5132b01f29a5951a3e4c9ddd67ebfe0b1ed1274 -->
+
+## 2026-10-22 — Announcement calendar post dates
+
+Owner expanded post-date editing to published announcements in PR1663. Reuse
+material native date field and shared civil-date schema; extend announcement
+card/locked owner patch, refresh mounted teacher calendar, reuse publication
+calendar readers. Guide/reuse/matrix: docs/guidance/announcement-post-date.md.
+Risk none; no new dependency/shared UI pattern. Student editing n/a; student
+saved-date reading verified desktop/mobile light/dark. New browser4/4 and old
+feedback2/2 PASS; captures inspected, composite checklist reviewed. Migration290
+keeps289 unchanged; Sol/high worker owned SQL/seals/proofs, coordinator app/API.
+Effective model, tokens and active time unknown; weekly99% remaining at start.
+Owner approved brief Docker restart only for disposable verification:001–290
+material/announcement and attendance proofs plus Data API normal/absent-default
+ACL replays PASS. Source schema/history unchanged, owned clones cleaned, Docker
+stopped again. Evidence /tmp/pika-material-post-date.NSbkTw and
+/tmp/pika-attendance-membership.R8Oq4m. No shared local/production migration or
+release. Final focused gate and new-scope independent delta review pending.
+
+## 2026-10-22 — Production post-date release completed
+
+Owner authorized production289/290, then main promotion after checks. Single
+apply39862570602 returned applied-verified001–290, matching preview39862341945
+and fullCI39836337744 at reviewed main48cee7969. Read-only exact owner bodies,
+metadata/service-only ACLs, unchanged table RLS/constraints/triggers and Toronto
+midnight checks PASS. PR1664 journal-only merge resolution580cea537 retained all
+parent entries; two cumulative Sol/high reviews and one targeted pass found no
+blocker. Focused12,583/559 and all ten CI39864745315 checks PASS after download-only
+ECR retries. Normal production mergea1b7c2a77 matches reviewed tree. Vercel
+dpl_A895Cc9p4Af36TatCkh37tz3EaxP READY at exact SHA; production alias and four public
+GET checks PASS. Receipt: docs/guidance/production-release-2026-10-22.md. No apply
+retry, fixture/post mutation, flag/account/provider/billing change or Docker
+restart. Attributable tokens/active time unknown. Final receipt docs review/CI
+remains; production promotion worktree retired, shared env target preserved.
+
+## 2026-10-22 — Local291 preflight and independent review
+
+Owner approved local291 and3additional reviews. Supabase local target verified
+Pika/54322; history001–243, explicit dryrun proposes244–291. STOP: no non-dry-run
+application attempted; asked expanded exact244–291 authority, pending. Existing
+244–290 bytes match reviewed main61bc7e89a. Isolated001–291 replay and4rollback
+proofs PASS; shared schema unchanged. Harness final type equality differs only
+new2914-column ledger/2FKs; generated metadata pending official local generation.
+Data API historical/absent-default ACL replay PASS. Native receipts:
+/tmp/pika-material-post-date.bgGFy2 and /tmp/pika-authoring291-data-api-native.log.
+Owned clones removed, local DB and Docker stopped again.
+
+Independent fresh-context Sol/high launches10/11 completed on d5bd64337: storage
+and UI/compatibility, no editor-state/auth blocker;2uniqueP2archive blockers
+(stale compatibility images and absolute URLs). One correction batch uses SQL's
+canonical source precedence and remaps protected URLs to new relative identity.
+Canonical one-worker gate10168testsPASS; architecture/UI/design/TypeScript/lint
+PASS. FinalIPv6 URL variant landed during run; subsequent exact-source5archive
+suites71PASS. No UI delta; existing visual hashes retained. Launch12
+reserved for correction/integration after metadata/native gates; no further
+launch approved beyond12. Requested model/effort recorded; effective config,
+per-turn tokens and exact reviewer seconds unavailable. Current PR remains draft.
+
+## 2026-10-22 — Production post-date promotion preparation
+
+Owner authorized one production application of289/290 followed by main promotion.
+Preview39862341945 and single apply39862570602 bind reviewed48cee7969 and full
+CI39836337744; applied-verified001–290. Read-only exact function bodies, metadata,
+service-only ACLs, unchanged table RLS/constraints/triggers and Toronto midnight
+checks PASS. Two Sol/high cumulative production→main reviews passed with no
+findings. PR1664 encountered only journal conflict; union preserves both parent
+histories and trim restores chronology. Application/Supabase trees stay identical
+to main. One journal-resolution batch and targeted review/final CI pending; no
+production retry, fixture write, flag, account or provider change.
+
+## 2026-10-23 — Final editor/image review candidate
+
+Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
+and no backend remains. Durable native receipts beside actual-editor captures:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
+Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
+17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
+change. Correct archive fixture to real rich_instructions field. All160affected
+startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
+UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
+remain identical to full-checked00ae6b071; closing docs/test-only delta.
+Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
+findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
+model/effort recorded, effective configuration/tokens/seconds not exposed.
+Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
+Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+<!-- pika-session-log-archive-batch:dcbfd493a7569d7994b83cc3fddf26a352e6deb5ad7bdba77befa1c73a914a0a -->
+<!-- pika-session-log-archive-batch:1a3718ccc2c326813d3ffa3475de4988fc785d6408155acb9f3628e0c4bd3620 -->
+
+## 2026-10-23 Authenticated CI Supabase registry repair
+
+PR1662's four remaining lanes failed before tests with the anonymous ECR data
+transfer cap, including one failed-only retry. Returned the PR to draft before
+repair. All seven Supabase jobs now select the official GHCR mirror with the
+existing ephemeral workflow token and job-scoped packages:read. CLI2.103.0 and
+image versions, proof commands, selectors and PR Gate remain unchanged; all17
+pinned mirror manifest indexes/platform descriptors matched byte-for-byte.
+The Node-only helper publishes private RUNNER_TEMP Docker-config ownership
+before login, sends the token on stdin, suppresses diagnostics and always removes
+only its own marked directory after stack cleanup. Local CI validates these exact
+credential slots and skips them without importing secrets; historical ECR/no-env
+plans remain supported. 360 focused helper/workflow/parser tests pass, including
+failed startup and rejection cases. Broader focused gate and two independent
+credential/parser reviews precede final stable-SHA CI. Existing human review-limit
+waiver covers this repair; prior13review receipts and7fix batches retained.
+No local Docker operation, migration, dependency or application/UI change in this
+batch. Another chat's bounded local verification hold remains active.
+
+## 2026-10-23 CI registry review corrections
+
+Independent Sol/high launches14/15 completed a39a13d05's credential/security and
+workflow/compatibility assignments. One unique P2 credential issue: empty auths
+allows Docker's platform helper discovery, which can store tokens outside the
+private directory. Seed the fixed GHCR entry to suppress discovery; its regression
+failed before the correction. A daemon-free Docker CLI probe with an isolated
+config and fake helper confirmed empty auths invokes the helper while the seeded
+entry does not; no token, actual credential store or daemon operation. The other
+P2 was the broad focused gate's canonical workflow inventory omission. Register
+both new registry suites in check:workflow; preserve every existing test. Initial
+full selection:10205PASS/8skip, only inventory failure. Both fixes batched together,
+then required focused/static checks and one targeted independent correction review
+before final stable-SHA CI. Human review-limit waiver retained (15launches,9batches).
+
+## 2026-10-23 — Final editor/image review candidate
+
+Native244–291/localhistory/types/catalog/replay PASS; Docker Desktop stopped
+and no backend remains. Durable native receipts beside actual-editor captures:
+/Users/stew/.codex/visualizations/2026/10/22/01a163d1-8db0-7481-b96e-7f538d0e90a8/native-verification-2026-10-23.
+Full one-worker selection on00ae6b071:10168PASS/1FAIL, only startup context
+17058>17000. Compact CURRENT to16965, retaining local/rollout facts; no budget
+change. Correct archive fixture to real rich_instructions field. All160affected
+startup/UI-guidance/archive tests across7suites PASS; architecture1303modules,
+UI148controls, design698values, TypeScript and lint PASS. Runtime/schema/config
+remain identical to full-checked00ae6b071; closing docs/test-only delta.
+Fresh Sol/high reviewer12 completed behavioral scope: both priorP2archive
+findings resolved, no new blocker; exact-head receipt follows in PR1662. Requested
+model/effort recorded, effective configuration/tokens/seconds not exposed.
+Owner-approved12launch limit exhausted; no additional reviewer launch allowed.
+Ready-PR CI follows stable exact-head verdict; no merge or production action.
+
+<!-- pika-session-log-archive-batch:baa094822bce8662e7bb675bb47e53290ac479d3e0a22ff37ed996cc7e9f9f0d -->
+
+<!-- pika-session-log-archive-batch:c42641fbc6ed9f95cf8c671d17cdbc00501f1d615162e1aaae94dd5ca6dcc527 -->
+
+## 2026-10-23 — Reconcile authoring-image role boundaries
+
+Cumulative review428 accepted the rebase/native/visual evidence but found new
+upstream image endpoints still globally role-bound. Batch42 adapts existing
+reserve/finalize/cancel and delivery only within exact home/shared admission;
+actual owner/creator/object checks, current-member publication, archived denial,
+retained-owner previews and nonadmitted legacy behavior remain. Twelve RED API
+regressions reproduced the mismatch before the fix;79 focused checks then passed.
+No SQL, UI, provider execution or shared database change. Native292/16-case UI
+evidence remains unchanged; final focused checks and targeted review429 required.
+All deployment/provider/account/cohort/cutover holds stay in place.
+
+<!-- pika-session-log-archive-batch:32a2b59385749ee316b7a0702d59336d352977f3dc3577fff5e6b1fbf05e0684 -->
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.
+
+<!-- pika-session-log-archive-batch:9f6f8f2457df46859623252bbf0284ab2800bf3d5bde9f642e85a2be992c9c2a -->
+<!-- pika-session-log-archive-batch:264dc7d415e806283f9cca8f0daa6aadc0ed5eb9a78ac3d201db3dcac98fa702 -->
+
+## 2026-10-23 — Align reorder CPU graphs with complete292 preservation
+
+Review433 covered the complete shared-catalog delta and accepted one P2: two
+stale reorder CPU graphs omitted the correctly required home-table fingerprint.
+Full gate20failed/4545passed; no product/SQL defect or timeout relaxation.
+Batch47 updates only those two test graphs and explicit missing-home denial;
+all original deadline/action/restoration corruption cases remain. Affected387/4
+plus ESLint/TSC PASS. Full focused gate and targeted434 precede any push/ready;
+real member-list/cleanup finalCI remains required. Production/provider/shared
+applications/accounts/activation holds remain; no native or Docker action.
+
+## 2026-10-23 — Contextual owner manual-attendance authorization
+
+Signed-in home verification identified the Daily manual-attendance fallback still
+requiring a global teacher role before classroom ownership. Owner approved the
+narrow app fix and a new frozen verification revision. GET/PUT/POST reuse existing
+shared attendance actor admission; unmatched accounts retain the original teacher
+gate. Actual classroom ownership, archived read/mutation distinction and unchanged
+SQL roster/day/revision guards remain authoritative. Red route regressions reproduced
+26 failures before the fix; affected API/store/hook/migration tests pass afterward.
+Full local checks, independent auth/compatibility review and exact-head CI precede
+main merge. No schema, cohort, provider, account or production changes; existing
+failed rehearsal evidence is retained and does not establish workflow acceptance.
+
+## 2026-10-23 — Contextual member notification reads
+
+Owner approved the signed-in mixed-role notification gap after an actual route
+regression reproduced403. Admitted current nonowner members now use compact,
+bounded classroom-root reads for the unchanged four notification counters;
+every payload and terminal page binds active class, actor, owner and enrollment
+generation. Publication/own-resource checks, repeated snapshot validation and a
+final relationship guard reject observed drift without claiming a transaction
+snapshot. Absent/unadmitted behavior retains the original student-role path.
+Focused legacy/contextual/route-standard tests, TSC, lint and architecture checks
+pass; final independent review/full focused checks remain coordinator-owned.
+No migration, dependency, account, cohort, provider or production changes.
+
+## 2026-10-23 — Prepare activation-off Home foundation release
+
+Owner explicitly approved292 locally and in production, then reviewed-main
+release with activation off. Local sole292 push and production apply40059138246
+both verified contiguous001–292; production preview40059060682 matched only292.
+Read-only checks match both installed function bodies, private RLS/ACLs and
+validated enrollment PK/FKcascade. No reset, seed, retry or production fixtures.
+Release1673 batches reviewed main3c1be2d39; full focused4738tests/151suites and
+static gates pass. Independent security464/compatibility465 complete clean.
+Reconciled only journal merge history with productioncd7179, retaining both
+parents and unchanged application/SQL/config/dependency bytes. Final delta
+review and exact-head CI precede merge. Home/admission/page settings remain
+absent; existing provider/control metadata unchanged. Live-provider, activation,
+account/plan/billing holds remain; this is not pilot or overall cutover acceptance.
+
+## 2026-10-24 — RepoLight report integration local verification
+
+- Implemented optional-username public-repo reports, contributor views, explicit feedback draft append and preserved blank student login selections. Reports are separate from grades and Return.
+- Added source293 durable report/cleanup lifecycle, portable archive resources, confirmed deletion snapshots and bounded cleanup. Report-only removed-member action keeps academics/other providers out of scope; automatic cleanup requires manual confirmation for unresolved RepoLight subjects.
+- Native owned Supabase source f7f1bf11d replay/types/contracts and three two-session races pass. Native archive export/compaction/restore passes. Actual HTTP login/analysis/worker/result/import/replay passed; actual HTTP scoped erasure proved wrong confirmation/generation no egress and unchanged academic document.
+- Shared Pika database/configuration and all hosted systems remain unchanged. Analyze stays OFF. Final combined focused checks pass (5,892 tests, architecture, UI/design policies, types and lint); independent review remains pending. Browser component proofs exist; localhost authenticated browser connection is unverified and origin checks remain intact.
+- Active worktree codex/repolight-integration; single coordinator goal/ledger lives in RepoLight docs/REVIVAL-PLAN.md. No branch publication or migration to shared local/production.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+<!-- pika-session-log-archive-batch:f88a41eafd560edea05a43d4530969f032eb7bba0e70b20a9417036463a4a7bd -->
+
+## 2026-10-24 — Release inactive classroom Home foundation
+
+Owner explicitly approved sole292 locally/production and reviewed-main release
+with activation off. Local pinned CLI and production apply40059138246 both
+verified001–292; read-only bodies/grants/RLS/PK/FK checks pass. Release1673
+independently reviewed464–466, local4738/151+1022/73 and exact-head CI40059627420
+all10jobs/PRGate PASS. Protected merge4778514b0 has exact reviewed tree; Vercel
+dpl_DHbxckpbMDrojHGw6uD5ZePPpS54 and public alias READY00:28Toronto. Six public
+unauthenticated GET checks pass, including exact root307→login200; initial
+root200 expectation was a smoke-assumption error, not an app change. Five
+activation settings absent;24provider/controlmetadata records unchanged. No
+retry/reset/seed/production fixture/provider/account/plan/billing/activation
+change. Detailed receipt records recovery/pilot/canary gaps; cutover not complete.
+
+## 2026-10-24 — Assignment image submission recovery
+
+Owner requested both image bug fixes and safe A4 submission for affected learners. Current task owns codex/a4-image-submission-recovery. Extended ManagedImage clipboard metadata, added scoped authorized save/submit recovery for already-open drafts and null optional identities, and restricted repaired-metadata equality to submission acknowledgement. No migrations, flags, deadlines, grading or production data writes. Focused checks2463pass,8skip; four added helper cases also pass. Real local atomic save/submit rollback proof and Playwright role/viewport/theme matrix pass with synthetic data. Independent draft-first review and production promotion remain pending. Guidance/evidence and review budget: docs/guidance/assignment-image-submission-recovery-2026-10-24.md.
+
+## 2026-10-24 — Prepare classroom Home recovery and pilot
+
+Prepared a rollback-only creation freeze/getter-permission fault/restoration
+contract in the existing sealed offline owned-clone verifier, plus actual-route,
+adapter and server-page CPU composition tests for both account-role labels.
+The layered evidence intentionally does not claim real PostgREST/browser outage
+or deployed recovery. Pilot packet records compatible477/schema292 floor,
+retained-admission growth stop, canaries, zero-tolerance stop conditions and
+unset operator/cohort/activation authority. Root verified84focused cases and
+TypeScript. Reviews468–470 cover source and corrections; bounded
+Sol6.1/high workers supplied read-only design (~8min) and SQL implementation
+(351s), effective model/tokens unknown. No runtime, migration, dependency,
+production, real-account, provider or activation change. Cutover remains open.
+First isolated attempt stopped on a legacy plain-text work fixture in JSONB
+content; no product defect. Source schema preservation and exact-owned cleanup
+passed; failed evidence retained. Red/green regression now parses the fixture's
+actual JSON document; independent delta review precedes a fresh attempt.
+Fresh reviewed a3ae3d947 offline run passed17.2s:001–292 replay, real service-role
+fault/recovery, strict118-byte rollback verdict, whole table/catalog preservation,
+unchanged lock contention, generated types and canonical schema/source equality.
+Exact owned resources absent; full failure/success evidence retained privately.
+Final receipt review/CI/main merge pending; production477 and activation/provider
+holds unchanged. Pilot still requires selected operator/cohort and authorization.
+
+## 2026-10-24 — Assessment diagnostic privacy cleanup
+
+Owner approved orchestration; journal-derived product feedback stays unchanged.
+Three disjoint GPT-6.1 Sol/high implementation workers migrated Assignment/Test
+API and document/helper diagnostics; coordinator owns shared allowlist, guard,
+integration and review. Replaced140 raw server error logs plus one fixed Test
+publication log; browser history warning no longer carries an entry ID. Cleanup
+retry records use fixed stage descriptions instead of provider/database messages.
+Synthetic red/green coverage:35 Assignment boundaries,26 Test assertions and47
+helper cases. Scoped regressions pass242/288/127 tests respectively. Source
+comparison finds no unexpected logic deltas; durable diagnostic changes and
+literal operation branches reviewed separately. No UI/schema/dependency/query/
+authorization changes, production actions or historical log deletion. Remaining
+logging inventory/vendor controls stay open. Focused gate, independent review and
+stable-SHA CI follow; evidence in private log-privacy-assessment-cleanup handoff.
+Storage healthy256GB; weekly65% remaining at start; DeepSeek pause honoured.
+Worker token/effective-model and coordinator active-time telemetry unavailable.
+PR1678 initial full gate passed13,195 tests/8skipped plus architecture, policies,
+TypeScript and lint. Independent privacy review found an immediate JSON-patch
+helper still emitting document trees; compatibility review found no regressions.
+One remediation batch replaces both patch-helper logs with browser-safe fixed
+warnings and strengthens aggregate reconstruction diagnostics tests/guard.
+Targeted review and exact-head CI remain required before readiness/merge.
+
+## 2026-10-24 — Three-account Home pilot acceptance reconciliation
+
+Recorded exact production1da699/schema292 and the retained dedicated three-account
+Home admission. Actual owner-assisted browser canaries passed reciprocal creation,
+code join, Teaching/Joined, persisted hide/unhide and outsider UI denial. Final
+scoped state matched one owned/one joined per reciprocal account, no Control
+membership and unchanged plans/providers. Corrected stale current-state and
+preparation-only wording; private identities/codes/content stay outside Git.
+Kept production replay, classwork/manual-return and direct API negatives distinct
+from accepted isolated domain/lifecycle/recovery proofs. No new runtime/schema/
+provider/cohort change or epic exit; live-provider/expansion holds remain.
+Docs-only focused checks and independent review precede normal main merge.
+
+## 2026-10-24 — Manual grader label owner-read regression
+
+The dedicated pilot saved manual scores, then owner readback failed503 because
+the strict detail schema treated graded_by as an actor UUID. Installed manual
+writer223 stores teacher text; existing grading/list contracts already accept
+text. Align only this metadata field, retaining owner/member UUID checks and
+strict shape/size guards. No migration, stored-data repair or authorization change.
+An installed-SDK RED reproduced the503; GREEN101 tests covers manual text,
+AI/model/legacy UUID/null compatibility and malformed/missing refusal. Full
+focused4418 PASS/8SKIP plus architecture, UI/design policy, TypeScript and lint;
+independent review and exact-head CI follow. Both pilot sessions remain signed
+in; Return/learner feedback remain pending compatible release and readback.
+No production, cohort, provider, plan or schema change; growth stays frozen.
+First CI caught the prior pilot summary's changed controls marker; restored
+the accurate established Controls unchanged prefix without reverting admission
+or provider state. Runtime grader fix unchanged; targeted docs regression and
+independent delta review precede the next stable-SHA CI.
+
+<!-- pika-session-log-archive-batch:a9e6e75f0e4b47861167cb86c998298b47d6e79ea20ac3a5b79c4b77b62ef075 -->
+
+## 2026-10-26 Future post dates
+
+Announcements and posted Classwork materials accept future Post date values.
+Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
+today/past dates retain posted_on. A field hint discloses student hiding. No schema
+or dependency changes. Risk none. Reference/reuse: production Material editor and
+Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
+existing scheduling. No new shared UI pattern or unrelated refactor. Composite
+checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
+contracts retained and interaction-tested; no new ARIA widget.
+Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
+material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
+cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
+corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
+student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
+and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
+Material student editing n/a (teacher-only); existing student release API checks
+reused. Capture source equals this candidate's UI files; deterministic fixtures,
+Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
+process secret used. Draft PR and independent review follow; merge/release require
+authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
+
+<!-- pika-session-log-archive-batch:14631e61ed1d8f637efa797e106f0d81e869005bfb1a4a7eb97139d01d5459b3 -->
+<!-- pika-session-log-archive-batch:e1fcbb72aaa87a2995a57d25806198c2c0eb71f308b99eb5e1ed0c2114cda6e0 -->
+
+## 2026-10-24 — RepoLight legacy archive inventory correction
+
+Owner approved one additional proof-only fix batch and ninth targeted review,
+then exact-head CI and conditional main merge. The legacy archive check now
+counts RepoLight's three resources/revision triggers when its table family is
+installed, matching the existing archive-v2 compatibility condition. Strict
+inventory equality remains; SQL293 and both b03d4dcc seals are unchanged.
+Owned offline293 replay passes the actual archive lifecycle, compaction/races,
+Gradex and legacy Quiz backfill/restore/v2 checks. Platform ACLs preserved in
+clone setup; no shared mutation. Home recovery/contention, warning lint across
+569functions, generated types and canonical aggregate fingerprints pass.
+Focused5966tests/one skip, types/lint/architecture/UI/design pass. Ninth targeted
+review and exact-head PR Gate remain required; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-24 — Promote assignment image recovery with production ancestry
+
+Feature1675 merged72870cab6 after complete independent review and exact-head CI40086394324:21994 tests, full build, database contracts and all browser matrices pass. Draft promotion1676 reconciles only journal ancestry against production4778514b0. Main already retains the archive conflict's substantive entries; preserve that archive, omit duplicate old classroom release entry and retain the production-only October23 Home release preparation entry. Application, SQL, dependencies and configuration remain exact reviewed main. Targeted cumulative re-review and new exact-head CI precede protected production merge; no migration, activation, provider action or direct student data rewrite.
+
+## 2026-10-25 — Refresh the grading inspector after Return
+
+The dedicated-account manual canary exposed a stale revision after a successful
+Return. Refresh the open learner inspector only when the acknowledgement marks
+that learner returned/already returned, before awaiting list refresh. Existing
+read fences, dirty-form handling and revision-conflict refusal remain intact.
+RED component regression reproduced unchanged inspector; focused owner/controller
+141 checks pass. Synthetic real-parent/controller browser flow saves and sends
+with the refreshed revision without document reload; teacher/student desktop/
+mobile light/dark matrix8cases passes. Final teacher captures scroll the sent
+comment into view; existing learner recovery coverage is unchanged. Two initial
+driver failures (modal accessibility scope, then same-document navigation counted
+as reload) are retained; corrected semantic/time-origin checks pass unchanged
+app code. CI browser inventory retains all prior cases and adds this scenario.
+Reconciled actual #1683 production receipt/source6eacd7540 and manual canary with
+normal reload recovery; this automatic-refresh fix still requires review/CI/main
+merge and separately authorized compatible release. Same3cohort/schema/plans and
+provider holds remain, with no production action or live-provider call.
+
+## 2026-10-25 — RepoLight SDK catalogue and CI memory correction
+
+Owner explicitly overrode task workflow review-budget/low-usage stops through
+completion; keep independent review, strict CI and normal merge/rollout controls.
+Nine targeted reviews are recorded; next delta receives actual tenth review.
+Shared proof catalogue now includes ten literal tables from sealed293; member
+proof retains explicit292 admission and rejects partial/unknown catalogues.
+Historical unit profiles stay pinned; complete293 preservation includes private
+state, missing-fingerprint and restoration-drift checks. Two reorder fixtures
+now fingerprint the same complete source-defined family; assertions unchanged.
+CI's89light-browser failures followed one Next dev heap OOM; CI-only supported
+--disable-source-maps removes automatic server-map tracking. Numeric RAM/cgroup/
+config-process heap diagnostics added; no environment/heap dumps, assertion,
+project, timeout or compiler change. Full browser gate still required.
+Synced onto main7c275690 (#1682 owner-read fix): only continuity conflicts;
+upstream code/tests/pilot receipt byte-identical, original checkpoints archived.
+SQL293/b03d4dcc seals unchanged. Focused checks, tenth review and actual pinned
+CLI SDK lifecycle are required before ready; Analyze OFF, shared/prod293 unapplied.
+
+## 2026-10-25 — RepoLight rebase after green CI
+
+CI40190824792 passed all ten jobs on0c159847e, including repaired member-list
+SDK and full light-browser matrix. Before merge, main advanced to19b5abab9
+(#1684 selected-inspector refresh after Return), creating continuity conflicts.
+Rebased feature commits; only CURRENT/archive conflicts required resolution.
+Kept upstream Return refresh, tests and UI brief; retained Prod6eacd7540/#1683
+receipt and all held controls. No new deployment/query/provider authority.
+SDK/catalogue/SQL293/b03d4dcc/browser-memory sources remain byte-identical to
+reviewed/native-verified0c. Existing normal/forced SDK evidence is retained by
+that equivalence; new-head CI still reruns the actual proof. Focused checks and
+one targeted main-sync review precede ready; task stop override remains active.
+
+## 2026-10-25 — RepoLight local pilot and repeat-click guard
+
+Authenticated synthetic teacher/student browser pilot collected a real public report, switched contributor/evidence views and appended edited feedback. Repeated Add exposed duplicate explicit imports; workspace per-report/scope/text completion guard now disables already-added previews. Regression first failed, then component/hook/panel and focused tests plus type/lint/policy checks passed. Teacher/student desktop/mobile light/dark inspected. Scoped cleanup proof and independent review are recorded in private pilot receipts. Hosting target, shared/prod293 and deployment remain pending; AI off. No Zero changes.
+
+## 2026-10-25 — Reconcile deployed classroom pilot acceptance
+
+Record protected production1685/9a and actual seamless Assignment Return/comment
+persistence. Reviewed bounded API attempt4 passed34requests: normal email-code
+sessions, reciprocal owner/member reads, contextual read/write/student-target
+denials, Free create403 and one-create/exact-replay without duplication. Scoped
+read-only SQL matched five protected fingerprints; Aowns2/B1/Control0, plans and
+original work unchanged. Exact3cohort/provider24metadata/pageflags pre/post match.
+Earlier failed attempts remain spent. Retain the one new empty synthetic class.
+Reconcile receipt/readiness/roadmap/CURRENT; no runtime, schema, UI, account, plan,
+configuration, production or provider action. Remaining work is candidate-specific
+evidence applicability and separately authorized observed expansion; isolated
+domain proofs and layered recovery are not all-domain/deployed outage evidence.
+Main-only docs review/CI follow; no overall-goal completion or production authority.
+
+## 2026-10-25 — RepoLight production migration and release
+
+Human approved production293 once plus reviewed1687 and the coordinated lifecycle
+window. Apply40226843818 verified only293/history001–293 and the approved digest.
+Catalog/RLS/ACL/body/trigger/archive checks pass;13renamed originals preserved.
+PR1687 merged dbd1f62c1; Vercel dpl_tCawB6aLRNnQN6FBxw35QinNZtx8 READY on that SHA.
+All10 CI40222687057 jobs and public HTTP boundaries passed. Cohort/provider
+metadata unchanged; Analyze/AI OFF; shared local and fixtures untouched. Window
+released to both coordinated Pika tasks. Connection provisioning and hosted
+integration acceptance remain pending. Standalone inventory diagnostic limitation
+is tracked in the integration guide/PR; no passing claim for that command.
+
+## 2026-10-25 — Controlled RepoLight connection and blank-login regression
+
+User authorized the controlled owner/workspace pilot. Installation-bound create/read/erase
+attestation and one sensitive server connection passed; unchanged reviewed dbd1f62c1
+redeployed READY. Analyze server/DB gates ON for the configured owner; AI OFF.
+Original24 provider/Home cohort controls preserved; no schema reapply or role/plan change.
+Normal controlled student join/repository save/submit PASS. Teacher overview exposed
+own undefined optional GitHub metadata; mapper now omits absent fields. Regression
+failed first;227 affected tests pass, raw malformed payloads still rejected. Review/CI
+and source release pending; no report/import/grade/sent-feedback acceptance claimed.
+Private connection/pilot receipts remain outside Git.
+
+## 2026-10-25 — Prepare manual-grader reader compatible release
+
+Owner approved this exact grader-label fix after review and CI, retaining only
+the existing three-account cohort, plans, schema and provider holds. PR1682
+merged7c2756906 after final CI40158570083 passed all ten checks. Draft promotion
+1683 reconciles only journal ancestry with production1da699fdc, preserving both
+histories and all non-history bytes from reviewed main. Independent cumulative
+compatibility review and exact-head CI precede protected production merge. No
+new provider call, migration, cohort expansion or account change is authorized.
+Both owner and learner sessions remain signed in; Return/feedback wait for the
+compatible READY deployment and fresh readback.
+
+## 2026-10-25 — Approved Return inspector compatible release
+
+Prepare production promotion of reviewed main19b5/PR1684 after the owner approved this exact compatible fix. Only runtime change is selected-inspector refresh after acknowledged Return; existing revision/dirty/write fences remain. Reconcile the two history files while preserving both parents; reuse accepted source/component/browser review477 and complete cumulative promotion review before ready CI. Keep exactly three pilot accounts, schema292, plans and live-provider/expansion holds unchanged. Signed-in no-reload Return/comment canary follows actual READY/source/control verification.
+
+## 2026-10-25 — RepoLight release-note reconciliation
+
+Retained both main and production journal batches to resolve the promotion-note
+conflict. Application and SQL sources are unchanged. Production preview40221093743
+verified001–292 and solepending293; no application. Exact migration approval and
+the independently owned permissions-check window remain required. Release1687
+stays draft pending reconciliation/review/CI; Analyze and paid AI remain OFF.
+
+## 2026-10-26 Future post dates
+
+Announcements and posted Classwork materials accept future Post date values.
+Schedule explicitly sends the existing scheduled_for contract at Toronto midnight;
+today/past dates retain posted_on. A field hint discloses student hiding. No schema
+or dependency changes. Risk none. Reference/reuse: production Material editor and
+Pattern Lab; extend both feature editors, reuse FormField/Input/SplitButton and
+existing scheduling. No new shared UI pattern or unrelated refactor. Composite
+checklist reviewed: labels/descriptions, enabled actions, existing keyboard/focus
+contracts retained and interaction-tested; no new ARIA widget.
+Focused1890/102 and architecture/UI/design/TS/lint PASS. Feature135 tests and
+material-owner88 PASS; student/API scheduling checks PASS. Playwright8 matrix
+cases PASS across1440x900/390x844 light/dark (one stale punctuation selector
+corrected then targeted desktop rerun). Teacher focused/future/invalid/saved and
+student reading/hidden screenshots inspected under /tmp/pika-future-post-browser
+and /tmp/pika-future-post-browser-final; montage /tmp/pika-future-post-matrix.png.
+Material student editing n/a (teacher-only); existing student release API checks
+reused. Capture source equals this candidate's UI files; deterministic fixtures,
+Playwright1.58, localhost3127, October26 Toronto. Shared env unchanged; temporary
+process secret used. Draft PR and independent review follow; merge/release require
+authority. Weekly remaining84%; DeepSeek pause honored; coordinator handles edits.
+
+<!-- pika-session-log-archive-batch:4f73aea73cdaf39525509adc136d5f601529c76b59f230d80fcdc6c9d5d58fb8 -->
+
+## 2026-10-30 — Named schedule CI fixes
+
+Updated generated database types and the classroom resource inventory for named attendance schedule tables. Updated the attendance browser fixtures for the new picker and added create/select coverage. Local schema audit, generated-type check, classroom contract tests and affected desktop/mobile-dark browser scenarios passed; PR CI rerun follows.
+
+<!-- pika-session-log-archive-batch:f125a64435d30c85b2622cbd95a24694f63b4fb8565e1024653f61623b760155 -->
+<!-- pika-session-log-archive-batch:310bdb60376651d2d17cd1d6333dd886f664393b414c6104b27ba0189f2f3878 -->
+
+## 2026-10-27 Admission registry integration with current main
+
+Rebased1699 onto9756a9751, retaining the reviewed294 SQL and registry behavior.
+Resolved continuity conflicts by preserving canonical production/control labels
+and both substantive journal histories. Main's official ECR image transport and
+scheduled-date display changes remain intact; no UI or SQL behavior changed here.
+Earlier GHCR setup failures remain historical. Focused integration checks and a
+proportional independent delta review precede fresh reviewed-head CI. Existing70,
+provider/schema/release holds and paused goal/DeepSeek remain unchanged.
+
+## 2026-10-27 Independent calendar post dates
+
+Owner clarified: calendar placement is independent of release, superseding Oct26's
+future-date-as-schedule interpretation (never deployed). PR1695 returned to draft.
+Calendar date defaults today for new posts; past/future edits retain Post/Save.
+Release metadata says Releases; Schedule retains explicit release timing. New,
+draft, posted and scheduled editors retain independent placement. Student lists
+keep published content; every Calendar view applies the server advance horizon
+for announcements/materials, failing closed while unconfirmed. Test exceptions
+remain navigation-only. Existing Material/announcement owners and Pattern Lab
+are reference; reuse FormField/Input/SplitButton, extend feature adapters; no new
+shared visual pattern or dependency. Composite labels/hints/actions and existing
+keyboard/focus contracts retained. Risk none; review high (schema/owner RPCs).
+
+294 adds nullable posted_on and atomic create wrappers. No backfill or historical
+SQL edits. Existing locks/immutable/after-row/ACL guards retained; null mutation
+keys omitted for legacy decoders. Coordinate app/migration rollout; no shared or
+production application authorized. Shared local history292 and normalized schema
+unchanged. Private001–294 replay, rollback/tamper/atomic/date/state/ACL proofs and
+type equality PASS /tmp/pika-material-post-date.Op5td6; all owned clones removed.
+Source seal7b4d0853057c7876f4f45bdeaf568e8a62425ff53391fef7ada62bf63ce482d3.
+
+Initial focused5733/175 + static PASS. Added coverage passes175 source/list and175
+interaction tests; corrected browser inventory count and235 regression recheck
+PASS. Final focused gate/review/CI receipts follow in PR1695. Twelve Playwright
+matrix cases PASS across teacher/student1440x900/390x844 light/dark; additional
+new/draft/scheduled editor captures inspected. Evidence /tmp/pika-calendar-post-
+placement-browser, /tmp/pika-calendar-visibility-probe, /tmp/pika-calendar-visibility-
+final and /tmp/pika-post-placement-editor-states-final (desktop-light probes named
+similarly); montage /tmp/pika-calendar-post-placement-matrix.png. Current candidate
+source, synthetic production-owner fixtures, Playwright1.58, localhost3127; calendar
+clock fixed Oct20 for window proof. No live classroom mutation or shared env edit.
+Coordinator edits/API; Sol-medium worker calendar adapter/read tests, Sol-high
+worker SQL/profiles/types; verified deliveries. Weekly remaining82%; DeepSeek pause
+honored. Effective configs, attributable effort/tokens unknown; no savings claim.
+
+Two independent Sol-high full reviews of559ff277e completed their app/compatibility
+and SQL/security scopes, finding one deduplicated blocker: untouched displayed
+dates were omitted during draft/schedule publication changes. Batch1 persists the
+visible date in both editors, including legacy null-date publication transitions.
+Default schedule, draft creation/reopen across midnight and scheduled Post now
+regressions reproduce before correction;217 affected tests, TypeScript and lint
+PASS afterward. Private SQL proof and unchanged visual matrix remain applicable.
+Fresh12 browser editor scenarios PASS across desktop/mobile light/dark; screenshots
+inspected under /tmp/pika-post-date-remediation-browser. Staged audit PASS; composite
+keyboard/focus coverage retained. Default date metadata also respects fixture actions.
+Final focused gate, targeted and cumulative review receipts follow in PR1695.
+
+## 2026-10-27 Material owner calendar receipt proof correction
+
+Owner explicitly approved one additional correction batch/eighth targeted review,
+then existing credits for this fix/review only; no purchase/reset or broader waiver.
+CI40514407721 passed22591coverage cases/8skip, TypeScript/build, both future-date
+native read proofs and cleanup. Its later owner-write proof compared the raw
+posted_on:null column with the deliberately omitted legacy receipt key. PR1695
+returned to draft; no application/SQL migration/ACL/UI change. Batch3 normalizes
+only that missing null in the comparison; strict14/15-key cases and unchanged
+historical identity/lineage/release/calendar date checks cover null and future dates.
+Private replay now records each migration after success and includes the complete
+owner-write rollback proof before metadata equality. Reproduced CI failure in
+owned offline clone /tmp/pika-material-post-date.pgrIwt; corrected full001–294
+replay/proofs/types/shared-schema equality PASS /tmp/pika-material-post-date.rnxlag.
+All owned clones removed; shared history292 unchanged. One syntax correction was
+caught locally before the final private pass. Targeted checks, canonical gate,
+review8 and replacementCI receipts follow in PR1695. No merge/release/migration
+application authorized; prior cumulative45a coverage reused for unchanged sources.
+
+## 2026-10-27 — Prepare reviewed main promotion to production
+- Owner authorized main→production and deployment verification. PR1700 batches main9756a9751 from production405ef92cc; no new migrations, API/server changes or dependency changes. Registry/date-order application tree has full CI40563343248 ten-job PASS and clean independent review; operational/provider/admission/billing holds are preserved.
+- Cumulative Sol/high release review found only conflicting continuity history. Terra/medium resolved six archive hunks and retained both parents' entry bodies, occurrence counts and archive markers across SESSION+ARCHIVE. Coordinator independently verifies preservation; payload outside the two journals stays byte-identical to reviewed main. Runtime-platform risk; no fixture, environment, database or provider mutation is part of the release.
+- Initial local release focused gate PASS79files/1210tests plus architecture/UI/design/TypeScript/lint. Resolved-candidate checks and targeted review precede readiness; final exact-head PR Gate and Vercel source/production-alias/read-only smoke verification remain required. Production migration permissions are not requested or consumed.
+
+## 2026-10-28 — Creation action placement
+
+- Moved test Preview and Settings above Publish and assignment Preview above date/Post; owner confirmed assignment Settings should remain absent. Updated Pattern Lab test example.
+- Focused checks passed (1,631 tests); Pattern Lab browser scenario passed desktop/mobile in both themes, with screenshots inspected. Composite menu keyboard and focus return covered; student authoring is not affected. Authenticated UI verification script could not run due to missing auth setup and port conflict.
+
+## 2026-10-28 — Restore hosted browser CI compatibility
+
+- PR 1702 CI browser jobs failed when ubuntu-latest resolved to Ubuntu 26.04, unsupported by the pinned Playwright Chromium installer. Pin hosted heavy jobs to Ubuntu 24.04; self-hosted selection and gate requirements are unchanged.
+- The preceding run also hit a Supabase registry rate limit and an unrelated gallery test timeout; rerun evidence remains in the PR checks.
+
+## 2026-10-28 — Update assignment focus test
+
+- Updated the assignment drag-retirement browser helper to focus Preview directly after its relocation; it still verifies focus returns to Title after the fixture refresh.
+
+## 2026-10-28 — RepoLight assignment summary prepared
+
+Prepared a local Pika-only, teacher-editable assignment summary from the current
+fingerprinted source and digest-validated matched-contributor evidence. Saved
+reports and service contracts are unchanged; unavailable and partial evidence is
+explicit. No migration, publication, deployment, provider or credential changes.
+Verification and independent review remain with the coordinating task.
+
+## 2026-10-28 Required repository usernames — base refresh
+
+Rebased the previously reviewed required-username change onto current main. Preserved
+upstream journal history and the prior local preparation evidence; focused verification
+is recorded in the task handoff. No migration, provider or production action.
+
+## 2026-10-29 — Delete from assignment and test editors
+
+- Added editor delete actions using existing confirmation and deletion flows; focused interaction tests cover cancellation and deletion. Local Supabase services restarted without migrations; Playwright verified teacher editor and confirmation states on desktop and mobile in light and dark themes. Student editor is unaffected.
+
+## 2026-10-30 — Test and assignment settings menus
+
+Moved editor delete actions into teacher settings menus; preserved confirmation flows. Verified the teacher desktop/mobile open-menu states in light/dark with Playwright fixtures; student views are not applicable. Focused checks and independent PR review follow.
+
+## 2026-10-30 — Remove calendar-date help text
+
+At the owner’s request, remove the persistent explanatory sentence from new and
+existing announcement editors and the Classwork material editor. Retain the
+Calendar date label, validation and separate Post/Save/Schedule behavior. Reuse
+existing FormField/Input and Pattern Lab reference; no new shared UI pattern.
+Teacher desktop/mobile and light/dark checks cover future-date editing; student
+view is unaffected because this text appears only in teacher editors.
+Risk profile: none. No production changes or migration are part of this edit.
+
+## 2026-10-30 Scheduling date display
+
+- Updated the shared teacher scheduling picker to display selected dates as `EEE MMM d, yyyy`, retaining its native date input and Toronto scheduling semantics. Verified the Pattern Lab assignment dialog at desktop/mobile in light/dark; student scheduling is not applicable. Added focused date-control coverage.
+- Owner requested picker-only date selection: block typed entry, retain the formatted display on focus, and open the native calendar by pointer or keyboard activation.
+
+## 2026-10-30 — Local named-schedule migration
+
+Applied local migrations 293–295. Migration 296 initially failed on a reserved SQL alias; corrected the alias and reviewed-source hashes, then applied 296 with renewed authorization. Verified local migration history, database objects and access controls; focused checks passed (4,489 tests). The rollback-only synthetic database harness passed on a temporary isolated copy, which was removed afterward.
+
+## 2026-11-06 Parent gradebook report refinement
+
+- Redesigned the individual student PDF for parent readability, retaining returned-work filtering and guardian pairing. User confirmed unreleased marks should remain hidden; the sample's two missing marks are not returned.
+- Verified test-classroom export and inspected short, empty, multilingual and multi-page PDFs. Focused local checks passed; independent PR review remains pending.
+
+<!-- pika-session-log-archive-batch:d021f80f14c3ae639257360e508f008bfe30838572d20e61bf0b99f595586e0b -->

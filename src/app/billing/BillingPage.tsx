@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Card, FormField, PageState, Select } from '@/ui'
-import { BillingSubscriptionStatusSchema, type BillingSubscriptionStatus } from '@/lib/billing/subscription'
+import { BillingSubscriptionStatusSchema, fetchBillingSubscription, type BillingSubscriptionStatus } from '@/lib/billing/subscription'
+import { BillingAccessNotice } from '@/components/billing/BillingAccessNotice'
 import { BillingUpgradeCard } from './BillingUpgradeCard'
+import { BillingScheduledChangeCard } from './BillingScheduledChangeCard'
+import { billingDate as date, billingOperation as operation } from './billing-client'
 import type { BillingCatalogItem, BillingPurchaseStatus } from '@/lib/server/billing/purchase-handlers'
 
 type LoadState = 'loading' | 'ready' | 'unavailable' | 'error'
@@ -14,27 +17,20 @@ const labels: Record<BillingSubscriptionStatus['state'], string> = {
   free: 'Free', trial: 'Pro trial', paid: 'Paid subscription', renewal_grace: 'Payment overdue',
   synchronization_pending: 'Synchronizing', unmanaged: 'Plan managed separately',
 }
-function date(value: string) {
-  return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'America/Toronto', timeZoneName: 'short' }).format(new Date(value))
-}
-function operation(key: string) {
-  const stored = sessionStorage.getItem(key)
-  if (stored && uuid.test(stored)) return stored
-  const id = crypto.randomUUID()
-  sessionStorage.setItem(key, id)
-  return id
-}
 async function read(response: Response) {
   if (!response.ok) throw Object.assign(new Error('Request failed'), { status: response.status })
   return response.json()
 }
 
-export function BillingPage({ userId, billingAvailable = true, purchaseAvailable = true, portalAvailable = false, upgradesAvailable = false }: {
+export function BillingPage({ userId, billingAvailable = true, purchaseAvailable = true, portalAvailable = false,
+  portalCancellationAvailable = false, upgradesAvailable = false, scheduledBillingAvailable = false }: {
   userId: string
   billingAvailable?: boolean
   purchaseAvailable?: boolean
   portalAvailable?: boolean
+  portalCancellationAvailable?: boolean
   upgradesAvailable?: boolean
+  scheduledBillingAvailable?: boolean
 }) {
   const [state, setState] = useState<LoadState>(billingAvailable ? 'loading' : 'unavailable')
   const [subscription, setSubscription] = useState<BillingSubscriptionStatus | null>(null)
@@ -52,12 +48,11 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
     const request = ++generation.current
     if (!refresh) setState('loading')
     try {
-      const [status, offers] = await Promise.all([
-        fetch('/api/billing/subscription', { cache: 'no-store' }).then(read),
+      const [verified, offers] = await Promise.all([
+        fetchBillingSubscription(),
         purchaseAvailable ? fetch('/api/billing/catalog', { cache: 'no-store' }).then(read) : null,
       ])
       if (request !== generation.current) return
-      const verified = BillingSubscriptionStatusSchema.parse(status)
       setSubscription(verified)
       if (purchaseAvailable && verified.options?.pendingCheckoutId) setReturnId(verified.options.pendingCheckoutId)
       const items: BillingCatalogItem[] = purchaseAvailable ? offers.items : []
@@ -69,6 +64,7 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
       setState((error as { status?: number }).status === 404 ? 'unavailable' : 'error')
     }
   }, [purchaseAvailable])
+  const refreshSubscription = useCallback(() => { void load(true) }, [load])
   useEffect(() => {
     if (!billingAvailable) return
     const params = new URLSearchParams(window.location.search)
@@ -81,6 +77,25 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
     void load()
     return () => { generation.current++; actionGeneration.current++ }
   }, [billingAvailable, load, purchaseAvailable])
+  useEffect(() => {
+    if (!billingAvailable || state !== 'ready') return
+    let recheck: AbortController | undefined
+    async function refreshAccess() {
+      recheck?.abort()
+      const controller = new AbortController()
+      const requestGeneration = generation.current
+      recheck = controller
+      try {
+        const status = await fetchBillingSubscription(controller.signal)
+        if (!controller.signal.aborted && requestGeneration === generation.current) setSubscription(status)
+      } catch { /* Keep the last verified status while a refresh is unavailable. */ }
+    }
+    window.addEventListener('focus', refreshAccess)
+    return () => {
+      recheck?.abort()
+      window.removeEventListener('focus', refreshAccess)
+    }
+  }, [billingAvailable, state])
   const checkPurchase = useCallback(async (id: string) => {
     const request = ++purchaseGeneration.current
     try {
@@ -184,6 +199,11 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
   const offer = catalog.find(item => item.offeringVersionId === selected)
   const currentPurchase = purchase?.attemptId === returnId ? purchase : null
   const terms = subscription?.options?.paidTerms
+  const portalEnabled = purchaseAvailable && portalAvailable && subscription?.options?.hasBillingCustomer
+  const accessNotice = subscription?.accessNotice && subscription.accessEndsAt
+    ? { notice: subscription.accessNotice, accessEndsAt: subscription.accessEndsAt }
+    : null
+  const paymentOverdue = accessNotice?.notice === 'payment_overdue'
   const upgradeOffers = upgradesAvailable && terms?.upgradeAvailable && subscription
     ? catalog.filter(item => tierOrder[item.plan] > tierOrder[subscription.plan]
       && item.currency === terms.currency && item.interval === terms.interval)
@@ -194,19 +214,28 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
     {state === 'unavailable' ? <PageState kind="empty" title="Billing is unavailable" description="Plans and billing are not available right now." /> : null}
     {state === 'error' ? <PageState kind="error" title="Could not load billing" action={<Button onClick={() => void load()}>Try again</Button>} /> : null}
     {state === 'ready' && subscription ? <>
+      {accessNotice ? <BillingAccessNotice {...accessNotice} trial={subscription.state === 'trial'}
+        action={paymentOverdue && portalEnabled
+          ? <Button variant="secondary" size="sm" onClick={() => void openPortal()} disabled={busy}>Update payment method</Button>
+          : undefined} /> : null}
       <Card><h2 className="text-lg font-semibold">Your plan</h2>
-        <p className="mt-2 font-medium">{labels[subscription.state]}{['paid', 'renewal_grace', 'unmanaged'].includes(subscription.state) ? ` · ${planNames[subscription.plan]}` : ''}</p>
+        <p className="mt-2 font-medium">{paymentOverdue ? 'Renewal grace' : labels[subscription.state]}{['paid', 'renewal_grace', 'unmanaged'].includes(subscription.state) ? ` · ${planNames[subscription.plan]}` : ''}</p>
         <p className="mt-1 text-sm text-text-muted">{subscription.classroomLimit} active classrooms</p>
         {subscription.renewalAt && subscription.state === 'paid' ? <p className="mt-1 text-sm">Renews on {date(subscription.renewalAt)}</p> : null}
-        {subscription.accessEndsAt ? <p className="mt-1 text-sm">Access ends {date(subscription.accessEndsAt)}</p> : null}
+        {subscription.accessEndsAt && !accessNotice ? <p className="mt-1 text-sm">Access ends {date(subscription.accessEndsAt)}</p> : null}
         {terms ? <p className="mt-1 text-sm text-text-muted">
           {terms.currency.toUpperCase()} {(terms.unitAmount / 100).toFixed(2)} / {terms.interval === 'year' ? 'year' : 'month'}
         </p> : null}
-        {purchaseAvailable && portalAvailable && subscription.options?.hasBillingCustomer
-          ? <Button variant="secondary" className="mt-3" onClick={() => void openPortal()} disabled={busy}>Invoices and payment method</Button>
+        {portalEnabled && !paymentOverdue
+          ? <Button variant="secondary" className="mt-3" onClick={() => void openPortal()} disabled={busy}>
+              {portalCancellationAvailable ? 'Manage billing' : 'Invoices and payment method'}
+            </Button>
           : null}
         {subscription.state === 'synchronization_pending' ? <p className="mt-2 text-sm">Your plan is synchronizing. Check again shortly.</p> : null}
       </Card>
+      {scheduledBillingAvailable && subscription.options?.hasBillingCustomer ? <BillingScheduledChangeCard userId={userId}
+        eligibleTerms={subscription.state === 'paid' && subscription.plan === 'max' && subscription.renewalAt ? terms : null}
+        onChanged={refreshSubscription} /> : null}
       {subscription.options?.trialAvailable ? <Card><h2 className="text-lg font-semibold">Try Pro</h2>
         <p className="mt-1 text-sm text-text-muted">Start a 30-day Pro trial without a card or automatic charge. One trial is available per teacher.</p>
         <Button className="mt-4" onClick={() => void startTrial()} disabled={busy}>Start 30-day Pro trial</Button>

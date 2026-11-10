@@ -8,8 +8,10 @@ import {
   type LaunchCatalogVariant,
   type LaunchPlanKey,
 } from '@/lib/billing/launch-catalog'
+import { EXCLUSIVE_TAX_CATALOG_SUFFIX } from '@/lib/server/billing/checkout-contracts'
 import { readBillingSandboxConfig } from '@/lib/server/billing/config'
 import type { Json } from '@/types/database.generated'
+import { stripeUnitAmountDecimalSchema } from './stripe-decimal'
 
 type StripeCatalogProduct = Readonly<{
   id: string
@@ -357,4 +359,99 @@ export async function provisionLaunchCatalog(input: Readonly<{
     }))
   }
   return Object.freeze({ releaseTag, bindings: Object.freeze(bindings) })
+}
+
+/** Reviewed Stripe hosted SaaS categories; the operator must choose the applicable one. */
+export const HOSTED_SOFTWARE_TAX_CODES = ['txcd_10103000', 'txcd_10103001'] as const
+export type LiveTaxCatalogRegistration = Omit<BillingOfferingRegistration, 'provider_mode' | 'features'> & {
+  provider_mode: 'live'
+  features: BillingOfferingRegistration['features'] & { billing_tax_mode: 'stripe_exclusive' }
+}
+export type LiveTaxCatalogPorts = Omit<StripeCatalogProvisioningPorts, 'registerOffering'> & {
+  registerOffering(request: LiveTaxCatalogRegistration): Promise<unknown>
+}
+
+/**
+ * Plans or applies only new live exclusive-tax versions. Dry runs perform reads,
+ * never create prices or register offerings. Availability always starts false.
+ * Taxed and legacy offerings use different catalog and Price lookup keys so
+ * both can remain available to their respective Checkout and renewal paths.
+ */
+export async function provisionLiveExclusiveTaxCatalog(input: Readonly<{
+  ports: LiveTaxCatalogPorts
+  projectRef: string
+  stripeAccount: string
+  productIds: unknown
+  releaseVersionBase: unknown
+  taxMode: unknown
+  reviewedProductTaxCode: unknown
+  action: unknown
+}>): Promise<Readonly<{ action: 'dry-run' | 'apply'; items: readonly Readonly<{
+  catalogKey: string; lookupKey: string; version: number; productId: string; priceId: string | null
+}>[] }>> {
+  if (input.projectRef !== 'zhioqbapgfcrronyuidm' || !/^acct_[A-Za-z0-9]+$/.test(input.stripeAccount)) fail('live_target_invalid')
+  if (input.taxMode !== 'stripe_exclusive' || (input.action !== 'dry-run' && input.action !== 'apply')) fail('live_opt_in_invalid')
+  if (!HOSTED_SOFTWARE_TAX_CODES.some(code => code === input.reviewedProductTaxCode)) fail('reviewed_tax_code_invalid')
+  const taxCode = input.reviewedProductTaxCode as typeof HOSTED_SOFTWARE_TAX_CODES[number]
+  const ids = input.productIds
+  if (!isRecord(ids) || Object.keys(ids).length !== 2 || typeof ids.pro !== 'string' || !productIdPattern.test(ids.pro)
+    || typeof ids.max !== 'string' || !productIdPattern.test(ids.max) || ids.pro === ids.max) fail('product_mapping_invalid')
+  const productIds = { pro: ids.pro, max: ids.max }
+  const base = checkedReleaseVersionBase(input.releaseVersionBase)
+  const variants = repolightCatalog.filter(variant => variant.plan === 'pro' || variant.plan === 'max')
+  const account = await noProviderDetails(() => input.ports.retrieveAccount())
+  if (!isRecord(account) || account.id !== input.stripeAccount) fail('stripe_account_invalid')
+  for (const plan of ['pro', 'max'] as const) {
+    const product = await noProviderDetails(() => input.ports.retrieveProduct(productIds[plan]))
+    const parsed = productFrom(product)
+    const actualTaxCode = isRecord(product) ? productIdFromPrice(product.tax_code) : null
+    if (!parsed || parsed.id !== productIds[plan] || !parsed.active || !parsed.livemode
+      || parsed.name !== (plan === 'pro' ? 'Pro' : 'Max') || actualTaxCode !== taxCode) fail('product_invalid')
+  }
+  const items: Array<{ catalogKey: string; lookupKey: string; version: number; productId: string; priceId: string | null }> = []
+  const candidates: Array<{ variant: LaunchCatalogVariant; productId: string; lookupKey: string; price: StripeCatalogPrice | null }> = []
+  const check = (value: unknown, variant: LaunchCatalogVariant, productId: string, lookupKey: string) => {
+    const price = priceFrom(value)
+    const decimal = stripeUnitAmountDecimalSchema.safeParse(isRecord(value) ? value.unit_amount_decimal : undefined)
+    if (!price || !/^price_[A-Za-z0-9]+$/.test(price.id) || !price.active || !price.livemode || price.lookup_key !== lookupKey || price.product !== productId
+      || price.currency !== variant.currency || price.unit_amount !== variant.unitAmountCents || price.billing_scheme !== 'per_unit'
+      || price.type !== 'recurring' || !price.recurring || price.recurring.interval !== variant.interval
+      || price.recurring.interval_count !== 1 || price.recurring.usage_type !== 'licensed'
+      || price.custom_unit_amount !== null || price.tiers_mode !== null || price.transform_quantity !== null
+      || (price.currency_options !== undefined && Object.keys(price.currency_options).length > 0)
+      || !isRecord(value) || value.tax_behavior !== 'exclusive'
+      || !decimal.success || decimal.data !== String(variant.unitAmountCents)
+      || !isRecord(value.recurring) || value.recurring.trial_period_days !== null) fail('price_invalid')
+    return price
+  }
+  for (const variant of variants) {
+    const productId = productIds[variant.plan as 'pro' | 'max']
+    const lookupKey = `${variant.catalogKey}${EXCLUSIVE_TAX_CATALOG_SUFFIX}`
+    const listed = await noProviderDetails(() => input.ports.listPricesByLookupKey(lookupKey))
+    if (!isRecord(listed) || !Array.isArray(listed.data) || listed.hasMore !== false || listed.data.length > 1) fail('price_ambiguous')
+    candidates.push({ variant, productId, lookupKey, price: listed.data.length ? check(listed.data[0], variant, productId, lookupKey) : null })
+  }
+  for (const candidate of candidates) {
+    const { variant, productId, lookupKey } = candidate
+    let price = candidate.price
+    if (!price && input.action === 'apply') {
+      price = check(await noProviderDetails(() => input.ports.createPrice({
+        active: true, billing_scheme: 'per_unit', currency: variant.currency, lookup_key: lookupKey,
+        product: productId, recurring: { interval: variant.interval, interval_count: 1, usage_type: 'licensed' },
+        tax_behavior: 'exclusive', transfer_lookup_key: false, unit_amount: variant.unitAmountCents,
+      }, `pika-catalog:stripe-exclusive:${variant.offeringVersionId}`)), variant, productId, lookupKey)
+    }
+    const version = versionFor(variant, base)
+    if (input.action === 'apply' && price) {
+      const baseRegistration = registrationFor(variant, input.stripeAccount, productId, price.id, base, false)
+      const registration: LiveTaxCatalogRegistration = {
+        ...baseRegistration,
+        provider_mode: 'live',
+        features: { ...baseRegistration.features, catalog_key: lookupKey, billing_tax_mode: 'stripe_exclusive' },
+      }
+      if (!registrationFrom(await noProviderDetails(() => input.ports.registerOffering(registration)))) fail('registration_invalid')
+    }
+    items.push({ catalogKey: lookupKey, lookupKey, version, productId, priceId: price?.id ?? null })
+  }
+  return { action: input.action, items }
 }

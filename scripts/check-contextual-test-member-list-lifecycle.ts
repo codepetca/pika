@@ -67,7 +67,7 @@ export function testMemberListCanonicalCatalog(input: { rowDigests: string }) {
 /** Exact complete source profiles for this proof; future additions need review. */
 export function validateTestMemberListReviewedMigrations(migrations: Parameters<typeof classroomTestQuotaProofCatalog>[1]) {
   validateAssignmentListMigrationChain(migrations)
-  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 303, 304, 307, 310, 311, 312, 313].includes(migrations.length), 'Unreviewed member-list migration profile')
+  assert([253, 254, 255, 256, 257, 258, 259, 260, 261, 262,263, 264, 265, 266, 267, 268, 269,270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327].includes(migrations.length), 'Unreviewed member-list migration profile')
   disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations)
   if (migrations.length >= 254) {
     const addition = migrations[253]
@@ -123,7 +123,7 @@ export function testMemberListReviewedIsolatedCatalog(catalog: readonly string[]
   const laterPrefixes = [295, 296, 297, 298, 299, 300, 301]
     .filter(count => migrations.length >= count)
     .map(count => classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, count)))
-  const disposablePrefixes = [303, 304, 307, 310, 311, 312]
+  const disposablePrefixes = [303, 304, 307, 310, 311, 312, 313, 314, 325]
     .filter(count => migrations.length >= count)
     .map(count => disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, migrations.slice(0, count)))
   const accepted = [TEST_MEMBER_LIST_CANONICAL_TABLES_248, historical, decommission, membership, adoption, learnerMembership, authoringImages, homeVisibility, repoLight, admission, ...laterPrefixes, ...disposablePrefixes, expected]

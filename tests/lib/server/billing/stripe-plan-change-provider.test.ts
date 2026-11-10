@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  createStripePlanChangeProvider, stripePlanChangeIdempotencyKey, StripePlanChangeContractError,
+  createStripePlanChangeProvider, createLiveScheduledCancellationProvider, stripeScheduledCancellationIdempotencyKey, stripePlanChangeIdempotencyKey, StripePlanChangeContractError,
   type StripePlanChangeOperation,
 } from '@/lib/server/billing/stripe-plan-change-provider'
 
@@ -60,6 +60,30 @@ function schedule(configured: boolean, after = false) {
     default_settings: { billing_cycle_anchor: 'automatic' },
     phases: configured ? [source, target] : [source],
   }
+}
+
+const merchantAutomaticTax = { enabled: true, liability: { type: 'self' }, disabled_reason: null }
+function liveTaxSubscription(scheduleId: string | null, after = false) {
+  const sub = subscription(scheduleId, after)
+  return {
+    ...sub, livemode: true, customer: { ...sub.customer, livemode: true }, automatic_tax: merchantAutomaticTax,
+    latest_invoice: { ...sub.latest_invoice, livemode: true, id: after ? 'in_Target' : 'in_Paid' },
+    items: { ...sub.items, data: sub.items.data.map(item => ({ ...item,
+      price: { ...item.price, livemode: true, tax_behavior: 'exclusive' },
+    })) },
+  }
+}
+
+function liveTaxSchedule(configured: boolean, after = false) {
+  const raw = schedule(configured, after)
+  return {
+    ...raw, livemode: true, default_settings: { ...raw.default_settings, automatic_tax: merchantAutomaticTax },
+    phases: raw.phases.map(phase => ({ ...phase, automatic_tax: configured ? merchantAutomaticTax : undefined })),
+  }
+}
+
+function liveTaxPrice(id: string) {
+  return { ...price(id === operation.target.priceId ? operation.target : operation.source), livemode: true, tax_behavior: 'exclusive' }
 }
 
 function creationEvents(key: string | null) {
@@ -228,5 +252,312 @@ describe('Stripe renewal-boundary plan change', () => {
     await expect(provider.attach({ ...attach, idempotencyKey: 'other' })).rejects.toThrow(StripePlanChangeContractError)
     expect(port.updateSchedule).not.toHaveBeenCalled()
     expect(port.attachSchedule).not.toHaveBeenCalled()
+  })
+})
+
+describe('live plan change scope', () => {
+  const scope = { providerMode: 'live', stripeAccount: operation.stripeAccount } as const
+  function liveFixture() {
+    const f = fixture()
+    const sub = subscription(attachedId)
+    sub.livemode = true; sub.customer.livemode = true; sub.latest_invoice.livemode = true
+    sub.items.data[0].price.livemode = true
+    Object.assign(sub.latest_invoice, { id: 'in_Paid' })
+    f.configure.operation = { ...f.configure.operation, providerMode: 'live', lastPaidInvoiceId: 'in_Paid' }
+    const rawSchedule = schedule(false); rawSchedule.livemode = true
+    const rawConfigured = schedule(true); rawConfigured.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(sub)
+    f.port.retrieveSchedule.mockResolvedValueOnce(rawSchedule).mockResolvedValue(rawConfigured)
+    f.port.retrievePrice.mockImplementation(async id => ({ ...price(id === operation.target.priceId ? operation.target : operation.source), livemode: true }))
+    f.port.updateSchedule.mockResolvedValue(rawConfigured)
+    return { ...f, sub, rawSchedule, rawConfigured, provider: createStripePlanChangeProvider(f.port, f.now, scope) }
+  }
+  it('configures and verifies only matching live evidence under the stale fence', async () => {
+    const f = liveFixture()
+    await expect(f.provider.configure(f.configure)).resolves.toMatchObject({ kind: 'configured' })
+    expect(f.port.updateSchedule).toHaveBeenCalledOnce()
+    await expect(f.provider.verify(f.configure.operation)).resolves.toMatchObject({ kind: 'configured' })
+  })
+  it('rejects mismatched scope, raw account and nested mode before writes', async () => {
+    const f = liveFixture()
+    await expect(createStripePlanChangeProvider(f.port, f.now, { ...scope, stripeAccount: 'acct_Other' }).configure(f.configure)).rejects.toThrow()
+    expect(f.port.retrieveAccount).not.toHaveBeenCalled()
+    f.port.retrieveAccount.mockResolvedValueOnce({ id: 'acct_Other' })
+    await expect(f.provider.configure(f.configure)).rejects.toThrow()
+    f.sub.customer.livemode = false
+    await expect(f.provider.configure(f.configure)).rejects.toThrow()
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('rejects a different current paid invoice before a write', async () => {
+    const f = liveFixture()
+    Object.assign(f.sub.latest_invoice, { id: 'in_Other' })
+    await expect(f.provider.configure(f.configure)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.configure.beforeMutation).not.toHaveBeenCalled()
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('can verify after renewal when the current invoice is the new target invoice', async () => {
+    const f = liveFixture()
+    f.now.mockReturnValue(effective * 1000)
+    const after = subscription(attachedId, true)
+    after.livemode = true; after.customer.livemode = true; after.latest_invoice.livemode = true
+    after.items.data[0].price.livemode = true
+    Object.assign(after.latest_invoice, { id: 'in_NewRenewal' })
+    const afterSchedule = schedule(true, true); afterSchedule.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(after)
+    f.port.retrieveSchedule.mockReset().mockResolvedValue(afterSchedule)
+    await expect(f.provider.verify(f.configure.operation)).resolves.toMatchObject({ kind: 'configured' })
+  })
+  it('rejects live operations missing their exact invoice identity', async () => {
+    const f = liveFixture()
+    delete f.configure.operation.lastPaidInvoiceId
+    await expect(f.provider.configure(f.configure)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.retrieveAccount).not.toHaveBeenCalled()
+  })
+  it('rejects test-mode schedule and does not write when the fence is stale', async () => {
+    const f = liveFixture()
+    f.rawSchedule.livemode = false
+    await expect(f.provider.configure(f.configure)).rejects.toThrow()
+    f.port.retrieveSchedule.mockResolvedValue(f.rawSchedule)
+    f.rawSchedule.livemode = true
+    f.configure.beforeMutation.mockResolvedValue(false)
+    await expect(f.provider.configure(f.configure)).resolves.toEqual({ kind: 'stale' })
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+})
+
+describe('live Stripe Tax schedule evidence', () => {
+  const scope = { providerMode: 'live', stripeAccount: operation.stripeAccount } as const
+  const liveFields = { providerMode: 'live', lastPaidInvoiceId: 'in_Paid', taxMode: 'stripe_exclusive' } as const
+  function taxedFixture() {
+    const f = fixture()
+    const sub = liveTaxSubscription(attachedId)
+    const shell = liveTaxSchedule(false)
+    const configured = liveTaxSchedule(true)
+    f.port.retrieveSubscription.mockResolvedValue(sub)
+    f.port.retrieveSchedule.mockResolvedValueOnce(shell).mockResolvedValue(configured)
+    f.port.retrievePrice.mockImplementation(async id => liveTaxPrice(id))
+    f.port.attachSchedule.mockResolvedValue(shell)
+    f.port.updateSchedule.mockResolvedValue(configured)
+    return { ...f, sub, shell, configured,
+      attach: { ...f.attach, operation: { ...f.attach.operation, ...liveFields } },
+      configure: { ...f.configure, operation: { ...f.configure.operation, ...liveFields } },
+      provider: createStripePlanChangeProvider(f.port, f.now, scope) }
+  }
+
+  it('attaches with inherited source tax and configures explicit merchant automatic tax on both exact phases', async () => {
+    const f = taxedFixture()
+    f.port.retrieveSubscription.mockResolvedValueOnce(liveTaxSubscription(null))
+    f.port.retrieveSchedule.mockReset().mockResolvedValueOnce(f.shell).mockResolvedValueOnce(f.shell).mockResolvedValue(f.configured)
+    await expect(f.provider.attach(f.attach)).resolves.toEqual({ kind: 'attached', scheduleId: attachedId })
+    expect(f.port.attachSchedule).toHaveBeenCalledExactlyOnceWith({ from_subscription: operation.stripeSubscriptionId },
+      { idempotencyKey: f.attach.idempotencyKey })
+    await expect(f.provider.configure(f.configure)).resolves.toEqual({ kind: 'configured', scheduleId: attachedId })
+    const automatic_tax = { enabled: true, liability: { type: 'self' } }
+    expect(f.port.updateSchedule).toHaveBeenCalledExactlyOnceWith(attachedId, expect.objectContaining({
+      end_behavior: 'release', proration_behavior: 'none', phases: [
+        expect.objectContaining({ automatic_tax, start_date: starts, end_date: effective, proration_behavior: 'none' }),
+        expect.objectContaining({ automatic_tax, start_date: effective, billing_cycle_anchor: 'phase_start', proration_behavior: 'none' }),
+      ],
+    }), { idempotencyKey: f.configure.idempotencyKey })
+  })
+
+  it.each(['source price', 'target price', 'subscription tax', 'connected liability', 'paid invoice'] as const)(
+    'refuses attachment with mismatched %s before authorizing a write', async failure => {
+      const f = taxedFixture()
+      const source = liveTaxSubscription(null)
+      if (failure === 'source price') source.items.data[0].price.tax_behavior = 'unspecified'
+      if (failure === 'target price') f.port.retrievePrice.mockResolvedValue({ ...liveTaxPrice(operation.target.priceId), tax_behavior: 'inclusive' })
+      if (failure === 'subscription tax') source.automatic_tax = { ...merchantAutomaticTax, enabled: false }
+      if (failure === 'connected liability') source.automatic_tax = { ...merchantAutomaticTax, liability: { type: 'account' } }
+      if (failure === 'paid invoice') source.latest_invoice.id = 'in_Other'
+      f.port.retrieveSubscription.mockResolvedValue(source)
+      await expect(f.provider.attach(f.attach)).rejects.toThrow(StripePlanChangeContractError)
+      expect(f.attach.beforeMutation).not.toHaveBeenCalled()
+      expect(f.port.attachSchedule).not.toHaveBeenCalled()
+    })
+
+  it('requires explicit phase tax and the exclusive active price after the exact cutoff', async () => {
+    const f = taxedFixture()
+    f.now.mockReturnValue(effective * 1000)
+    const target = liveTaxSubscription(attachedId, true)
+    const next = liveTaxSchedule(true, true)
+    f.port.retrieveSubscription.mockResolvedValue(target)
+    f.port.retrieveSchedule.mockReset().mockResolvedValue(next)
+    await expect(f.provider.verify(f.configure.operation)).resolves.toMatchObject({ kind: 'configured' })
+    next.phases[1].automatic_tax = undefined
+    await expect(f.provider.verify(f.configure.operation)).rejects.toThrow(StripePlanChangeContractError)
+    next.phases[1].automatic_tax = merchantAutomaticTax
+    target.items.data[0].price.tax_behavior = 'inclusive'
+    await expect(f.provider.verify(f.configure.operation)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+
+  it('preserves merchant automatic tax on cancel and both restored phases on undo', async () => {
+    const f = taxedFixture()
+    const cancellationOperationId = 'c87b8adf-3637-4c93-a017-abf7ef171d64'
+    const input = { operation: f.configure.operation, cancellationOperationId, replayUntil, beforeMutation: vi.fn(async () => true) }
+    const provider = createLiveScheduledCancellationProvider(f.port, scope, f.now)
+    f.port.retrieveSchedule.mockReset().mockResolvedValue(f.configured)
+    f.port.updateSchedule.mockImplementation(async (_id, params) => {
+      const canceled = params.end_behavior === 'cancel'
+      const raw = { ...f.configured, end_behavior: params.end_behavior,
+        phases: canceled ? f.configured.phases.slice(0, 1) : f.configured.phases,
+        metadata: { ...f.configured.metadata, ...(canceled ? { pika_cancellation_operation: cancellationOperationId } : {}) } }
+      f.port.retrieveSubscription.mockResolvedValue({ ...f.sub, cancel_at: canceled ? effective : null })
+      f.port.retrieveSchedule.mockResolvedValue(raw)
+      return raw
+    })
+    const automatic_tax = { enabled: true, liability: { type: 'self' } }
+    await expect(provider.cancel(input)).resolves.toEqual({ kind: 'cancel_scheduled' })
+    expect(f.port.updateSchedule).toHaveBeenNthCalledWith(1, attachedId, expect.objectContaining({ end_behavior: 'cancel',
+      phases: [expect.objectContaining({ automatic_tax, start_date: starts, end_date: effective })],
+    }), { idempotencyKey: stripeScheduledCancellationIdempotencyKey(cancellationOperationId, 'cancel') })
+    f.port.retrievePrice.mockResolvedValueOnce({ ...liveTaxPrice(operation.target.priceId), tax_behavior: 'unspecified' })
+    await expect(provider.undo(input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).toHaveBeenCalledOnce()
+    await expect(provider.undo(input)).resolves.toEqual({ kind: 'scheduled' })
+    expect(f.port.updateSchedule).toHaveBeenNthCalledWith(2, attachedId, expect.objectContaining({ end_behavior: 'release', phases: [
+      expect.objectContaining({ automatic_tax, start_date: starts, end_date: effective }),
+      expect.objectContaining({ automatic_tax, start_date: effective, billing_cycle_anchor: 'phase_start' }),
+    ] }), { idempotencyKey: stripeScheduledCancellationIdempotencyKey(cancellationOperationId, 'undo') })
+  })
+})
+
+
+describe('live saved schedule cancellation and undo', () => {
+  const scope = { providerMode: 'live', stripeAccount: operation.stripeAccount } as const
+  const cancellationOperationId = 'c87b8adf-3637-4c93-a017-abf7ef171d64'
+  function live() {
+    const f = fixture()
+    const sub = subscription(attachedId)
+    sub.livemode = true; sub.customer.livemode = true; sub.latest_invoice.livemode = true
+    sub.items.data[0].price.livemode = true
+    Object.assign(sub.latest_invoice, { id: 'in_Paid' })
+    const raw = schedule(true); raw.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(sub)
+    f.port.retrieveSchedule.mockResolvedValue(raw)
+    f.port.retrievePrice.mockImplementation(async id => ({ ...price(id === operation.target.priceId ? operation.target : operation.source), livemode: true }))
+    const input = { operation: { ...operation, providerMode: 'live' as const, lastPaidInvoiceId: 'in_Paid' },
+      cancellationOperationId, replayUntil, beforeMutation: vi.fn(async () => true) }
+    const setCanceled = () => {
+      Object.assign(sub, { cancel_at: effective })
+      Object.assign(raw, { end_behavior: 'cancel', phases: [raw.phases[0]], metadata: {
+        pika_plan_change_operation: operation.operationId, pika_cancellation_operation: cancellationOperationId } })
+    }
+    const setScheduled = () => { Object.assign(sub, { cancel_at: null }); const restored = schedule(true)
+      Object.assign(raw, { end_behavior: 'release', phases: restored.phases, metadata: restored.metadata }) }
+    return { ...f, sub, raw, input, setCanceled, setScheduled, provider: createLiveScheduledCancellationProvider(f.port, scope, f.now) }
+  }
+  it('cancels and undoes the saved schedule with fresh fences, exact phases, and action keys', async () => {
+    const f = live()
+    f.port.updateSchedule.mockImplementation(async (_id, params) => {
+      if (params.end_behavior === 'cancel') f.setCanceled(); else f.setScheduled()
+      return f.raw
+    })
+    await expect(f.provider.cancel(f.input)).resolves.toEqual({ kind: 'cancel_scheduled' })
+    expect(f.port.updateSchedule.mock.calls[0][1]).toMatchObject({ end_behavior: 'cancel', proration_behavior: 'none',
+      metadata: { pika_plan_change_operation: operation.operationId, pika_cancellation_operation: cancellationOperationId },
+      phases: [{ start_date: starts, end_date: effective, items: [{ price: operation.source.priceId, quantity: 1 }] }] })
+    expect(f.port.updateSchedule.mock.calls[0][2].idempotencyKey).toBe(stripeScheduledCancellationIdempotencyKey(cancellationOperationId, 'cancel'))
+    await expect(f.provider.undo(f.input)).resolves.toEqual({ kind: 'scheduled' })
+    expect(f.port.updateSchedule.mock.calls[1][1]).toMatchObject({ end_behavior: 'release',
+      metadata: { pika_plan_change_operation: operation.operationId, pika_cancellation_operation: '' },
+      phases: [expect.any(Object), { start_date: effective, billing_cycle_anchor: 'phase_start', items: [{ price: operation.target.priceId, quantity: 1 }] }] })
+    expect(f.port.updateSchedule.mock.calls[1][2].idempotencyKey).toBe(stripeScheduledCancellationIdempotencyKey(cancellationOperationId, 'undo'))
+    expect(f.input.beforeMutation).toHaveBeenCalledTimes(2)
+  })
+  it('recovers an ambiguous cancellation and undo from the verified provider state without another write', async () => {
+    const f = live()
+    f.port.updateSchedule.mockImplementationOnce(async () => { f.setCanceled(); throw new Error('lost') })
+    await expect(f.provider.cancel(f.input)).rejects.toThrow('lost')
+    await expect(f.provider.cancel(f.input)).resolves.toEqual({ kind: 'cancel_scheduled' })
+    f.port.updateSchedule.mockImplementationOnce(async () => { f.setScheduled(); throw new Error('lost') })
+    await expect(f.provider.undo(f.input)).rejects.toThrow('lost')
+    await expect(f.provider.undo(f.input)).resolves.toEqual({ kind: 'scheduled' })
+    expect(f.port.updateSchedule).toHaveBeenCalledTimes(2)
+  })
+  it('does not accept a write response without a matching fresh read', async () => {
+    const f = live()
+    f.port.updateSchedule.mockResolvedValue(f.raw)
+    await expect(f.provider.cancel(f.input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.retrieveSubscription).toHaveBeenCalledTimes(2)
+    expect(f.port.retrieveSchedule).toHaveBeenCalledTimes(2)
+  })
+  it('recovers restored target phase after cutoff without any Stripe write', async () => {
+    const f = live(); f.now.mockReturnValue(effective * 1000)
+    const target = subscription(attachedId, true); target.livemode = true; target.customer.livemode = true
+    target.latest_invoice.livemode = true; target.items.data[0].price.livemode = true
+    Object.assign(target.latest_invoice, { id: 'in_Target' })
+    const next = schedule(true, true); next.livemode = true
+    f.port.retrieveSubscription.mockResolvedValue(target); f.port.retrieveSchedule.mockResolvedValue(next)
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'restored_after_cutoff' })
+    await expect(f.provider.undo(f.input)).resolves.toEqual({ kind: 'restored_after_cutoff' })
+    expect(f.input.beforeMutation).not.toHaveBeenCalled(); expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('rereads once when one observation crosses the cutoff, with no provider write', async () => {
+    const f = live()
+    const target = subscription(attachedId, true); target.livemode = true; target.customer.livemode = true
+    target.latest_invoice.livemode = true; target.items.data[0].price.livemode = true
+    const next = schedule(true, true); next.livemode = true
+    f.port.retrieveSubscription.mockImplementation(async () => { f.now.mockReturnValue(effective * 1000); return target })
+    f.port.retrieveSchedule.mockResolvedValue(next)
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'restored_after_cutoff' })
+    expect(f.port.retrieveSubscription).toHaveBeenCalledTimes(2)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('does not write when the cutoff arrives during the authorization fence', async () => {
+    const f = live()
+    f.input.beforeMutation.mockImplementation(async () => { f.now.mockReturnValue(effective * 1000); return true })
+    await expect(f.provider.cancel(f.input)).resolves.toEqual({ kind: 'transition_pending' })
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('does not hand off a target phase with a foreign marker or wrong terms', async () => {
+    const f = live(); f.now.mockReturnValue(effective * 1000)
+    const target = subscription(attachedId, true); target.livemode = true; target.customer.livemode = true
+    target.latest_invoice.livemode = true; target.items.data[0].price.livemode = true
+    const next = schedule(true, true); next.livemode = true
+    next.metadata.pika_plan_change_operation = '11111111-1111-4111-8111-111111111111'
+    f.port.retrieveSubscription.mockResolvedValue(target); f.port.retrieveSchedule.mockResolvedValue(next)
+    await expect(f.provider.read(f.input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('defers an exact old source phase while Stripe crosses the cutoff', async () => {
+    const f = live(); f.now.mockReturnValue(effective * 1000)
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'transition_pending' })
+    f.setCanceled()
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'transition_pending' })
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it('proves the observed completed terminal shape without initiating a write', async () => {
+    const f = live(); f.setCanceled(); f.now.mockReturnValue(effective * 1000)
+    Object.assign(f.sub, { status: 'canceled', ended_at: effective, canceled_at: created })
+    Object.assign(f.raw, { status: 'completed', completed_at: effective, current_phase: null })
+    await expect(f.provider.read(f.input)).resolves.toEqual({ kind: 'completed' })
+    await expect(f.provider.cancel(f.input)).resolves.toEqual({ kind: 'completed' })
+    await expect(f.provider.undo(f.input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
+  })
+  it.each(['account', 'customer', 'subscription', 'price', 'phase', 'schedule-mode'] as const)(
+    'rejects %s evidence before a cancellation write', async field => {
+      const f = live()
+      if (field === 'account') f.port.retrieveAccount.mockResolvedValue({ id: 'acct_Other' })
+      if (field === 'customer') f.sub.customer.id = 'cus_Other'
+      if (field === 'subscription') f.sub.id = 'sub_Other'
+      if (field === 'price') f.sub.items.data[0].price.id = 'price_Other'
+      if (field === 'phase') f.raw.phases[0].end_date = effective - 1
+      if (field === 'schedule-mode') f.raw.livemode = false
+      await expect(f.provider.cancel(f.input)).rejects.toThrow(StripePlanChangeContractError)
+      expect(f.port.updateSchedule).not.toHaveBeenCalled()
+    })
+  it('fails closed on stale fence, foreign invoice, mode and operation marker', async () => {
+    const f = live(); f.input.beforeMutation.mockResolvedValueOnce(false)
+    await expect(f.provider.cancel(f.input)).resolves.toEqual({ kind: 'stale' })
+    Object.assign(f.sub.latest_invoice, { id: 'in_Other' })
+    await expect(f.provider.cancel(f.input)).rejects.toThrow(StripePlanChangeContractError)
+    Object.assign(f.sub.latest_invoice, { id: 'in_Paid' }); f.setCanceled()
+    Object.assign(f.raw, { metadata: { pika_plan_change_operation: operation.operationId, pika_cancellation_operation: 'other' } })
+    await expect(f.provider.undo(f.input)).rejects.toThrow(StripePlanChangeContractError)
+    expect(() => createLiveScheduledCancellationProvider(f.port, { ...scope, providerMode: 'test' }, f.now)).toThrow()
+    expect(f.port.updateSchedule).not.toHaveBeenCalled()
   })
 })

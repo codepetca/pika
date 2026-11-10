@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions 296–313 are sealed below and do not modify Auth/Storage.
+# Source extensions 296–327 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 313)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312 or 313'); validateDisposableBillingReplayMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 327)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326 or 327'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
@@ -164,6 +164,58 @@ if ((10#$replay_version >= 312)); then
 fi
 if ((10#$replay_version >= 313)); then
   sql < "$root/scripts/check-billing-live-trial-lifecycle.sql" > "$scratch/billing-live-trial-lifecycle.log" 2>&1 || { tail -25 "$scratch/billing-live-trial-lifecycle.log" >&2; exit 1; }
+fi
+if ((10#$replay_version >= 314)); then
+  sql < "$root/scripts/check-billing-live-payment-scope.sql" > "$scratch/billing-live-payment-scope.log" 2>&1 || { tail -25 "$scratch/billing-live-payment-scope.log" >&2; exit 1; }
+  echo 'PASS live payment scope and receipt persistence.'
+fi
+if ((10#$replay_version >= 315)); then
+  sql < "$root/scripts/check-billing-live-checkout-catalog.sql" > "$scratch/billing-live-checkout-catalog.log" 2>&1 || { tail -25 "$scratch/billing-live-checkout-catalog.log" >&2; exit 1; }
+  echo 'PASS live Pro and Max catalog.'
+fi
+if ((10#$replay_version >= 316)); then
+  sql < "$root/scripts/check-billing-live-checkout.sql" > "$scratch/billing-live-checkout.log" 2>&1 || { tail -25 "$scratch/billing-live-checkout.log" >&2; exit 1; }
+  echo 'PASS scoped live checkout persistence.'
+fi
+if ((10#$replay_version >= 317)); then
+  sql < "$root/scripts/check-billing-live-reconciliation-claims.sql" > "$scratch/billing-live-reconciliation-claims.log" 2>&1 || { tail -25 "$scratch/billing-live-reconciliation-claims.log" >&2; exit 1; }
+  echo 'PASS scoped live reconciliation claims.'
+fi
+if ((10#$replay_version >= 318)); then
+  sql < "$root/scripts/check-billing-live-paid-lifecycle.sql" > "$scratch/billing-live-paid-lifecycle.log" 2>&1 || { tail -25 "$scratch/billing-live-paid-lifecycle.log" >&2; exit 1; }
+  echo 'PASS scoped live paid lifecycle and available paid access proofs.'
+fi
+if ((10#$replay_version >= 320)); then
+  sql < "$root/scripts/check-billing-live-renewal-closeout.sql" > "$scratch/billing-live-renewal-closeout.log" 2>&1 || { tail -25 "$scratch/billing-live-renewal-closeout.log" >&2; exit 1; }
+  echo 'PASS live unpaid renewal closeout.'
+fi
+if ((10#$replay_version >= 321)); then
+  sql < "$root/scripts/check-billing-live-checkout-admission.sql" > "$scratch/billing-live-checkout-admission.log" 2>&1 || { tail -25 "$scratch/billing-live-checkout-admission.log" >&2; exit 1; }
+  echo 'PASS live checkout admission and legacy assignment fences.'
+fi
+if ((10#$replay_version >= 322)); then
+  sql < "$root/scripts/check-billing-live-scheduled-installation.sql" > "$scratch/billing-live-scheduled-installation.log" 2>&1 || { tail -25 "$scratch/billing-live-scheduled-installation.log" >&2; exit 1; }
+  echo 'PASS scoped live scheduled installation and write gates.'
+fi
+if ((10#$replay_version >= 323)); then
+  sql < "$root/scripts/check-billing-live-scheduled-settlement.sql" > "$scratch/billing-live-scheduled-settlement.log" 2>&1 || { tail -25 "$scratch/billing-live-scheduled-settlement.log" >&2; exit 1; }
+  echo 'PASS scheduled Max grace, Pro settlement and Checkout provenance.'
+fi
+if ((10#$replay_version >= 324)); then
+  sql < "$root/scripts/check-billing-live-scheduled-renewal-closeout.sql" > "$scratch/billing-live-scheduled-renewal-closeout.log" 2>&1 || { tail -25 "$scratch/billing-live-scheduled-renewal-closeout.log" >&2; exit 1; }
+  echo 'PASS live scheduled unpaid closeout and payment-won arbitration.'
+fi
+if ((10#$replay_version >= 325)); then
+  sql < "$root/scripts/check-billing-live-scheduled-cancellation.sql" > "$scratch/billing-live-scheduled-cancellation.log" 2>&1 || { tail -25 "$scratch/billing-live-scheduled-cancellation.log" >&2; exit 1; }
+  echo 'PASS live scheduled cancellation, undo and exact paid cutoff.'
+fi
+if ((10#$replay_version >= 326)); then
+  sql < "$root/scripts/check-billing-live-stripe-exclusive-tax.sql" > "$scratch/billing-live-stripe-exclusive-tax.log" 2>&1 || { tail -25 "$scratch/billing-live-stripe-exclusive-tax.log" >&2; exit 1; }
+  echo 'PASS immutable live Stripe exclusive-tax custody.'
+fi
+if ((10#$replay_version >= 327)); then
+  sql < "$root/scripts/check-billing-live-email-notices.sql" > "$scratch/billing-live-email-notices.log" 2>&1 || { tail -25 "$scratch/billing-live-email-notices.log" >&2; exit 1; }
+  echo 'PASS scoped live email notice queue and send fences.'
 fi
 # The multi-session fixture commits in the owned clone, so run it after
 # rollback proofs that verify the default-off state.

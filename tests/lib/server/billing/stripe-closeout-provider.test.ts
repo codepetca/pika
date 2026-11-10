@@ -3,6 +3,7 @@ import { createStripeCloseoutProvider, verifyInstalledStripeSchedule } from '@/l
 import type { RenewalCloseoutWriteRequest } from '@/lib/server/billing/closeout-contracts'
 import { BillingProviderSubscriptionSnapshotSchema } from '@/lib/server/billing/contracts'
 import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
+import { attachStripeExclusiveTax } from '../../../helpers/stripe-exclusive-tax-fixture'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -123,6 +124,174 @@ function scheduledFixture() {
   }
   return { ...f, sdk, schedule, provider, close, beforeMutation, canceled }
 }
+
+const liveScope = { stripeAccount: binding.stripe_account, providerMode: 'live' } as const
+const liveRequest = { ...request, binding: { ...binding, provider_mode: 'live' as const } }
+
+function liveFixture() {
+  const f = fixture()
+  f.subscription.livemode = true
+  f.subscription.items.data[0].price.livemode = true
+  f.invoice.livemode = true
+  f.invoice.payments.data[0].livemode = true
+  f.intent.livemode = true
+  f.charge.livemode = true
+  const sdk = { ...f.sdk, invoices: { ...f.sdk.invoices,
+    listCustomer: vi.fn().mockResolvedValue({ object: 'list', has_more: false, data: [] }),
+  } }
+  return { ...f, sdk, provider: createStripeCloseoutProvider(sdk, liveScope) }
+}
+
+describe('Stripe exclusive-tax renewal closeout', () => {
+  const taxedRequest = { ...liveRequest, binding: { ...liveRequest.binding, tax_mode: 'stripe_exclusive' as const } }
+  function taxedFixture() {
+    const f = liveFixture()
+    const { gross } = attachStripeExclusiveTax(f.subscription, f.invoice)
+    f.invoice.amount_remaining = gross
+    f.invoice.payments.data[0].amount_requested = gross
+    f.intent.amount = gross
+    f.charge.amount = gross
+    return { ...f, gross }
+  }
+
+  it('checks the gross obligation before pausing a tax-bearing renewal', async () => {
+    const f = taxedFixture()
+    const beforeMutation = vi.fn(async () => true)
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'unpaid' })
+    await f.provider.pauseInvoiceCollection({ ...taxedRequest, beforeMutation, idempotencyKey: 'tax-closeout-fixture' })
+    expect(f.sdk.invoices.update).toHaveBeenCalledOnce()
+    f.intent.amount = 2000
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'attention' })
+  })
+
+  it('lets a captured gross payment win over tax-bearing closeout', async () => {
+    const f = taxedFixture()
+    paid(f)
+    f.invoice.amount_paid = f.gross
+    f.invoice.payments.data[0].amount_paid = f.gross
+    f.intent.amount_received = f.gross
+    f.charge.amount_captured = f.gross
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'paid', invoiceId: 'in_fixture' })
+    f.charge.amount_captured = 2000
+    await expect(f.provider.readCloseoutEvidence(taxedRequest)).resolves.toMatchObject({ kind: 'attention' })
+  })
+})
+
+describe('live Stripe renewal closeout scope', () => {
+  it('requires the explicit matching scope and rejects live scheduled proof before Stripe reads', async () => {
+    const f = liveFixture()
+    const foreign = createStripeCloseoutProvider(f.sdk, { ...liveScope, stripeAccount: 'acct_other' })
+    await expect(createStripeCloseoutProvider(f.sdk).readCloseoutEvidence(liveRequest))
+      .resolves.toEqual({ kind: 'attention', reason: 'identity_mismatch' })
+    await expect(f.provider.readCloseoutEvidence(request)).resolves.toEqual({ kind: 'attention', reason: 'identity_mismatch' })
+    await expect(foreign.readCloseoutEvidence(liveRequest)).resolves.toEqual({ kind: 'attention', reason: 'identity_mismatch' })
+    await expect(f.provider.readCloseoutEvidence({ ...liveRequest, scheduled: scheduledRequest.scheduled }))
+      .resolves.toEqual({ kind: 'attention', reason: 'identity_mismatch' })
+    expect(f.sdk.accounts.retrieve).not.toHaveBeenCalled()
+  })
+
+  it('checks the current account before reading a live financial object', async () => {
+    const f = liveFixture()
+    f.sdk.accounts.retrieve.mockResolvedValue({ id: 'acct_other' })
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'attention' })
+    expect(f.sdk.subscriptions.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
+  })
+
+  it('verifies live unpaid, pending, captured and terminal void evidence', async () => {
+    const f = liveFixture()
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'unpaid', collectionPaused: false })
+    f.intent.status = 'processing'
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'payment_pending' })
+    paid(f)
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'paid', invoiceId: request.invoiceId })
+    const terminal = liveFixture()
+    voided(terminal)
+    terminal.subscription.status = 'canceled'
+    await expect(terminal.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({
+      kind: 'invoice_voided', subscriptionCanceled: true, obligationsCleared: true,
+    })
+    expect(terminal.sdk.invoices.listCustomer).not.toHaveBeenCalled()
+  })
+
+  it.each(['subscription', 'price', 'invoice', 'invoicePayment', 'intent', 'charge'] as const)(
+    'rejects missing or sandbox mode on live %s evidence',
+    async object => {
+      for (const livemode of [false, undefined]) {
+        const f = liveFixture()
+        paid(f)
+        const evidence = {
+          subscription: f.subscription, price: f.subscription.items.data[0].price, invoice: f.invoice,
+          invoicePayment: f.invoice.payments.data[0], intent: f.intent, charge: f.charge,
+        }
+        Object.assign(evidence[object], { livemode })
+        await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'attention' })
+      }
+    },
+  )
+
+  it.each(['processing', 'canceled'] as const)('rejects foreign live mode on a %s intent before any write', async status => {
+    const f = liveFixture()
+    if (status === 'canceled') voided(f)
+    f.intent.status = status
+    f.intent.livemode = false
+    const beforeMutation = vi.fn().mockResolvedValue(true)
+    const guarded = { ...liveRequest, beforeMutation, idempotencyKey: 'closeout-live-fixture' }
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'attention' })
+    await f.provider.pauseInvoiceCollection(guarded)
+    await f.provider.voidInvoice(guarded)
+    await f.provider.cancelSubscription(guarded)
+    expect(beforeMutation).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.update).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.voidInvoice).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it('checks terminal obligation mode without treating a complete payment as proof of clearance', async () => {
+    const f = liveFixture()
+    paid(f)
+    f.subscription.status = 'canceled'
+    const another = { ...f.invoice, id: 'in_other', status: 'open', livemode: false }
+    f.sdk.invoices.list.mockImplementation(async ({ status }) => ({
+      object: 'list', has_more: status === 'open', data: status === 'open' ? [another] : [],
+    }))
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'attention' })
+    another.livemode = true
+    await expect(f.provider.readCloseoutEvidence(liveRequest)).resolves.toMatchObject({ kind: 'paid', terminalObligationsCleared: false })
+  })
+
+  it('blocks live cancellation when another customer invoice is outstanding or proof is missing', async () => {
+    const f = liveFixture()
+    voided(f)
+    f.sdk.invoices.listCustomer.mockResolvedValue({ object: 'list', has_more: false, data: [{ id: 'in_other' }] })
+    const beforeMutation = vi.fn().mockResolvedValue(true)
+    const guarded = { ...liveRequest, beforeMutation }
+    await f.provider.cancelSubscription(guarded)
+    await createStripeCloseoutProvider({ ...f.sdk, invoices: { ...f.sdk.invoices, listCustomer: undefined } }, liveScope)
+      .cancelSubscription(guarded)
+    expect(beforeMutation).not.toHaveBeenCalled()
+    expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
+  it.each([true, false])('checks the live cancellation scope and lease immediately before DELETE (%s)', async allowed => {
+    const f = liveFixture()
+    voided(f)
+    const beforeMutation = vi.fn(async () => {
+      expect(f.sdk.invoices.listCustomer).toHaveBeenNthCalledWith(1, { customer: binding.stripe_customer_id, status: 'open', limit: 1 })
+      expect(f.sdk.invoices.listCustomer).toHaveBeenNthCalledWith(2, { customer: binding.stripe_customer_id, status: 'uncollectible', limit: 1 })
+      expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+      return allowed
+    })
+    await f.provider.cancelSubscription({ ...liveRequest, beforeMutation })
+    expect(beforeMutation).toHaveBeenCalledOnce()
+    if (allowed) expect(f.sdk.subscriptions.cancel).toHaveBeenCalledExactlyOnceWith(binding.stripe_subscription_id, {
+      invoice_now: false, prorate: false,
+    })
+    else expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+})
 
 describe('Stripe renewal closeout adapter', () => {
   it('recognizes a bound failed renewal only after reading its raw unpaid intent', async () => {
@@ -513,4 +682,73 @@ describe('Stripe closeout of an installed scheduled renewal', () => {
     await provider.cancelSubscription(f.close)
     expect(f.sdk.subscriptions.cancel).not.toHaveBeenCalled()
   })
+})
+
+describe('live installed schedule evidence', () => {
+  it('verifies scoped live schedule and rejects account and mode mismatch', async () => {
+    const f = scheduledFixture()
+    f.subscription.livemode = true
+    f.subscription.items.data[0].price.livemode = true
+    f.invoice.livemode = true; f.invoice.payments.data[0].livemode = true; f.intent.livemode = true
+    f.schedule.livemode = true
+    Object.assign(f.schedule.phases[0], { billing_cycle_anchor: 'phase_start' })
+    const liveScheduled = { ...scheduledRequest, binding: { ...scheduledRequest.binding, provider_mode: 'live' as const },
+      scheduled: { ...scheduledRequest.scheduled, target_binding: { ...binding, provider_mode: 'live' as const } } }
+    const provider = createStripeCloseoutProvider(f.sdk, liveScope)
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'unpaid' })
+    f.schedule.livemode = false
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
+    f.schedule.livemode = true
+    Object.assign(f.schedule.phases[0], { discounts: ['coupon'] })
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
+    Object.assign(f.schedule.phases[0], { discounts: [] })
+    f.sdk.accounts.retrieve.mockResolvedValue({ id: 'acct_other' })
+    await expect(provider.readCloseoutEvidence(liveScheduled)).resolves.toMatchObject({ kind: 'attention' })
+  })
+  it('requires the matching taxed Pro phase and its gross payment before settlement', async () => {
+    const f = scheduledFixture()
+    f.subscription.livemode = true; f.subscription.items.data[0].price.livemode = true
+    f.invoice.livemode = true; f.invoice.payments.data[0].livemode = true
+    f.intent.livemode = true; f.charge.livemode = true; f.schedule.livemode = true
+    const { gross } = attachStripeExclusiveTax(f.subscription, f.invoice)
+    paid(f)
+    f.invoice.amount_paid = gross
+    f.invoice.payments.data[0].amount_paid = gross
+    f.invoice.payments.data[0].amount_requested = gross
+    f.intent.amount = gross; f.intent.amount_received = gross
+    f.charge.amount = gross; f.charge.amount_captured = gross
+    const phase = f.schedule.phases[0]
+    Object.assign(phase, { billing_cycle_anchor: 'phase_start', automatic_tax: { enabled: true, liability: { type: 'self' } } })
+    const target = { ...binding, provider_mode: 'live' as const, tax_mode: 'stripe_exclusive' as const }
+    const paidSource = { ...scheduledRequest.binding, provider_mode: 'live' as const, tax_mode: 'stripe_exclusive' as const }
+    const taxedSchedule = { ...scheduledRequest, binding: paidSource,
+      scheduled: { ...scheduledRequest.scheduled, target_binding: target } }
+    const provider = createStripeCloseoutProvider(f.sdk, liveScope)
+    await expect(provider.readCloseoutEvidence(taxedSchedule)).resolves.toMatchObject({ kind: 'paid', invoiceId: 'in_fixture' })
+    Object.assign(phase, { automatic_tax: { enabled: false } })
+    await expect(provider.readCloseoutEvidence(taxedSchedule)).resolves.toMatchObject({ kind: 'attention' })
+    await expect(provider.readCloseoutEvidence({ ...taxedSchedule, binding: { ...paidSource, tax_mode: undefined } }))
+      .resolves.toMatchObject({ kind: 'attention', reason: 'identity_mismatch' })
+  })
+
+  it('cancels only the verified live schedule after a fresh fence', async () => {
+    const f = scheduledFixture()
+    f.subscription.livemode = true; f.subscription.items.data[0].price.livemode = true
+    f.invoice.livemode = true; f.invoice.payments.data[0].livemode = true; f.intent.livemode = true
+    f.schedule.livemode = true
+    Object.assign(f.schedule.phases[0], { billing_cycle_anchor: 'phase_start' })
+    voided(f)
+    const sdk = { ...f.sdk, invoices: { ...f.sdk.invoices,
+      listCustomer: vi.fn().mockResolvedValue({ object: 'list', has_more: false, data: [] }) } }
+    const provider = createStripeCloseoutProvider(sdk, liveScope)
+    const close = { ...f.close, binding: { ...f.close.binding, provider_mode: 'live' as const },
+      scheduled: { ...f.close.scheduled, target_binding: { ...binding, provider_mode: 'live' as const } } }
+    f.beforeMutation.mockResolvedValueOnce(false)
+    await provider.cancelSubscription(close)
+    expect(sdk.cancelSchedule).not.toHaveBeenCalled()
+    await provider.cancelSubscription(close)
+    expect(sdk.cancelSchedule).toHaveBeenCalledOnce()
+    expect(sdk.subscriptions.cancel).not.toHaveBeenCalled()
+  })
+
 })

@@ -59,7 +59,7 @@ export function classroomTestQuotaProofCatalog(
 }
 
 /** Owned disposable replays use the full sealed source. The billing tail
- * adds private tables at 305 and 309; fingerprint each only after its complete tail.
+ * adds private tables. Fingerprint each only after its complete tail.
  */
 export function disposableClassroomTestQuotaProofCatalog(
   canonicalTables: readonly string[],
@@ -73,5 +73,8 @@ export function disposableClassroomTestQuotaProofCatalog(
     ...(migrations.length >= 310 ? ['private.billing_classroom_restrictions'] : []),
     ...(migrations.length >= 312 ? ['private.billing_assignment_release_intents'] : []),
     ...(migrations.length >= 313 ? ['private.billing_live_trial_sources'] : []),
+    ...(migrations.length >= 314 ? ['private.billing_live_payment_target'] : []),
+    ...(migrations.length >= 325 ? ['private.billing_live_scheduled_cancellations'] : []),
+    ...(migrations.length >= 327 ? ['private.billing_live_email_notices'] : []),
   ])].sort())
 }

@@ -1,7 +1,7 @@
 import { createTargetBoundFetch, verifyHostedSupabaseApiOrigin } from '@/lib/server/supabase-target'
 
 // These identify Pika's production target independently of caller-supplied URLs.
-const PRODUCTION_APP_ORIGIN = 'https://pika.codepet.ca'
+export const PRODUCTION_APP_ORIGIN = 'https://pika.codepet.ca'
 const PRODUCTION_PROJECT_REF = 'zhioqbapgfcrronyuidm'
 
 type BillingLiveTargetConfig = Readonly<{
@@ -48,6 +48,77 @@ export type BillingLiveTrialConfig = BillingLiveTargetConfig & Readonly<{
   workerSecret: string
   admissionEnabled: boolean
 }>
+
+/** Ingress only needs its signing secret. It cannot call the Stripe API. */
+export function readBillingLiveWebhookConfig(env: NodeJS.ProcessEnv = process.env) {
+  if (env.BILLING_LIVE_WEBHOOK_ENABLED !== 'true') return null
+  const target = readExactLiveBillingTarget(env)
+  const webhookSecret = env.STRIPE_LIVE_WEBHOOK_SECRET
+  if (!webhookSecret || !/^whsec_[A-Za-z0-9]{16,255}$/.test(webhookSecret)
+    || webhookSecret === env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error('Invalid live webhook configuration')
+  }
+  return { ...target, webhookSecret }
+}
+
+export type BillingLiveCheckoutConfig = BillingLiveTargetConfig & Readonly<{
+  providerMode: 'live'
+  appOrigin: typeof PRODUCTION_APP_ORIGIN
+  secretKey: string
+  checkoutAdmissionEnabled: boolean
+  providerWritesEnabled: boolean
+  portalConfigurationId?: string
+}>
+
+export type BillingLivePaymentWorkerConfig = BillingLiveCheckoutConfig & Readonly<{ workerSecret: string }>
+
+/** Keep recovery available while either admission or new provider writes is paused. */
+export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveCheckoutConfig | null {
+  const checkoutAdmissionEnabled = env.BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED === 'true'
+  const providerWritesEnabled = env.BILLING_LIVE_CHECKOUT_WRITES_ENABLED === 'true'
+  if (env.BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED !== 'true') {
+    if (checkoutAdmissionEnabled || providerWritesEnabled) throw new Error('Invalid live checkout configuration')
+    return null
+  }
+  const target = readExactLiveBillingTarget(env)
+  const secretKey = env.STRIPE_LIVE_SECRET_KEY
+  if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
+    throw new Error('Invalid live checkout configuration')
+  }
+  const portalId = env.BILLING_LIVE_PORTAL_CONFIGURATION_ID
+  const portalConfigurationId = portalId && /^bpc_[A-Za-z0-9]+$/.test(portalId) ? portalId : undefined
+  return { ...target, ...(portalConfigurationId ? { portalConfigurationId } : {}), providerMode: 'live', appOrigin: PRODUCTION_APP_ORIGIN, secretKey,
+    checkoutAdmissionEnabled, providerWritesEnabled }
+}
+
+export function readBillingLivePaymentWorkerConfig(env: NodeJS.ProcessEnv = process.env): BillingLivePaymentWorkerConfig | null {
+  const checkout = readBillingLiveCheckoutConfig(env)
+  if (!checkout) return null
+  const workerSecret = env.BILLING_LIVE_PAYMENT_WORKER_SECRET
+  if (!workerSecret || workerSecret.length < 32 || workerSecret === env.BILLING_WORKER_SECRET
+    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret === checkout.secretKey
+    || workerSecret === env.STRIPE_LIVE_WEBHOOK_SECRET) {
+    throw new Error('Invalid live payment worker configuration')
+  }
+  let webhookReady = false
+  if (checkout.checkoutAdmissionEnabled) {
+    try { webhookReady = readBillingLiveWebhookConfig(env) !== null } catch { webhookReady = false }
+  }
+  const checkoutAdmissionEnabled = checkout.checkoutAdmissionEnabled && webhookReady && Boolean(checkout.portalConfigurationId)
+  return { ...checkout, checkoutAdmissionEnabled, workerSecret }
+}
+
+export function isBillingLivePaymentAvailable(): boolean {
+  try { return readBillingLivePaymentWorkerConfig() !== null } catch { return false }
+}
+
+/** New scheduled changes require all recovery lanes. Existing work has independent switches. */
+export function readBillingLiveScheduledChangeConfig(env: NodeJS.ProcessEnv = process.env): BillingLivePaymentWorkerConfig | null {
+  if (env.BILLING_LIVE_SCHEDULED_CHANGES_ENABLED !== 'true' || env.BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED !== 'true'
+    || env.BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED !== 'true' || env.BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED !== 'true') return null
+  const payment = readBillingLivePaymentWorkerConfig(env)
+  return payment && readBillingLiveWebhookConfig(env) ? payment : null
+}
 
 /** Existing trial status and expiry stay available while new admission is stopped. */
 export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveTrialConfig | null {

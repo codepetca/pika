@@ -622,6 +622,240 @@ RepoLight eligibility and retained learner work. The rollout still needs an
 authorized worker caller and resolution of existing future assignments for
 eligible teachers. The runtime declines admission while those assignments exist.
 
+### Live Pro and Max source verification
+
+Migrations 314–316 establish the pinned live receipt intake, catalog and checkout
+binding. A binding records the customer, session and subscription for one
+teacher. The next reconciliation lease uses fresh Stripe evidence to record the
+paid invoice and grant its exact term. New checkout can be paused while an
+existing session finishes.
+
+The isolated 317–319 replay verifies first payment, trial conversion, renewal
+deferral, failed renewal and recovery, cancellation and retirement. It checks
+RepoLight access for verified Pro and Max and denial at the exact Max cutoff.
+The paid expiry worker can apply Free after financial retirement without
+creating another payment effect.
+
+Before opening checkout, verify production customer and worker routing, the
+live catalog, tax settings, refund and dispute handling, worker cadence and
+notices on the authorized rollout path.
+
+### Live customer and worker routing
+
+The live billing routes use the pinned project and Stripe account. The owner
+status and checkout-recovery routes remain available when new checkout is
+paused. New checkout requires signed webhook configuration, a separate paid
+worker credential, a verified live cancellation portal, and database permission
+for admission, provider writes and renewal closeout. Existing legacy future
+assignments hold new checkout until the teacher resolves those schedules. The
+database fences new legacy releases and classroom transfers during a live
+checkout or live paid ownership. The durable assignment schedule continues to
+use the existing draft flow.
+
+The paid worker accepts authenticated `POST /api/billing/stripe/live/process`.
+Use a credential distinct from trial recovery, webhook signing and the Stripe
+API key. It processes checkout recovery, verified invoices, paid expiry, unpaid
+closeout, assignment release and RepoLight provisioning. At the end of
+grace, the closeout lease excludes a competing reconciliation claim. If fresh
+Stripe evidence confirms payment, the worker applies the verified renewal.
+Otherwise it pauses collection, verifies the invoice can be voided, then
+confirms there are no outstanding customer invoices before cancellation.
+
+The separate live portal configuration enables invoice history, payment
+methods and period-end cancellation without proration. Verify the portal's
+cancel and undo behavior with the production configuration before offering it
+to customers. Checkout, portal and both worker routes can be tested with
+fixtures before configuring credentials. Before production admission, verify
+successful signed webhook receipts, recurring authenticated worker runs and
+alerts for failed or delayed work on the pinned target.
+
+### Exclusive Stripe Tax for live billing
+
+Migration 326 records `stripe_exclusive` on an immutable live offering
+version. The Checkout attempt, subscription binding and scheduled change
+carry that mode through recovery. The pre-tax catalog amount stays fixed.
+Stripe-hosted Checkout collects and saves a billing address and verifies
+the tax breakdown. The portal for new taxed Checkout must allow address
+updates only, along with the existing invoice, payment method and
+period-end cancellation controls.
+
+With `BILLING_LIVE_STRIPE_TAX_ADMISSION_ENABLED=true`, new live Checkout selects
+taxed offerings. Pika verifies the pinned Stripe account, active Tax settings,
+Canadian standard registration, and the portal policy before showing the
+catalog. Keep the flag false until the reviewed provider and database
+configuration is ready. Existing attempts and subscriptions continue to use
+their saved tax mode during an admission pause. Pause live Checkout admission
+before turning the tax flag off, since the false setting selects legacy
+offerings. New scheduled Pro quotes use the teacher's current paid Max
+binding and matching tax mode. Keep legacy Pro targets available for existing
+untaxed Max subscriptions that can schedule a downgrade.
+
+Pika verifies the exact pre-tax line, exclusive tax entries at both line and
+invoice level, and gross amount due. A paid effect requires one bound captured
+card payment for that gross amount. A draft awaiting tax can defer renewal
+verification. Collection pause, void and cancellation verify the same gross
+obligation, and a verified payment can still win the closeout race. The
+calculated tax amount never changes the plan's classroom limit or RepoLight
+entitlement. [Stripe Checkout Tax](https://docs.stripe.com/tax/checkout/page)
+[Stripe invoice evidence](https://docs.stripe.com/api/invoices/object)
+
+Use the reviewed catalog provisioner to preview the exact products, Prices
+and inactive offering versions. The command requires a reviewed hosted
+software tax code already configured on both Stripe products. The tax
+variant uses the `:stripe-exclusive` suffix on the database catalog key and
+Stripe Price lookup key. Each version starts unavailable.
+
+```sh
+pnpm exec tsx scripts/provision-live-tax-catalog.ts --dry-run \
+  --tax-mode stripe_exclusive --account <stripe-account> \
+  --pro-product <pro-product> --max-product <max-product> \
+  --version-base <unused-version-base> --reviewed-tax-code <approved-code>
+```
+
+Preview the migration and verify the proposed version range against the
+pinned database. The catalog dry run reads Stripe and validates the offer
+plan. An authorized apply registers versions unavailable so they can be
+reviewed before publication. An interrupted apply can leave provider prices
+or unavailable database rows. Replay uses the same pinned terms and keys.
+
+Verify a taxable sandbox checkout, both live-style renewal outcomes, scheduled
+change and undo, and refund accounting before production activation. Compare
+the Stripe invoice's base, tax and captured gross against the Pika receipt
+and retained purchased version. Check that the Stripe Tax settings and
+Canadian test registration are active on the intended sandbox before starting
+the rehearsal. [Stripe Tax test guide](https://docs.stripe.com/tax/testing)
+
+### Periodic recovery caller
+
+The private Cloudflare Worker in `workers/billing-recovery` calls the existing
+paid and trial POST endpoints every two minutes in UTC. This is the initial
+canary cadence. Pika's database still owns the exact access cutoff, work
+leases, retries and Stripe idempotency. The two calls run independently.
+Each tick makes one attempt per enabled lane. It records a failed invocation
+on transport or HTTP failure, invalid receipts, or an application receipt
+that reports failures, exceptions or attention. The Worker requests redirects
+in manual mode and treats redirect responses as failures. Structured logs
+use a fixed allowlist of lane, scheduled time, delay, outcome and numeric
+counts.
+
+Both caller switches are false in the checked-in configuration. Worker and
+Preview URLs are disabled. For local verification, package with Wrangler
+`deploy --dry-run` and run `dev --local --test-scheduled` with both switches off.
+The scheduler test passes synthetic bearer credentials through the actual
+Pika POST handlers with synthetic configuration and downstream financial work. GitHub
+CI also runs the 322–325 rollback fixtures after replaying the schema.
+[Cloudflare scheduled handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/)
+[Cloudflare request redirect behavior](https://developers.cloudflare.com/workers/runtime-apis/request/)
+
+For an authorized deployment, pin the approved Cloudflare account and Worker
+name. Generate separate bearer tokens for `BILLING_LIVE_PAYMENT_WORKER_SECRET`
+and `BILLING_LIVE_TRIAL_WORKER_SECRET` using 32 to 256 base64url characters each.
+Set the matching value for each lane in Cloudflare and Pika using their
+protected secret inputs. Cloudflare's secret command deploys a Worker
+version, so stage credentials while the caller switches are off. After the
+matching Pika schema and endpoint are verified, enable the corresponding
+caller variable, `BILLING_PAID_RECOVERY_ENABLED` or
+`BILLING_TRIAL_RECOVERY_ENABLED`, through the reviewed Worker configuration
+with customer admission still closed. Cron configuration changes can take
+up to 15 minutes to propagate.
+[Cloudflare secrets](https://developers.cloudflare.com/workers/configuration/secrets/)
+[Cloudflare Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
+
+Verify at least five distinct consecutive scheduled times with a successful
+receipt for each enabled lane. Check the observed delay and oldest due work
+before admitting customers. Alert on a failed Worker invocation, a lane's
+`needs_attention` receipt, and a missing heartbeat per enabled lane. Verify
+the alert receiver and trigger an intentional failure using an isolated
+target. Worker receipts describe work attempted on each tick. Check durable
+Stripe inbox and checkout, reconciliation, installation, cancellation and
+closeout backlogs separately for unmatched receipts, retry exhaustion or
+age. Resolve and document those checks before opening paid admission.
+[Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+[Cloudflare Monitors](https://developers.cloudflare.com/notifications/monitors/)
+
+During an admission pause, keep the appropriate recovery caller running for
+existing paid subscriptions and trials. For a caller incident, stop the
+affected lane with its own variable and use a scoped operator invocation of
+the same POST endpoint while resolving the issue. During rotation, an enabled
+lane uses only its own binding. Both lanes reject a shared token when enabled
+together.
+
+### Billing email notices
+
+Migration 327 queues cancellation confirmations, failed renewal instructions,
+seven-day and 24-hour reminders, and applied expiry notices in a private outbox.
+Enable the scoped database control `live_email_notices_enabled` and the production
+application switch `BILLING_LIVE_EMAIL_NOTICES_ENABLED` only during an authorized
+delivery canary. Both default off. Enabling the database control schedules
+future reminders for eligible terms already in progress. It does not replay
+old confirmations or expiry messages. Pause the database control to halt
+collection and new claims.
+
+Apply the migration and deploy both recovery endpoints and their caller with
+the switches off. For the canary, enable the application switch before the
+database control. To stop delivery, pause the database control first and check
+in-flight claims before rolling back the application. A claim committed before
+the pause can still reach Brevo.
+
+The paid and trial recovery endpoints each attempt at most two deliveries
+after their access work. Each claim checks the current billing source,
+revision, cutoff, and verified teacher email. A reminder must still precede
+the cutoff and be within 24 hours of its scheduled send. The app uses the
+existing Brevo sender and links to the authenticated Billing page. An accepted
+Brevo receipt records submission to the provider.
+An authorized cancellation undo awaiting Stripe proof defers the notice
+within its existing delivery window.
+
+Alert on `emailNotices.attention` and lane failures in the recovery receipts.
+Inspect scoped outbox counts and notice IDs through authorized database
+operations. The corresponding Brevo tag is `pika-billing-<notice-id>`.
+A missing receipt or interrupted attempt requires operator review because
+Brevo may have accepted the message. Check provider activity before deciding
+whether follow-up is appropriate. The worker never retries an ambiguous send.
+
+### Live scheduled Max-to-Pro changes
+
+Migrations 322–323 add target-scoped quote, confirmation, installation and
+settlement contracts. The live installation provider verifies the last paid
+Max invoice before writing a schedule. A failed Pro cycle records the Pro
+invoice while retaining the Max receipt, classroom limit and RepoLight access
+through the exact 168-hour grace period. Settlement pairs the original Max
+checkout and receipt with the first verified Pro invoice and updates the plan
+in the same transaction. The worker requires independent Stripe phase evidence
+even when Stripe labels the target invoice as a normal subscription cycle.
+
+Migration 324 gives a due scheduled grace the shared closeout lease. Verified
+payment for its exact Pro invoice can still win. Otherwise verified invoice
+voiding and terminal Stripe evidence close the schedule and retire the binding
+in the same transaction. The database flag `live_scheduled_closeout_enabled`
+and worker setting `BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED` default off.
+Deploy and verify the matching database and worker before enabling either
+scheduled admission or Stripe installation writes.
+
+Migration 325 adds teacher cancellation and undo from Plans and billing for an
+installed live Max-to-Pro change. Stripe's portal disables cancellation when an
+update is pending in a schedule. The authenticated cancellation route saves
+intent in Pika. The paid worker verifies and applies it against the pinned Stripe
+schedule. The original Max payment, twelve-classroom limit and RepoLight access
+continue through the paid term. Undo restores the Pro renewal. Stripe sandbox
+testing confirmed that a cancellation ends at the paid cutoff without a Pro
+invoice. If a response is lost across renewal, the worker reads Stripe again
+without changing the schedule. An exact restored Pro phase returns custody to
+normal renewal processing, which independently verifies the invoice and any
+payment. Ambiguous changes remain visible for support and the worker can retry
+verification without making another Stripe write.
+
+Deploy the matching database and paid worker first. With scheduled admission
+closed, verify signed webhook delivery and recurring authenticated worker runs.
+Enable the scheduled installation, cancellation and closeout worker lanes before
+opening `BILLING_LIVE_SCHEDULED_CHANGES_ENABLED`. Database readiness also requires
+ordinary closeout, scheduled closeout, installation admission and writes, and
+cancellation admission and writes on the same pinned target. To stop new
+scheduled changes, pause scheduled admission and leave recovery running for
+existing schedules. Use the separate database provider-write flags when a
+provider write must be paused. Verify the customer path and alerts for delayed
+or attention work before admitting production customers.
+
 ### Release sequence
 
 1. Keep live billing disabled. Finish the source contracts for live/test
@@ -647,9 +881,9 @@ eligible teachers. The runtime declines admission while those assignments exist.
    Fence Test Start at the shared attempt RPC and preserve Save/Submit for an
    attempt started before cutoff. Record suppressed scheduled assignment releases
    durably so resubscription cannot expose work that missed its release.
-   Implement the agreed refund window and confirm Ontario tax treatment. The current provider adapters
-   reject tax and discount adjustments; an operator cannot enable Stripe Tax
-   against those adapters. Do not publish provisional AI allowances.
+   Confirm Ontario tax treatment and verify exclusive Stripe Tax on the opted-in
+   catalog. Complete the agreed refund and dispute handling. Publish AI allowance
+   quantities after the approved unit-cost and usage tests.
 4. Rehearse against a designated isolated Stripe sandbox and disposable Pika
    stack after authorization for synthetic provider writes. Register exact
    approved recurring prices, bind the scoped account and webhook secret, and

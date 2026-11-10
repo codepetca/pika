@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createStripeBillingProvider } from '@/lib/server/billing/stripe-provider'
 import { verifyBillingLifecycleSnapshot, verifyPaidSubscriptionSnapshot } from '@/lib/server/billing/synchronize'
+import { attachStripeExclusiveTax } from '../../../helpers/stripe-exclusive-tax-fixture'
 
 const binding = {
   subscription_id: '11111111-1111-4111-8111-111111111111',
@@ -63,6 +64,32 @@ function fixture() {
   return { sdk, subscription, invoice, intent, charge }
 }
 
+const liveBinding = { ...binding, provider_mode: 'live' } as const
+const liveScope = { stripeAccount: liveBinding.stripe_account, providerMode: 'live' } as const
+
+function liveFixture() {
+  const f = fixture()
+  f.subscription.livemode = true
+  f.subscription.items.data[0].price.livemode = true
+  f.invoice.livemode = true
+  Object.assign(f.invoice.payments.data[0], { livemode: true, currency: 'usd' })
+  f.intent.livemode = true
+  Object.assign(f.charge, { livemode: true, amount_captured: 2000 })
+  return f
+}
+
+const taxedBinding = { ...liveBinding, tax_mode: 'stripe_exclusive' } as const
+
+function taxedLiveFixture() {
+  const f = liveFixture()
+  const tax = attachStripeExclusiveTax(f.subscription, f.invoice)
+  f.invoice.amount_paid = tax.gross
+  f.invoice.payments.data[0].amount_paid = tax.gross
+  f.intent.amount_received = tax.gross
+  Object.assign(f.charge, { amount_captured: tax.gross })
+  return { ...f, tax }
+}
+
 function makeUnpaidInvoice(
   fixture: ReturnType<typeof fixture>,
   status: 'draft' | 'open' | 'uncollectible' | 'void' = 'open',
@@ -83,6 +110,135 @@ function unpaidPayment(status: 'open' | 'canceled' = 'open', amountPaid: number 
 }
 
 describe('Stripe current-state adapter', () => {
+  it('verifies a live card payment only under the explicitly configured account and mode', async () => {
+    const f = liveFixture()
+
+    await expect(createStripeBillingProvider(f.sdk).retrieveSubscription(liveBinding)).resolves.toBeNull()
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(binding)).resolves.toBeNull()
+    await expect(createStripeBillingProvider(f.sdk, { ...liveScope, stripeAccount: 'acct_other' })
+      .retrieveSubscription(liveBinding)).resolves.toBeNull()
+    expect(f.sdk.accounts.retrieve).not.toHaveBeenCalled()
+
+    const snapshot = await createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)
+    expect(verifyPaidSubscriptionSnapshot(liveBinding, snapshot, liveScope)).toMatchObject({ invoiceId: 'in_fixture' })
+    expect(verifyPaidSubscriptionSnapshot(liveBinding, snapshot)).toBe('provider_environment_invalid')
+    expect(f.sdk.accounts.retrieve).toHaveBeenCalledBefore(f.sdk.subscriptions.retrieve)
+    expect(f.sdk.accounts.retrieve).toHaveBeenCalledBefore(f.sdk.paymentIntents.retrieve)
+  })
+
+  it('verifies exact Stripe tax and captured gross for the immutable opted-in plan', async () => {
+    const f = taxedLiveFixture()
+    const provider = createStripeBillingProvider(f.sdk, liveScope)
+    await expect(provider.retrieveSubscription(liveBinding)).resolves.toBeNull()
+    const snapshot = await provider.retrieveSubscription(taxedBinding)
+    expect(snapshot).toMatchObject({ automaticTaxEnabled: true,
+      items: [{ unitAmount: 2000, priceTaxBehavior: 'exclusive' }],
+      latestInvoice: { subtotal: 2000, total: 2260, amountPaid: 2260, totalTaxAmount: 260,
+        exclusiveTax: { status: 'complete', subtotal: 2000 } } })
+    expect(verifyPaidSubscriptionSnapshot(taxedBinding, snapshot, liveScope)).toMatchObject({ invoiceId: 'in_fixture' })
+    expect(typeof verifyPaidSubscriptionSnapshot(liveBinding, snapshot, liveScope)).toBe('string')
+  })
+
+  it.each([
+    ['inclusive price', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.subscription.items.data[0].price, { tax_behavior: 'inclusive' })],
+    ['unsupported invoice liability', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.invoice, {
+      automatic_tax: { enabled: true, status: 'complete', liability: { type: 'account', account: 'acct_other' } },
+    })],
+    ['partial capture', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.charge, { amount_captured: f.tax.base })],
+    ['incorrect invoice gross', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.invoice, { total: f.tax.gross + 1 })],
+    ['tax outside its line', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.tax.line, { taxes: [] })],
+    ['mismatched taxable base', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.tax.entry, { taxable_amount: 1500 })],
+    ['pretax credit', (f: ReturnType<typeof taxedLiveFixture>) => Object.assign(f.invoice, { total_pretax_credit_amounts: [{ amount: 1 }] })],
+    ['Canadian not-collecting result', (f: ReturnType<typeof taxedLiveFixture>) => {
+      Object.assign(f.tax.entry, { amount: 0, taxability_reason: 'not_collecting' })
+      Object.assign(f.tax.line, { taxes: [f.tax.entry] })
+      Object.assign(f.invoice, { amount_due: f.tax.base, total: f.tax.base })
+    }],
+  ] as const)('refuses taxed evidence with %s', async (_label, mutate) => {
+    const f = taxedLiveFixture()
+    mutate(f)
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(taxedBinding)).resolves.toBeNull()
+  })
+
+  it('recognizes an exact draft while Stripe Tax is pending without granting paid access', async () => {
+    const f = taxedLiveFixture()
+    makeUnpaidInvoice(f, 'draft')
+    Object.assign(f.invoice, { billing_reason: 'subscription_cycle', amount_due: f.tax.base, amount_remaining: f.tax.base,
+      total: f.tax.base, total_taxes: null, ending_balance: null, subtotal_excluding_tax: null, total_excluding_tax: null,
+      automatic_tax: { enabled: true, status: 'requires_location_inputs' }, customer_address: null })
+    Object.assign(f.tax.line, { taxes: null })
+    const snapshot = await createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(taxedBinding)
+    expect(snapshot).toMatchObject({ latestInvoice: { exclusiveTax: { status: 'pending', subtotal: 2000 } } })
+    expect(verifyPaidSubscriptionSnapshot(taxedBinding, snapshot, liveScope)).toBe('invoice_not_paid')
+    const paidThrough = new Date(f.subscription.items.data[0].current_period_start * 1000).toISOString()
+    const claim = { binding: taxedBinding, lifecycle: { is_current: true, end_reason: 'renewal_pending',
+      paid_through: paidThrough, last_paid_invoice_id: 'in_previous' } } as Parameters<typeof verifyBillingLifecycleSnapshot>[0]
+    expect(verifyBillingLifecycleSnapshot(claim, snapshot, liveScope)).toMatchObject({ outcome: 'renewal_invoice_pending' })
+    f.invoice.status = 'open'
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(taxedBinding)).resolves.toBeNull()
+  })
+
+  it.each([
+    ['foreign', { id: 'acct_other' }],
+    ['missing', {}],
+  ])('refuses every financial read when the current Stripe account is %s', async (_label, account) => {
+    const f = liveFixture()
+    f.sdk.accounts.retrieve.mockResolvedValue(account)
+
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)).resolves.toBeNull()
+    expect(f.sdk.subscriptions.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.invoices.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+    expect(f.sdk.charges.retrieve).not.toHaveBeenCalled()
+  })
+
+  it.each(['subscription', 'price', 'invoice', 'invoicePayment', 'paymentIntent', 'charge'] as const)(
+    'rejects cross-mode or missing raw livemode on %s',
+    async signal => {
+      for (const mode of [false, undefined]) {
+        const f = liveFixture()
+        const objects = {
+          subscription: f.subscription, price: f.subscription.items.data[0].price, invoice: f.invoice,
+          invoicePayment: f.invoice.payments.data[0], paymentIntent: f.intent, charge: f.charge,
+        }
+        Object.assign(objects[signal], { livemode: mode })
+
+        await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)).resolves.toBeNull()
+      }
+    },
+  )
+
+  it.each([
+    ['foreign invoice', (f: ReturnType<typeof liveFixture>) => { f.invoice.customer = 'cus_other' }],
+    ['foreign InvoicePayment', (f: ReturnType<typeof liveFixture>) => { f.invoice.payments.data[0].invoice = 'in_other' }],
+    ['foreign InvoicePayment currency', (f: ReturnType<typeof liveFixture>) => {
+      Object.assign(f.invoice.payments.data[0], { currency: 'cad' })
+    }],
+    ['foreign intent', (f: ReturnType<typeof liveFixture>) => { f.intent.customer = 'cus_other' }],
+    ['foreign charge', (f: ReturnType<typeof liveFixture>) => { f.charge.payment_intent = 'pi_other' }],
+    ['partial capture', (f: ReturnType<typeof liveFixture>) => { Object.assign(f.charge, { amount_captured: 1999 }) }],
+    ['missing capture amount', (f: ReturnType<typeof liveFixture>) => { Object.assign(f.charge, { amount_captured: undefined }) }],
+  ] as const)('fails closed for a live payment with %s', async (_label, mutate) => {
+    const f = liveFixture()
+    mutate(f)
+
+    await expect(createStripeBillingProvider(f.sdk, liveScope).retrieveSubscription(liveBinding)).resolves.toBeNull()
+  })
+
+  it('checks live mode on an unpaid InvoicePayment without fetching its intent', async () => {
+    const f = liveFixture()
+    makeUnpaidInvoice(f)
+    f.invoice.payments.data = [unpaidPayment()]
+    const provider = createStripeBillingProvider(f.sdk, liveScope)
+
+    await expect(provider.retrieveSubscription(liveBinding)).resolves.toBeNull()
+    f.invoice.payments.data[0].livemode = true
+    await expect(provider.retrieveSubscription(liveBinding)).resolves.toMatchObject({
+      latestInvoice: { status: 'open', payments: [], modeEvidence: { invoice: true, invoicePayments: [true] } },
+    })
+    expect(f.sdk.paymentIntents.retrieve).not.toHaveBeenCalled()
+  })
+
   it('fetches the bound objects and proves an actual Stripe payment before assignment', async () => {
     const { sdk } = fixture()
     const snapshot = await createStripeBillingProvider(sdk).retrieveSubscription(binding)

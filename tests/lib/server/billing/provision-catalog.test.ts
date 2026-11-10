@@ -1,8 +1,10 @@
+import Stripe from 'stripe'
 import { describe, expect, it, vi } from 'vitest'
 import { launchCatalog, repolightCatalog, REPOLIGHT_CATALOG_RELEASE_TAG } from '@/lib/billing/launch-catalog'
 import {
   CatalogProvisioningError,
   provisionLaunchCatalog,
+  provisionLiveExclusiveTaxCatalog,
   type BillingOfferingRegistration,
   type StripeCatalogProvisioningPorts,
 } from '@/lib/server/billing/provision-catalog'
@@ -183,5 +185,76 @@ describe('test-only launch catalog provisioning', () => {
     const { ports } = fixture()
     ;(ports.retrieveAccount as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('sk_test_private'))
     await expect(provision(ports)).rejects.toEqual(new CatalogProvisioningError('provider_unavailable'))
+  })
+})
+
+describe('live exclusive-tax catalog provisioning', () => {
+  const input = { projectRef: 'zhioqbapgfcrronyuidm', stripeAccount: 'acct_live',
+    productIds: { pro: 'prod_pro', max: 'prod_max' }, releaseVersionBase: 300,
+    taxMode: 'stripe_exclusive', reviewedProductTaxCode: 'txcd_10103000', action: 'dry-run' }
+  function liveFixture() {
+    const prices = new Map<string, unknown>()
+    const registrations: unknown[] = []
+    const ports = {
+      retrieveAccount: vi.fn(async () => ({ id: 'acct_live' })),
+      retrieveProduct: vi.fn(async (id: string) => ({ id, name: id === 'prod_pro' ? 'Pro' : 'Max', active: true, livemode: true, tax_code: 'txcd_10103000' })),
+      listPricesByLookupKey: vi.fn(async (key: string) => ({ data: prices.has(key) ? [prices.get(key)] : [], hasMore: false })),
+      createPrice: vi.fn(async (params: Record<string, unknown>) => {
+        const variant = repolightCatalog.find(item => `${item.catalogKey}:stripe-exclusive` === params.lookup_key)!
+        const price = { ...priceFor(variant), id: `price_live${prices.size}`, livemode: true, lookup_key: params.lookup_key, tax_behavior: 'exclusive', unit_amount_decimal: Stripe.Decimal.from(String(variant.unitAmountCents)), recurring: { interval: variant.interval, interval_count: 1, usage_type: 'licensed', trial_period_days: null } }
+        prices.set(params.lookup_key as string, price); return price
+      }),
+      registerOffering: vi.fn(async (request: unknown) => { registrations.push(request); return { offering_id: dbId(1), offering_version_id: dbId(registrations.length + 100) } }),
+    }
+    return { ports, prices, registrations }
+  }
+  it('previews separate keys without any writes', async () => {
+    const { ports } = liveFixture()
+    const result = await provisionLiveExclusiveTaxCatalog({ ...input, ports })
+    expect(result.items).toHaveLength(8)
+    expect(result.items.every(item => item.lookupKey === item.catalogKey && item.catalogKey.endsWith(':stripe-exclusive') && item.priceId === null)).toBe(true)
+    expect(ports.createPrice).not.toHaveBeenCalled()
+    expect(ports.registerOffering).not.toHaveBeenCalled()
+  })
+  it('creates immutable exclusive prices and unavailable live tax offerings and reuses them on replay', async () => {
+    const { ports, registrations } = liveFixture()
+    const args = { ...input, action: 'apply', ports }
+    await provisionLiveExclusiveTaxCatalog(args)
+    await provisionLiveExclusiveTaxCatalog(args)
+    expect(ports.createPrice).toHaveBeenCalledTimes(8)
+    expect(ports.createPrice).toHaveBeenCalledWith(expect.objectContaining({ tax_behavior: 'exclusive', transfer_lookup_key: false }), expect.stringContaining('stripe-exclusive'))
+    expect(registrations).toHaveLength(16)
+    const expectedKeys = repolightCatalog.filter(variant => variant.plan !== 'basic')
+      .map(variant => `${variant.catalogKey}:stripe-exclusive`)
+    expect(registrations).toEqual([...expectedKeys, ...expectedKeys].map(catalog_key => expect.objectContaining({
+      provider_mode: 'live', features: expect.objectContaining({ catalog_key, billing_tax_mode: 'stripe_exclusive' }),
+      availability: { is_available: false },
+    })))
+  })
+  it('requires explicit mode, reviewed SaaS category, account and matching live products', async () => {
+    for (const override of [{ action: 'unknown' }, { taxMode: undefined }, { reviewedProductTaxCode: 'txcd_10000000' }, { projectRef: 'foreign' }]) {
+      const { ports } = liveFixture()
+      await expect(provisionLiveExclusiveTaxCatalog({ ...input, ...override, ports })).rejects.toThrow()
+      expect(ports.retrieveAccount).not.toHaveBeenCalled()
+    }
+    const { ports } = liveFixture()
+    ports.retrieveProduct.mockResolvedValueOnce({ id: 'prod_pro', name: 'Pro', active: true, livemode: true, tax_code: 'txcd_10103001' })
+    await expect(provisionLiveExclusiveTaxCatalog({ ...input, action: 'apply', ports })).rejects.toMatchObject({ code: 'product_invalid' })
+    expect(ports.createPrice).not.toHaveBeenCalled()
+  })
+  it('checks every price before creating any missing price', async () => {
+    const { ports, prices } = liveFixture()
+    const variant = repolightCatalog.filter(item => item.plan === 'pro' || item.plan === 'max').at(-1)!
+    prices.set(`${variant.catalogKey}:stripe-exclusive`, { ...priceFor(variant), livemode: true, lookup_key: `${variant.catalogKey}:stripe-exclusive`, tax_behavior: 'inclusive' })
+    await expect(provisionLiveExclusiveTaxCatalog({ ...input, action: 'apply', ports })).rejects.toMatchObject({ code: 'price_invalid' })
+    expect(ports.createPrice).not.toHaveBeenCalled()
+    expect(ports.registerOffering).not.toHaveBeenCalled()
+  })
+  it('rejects an existing nonexclusive or ambiguous price without replacement', async () => {
+    const { ports, prices } = liveFixture()
+    const variant = repolightCatalog.find(item => item.plan === 'pro')!
+    prices.set(`${variant.catalogKey}:stripe-exclusive`, { ...priceFor(variant), livemode: true, lookup_key: `${variant.catalogKey}:stripe-exclusive`, tax_behavior: 'unspecified' })
+    await expect(provisionLiveExclusiveTaxCatalog({ ...input, action: 'apply', ports })).rejects.toMatchObject({ code: 'price_invalid' })
+    expect(ports.createPrice).not.toHaveBeenCalled()
   })
 })

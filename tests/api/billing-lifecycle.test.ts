@@ -2,12 +2,13 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
-  config: vi.fn(), liveConfig: vi.fn(), authenticate: vi.fn(), runtime: vi.fn(), liveRuntime: vi.fn(),
-  startTrial: vi.fn(), getStatus: vi.fn(), liveWorker: vi.fn(),
+  config: vi.fn(), liveConfig: vi.fn(), paymentConfig: vi.fn(), authenticate: vi.fn(), runtime: vi.fn(), liveRuntime: vi.fn(),
+  startTrial: vi.fn(), getStatus: vi.fn(), liveWorker: vi.fn(), paymentWorker: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ requireRole: mock.authenticate }))
 vi.mock('@/lib/server/billing/purchase-config', () => ({ readBillingPurchaseConfig: mock.config }))
-vi.mock('@/lib/server/billing/live-target', () => ({ readBillingLiveTrialConfig: mock.liveConfig }))
+vi.mock('@/lib/server/billing/live-target', () => ({ readBillingLiveTrialConfig: mock.liveConfig, readBillingLivePaymentWorkerConfig: mock.paymentConfig }))
+vi.mock('@/lib/server/billing/payment-runtime', () => ({ processLiveBillingPaymentLifecycle: mock.paymentWorker }))
 vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({
   createBillingLifecycleRuntime: mock.runtime, createLiveTrialLifecycleRuntime: mock.liveRuntime,
   processLiveTrialLifecycle: mock.liveWorker,
@@ -15,6 +16,8 @@ vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({
 import { GET as status } from '@/app/api/billing/subscription/route'
 import { POST as trial } from '@/app/api/billing/trial/route'
 import { POST as processLiveTrial } from '@/app/api/billing/trial/process/route'
+import { POST as processLivePayment } from '@/app/api/billing/stripe/live/process/route'
+import { BILLING_ACCESS_NOTICE_HEADER } from '@/lib/billing/subscription'
 import { BillingLifecycleEligibilityError } from '@/lib/server/billing/lifecycle-service'
 
 const subject = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -67,8 +70,42 @@ describe('billing lifecycle API boundaries', () => {
     expect(mock.getStatus).toHaveBeenCalledWith({ subjectUserId: subject })
     expect(await response.json()).toMatchObject({ state: 'free', plan: 'free', classroomLimit: 0, canStartPaidWork: false })
   })
+  it.each([
+    ['trial', 168 * 3600 + 1, false, undefined],
+    ['trial', 168 * 3600, false, 'ending_within_seven_days'],
+    ['paid', 24 * 3600 + 1, false, 'ending_within_seven_days'],
+    ['paid', 24 * 3600, false, 'ending_within_24_hours'],
+    ['paid', 24 * 3600, true, undefined],
+    ['renewal_grace', 168 * 3600, false, 'payment_overdue'],
+    ['renewal_grace', 0, false, undefined],
+    ['free', 0, false, 'ended'],
+    ['synchronization_pending', 3600, false, undefined],
+  ])('projects %s at %i seconds from a verified cutoff with renewal %s', async (state, seconds, renewing, notice) => {
+    const now = Date.parse('2026-10-31T15:15:22Z')
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+    const cutoff = new Date(now + seconds * 1000).toISOString()
+    mock.getStatus.mockResolvedValue({
+      ...access, state, access_ends_at: cutoff, renewal_at: renewing ? cutoff : null,
+      can_start_paid_work: !['free', 'synchronization_pending'].includes(state),
+    })
+    try {
+      const url = `${origin}/api/billing/subscription?now=2027-01-01`
+      const legacy = await status(new NextRequest(url), context)
+      expect(await legacy.json()).not.toHaveProperty('accessNotice')
+      const response = await status(new NextRequest(url, {
+        headers: { [BILLING_ACCESS_NOTICE_HEADER]: '1' },
+      }), context)
+      expect(response.status).toBe(200)
+      const payload = await response.json()
+      expect(payload.accessEndsAt).toBe(cutoff)
+      expect(payload.accessNotice).toBe(notice)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('keeps live status available while new trial admission is off', async () => {
-    const config = { appOrigin: 'https://pika.codepet.ca', admissionEnabled: false }
+    const config = { appOrigin: 'https://pika.codepet.ca', projectRef: 'live-project', admissionEnabled: false }
     mock.liveConfig.mockReturnValue(config)
     mock.config.mockReturnValue(null)
     mock.getStatus.mockResolvedValue({ ...access, customer_options: {
@@ -80,9 +117,48 @@ describe('billing lifecycle API boundaries', () => {
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ state: 'trial', options: { trialAvailable: false, checkoutAvailable: false } })
     expect((await trial(request(), context)).status).toBe(404)
-    expect(mock.liveRuntime).toHaveBeenCalledExactlyOnceWith(config)
+    expect(mock.liveRuntime).toHaveBeenCalledExactlyOnceWith({ ...config, checkoutAdmissionEnabled: false })
     expect(mock.runtime).not.toHaveBeenCalled()
     expect(mock.startTrial).not.toHaveBeenCalled()
+  })
+
+  it('preserves live trial status and admission when payment configuration is invalid', async () => {
+    const config = { appOrigin: 'https://pika.codepet.ca', projectRef: 'live-project', admissionEnabled: true }
+    mock.liveConfig.mockReturnValue(config)
+    mock.paymentConfig.mockImplementation(() => { throw new Error('Invalid live payment worker configuration') })
+    mock.getStatus.mockResolvedValue({ ...access, customer_options: {
+      trial_available: true, checkout_available: true, pending_checkout_id: null,
+      has_billing_customer: false, paid_terms: null,
+    } })
+    const response = await status(new NextRequest(`${config.appOrigin}/api/billing/subscription`), context)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ state: 'trial', options: { trialAvailable: true, checkoutAvailable: false } })
+    expect((await trial(request(undefined, { origin: config.appOrigin }), context)).status).toBe(200)
+    expect(mock.startTrial).toHaveBeenCalledWith({ subjectUserId: subject, operationId })
+    expect(mock.runtime).not.toHaveBeenCalled()
+  })
+
+  it('reads paid status during an admission pause and requires the separate worker bearer', async () => {
+    const config = { appOrigin: 'https://pika.codepet.ca', projectRef: 'live-project',
+      workerSecret: 'live-payment-secret'.repeat(3), checkoutAdmissionEnabled: false, providerWritesEnabled: false }
+    const paidWorkerRequest = (authorization?: string) => new NextRequest(`${config.appOrigin}/api/billing/stripe/live/process`, {
+      method: 'POST', headers: authorization ? { authorization: `Bearer ${authorization}` } : {},
+    })
+    expect((await processLivePayment(paidWorkerRequest(), context)).status).toBe(404)
+    mock.paymentConfig.mockReturnValue(config)
+    mock.getStatus.mockResolvedValue({ ...access, state: 'paid', plan_key: 'pro', customer_options: {
+      trial_available: true, checkout_available: true, pending_checkout_id: operationId, has_billing_customer: true, paid_terms: null,
+    } })
+    const response = await status(new NextRequest(`${config.appOrigin}/api/billing/subscription`), context)
+    expect(await response.json()).toMatchObject({ state: 'paid', plan: 'max', options: {
+      trialAvailable: false, checkoutAvailable: false, pendingCheckoutId: operationId,
+    } })
+    expect((await trial(request(), context)).status).toBe(404)
+    expect((await processLivePayment(paidWorkerRequest('trial-secret'), context)).status).toBe(401)
+    expect(mock.paymentWorker).not.toHaveBeenCalled()
+    mock.paymentWorker.mockResolvedValue({ closeouts: { closed: 1 } })
+    expect((await processLivePayment(paidWorkerRequest(config.workerSecret), context)).status).toBe(200)
+    expect(mock.paymentWorker).toHaveBeenCalledExactlyOnceWith(config)
   })
   it('runs live recovery with its own worker bearer when admission is off', async () => {
     const config = { appOrigin: 'https://pika.codepet.ca', workerSecret: 'trial-worker-secret'.repeat(2), admissionEnabled: false }

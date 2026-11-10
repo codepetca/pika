@@ -19,11 +19,16 @@ export function repoLight300WitnessSql(): string {
  where n.nspname='private' and p.proname in ('repolight_provision_account_hint_v1','repolight_provision_gate_hint_v1')))`
 }
 
+const billingGateColumns = {
+  300: ['provider_mode', 'sandbox_enabled'],
+  313: ['live_project_ref', 'live_stripe_account', 'live_trial_lifecycle_enabled', 'provider_mode', 'sandbox_enabled'],
+  319: ['live_payment_lifecycle_enabled', 'live_project_ref', 'live_stripe_account', 'live_trial_lifecycle_enabled',
+    'provider_mode', 'sandbox_enabled'],
+} as const
+
 /** Prove the fresh isolated fixture starts dormant with exactly the reviewed triggers. */
-export function repoLight300PresenceSql(liveTrialBilling = false): string {
-  const billingColumns = liveTrialBilling
-    ? "'live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled'"
-    : "'provider_mode','sandbox_enabled'"
+export function repoLight300PresenceSql(billingTriggerMigration: keyof typeof billingGateColumns = 300): string {
+  const billingColumns = billingGateColumns[billingTriggerMigration].map(name => `'${name}'`).join(',')
   return `do $repolight300$ begin
  if (select count(*) from private.repolight_settings)<>1
  or not exists(select 1 from private.repolight_settings where singleton and not plan_enforcement_enabled and not legacy_plan_access_enabled and not billing_access_enabled and not managed_provisioning_enabled)

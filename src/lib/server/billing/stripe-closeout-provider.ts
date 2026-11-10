@@ -1,6 +1,13 @@
+import { matchesSubscriptionTax, stripeMerchantAutomaticTaxSchema, usesStripeExclusiveTax, verifiedInvoiceGross } from './billing-tax'
 import { z } from 'zod'
-import { BillingProviderSubscriptionSnapshotSchema, BillingSubscriptionBindingSchema, type BillingProviderSubscriptionSnapshot } from './contracts'
-import { RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence, type RenewalCloseoutProvider, type RenewalCloseoutReadRequest, type RenewalCloseoutSchedule } from './closeout-contracts'
+import {
+  BillingProviderSubscriptionSnapshotSchema, BillingReconciliationScopeSchema, BillingSubscriptionBindingSchema,
+  matchesBillingReconciliationScope, type BillingProviderSubscriptionSnapshot, type BillingReconciliationScope, type BillingScheduledRenewal,
+} from './contracts'
+import {
+  LiveRenewalCloseoutBindingSchema, LiveRenewalCloseoutScheduleSchema, RenewalCloseoutScheduleSchema, type RenewalCloseoutEvidence,
+  type RenewalCloseoutReadRequest,
+} from './closeout-contracts'
 import { createStripeBillingProvider, type StripeBillingReadPort } from './stripe-provider'
 import { verifyPaidSubscriptionSnapshot } from './synchronize'
 import { BILLING_RENEWAL_GRACE_SECONDS } from './lifecycle-policy'
@@ -17,6 +24,7 @@ export type StripeCloseoutPort = Omit<StripeBillingReadPort, 'subscriptions' | '
   }
   invoices: StripeBillingReadPort['invoices'] & {
     list(input: { subscription: string; status: InvoiceStatus; limit: 1 }): Promise<unknown>
+    listCustomer?(input: { customer: string; status: 'open' | 'uncollectible'; limit: 1 }): Promise<unknown>
     update(id: string, input: { auto_advance: false }, options: PostOptions): Promise<unknown>
     voidInvoice(id: string, input: Record<string, never>, options: PostOptions): Promise<unknown>
   }
@@ -26,34 +34,35 @@ const reference = z.union([z.string().min(1), z.object({ id: z.string().min(1) }
   .transform(value => typeof value === 'string' ? value : value.id)
 const money = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const invoiceFacts = z.object({
-  auto_advance: z.boolean(), amount_remaining: money,
+  livemode: z.boolean(), auto_advance: z.boolean(), amount_remaining: money,
   amount_paid_off_stripe: money.optional(),
   payments: z.object({ has_more: z.literal(false), data: z.array(z.object({
-    invoice: reference, livemode: z.literal(false), currency: z.string(),
+    invoice: reference, livemode: z.boolean(), currency: z.string(),
     status: z.enum(['open', 'paid', 'canceled']), amount_paid: money.nullable(), amount_requested: money,
     payment: z.object({ type: z.literal('payment_intent'), payment_intent: reference }),
   })).max(100) }),
 })
 const intentFacts = z.object({
-  id: z.string(), livemode: z.literal(false), customer: reference, currency: z.string(),
+  id: z.string(), livemode: z.boolean(), customer: reference, currency: z.string(),
   amount: money, amount_received: money, amount_capturable: money,
   status: z.enum(['requires_payment_method', 'requires_confirmation', 'requires_action', 'processing', 'requires_capture', 'canceled', 'succeeded']),
   latest_charge: reference.nullable(), payment_method_types: z.array(z.string()).min(1).max(100),
 })
 const chargeFacts = z.object({
-  id: z.string(), livemode: z.literal(false), customer: reference, currency: z.string(),
+  id: z.string(), livemode: z.boolean(), customer: reference, currency: z.string(),
   payment_intent: reference, amount: money, amount_captured: money, status: z.enum(['failed', 'pending', 'succeeded']),
   paid: z.boolean(), captured: z.boolean(), refunded: z.boolean(), amount_refunded: money,
   disputed: z.boolean(), payment_method_details: z.object({ type: z.string() }),
 })
-const obligationList = z.object({ object: z.literal('list'), has_more: z.literal(false), data: z.array(z.object({
-  id: z.string(), status: z.enum(['draft', 'open', 'uncollectible']), livemode: z.literal(false),
+const obligationList = z.object({ object: z.literal('list'), has_more: z.boolean(), data: z.array(z.object({
+  id: z.string(), status: z.enum(['draft', 'open', 'uncollectible']), livemode: z.boolean(),
   customer: reference, parent: z.object({ subscription_details: z.object({ subscription: reference }) }),
 })).max(1) })
+const emptyObligationList = z.object({ object: z.literal('list'), has_more: z.literal(false), data: z.tuple([]) })
 const date = z.string().datetime({ offset: true })
 const phaseBounds = z.object({ start_date: z.number().int().positive(), end_date: z.number().int().positive() })
 const stripeSchedule = z.object({
-  id: z.string(), object: z.literal('subscription_schedule'), livemode: z.literal(false),
+  id: z.string(), object: z.literal('subscription_schedule'), livemode: z.boolean(),
   customer: reference, subscription: reference.nullable(), status: z.enum(['active', 'canceled']),
   metadata: z.object({ pika_plan_change_operation: z.string().uuid() }).strict(),
   end_behavior: z.literal('release'), canceled_at: z.number().int().positive().nullable(),
@@ -64,9 +73,40 @@ const stripeSchedule = z.object({
     items: z.array(z.object({ price: reference, quantity: z.number().int() })).max(100),
   })).max(100).optional(),
 })
+// Live settlement must not adopt phases with billing features the installer never writes.
+const emptyProviderList = z.array(z.unknown()).length(0).nullish()
+const emptyProviderMetadata = z.record(z.string(), z.never()).nullish()
+const scheduleAutomaticTaxSchema = z.union([z.object({ enabled: z.literal(false) }), stripeMerchantAutomaticTaxSchema])
+const liveSchedulePhases = z.object({
+  default_settings: z.object({ automatic_tax: scheduleAutomaticTaxSchema.optional() }).optional(),
+  phases: z.array(z.object({
+    start_date: z.number(), billing_cycle_anchor: z.enum(['automatic', 'phase_start']).nullish(),
+    collection_method: z.literal('charge_automatically').nullish(),
+    automatic_tax: scheduleAutomaticTaxSchema.optional(),
+    discounts: emptyProviderList, default_tax_rates: emptyProviderList, add_invoice_items: emptyProviderList,
+    metadata: emptyProviderMetadata, trial: z.literal(false).optional(), trial_end: z.null().optional(),
+    items: z.array(z.object({ discounts: emptyProviderList, tax_rates: emptyProviderList,
+      metadata: emptyProviderMetadata, billing_thresholds: z.null().optional() })).max(100),
+  })).max(100),
+})
+const scopedScheduleSchema = z.union([
+  RenewalCloseoutScheduleSchema,
+  LiveRenewalCloseoutScheduleSchema,
+])
+type ScopedSchedule = z.infer<typeof scopedScheduleSchema>
+type ScopedReadRequest = Omit<RenewalCloseoutReadRequest, 'scheduled'> & { scheduled?: ScopedSchedule }
+type ScopedMutation = ScopedReadRequest & { beforeMutation(): Promise<boolean>; idempotencyKey?: string }
+type ScopedWrite = ScopedMutation & { idempotencyKey: string }
+export type StripeScopedRenewalCloseoutProvider = {
+  readCloseoutEvidence(input: ScopedReadRequest): Promise<RenewalCloseoutEvidence>
+  pauseInvoiceCollection(input: ScopedWrite): Promise<void>
+  voidInvoice(input: ScopedWrite): Promise<void>
+  cancelSubscription(input: ScopedMutation): Promise<void>
+}
 const readRequest = z.object({
-  binding: BillingSubscriptionBindingSchema, invoiceId: z.string().min(1).max(255),
-  paidThrough: date, cutoff: date, scheduled: RenewalCloseoutScheduleSchema.optional(),
+  binding: z.discriminatedUnion('provider_mode', [BillingSubscriptionBindingSchema, LiveRenewalCloseoutBindingSchema]),
+  invoiceId: z.string().min(1).max(255),
+  paidThrough: date, cutoff: date, scheduled: scopedScheduleSchema.optional(),
 })
 const guardedRequest = readRequest.extend({ beforeMutation: z.custom<() => Promise<boolean>>(value => typeof value === 'function') })
 const postRequest = guardedRequest.extend({ idempotencyKey: z.string().min(1).max(255) })
@@ -76,28 +116,39 @@ function attention(reason: Extract<RenewalCloseoutEvidence, { kind: 'attention' 
 }
 function equalTimestamp(a: string, b: string): boolean { return Date.parse(a) === Date.parse(b) }
 
-function matchesTargetItem(scheduled: RenewalCloseoutSchedule, snapshot: BillingProviderSubscriptionSnapshot): boolean {
+function matchesTargetItem(scheduled: ScopedSchedule, snapshot: BillingProviderSubscriptionSnapshot): boolean {
   const binding = scheduled.target_binding
   const item = snapshot.items[0]
-  return snapshot.isCurrent && !snapshot.liveMode && snapshot.stripeAccount === binding.stripe_account
+  return snapshot.isCurrent && snapshot.liveMode === (binding.provider_mode === 'live') && snapshot.stripeAccount === binding.stripe_account
     && snapshot.subscriptionId === binding.stripe_subscription_id && snapshot.customerId === binding.stripe_customer_id
-    && snapshot.items.length === 1 && item.quantity === 1 && !item.priceLiveMode
+    && snapshot.items.length === 1 && item.quantity === 1 && item.priceLiveMode === (binding.provider_mode === 'live')
     && item.priceId === binding.stripe_price_id && item.productId === binding.stripe_product_id
     && item.unitAmount === binding.unit_amount && item.currency === binding.currency
-    && item.interval === binding.interval && item.intervalCount === 1
+    && item.interval === binding.interval && item.intervalCount === 1 && matchesSubscriptionTax(binding, snapshot)
     && equalTimestamp(item.currentPeriodStart, scheduled.effective_at)
     && Date.parse(item.currentPeriodEnd) === scheduledTermEnd(scheduled.effective_at, binding.interval)
 }
 
-async function readInstalledSchedule(retrieveSchedule: (id: string) => Promise<unknown>, scheduled: RenewalCloseoutSchedule) {
-  const observed = stripeSchedule.safeParse(await retrieveSchedule(scheduled.provider_schedule_id))
+async function readInstalledSchedule(retrieveSchedule: (id: string) => Promise<unknown>, scheduled: ScopedSchedule) {
+  const raw = await retrieveSchedule(scheduled.provider_schedule_id)
+  if (scheduled.target_binding.provider_mode === 'live') {
+    const phases = liveSchedulePhases.safeParse(raw)
+    const target = phases.success && phases.data.phases.filter(phase => phase.start_date * 1000 === Date.parse(scheduled.effective_at))
+    const taxed = usesStripeExclusiveTax(scheduled.target_binding)
+    if (!target || target.length !== 1 || target[0].billing_cycle_anchor !== 'phase_start'
+      || !phases.success || phases.data.phases.some(phase => taxed
+        ? phase.automatic_tax?.enabled !== true
+        : (phase.automatic_tax ?? phases.data.default_settings?.automatic_tax)?.enabled === true)) return null
+  }
+  const observed = stripeSchedule.safeParse(raw)
   if (!observed.success) return null
   const schedule = observed.data
-  return schedule.id === scheduled.provider_schedule_id && schedule.customer === scheduled.target_binding.stripe_customer_id
+  return schedule.livemode === (scheduled.target_binding.provider_mode === 'live')
+    && schedule.id === scheduled.provider_schedule_id && schedule.customer === scheduled.target_binding.stripe_customer_id
     && schedule.metadata.pika_plan_change_operation === scheduled.operation_id ? schedule : null
 }
 
-function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled: RenewalCloseoutSchedule): boolean {
+function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled: ScopedSchedule): boolean {
   const binding = scheduled.target_binding
   const start = Date.parse(scheduled.effective_at)
   const end = scheduledTermEnd(scheduled.effective_at, binding.interval)
@@ -110,9 +161,22 @@ function matchesTargetPhase(schedule: z.infer<typeof stripeSchedule>, scheduled:
 /** A schedule-caused invoice still needs the ordinary financial and payment proof. */
 export async function verifyInstalledStripeSchedule(
   retrieveSchedule: (id: string) => Promise<unknown>,
-  scheduled: RenewalCloseoutSchedule,
+  candidateSchedule: Omit<BillingScheduledRenewal, 'state'>,
   snapshot: BillingProviderSubscriptionSnapshot,
+  configuredScope?: BillingReconciliationScope,
+  retrieveAccount?: () => Promise<unknown>,
 ): Promise<boolean> {
+  const scope = BillingReconciliationScopeSchema.optional().safeParse(configuredScope)
+  const candidate = scopedScheduleSchema.safeParse(candidateSchedule)
+  if (!scope.success || !candidate.success || !matchesBillingReconciliationScope(candidate.data.target_binding, scope.data)) return false
+  const scheduled = candidate.data
+  if (scope.data?.providerMode === 'live') {
+    if (!retrieveAccount) return false
+    try {
+      const account = z.object({ id: z.string() }).safeParse(await retrieveAccount())
+      if (!account.success || account.data.id !== scope.data.stripeAccount) return false
+    } catch { return false }
+  }
   if (snapshot.status === 'canceled') {
     if ((snapshot.scheduleId !== null && snapshot.scheduleId !== scheduled.provider_schedule_id)
       || snapshot.pauseCollection || snapshot.pendingUpdate || !matchesTargetItem(scheduled, snapshot)) return false
@@ -138,13 +202,14 @@ export async function verifyInstalledStripeSchedule(
  * InvoicePayments and retrieving every unpaid intent it would otherwise omit.
  * Each call owns its own observation; previous reads never authorize a write.
  */
-export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<RenewalCloseoutProvider, 'readCloseoutEvidence'> & {
-  readCloseoutEvidence(input: RenewalCloseoutReadRequest): Promise<RenewalCloseoutEvidence>
-} {
-  async function readCloseoutEvidence(input: RenewalCloseoutReadRequest): Promise<RenewalCloseoutEvidence> {
+export function createStripeCloseoutProvider(sdk: StripeCloseoutPort, configuredScope?: BillingReconciliationScope): StripeScopedRenewalCloseoutProvider {
+  const scope = BillingReconciliationScopeSchema.optional().parse(configuredScope)
+  const live = scope?.providerMode === 'live'
+  async function readCloseoutEvidence(input: ScopedReadRequest): Promise<RenewalCloseoutEvidence> {
     const parsedRequest = readRequest.safeParse(input)
     if (!parsedRequest.success) return attention('identity_mismatch')
     const { binding: paidBinding, invoiceId, paidThrough, cutoff, scheduled } = parsedRequest.data
+    if (!matchesBillingReconciliationScope(paidBinding, scope)) return attention('identity_mismatch')
     const binding = scheduled?.target_binding ?? paidBinding
     const scheduledEnd = scheduled ? scheduledTermEnd(paidThrough, binding.interval) : null
     if (Date.parse(cutoff) !== Date.parse(paidThrough) + BILLING_RENEWAL_GRACE_SECONDS * 1000) return attention('incomplete_evidence')
@@ -154,28 +219,34 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       || binding.stripe_customer_id !== paidBinding.stripe_customer_id || binding.stripe_subscription_id !== paidBinding.stripe_subscription_id
       || binding.offering_version_id === paidBinding.offering_version_id || binding.stripe_price_id === paidBinding.stripe_price_id
       || paidBinding.plan_key !== 'pro' || binding.plan_key !== 'plus' || binding.unit_amount >= paidBinding.unit_amount
-      || binding.currency !== paidBinding.currency || binding.interval !== paidBinding.interval)) return attention('identity_mismatch')
+      || binding.currency !== paidBinding.currency || binding.interval !== paidBinding.interval
+      || usesStripeExclusiveTax(binding) !== usesStripeExclusiveTax(paidBinding))) return attention('identity_mismatch')
     let rawInvoice: unknown
+    const terminalLists = new Map<InvoiceStatus, unknown>()
     const intents = new Map<string, unknown>()
     const charges = new Map<string, unknown>()
     const current = createStripeBillingProvider({
       accounts: sdk.accounts, subscriptions: sdk.subscriptions,
       invoices: {
         retrieve: async id => { rawInvoice = await sdk.invoices.retrieve(id); return rawInvoice },
-        list: input => sdk.invoices.list(input),
+        list: async input => {
+          const raw = await sdk.invoices.list(input)
+          if (live) terminalLists.set(input.status, raw)
+          return raw
+        },
       },
       paymentIntents: { retrieve: async id => { const raw = await sdk.paymentIntents.retrieve(id); intents.set(id, raw); return raw } },
       charges: { retrieve: async id => { const raw = await sdk.charges.retrieve(id); charges.set(id, raw); return raw } },
-    })
+    }, scope)
     const candidate = BillingProviderSubscriptionSnapshotSchema.safeParse(await current.retrieveSubscription(paidBinding))
     if (!candidate.success) return attention('incomplete_evidence')
     const snapshot = candidate.data
     const invoice = snapshot.latestInvoice
     const item = snapshot.items[0]
     if (!invoice || invoice.id !== invoiceId) return attention('unknown_invoice')
-    if (snapshot.stripeAccount !== binding.stripe_account || snapshot.liveMode
+    if (snapshot.stripeAccount !== binding.stripe_account || snapshot.liveMode !== live
       || snapshot.subscriptionId !== binding.stripe_subscription_id || snapshot.customerId !== binding.stripe_customer_id
-      || snapshot.items.length !== 1 || item.quantity !== 1 || item.priceLiveMode
+      || snapshot.items.length !== 1 || item.quantity !== 1 || item.priceLiveMode !== live
       || item.priceId !== binding.stripe_price_id || item.productId !== binding.stripe_product_id
       || item.unitAmount !== binding.unit_amount || item.currency !== binding.currency
       || item.interval !== binding.interval || item.intervalCount !== 1
@@ -183,50 +254,59 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       || invoice.currency !== binding.currency) return attention('identity_mismatch')
     if (!['active', 'past_due', 'unpaid', 'canceled'].includes(snapshot.status)
       || snapshot.pendingUpdate || snapshot.pauseCollection) return attention('incomplete_evidence')
+    for (const [status, observed] of terminalLists) {
+      const list = obligationList.safeParse(observed)
+      if (!list.success) return attention('incomplete_evidence')
+      if (list.data.data.some(other => other.livemode !== live || other.status !== status
+        || other.customer !== binding.stripe_customer_id
+        || other.parent.subscription_details.subscription !== binding.stripe_subscription_id)) return attention('identity_mismatch')
+    }
     const scheduledUpdate = scheduled !== undefined && invoice.billingReason === 'subscription_update'
     const terminalScheduled = scheduled !== undefined && snapshot.status === 'canceled'
     if (scheduled) {
       const retrieveSchedule = sdk.retrieveSchedule?.bind(sdk)
-      if (!retrieveSchedule || !await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot)) return attention('incomplete_evidence')
+      if (!retrieveSchedule || !await verifyInstalledStripeSchedule(retrieveSchedule, scheduled, snapshot, scope, () => sdk.accounts.retrieve())) return attention('incomplete_evidence')
     } else if (snapshot.scheduleId !== null) return attention('incomplete_evidence')
+    const gross = verifiedInvoiceGross(binding, invoice)
     const line = invoice.lines[0]
-    if (binding.unit_amount <= 0 || (invoice.billingReason !== 'subscription_cycle' && !scheduledUpdate)
-      || invoice.subtotal !== binding.unit_amount || invoice.total !== binding.unit_amount || invoice.amountDue !== binding.unit_amount
-      || invoice.startingBalance !== 0 || invoice.endingBalance !== 0 || invoice.hasDiscounts || invoice.hasTaxes
-      || invoice.totalDiscountAmount !== 0 || invoice.totalTaxAmount !== 0
-      || invoice.prePaymentCreditNotesAmount !== 0 || invoice.postPaymentCreditNotesAmount !== 0
+    if (gross === null || (invoice.billingReason !== 'subscription_cycle' && !scheduledUpdate)
+      || !matchesSubscriptionTax(binding, snapshot) || invoice.endingBalance !== 0
       || invoice.lines.length !== 1 || line.subscriptionId !== binding.stripe_subscription_id || line.priceId !== binding.stripe_price_id
-      || line.quantity !== 1 || line.proration || line.amount !== binding.unit_amount || line.hasDiscounts || line.hasTaxes
+      || line.quantity !== 1 || line.proration || line.amount !== binding.unit_amount || line.hasDiscounts
+      || (line.hasTaxes && !usesStripeExclusiveTax(binding))
       || !equalTimestamp(line.periodStart, paidThrough) || !equalTimestamp(line.periodStart, item.currentPeriodStart)
       || (scheduledEnd !== null && Date.parse(line.periodEnd) !== scheduledEnd)
       || !equalTimestamp(line.periodEnd, item.currentPeriodEnd) || Date.parse(line.periodEnd) <= Date.parse(line.periodStart)) return attention('unexpected_money')
     const raw = invoiceFacts.safeParse(rawInvoice)
     if (!raw.success) return attention('incomplete_evidence')
+    if (raw.data.livemode !== live) return attention('identity_mismatch')
     if ((raw.data.amount_paid_off_stripe ?? 0) !== 0) return attention('unsupported_payment')
     let pending = false
     for (const payment of raw.data.payments.data) {
-      if (payment.invoice !== invoiceId || payment.currency !== binding.currency || payment.amount_requested !== binding.unit_amount) return attention('identity_mismatch')
+      if (payment.livemode !== live || payment.invoice !== invoiceId || payment.currency !== binding.currency
+        || payment.amount_requested !== gross) return attention('identity_mismatch')
       const id = payment.payment.payment_intent
       const parsedIntent = intentFacts.safeParse(intents.has(id) ? intents.get(id) : await sdk.paymentIntents.retrieve(id))
       if (!parsedIntent.success) return attention('incomplete_evidence')
       const intent = parsedIntent.data
-      if (intent.id !== id || intent.customer !== binding.stripe_customer_id || intent.currency !== binding.currency || intent.amount !== binding.unit_amount) return attention('identity_mismatch')
+      if (intent.livemode !== live || intent.id !== id || intent.customer !== binding.stripe_customer_id
+        || intent.currency !== binding.currency || intent.amount !== gross) return attention('identity_mismatch')
       if (intent.payment_method_types.length !== 1 || intent.payment_method_types[0] !== 'card') return attention('unsupported_payment')
       if (intent.latest_charge) {
         const parsedCharge = chargeFacts.safeParse(charges.has(intent.latest_charge) ? charges.get(intent.latest_charge) : await sdk.charges.retrieve(intent.latest_charge))
         if (!parsedCharge.success) return attention('incomplete_evidence')
         const charge = parsedCharge.data
-        if (charge.id !== intent.latest_charge || charge.customer !== binding.stripe_customer_id
-          || charge.currency !== binding.currency || charge.payment_intent !== id || charge.amount !== binding.unit_amount) return attention('identity_mismatch')
+        if (charge.livemode !== live || charge.id !== intent.latest_charge || charge.customer !== binding.stripe_customer_id
+          || charge.currency !== binding.currency || charge.payment_intent !== id || charge.amount !== gross) return attention('identity_mismatch')
         if (charge.disputed || charge.refunded || charge.amount_refunded !== 0) return attention('unexpected_money')
         if (charge.payment_method_details.type !== 'card') return attention('unsupported_payment')
-        if (charge.amount_captured !== (invoice.status === 'paid' ? binding.unit_amount : 0)) return attention('unexpected_money')
+        if (charge.amount_captured !== (invoice.status === 'paid' ? gross : 0)) return attention('unexpected_money')
         if (invoice.status !== 'paid' && (charge.status !== 'failed' || charge.paid || charge.captured)) pending = true
       }
       if (invoice.status === 'paid' && intent.amount_capturable !== 0) return attention('unexpected_money')
       if (invoice.status === 'void' && intent.status === 'requires_payment_method') return attention('incomplete_evidence')
       if (invoice.status !== 'paid') {
-        if ((payment.amount_paid ?? 0) !== 0 || (intent.amount_received > 0 && intent.amount_received !== binding.unit_amount)) return attention('partial_payment')
+        if ((payment.amount_paid ?? 0) !== 0 || (intent.amount_received > 0 && intent.amount_received !== gross)) return attention('partial_payment')
         if (payment.status === 'paid' || intent.amount_received !== 0 || intent.amount_capturable !== 0
           || !['requires_payment_method', 'canceled'].includes(intent.status)) pending = true
       }
@@ -236,7 +316,7 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       const proof = verifyPaidSubscriptionSnapshot(binding, {
         ...snapshot, status: 'active', cancelAt: null, cancelAtPeriodEnd: false, scheduleId: null,
         latestInvoice: scheduledUpdate ? { ...invoice, billingReason: 'subscription_cycle' } : invoice,
-      })
+      }, scope)
       if (typeof proof === 'string' || (!terminalScheduled && snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, proof.periodEnd))) return attention('unsupported_payment')
       return { kind: 'paid', ...proof, providerStatus: snapshot.status as 'active' | 'canceled',
         cancelAtPeriodEnd: snapshot.cancelAtPeriodEnd || snapshot.status === 'canceled', terminalObligationsCleared: snapshot.terminalObligationsCleared === true }
@@ -247,20 +327,31 @@ export function createStripeCloseoutProvider(sdk: StripeCloseoutPort): Omit<Rene
       || (!terminalScheduled && snapshot.cancelAt !== null && !equalTimestamp(snapshot.cancelAt, paidThrough))) return attention('incomplete_evidence')
     // Stripe can retain the original due amount on a void invoice. The canceled
     // payment evidence above and the obligations list below decide collectability.
-    if (raw.data.amount_remaining !== binding.unit_amount
+    if (raw.data.amount_remaining !== gross
       && (invoice.status !== 'void' || raw.data.amount_remaining !== 0)) return attention('unexpected_money')
     // limit:1 is sufficient only when has_more=false and the sole row is the
     // fully read target. Any other obligation or incomplete list stops closeout.
     for (const status of ['draft', 'open', 'uncollectible'] as const) {
       const list = obligationList.safeParse(await sdk.invoices.list({ subscription: binding.stripe_subscription_id, status, limit: 1 }))
-      if (!list.success) return attention('incomplete_evidence')
+      if (!list.success || list.data.has_more) return attention('incomplete_evidence')
       for (const other of list.data.data) {
         if (other.id !== invoiceId || invoice.status === 'void') return attention('unknown_invoice')
-        if (other.status !== status || status !== invoice.status || other.customer !== binding.stripe_customer_id
+        if (other.livemode !== live || other.status !== status || status !== invoice.status || other.customer !== binding.stripe_customer_id
           || other.parent.subscription_details.subscription !== binding.stripe_subscription_id) return attention('identity_mismatch')
       }
     }
-    if (invoice.status === 'void') return { kind: 'invoice_voided', invoiceId, subscriptionCanceled: snapshot.status === 'canceled', obligationsCleared: true }
+    if (invoice.status === 'void') {
+      // Canceling a live subscription can pause collection of the customer's
+      // other finalized invoices. Do not initiate it with any such obligation.
+      if (live && snapshot.status !== 'canceled') {
+        if (!sdk.invoices.listCustomer) return attention('incomplete_evidence')
+        for (const status of ['open', 'uncollectible'] as const) {
+          const list = await sdk.invoices.listCustomer({ customer: binding.stripe_customer_id, status, limit: 1 })
+          if (!emptyObligationList.safeParse(list).success) return attention('incomplete_evidence')
+        }
+      }
+      return { kind: 'invoice_voided', invoiceId, subscriptionCanceled: snapshot.status === 'canceled', obligationsCleared: true }
+    }
     return { kind: 'unpaid', invoiceId, invoiceStatus: invoice.status as 'open' | 'uncollectible', collectionPaused: !raw.data.auto_advance }
   }
   return {

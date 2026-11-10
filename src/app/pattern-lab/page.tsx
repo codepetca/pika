@@ -21,13 +21,16 @@ export default async function PatternLabPage({
 
   if (process.env.PIKA_E2E_FIXTURES === 'true') {
     const fixtureRole = resolvedSearchParams?.role === 'student' ? 'student' : 'teacher'
-    if (resolvedSearchParams?.fixture === 'billing-trial') {
+    const scheduledBilling = resolvedSearchParams?.fixture === 'billing-scheduled'
+    const paidBilling = resolvedSearchParams?.fixture === 'billing-paid' || scheduledBilling
+    if (paidBilling || resolvedSearchParams?.fixture === 'billing-trial') {
       // The browser supplies synthetic billing responses. Never render an
       // actionable fixture in a real signed-in session.
       if (fixtureRole !== 'teacher' || await getCurrentUser()) notFound()
       const user = { id: 'pattern-billing-teacher', email: 'teacher@example.invalid', role: 'teacher' as const }
       return <AppShell user={user} billingAvailable initialNow={Date.now()}>
-        <BillingPage userId={user.id} purchaseAvailable={false} />
+        <BillingPage userId={user.id} purchaseAvailable={paidBilling} portalAvailable={paidBilling} portalCancellationAvailable={paidBilling}
+          scheduledBillingAvailable={scheduledBilling} />
       </AppShell>
     }
     // Give the lazy client gallery a stable server parent without changing layout.

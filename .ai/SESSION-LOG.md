@@ -11,197 +11,54 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-11-08 Live scheduled Max-to-Pro settlement
+
+Migrations 322–323 pin live schedule confirmation and installation to the verified Max payment, then use the ordinary live financial writer under an exact schedule lease to adopt Pro. The isolated settlement fixture held Max and RepoLight during Pro payment failure, denied RepoLight at the grace cutoff, applied Free, and adopted a later verified Pro payment without rewriting the original checkout. A scoped live Stripe adapter verifies the installed target phase and mode for both update and cycle invoice labels. The live scheduling flags default off. Customer cancellation, scheduled unpaid closeout, and worker wiring are required before admission.
+
+## 2026-11-08 Live scheduled renewal closeout
 ## 2026-11-06 — Survey authoring CI timeout
 
-Raised the survey authoring browser test budget to 120 seconds after repeated CI runs exhausted the default 30 seconds. Updated the close flow for the new confirmation, covering both choices. The isolated desktop-light scenario passed with font-readiness waiting disabled after cold navigation and font waits blocked earlier runs; CI remains required.
+Migration 324 gives exact scheduled renewal grace the same live closeout lease as ordinary renewal while keeping old worker calls compatible. The owned 001–324 replay verified both outcomes, rejection of mismatched schedule or stale lease, rollback after a lease expired during a provisional terminal transition, retained classroom restriction, and ordinary fallback. The same sandbox account separately proved that a source-only Stripe schedule can preserve Max through cancellation or restore the target phase on undo. Customer cancellation and installation invocation still require their rollout gate.
 
-## 2026-11-06 — Dark browser CI partitions
+## 2026-11-08 Stripe scheduled cancellation provider
 
-Partitioned the dark experience matrix into four fresh-server runs with an exact discovered-inventory check and unchanged project coverage. Playwright discovery validates the partition; hosted CI must verify memory and duration.
+The isolated Stripe sandbox confirmed cancel and undo on the installed downgrade. A source-only Max phase preserved the paid cutoff and the original invoice. Undo restored the Pro phase. A second cancellation produced a completed schedule and canceled subscription at the exact cutoff with no Pro invoice. The scoped provider adapter verifies that completed shape and the original paid invoice, fences each write and recovers exact outcomes after lost responses. The customer cancellation operation, worker and route remain to be wired.
 
-## 2026-11-06 — Gradebook PDF test timeout
+## 2026-11-08 Teacher scheduled billing controls
 
-Raised only the long multilingual pagination test timeout to 15 seconds after CI exceeded the default five seconds; fixtures and assertions are unchanged.
+UI brief. Extend the existing teacher Plans and billing surface. Use the paid Billing Pattern Lab fixture and the existing Billing upgrade quote and classroom confirmation dialog as references. Verify paid Max before selection, quote open, installation pending, scheduled, cancellation confirmation, cancellation pending, canceled with undo, and attention on desktop and mobile in light and dark. Student has no billing controls and must still redirect. The primary signal is the exact renewal or access end date and a single next action. Preserve the existing shell, spacing and portal. No new composite widget.
 
-## 2026-11-06 — Parent report score alignment
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Scheduled status and controls | BillingPage card layout | extend | Keep the workflow on the existing teacher billing surface |
+| Quote and cancel confirmation | ConfirmDialog, Button and Card | reuse | Use existing focus, labels and responsive behavior |
+| Deterministic verification | Anonymous Billing Pattern Lab fixture | extend | The production control can use synthetic responses without touching billing data |
 
-Aligned each assessment's title and percentage above its category and raw score in the parent PDF, moved the current grade to the header, added the Toronto report date, removed explanatory subtitles, and compacted rows to fit 15 typical assessments on one page. Returned-only eligibility and multilingual-safe wrapping remain. Rendered sample and focused tests verified; updated PR requires review and checks.
+## 2026-11-08 Scheduled change cancellation and recovery
 
-## 2026-11-07 — Calendar label and scrolling review
+Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.
 
-Removed the redundant action-bar month label, retaining the sticky list month header. Constrained the teacher and student calendar workspace to a single edge-aligned scroll area, with keyboard access and a short-viewport fallback for crowded warnings. Verified list and grid layouts across roles, sizes and themes; focused checks and review are tracked with the PR.
+## 2026-11-08 Billing recovery cadence and CI contracts
 
-## 2026-11-07 — Calendar list day selection
+Added a private Cloudflare Cron Trigger caller for the existing paid and trial recovery endpoints. The two-minute canary interval and both independent caller switches are explicit in the Worker config. The Worker pins the app origin, rejects redirects, bounds receipt reads, and records sanitized failed invocations even when Pika returns a partial failure in HTTP 200. Wrangler packaged the source and exercised its local schedule with both switches off. An enabled workerd run with all outbound calls bound to a local fixture verified success, swapped-token rejection and a refused redirect. Separate synthetic calls reached both actual Pika POST handlers and proved bearer isolation. The CI database job now executes the scheduled billing rollback fixtures 322–325 in order. The operator runbook records activation, cadence evidence, alert verification and durable queue checks.
 
-Centered date labels in compact calendar list rows and made non-interactive row space open the existing day view, retaining item actions and an accessible teacher edit control. Increased month-band contrast in list and grid. Aligned weekday and day numbers, added row hover, and preserved direct lesson editing with top-aligned dates during edits. Verified teacher and student roles across viewports and themes, plus focused interactions; browser CI checks hover-revealed editing after scrolling the row clear of the sticky month header.
+## 2026-11-08 Stripe exclusive tax custody
 
-## 2026-11-07 — Local loopback sign-in
+Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid invoice verification, scheduled renewal and cancellation, and unpaid closeout. Verified Stripe automatic tax is separate from the plan subtotal and the captured payment must equal the gross. Tax admission remains independently gated, with Canadian registration and address-only portal prerequisites. The live catalog CLI previews and creates distinct unavailable tax versions when authorized. Separate catalog keys let existing untaxed Max subscribers keep a compatible Pro downgrade while taxed Pro is available. Focused tests and the owned PostgreSQL replay cover legacy and opted-in shapes. The designated Stripe sandbox still needs its tax configuration and a real taxable checkout and renewal rehearsal.
 
-Fixed development-only `127.0.0.1` sign-in when Next.js normalizes the request URL to `localhost`, retaining exact host, port, protocol and cross-site checks. Documented the launcher and verified local teacher sign-in and calendar access; production origin behavior is unchanged.
+## 2026-11-08 Teacher billing access notices
 
-## 2026-11-08 — Calendar sticky focus
+UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
 
-Added scroll padding to keep keyboard-focused calendar controls below sticky headings. Verified teacher and student list navigation at desktop and narrow widths and checked calendar layouts across roles, themes, and viewports.
+The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
 
-## 2026-11-08 — Restore navigation for calendars without complete dates
+## 2026-11-08 Billing email notices
 
-Restored compact month navigation for teacher and student calendars with an incomplete classroom date range, keeping fetched and displayed months aligned and Today current across month rollover. Complete terms retain the scrolling term views. Focused component and responsive browser checks cover both roles. Follow-up review fixed partially visible student months, announced the selected month to assistive technology, and corrected the complete-term Pattern Lab fixture.
+Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
 
-## 2026-11-08 — Universal RepoLight tier benefit
+## 2026-11-08 Stripe SDK decimal compatibility
 
-Prepared forward migration 301 for the owner's clarified additive RepoLight benefit across otherwise valid Pro and Max purchases, including historical offering versions without the feature marker. Historical purchased terms and provider/sandbox holds stay unchanged; active trial, exact expiry, paid binding, receipt and revision checks remain. Offline 001–301 replay and access/contention contracts passed. Three isolated runners also passed against a separately owned source at version 301, with the shared schema unchanged; hosted migration and live billing remain unapproved and disabled.
-
-## 2026-11-08 — Customer billing and renewal recovery
-
-Prepared the sandbox teacher billing page, portal invoices and payment methods,
-verified upgrade confirmation and customer-safe purchased terms. Forward
-migrations 302–303 cover pending renewal recovery, undo-cancellation after a
-verified prorated upgrade, and advisory account actions. RepoLight's migration
-301 tier rule and exact cutoff stay in place. See the billing foundation
-checkpoint for the remaining provider, scheduling, classroom and production gates.
-
-## 2026-11-08 — Billing worker recovery
-
-Prepared a separate follow-up that keeps admitted checkout and upgrade work
-recoverable when new admissions close. Migration 304 isolates conflicting
-expiry rows so a limited batch still processes healthy accounts. Offline
-001–304 replay, billing/RepoLight contracts and contention passed. Live mode
-and scheduled changes remain open.
-
-## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
-
-Prepared exact renewal quote, confirmation, leased Stripe schedule installation
-and target invoice reconciliation. Disposable 001–306 replay verified stale
-lease rejection, preservation of the paid Max term, Max grace after Pro payment
-failure, and atomic Pro access after capture. Flags remain off. Provider
-rehearsal, closeout, replacement, customer UI and profile admission are pending.
-
-## 2026-11-08 — Scheduled Max-to-Pro sandbox checkpoint
-
-Prepared exact renewal quote, confirmation, leased Stripe schedule installation
-and target invoice reconciliation. Disposable 001–306 replay verified stale
-lease rejection, preservation of the paid Max term, Max grace after Pro payment
-failure, and atomic Pro access after capture. Flags remain off. Provider
-rehearsal, replacement, customer UI and profile admission are pending. Replay
-through 307 also verified scheduled-aware closeout ownership, a captured Pro
-invoice winning the cutoff race, and an unpaid closeout preserving Free and
-the original Max receipt.
-
-The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
-webhooks, trial and RepoLight access, the restricted portal, actual Max grace
-and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
-update invoice only with exact fresh phase proof, and the observed retained
-balance on an independently verified void. See the billing foundation receipt.
-
-## 2026-11-08 — Scheduled renewal recovery review fixes
-
-Draft PR 1768 review found delayed first-payment recovery and due-closeout
-lease gaps. The batch permits exact verified late settlement, reserves due
-closeout work in the ordinary queue and claim, and derives the target cycle
-in SQL. It scopes admissions and installation listing to the worker account,
-keeps expiry and closeout running when optional recovery fails, and requires
-fresh terminal schedule proof for detached delinquent subscriptions.
-The sealed disposable 001–307 replay and 186 focused tests passed.
-
-## 2026-11-08 — Scheduled renewal recovery review fixes
-
-Draft PR 1768 review found delayed first-payment recovery and due-closeout
-lease gaps. The batch permits exact verified late settlement, reserves due
-closeout work in the ordinary queue and claim, and derives the target cycle
-in SQL. It scopes admissions and installation listing to the worker account,
-keeps expiry and closeout running when optional recovery fails, and requires
-fresh terminal schedule proof for detached delinquent subscriptions. The
-follow-up preserves ordinary cancellation after settlement and keeps terminal
-markers out of authorization once Stripe proves the exact canceled phase.
-The sealed disposable 001–307 replay passed.
-
-## 2026-11-08 — Scheduled renewal recovery review fixes
-
-Draft PR 1768 review found delayed first-payment recovery and due-closeout
-lease gaps. The batch permits exact verified late settlement, reserves due
-closeout work in the ordinary queue and claim, and derives the target cycle
-in SQL. It scopes admissions and installation listing to the worker account,
-keeps expiry and closeout running when optional recovery fails, and requires
-fresh terminal schedule proof for detached delinquent subscriptions. The
-follow-up preserves ordinary cancellation after settlement and keeps terminal
-markers out of authorization once Stripe proves the exact canceled phase.
-The sealed disposable 001–307 replay passed.
-fresh terminal schedule proof for detached delinquent subscriptions.
-The sealed disposable 001–307 replay and 186 focused tests passed.
-
-## 2026-11-08 — Classroom Test cutoff checkpoint
-
-Prepared the default-off billing fence for new Test attempts and publication.
-Disposable 001–308 replay verified the legacy and contextual publication
-rollbacks, exact trial cutoff before the expiry worker, existing attempt
-resume/save/submit, and a blocked Start crossing cutoff while waiting on the
-account lock. Generated public types and shared schema matched their baselines.
-The flag remains off pending assignment release, per-classroom restrictions,
-and the complete reviewed rollout.
-
-## 2026-11-08 — Classroom capacity restriction checkpoint
-
-Prepared a private subscription restriction history, deterministic activity
-fallback, explicit downgrade selection and capacity-checked restore. The
-001–309 disposable replay verified trial expiry and paid re-entry, including
-cross-owner denial and the last available seat. A separate fixture exercised
-Max grace, verified Pro retry, payment winning a closeout and unpaid closeout
-with seven classrooms. The existing classroom archive state, shared schema
-and generated public type baseline were checked. The rollout flag is off;
-assignment release and the customer-facing selection and restore remain open.
-
-## 2026-11-08 — Assignment publication cutoff
-
-Prepared the default-off publication fence shared by legacy and contextual
-assignment writers. Disposable 001–310 replay verified draft preservation,
-continued editing and student submission of already released work, and both
-Classroom-lock and paid-access cutoff races. Native generated types and the
-shared schema matched. The existing future schedules need conversion and a
-durable release worker before enabling the cutoff.
-Independent review identified gaps in paid re-entry, ordinary terminal
-retirement, legacy bulk publication and the 307 source replay profile. The
-remediation preserves cutoff history and sends publish-capable bulk requests
-through the shared atomic writer. Legacy bulk retains Blueprint-retired rows
-and treats newly created rows as drafts. Both RPCs preflight classroom ownership
-and assignment binding before taking caller-supplied locks.
-
-## 2026-11-08 — Dormant live billing target
-
-Added a default-off operator check for the exact production app and Supabase
-target and the private Stripe account pin. The 001–311 offline replay verified
-the service-only read, sandbox exclusion, retained test evidence denial,
-unchanged shared schema and generated types. The check leaves all live
-operations closed.
-
-## 2026-11-08 — Scheduled assignment release worker
-
-Prepared durable draft-backed schedules through the assignment Release route
-and the authenticated billing worker. The isolated replay proved eligible
-release, exact-once processing, pristine draft preservation and suppression
-when a later paid term starts retroactively across the missed due time. The
-same draft can be explicitly released after access returns. Migration 312 adds
-owner-only list and detail schedule state. Rescheduling and cancellation check
-the observed generation under the worker's locks. A stale request refreshes the
-editor. Verified teacher and student browser checks on desktop and mobile in
-light and dark mode. The sealed replay covers 311 and 312, including both
-worker and owner lock orders. Existing-schedule conversion, notice delivery and
-final CI still gate activation.
-
-## 2026-11-08 — Live trial lifecycle source
-
-Prepared default-off production trial status, admission and a Stripe-free
-expiry worker against the exact pinned target. The owned 001–313 replay proved
-admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
-and retained learner work. Type generation and targeted route tests passed.
-Billing now supports trial-only status and admission with no checkout requests.
-The teacher browser matrix passed on desktop and mobile in both themes. The
-canonical sealed replay and CI admit 313. The production worker caller and
-existing-schedule conversion require verification before activation. Live
-payment handling remains a separate source slice.
-
-## 2026-11-08 Live Pro trial review fixes
-
-Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
+The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -281,6 +138,65 @@ The isolated Test reorder fixture now selects the exact RepoLight billing trigge
 
 The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
 
+## 2026-11-09 — Rebase reviewed live checkout after the trial merge
+
+Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
+
+## 2026-11-09 — Rebase live paid reconciliation after checkout
+
+Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
+
+## 2026-11-09 — Rebase reviewed live billing routing and closeout
+
+Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
+
+## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
+
+Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
+
+## 2026-11-09 — Sync scheduled renewal settlement with main
+
+The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.
+
+## 2026-11-09 — Rebase reviewed scheduled renewal closeout
+
+Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-to-Pro settlement squash merge. Preserved both continuity histories and the exact migration 324 source. The isolated Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the additional closed profile.
+
+## 2026-11-09 — Rebase scheduled cancellation and undo
+
+Carried the reviewed cancellation and undo changes onto main after the unpaid scheduled closeout merge. Preserved migration 325 and both continuity histories. The isolated reorder proof uses the shared migration 319 trigger witness at profile 325. The cancellation route now exposes its existing error wrapper directly on both exports while preserving no-store for successes and errors.
+
+## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
+
+Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
+
+## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
+
+The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
+
+## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
+
+Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+
+## 2026-11-10 — Rebase the dormant billing recovery caller
+
+Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
+
+## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
+
+Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
+
+## 2026-11-10 — Rebase the teacher billing access reminders
+
+Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
+
+## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
+
+Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.
+
+## 2026-11-10 — Rebase exact Stripe Decimal handling after email notices
+
+Carried the independently reviewed amount and invoice quantity normalization onto main after the email notice merge. Preserved both continuity histories and the exact billing patch. The final PR adds no migration.
 ## 2026-11-09 — Preserve legacy scheduling for retired Blueprint drafts
 
 Kept new schedules for Blueprint-retired legacy drafts on the existing publication writer. The database publication and release-intent guards still enforce billing cutoff and intent generation, and explicit rescheduling retains the RPC path. The patch adds route coverage for the legacy write and the two guard errors without changing the migration set.

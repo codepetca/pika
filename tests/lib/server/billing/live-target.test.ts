@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { checkBillingLiveTarget, readBillingLiveTrialConfig } from '@/lib/server/billing/live-target'
+import { checkBillingLiveTarget, readBillingLiveCheckoutConfig, readBillingLivePaymentWorkerConfig, readBillingLiveScheduledChangeConfig, readBillingLiveTrialConfig } from '@/lib/server/billing/live-target'
 
 const projectRef = 'zhioqbapgfcrronyuidm'
 const supabaseOrigin = 'https://' + projectRef + '.supabase.co'
@@ -14,6 +14,65 @@ const environment = {
 }
 const rpcPath = '/rest/v1/rpc/billing_attest_live_target_v1'
 const requestUrl = supabaseOrigin + rpcPath + '?p_project_ref=' + projectRef + '&p_stripe_account=' + stripeAccount
+
+describe('live checkout configuration', () => {
+  const recovery = { ...environment, BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'true',
+    STRIPE_LIVE_SECRET_KEY: 'rk_live_DedicatedFixtureSecret' }
+
+  it('defaults off and can keep recovery on while new admission and Stripe writes are off', () => {
+    expect(readBillingLiveCheckoutConfig({})).toBeNull()
+    expect(readBillingLiveCheckoutConfig(recovery)).toMatchObject({ projectRef, stripeAccount, supabaseOrigin,
+      providerMode: 'live', checkoutAdmissionEnabled: false, providerWritesEnabled: false })
+  })
+
+  it.each([
+    { STRIPE_LIVE_SECRET_KEY: 'sk_test_OtherModeSecretFixture' },
+    { BILLING_SANDBOX_ENABLED: 'true' },
+    { VERCEL_ENV: 'preview' },
+    { BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'false', BILLING_LIVE_CHECKOUT_WRITES_ENABLED: 'true' },
+    { BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'false', BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED: 'true' },
+  ])('rejects unsafe configuration', overrides => {
+    expect(() => readBillingLiveCheckoutConfig({ ...recovery, ...overrides })).toThrow(/Invalid live/)
+  })
+
+  it('keeps paid recovery available with admission off and requires an independent worker and signed ingress for admission', () => {
+    const payment = { ...recovery, BILLING_LIVE_CHECKOUT_ADMISSION_ENABLED: 'true', BILLING_LIVE_CHECKOUT_WRITES_ENABLED: 'true',
+      BILLING_LIVE_PAYMENT_WORKER_SECRET: 'live-payment-worker'.repeat(3) }
+    expect(readBillingLivePaymentWorkerConfig(payment)?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLivePaymentWorkerConfig({ ...payment, BILLING_LIVE_WEBHOOK_ENABLED: 'true', STRIPE_LIVE_WEBHOOK_SECRET: 'bad' })?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLiveCheckoutConfig({ ...payment, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'invalid' })?.portalConfigurationId).toBeUndefined()
+    expect(readBillingLiveCheckoutConfig({ ...payment, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'bpc_Live' })?.portalConfigurationId).toBe('bpc_Live')
+    const webhook = { ...payment, BILLING_LIVE_WEBHOOK_ENABLED: 'true', STRIPE_LIVE_WEBHOOK_SECRET: 'whsec_LiveFixtureSigningSecret' }
+    expect(readBillingLivePaymentWorkerConfig(webhook)?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLivePaymentWorkerConfig({ ...webhook, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'invalid' })?.checkoutAdmissionEnabled).toBe(false)
+    expect(readBillingLivePaymentWorkerConfig({ ...webhook, BILLING_LIVE_PORTAL_CONFIGURATION_ID: 'bpc_Live' })?.checkoutAdmissionEnabled).toBe(true)
+    expect(() => readBillingLivePaymentWorkerConfig({ ...payment,
+      BILLING_LIVE_TRIAL_WORKER_SECRET: payment.BILLING_LIVE_PAYMENT_WORKER_SECRET })).toThrow(/worker configuration/)
+    expect(() => readBillingLivePaymentWorkerConfig({ ...payment,
+      STRIPE_LIVE_WEBHOOK_SECRET: payment.BILLING_LIVE_PAYMENT_WORKER_SECRET })).toThrow(/worker configuration/)
+  })
+})
+
+describe('live scheduled change admission configuration', () => {
+  const scheduled = { ...environment, BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'true',
+    STRIPE_LIVE_SECRET_KEY: 'rk_live_DedicatedFixtureSecret',
+    BILLING_LIVE_PAYMENT_WORKER_SECRET: 'live-payment-worker'.repeat(3),
+    BILLING_LIVE_WEBHOOK_ENABLED: 'true', STRIPE_LIVE_WEBHOOK_SECRET: 'whsec_LiveFixtureSigningSecret',
+    BILLING_LIVE_SCHEDULED_CHANGES_ENABLED: 'true', BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED: 'true',
+    BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED: 'true', BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED: 'true' }
+
+  it('requires each scheduled lane and valid webhook configuration while leaving payment recovery independent', () => {
+    expect(readBillingLiveScheduledChangeConfig({})).toBeNull()
+    expect(readBillingLiveScheduledChangeConfig(scheduled)).toMatchObject({ projectRef, stripeAccount, supabaseOrigin })
+    for (const gate of ['CHANGES', 'INSTALLATION', 'CANCELLATION', 'CLOSEOUT']) {
+      const paused = { ...scheduled, [`BILLING_LIVE_SCHEDULED_${gate}_ENABLED`]: 'false' }
+      expect(readBillingLiveScheduledChangeConfig(paused)).toBeNull()
+      expect(readBillingLivePaymentWorkerConfig(paused)).not.toBeNull()
+    }
+    expect(readBillingLiveScheduledChangeConfig({ ...scheduled, BILLING_LIVE_WEBHOOK_ENABLED: 'false' })).toBeNull()
+    expect(() => readBillingLiveScheduledChangeConfig({ ...scheduled, STRIPE_LIVE_WEBHOOK_SECRET: 'invalid' })).toThrow(/webhook configuration/)
+  })
+})
 
 describe('live trial runtime configuration', () => {
   const trial = {

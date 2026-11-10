@@ -1,0 +1,58 @@
+[
+  {
+    "name": "314_billing_live_payment_scope.sql",
+    "sha256": "047f640edd52bb9bad230985a5f39442b2dd13689e8e410f60cce142116e979c"
+  },
+  {
+    "name": "315_billing_live_checkout_catalog.sql",
+    "sha256": "40d49a66518351e85c90cb243c17d4c1836951316a5652c92ec2e702f1a7de4e"
+  },
+  {
+    "name": "316_billing_live_checkout.sql",
+    "sha256": "d87d3c2999e86db9a943f42f6b6afc762625e1c0d2d4531a88a0fab6844b8f3f"
+  },
+  {
+    "name": "317_billing_live_reconciliation_claims.sql",
+    "sha256": "9fc4d624b4ec58a6358d7ced977131237f47e4dfb523008b17740b4a007d9f1f"
+  },
+  {
+    "name": "318_billing_live_paid_lifecycle.sql",
+    "sha256": "d55f88b7c1dd5e493e7abfb4859067b249e370cfb7b3b26cc03316b4909a73ba"
+  },
+  {
+    "name": "319_billing_live_paid_access.sql",
+    "sha256": "7ed98674245b15510c1131d9e9614da31f70ebb06ef152122d7f17234542714b"
+  },
+  {
+    "name": "320_billing_live_renewal_closeout.sql",
+    "sha256": "4129dfff9df7e6b38eb228fcef5b2cae756b66315592598835c35a3c6e6ea410"
+  },
+  {
+    "name": "321_billing_live_checkout_admission.sql",
+    "sha256": "bf1d89a464c9ff6ecf793bf68ffc9ffbeca1066f87b366ef17a442b1e384347e"
+  },
+  {
+    "name": "322_billing_live_scheduled_installation.sql",
+    "sha256": "6393841a2cabebeeffac3d6b2e90472cac68082f73efaef56682136f300594be"
+  },
+  {
+    "name": "323_billing_live_scheduled_settlement.sql",
+    "sha256": "f63e2ad4bd7b19edee6133eb54f976c90c0648d9fa351b402cf252fbc34312f9"
+  },
+  {
+    "name": "324_billing_live_scheduled_renewal_closeout.sql",
+    "sha256": "6a7d94c6798b247a398d304e8880c2b08f9c0d278dceab5442f242f18693c1a7"
+  },
+  {
+    "name": "325_billing_live_scheduled_cancellation.sql",
+    "sha256": "8b2b67dd7896ed39f30329bc253fcb1c3c99daeebb43efc87ac85ae823e67dc7"
+  },
+  {
+    "name": "326_billing_live_stripe_exclusive_tax.sql",
+    "sha256": "670824181727040c5429ca878628d624f673f4ae58b3134657e6a0259efc910e"
+  },
+  {
+    "name": "327_billing_live_email_notices.sql",
+    "sha256": "5f38550e17eb924987122e4bb6ff38a80859627ad85e7ec20bbb47b1b6289651"
+  }
+]

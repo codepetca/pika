@@ -106,6 +106,25 @@ describe('sendBrevoEmail', () => {
     expect(result).toEqual({ messageId: 'msg-123' })
   })
 
+  it('sends a bounded plain-text billing email without a template', async () => {
+    process.env.BREVO_API_KEY = 'test-api-key'
+    delete process.env.BREVO_TEMPLATE_ID
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ messageId: 'msg-123' }) })
+    const signal = new AbortController().signal
+    await expect(sendBrevoEmail({
+      to: 'teacher@example.invalid', subject: 'Pika access ends soon', textContent: 'Open Plans and billing',
+      tags: ['pika-billing-test'], signal,
+    })).resolves.toEqual({ messageId: 'msg-123' })
+    const [url, request] = mockFetch.mock.calls[0]
+    expect(url).toBe('https://api.brevo.com/v3/smtp/email')
+    expect(request).toMatchObject({ method: 'POST', redirect: 'error', signal })
+    const body = JSON.parse(request.body)
+    expect(body).toMatchObject({ to: [{ email: 'teacher@example.invalid' }], subject: 'Pika access ends soon',
+      textContent: 'Open Plans and billing', tags: ['pika-billing-test'] })
+    expect(body).not.toHaveProperty('templateId')
+    expect(body).not.toHaveProperty('params')
+  })
+
   it('should use default sender when BREVO_FROM_EMAIL not set', async () => {
     process.env.BREVO_API_KEY = 'test-api-key'
     process.env.BREVO_TEMPLATE_ID = '2'
