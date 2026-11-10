@@ -1,7 +1,8 @@
 import { isDeepStrictEqual } from 'node:util'
 import { scheduledTermEnd } from './scheduled-plan-change-period'
 import { z } from 'zod'
-import { BillingProviderSubscriptionSnapshotSchema, BillingSubscriptionBindingSchema } from './contracts'
+import { matchesSubscriptionTax } from './billing-tax'
+import { BillingProviderSubscriptionSnapshotSchema, LiveBillingSubscriptionBindingSchema } from './contracts'
 import { stripePlanChangeOperationSchema, StripePlanChangeContractError, type createLiveScheduledCancellationProvider } from './stripe-plan-change-provider'
 
 const uuid = z.uuid()
@@ -13,7 +14,7 @@ export const cancellationClaimSchema = z.strictObject({
     providerMode: z.literal('live'), lastPaidInvoiceId: z.string().regex(/^in_[A-Za-z0-9]{1,240}$/) }),
   cancellationOperationId: uuid, action: z.enum(['cancel', 'undo']), replayUntil: z.iso.datetime({ offset: true }),
   readOnly: z.boolean(),
-  binding: BillingSubscriptionBindingSchema.extend({ provider_mode: z.literal('live') }),
+  binding: LiveBillingSubscriptionBindingSchema,
 })
 type Claim = z.infer<typeof cancellationClaimSchema>
 type Outcome = 'canceled' | 'restored' | 'restored_after_cutoff' | 'unchanged_after_cutoff' | 'completed' | 'retry' | 'attention' | 'deferred'
@@ -37,7 +38,8 @@ export async function processScheduledCancellation(input: {
     || binding.stripe_account !== input.stripeAccount || binding.stripe_subscription_id !== op.stripeSubscriptionId
     || binding.stripe_customer_id !== op.stripeCustomerId || binding.stripe_price_id !== op.source.priceId
     || binding.stripe_product_id !== op.source.productId || binding.unit_amount !== op.source.unitAmount
-    || binding.currency !== op.source.currency || binding.interval !== op.source.interval || binding.plan_key !== 'pro') {
+    || binding.currency !== op.source.currency || binding.interval !== op.source.interval || binding.plan_key !== 'pro'
+    || binding.tax_mode !== op.taxMode) {
     throw new Error('Invalid scheduled cancellation claim')
   }
   async function finish(outcome: Outcome, evidence?: Evidence) {
@@ -71,6 +73,7 @@ export async function processScheduledCancellation(input: {
         || item.priceId !== op.source.priceId || item.productId !== op.source.productId
         || item.unitAmount !== op.source.unitAmount || item.currency !== op.source.currency
         || item.interval !== op.source.interval || item.intervalCount !== 1
+        || !matchesSubscriptionTax(binding, current)
         || Date.parse(item.currentPeriodStart) !== Date.parse(op.paidPeriodStart)
         || Date.parse(item.currentPeriodEnd) !== Date.parse(op.effectiveAt)
         || current.latestInvoice?.id !== op.lastPaidInvoiceId || current.latestInvoice.status !== 'paid') return finish('retry')

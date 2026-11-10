@@ -1,3 +1,4 @@
+import { matchesSubscriptionTax, usesStripeExclusiveTax, verifiedInvoiceGross } from './billing-tax'
 import {
   BillingFinishResultSchema,
   BillingProviderSubscriptionSnapshotSchema,
@@ -127,6 +128,7 @@ export function verifyPaidSubscriptionSnapshot(
     || item.interval !== binding.interval
     || item.intervalCount !== 1
     || item.priceLiveMode !== snapshot.liveMode
+    || !matchesSubscriptionTax(binding, snapshot)
     || new Date(item.currentPeriodEnd).getTime() <= new Date(item.currentPeriodStart).getTime()
   ) {
     return 'subscription_item_invalid'
@@ -138,23 +140,9 @@ export function verifyPaidSubscriptionSnapshot(
   if (invoice.amountPaidOffStripe !== undefined && invoice.amountPaidOffStripe !== 0) {
     return 'invoice_paid_out_of_band'
   }
-  // Payment/discount/credit policy is not approved. A zero-amount invoice or
-  // a payment composition other than one captured card payment grants nothing.
-  if (
-    !['subscription_create', 'subscription_cycle'].includes(invoice.billingReason)
-    || invoice.subtotal !== binding.unit_amount
-    || invoice.total !== binding.unit_amount
-    || invoice.amountDue !== binding.unit_amount
-    || invoice.amountPaid !== binding.unit_amount
-    || invoice.startingBalance !== 0
-    || invoice.endingBalance !== 0
-    || invoice.totalDiscountAmount !== 0
-    || invoice.totalTaxAmount !== 0
-    || invoice.hasDiscounts
-    || invoice.hasTaxes
-    || invoice.prePaymentCreditNotesAmount !== 0
-    || invoice.postPaymentCreditNotesAmount !== 0
-  ) return 'financial_terms_unapproved'
+  const gross = verifiedInvoiceGross(binding, invoice)
+  if (!['subscription_create', 'subscription_cycle'].includes(invoice.billingReason)
+    || gross === null || invoice.amountPaid !== gross) return 'financial_terms_unapproved'
   if (
     invoice.amountDue <= 0
     || invoice.amountPaid !== invoice.amountDue
@@ -182,7 +170,7 @@ export function verifyPaidSubscriptionSnapshot(
   if (
     line.amount !== binding.unit_amount
     || line.hasDiscounts
-    || line.hasTaxes
+    || (line.hasTaxes && !usesStripeExclusiveTax(binding))
   ) return 'financial_terms_unapproved'
   const matchingLine = (
     line.subscriptionId === binding.stripe_subscription_id
@@ -255,15 +243,12 @@ export function verifyBillingLifecycleSnapshot(
   if ((failedRenewal || pendingRenewal) && invoice) {
     if (invoice.billingReason !== 'subscription_cycle' || invoice.customerId !== binding.stripe_customer_id
       || invoice.subscriptionId !== binding.stripe_subscription_id || invoice.currency !== binding.currency) return 'invoice_not_bound'
-    if (binding.unit_amount <= 0 || invoice.amountPaid !== 0 || invoice.payments.length !== 0 || (invoice.amountPaidOffStripe ?? 0) !== 0
-      || invoice.subtotal !== binding.unit_amount || invoice.total !== binding.unit_amount || invoice.amountDue !== binding.unit_amount
-      || invoice.startingBalance !== 0 || (invoice.endingBalance !== 0 && !(invoice.status === 'draft' && invoice.endingBalance === null))
-      || invoice.hasDiscounts || invoice.hasTaxes
-      || invoice.totalDiscountAmount !== 0 || invoice.totalTaxAmount !== 0
-      || invoice.prePaymentCreditNotesAmount !== 0 || invoice.postPaymentCreditNotesAmount !== 0 || invoice.lines.length !== 1) return 'financial_terms_unapproved'
+    if (invoice.amountPaid !== 0 || invoice.payments.length !== 0 || (invoice.amountPaidOffStripe ?? 0) !== 0
+      || !matchesSubscriptionTax(binding, snapshot) || verifiedInvoiceGross(binding, invoice, pendingRenewal) === null
+      || invoice.lines.length !== 1) return 'financial_terms_unapproved'
     const line = invoice.lines[0]
     if (invoice.id === facts.last_paid_invoice_id || line.subscriptionId !== binding.stripe_subscription_id || line.priceId !== binding.stripe_price_id
-      || line.quantity !== 1 || line.proration || line.hasDiscounts || line.hasTaxes || line.amount !== binding.unit_amount
+      || line.quantity !== 1 || line.proration || line.hasDiscounts || (line.hasTaxes && !usesStripeExclusiveTax(binding)) || line.amount !== binding.unit_amount
       || !equalTimestamp(line.periodStart, facts.paid_through) || !equalTimestamp(line.periodStart, item.currentPeriodStart)
       || !equalTimestamp(line.periodEnd, item.currentPeriodEnd) || Date.parse(line.periodEnd) <= Date.parse(line.periodStart)) return 'invoice_line_unverified'
     return { ...common, outcome: pendingRenewal ? 'renewal_invoice_pending' : 'renewal_failed',
@@ -299,7 +284,8 @@ function verifyScheduledRenewalSnapshot(
   if (!facts.paid_through || !facts.paid_period_start || !facts.last_paid_invoice_id
     || (facts.end_reason !== 'renewal_pending' && facts.end_reason !== 'renewal_grace'
       && !(terminal && alreadyApplied && facts.end_reason === 'cancellation'))) return 'invoice_not_paid'
-  if (target.currency !== binding.currency || target.unit_amount <= 0) return 'financial_terms_unapproved'
+  if (target.currency !== binding.currency || target.unit_amount <= 0
+    || usesStripeExclusiveTax(target) !== usesStripeExclusiveTax(binding)) return 'financial_terms_unapproved'
 
   const effective = Date.parse(proof.effective_at)
   const now = Date.now()

@@ -233,6 +233,7 @@ jobs:
           docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-settlement.sql
           docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-renewal-closeout.sql
           docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-scheduled-cancellation.sql
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -X -v ON_ERROR_STOP=1 < scripts/check-billing-live-stripe-exclusive-tax.sql
 
       - name: Verify dormant classroom Test quotas and retained-work protection
         run: bash scripts/check-classroom-test-tier-caps-database.sh

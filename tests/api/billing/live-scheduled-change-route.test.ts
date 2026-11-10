@@ -69,6 +69,20 @@ describe('live scheduled change routes', () => {
     expect((await reserve(post({ operationId, offeringVersionId }), context)).status).toBe(409)
   })
 
+  it('uses the authenticated Max binding to list a matching taxed Pro renewal offer', async () => {
+    const taxed = { offering_version_id: offeringVersionId, plan_key: 'plus', stripe_account: target.p_stripe_account,
+      provider_mode: 'live', stripe_product_id: 'prod_Pro', stripe_price_id: 'price_TaxedPro', currency: 'cad',
+      interval: 'year', unit_amount: 27900, classroom_limit: 5, catalog_key: 'pika:repolight-2026-10-29:pro:cad:year:stripe-exclusive',
+      tax_mode: 'stripe_exclusive' }
+    mocks.rpc.mockReturnValueOnce(response(true)).mockReturnValueOnce(response({ items: [taxed] }))
+    const offers = await GET(new NextRequest(url), context)
+    expect(offers.status).toBe(200)
+    expect(await offers.json()).toEqual({ items: [{ offeringVersionId, plan: 'pro', name: 'Pro',
+      currency: 'cad', interval: 'year', unitAmount: 27900, classroomLimit: 5 }] })
+    expect(mocks.rpc).toHaveBeenNthCalledWith(2, 'billing_list_live_scheduled_change_offerings_v1',
+      { ...target, p_request: { subject_user_id: subject } })
+  })
+
   it('blocks disabled catalog access and cross-origin writes before touching the database', async () => {
     expect((await reserve(post({ operationId, offeringVersionId }, 'https://foreign.example'), context)).status).toBe(403)
     mocks.config.mockReturnValue(null)

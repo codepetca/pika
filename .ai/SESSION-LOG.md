@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Dormant live billing target
-
-Added a default-off operator check for the exact production app and Supabase
-target and the private Stripe account pin. The 001–311 offline replay verified
-the service-only read, sandbox exclusion, retained test evidence denial,
-unchanged shared schema and generated types. The check leaves all live
-operations closed.
-
-## 2026-11-08 — Scheduled assignment release worker
-
-Prepared durable draft-backed schedules through the assignment Release route
-and the authenticated billing worker. The isolated replay proved eligible
-release, exact-once processing, pristine draft preservation and suppression
-when a later paid term starts retroactively across the missed due time. The
-same draft can be explicitly released after access returns. Migration 312 adds
-owner-only list and detail schedule state. Rescheduling and cancellation check
-the observed generation under the worker's locks. A stale request refreshes the
-editor. Verified teacher and student browser checks on desktop and mobile in
-light and dark mode. The sealed replay covers 311 and 312, including both
-worker and owner lock orders. Existing-schedule conversion, notice delivery and
-final CI still gate activation.
-
 ## 2026-11-08 — Live trial lifecycle source
 
 Prepared default-off production trial status, admission and a Stripe-free
@@ -111,6 +89,10 @@ Teacher Billing now saves the scheduled change quote and confirmation, reports i
 ## 2026-11-08 Billing recovery cadence and CI contracts
 
 Added a private Cloudflare Cron Trigger caller for the existing paid and trial recovery endpoints. The two-minute canary interval and both independent caller switches are explicit in the Worker config. The Worker pins the app origin, rejects redirects, bounds receipt reads, and records sanitized failed invocations even when Pika returns a partial failure in HTTP 200. Wrangler packaged the source and exercised its local schedule with both switches off. An enabled workerd run with all outbound calls bound to a local fixture verified success, swapped-token rejection and a refused redirect. Separate synthetic calls reached both actual Pika POST handlers and proved bearer isolation. The CI database job now executes the scheduled billing rollback fixtures 322–325 in order. The operator runbook records activation, cadence evidence, alert verification and durable queue checks.
+
+## 2026-11-08 Stripe exclusive tax custody
+
+Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid invoice verification, scheduled renewal and cancellation, and unpaid closeout. Verified Stripe automatic tax is separate from the plan subtotal and the captured payment must equal the gross. Tax admission remains independently gated, with Canadian registration and address-only portal prerequisites. The live catalog CLI previews and creates distinct unavailable tax versions when authorized. Separate catalog keys let existing untaxed Max subscribers keep a compatible Pro downgrade while taxed Pro is available. Focused tests and the owned PostgreSQL replay cover legacy and opted-in shapes. The designated Stripe sandbox still needs its tax configuration and a real taxable checkout and renewal rehearsal.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -229,3 +211,7 @@ The hosted member-list proof rejected the canonical schema because migration 325
 ## 2026-11-10 — Rebase the dormant billing recovery caller
 
 Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
+
+## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
+
+Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.

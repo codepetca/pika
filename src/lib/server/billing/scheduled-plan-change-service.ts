@@ -57,7 +57,8 @@ export async function installScheduledPlanChange(input: {
     || initial.operation.stripeAccount !== stripeAccount
     || (providerMode === 'live' ? initial.operation.providerMode !== 'live'
       || !/^in_[A-Za-z0-9]{1,240}$/.test(initial.operation.lastPaidInvoiceId ?? '')
-      : initial.operation.providerMode !== undefined || initial.operation.lastPaidInvoiceId !== undefined)) throw new Error('Invalid scheduled change claim')
+      : initial.operation.providerMode !== undefined || initial.operation.lastPaidInvoiceId !== undefined
+        || initial.operation.taxMode !== undefined)) throw new Error('Invalid scheduled change claim')
   let claim = initial
   let writeRefused = false
 

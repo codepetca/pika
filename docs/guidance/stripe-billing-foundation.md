@@ -669,6 +669,62 @@ fixtures before configuring credentials. Before production admission, verify
 successful signed webhook receipts, recurring authenticated worker runs and
 alerts for failed or delayed work on the pinned target.
 
+### Exclusive Stripe Tax for live billing
+
+Migration 326 records `stripe_exclusive` on an immutable live offering
+version. The Checkout attempt, subscription binding and scheduled change
+carry that mode through recovery. The pre-tax catalog amount stays fixed.
+Stripe-hosted Checkout collects and saves a billing address and verifies
+the tax breakdown. The portal for new taxed Checkout must allow address
+updates only, along with the existing invoice, payment method and
+period-end cancellation controls.
+
+With `BILLING_LIVE_STRIPE_TAX_ADMISSION_ENABLED=true`, new live Checkout selects
+taxed offerings. Pika verifies the pinned Stripe account, active Tax settings,
+Canadian standard registration, and the portal policy before showing the
+catalog. Keep the flag false until the reviewed provider and database
+configuration is ready. Existing attempts and subscriptions continue to use
+their saved tax mode during an admission pause. Pause live Checkout admission
+before turning the tax flag off, since the false setting selects legacy
+offerings. New scheduled Pro quotes use the teacher's current paid Max
+binding and matching tax mode. Keep legacy Pro targets available for existing
+untaxed Max subscriptions that can schedule a downgrade.
+
+Pika verifies the exact pre-tax line, exclusive tax entries at both line and
+invoice level, and gross amount due. A paid effect requires one bound captured
+card payment for that gross amount. A draft awaiting tax can defer renewal
+verification. Collection pause, void and cancellation verify the same gross
+obligation, and a verified payment can still win the closeout race. The
+calculated tax amount never changes the plan's classroom limit or RepoLight
+entitlement. [Stripe Checkout Tax](https://docs.stripe.com/tax/checkout/page)
+[Stripe invoice evidence](https://docs.stripe.com/api/invoices/object)
+
+Use the reviewed catalog provisioner to preview the exact products, Prices
+and inactive offering versions. The command requires a reviewed hosted
+software tax code already configured on both Stripe products. The tax
+variant uses the `:stripe-exclusive` suffix on the database catalog key and
+Stripe Price lookup key. Each version starts unavailable.
+
+```sh
+pnpm exec tsx scripts/provision-live-tax-catalog.ts --dry-run \
+  --tax-mode stripe_exclusive --account <stripe-account> \
+  --pro-product <pro-product> --max-product <max-product> \
+  --version-base <unused-version-base> --reviewed-tax-code <approved-code>
+```
+
+Preview the migration and verify the proposed version range against the
+pinned database. The catalog dry run reads Stripe and validates the offer
+plan. An authorized apply registers versions unavailable so they can be
+reviewed before publication. An interrupted apply can leave provider prices
+or unavailable database rows. Replay uses the same pinned terms and keys.
+
+Verify a taxable sandbox checkout, both live-style renewal outcomes, scheduled
+change and undo, and refund accounting before production activation. Compare
+the Stripe invoice's base, tax and captured gross against the Pika receipt
+and retained purchased version. Check that the Stripe Tax settings and
+Canadian test registration are active on the intended sandbox before starting
+the rehearsal. [Stripe Tax test guide](https://docs.stripe.com/tax/testing)
+
 ### Periodic recovery caller
 
 The private Cloudflare Worker in `workers/billing-recovery` calls the existing
@@ -792,9 +848,9 @@ or attention work before admitting production customers.
    Fence Test Start at the shared attempt RPC and preserve Save/Submit for an
    attempt started before cutoff. Record suppressed scheduled assignment releases
    durably so resubscription cannot expose work that missed its release.
-   Implement the agreed refund window and confirm Ontario tax treatment. The current provider adapters
-   reject tax and discount adjustments; an operator cannot enable Stripe Tax
-   against those adapters. Do not publish provisional AI allowances.
+   Confirm Ontario tax treatment and verify exclusive Stripe Tax on the opted-in
+   catalog. Complete the agreed refund and dispute handling. Publish AI allowance
+   quantities after the approved unit-cost and usage tests.
 4. Rehearse against a designated isolated Stripe sandbox and disposable Pika
    stack after authorization for synthetic provider writes. Register exact
    approved recurring prices, bind the scoped account and webhook secret, and

@@ -220,3 +220,52 @@ describe('explicit live checkout boundary', () => {
     expect(port.retrieveSession).not.toHaveBeenCalled()
   })
 })
+
+describe('exclusive Stripe Tax checkout', () => {
+  const catalogKey = `${liveAttempt.offering.catalog_key}:stripe-exclusive`
+  const taxedAttempt: CheckoutAttempt = {
+    ...liveAttempt, lookup_key: catalogKey,
+    offering: { ...liveAttempt.offering, catalog_key: catalogKey, tax_mode: 'stripe_exclusive' },
+  }
+  function taxedSession(status: 'open' | 'complete' | 'expired' = 'open') {
+    const raw = liveSession()
+    return { ...raw, status, subscription: status === 'complete' ? 'sub_live' : null,
+      billing_address_collection: 'required', shipping_cost: null, shipping_options: [], shipping_address_collection: null,
+      automatic_tax: { enabled: true, liability: { type: 'self' }, status: status === 'complete' ? 'complete' : null },
+      amount_total: 2147, total_details: { ...raw.total_details, amount_tax: 247 },
+      line_items: { ...raw.line_items, data: [{ ...raw.line_items.data[0], amount_total: 2147, amount_tax: 247,
+        price: { ...raw.line_items.data[0].price, tax_behavior: 'exclusive' } }] } }
+  }
+  it.each(['open', 'expired', 'complete'] as const)('recovers exact base plus tax for %s', async status => {
+    const { port, provider } = liveFixture()
+    vi.mocked(port.retrieveSession).mockResolvedValue(taxedSession(status))
+    expect((await provider.retrieveSession(taxedAttempt)).status).toBe(status)
+  })
+  it('rejects unfinished tax, inconsistent totals and merchant liability', async () => {
+    const { port, provider } = liveFixture()
+    const base = taxedSession('complete')
+    for (const changed of [
+      { automatic_tax: { ...base.automatic_tax, status: 'failed' } },
+      { automatic_tax: { ...base.automatic_tax, liability: { type: 'account' } } },
+      { amount_total: 1900 }, { shipping_options: [{}] }, { billing_address_collection: 'auto' },
+    ]) {
+      vi.mocked(port.retrieveSession).mockResolvedValueOnce({ ...base, ...changed })
+      await expect(provider.retrieveSession(taxedAttempt)).rejects.toThrow('contract is invalid')
+    }
+  })
+  it('requires the exclusive price before session creation', async () => {
+    const { port, provider } = liveFixture()
+    await expect(provider.createSession(taxedAttempt, 'cus_live', 'key', () => {})).rejects.toThrow('contract is invalid')
+    expect(port.createSession).not.toHaveBeenCalled()
+    vi.mocked(port.retrievePrice).mockResolvedValue({ ...livePrice(), tax_behavior: 'exclusive' })
+    vi.mocked(port.createSession).mockResolvedValue(taxedSession())
+    await expect(provider.createSession(taxedAttempt, 'cus_live', 'key', () => {})).resolves.toMatchObject({ id: 'cs_live_abc' })
+  })
+  it('pins tax and address parameters to the persisted offering', async () => {
+    const create = vi.fn()
+    const port = createStripeCheckoutPort({ checkout: { sessions: { create } } } as unknown as Stripe)
+    await port.createSession(taxedAttempt, 'cus_live', 'key')
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({ automatic_tax: { enabled: true, liability: { type: 'self' } },
+      billing_address_collection: 'required', customer_update: { address: 'auto' }, allow_promotion_codes: false }), { idempotencyKey: 'key' })
+  })
+})

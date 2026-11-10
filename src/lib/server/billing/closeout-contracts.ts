@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BillingScheduledRenewalSchema, BillingSubscriptionBindingSchema, type BillingReconciliationBinding } from './contracts'
+import { BillingScheduledRenewalSchema, BillingSubscriptionBindingSchema, LiveBillingSubscriptionBindingSchema, type BillingReconciliationBinding } from './contracts'
 
 const timestamp = z.string().datetime({ offset: true })
 const reference = z.string().min(1).max(255)
@@ -14,7 +14,7 @@ export const RenewalCloseoutEvidenceSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('attention'), reason: z.enum(['identity_mismatch', 'unsupported_payment', 'partial_payment', 'unknown_invoice', 'incomplete_evidence', 'unexpected_money']) }).strict(),
 ])
 export type RenewalCloseoutEvidence = z.infer<typeof RenewalCloseoutEvidenceSchema>
-export const LiveRenewalCloseoutBindingSchema = BillingSubscriptionBindingSchema.extend({ provider_mode: z.literal('live') })
+export const LiveRenewalCloseoutBindingSchema = LiveBillingSubscriptionBindingSchema
 const scheduleSchema = BillingScheduledRenewalSchema.omit({ state: true })
 export const RenewalCloseoutScheduleSchema = scheduleSchema.extend({ target_binding: BillingSubscriptionBindingSchema })
 export const LiveRenewalCloseoutScheduleSchema = scheduleSchema.extend({ target_binding: LiveRenewalCloseoutBindingSchema })

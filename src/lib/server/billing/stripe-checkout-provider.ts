@@ -22,7 +22,9 @@ export function createStripeCheckoutPort(stripe: Stripe): StripeCheckoutPort {
       mode: 'subscription', ui_mode: 'hosted_page', customer: customerId,
       line_items: [{ price: attempt.offering.stripe_price_id, quantity: 1 }],
       payment_method_types: ['card'], allow_promotion_codes: false,
-      automatic_tax: { enabled: false }, adaptive_pricing: { enabled: false },
+      ...(attempt.offering.tax_mode === 'stripe_exclusive'
+        ? { automatic_tax: { enabled: true, liability: { type: 'self' as const } }, billing_address_collection: 'required' as const, customer_update: { address: 'auto' as const } }
+        : { automatic_tax: { enabled: false } }), adaptive_pricing: { enabled: false },
       success_url: attempt.success_url, cancel_url: attempt.cancel_url,
       expand: ['line_items.data.price'],
     }, { idempotencyKey }),
@@ -39,13 +41,13 @@ const sessionSchema = z.object({
   url: CheckoutUrlSchema.nullable(), currency: z.enum(['usd', 'cad']),
   amount_subtotal: z.number().int().positive(), amount_total: z.number().int().positive(),
   payment_method_types: z.tuple([z.literal('card')]),
-  automatic_tax: z.object({ enabled: z.literal(false) }),
+  automatic_tax: z.object({ enabled: z.boolean(), status: z.string().nullable().optional(), liability: z.object({ type: z.string() }).nullable().optional() }),
   allow_promotion_codes: z.union([z.literal(false), z.null()]),
-  total_details: z.object({ amount_discount: z.literal(0), amount_tax: z.literal(0), amount_shipping: z.literal(0) }),
+  total_details: z.object({ amount_discount: z.literal(0), amount_tax: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), amount_shipping: z.literal(0) }),
   success_url: z.string(), cancel_url: z.string(),
   line_items: z.object({ has_more: z.literal(false), data: z.array(z.object({
     quantity: z.literal(1), amount_subtotal: z.number().int().positive(), amount_total: z.number().int().positive(),
-    amount_discount: z.literal(0), amount_tax: z.literal(0), currency: z.string(),
+    amount_discount: z.literal(0), amount_tax: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER), currency: z.string(),
     price: z.object({ id: z.string(), livemode: z.boolean(), product: reference,
       currency: z.string(), unit_amount: z.number().int().positive(),
       recurring: z.object({ interval: z.enum(['month', 'year']), interval_count: z.literal(1) }),
@@ -65,10 +67,23 @@ const liveSessionEvidenceSchema = z.object({
   })).length(1) }),
 })
 
+const taxedSessionEvidenceSchema = z.object({
+  billing_address_collection: z.literal('required'),
+  shipping_cost: z.null(), shipping_options: z.array(z.never()), shipping_address_collection: z.null(),
+  discounts: z.array(z.never()).nullable().optional(),
+  total_details: z.object({ breakdown: z.object({ discounts: z.array(z.never()) }).nullable().optional() }),
+  line_items: z.object({ data: z.array(z.object({ discounts: z.array(z.never()).nullable().optional(),
+    price: z.object({ billing_scheme: z.literal('per_unit'), tax_behavior: z.literal('exclusive'),
+      transform_quantity: z.null(), unit_amount_decimal: z.string(),
+      recurring: z.object({ usage_type: z.literal('licensed'), trial_period_days: z.null() }) }) })).length(1) }),
+})
+
 function session(value: unknown, attempt: CheckoutAttempt, customerId: string, live: boolean): CheckoutSession {
   const decoded = sessionSchema.safeParse(value)
   if (!decoded.success) throw new CheckoutProviderContractError()
-  const liveEvidence = live ? liveSessionEvidenceSchema.safeParse(value) : undefined
+  const taxed = attempt.offering.tax_mode === 'stripe_exclusive'
+  if (taxed && !live) throw new CheckoutProviderContractError()
+  const liveEvidence = live ? (taxed ? taxedSessionEvidenceSchema : liveSessionEvidenceSchema).safeParse(value) : undefined
   if (liveEvidence && !liveEvidence.success) throw new CheckoutProviderContractError()
   const item = decoded.data
   const line = item.line_items.data[0]
@@ -76,8 +91,13 @@ function session(value: unknown, attempt: CheckoutAttempt, customerId: string, l
   if (item.livemode !== live || line.price.livemode !== live || !item.id.startsWith(live ? 'cs_live_' : 'cs_test_')
     || item.customer !== customerId || item.success_url !== attempt.success_url || item.cancel_url !== attempt.cancel_url
     || item.currency !== expected.currency || line.currency !== expected.currency || line.price.currency !== expected.currency
-    || item.amount_subtotal !== expected.unit_amount || item.amount_total !== expected.unit_amount
-    || line.amount_subtotal !== expected.unit_amount || line.amount_total !== expected.unit_amount
+    || item.automatic_tax.enabled !== taxed
+    || (taxed && (item.automatic_tax.liability?.type !== 'self' || (item.status === 'complete' && item.automatic_tax.status !== 'complete')))
+    || (!taxed && (item.total_details.amount_tax !== 0 || line.amount_tax !== 0))
+    || item.total_details.amount_tax !== line.amount_tax
+    || !Number.isSafeInteger(expected.unit_amount + item.total_details.amount_tax)
+    || item.amount_subtotal !== expected.unit_amount || item.amount_total !== expected.unit_amount + item.total_details.amount_tax
+    || line.amount_subtotal !== expected.unit_amount || line.amount_total !== expected.unit_amount + line.amount_tax
     || line.price.id !== expected.stripe_price_id || line.price.product !== expected.stripe_product_id
     || line.price.unit_amount !== expected.unit_amount || line.price.recurring.interval !== expected.interval
     || (liveEvidence?.success && liveEvidence.data.line_items.data[0].price.unit_amount_decimal.replace(/\.0+$/, '') !== String(expected.unit_amount))
@@ -113,7 +133,7 @@ export function createStripeCheckoutProvider(port: StripeCheckoutPort, scope?: S
   }
   async function verifyAttempt(attempt: CheckoutAttempt) {
     const parsed = CheckoutAttemptSchema.safeParse(attempt)
-    if (!parsed.success || (live ? parsed.data.offering.provider_mode !== 'live' || parsed.data.offering.stripe_account !== scope!.stripeAccount
+    if (!parsed.success || (!live && parsed.data.offering.tax_mode !== undefined) || (live ? parsed.data.offering.provider_mode !== 'live' || parsed.data.offering.stripe_account !== scope!.stripeAccount
       : parsed.data.offering.provider_mode === 'live')) throw new CheckoutProviderContractError()
     if (live) await assertAccount(scope!.stripeAccount)
   }
@@ -143,7 +163,8 @@ export function createStripeCheckoutProvider(port: StripeCheckoutPort, scope?: S
         if (!price.success || price.data.id !== expected.stripe_price_id || price.data.product.id !== expected.stripe_product_id
           || price.data.currency !== expected.currency || price.data.unit_amount !== expected.unit_amount
           || price.data.unit_amount_decimal.replace(/\.0+$/, '') !== String(expected.unit_amount)
-          || price.data.recurring.interval !== expected.interval) throw new CheckoutProviderContractError()
+          || price.data.recurring.interval !== expected.interval
+          || (expected.tax_mode === 'stripe_exclusive' && price.data.tax_behavior !== 'exclusive')) throw new CheckoutProviderContractError()
         await assertCanWrite()
       }
       return session(await port.createSession(attempt, customerId, idempotencyKey), attempt, customerId, live)
