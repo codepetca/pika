@@ -17,6 +17,7 @@ import { GET as status } from '@/app/api/billing/subscription/route'
 import { POST as trial } from '@/app/api/billing/trial/route'
 import { POST as processLiveTrial } from '@/app/api/billing/trial/process/route'
 import { POST as processLivePayment } from '@/app/api/billing/stripe/live/process/route'
+import { BILLING_ACCESS_NOTICE_HEADER } from '@/lib/billing/subscription'
 import { BillingLifecycleEligibilityError } from '@/lib/server/billing/lifecycle-service'
 
 const subject = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -69,6 +70,40 @@ describe('billing lifecycle API boundaries', () => {
     expect(mock.getStatus).toHaveBeenCalledWith({ subjectUserId: subject })
     expect(await response.json()).toMatchObject({ state: 'free', plan: 'free', classroomLimit: 0, canStartPaidWork: false })
   })
+  it.each([
+    ['trial', 168 * 3600 + 1, false, undefined],
+    ['trial', 168 * 3600, false, 'ending_within_seven_days'],
+    ['paid', 24 * 3600 + 1, false, 'ending_within_seven_days'],
+    ['paid', 24 * 3600, false, 'ending_within_24_hours'],
+    ['paid', 24 * 3600, true, undefined],
+    ['renewal_grace', 168 * 3600, false, 'payment_overdue'],
+    ['renewal_grace', 0, false, undefined],
+    ['free', 0, false, 'ended'],
+    ['synchronization_pending', 3600, false, undefined],
+  ])('projects %s at %i seconds from a verified cutoff with renewal %s', async (state, seconds, renewing, notice) => {
+    const now = Date.parse('2026-10-31T15:15:22Z')
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now)
+    const cutoff = new Date(now + seconds * 1000).toISOString()
+    mock.getStatus.mockResolvedValue({
+      ...access, state, access_ends_at: cutoff, renewal_at: renewing ? cutoff : null,
+      can_start_paid_work: !['free', 'synchronization_pending'].includes(state),
+    })
+    try {
+      const url = `${origin}/api/billing/subscription?now=2027-01-01`
+      const legacy = await status(new NextRequest(url), context)
+      expect(await legacy.json()).not.toHaveProperty('accessNotice')
+      const response = await status(new NextRequest(url, {
+        headers: { [BILLING_ACCESS_NOTICE_HEADER]: '1' },
+      }), context)
+      expect(response.status).toBe(200)
+      const payload = await response.json()
+      expect(payload.accessEndsAt).toBe(cutoff)
+      expect(payload.accessNotice).toBe(notice)
+    } finally {
+      clock.mockRestore()
+    }
+  })
+
   it('keeps live status available while new trial admission is off', async () => {
     const config = { appOrigin: 'https://pika.codepet.ca', projectRef: 'live-project', admissionEnabled: false }
     mock.liveConfig.mockReturnValue(config)

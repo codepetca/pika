@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Live trial lifecycle source
-
-Prepared default-off production trial status, admission and a Stripe-free
-expiry worker against the exact pinned target. The owned 001–313 replay proved
-admission-off recovery, paid checkout exclusion, the exact RepoLight cutoff,
-and retained learner work. Type generation and targeted route tests passed.
-Billing now supports trial-only status and admission with no checkout requests.
-The teacher browser matrix passed on desktop and mobile in both themes. The
-canonical sealed replay and CI admit 313. The production worker caller and
-existing-schedule conversion require verification before activation. Live
-payment handling remains a separate source slice.
-
-## 2026-11-08 Live Pro trial review fixes
-
-Independent review found that admission could replace separately granted classroom access and that a failed assignment queue read could skip the RepoLight outbox. Admission now checks the audited legacy Free grant under the feature lock. The worker reports the assignment failure and continues the RepoLight attempt. Regression coverage includes manual, school and independently rewritten plan grants plus both assignment list failure paths. Offline migration replay through 313 and the focused regression tests passed.
-
 ## 2026-11-08 — Scoped live Stripe evidence
 
 Added explicit account and mode checks for Checkout and verified invoice
@@ -93,6 +77,12 @@ Added a private Cloudflare Cron Trigger caller for the existing paid and trial r
 ## 2026-11-08 Stripe exclusive tax custody
 
 Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid invoice verification, scheduled renewal and cancellation, and unpaid closeout. Verified Stripe automatic tax is separate from the plan subtotal and the captured payment must equal the gross. Tax admission remains independently gated, with Canadian registration and address-only portal prerequisites. The live catalog CLI previews and creates distinct unavailable tax versions when authorized. Separate catalog keys let existing untaxed Max subscribers keep a compatible Pro downgrade while taxed Pro is available. Focused tests and the owned PostgreSQL replay cover legacy and opted-in shapes. The designated Stripe sandbox still needs its tax configuration and a real taxable checkout and renewal rehearsal.
+
+## 2026-11-08 Teacher billing access notices
+
+UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
+
+The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
 
 ## 2026-11-09 — Sync billing launch with main
 
@@ -215,3 +205,7 @@ Carried the reviewed worker, configuration, tests and CI fixture wiring onto mai
 ## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
 
 Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
+
+## 2026-11-10 — Rebase the teacher billing access reminders
+
+Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
