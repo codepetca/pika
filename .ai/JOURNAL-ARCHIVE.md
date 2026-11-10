@@ -53034,3 +53034,14 @@ markers out of authorization once Stripe proves the exact canceled phase.
 The sealed disposable 001–307 replay passed.
 fresh terminal schedule proof for detached delinquent subscriptions.
 The sealed disposable 001–307 replay and 186 focused tests passed.
+
+<!-- pika-session-log-archive-batch:ab81e0de64538e75b345c5889e70ceffbfc82db06a6ad94b571f895c6e0bd941 -->
+## 2026-11-08 — Classroom Test cutoff checkpoint
+
+Prepared the default-off billing fence for new Test attempts and publication.
+Disposable 001–308 replay verified the legacy and contextual publication
+rollbacks, exact trial cutoff before the expiry worker, existing attempt
+resume/save/submit, and a blocked Start crossing cutoff while waiting on the
+account lock. Generated public types and shared schema matched their baselines.
+The flag remains off pending assignment release, per-classroom restrictions,
+and the complete reviewed rollout.

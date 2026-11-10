@@ -34,7 +34,7 @@ describe('externally sealed Test quota proof table addition', () => {
     const current = loadAssignmentListReviewedMigrations(process.cwd())
     const canonical = ['public.tests']
     const at301 = classroomTestQuotaProofCatalog(canonical, current.slice(0, 301))
-    expect(disposableClassroomTestQuotaProofCatalog(canonical, current)).toEqual([...at301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'private.billing_live_payment_target'].sort())
+    expect(disposableClassroomTestQuotaProofCatalog(canonical, current)).toEqual([...at301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'private.billing_live_payment_target', 'private.billing_live_scheduled_cancellations'].sort())
     expect(disposableClassroomTestQuotaProofCatalog(canonical, current.slice(0, 303))).toEqual(at301)
     expect(disposableClassroomTestQuotaProofCatalog(canonical, current.slice(0, 307))).toEqual([...at301, 'private.billing_scheduled_plan_changes'].sort())
     expect(() => classroomTestQuotaProofCatalog(canonical, current)).toThrow()

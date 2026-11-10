@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 — Classroom Test cutoff checkpoint
-
-Prepared the default-off billing fence for new Test attempts and publication.
-Disposable 001–308 replay verified the legacy and contextual publication
-rollbacks, exact trial cutoff before the expiry worker, existing attempt
-resume/save/submit, and a blocked Start crossing cutoff while waiting on the
-account lock. Generated public types and shared schema matched their baselines.
-The flag remains off pending assignment release, per-classroom restrictions,
-and the complete reviewed rollout.
-
 ## 2026-11-08 — Classroom capacity restriction checkpoint
 
 Prepared a private subscription restriction history, deterministic activity
@@ -253,3 +243,7 @@ Carried the reviewed cancellation and undo changes onto main after the unpaid sc
 ## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
 
 Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
+
+## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
+
+The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
