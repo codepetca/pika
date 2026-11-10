@@ -112,6 +112,14 @@ export function isBillingLivePaymentAvailable(): boolean {
   try { return readBillingLivePaymentWorkerConfig() !== null } catch { return false }
 }
 
+/** New scheduled changes require all recovery lanes. Existing work has independent switches. */
+export function readBillingLiveScheduledChangeConfig(env: NodeJS.ProcessEnv = process.env): BillingLivePaymentWorkerConfig | null {
+  if (env.BILLING_LIVE_SCHEDULED_CHANGES_ENABLED !== 'true' || env.BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED !== 'true'
+    || env.BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED !== 'true' || env.BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED !== 'true') return null
+  const payment = readBillingLivePaymentWorkerConfig(env)
+  return payment && readBillingLiveWebhookConfig(env) ? payment : null
+}
+
 /** Existing trial status and expiry stay available while new admission is stopped. */
 export function readBillingLiveTrialConfig(env: NodeJS.ProcessEnv = process.env): BillingLiveTrialConfig | null {
   const admissionEnabled = env.BILLING_LIVE_TRIAL_ADMISSION_ENABLED === 'true'

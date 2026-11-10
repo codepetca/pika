@@ -31,6 +31,7 @@ export default async function Page() {
       portalAvailable={portalAvailable}
       portalCancellationAvailable={livePurchaseAvailable && portalAvailable}
       upgradesAvailable={sandboxPurchaseAvailable && readBillingUpgradeConfig() !== null}
+      scheduledBillingAvailable={livePurchaseAvailable && process.env.BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED === 'true'}
     />
   </AppShell>
 }

@@ -119,6 +119,10 @@ begin
     if sqlerrm<>'billing_live_scheduled_change_admission_unavailable' then raise; end if;
   end;
   update private.stripe_billing_settings set live_scheduled_plan_change_provider_writes_enabled=true where singleton;
+  if to_regprocedure('public.billing_live_scheduled_customer_ready_v1(text,text)') is not null then
+    execute 'update private.stripe_billing_settings set live_scheduled_closeout_enabled=true,
+      live_scheduled_cancellation_admission_enabled=true,live_scheduled_cancellation_provider_writes_enabled=true where singleton';
+  end if;
   begin
     perform public.billing_reserve_live_scheduled_plan_change_v1(v_project,v_account,
       v_confirmation||jsonb_build_object('target_offering_version_id',v_test_target));

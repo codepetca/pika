@@ -23,9 +23,9 @@ image="$(docker image inspect "$source_image" --format '{{.Id}}')"
 [[ "$(docker inspect "$source_id" --format '{{.Image}}')" == "$image" ]] || exit 1
 source_version="$(docker exec "$source_id" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
-# Sealed 298–324 touch application schemas only; replay retains the same
+# Sealed 298–325 touch application schemas only; replay retains the same
 # Auth/Storage platform-source assumption. The manifest below pins their bytes.
-((10#$source_version >= 234 && 10#$source_version <= 324)) || exit 1
+((10#$source_version >= 234 && 10#$source_version <= 325)) || exit 1
 registry="${SUPABASE_INTERNAL_IMAGE_REGISTRY:-public.ecr.aws}"
 [[ "$registry" == public.ecr.aws || "$registry" == ghcr.io ]] || exit 2
 meta_image="$(docker image inspect "$registry/supabase/postgres-meta:v0.96.6" --format '{{.Id}}')"
@@ -81,7 +81,7 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # Seal the exact dirty-tree SQL inventory, rather than asserting a reviewed SHA.
-# This validates contiguous replay through 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323 or 324 and binds all migration and proof bytes.
+# This validates contiguous replay through 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324 or 325 and binds all migration and proof bytes.
 manifest() {
   node - "$root" <<'NODE'
 const assert = require('node:assert/strict')
@@ -90,7 +90,7 @@ const { readFileSync, readdirSync } = require('node:fs')
 const { join } = require('node:path')
 const root = process.argv[2]
 const paths = readdirSync(join(root, 'supabase/migrations')).filter(name => name.endsWith('.sql')).sort()
-assert([297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324].includes(paths.length), 'Expected replay through migration 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323 or 324')
+assert([297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325].includes(paths.length), 'Expected replay through migration 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324 or 325')
 paths.forEach((name, index) => assert.equal(name.match(/^(\d{3})_/u)?.[1], String(index + 1).padStart(3, '0'), 'Migration inventory must be contiguous and unique'))
 // Preserve the reviewed293 pin and require the exact admission294/calendar295/attendance296 tails.
 const reviewed293 = '293_repolight_report_service.sql'
@@ -166,9 +166,9 @@ if (paths.length >= 313) {
 const paymentTailPath = 'scripts/disposable-live-payment-replay-tail.json'
 if (paths.length >= 314) {
   const bytes = readFileSync(join(root, paymentTailPath))
-  assert.equal(createHash('sha256').update(bytes).digest('hex'), '61b40c7cf9f5f006dfd04cc22020ef1a0b543e263bd23c3345022bea22c52bda', 'Unreviewed live payment replay seal')
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), '44dbdfe78afcf4bbc1aa72e5db5c6322e3f0f34c5b97294798878639fa82e945', 'Unreviewed live payment replay seal')
   const tail = JSON.parse(bytes.toString('utf8'))
-  assert.equal(tail.length, 11)
+  assert.equal(tail.length, 12)
   for (const [offset, { name, sha256 }] of tail.slice(0, paths.length - 313).entries()) {
     assert.equal(paths[313 + offset], name, 'Unreviewed live payment filename')
     assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), sha256, 'Unreviewed live payment source')

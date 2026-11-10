@@ -688,13 +688,29 @@ and worker setting `BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED` default off.
 Deploy and verify the matching database and worker before enabling either
 scheduled admission or Stripe installation writes.
 
-Customer cancellation and undo remain part of that rollout gate. Stripe's
-portal disables cancellation when an update is pending in a schedule. A
-synthetic Stripe sandbox clock confirmed that changing the schedule to its
-existing Max phase with a cancel end behavior preserves the paid term, can be
-undone, and completes at the paid cutoff without a Pro invoice. Confirm the
-customer path, released schedule behavior and production worker invocation
-before opening admission.
+Migration 325 adds teacher cancellation and undo from Plans and billing for an
+installed live Max-to-Pro change. Stripe's portal disables cancellation when an
+update is pending in a schedule. The authenticated cancellation route saves
+intent in Pika. The paid worker verifies and applies it against the pinned Stripe
+schedule. The original Max payment, twelve-classroom limit and RepoLight access
+continue through the paid term. Undo restores the Pro renewal. Stripe sandbox
+testing confirmed that a cancellation ends at the paid cutoff without a Pro
+invoice. If a response is lost across renewal, the worker reads Stripe again
+without changing the schedule. An exact restored Pro phase returns custody to
+normal renewal processing, which independently verifies the invoice and any
+payment. Ambiguous changes remain visible for support and the worker can retry
+verification without making another Stripe write.
+
+Deploy the matching database and paid worker first. With scheduled admission
+closed, verify signed webhook delivery and recurring authenticated worker runs.
+Enable the scheduled installation, cancellation and closeout worker lanes before
+opening `BILLING_LIVE_SCHEDULED_CHANGES_ENABLED`. Database readiness also requires
+ordinary closeout, scheduled closeout, installation admission and writes, and
+cancellation admission and writes on the same pinned target. To stop new
+scheduled changes, pause scheduled admission and leave recovery running for
+existing schedules. Use the separate database provider-write flags when a
+provider write must be paused. Verify the customer path and alerts for delayed
+or attention work before admitting production customers.
 
 ### Release sequence
 
