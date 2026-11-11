@@ -55,12 +55,12 @@ export function createRepoLightClient(rawConnection: RepoLightConnection, option
   const timeoutMs = options.timeoutMs ?? 8000
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 15000) throw failure('repolight_invalid_configuration')
 
-  async function operation<T>(action: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  async function operation<T>(action: (signal: AbortSignal) => Promise<T>, deadlineMs = timeoutMs): Promise<T> {
     const controller = new AbortController()
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
       return await Promise.race([action(controller.signal), new Promise<never>((_, reject) => {
-        timer = setTimeout(() => { reject(failure('repolight_timeout', true)); controller.abort() }, timeoutMs)
+        timer = setTimeout(() => { reject(failure('repolight_timeout', true)); controller.abort() }, deadlineMs)
       })])
     } catch (error) {
       if (error instanceof RepoLightClientError) throw error
@@ -129,7 +129,7 @@ export function createRepoLightClient(rawConnection: RepoLightConnection, option
       const parsed = analysisStatusSchema.safeParse(await request('/api/v2/analyses', signal, input.encodedBody, input.idempotencyKey))
       if (!parsed.success || parsed.data.requestFingerprint !== input.requestFingerprint || !same(parsed.data.clientBinding, input.envelope.clientBinding)) throw failure('repolight_invalid_response')
       return parsed.data
-    })
+    }, options.timeoutMs ?? 15_000)
   }
   return {
     verifyConnection: () => operation(attest),

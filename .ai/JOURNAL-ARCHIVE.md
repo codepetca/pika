@@ -54433,3 +54433,10 @@ Added a private Cloudflare Cron Trigger caller for the existing paid and trial r
 ## 2026-11-08 Stripe exclusive tax custody
 
 Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid invoice verification, scheduled renewal and cancellation, and unpaid closeout. Verified Stripe automatic tax is separate from the plan subtotal and the captured payment must equal the gross. Tax admission remains independently gated, with Canadian registration and address-only portal prerequisites. The live catalog CLI previews and creates distinct unavailable tax versions when authorized. Separate catalog keys let existing untaxed Max subscribers keep a compatible Pro downgrade while taxed Pro is available. Focused tests and the owned PostgreSQL replay cover legacy and opted-in shapes. The designated Stripe sandbox still needs its tax configuration and a real taxable checkout and renewal rehearsal.
+
+<!-- pika-session-log-archive-batch:360300656a8bfa5ef21dc81b5d05a38b37c9d6672d43ec81bf28f8a501056dd2 -->
+## 2026-11-08 Teacher billing access notices
+
+UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
+
+The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
