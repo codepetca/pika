@@ -5,14 +5,15 @@ import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 const azure = 'http://azure.archive.ubuntu.com/ubuntu'
-const official = 'http://archive.ubuntu.com/ubuntu'
+const official = 'https://archive.ubuntu.com/ubuntu'
 
 // Only replace the proven hosted image's mirror-list entry; preserve source files and signing.
 export function fallbackMirror({ environment, osRelease, sources, mirrors, azureResolvable, officialResolvable }) {
   if (environment !== 'github-hosted' || !/^VERSION_ID="?24\.04"?$/m.test(osRelease)
     || !/^URIs:\s*mirror\+file:\/etc\/apt\/apt-mirrors\.txt\s*$/m.test(sources) || azureResolvable || !officialResolvable) return null
-  if (!mirrors.split(/\r?\n/).some(line => line.trim().replace(/\/$/, '') === azure)) return null
-  return mirrors.split(/(\r?\n)/).map(line => line.trim().replace(/\/$/, '') === azure ? line.replace(azure, official) : line).join('')
+  const azureEntry = /^(\s*)http:\/\/azure\.archive\.ubuntu\.com\/ubuntu\/?(?=\s|$)/
+  if (!mirrors.split(/\r?\n/).some(line => azureEntry.test(line))) return null
+  return mirrors.split(/(\r?\n)/).map(line => line.replace(azureEntry, (_, indent) => `${indent}${official}/`)).join('')
 }
 
 export function installBrowser(deps) {

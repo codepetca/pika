@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fallbackMirror, installBrowser } from '../../scripts/ci-install-browser.mjs'
 
-const base = { environment: 'github-hosted', osRelease: 'VERSION_ID="24.04"', sources: 'URIs: mirror+file:/etc/apt/apt-mirrors.txt', mirrors: 'http://azure.archive.ubuntu.com/ubuntu/\nhttp://security.ubuntu.com/ubuntu/\n', azureResolvable: false, officialResolvable: true }
+const base = { environment: 'github-hosted', osRelease: 'VERSION_ID="24.04"', sources: 'URIs: mirror+file:/etc/apt/apt-mirrors.txt', mirrors: 'http://azure.archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n', azureResolvable: false, officialResolvable: true }
 describe('browser dependency mirror fallback', () => {
   it('replaces only the unavailable Azure mirror on the proven hosted image', () => {
-    expect(fallbackMirror(base)).toBe('http://archive.ubuntu.com/ubuntu/\nhttp://security.ubuntu.com/ubuntu/\n')
+    expect(fallbackMirror(base)).toBe('https://archive.ubuntu.com/ubuntu/\tpriority:1\nhttps://archive.ubuntu.com/ubuntu/\tpriority:2\nhttps://security.ubuntu.com/ubuntu/\tpriority:3\n')
   })
   it.each([
     { environment: 'self-hosted' }, { osRelease: 'VERSION_ID="22.04"' }, { sources: 'URIs: http://archive.ubuntu.com/ubuntu' },
