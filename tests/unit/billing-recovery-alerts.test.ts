@@ -99,6 +99,7 @@ describe('Pika billing recovery alerts', () => {
     expect(query.mock.calls[0][0].params.start).toBe(new Date(window.end).toISOString())
     expect(query.mock.calls[1][0].params.start).toBe(new Date(latest.start).toISOString())
     expect(result).toEqual({ errorCount: 1, missingLanes: ['paid'] })
+    expect(alertConditions({ ...result, coverageGap: true })).toEqual(['recovery_errors', 'monitoring_gap', 'missing_paid'])
   })
 
   it('expires a pending delivery before the Brevo idempotency window closes', () => {

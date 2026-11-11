@@ -781,7 +781,8 @@ missing expected lane receipt, or an Analytics SQL outage. A Durable Object
 keeps a bounded log catch-up cursor, retries pending emails for up to 25
 minutes, and repeats ongoing conditions after an hour. The observer checks
 the latest window for heartbeats and up to an hour of missed error logs
-after a failed query or skipped tick.
+after a failed query or skipped tick. It reports any missed window as a
+coverage gap because historical heartbeat expectations may have changed.
 
 Use Wrangler 4.145 or later for the Analytics SQL binding. Pin the same
 Cloudflare account as the recovery Worker and configure `BREVO_API_KEY` and

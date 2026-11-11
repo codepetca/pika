@@ -13,6 +13,9 @@ const expectedHeartbeat = {
 function emailText({ result, window, conditions }) {
   const lines = [`Production Pika billing recovery through ${new Date(window.end).toISOString()}.`]
   if (conditions.includes('analytics_unavailable')) lines.push('Cloudflare could not read the recovery logs. Worker and heartbeat status are unknown.')
+  if (conditions.includes('monitoring_gap')) {
+    lines.push('The observer missed an earlier window. It checked the latest heartbeats and searched missed error logs within its one-hour lookback.')
+  }
   if (conditions.includes('recovery_errors')) {
     lines.push(`Cloudflare recorded ${result.errorCount} recovery errors since ${new Date(window.errorStart).toISOString()}.`)
   }
@@ -90,6 +93,7 @@ export default {
     let result
     try {
       result = await checkRecoveryAlerts(env.ANALYTICS, window, expected)
+      result.coverageGap = observedThrough !== null && observedThrough < window.start
     } catch {
       result = { queryFailed: true }
     }

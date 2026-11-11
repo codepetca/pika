@@ -63,6 +63,7 @@ export async function checkRecoveryAlerts(analytics, window, expectedLanes, scri
 export function alertConditions(result) {
   if (result.queryFailed) return ['analytics_unavailable']
   const conditions = result.errorCount > 0 ? ['recovery_errors'] : []
+  if (result.coverageGap) conditions.push('monitoring_gap')
   for (const lane of result.missingLanes) conditions.push(`missing_${lane}`)
   return conditions
 }
