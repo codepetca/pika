@@ -4,21 +4,25 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-const azure = 'http://azure.archive.ubuntu.com/ubuntu'
 const official = 'https://archive.ubuntu.com/ubuntu'
 
 // Only replace the proven hosted image's mirror-list entry; preserve source files and signing.
-export function fallbackMirror({ environment, osRelease, sources, mirrors, azureResolvable, officialResolvable }) {
+export function fallbackMirror({ environment, osRelease, sources, mirrors }) {
   if (environment !== 'github-hosted' || !/^VERSION_ID="?24\.04"?$/m.test(osRelease)
-    || !/^URIs:\s*mirror\+file:\/etc\/apt\/apt-mirrors\.txt\s*$/m.test(sources) || azureResolvable || !officialResolvable) return null
+    || !/^URIs:\s*mirror\+file:\/etc\/apt\/apt-mirrors\.txt\s*$/m.test(sources)) return null
   const azureEntry = /^(\s*)http:\/\/azure\.archive\.ubuntu\.com\/ubuntu\/?(?=\s|$)/
   if (!mirrors.split(/\r?\n/).some(line => azureEntry.test(line))) return null
   return mirrors.split(/(\r?\n)/).map(line => line.replace(azureEntry, (_, indent) => `${indent}${official}/`)).join('')
 }
 
 export function installBrowser(deps) {
-  const replacement = deps.plan()
-  if (replacement === null) return deps.install()
+  try { return deps.install() } catch (error) {
+    const replacement = deps.plan()
+    if (replacement === null) throw error
+    return retryWithMirror(deps, replacement)
+  }
+}
+function retryWithMirror(deps, replacement) {
   try {
     deps.replace(replacement)
     return deps.install()
@@ -29,7 +33,6 @@ function main() {
   let original
   let dir
   const mirror = '/etc/apt/apt-mirrors.txt'
-  const resolves = host => { try { execFileSync('getent', ['ahosts', host], { stdio: 'ignore' }); return true } catch { return false } }
   try {
     installBrowser({
       plan() {
@@ -40,8 +43,7 @@ function main() {
           sources = readFileSync('/etc/apt/sources.list.d/ubuntu.sources', 'utf8')
           mirrors = readFileSync(mirror, 'utf8')
         } catch { return null }
-        const replacement = fallbackMirror({ environment: process.env.RUNNER_ENVIRONMENT, osRelease, sources, mirrors,
-          azureResolvable: resolves('azure.archive.ubuntu.com'), officialResolvable: resolves('archive.ubuntu.com') })
+        const replacement = fallbackMirror({ environment: process.env.RUNNER_ENVIRONMENT, osRelease, sources, mirrors })
         if (replacement !== null) original = mirrors
         return replacement
       },
@@ -50,7 +52,7 @@ function main() {
         const path = join(dir, 'mirror-list')
         writeFileSync(path, content, { mode: 0o600 })
         execFileSync('sudo', ['cp', path, mirror], { stdio: 'inherit' })
-        console.log('Using the official Ubuntu archive for the unavailable Azure mirror.')
+        console.log('Retrying browser installation with the official Ubuntu archive in place of the Azure mirror.')
       },
       install() { execFileSync('pnpm', ['exec', 'playwright', 'install', '--with-deps', 'chromium'], { stdio: 'inherit' }) },
       restore() {
