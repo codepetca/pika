@@ -36,6 +36,12 @@ export function recoveryErrorStart(window, observedThrough) {
   return Math.max(window.end - repeatMs, observedThrough ?? 0)
 }
 
+export function missedRecoveryWindow(window, { observedThrough, latestEnd }) {
+  return observedThrough === null
+    ? latestEnd !== null && latestEnd < window.end
+    : observedThrough < window.start
+}
+
 export async function checkRecoveryAlerts(analytics, window, expectedLanes, script = recoveryWorker) {
   const params = {
     start: new Date(window.start).toISOString(),
@@ -69,9 +75,12 @@ export function alertConditions(result) {
 }
 
 export function nextAlertState(previous, window, result, now, id) {
-  const state = previous ?? { latestEnd: 0, observedThrough: null, active: [], notified: {}, pending: [] }
+  const state = previous ?? {
+    latestEnd: 0, observedThrough: null, active: [], notified: {}, pending: [], unconfirmedDelivery: false,
+  }
   const expired = state.pending.filter(alert => now - alert.createdAt >= deliveryRetryMs)
   state.pending = state.pending.filter(alert => now - alert.createdAt < deliveryRetryMs)
+  if (expired.length) state.unconfirmedDelivery = true
   const accepted = result !== null && window.end >= state.latestEnd && (
     result.queryFailed ? window.end > state.latestEnd : window.end > (state.observedThrough ?? 0)
   )
@@ -93,19 +102,21 @@ export function nextAlertState(previous, window, result, now, id) {
       if (state.active.includes(condition)) state.notified[condition] = state.latestEnd
     }
   }
-  if (accepted) {
-    const due = alertConditions(result).filter(condition => {
-      const last = state.notified[condition]
-      return (last === undefined || window.end - last >= repeatMs)
-        && !state.pending.some(alert => alert.conditions.includes(condition))
-    })
-    if (due.length) state.pending.push({ id, createdAt: now, window, result, conditions: due })
+  const due = accepted ? alertConditions(result).filter(condition => {
+    const last = state.notified[condition]
+    return (last === undefined || window.end - last >= repeatMs)
+      && !state.pending.some(alert => alert.conditions.includes(condition))
+  }) : []
+  if (state.unconfirmedDelivery && !state.pending.some(alert => alert.conditions.includes('delivery_unconfirmed'))) {
+    due.push('delivery_unconfirmed')
   }
+  if (due.length) state.pending.push({ id, createdAt: now, window, result, conditions: due })
   return { state, accepted, expired }
 }
 
 export function recordAlertDelivery(state) {
   const delivered = state.pending.shift()
+  if (delivered.conditions.includes('delivery_unconfirmed')) state.unconfirmedDelivery = false
   for (const condition of delivered.conditions) {
     if (state.active.includes(condition)) state.notified[condition] = state.latestEnd
   }

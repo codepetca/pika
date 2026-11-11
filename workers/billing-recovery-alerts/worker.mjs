@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers'
 import { sendBrevoEmail } from '../../src/lib/brevo.ts'
 import {
-  alertConditions, cadence, checkRecoveryAlerts, lanes, nextAlertState,
+  alertConditions, cadence, checkRecoveryAlerts, lanes, missedRecoveryWindow, nextAlertState,
   recordAlertDelivery, recoveryAlertWindow, recoveryErrorStart, recoveryWorker,
 } from './checks.mjs'
 
@@ -12,6 +12,9 @@ const expectedHeartbeat = {
 
 function emailText({ result, window, conditions }) {
   const lines = [`Production Pika billing recovery through ${new Date(window.end).toISOString()}.`]
+  if (conditions.includes('delivery_unconfirmed')) {
+    lines.push('Delivery of at least one earlier recovery alert could not be confirmed. Review the recovery Worker and alert Worker logs for the affected window.')
+  }
   if (conditions.includes('analytics_unavailable')) lines.push('Cloudflare could not read the recovery logs. Worker and heartbeat status are unknown.')
   if (conditions.includes('monitoring_gap')) {
     lines.push('The observer missed an earlier window. It checked the latest heartbeats and searched missed error logs within its one-hour lookback.')
@@ -28,8 +31,9 @@ function emailText({ result, window, conditions }) {
 export class RecoveryAlertDelivery extends DurableObject {
   sending = false
 
-  observedThrough() {
-    return this.ctx.storage.kv.get('state')?.observedThrough ?? null
+  observationProgress() {
+    const state = this.ctx.storage.kv.get('state')
+    return { observedThrough: state?.observedThrough ?? null, latestEnd: state?.latestEnd ?? null }
   }
 
   async deliver(window, result) {
@@ -84,7 +88,8 @@ export default {
     })
     const delivery = env.DELIVERY.getByName(recoveryWorker)
     const window = recoveryAlertWindow(controller.scheduledTime)
-    const observedThrough = await delivery.observedThrough()
+    const progress = await delivery.observationProgress()
+    const { observedThrough } = progress
     if (observedThrough !== null && observedThrough >= window.end) {
       await delivery.deliver(window, null)
       return
@@ -93,7 +98,7 @@ export default {
     let result
     try {
       result = await checkRecoveryAlerts(env.ANALYTICS, window, expected)
-      result.coverageGap = observedThrough !== null && observedThrough < window.start
+      result.coverageGap = missedRecoveryWindow(window, progress)
     } catch {
       result = { queryFailed: true }
     }

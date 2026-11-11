@@ -779,7 +779,9 @@ windows of recovery logs after allowing two minutes for ingestion. It emails
 the operations recipient on a failed invocation, a recovery error log, a
 missing expected lane receipt, or an Analytics SQL outage. A Durable Object
 keeps a bounded log catch-up cursor, retries pending emails for up to 25
-minutes, and repeats ongoing conditions after an hour. The observer checks
+minutes, and repeats ongoing conditions after an hour. When an alert remains
+unconfirmed beyond the provider's retry window, the observer retains a delivery
+warning to send when email service recovers. The observer checks
 the latest window for heartbeats and up to an hour of missed error logs
 after a failed query or skipped tick. It reports any missed window as a
 coverage gap because historical heartbeat expectations may have changed.

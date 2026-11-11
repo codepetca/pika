@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  alertConditions, checkRecoveryAlerts, nextAlertState, recordAlertDelivery,
+  alertConditions, checkRecoveryAlerts, missedRecoveryWindow, nextAlertState, recordAlertDelivery,
   recoveryAlertWindow, recoveryErrorStart, windowMs,
 } from '../../workers/billing-recovery-alerts/checks.mjs'
 
@@ -94,6 +94,10 @@ describe('Pika billing recovery alerts', () => {
     const latest = { start: window.start + 2 * windowMs, end: window.end + 2 * windowMs }
     expect(recoveryErrorStart(latest, outage.state.observedThrough)).toBe(window.end)
     expect(recoveryErrorStart(latest, null)).toBe(latest.end - 60 * 60_000)
+    expect(missedRecoveryWindow(latest, { observedThrough: window.end, latestEnd: window.end + windowMs })).toBe(true)
+    expect(missedRecoveryWindow(latest, { observedThrough: null, latestEnd: window.end + windowMs })).toBe(true)
+    expect(missedRecoveryWindow(latest, { observedThrough: null, latestEnd: null })).toBe(false)
+    expect(missedRecoveryWindow(latest, { observedThrough: null, latestEnd: latest.end })).toBe(false)
     const query = vi.fn().mockResolvedValueOnce({ data: [{ value: 1 }] }).mockResolvedValueOnce({ data: [] })
     const result = await checkRecoveryAlerts({ query }, { ...latest, errorStart: window.end }, ['paid'])
     expect(query.mock.calls[0][0].params.start).toBe(new Date(window.end).toISOString())
@@ -102,10 +106,16 @@ describe('Pika billing recovery alerts', () => {
     expect(alertConditions({ ...result, coverageGap: true })).toEqual(['recovery_errors', 'monitoring_gap', 'missing_paid'])
   })
 
-  it('expires a pending delivery before the Brevo idempotency window closes', () => {
+  it('retains an unconfirmed delivery notice when the original retry key expires', () => {
     const first = alertAt(undefined, 0, error, 'first')
     const expired = alertAt(first.state, 3 * windowMs, error, 'expired')
     expect(expired.expired.map(alert => alert.id)).toEqual(['first'])
-    expect(expired.state.pending).toEqual([])
+    expect(expired.state.pending.map(alert => alert.conditions)).toEqual([['delivery_unconfirmed']])
+    const stillUnavailable = alertAt(expired.state, 6 * windowMs, quiet, 'summary-retry')
+    expect(stillUnavailable.state.pending.map(alert => alert.id)).toEqual(['summary-retry'])
+    expect(stillUnavailable.state.unconfirmedDelivery).toBe(true)
+    recordAlertDelivery(stillUnavailable.state)
+    expect(stillUnavailable.state.unconfirmedDelivery).toBe(false)
+    expect(alertAt(stillUnavailable.state, 7 * windowMs, quiet, 'recovered').state.pending).toEqual([])
   })
 })
