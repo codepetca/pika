@@ -181,6 +181,10 @@ Set the classroom grading default to GPT-6.1 Sol after the owner's model compari
 
 Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
 
+## 2026-11-10 RepoLight assignment timeline
+
+Added matched student assignment-period timeline with explicit evidence limits; focused tests passed. Visual fixture checked at desktop/mobile light; authenticated report and full theme matrix remain for review.
+
 ## 2026-11-11 Closed hosted billing verification
 
 Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unbound live receipt. Hosted trial recovery sent one eligible reminder through the production outbox to the approved canary inbox. The synthetic records were cleaned up and admission stayed closed. Paid recovery rejected the configured Stripe key because it included surrounding whitespace. A private hosted read authenticated to the pinned account after trimming. The runtime now trims the key before strict live-mode validation and still rejects a bearer equal to the normalized key.
