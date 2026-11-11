@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 Scheduled change cancellation and recovery
-
-Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.
-
 ## 2026-11-08 Billing recovery cadence and CI contracts
 
 Added a private Cloudflare Cron Trigger caller for the existing paid and trial recovery endpoints. The two-minute canary interval and both independent caller switches are explicit in the Worker config. The Worker pins the app origin, rejects redirects, bounds receipt reads, and records sanitized failed invocations even when Pika returns a partial failure in HTTP 200. Wrangler packaged the source and exercised its local schedule with both switches off. An enabled workerd run with all outbound calls bound to a local fixture verified success, swapped-token rejection and a refused redirect. Separate synthetic calls reached both actual Pika POST handlers and proved bearer isolation. The CI database job now executes the scheduled billing rollback fixtures 322–325 in order. The operator runbook records activation, cadence evidence, alert verification and durable queue checks.
@@ -190,3 +186,7 @@ Set OpenAI GPT-6.1 Terra as the shared grading default for assignments, open res
 ## 2026-11-10 Closed Stripe setup and refund PR sync
 
 Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.
+
+## 2026-11-10 Sol assignment and test default
+
+Set the classroom grading default to GPT-6.1 Sol after the owner's model comparison. Assignment and test requests fall back to DeepSeek Flash on OpenAI's exact exhausted-credit code as well as the existing hard spend-limit codes. Repository review routing retains its previous default and fallback scope. Explicit provider/model overrides still apply. Regression coverage includes assignment and test/reference provenance, bounded error classification, and repository compatibility.

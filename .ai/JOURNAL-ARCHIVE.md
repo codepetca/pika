@@ -54418,3 +54418,8 @@ UI brief. Extend the existing teacher Plans and billing surface. Use the paid Bi
 | Scheduled status and controls | BillingPage card layout | extend | Keep the workflow on the existing teacher billing surface |
 | Quote and cancel confirmation | ConfirmDialog, Button and Card | reuse | Use existing focus, labels and responsive behavior |
 | Deterministic verification | Anonymous Billing Pattern Lab fixture | extend | The production control can use synthetic responses without touching billing data |
+
+<!-- pika-session-log-archive-batch:0a6f59262493ef302419d2aad0ba7a8ff650a178d4eacc45fb99c9419b62110d -->
+## 2026-11-08 Scheduled change cancellation and recovery
+
+Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.

@@ -20,16 +20,42 @@ const response = { outputText: '{}', tokenUsage: { inputTokens: 1, outputTokens:
 describe('grading provider routing', () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.clearAllMocks() })
 
-  it('uses Terra by default and records its actual model', async () => {
+  it('uses Sol by default and records its actual model', async () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', undefined)
     vi.stubEnv('OPENAI_GRADING_MODEL', undefined)
     vi.stubEnv('OPENAI_API_KEY', 'test')
     openai.mockResolvedValue(response)
-    expect(getGradingModel()).toBe('gpt-6.1-terra')
+    expect(getGradingModel()).toBe('gpt-6.1-sol')
     expect(await createGradingProvider().generate(request)).toMatchObject({
+      providerUsed: 'openai', modelUsed: 'gpt-6.1-sol',
+    })
+    expect(openai).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-6.1-sol' }))
+    expect(deepseek).not.toHaveBeenCalled()
+  })
+
+  it('keeps repository reviews on Terra by default', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
+    vi.stubEnv('OPENAI_GRADING_MODEL', '')
+    vi.stubEnv('OPENAI_API_KEY', 'test')
+    openai.mockResolvedValue(response)
+    expect(getGradingModel('repo-review')).toBe('gpt-6.1-terra')
+    expect(await createGradingProvider('repo-review').generate(request)).toMatchObject({
       providerUsed: 'openai', modelUsed: 'gpt-6.1-terra',
     })
-    expect(openai).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-6.1-terra' }))
+  })
+
+  it('falls back for exhausted classroom credits while retaining repository routing', async () => {
+    vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
+    vi.stubEnv('OPENAI_API_KEY', 'test')
+    vi.stubEnv('DEEPSEEK_API_KEY', 'test')
+    const error = new OpenAiSpendLimitError('credit_balance_exhausted', 429)
+    openai.mockRejectedValue(error)
+    deepseek.mockResolvedValue(response)
+    expect(await createGradingProvider().generate(request)).toMatchObject({
+      providerUsed: 'deepseek', requestCount: 2,
+    })
+    deepseek.mockClear()
+    await expect(createGradingProvider('repo-review').generate(request)).rejects.toBe(error)
     expect(deepseek).not.toHaveBeenCalled()
   })
 
@@ -53,7 +79,7 @@ describe('grading provider routing', () => {
     expect(deepseek).not.toHaveBeenCalled()
   })
 
-  it('switches from default Terra to DeepSeek on a verified spend-limit error', async () => {
+  it('switches from default Sol to DeepSeek on a verified spend-limit error', async () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
     vi.stubEnv('OPENAI_GRADING_MODEL', '')
     vi.stubEnv('OPENAI_API_KEY', 'test')
@@ -63,7 +89,7 @@ describe('grading provider routing', () => {
     deepseek.mockResolvedValue(response)
     expect(await createGradingProvider().generate(request)).toMatchObject({ providerUsed: 'deepseek', modelUsed: 'deepseek-model',
       requestCount: 2, tokenUsage: { inputTokens: null, outputTokens: null, totalTokens: null } })
-    expect(openai).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-6.1-terra' }))
+    expect(openai).toHaveBeenCalledWith(expect.objectContaining({ model: 'gpt-6.1-sol' }))
     expect(deepseek).toHaveBeenCalledWith(expect.objectContaining({ model: 'deepseek-model' }))
   })
 
