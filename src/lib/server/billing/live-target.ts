@@ -96,7 +96,7 @@ export function readBillingLivePaymentWorkerConfig(env: NodeJS.ProcessEnv = proc
   if (!checkout) return null
   const workerSecret = env.BILLING_LIVE_PAYMENT_WORKER_SECRET
   if (!workerSecret || workerSecret.length < 32 || workerSecret === env.BILLING_WORKER_SECRET
-    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret === checkout.secretKey
+    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret.trim() === checkout.secretKey
     || workerSecret === env.STRIPE_LIVE_WEBHOOK_SECRET) {
     throw new Error('Invalid live payment worker configuration')
   }

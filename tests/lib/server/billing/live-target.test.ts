@@ -39,6 +39,12 @@ describe('live checkout configuration', () => {
     expect(() => readBillingLivePaymentWorkerConfig({
       ...payment, STRIPE_LIVE_SECRET_KEY: sharedKey + '\n', BILLING_LIVE_PAYMENT_WORKER_SECRET: sharedKey,
     })).toThrow(/worker configuration/)
+    expect(() => readBillingLivePaymentWorkerConfig({
+      ...payment, STRIPE_LIVE_SECRET_KEY: sharedKey, BILLING_LIVE_PAYMENT_WORKER_SECRET: ' ' + sharedKey,
+    })).toThrow(/worker configuration/)
+    expect(() => readBillingLivePaymentWorkerConfig({
+      ...payment, STRIPE_LIVE_SECRET_KEY: ' ' + sharedKey, BILLING_LIVE_PAYMENT_WORKER_SECRET: ' ' + sharedKey,
+    })).toThrow(/worker configuration/)
   })
 
   it.each([
