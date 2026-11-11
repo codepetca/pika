@@ -1,0 +1,24 @@
+{
+  "name": "pika-billing-recovery-alerts",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-11-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "triggers": { "crons": [] },
+  "vars": {
+    "BILLING_ALERTS_ENABLED": "false",
+    "BILLING_ALERT_EXPECT_PAID_HEARTBEAT": "false",
+    "BILLING_ALERT_EXPECT_TRIAL_HEARTBEAT": "false"
+  },
+  "analytics": { "binding": "ANALYTICS" },
+  "durable_objects": {
+    "bindings": [{ "name": "DELIVERY", "class_name": "RecoveryAlertDelivery" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RecoveryAlertDelivery"] }],
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+  }
+}

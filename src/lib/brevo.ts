@@ -8,6 +8,8 @@ export type SendEmailOptions = {
   to: string
   signal?: AbortSignal
   tags?: string[]
+  // Cloudflare Workers supports manual redirects and rejects redirect: error.
+  manualRedirect?: true
 } & ({ templateParams: Record<string, any> } | { subject: string; textContent: string })
 
 /**
@@ -40,7 +42,7 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   try {
     response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
-      redirect: 'error',
+      redirect: opts.manualRedirect ? 'manual' : 'error',
       ...(opts.signal && { signal: opts.signal }),
       headers: {
         accept: 'application/json',

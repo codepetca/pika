@@ -23,6 +23,9 @@ const callers = [
   { name: 'Brevo email', url: 'https://api.brevo.com/v3/smtp/email', run: () => sendBrevoEmail({
     to: 'synthetic@example.invalid', templateParams: { code: 'synthetic-code' },
   }) },
+  { name: 'Brevo Worker email', url: 'https://api.brevo.com/v3/smtp/email', run: () => sendBrevoEmail({
+    to: 'synthetic@example.invalid', subject: 'Synthetic', textContent: 'Synthetic work', manualRedirect: true,
+  }) },
   { name: 'Pal read token', url: 'https://pal.example.test/api/v1/integration/read-token', run: () => mintPalReadToken({ studentId: 'synthetic-student' }) },
 ]
 

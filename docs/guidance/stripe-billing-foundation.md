@@ -773,6 +773,25 @@ age. Resolve and document those checks before opening paid admission.
 [Cloudflare Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
 [Cloudflare Monitors](https://developers.cloudflare.com/notifications/monitors/)
 
+If the account has no custom monitor quota, deploy the private
+`pika-billing-recovery-alerts` Worker separately. It checks ten-minute
+windows of recovery logs after allowing two minutes for ingestion. It emails
+the operations recipient on a failed invocation, a recovery error log, a
+missing expected lane receipt, or an Analytics SQL outage. A Durable Object
+deduplicates windows and repeats ongoing conditions after an hour.
+
+Use Wrangler 4.145 or later for the Analytics SQL binding. Pin the same
+Cloudflare account as the recovery Worker and configure `BREVO_API_KEY` and
+`BILLING_ALERT_TO` using protected inputs. For production, enable
+`BILLING_ALERTS_ENABLED` and schedule `*/10 * * * *`. Keep both
+`BILLING_ALERT_EXPECT_PAID_HEARTBEAT` and
+`BILLING_ALERT_EXPECT_TRIAL_HEARTBEAT` false while their recovery lanes are
+paused. Enable each expectation after verifying its scheduled receipts,
+and disable the matching expectation during an intentional lane pause.
+Verify delivery to the approved inbox using an isolated recovery failure
+before enabling customer admission.
+[Cloudflare Analytics SQL binding](https://developers.cloudflare.com/analytics/sql-api/workers-binding/)
+
 During an admission pause, keep the appropriate recovery caller running for
 existing paid subscriptions and trials. For a caller incident, stop the
 affected lane with its own variable and use a scoped operator invocation of
