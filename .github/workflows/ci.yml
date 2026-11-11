@@ -1689,7 +1689,7 @@ jobs:
       - name: Install Chromium and system dependencies
         id: browser-install-chromium
         shell: bash
-        run: pnpm exec playwright install --with-deps chromium
+        run: node scripts/ci-install-browser.mjs
 
       - name: Summarize browser setup evidence
         if: always()
@@ -1824,7 +1824,7 @@ jobs:
       - name: Install Chromium and system dependencies
         id: browser-install-chromium
         shell: bash
-        run: pnpm exec playwright install --with-deps chromium
+        run: node scripts/ci-install-browser.mjs
 
       - name: Summarize browser setup evidence
         if: always()
@@ -1958,7 +1958,7 @@ jobs:
       - name: Install Chromium and system dependencies
         id: browser-install-chromium
         shell: bash
-        run: pnpm exec playwright install --with-deps chromium
+        run: node scripts/ci-install-browser.mjs
 
       - name: Summarize browser setup evidence
         if: always()

@@ -188,3 +188,7 @@ Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unb
 ## 2026-11-11 RepoLight submission deadline
 
 Extended the shared attestation and submission deadline to 15 seconds for create and reconciliation after a hosted first admission exceeded eight seconds. Other operations retain their eight-second default; explicit overrides remain supported.
+
+## 2026-11-11 Hosted browser APT mirror fallback
+
+If browser dependency installation fails on the GitHub-hosted Ubuntu 24.04 image with its known Azure mirror entry, retry once with Canonical's archive and restore the mirror list. Other runners and unrecognized source layouts retain the original failure.
