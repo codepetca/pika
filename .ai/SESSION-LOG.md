@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 Stripe exclusive tax custody
-
-Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid invoice verification, scheduled renewal and cancellation, and unpaid closeout. Verified Stripe automatic tax is separate from the plan subtotal and the captured payment must equal the gross. Tax admission remains independently gated, with Canadian registration and address-only portal prerequisites. The live catalog CLI previews and creates distinct unavailable tax versions when authorized. Separate catalog keys let existing untaxed Max subscribers keep a compatible Pro downgrade while taxed Pro is available. Focused tests and the owned PostgreSQL replay cover legacy and opted-in shapes. The designated Stripe sandbox still needs its tax configuration and a real taxable checkout and renewal rehearsal.
-
 ## 2026-11-08 Teacher billing access notices
 
 UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
@@ -190,3 +186,7 @@ Set the classroom grading default to GPT-6.1 Sol after the owner's model compari
 ## 2026-11-10 Pika recovery alerts Worker
 
 Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
+
+## 2026-11-11 Closed hosted billing verification
+
+Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unbound live receipt. Hosted trial recovery sent one eligible reminder through the production outbox to the approved canary inbox. The synthetic records were cleaned up and admission stayed closed. Paid recovery rejected the configured Stripe key because it included surrounding whitespace. A private hosted read authenticated to the pinned account after trimming. The runtime now trims the key before strict live-mode validation and still rejects a bearer equal to the normalized key.

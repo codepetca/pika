@@ -81,7 +81,7 @@ export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.e
     return null
   }
   const target = readExactLiveBillingTarget(env)
-  const secretKey = env.STRIPE_LIVE_SECRET_KEY
+  const secretKey = env.STRIPE_LIVE_SECRET_KEY?.trim()
   if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
     throw new Error('Invalid live checkout configuration')
   }

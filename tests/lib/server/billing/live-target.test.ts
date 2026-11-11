@@ -25,8 +25,25 @@ describe('live checkout configuration', () => {
       providerMode: 'live', checkoutAdmissionEnabled: false, providerWritesEnabled: false })
   })
 
+  it('accepts surrounding whitespace on the Stripe key while keeping paid recovery credentials separate', () => {
+    const payment = { ...recovery,
+      STRIPE_LIVE_SECRET_KEY: ` \t${recovery.STRIPE_LIVE_SECRET_KEY}\r\n`,
+      BILLING_LIVE_PAYMENT_WORKER_SECRET: 'live-payment-worker'.repeat(3) }
+    expect(readBillingLivePaymentWorkerConfig(payment)).toMatchObject({
+      secretKey: recovery.STRIPE_LIVE_SECRET_KEY,
+      workerSecret: payment.BILLING_LIVE_PAYMENT_WORKER_SECRET,
+      checkoutAdmissionEnabled: false,
+      providerWritesEnabled: false,
+    })
+    const sharedKey = 'rk_live_' + 'SharedFixtureSecret'.repeat(2)
+    expect(() => readBillingLivePaymentWorkerConfig({
+      ...payment, STRIPE_LIVE_SECRET_KEY: sharedKey + '\n', BILLING_LIVE_PAYMENT_WORKER_SECRET: sharedKey,
+    })).toThrow(/worker configuration/)
+  })
+
   it.each([
     { STRIPE_LIVE_SECRET_KEY: 'sk_test_OtherModeSecretFixture' },
+    { STRIPE_LIVE_SECRET_KEY: 'rk_live_Dedicated FixtureSecret' },
     { BILLING_SANDBOX_ENABLED: 'true' },
     { VERCEL_ENV: 'preview' },
     { BILLING_LIVE_PAYMENT_LIFECYCLE_ENABLED: 'false', BILLING_LIVE_CHECKOUT_WRITES_ENABLED: 'true' },
