@@ -52,7 +52,8 @@ export function createRepoLightClient(rawConnection: RepoLightConnection, option
   const connection = config.connections[0]
   const origin = config.apiOrigin!
   const fetchImpl = options.fetchImpl ?? fetch
-  const timeoutMs = options.timeoutMs ?? 8000
+  const timeoutOverrideMs = options.timeoutMs
+  const timeoutMs = timeoutOverrideMs ?? 8000
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 15000) throw failure('repolight_invalid_configuration')
 
   async function operation<T>(action: (signal: AbortSignal) => Promise<T>, deadlineMs = timeoutMs): Promise<T> {
@@ -129,7 +130,7 @@ export function createRepoLightClient(rawConnection: RepoLightConnection, option
       const parsed = analysisStatusSchema.safeParse(await request('/api/v2/analyses', signal, input.encodedBody, input.idempotencyKey))
       if (!parsed.success || parsed.data.requestFingerprint !== input.requestFingerprint || !same(parsed.data.clientBinding, input.envelope.clientBinding)) throw failure('repolight_invalid_response')
       return parsed.data
-    }, options.timeoutMs ?? 15_000)
+    }, timeoutOverrideMs ?? 15_000)
   }
   return {
     verifyConnection: () => operation(attest),

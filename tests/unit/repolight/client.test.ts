@@ -147,6 +147,18 @@ describe('RepoLight strict client', () => {
       await verifyAssertion
     } finally { vi.useRealTimers() }
   })
+  it('captures the validated timeout override when the client is constructed', async () => {
+    vi.useFakeTimers()
+    try {
+      const options = { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl: vi.fn(() => new Promise<Response>(() => {})), timeoutMs: 3_000 }
+      const api = createRepoLightClient(connection, options)
+      options.timeoutMs = 30_000
+      const result = api.createAnalysis({ ...prepareRepoLightCreate(fixture.envelope), idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })
+      const assertion = expect(result).rejects.toMatchObject({ code: 'repolight_timeout', retryable: true })
+      await vi.advanceTimersByTimeAsync(3_000)
+      await assertion
+    } finally { vi.useRealTimers() }
+  })
   it('times out stalled fetch and stalled streaming bodies', async () => {
     const stalled = vi.fn(() => new Promise<Response>(() => {}))
     const api = createRepoLightClient(connection, { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl: stalled, timeoutMs: 10 })
