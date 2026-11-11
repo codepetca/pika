@@ -8,7 +8,7 @@ const work = { type: 'doc' as const, content: [{ type: 'paragraph' as const, con
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
 describe('grading provider routing integration', () => {
-  it('records the actual fallback provider and model in assignment provenance', async () => {
+  it.each(['project_spend_limit_exceeded', 'credit_balance_exhausted'])('records assignment fallback provenance for %s', async (code) => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
     vi.stubEnv('PIKA_AI_API_ENABLED', 'true')
     vi.stubEnv('OPENAI_API_KEY', 'test')
@@ -16,7 +16,7 @@ describe('grading provider routing integration', () => {
     vi.stubEnv('OPENAI_GRADING_MODEL', 'primary-model')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'fallback-model')
     const fetchMock = vi.fn()
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'project_spend_limit_exceeded' } }), { status: 429 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code } }), { status: 429 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ score_completion: 8, score_thinking: 7, score_workflow: 4, feedback: 'Strength: Clear work.' }) }, finish_reason: 'stop' }] }), { status: 200 }))
     vi.stubGlobal('fetch', fetchMock)
     const result = await gradeStudentWork({ assignmentTitle: 'Reflection', instructions: 'Explain your work', studentWork: work })

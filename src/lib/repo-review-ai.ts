@@ -217,7 +217,7 @@ export async function classifyAmbiguousRepoReviewChanges(
 ): Promise<Record<string, string>> {
   if (items.length === 0) return {}
 
-  const model = getGradingModel()
+  const model = getGradingModel('repo-review')
   const providerItems = createProviderRefMap(
     items.map((item) => ({
       localId: item.id,
@@ -226,7 +226,7 @@ export async function classifyAmbiguousRepoReviewChanges(
     'change',
   )
   const providerRefToLocalId = mapProviderRefToLocalId(providerItems)
-  const provider = createGradingProvider()
+  const provider = createGradingProvider('repo-review')
   const classifications: Array<[string, string]> = []
 
   for (let index = 0; index < providerItems.length; index += PIKA_REPO_REVIEW_CLASSIFICATION_BATCH_SIZE) {
@@ -254,7 +254,7 @@ export async function classifyAmbiguousRepoReviewChanges(
 }
 
 export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): Promise<RepoReviewFeedbackResult> {
-  const model = getGradingModel()
+  const model = getGradingModel('repo-review')
   const sanitizationContext = input.sanitizationContext
   const prompt = buildPikaRepoReviewFeedbackPrompt({
     assignmentTitle: sanitizeAiText(input.assignmentTitle, sanitizationContext),
@@ -278,7 +278,7 @@ export async function gradeRepoReviewFeedback(input: RepoReviewFeedbackInput): P
 
   try {
     const result = await executeStructuredOutput({
-      provider: createGradingProvider(),
+      provider: createGradingProvider('repo-review'),
       policy: {
         version: PIKA_REPO_REVIEW_FEEDBACK_POLICY_VERSION,
         model,

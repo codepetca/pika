@@ -14,14 +14,18 @@ guides before changing schema or deploying a grading contract.
   an enforced architecture rule.
 - Pika-specific adapters sanitize classroom data, build core inputs, map results
   back to Pika fields, and coordinate durable work.
-- Grading defaults to GPT-6.1 Terra through OpenAI Responses and requires
-  `OPENAI_API_KEY`. Set `OPENAI_GRADING_MODEL` to use another OpenAI grading model.
+- Assignment and test grading default to GPT-6.1 Sol through OpenAI Responses and require
+  `OPENAI_API_KEY`. Repository reviews retain GPT-6.1 Terra as their default.
+  Set `OPENAI_GRADING_MODEL` to override the OpenAI model for all grading paths.
   DeepSeek uses `DEEPSEEK_API_KEY` and defaults to `deepseek-flash`, configurable
   through `DEEPSEEK_GRADING_MODEL`. Set `PIKA_AI_GRADING_PROVIDER=deepseek` for a
   DeepSeek-only installation. The archived test calibration command retains
   DeepSeek as its default so existing snapshot runs keep the same provider.
 - In OpenAI mode, the router retries the grading request with DeepSeek only if
   OpenAI returns the documented organization or project hard spend-limit error.
+  Assignment and test grading also fall back for `credit_balance_exhausted`,
+  OpenAI’s explicit exhausted-prepaid-credit code. The broader
+  `insufficient_quota` type alone does not establish exhausted credits.
   Other errors, including ordinary rate limits, do not trigger a provider switch.
   This application does not configure or verify an OpenAI spend limit. If one
   is enabled separately, OpenAI documents that enforcement can lag and spend
