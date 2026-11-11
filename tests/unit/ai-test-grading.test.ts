@@ -990,13 +990,13 @@ describe('open-response reference cache helpers', () => {
 describe('grading provider fallback provenance', () => {
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals() })
 
-  it('records the successful model for generated references and grades after spend-limit fallback', async () => {
+  it.each(['project_spend_limit_exceeded', 'credit_balance_exhausted'])('records reference and grade fallback provenance for %s', async (code) => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', 'openai')
     vi.stubEnv('OPENAI_API_KEY', 'openai-test')
     vi.stubEnv('DEEPSEEK_API_KEY', 'deepseek-test')
     vi.stubEnv('OPENAI_GRADING_MODEL', 'openai-test-model')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', 'deepseek-test-model')
-    const limit = () => new Response(JSON.stringify({ error: { code: 'project_spend_limit_exceeded' } }), { status: 429 })
+    const limit = () => new Response(JSON.stringify({ error: { code } }), { status: 429 })
     const output = (content: string) => new Response(JSON.stringify({ choices: [{ message: { content }, finish_reason: 'stop' }] }))
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(limit())
       .mockResolvedValueOnce(output('{"reference_answers":["Reference"]}'))

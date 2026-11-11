@@ -67,11 +67,11 @@ describe('normalizeTestOpenResponseReferenceAnswers', () => {
 describe('getTestOpenResponseGradingModel', () => {
   afterEach(() => vi.unstubAllEnvs())
 
-  it('defaults to Terra and recognizes DeepSeek fallback references', () => {
+  it('defaults to Sol and recognizes DeepSeek fallback references', () => {
     vi.stubEnv('PIKA_AI_GRADING_PROVIDER', '')
     vi.stubEnv('OPENAI_GRADING_MODEL', '')
     vi.stubEnv('DEEPSEEK_GRADING_MODEL', '')
-    expect(getTestOpenResponseGradingModel()).toBe('gpt-6.1-terra')
+    expect(getTestOpenResponseGradingModel()).toBe('gpt-6.1-sol')
     expect(getTestOpenResponseReferenceFallbackModel()).toBe('deepseek-flash')
   })
 
