@@ -92,6 +92,73 @@ describe('RepoLight strict client', () => {
     await expect(client([secret]).api.verifyConnection()).rejects.toMatchObject({ message: 'RepoLight is unavailable.', retryable: true })
     await expect(client([new Response('', { status: 302 })]).api.verifyConnection()).rejects.toMatchObject({ code: 'repolight_invalid_response' })
   })
+  it.each(['createAnalysis', 'reconcileAnalysis'] as const)('%s shares a 15-second default across attestation and admission', async method => {
+    vi.useFakeTimers()
+    try {
+      let signal: AbortSignal | undefined
+      const fetchImpl = vi.fn().mockImplementation((_url, init) => {
+        signal = init.signal
+        const first = fetchImpl.mock.calls.length === 1
+        return new Promise<Response>(resolve => setTimeout(() => resolve(json(first ? capabilities : status)), first ? 2_000 : 9_143))
+      })
+      const api = createRepoLightClient(connection, { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl })
+      const result = api[method]({ ...prepareRepoLightCreate(fixture.envelope), idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })
+      await vi.advanceTimersByTimeAsync(11_143)
+      await expect(result).resolves.toEqual(status)
+      expect(fetchImpl).toHaveBeenCalledTimes(2)
+      expect(fetchImpl.mock.calls[0][1].signal).toBe(fetchImpl.mock.calls[1][1].signal)
+      expect(signal?.aborted).toBe(true)
+    } finally { vi.useRealTimers() }
+  })
+  it.each(['createAnalysis', 'reconcileAnalysis'] as const)('%s aborts retryably at the shared deadline', async method => {
+    vi.useFakeTimers()
+    try {
+      let postSignal: AbortSignal | undefined
+      const fetchImpl = vi.fn().mockImplementation((_url, init) => {
+        const first = fetchImpl.mock.calls.length === 1
+        if (!first) postSignal = init.signal
+        return new Promise<Response>(resolve => setTimeout(() => resolve(json(first ? capabilities : status)), first ? 2_000 : 13_001))
+      })
+      const api = createRepoLightClient(connection, { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl })
+      const result = api[method]({ ...prepareRepoLightCreate(fixture.envelope), idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })
+      const assertion = expect(result).rejects.toMatchObject({ code: 'repolight_timeout', retryable: true })
+      await vi.advanceTimersByTimeAsync(15_000)
+      await assertion
+      expect(postSignal?.aborted).toBe(true)
+    } finally { vi.useRealTimers() }
+  })
+  it('honors an explicit submit timeout and keeps the non-submit default at eight seconds', async () => {
+    vi.useFakeTimers()
+    try {
+      const stalled = vi.fn(() => new Promise<Response>(() => {}))
+      const override = createRepoLightClient(connection, { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl: stalled, timeoutMs: 3_000 })
+      const submit = override.createAnalysis({ ...prepareRepoLightCreate(fixture.envelope), idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })
+      const submitAssertion = expect(submit).rejects.toMatchObject({ code: 'repolight_timeout', retryable: true })
+      await vi.advanceTimersByTimeAsync(3_000)
+      await submitAssertion
+      const defaultClient = createRepoLightClient(connection, { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl: stalled })
+      const verify = defaultClient.verifyConnection()
+      const verifyAssertion = expect(verify).rejects.toMatchObject({ code: 'repolight_timeout', retryable: true })
+      const settled = vi.fn()
+      void verify.catch(settled)
+      await vi.advanceTimersByTimeAsync(7_999)
+      expect(settled).not.toHaveBeenCalled()
+      await vi.advanceTimersByTimeAsync(1)
+      await verifyAssertion
+    } finally { vi.useRealTimers() }
+  })
+  it('captures the validated timeout override when the client is constructed', async () => {
+    vi.useFakeTimers()
+    try {
+      const options = { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl: vi.fn(() => new Promise<Response>(() => {})), timeoutMs: 3_000 }
+      const api = createRepoLightClient(connection, options)
+      options.timeoutMs = 30_000
+      const result = api.createAnalysis({ ...prepareRepoLightCreate(fixture.envelope), idempotencyKey: 'pika-44444444-4444-4444-8444-444444444444' })
+      const assertion = expect(result).rejects.toMatchObject({ code: 'repolight_timeout', retryable: true })
+      await vi.advanceTimersByTimeAsync(3_000)
+      await assertion
+    } finally { vi.useRealTimers() }
+  })
   it('times out stalled fetch and stalled streaming bodies', async () => {
     const stalled = vi.fn(() => new Promise<Response>(() => {}))
     const api = createRepoLightClient(connection, { apiOrigin: 'https://reports.example.test', enabled: true, fetchImpl: stalled, timeoutMs: 10 })
