@@ -778,7 +778,10 @@ If the account has no custom monitor quota, deploy the private
 windows of recovery logs after allowing two minutes for ingestion. It emails
 the operations recipient on a failed invocation, a recovery error log, a
 missing expected lane receipt, or an Analytics SQL outage. A Durable Object
-deduplicates windows and repeats ongoing conditions after an hour.
+keeps a bounded log catch-up cursor, retries pending emails for up to 25
+minutes, and repeats ongoing conditions after an hour. The observer checks
+the latest window for heartbeats and up to an hour of missed error logs
+after a failed query or skipped tick.
 
 Use Wrangler 4.145 or later for the Analytics SQL binding. Pin the same
 Cloudflare account as the recovery Worker and configure `BREVO_API_KEY` and

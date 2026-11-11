@@ -59,6 +59,21 @@ describe('sendBrevoEmail', () => {
     ).rejects.toThrow('BREVO_TEMPLATE_ID is not configured or invalid')
   })
 
+  it('uses the same batch idempotency key and accepts an acknowledged duplicate', async () => {
+    process.env.BREVO_API_KEY = 'test-api-key'
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      code: 'duplicate_parameter', message: 'Email for this idempotency key was already processed',
+    }), { status: 400 }))
+    const idempotencyKey = '6f598141-9818-4f44-adb3-a92c7d537c24'
+    await expect(sendBrevoEmail({
+      to: 'test@example.com', subject: 'Test', textContent: 'Test email', idempotencyKey,
+    })).resolves.toEqual({})
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+      messageVersions: [{ to: [{ email: 'test@example.com' }] }],
+      headers: { idempotencyKey },
+    })
+  })
+
   it('should send email with correct API call', async () => {
     process.env.BREVO_API_KEY = 'test-api-key'
     process.env.BREVO_TEMPLATE_ID = '2'

@@ -1,7 +1,8 @@
 const minute = 60_000
 export const cadence = '*/10 * * * *'
 export const windowMs = 10 * minute
-export const repeatMs = 60 * minute
+const repeatMs = 60 * minute
+const deliveryRetryMs = 25 * minute
 export const recoveryWorker = 'pika-billing-recovery'
 export const lanes = ['paid', 'trial']
 
@@ -31,6 +32,10 @@ function count(value) {
   return value
 }
 
+export function recoveryErrorStart(window, observedThrough) {
+  return Math.max(window.end - repeatMs, observedThrough ?? 0)
+}
+
 export async function checkRecoveryAlerts(analytics, window, expectedLanes, script = recoveryWorker) {
   const params = {
     start: new Date(window.start).toISOString(),
@@ -38,7 +43,7 @@ export async function checkRecoveryAlerts(analytics, window, expectedLanes, scri
     script,
   }
   const [errors, receipts] = await Promise.all([
-    analytics.query({ query: errorQuery, params }),
+    analytics.query({ query: errorQuery, params: { ...params, start: new Date(window.errorStart ?? window.start).toISOString() } }),
     analytics.query({ query: receiptQuery, params }),
   ])
   if (!Array.isArray(errors.data) || errors.data.length !== 1 || !Array.isArray(receipts.data)) {
@@ -62,21 +67,45 @@ export function alertConditions(result) {
   return conditions
 }
 
-export function nextAlertState(previous, end, conditions) {
-  if (previous && end <= previous.end) return null
-  const previousNotices = previous?.notified ?? {}
-  const notified = {}
-  const due = []
-  for (const condition of conditions) {
-    const last = previousNotices[condition]
-    if (last === undefined || end - last >= repeatMs) due.push(condition)
-    else notified[condition] = last
+export function nextAlertState(previous, window, result, now, id) {
+  const state = previous ?? { latestEnd: 0, observedThrough: null, active: [], notified: {}, pending: [] }
+  const expired = state.pending.filter(alert => now - alert.createdAt >= deliveryRetryMs)
+  state.pending = state.pending.filter(alert => now - alert.createdAt < deliveryRetryMs)
+  const accepted = result !== null && window.end >= state.latestEnd && (
+    result.queryFailed ? window.end > state.latestEnd : window.end > (state.observedThrough ?? 0)
+  )
+  if (accepted) {
+    state.latestEnd = window.end
+    if (result.queryFailed) {
+      if (!state.active.includes('analytics_unavailable')) state.active.push('analytics_unavailable')
+    } else {
+      state.observedThrough = window.end
+      state.active = alertConditions(result)
+    }
+    state.notified = Object.fromEntries(Object.entries(state.notified).filter(([condition]) => state.active.includes(condition)))
   }
-  // Analytics failure does not resolve previously observed recovery failures.
-  if (conditions.includes('analytics_unavailable')) {
-    for (const [condition, last] of Object.entries(previousNotices)) {
-      if (condition !== 'analytics_unavailable') notified[condition] = last
+
+  // An expired send may have reached Brevo without a response. Let the
+  // repeat interval elapse before a persistent condition gets a new key.
+  for (const alert of expired) {
+    for (const condition of alert.conditions) {
+      if (state.active.includes(condition)) state.notified[condition] = state.latestEnd
     }
   }
-  return { state: { end, notified }, due }
+  if (accepted) {
+    const due = alertConditions(result).filter(condition => {
+      const last = state.notified[condition]
+      return (last === undefined || window.end - last >= repeatMs)
+        && !state.pending.some(alert => alert.conditions.includes(condition))
+    })
+    if (due.length) state.pending.push({ id, createdAt: now, window, result, conditions: due })
+  }
+  return { state, accepted, expired }
+}
+
+export function recordAlertDelivery(state) {
+  const delivered = state.pending.shift()
+  for (const condition of delivered.conditions) {
+    if (state.active.includes(condition)) state.notified[condition] = state.latestEnd
+  }
 }

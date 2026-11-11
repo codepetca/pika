@@ -1,47 +1,69 @@
 import { DurableObject } from 'cloudflare:workers'
 import { sendBrevoEmail } from '../../src/lib/brevo.ts'
-import { alertConditions, cadence, checkRecoveryAlerts, lanes, nextAlertState, recoveryAlertWindow, recoveryWorker } from './checks.mjs'
+import {
+  alertConditions, cadence, checkRecoveryAlerts, lanes, nextAlertState,
+  recordAlertDelivery, recoveryAlertWindow, recoveryErrorStart, recoveryWorker,
+} from './checks.mjs'
 
 const expectedHeartbeat = {
   paid: 'BILLING_ALERT_EXPECT_PAID_HEARTBEAT',
   trial: 'BILLING_ALERT_EXPECT_TRIAL_HEARTBEAT',
 }
 
-function emailText(result, window, due) {
-  const lines = [`Production Pika billing recovery, ${new Date(window.start).toISOString()} to ${new Date(window.end).toISOString()}.`]
-  if (due.includes('analytics_unavailable')) lines.push('Cloudflare could not read the recovery logs. Worker and heartbeat status are unknown.')
-  if (due.includes('recovery_errors')) lines.push(`Cloudflare recorded ${result.errorCount} recovery error logs or failed invocation records.`)
+function emailText({ result, window, conditions }) {
+  const lines = [`Production Pika billing recovery through ${new Date(window.end).toISOString()}.`]
+  if (conditions.includes('analytics_unavailable')) lines.push('Cloudflare could not read the recovery logs. Worker and heartbeat status are unknown.')
+  if (conditions.includes('recovery_errors')) {
+    lines.push(`Cloudflare recorded ${result.errorCount} recovery errors since ${new Date(window.errorStart).toISOString()}.`)
+  }
   for (const lane of lanes) {
-    if (due.includes(`missing_${lane}`)) lines.push(`No ${lane} recovery receipt appeared in the monitoring window.`)
+    if (conditions.includes(`missing_${lane}`)) lines.push(`No ${lane} recovery receipt appeared in the latest ten-minute window.`)
   }
   return lines.join('\n')
 }
 
 export class RecoveryAlertDelivery extends DurableObject {
+  sending = false
+
+  observedThrough() {
+    return this.ctx.storage.kv.get('state')?.observedThrough ?? null
+  }
+
   async deliver(window, result) {
-    const storage = this.ctx.storage.kv
-    const next = nextAlertState(storage.get('state'), window.end, alertConditions(result))
-    if (!next) return 'duplicate'
-    // Reserve this window before sending so a repeated cron delivery cannot resend it.
-    storage.put('state', next.state)
-    if (!next.due.length) return 'quiet'
+    if (this.sending) return 'busy'
+    this.sending = true
     try {
-      await sendBrevoEmail({
-        to: this.env.BILLING_ALERT_TO,
-        subject: 'Pika production billing recovery alert',
-        textContent: emailText(result, window, next.due),
-        tags: ['pika-recovery-alert'],
-        manualRedirect: true,
-        signal: AbortSignal.timeout(10_000),
-      })
-    } catch {
-      throw new Error('Pika recovery alert email delivery failed')
+      const storage = this.ctx.storage.kv
+      const { state, accepted, expired } = nextAlertState(
+        storage.get('state'), window, result, Date.now(), crypto.randomUUID(),
+      )
+      storage.put('state', state)
+      for (const alert of expired) {
+        console.error({ event: 'pika_billing_recovery_alert_delivery_expired', windowEnd: alert.window.end, conditions: alert.conditions })
+      }
+      if (!state.pending.length) return accepted ? 'quiet' : 'duplicate'
+      while (state.pending.length) {
+        const alert = state.pending[0]
+        try {
+          await sendBrevoEmail({
+            to: this.env.BILLING_ALERT_TO,
+            subject: 'Pika production billing recovery alert',
+            textContent: emailText(alert),
+            tags: ['pika-recovery-alert'],
+            manualRedirect: true,
+            idempotencyKey: alert.id,
+            signal: AbortSignal.timeout(10_000),
+          })
+        } catch {
+          throw new Error('Pika recovery alert email delivery failed')
+        }
+        recordAlertDelivery(state)
+        storage.put('state', state)
+      }
+      return 'sent'
+    } finally {
+      this.sending = false
     }
-    if (storage.get('state')?.end === window.end) {
-      for (const condition of next.due) next.state.notified[condition] = window.end
-      storage.put('state', next.state)
-    }
-    return 'sent'
   }
 }
 
@@ -57,14 +79,21 @@ export default {
       if (value !== 'true' && value !== 'false') throw new Error('Invalid Pika recovery heartbeat configuration')
       return value === 'true'
     })
+    const delivery = env.DELIVERY.getByName(recoveryWorker)
     const window = recoveryAlertWindow(controller.scheduledTime)
+    const observedThrough = await delivery.observedThrough()
+    if (observedThrough !== null && observedThrough >= window.end) {
+      await delivery.deliver(window, null)
+      return
+    }
+    window.errorStart = recoveryErrorStart(window, observedThrough)
     let result
     try {
       result = await checkRecoveryAlerts(env.ANALYTICS, window, expected)
     } catch {
       result = { queryFailed: true }
     }
-    const delivery = await env.DELIVERY.getByName(recoveryWorker).deliver(window, result)
-    console.info({ event: 'pika_billing_recovery_alert', windowEnd: window.end, conditions: alertConditions(result), delivery })
+    const outcome = await delivery.deliver(window, result)
+    console.info({ event: 'pika_billing_recovery_alert', windowEnd: window.end, conditions: alertConditions(result), delivery: outcome })
   },
 }

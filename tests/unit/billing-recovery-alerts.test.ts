@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it, vi } from 'vitest'
 import {
-  alertConditions, checkRecoveryAlerts, nextAlertState, recoveryAlertWindow, repeatMs, windowMs,
+  alertConditions, checkRecoveryAlerts, nextAlertState, recordAlertDelivery,
+  recoveryAlertWindow, recoveryErrorStart, windowMs,
 } from '../../workers/billing-recovery-alerts/checks.mjs'
 
 const tick = Date.parse('2026-11-10T17:50:56.427Z')
@@ -55,23 +56,55 @@ describe('Pika billing recovery alerts', () => {
     expect(alertConditions({ queryFailed: true })).toEqual(['analytics_unavailable'])
   })
 
-  it('deduplicates an older or repeated window and re-alerts after recovery or after one hour', () => {
-    const previous = { end: window.end, notified: { recovery_errors: window.end } }
-    expect(nextAlertState(previous, window.end, ['recovery_errors'])).toBeNull()
-    expect(nextAlertState(previous, window.end - windowMs, ['recovery_errors'])).toBeNull()
-    expect(nextAlertState(previous, window.end + windowMs, ['recovery_errors', 'missing_trial'])?.due).toEqual(['missing_trial'])
-    expect(nextAlertState(previous, window.end + repeatMs, ['recovery_errors'])?.due).toEqual(['recovery_errors'])
-    const clear = nextAlertState(previous, window.end + windowMs, [])
-    expect(nextAlertState(clear?.state, window.end + 2 * windowMs, ['recovery_errors'])?.due).toEqual(['recovery_errors'])
+  const error = { errorCount: 1, missingLanes: [] }
+  const quiet = { errorCount: 0, missingLanes: [] }
+  const queryFailed = { queryFailed: true }
+  const alertAt = (previous: any, offset: number, result: any, id: string) => {
+    const at = { start: window.start + offset, end: window.end + offset }
+    return nextAlertState(previous, at, result, tick + offset, id)
+  }
+
+  it('keeps a failed delivery pending even after a quiet window or replay', () => {
+    const first = alertAt(undefined, 0, error, 'first')
+    expect(first.state.pending.map(alert => alert.id)).toEqual(['first'])
+    const replay = alertAt(first.state, 0, null, 'replay')
+    expect(replay.accepted).toBe(false)
+    expect(replay.state.pending.map(alert => alert.id)).toEqual(['first'])
+    const clean = alertAt(replay.state, windowMs, quiet, 'clean')
+    expect(clean.state.pending.map(alert => alert.id)).toEqual(['first'])
+    recordAlertDelivery(clean.state)
+    expect(clean.state.pending).toEqual([])
+    expect(alertAt(clean.state, 2 * windowMs, error, 'fresh').state.pending[0].id).toBe('fresh')
   })
 
-  it('keeps recovery notifications active across an analytics outage', () => {
-    const previous = { end: window.end, notified: { missing_trial: window.end } }
-    const outage = nextAlertState(previous, window.end + windowMs, ['analytics_unavailable'])
-    expect(outage).toEqual({
-      state: { end: window.end + windowMs, notified: previous.notified },
-      due: ['analytics_unavailable'],
-    })
-    expect(nextAlertState(outage?.state, window.end + 2 * windowMs, ['missing_trial'])?.due).toEqual([])
+  it('deduplicates a pending condition and repeats an ongoing condition after an hour', () => {
+    const first = alertAt(undefined, 0, error, 'first')
+    const continued = alertAt(first.state, windowMs, error, 'continued')
+    expect(continued.state.pending.map(alert => alert.id)).toEqual(['first'])
+    recordAlertDelivery(continued.state)
+    expect(alertAt(continued.state, 2 * windowMs, error, 'quiet-repeat').state.pending).toEqual([])
+    expect(alertAt(continued.state, 7 * windowMs, error, 'repeat').state.pending[0].id).toBe('repeat')
+  })
+
+  it('preserves the successful observation cursor across an analytics outage', async () => {
+    const first = alertAt(undefined, 0, quiet, 'first')
+    const outage = alertAt(first.state, windowMs, queryFailed, 'outage')
+    expect(outage.state.observedThrough).toBe(window.end)
+    expect(outage.state.pending[0].conditions).toEqual(['analytics_unavailable'])
+    const latest = { start: window.start + 2 * windowMs, end: window.end + 2 * windowMs }
+    expect(recoveryErrorStart(latest, outage.state.observedThrough)).toBe(window.end)
+    expect(recoveryErrorStart(latest, null)).toBe(latest.end - 60 * 60_000)
+    const query = vi.fn().mockResolvedValueOnce({ data: [{ value: 1 }] }).mockResolvedValueOnce({ data: [] })
+    const result = await checkRecoveryAlerts({ query }, { ...latest, errorStart: window.end }, ['paid'])
+    expect(query.mock.calls[0][0].params.start).toBe(new Date(window.end).toISOString())
+    expect(query.mock.calls[1][0].params.start).toBe(new Date(latest.start).toISOString())
+    expect(result).toEqual({ errorCount: 1, missingLanes: ['paid'] })
+  })
+
+  it('expires a pending delivery before the Brevo idempotency window closes', () => {
+    const first = alertAt(undefined, 0, error, 'first')
+    const expired = alertAt(first.state, 3 * windowMs, error, 'expired')
+    expect(expired.expired.map(alert => alert.id)).toEqual(['first'])
+    expect(expired.state.pending).toEqual([])
   })
 })
