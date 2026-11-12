@@ -1,8 +1,11 @@
 const origin = 'https://pika.codepet.ca'
+const dueCheckUrl = 'https://zhioqbapgfcrronyuidm.supabase.co/rest/v1/rpc/billing_recovery_due_v1'
 const cadence = '*/2 * * * *'
 const timeoutMs = 185_000
+const dueCheckTimeoutMs = 5_000
 const maxResponseBytes = 8_192
 const secretFormat = /^[A-Za-z0-9_-]{32,256}$/
+const uuidFormat = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 const lanes = {
   paid: {
@@ -37,6 +40,7 @@ const progressNames = {
 }
 const isRecord = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const isCount = value => Number.isSafeInteger(value) && value >= 0
+const laneStatuses = ['idle', 'due', 'unavailable']
 
 async function readReceipt(response) {
   const mediaType = response.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase()
@@ -95,7 +99,6 @@ function summarizeReceipt(receipt, lane) {
 }
 
 async function invokeLane(lane, secret) {
-  if (typeof secret !== 'string' || !secretFormat.test(secret)) return { outcome: 'invalid_secret' }
   const startedAt = Date.now()
   const signal = AbortSignal.timeout(timeoutMs)
   try {
@@ -119,6 +122,69 @@ async function invokeLane(lane, secret) {
   }
 }
 
+async function checkDueWork(env, paid, trial) {
+  const key = env.BILLING_RECOVERY_SUPABASE_PUBLISHABLE_KEY
+  const secret = env.BILLING_RECOVERY_CHECK_SECRET
+  if (typeof key !== 'string' || !/^sb_publishable_[A-Za-z0-9_-]+$/.test(key)
+    || typeof secret !== 'string' || !secretFormat.test(secret)
+    || secret === env[lanes.paid.secret] || secret === env[lanes.trial.secret]) {
+    return { outcome: 'invalid_due_check_credentials' }
+  }
+  const signal = AbortSignal.timeout(dueCheckTimeoutMs)
+  const scope = env.BILLING_RECOVERY_REPOLIGHT_SCOPE
+  const teacherId = typeof scope === 'string' && uuidFormat.test(scope) ? scope : null
+  try {
+    const response = await fetch(dueCheckUrl, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        apikey: key,
+        'x-pika-billing-recovery-secret': secret,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        p_paid: paid,
+        p_trial: trial,
+        p_installation: env.BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED === 'true',
+        p_cancellation: env.BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED === 'true',
+        p_scheduled_closeout: env.BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED === 'true',
+        p_email: env.BILLING_LIVE_EMAIL_NOTICES_ENABLED === 'true',
+        p_repolight: scope === 'full' || teacherId !== null,
+        p_repolight_teacher_id: teacherId,
+      }),
+      signal,
+    })
+    if (response.status !== 200) {
+      await response.body?.cancel().catch(() => undefined)
+      return { outcome: 'due_check_http_error', status: response.status }
+    }
+    const receipt = await readReceipt(response)
+    if (!isRecord(receipt) || Object.keys(receipt).length !== 5
+      || (paid ? !laneStatuses.includes(receipt.paid) : receipt.paid !== null)
+      || (trial ? !laneStatuses.includes(receipt.trial) : receipt.trial !== null)
+      || typeof receipt.assignment_releases !== 'boolean' || typeof receipt.email_notices !== 'boolean'
+      || typeof receipt.repolight !== 'boolean') {
+      return { outcome: signal.aborted ? 'due_check_timeout' : 'invalid_due_check_receipt' }
+    }
+    return { outcome: 'ok', receipt }
+  } catch {
+    return { outcome: signal.aborted ? 'due_check_timeout' : 'due_check_failed' }
+  }
+}
+
+function validateLane(env, lane) {
+  if (env[lane.enabled] !== 'true') return 'invalid_switch'
+  const secret = env[lane.secret]
+  return typeof secret !== 'string' || !secretFormat.test(secret) ? 'invalid_secret' : null
+}
+
+function confirmedSharedRecovery(result, work) {
+  return Boolean(result?.issues)
+    && (!work.assignment_releases || !result.issues.assignmentReleases?.failed)
+    && (!work.email_notices || Boolean(result.counts.emailNotices) && !result.issues.emailNotices?.failed)
+}
+
 export default {
   async scheduled(controller, env) {
     if (controller.cron !== cadence || !Number.isSafeInteger(controller.scheduledTime)) {
@@ -132,16 +198,44 @@ export default {
       throw new Error('Pika billing recovery credentials must be distinct')
     }
     const delayMs = Math.max(0, Date.now() - controller.scheduledTime)
-    const outcomes = await Promise.all(active.map(async ([name, lane]) => {
-      const result = env[lane.enabled] === 'true'
-        ? await invokeLane(lane, env[lane.secret])
-        : { outcome: 'invalid_switch' }
+    const errors = Object.fromEntries(active.map(([name, lane]) => [name, validateLane(env, lane)]))
+    const paid = errors.paid === null
+    const trial = errors.trial === null
+    const due = paid || trial ? await checkDueWork(env, paid, trial) : null
+    const work = due?.receipt
+    const shared = work?.assignment_releases || work?.email_notices || work?.repolight
+    const dueLanes = active.filter(([name]) => work?.[name] === 'due').map(([name]) => name)
+    const idleLanes = active.filter(([name]) => work?.[name] === 'idle').map(([name]) => name)
+    // Both routes drain the shared queues. Prefer the trial lane for shared
+    // work alone, and give an idle peer a chance if the first attempt fails.
+    if (shared && dueLanes.length === 0 && idleLanes.length > 0) dueLanes.push(idleLanes.pop())
+    const invoke = async name => {
+      const result = await invokeLane(lanes[name], env[lanes[name].secret])
+      if (work.email_notices && result.outcome === 'ok' && !result.counts.emailNotices) {
+        return { ...result, outcome: 'shared_recovery_unconfirmed' }
+      }
+      return result
+    }
+    const results = Object.fromEntries(await Promise.all(dueLanes.map(async name => [name, await invoke(name)])))
+    if (shared && dueLanes.length === 1 && idleLanes.length > 0
+      && !confirmedSharedRecovery(results[dueLanes[0]], work)) {
+      const fallback = idleLanes.pop()
+      results[fallback] = await invoke(fallback)
+    }
+
+    const outcomes = active.map(([name]) => {
+      const invalid = errors[name]
+      let result
+      if (invalid) result = { outcome: invalid }
+      else if (due.outcome !== 'ok') result = due
+      else if (work[name] === 'unavailable') result = { outcome: 'due_check_lane_unavailable' }
+      else result = results[name] ?? { outcome: 'idle' }
       const event = { event: 'pika_billing_recovery', lane: name, scheduledAt: controller.scheduledTime, delayMs, ...result }
-      if (result.outcome === 'ok') console.info(event)
+      if (result.outcome === 'ok' || result.outcome === 'idle') console.info(event)
       else console.error(event)
       return result.outcome
-    }))
+    })
     // The scheduler's outcome should reflect partial failures in a 200 reply.
-    if (outcomes.some(outcome => outcome !== 'ok')) throw new Error('Pika billing recovery needs attention')
+    if (outcomes.some(outcome => outcome !== 'ok' && outcome !== 'idle')) throw new Error('Pika billing recovery needs attention')
   },
 }

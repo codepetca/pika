@@ -55190,3 +55190,27 @@ Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff 
 ## 2026-11-08 Stripe SDK decimal compatibility
 
 The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
+
+<!-- pika-session-log-archive-batch:59d7f5f636ee51b27a7cf50c0fb5485c9379cf7f422d65d14d37f1a90fd35ee8 -->
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.
+
+<!-- pika-session-log-archive-batch:d44160a083749eb99083570eb5ecadbf6a20659a1dbda6aeb18cdbbae8aaaa06 -->
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
