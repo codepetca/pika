@@ -58,6 +58,13 @@ describe('AssignmentRepositoryReport',()=>{
     rerender(<AssignmentRepositoryReport bundle={bundle} canImport={false} onImportFeedback={vi.fn()} />)
     expect(screen.getByText(/Feedback import is unavailable/)).toBeInTheDocument()
   })
+  it('keeps merge and pre-deadline snapshot limits visible even with complete history',()=>{
+    const bundle = fixture(false,true)
+    bundle.contributors[0].analysis.facts.coverage.notes.push('1 merge commit omitted; merge-resolution-only changes are not assessed.')
+    render(<AssignmentRepositoryReport bundle={bundle} assignmentDates={{releasedAt:'2026-10-20T04:00:00Z',dueAt:'2026-10-25T04:00:00Z'}} canImport onImportFeedback={vi.fn()} />)
+    expect(screen.getByText(/changes recorded only in merge resolutions are not assessed/)).toBeInTheDocument()
+    expect(screen.getByText(/snapshot was captured before the deadline/)).toBeInTheDocument()
+  })
   it('shows only the matched student’s dated activity and report assignment dates',()=>{
     render(<AssignmentRepositoryReport bundle={fixture(false,true)} assignmentDates={{releasedAt:'2026-10-20T04:00:00Z',dueAt:'2026-10-23T04:00:00Z'}} assignmentSummary={{scopeKey:'contributor:alice',text:'Summary',rulesVersion:'1.0.0',timeline:[{date:'2026-10-20',commitCount:1}],timelineComplete:true}} canImport={false} onImportFeedback={vi.fn()} />)
     const timeline = screen.getByRole('region',{name:'Student commit timeline'})

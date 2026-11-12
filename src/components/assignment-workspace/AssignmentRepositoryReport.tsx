@@ -84,6 +84,8 @@ function RepositoryReportView({bundle,assignmentDates,assignmentSummary,canImpor
       <section aria-label="Report limitations" className="space-y-1 text-text-muted">
         {facts.coverage.history !== 'complete' && <p>{facts.coverage.notes.find(note => /scanned-commit limit/i.test(note)) || `History collection is ${facts.coverage.history}; observed activity may be incomplete.`} See evidence for details.</p>}
         {facts.coverage.files !== 'complete' && <p>File evidence is {facts.coverage.files}; observed changes may be incomplete.</p>}
+        {facts.coverage.notes.some(note => /merge-resolution-only/i.test(note)) && <p>Merge commits are omitted; changes recorded only in merge resolutions are not assessed.</p>}
+        {assignmentDates?.dueAt && Date.parse(bundle.context.snapshot.capturedAt) < Date.parse(assignmentDates.dueAt) && <p>The repository snapshot was captured before the deadline; later activity is not included.</p>}
         {bundle.context.baseline.status !== 'applied' && <p>Starter history has not been reviewed; inherited changes may remain in counts.</p>}
         <p>Commit time is not push time. Activity counts do not establish effort, attendance, understanding or AI authorship.</p>
       </section>
