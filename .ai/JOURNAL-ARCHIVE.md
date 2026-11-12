@@ -55181,3 +55181,12 @@ Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid 
 UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
 
 The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
+
+<!-- pika-session-log-archive-batch:9ee1380bc070f2529899ef8fce6a08f09159a469bb25905b85ad9ae7639b774b -->
+## 2026-11-08 Billing email notices
+
+Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
+
+## 2026-11-08 Stripe SDK decimal compatibility
+
+The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.

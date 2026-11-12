@@ -7,7 +7,8 @@ import { formatDayInZone } from '@/lib/contracts/repolight/engine/time'
 
 export interface AssignmentRepositoryReportProps {
   bundle: PublicRepositoryBundle
-  assignmentSummary?: {scopeKey: string; text: string; rulesVersion: '1.0.0'} | null
+  assignmentDates?: {releasedAt: string | null; dueAt: string | null}
+  assignmentSummary?: {scopeKey: string; text: string; rulesVersion: '1.0.0'; timeline?: {date:string; commitCount:number}[]; timelineComplete?: boolean} | null
   canImport: boolean
   onImportFeedback: (scopeKey: string, text: string) => Promise<void>
   importing?: boolean
@@ -25,7 +26,7 @@ const readable = (value: string) => value.replaceAll('_', ' ')
 const focusRegion = 'min-w-0 overflow-x-auto rounded-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const linkStyle = 'break-all text-primary underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
 
-function RepositoryReportView({bundle,assignmentSummary,canImport,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
+function RepositoryReportView({bundle,assignmentDates,assignmentSummary,canImport,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
   const [scope,setScope] = useState(bundle.selection.status === 'matched' && bundle.selection.contributorId ? `contributor:${bundle.selection.contributorId}` : 'repository')
   const [evidence,setEvidence] = useState(false)
   const [drafts,setDrafts] = useState<Record<string,string>>({})
@@ -77,6 +78,7 @@ function RepositoryReportView({bundle,assignmentSummary,canImport,onImportFeedba
       <Button type="button" size="sm" variant="secondary" onClick={() => setEvidence(current => !current)}>{evidence ? 'Back to summary' : 'View evidence'}</Button>
     </div>
     {evidence ? <Evidence bundle={bundle} facts={facts} observations={analysis.ruleFeedback.observations} /> : <>
+      {assignmentSummary?.scopeKey === scope && (assignmentSummary.timeline ? <AssignmentTimeline facts={facts} points={assignmentSummary.timeline} complete={assignmentSummary.timelineComplete === true} timezone={bundle.context.period.timezone} dates={assignmentDates} /> : <section aria-label="Student commit timeline" className="space-y-2"><h4 className="font-semibold">Student commit timeline</h4><p className="text-text-muted">Timeline unavailable. {assignmentSummary.text}</p></section>)}
       <Metrics facts={facts} overview={!selected} />
       <section className="space-y-2" aria-label="Workflow findings"><h4 className="font-semibold">Workflow findings</h4>
         {analysis.ruleFeedback.observations.some(item => item.kind !== 'limitation') ? <ul className="list-disc space-y-2 pl-5">{analysis.ruleFeedback.observations.filter(item => item.kind !== 'limitation').slice(0,3).map(item => <li key={item.id}>{item.text}</li>)}</ul> : <p className="text-text-muted">No workflow findings are supported by the collected evidence.</p>}
@@ -93,6 +95,17 @@ function RepositoryReportView({bundle,assignmentSummary,canImport,onImportFeedba
       </section>
     </>}
   </div>
+}
+
+function AssignmentTimeline({facts,points,complete,timezone,dates}: {facts: ScopeFacts; points: {date:string; commitCount:number}[]; complete: boolean; timezone: string; dates?: AssignmentRepositoryReportProps['assignmentDates']}) {
+  const maximum = Math.max(1,...points.map(point => point.commitCount))
+  const dateLabel = (value: string | null | undefined) => value ? new Intl.DateTimeFormat('en-CA',{timeZone:timezone,year:'numeric',month:'short',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(new Date(value)) : 'Unavailable'
+  return <section className="space-y-2" aria-label="Student commit timeline">
+    <h4 className="font-semibold">Student commit timeline</h4>
+    <p className="text-text-muted">Assignment released: {dateLabel(dates?.releasedAt)} · Due: {dateLabel(dates?.dueAt)} ({timezone}). Dates reflect this report’s assignment snapshot.</p>
+    <p className="text-text-muted">Local author dates. {complete ? 'Only days with commits are listed; other days in the assignment period have no included commits.' : 'Partial or unknown coverage: counts may be incomplete and unlisted days are unknown.'} {facts.activity.undatedCommitCount} undated commits.</p>
+    {points.length ? <div className="max-h-64 overflow-y-auto rounded-control" role="region" aria-label="Observed student commits by day" tabIndex={0}><DataTable density="compact" className="text-xs"><caption className="text-left text-text-muted">Observed student commits by local date</caption><DataTableHead><DataTableRow><DataTableHeaderCell>Date</DataTableHeaderCell><DataTableHeaderCell>Commits</DataTableHeaderCell><DataTableHeaderCell>Activity</DataTableHeaderCell></DataTableRow></DataTableHead><DataTableBody>{points.map(point => <DataTableRow key={point.date}><DataTableHeaderCell scope="row">{point.date}</DataTableHeaderCell><DataTableCell>{point.commitCount}{complete ? '' : ' observed'}</DataTableCell><DataTableCell><meter className="w-full" min={0} max={maximum} value={point.commitCount} aria-label={`${point.commitCount} observed commits on ${point.date}`} /></DataTableCell></DataTableRow>)}</DataTableBody></DataTable></div> : <p className="text-text-muted">No dated commits observed in the collected period.</p>}
+  </section>
 }
 
 function ContributorSummary({bundle}: {bundle: PublicRepositoryBundle}) {

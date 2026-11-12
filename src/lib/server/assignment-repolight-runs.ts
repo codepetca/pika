@@ -148,7 +148,9 @@ export async function getAssignmentRepoLightReport(actorId: string, target: Repo
   if (!result || !row.analysis_id) throw new ApiError(404, 'repolight_report_unavailable')
   if (result.analysisId !== row.analysis_id || result.requestFingerprint !== row.request_fingerprint || !same(result.clientBinding, row.create_envelope.clientBinding) || digestRepoLightJson(result.bundle) !== result.reportDigest) throw new ApiError(503, 'repolight_invalid_storage')
   const summary = row.source_current && !row.detached ? assignmentSummary(result.bundle, row.request_json, row.source_json.assignment) : null
-  return { run: repoLightRunView(row, row.source_current!, deps.now?.()), report: { reportDigest: result.reportDigest, bundle: result.bundle, assignmentSummary: summary } }
+  const assignmentDate = (value: string | null) => value && Number.isFinite(Date.parse(value)) ? new Date(value).toISOString() : null
+  const assignmentDates = { releasedAt: assignmentDate(row.source_json.assignment.released_at), dueAt: assignmentDate(row.source_json.assignment.due_at) }
+  return { run: repoLightRunView(row, row.source_current!, deps.now?.()), report: { reportDigest: result.reportDigest, bundle: result.bundle, assignmentSummary: summary, ...(summary ? { assignmentDates } : {}) } }
 }
 export async function advanceAssignmentRepoLightRun(actorId: string, target: RepoLightTarget, runId: string, deps: RepoLightDependencies = {}) {
   const prior = await readAssignmentRepoLightRun(actorId, target, runId, false, deps)

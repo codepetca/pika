@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { publicRepositoryBundleSchema, publicRepositoryRequestSchema } from '@/lib/contracts/repolight/report/bundle-contract'
+import { repoLightReportReplySchema } from '@/lib/validations/repolight'
+import { calculateScopeFacts } from '@/lib/contracts/repolight/report/calculations'
+import { formatDayInZone } from '@/lib/contracts/repolight/engine/time'
 import { assignmentSummary } from '@/lib/server/repolight-assignment-summary'
 import wire from './fixture.json'
 
@@ -23,6 +26,43 @@ describe('assignment summary', () => {
     expect(result.text).toContain('These figures describe recorded commit author timestamps')
     expect(result.text).not.toMatch(/review the exclusions|descriptive commit messages/i)
   })
+  it('accepts a full 366-day elapsed assignment spanning 368 Toronto dates', () => {
+    const f = fixture()
+    const start = Date.parse('2025-03-09T04:30:00Z')
+    const end = start + 366 * 86400000
+    f.assignment = {released_at:new Date(start).toISOString(),due_at:new Date(end).toISOString()}
+    f.bundle.context.period = {startAt:f.assignment.released_at,endAt:f.assignment.due_at,timezone:'America/Toronto'}
+    f.request.period = f.bundle.context.period
+    f.bundle.context.snapshot.capturedAt = f.assignment.due_at
+    const days = new Map<string,string>()
+    const addDay = (instant: number) => {
+      const timestamp = new Date(instant).toISOString()
+      days.set(formatDayInZone(timestamp,'America/Toronto'),timestamp)
+    }
+    addDay(start)
+    const firstNoon = Date.parse('2025-03-09T16:00:00Z')
+    for (let day = 0; day < 366; day++) addDay(firstNoon + day * 86400000)
+    addDay(end - 1)
+    expect(days.size).toBe(368)
+    const facts = f.bundle.contributors[0].analysis.facts
+    facts.commits = [...days.values()].map((authoredAt,index) => {
+      const sha = index.toString(16).padStart(40,'0')
+      return {...facts.commits[0],sha,url:`${f.bundle.context.repository.url}/commit/${sha}`,authoredAt}
+    })
+    f.bundle.context.scheduledProjectDates = null
+    f.request.scheduledProjectDates = null
+    const calculated = calculateScopeFacts({...f.bundle.context,repositoryUrl:f.bundle.context.repository.url,branch:f.bundle.context.repository.branch,coverage:f.bundle.collectionCoverage,events:[]},facts.commits)
+    f.bundle.contributors[0].analysis.facts = calculated
+    f.bundle.overview.facts = calculated
+    f.bundle.contributors[0].analysis.ruleFeedback.observations = []
+    f.bundle.overview.ruleFeedback.observations = []
+    const summary = assignmentSummary(f.bundle,f.request,f.assignment)!
+    expect(summary.timeline).toHaveLength(368)
+    const run = {id:'00000001-1111-4111-8111-111111111111',status:'completed',sourceCurrent:true,canAdvance:false,canImport:true,reportAvailable:true,errorCode:null,nextRetryAt:null}
+    const report = {run,report:{reportDigest:'a'.repeat(64),bundle:f.bundle,assignmentSummary:summary}}
+    expect(repoLightReportReplySchema.parse(report)).toBeDefined()
+    expect(repoLightReportReplySchema.safeParse({...report,report:{...report.report,assignmentSummary:{...summary,timeline:[...summary.timeline!,summary.timeline![0]]}}}).success).toBe(false)
+  })
   it('gives checkpoint advice only for reliable concentrated evidence', () => {
     const f = fixture(); const facts = f.bundle.contributors[0].analysis.facts
     facts.commits = facts.commits.map((commit, index) => ({...commit, authoredAt:index < 6 ? '2026-10-16T12:00:00Z' : '2026-10-10T12:00:00Z'}))
@@ -45,6 +85,7 @@ describe('assignment summary', () => {
   it('does not infer dates from a generic period or permit a narrower override', () => {
     const f = fixture()
     expect(assignmentSummary(f.bundle, f.request, {released_at:null,due_at:null})!.text).toContain('assignment dates are unavailable')
+    expect(assignmentSummary(f.bundle, f.request, {released_at:null,due_at:null})!.timeline).toBeUndefined()
     expect(assignmentSummary(f.bundle, f.request, {released_at:'2026-01-01T00:00:00Z',due_at:f.assignment.due_at})!.text).toContain('analysis period does not cover')
     expect(assignmentSummary(f.bundle, f.request, {released_at:f.assignment.due_at,due_at:f.assignment.released_at})!.text).toContain('assignment dates are unavailable')
   })
@@ -75,8 +116,12 @@ describe('assignment summary', () => {
     f.assignment = {released_at:'2026-10-10T04:00:00Z',due_at:'2026-10-15T04:00:00Z'}
     const at = (index:number, authoredAt:string) => ({...facts.commits[index],authoredAt})
     facts.commits = [at(0,'2026-10-09T04:00:00Z'),at(1,'2026-10-10T04:00:00Z'),at(2,'2026-10-14T04:00:00Z'),at(3,'2026-10-15T04:00:00Z')]
-    const text = assignmentSummary(f.bundle, f.request, f.assignment)!.text
-    expect(text).toContain('2 included commits'); expect(text).toContain('1 of 2 (50%)')
+    const result = assignmentSummary(f.bundle, f.request, f.assignment)!
+    expect(result.text).toContain('2 included commits'); expect(result.text).toContain('1 of 2 (50%)')
+    expect(result.timeline).toEqual([{date:'2026-10-10',commitCount:1},{date:'2026-10-14',commitCount:1}])
+    expect(result.timelineComplete).toBe(true)
+    f.bundle.context.snapshot.capturedAt = f.assignment.released_at
+    expect(assignmentSummary(f.bundle, f.request, f.assignment)!.timelineComplete).toBe(false)
   })
   it('distinguishes empty and unavailable history and rejects mismatched report settings', () => {
     const f = fixture(); const facts = f.bundle.contributors[0].analysis.facts
