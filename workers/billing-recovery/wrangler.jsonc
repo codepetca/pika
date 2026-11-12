@@ -7,7 +7,11 @@
   "triggers": { "crons": ["*/2 * * * *"] },
   "vars": {
     "BILLING_PAID_RECOVERY_ENABLED": "false",
-    "BILLING_TRIAL_RECOVERY_ENABLED": "false"
+    "BILLING_TRIAL_RECOVERY_ENABLED": "false",
+    "BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED": "false",
+    "BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED": "false",
+    "BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED": "false",
+    "BILLING_LIVE_EMAIL_NOTICES_ENABLED": "false"
   },
   "observability": {
     "enabled": true,
