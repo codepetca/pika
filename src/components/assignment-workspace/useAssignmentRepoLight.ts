@@ -5,7 +5,7 @@ import { fetchJSON, fetchJSONWithCache } from '@/lib/request-cache'
 import { repoLightContextReplySchema, repoLightImportResultSchema, repoLightReportReplySchema, repoLightRunReplySchema, type RepoLightContextReply, type RepoLightReportReply, type RepoLightRunView } from '@/lib/validations/repolight'
 import type { RepositoryFeedbackImportSession } from './useTeacherStudentWorkController'
 
-type RecordState = {owner: string; targetOwner: string; context: RepoLightContextReply | null; report: RepoLightReportReply['report'] | null; busy: boolean; error: string}
+type RecordState = {owner: string; targetOwner: string; context: RepoLightContextReply | null; report: RepoLightReportReply['report'] | null; busy: boolean; checking: boolean; error: string}
 const message = (caught: unknown) => caught instanceof Error && !caught.message.startsWith('[') ? caught.message.replaceAll('_',' ') : 'Repository review is unavailable. Try refreshing its status.'
 const post = (body: unknown): RequestInit => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
 
@@ -26,10 +26,10 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
   const imports = useRef<{key:string;requestId:string} | null>(null)
   const [importedPreviews,setImportedPreviews] = useState<Record<string,string[]>>({})
   const [refresh,setRefresh] = useState(0)
-  const [record,setRecord] = useState<RecordState>({owner,targetOwner,context:null,report:null,busy:false,error:''})
-  const current = record.owner === owner ? record : record.targetOwner === targetOwner ? {...record,owner,context:record.context ? {...record.context,run:null} : null,report:null,busy:false,error:''} : {owner,targetOwner,context:null,report:null,busy:false,error:''}
+  const [record,setRecord] = useState<RecordState>({owner,targetOwner,context:null,report:null,busy:false,checking:false,error:''})
+  const current = record.owner === owner ? record : record.targetOwner === targetOwner ? {...record,owner,context:record.context ? {...record.context,run:null} : null,report:null,busy:false,checking:false,error:''} : {owner,targetOwner,context:null,report:null,busy:false,checking:false,error:''}
   const base = `/api/teacher/assignments/${assignmentId}/students/${studentId}/repolight/runs`
-  const update = (value: Partial<RecordState>) => setRecord(previous => ({...(previous.owner === owner ? previous : {owner,targetOwner,context:null,report:null,busy:false,error:''}),...value,owner,targetOwner}))
+  const update = (value: Partial<RecordState>) => setRecord(previous => ({...(previous.owner === owner ? previous : {owner,targetOwner,context:null,report:null,busy:false,checking:false,error:''}),...value,owner,targetOwner}))
 
   useEffect(() => {alive.current = true;return () => {alive.current = false;generation.current += 1}},[])
   useEffect(() => {
@@ -40,7 +40,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
     let delay = 2000
     const controller = new AbortController()
     const valid = () => live && alive.current && generation.current === cycle && ownerRef.current === owner
-    const set = (value: Partial<RecordState>) => {if (valid()) setRecord(previous => ({...(previous.owner === owner ? previous : {owner,targetOwner,context:null,report:null,busy:false,error:''}),...value,owner,targetOwner}))}
+    const set = (value: Partial<RecordState>) => {if (valid()) setRecord(previous => ({...(previous.owner === owner ? previous : previous.targetOwner === targetOwner ? {...previous,context:previous.context ? {...previous.context,run:null} : null,report:null,busy:false,checking:false,error:''} : {owner,targetOwner,context:null,report:null,busy:false,checking:false,error:''}),...value,owner,targetOwner}))}
     async function read(url: string) {
       return fetchJSONWithCache(`repolight:${owner}:${cycle}:${url}`,() => fetchJSON<unknown>(url,{init:{signal:controller.signal,cache:'no-store'},errorMessage:'Could not refresh repository review.'}),0)
     }
@@ -60,12 +60,14 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
       } catch (caught) {set({error:message(caught)})}
     }
     async function load() {
+      set({checking:true})
       try {
         const loadedContext = repoLightContextReplySchema.parse(await read(base))
         const context = selectedRequirementId && boundSelection.current !== owner ? {...loadedContext,run:null} : loadedContext
         set({context,error:'',busy:false})
         if (active && valid() && context.run && ['queued','submitting','running'].includes(context.run.status)) timer = setTimeout(() => {void poll(context.run!)},delay)
-      } catch (caught) {set({error:message(caught),busy:false})}
+      } catch (caught) {set({context:null,error:message(caught),busy:false})}
+      finally {set({checking:false})}
     }
     void load()
     return () => {live = false;generation.current += 1;controller.abort();if (timer) clearTimeout(timer)}
@@ -74,7 +76,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
   async function analyze() {
     const chosen = current.context?.source.repositoryChoices.some(choice => choice.requirementId === selectedRequirementId)
     const resolved = current.context?.source.available || (current.context?.source.notice === 'repolight_requirement_required' && chosen)
-    if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.busy || current.context?.state !== 'ready' || !resolved) return
+    if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.busy || current.checking || current.context?.state !== 'ready' || !resolved) return
     const sourceKey = JSON.stringify(current.context.source)
     if (admission.current?.owner !== owner || admission.current.sourceKey !== sourceKey) admission.current = {owner,sourceKey,requestId:crypto.randomUUID()}
     const cycle = ++generation.current
@@ -109,7 +111,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
 
   async function importFeedback(scopeKey: string,text: string) {
     const run = current.context?.run
-    if (ownerRef.current !== owner || !access.current.active || access.current.paused || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
+    if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.checking || current.error || !run?.canImport || !run.sourceCurrent || !current.report) throw new Error('This report is stale or unavailable for feedback import.')
     if (isFeedbackImported(scopeKey,text)) return
     const acceptedPreviewKey = previewKey(scopeKey)
     const session = beginImport()

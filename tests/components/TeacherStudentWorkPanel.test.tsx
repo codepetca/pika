@@ -2443,7 +2443,7 @@ describe('TeacherStudentWorkPanel', () => {
     expect(screen.getByRole('button',{name:'Analyze repository'})).toBeDisabled()
     fireEvent.change(select,{target:{value:second}})
     expect(screen.getByRole('combobox',{name:'Repository source'})).toHaveValue(second)
-    expect(screen.getByRole('button',{name:'Analyze repository'})).toBeEnabled()
+    await waitFor(()=>expect(screen.getByRole('button',{name:'Analyze repository'})).toBeEnabled())
     fireEvent.click(screen.getByRole('button',{name:'Analyze repository'}))
     await waitFor(()=>expect((global.fetch as ReturnType<typeof vi.fn>).mock.calls.some(([url,init])=>String(url).endsWith('/repolight/runs') && init?.method === 'POST')).toBe(true))
     const post = (global.fetch as ReturnType<typeof vi.fn>).mock.calls.find(([url,init])=>String(url).endsWith('/repolight/runs') && init?.method === 'POST')!
