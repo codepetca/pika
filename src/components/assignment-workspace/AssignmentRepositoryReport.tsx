@@ -10,6 +10,7 @@ export interface AssignmentRepositoryReportProps {
   assignmentDates?: {releasedAt: string | null; dueAt: string | null}
   assignmentSummary?: {scopeKey: string; text: string; rulesVersion: '1.0.0'; timeline?: {date:string; commitCount:number}[]; timelineComplete?: boolean} | null
   canImport: boolean
+  importChecking?: boolean
   onImportFeedback: (scopeKey: string, text: string) => Promise<void>
   importing?: boolean
   importError?: string
@@ -26,7 +27,7 @@ const readable = (value: string) => value.replaceAll('_', ' ')
 const focusRegion = 'min-w-0 overflow-x-auto rounded-control focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
 const linkStyle = 'break-all text-primary underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary'
 
-function RepositoryReportView({bundle,assignmentDates,assignmentSummary,canImport,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
+function RepositoryReportView({bundle,assignmentDates,assignmentSummary,canImport,importChecking = false,onImportFeedback,importing = false,importError = '',isFeedbackImported}: AssignmentRepositoryReportProps) {
   const [scope,setScope] = useState(bundle.selection.status === 'matched' && bundle.selection.contributorId ? `contributor:${bundle.selection.contributorId}` : 'repository')
   const [evidence,setEvidence] = useState(false)
   const [drafts,setDrafts] = useState<Record<string,string>>({})
@@ -77,20 +78,23 @@ function RepositoryReportView({bundle,assignmentDates,assignmentSummary,canImpor
       {!selected && <ContributorSummary bundle={bundle} />}
       <Button type="button" size="sm" variant="secondary" onClick={() => setEvidence(current => !current)}>{evidence ? 'Back to summary' : 'View evidence'}</Button>
     </div>
-    {evidence ? <Evidence bundle={bundle} facts={facts} observations={analysis.ruleFeedback.observations} /> : <>
+    {evidence ? <Evidence bundle={bundle} facts={facts} overview={!selected} observations={analysis.ruleFeedback.observations} /> : <>
       {assignmentSummary?.scopeKey === scope && (assignmentSummary.timeline ? <AssignmentTimeline facts={facts} points={assignmentSummary.timeline} complete={assignmentSummary.timelineComplete === true} timezone={bundle.context.period.timezone} dates={assignmentDates} /> : <section aria-label="Student commit timeline" className="space-y-2"><h4 className="font-semibold">Student commit timeline</h4><p className="text-text-muted">Timeline unavailable. {assignmentSummary.text}</p></section>)}
       <Metrics facts={facts} overview={!selected} />
-      <section className="space-y-2" aria-label="Workflow findings"><h4 className="font-semibold">Workflow findings</h4>
-        {analysis.ruleFeedback.observations.some(item => item.kind !== 'limitation') ? <ul className="list-disc space-y-2 pl-5">{analysis.ruleFeedback.observations.filter(item => item.kind !== 'limitation').slice(0,3).map(item => <li key={item.id}>{item.text}</li>)}</ul> : <p className="text-text-muted">No workflow findings are supported by the collected evidence.</p>}
-        <p className="text-xs text-text-muted">Rule-based observations · teacher review · no AI interpretation</p>
+      <section aria-label="Report limitations" className="space-y-1 text-text-muted">
+        {facts.coverage.history !== 'complete' && <p>{facts.coverage.notes.find(note => /scanned-commit limit/i.test(note)) || `History collection is ${facts.coverage.history}; observed activity may be incomplete.`} See evidence for details.</p>}
+        {facts.coverage.files !== 'complete' && <p>File evidence is {facts.coverage.files}; observed changes may be incomplete.</p>}
+        {facts.coverage.notes.some(note => /merge-resolution-only/i.test(note)) && <p>Merge commits are omitted; changes recorded only in merge resolutions are not assessed.</p>}
+        {assignmentDates?.dueAt && Date.parse(bundle.context.snapshot.capturedAt) < Date.parse(assignmentDates.dueAt) && <p>The repository snapshot was captured before the deadline; later activity is not included.</p>}
+        {bundle.context.baseline.status !== 'applied' && <p>Starter history has not been reviewed; inherited changes may remain in counts.</p>}
+        <p>Commit time is not push time. Activity counts do not establish effort, attendance, understanding or AI authorship.</p>
       </section>
-      <Limitations bundle={bundle} facts={facts} />
       <section className="space-y-3" aria-label="Feedback preview"><h4 className="font-semibold">Feedback preview</h4>
         <FormField label="Report feedback" hint={`Preview for ${label}. Appends this preview to the Pika comment draft, preserving its existing text. Nothing is sent to the student.`}>
           <textarea value={feedback} onChange={event => editFeedback(event.target.value)} rows={7} maxLength={20000} className="min-h-control w-full resize-y rounded-control border border-border bg-surface px-3 py-2 text-text-default focus:outline-none focus-visible:ring-foundation focus-visible:ring-focus" />
         </FormField>
         <div className="flex flex-wrap gap-2"><Button type="button" size="sm" onClick={() => {void importFeedback()}} disabled={!canImport || busy || alreadyImported || !feedback.trim()}>{busy ? 'Adding to comment draft…' : alreadyImported ? 'Added to comment draft' : 'Add to comment draft'}</Button><Button type="button" size="sm" variant="ghost" onClick={() => editFeedback(ruleDraft)}>Restore rule draft</Button></div>
-        {!canImport && !importError && <p className="text-text-muted">Feedback import is unavailable for this report or submission.</p>}
+        {!canImport && !importError && !busy && (importChecking ? <p role="status" className="text-text-muted">Checking feedback availability…</p> : <p className="text-text-muted">Feedback import is unavailable for this report or submission.</p>)}
         {importError ? <p role="alert" className="text-danger">{importError}</p> : message?.text ? <p role={message.error ? 'alert' : 'status'} className={message.error ? 'text-danger' : 'text-text-muted'}>{message.text}</p> : null}
       </section>
     </>}
@@ -114,14 +118,14 @@ function ContributorSummary({bundle}: {bundle: PublicRepositoryBundle}) {
   </div>
 }
 
-function Metrics({facts,overview}: {facts: ScopeFacts; overview: boolean}) {
+function Metrics({facts,overview,details = false}: {facts: ScopeFacts; overview: boolean; details?: boolean}) {
   const entries = [
     {label:overview ? 'Repository commits' : 'Contributor commits',metric:facts.metrics.commits,percent:false},
     {label:'Commit density',metric:facts.metrics.commitDensity,percent:false},
-    {label:'Scheduled day coverage',metric:facts.metrics.scheduledDayCoverage,percent:true},
+    ...(details ? [{label:'Scheduled day coverage',metric:facts.metrics.scheduledDayCoverage,percent:true}] : []),
     {label:'Busiest day share',metric:facts.metrics.busiestDayShare,percent:true},
   ]
-  return <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Report metrics">{entries.map(({label,metric,percent}) => <section key={label} className="min-w-0 space-y-1 rounded-lg bg-surface-2 p-3"><h4 className="text-xs font-medium text-text-muted">{label}</h4><p className="text-xl font-semibold tabular-nums">{metric.value === null ? 'Unavailable' : percent ? `${Math.round(metric.value * 100)}%` : Number(metric.value.toFixed(2)).toLocaleString('en-CA')}</p><p className="text-xs text-text-muted">{metric.status === 'partial' ? 'Partial evidence' : readable(metric.status)}{label === 'Commit density' ? ' · commits / scheduled project day' : ''}</p>{metric.reason && <p className="break-words text-xs text-text-muted">{metric.reason}</p>}{metric.numerator !== null && metric.denominator !== null && <p className="text-xs text-text-muted">{metric.numerator} / {metric.denominator}</p>}</section>)}</div>
+  return <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Report metrics">{entries.map(({label,metric,percent}) => <section key={label} className="min-w-0 space-y-1 rounded-lg bg-surface-2 p-3"><h4 className="text-xs font-medium text-text-muted">{label}</h4><p className="text-xl font-semibold tabular-nums">{metric.value === null ? 'Unavailable' : percent ? `${Math.round(metric.value * 100)}%` : Number(metric.value.toFixed(2)).toLocaleString('en-CA')}</p>{metric.value !== null && <p className="text-xs text-text-muted">{metric.status === 'partial' ? 'Partial evidence' : readable(metric.status)}{label === 'Commit density' ? ' · commits / scheduled project day' : ''}</p>}{metric.reason && <p className="break-words text-xs text-text-muted">{metric.reason}</p>}{metric.numerator !== null && metric.denominator !== null && <p className="text-xs text-text-muted">{metric.numerator} / {metric.denominator}</p>}</section>)}</div>
 }
 
 function Limitations({bundle,facts}: {bundle: PublicRepositoryBundle; facts: ScopeFacts}) {
@@ -146,13 +150,14 @@ function ScrollTable({label,children}: {label: string; children: ReactNode}) {
   return <div role="region" aria-label={label} tabIndex={0} className={focusRegion}><DataTable density="compact" className="text-xs">{children}</DataTable></div>
 }
 
-function Evidence({bundle,facts,observations}: {bundle: PublicRepositoryBundle; facts: ScopeFacts; observations: PublicRepositoryBundle['overview']['ruleFeedback']['observations']}) {
+function Evidence({bundle,facts,overview,observations}: {bundle: PublicRepositoryBundle; facts: ScopeFacts; overview: boolean; observations: PublicRepositoryBundle['overview']['ruleFeedback']['observations']}) {
   const {context} = bundle
   const dates = calendarDates(bundle)
   const timeline = new Map(facts.timeline.map(point => [point.date,point.commitCount]))
   const datedComplete = facts.metrics.commits.status === 'available' && facts.activity.undatedCommitCount === 0
   const maximum = Math.max(1,...facts.timeline.map(point => point.commitCount))
   return <div className="min-w-0 space-y-5">
+    <Metrics facts={facts} overview={overview} details />
     <section className="space-y-2" aria-label="Report source"><h4 className="font-semibold">Source and collection</h4><a className={linkStyle} href={context.repository.url} target="_blank" rel="noreferrer">{context.repository.url}</a><p className="break-words text-text-muted">{context.repository.branch} · {context.period.timezone}</p><p className="break-words text-text-muted">Period [start, end): {context.period.startAt} – {context.period.endAt}</p><a className={linkStyle} href={`${context.repository.url}/commit/${context.snapshot.sha}`} target="_blank" rel="noreferrer">Snapshot {context.snapshot.sha.slice(0,12)}</a><p className="text-text-muted">{readable(context.snapshot.kind)} · captured {context.snapshot.capturedAt}</p><p className="text-text-muted">History: {facts.coverage.history} · Files: {facts.coverage.files}</p>
       <details><summary className="min-h-control cursor-pointer py-3 font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Applied exclusions</summary><div className="space-y-1 break-words text-text-muted"><p>Commit SHAs: {context.exclusions.commitShas.join(', ') || 'None'}</p><p>File prefixes: {context.exclusions.pathPrefixes.join(', ') || 'None'}</p><p>Bot logins: {context.exclusions.botLogins.join(', ') || 'None'}</p><p>Baseline: {readable(context.baseline.status)}{context.baseline.reference && ` · ${context.baseline.reference}`}</p></div></details>
     </section>

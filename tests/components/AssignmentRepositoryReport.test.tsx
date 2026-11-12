@@ -35,6 +35,36 @@ const choose = (scope: string) => fireEvent.change(screen.getByLabelText('Report
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks()})
 
 describe('AssignmentRepositoryReport',()=>{
+  it('keeps the summary concise while retaining detailed findings and limitations in evidence',()=>{
+    const bundle = fixture(true,true)
+    bundle.contributors[0].analysis.facts.coverage.notes.push('History collection reached the 500 scanned-commit limit (including merges); further history may be missing.')
+    render(<AssignmentRepositoryReport bundle={bundle} canImport onImportFeedback={vi.fn()} />)
+    expect(screen.getByText(/500 scanned-commit limit/)).toBeInTheDocument()
+    expect(screen.queryByRole('heading',{name:'Scheduled day coverage'})).not.toBeInTheDocument()
+    expect(screen.queryByText(/Observed alice checkpoints/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/no AI interpretation/i)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button',{name:'View evidence'}))
+    expect(screen.getByRole('heading',{name:'Scheduled day coverage'})).toBeInTheDocument()
+    expect(screen.getByText(/Observed alice checkpoints/)).toBeInTheDocument()
+    expect(screen.getByText(/Fixture collection is incomplete/)).toBeInTheDocument()
+  })
+  it('describes an availability check without falsely reporting an unavailable import',()=>{
+    const bundle = fixture(false,true)
+    const {rerender} = render(<AssignmentRepositoryReport bundle={bundle} canImport={false} importChecking onImportFeedback={vi.fn()} />)
+    expect(screen.getByRole('status')).toHaveTextContent('Checking feedback availability')
+    expect(screen.queryByText(/Feedback import is unavailable/)).not.toBeInTheDocument()
+    rerender(<AssignmentRepositoryReport bundle={bundle} canImport={false} importing onImportFeedback={vi.fn()} />)
+    expect(screen.queryByText(/Feedback import is unavailable/)).not.toBeInTheDocument()
+    rerender(<AssignmentRepositoryReport bundle={bundle} canImport={false} onImportFeedback={vi.fn()} />)
+    expect(screen.getByText(/Feedback import is unavailable/)).toBeInTheDocument()
+  })
+  it('keeps merge and pre-deadline snapshot limits visible even with complete history',()=>{
+    const bundle = fixture(false,true)
+    bundle.contributors[0].analysis.facts.coverage.notes.push('1 merge commit omitted; merge-resolution-only changes are not assessed.')
+    render(<AssignmentRepositoryReport bundle={bundle} assignmentDates={{releasedAt:'2026-10-20T04:00:00Z',dueAt:'2026-10-25T04:00:00Z'}} canImport onImportFeedback={vi.fn()} />)
+    expect(screen.getByText(/changes recorded only in merge resolutions are not assessed/)).toBeInTheDocument()
+    expect(screen.getByText(/snapshot was captured before the deadline/)).toBeInTheDocument()
+  })
   it('shows only the matched student’s dated activity and report assignment dates',()=>{
     render(<AssignmentRepositoryReport bundle={fixture(false,true)} assignmentDates={{releasedAt:'2026-10-20T04:00:00Z',dueAt:'2026-10-23T04:00:00Z'}} assignmentSummary={{scopeKey:'contributor:alice',text:'Summary',rulesVersion:'1.0.0',timeline:[{date:'2026-10-20',commitCount:1}],timelineComplete:true}} canImport={false} onImportFeedback={vi.fn()} />)
     const timeline = screen.getByRole('region',{name:'Student commit timeline'})
