@@ -18,6 +18,30 @@ describe('BillingPage', () => {
   beforeEach(() => { sessionStorage.clear(); history.replaceState({}, '', '/billing') })
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks() })
 
+  it('keeps the refund policy and contact available while billing is closed', () => {
+    render(<BillingPage userId="teacher" billingAvailable={false} />)
+
+    expect(screen.getByRole('heading', { name: 'Billing is unavailable' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Refunds and billing support' })).toBeInTheDocument()
+    expect(screen.getByText(/within seven days of your first paid purchase, including an annual plan/)).toBeInTheDocument()
+    expect(screen.getByText(/existing student work stays available/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Email info@codepet.ca' })).toHaveAttribute(
+      'href', 'mailto:info@codepet.ca?subject=Pika%20billing%20support',
+    )
+  })
+
+  it('shows classroom and RepoLight benefits for the Pro trial and selected paid plan', async () => {
+    const max = { ...item, offeringVersionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', plan: 'max', name: 'Max', classroomLimit: 12 }
+    const fetch = vi.fn((url: string) => url.endsWith('/subscription') ? json(free) : json({ items: [item, max] }))
+    vi.stubGlobal('fetch', fetch)
+    render(<BillingPage userId="teacher" />)
+
+    expect(await screen.findByText('Includes up to 5 active classrooms and RepoLight repository analysis.')).toBeInTheDocument()
+    expect(screen.getByText(/^5 active classrooms and RepoLight repository analysis/)).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Plan, currency and billing interval' }), max.offeringVersionId)
+    expect(screen.getByText(/^12 active classrooms and RepoLight repository analysis/)).toBeInTheDocument()
+  })
+
   it('shows an exact Pro quote and reloads the durable installation status after confirmation', async () => {
     const user = userEvent.setup()
     let installed = false

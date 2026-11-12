@@ -979,8 +979,10 @@ interrupted operation with the preview before retrying.
    attempt started before cutoff. Record suppressed scheduled assignment releases
    durably so resubscription cannot expose work that missed its release.
    Confirm Ontario tax treatment and verify exclusive Stripe Tax on the opted-in
-   catalog. Complete the agreed refund and dispute handling. Publish AI allowance
-   quantities after the approved unit-cost and usage tests.
+   catalog. Complete the agreed refund and dispute handling. The first release
+   includes classrooms and RepoLight for Pro, Max and the Pro trial. Publish
+   included AI grading allowances in a later release after unit-cost and usage
+   verification.
 4. Rehearse against a designated isolated Stripe sandbox and disposable Pika
    stack after authorization for synthetic provider writes. Register exact
    approved recurring prices, bind the scoped account and webhook secret, and

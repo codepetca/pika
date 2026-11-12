@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Sync billing launch with main
-
-Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
-
 ## 2026-11-09 — Combined assignment copy action
 
 Consolidated teacher bulk grade and comment copying into one menu item and dialog. Grade is selected when available; teachers can choose the comment separately, and each unchecked field hides its preview and stays unchanged. Reused the existing atomic request for grade only, comment only, or both. Verified the three request shapes in component tests and the teacher workspace in desktop and mobile light and dark browser runs.
@@ -174,3 +170,7 @@ Returned PR #1799 to draft and rebased its unchanged feature patch onto main aa4
 ## 2026-11-12 Billing recovery due-work check
 
 Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloudflare Worker preserves idle heartbeats, calls Vercel for due work and can fail over shared queues. The RPC uses a dedicated Vault-verified credential and returns lane statuses and shared-work flags. Synthetic PostgREST and rollback-only checks cover authorization, checkout, reconciliation, renewal closeout, trial expiry, assignment releases, interrupted email and scoped RepoLight retries. Coordinate activation with the paid-subscription rollout after migration and credential provisioning.
+
+## 2026-11-12 Billing launch benefits and refund support
+
+Plans and billing explains the seven-day first-purchase refund window, where to email support, and what a confirmed full refund means for paid access and student work. The initial offers are Pro, Max and the Pro trial with classroom capacity and RepoLight. Included AI grading allowances are deferred. Customer checkout, trial admission and provider writes remain closed.

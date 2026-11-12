@@ -54468,3 +54468,8 @@ fresh terminal schedule proof for detached delinquent subscriptions. The
 follow-up preserves ordinary cancellation after settlement and keeps terminal
 markers out of authorization once Stripe proves the exact canceled phase.
 The sealed disposable 001–307 replay passed.
+
+<!-- pika-session-log-archive-batch:d44160a083749eb99083570eb5ecadbf6a20659a1dbda6aeb18cdbbae8aaaa06 -->
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
