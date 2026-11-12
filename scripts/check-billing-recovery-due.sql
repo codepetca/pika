@@ -5,7 +5,7 @@ set local lock_timeout='3s';
 
 do $$
 declare
-  signature constant text := 'public.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean)';
+  signature constant text := 'public.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean,boolean,uuid)';
 begin
   if not has_function_privilege('anon',signature,'execute')
     or has_function_privilege('authenticated',signature,'execute')
@@ -29,7 +29,7 @@ begin
   foreach header in array array['{}','{"x-pika-billing-recovery-secret":"' || repeat('b',43) || '"}'] loop
     perform set_config('request.headers',header,true);
     begin
-      perform public.billing_recovery_due_v1(true,true,false,false,false,false);
+      perform public.billing_recovery_due_v1(true,true,false,false,false,false,false,null);
       raise exception 'Recovery check accepted an unauthorized request';
     exception when insufficient_privilege then
       if sqlerrm<>'billing_recovery_check_unauthorized' then raise; end if;
@@ -40,8 +40,8 @@ $$;
 do $$
 begin
   perform set_config('request.headers',jsonb_build_object('x-pika-billing-recovery-secret',repeat('a',43))::text,true);
-  if public.billing_recovery_due_v1(true,false,false,false,false,false)
-    is distinct from '{"paid":"unavailable","trial":null}'::jsonb then
+  if public.billing_recovery_due_v1(true,false,false,false,false,false,false,null)
+    is distinct from '{"paid":"unavailable","trial":null,"assignment_releases":false,"email_notices":false,"repolight":false}'::jsonb then
     raise exception 'An enabled worker must observe the unavailable database lane';
   end if;
 end;
@@ -49,12 +49,15 @@ $$;
 reset role;
 
 create function pg_temp.assert_due(
-  p_case text, p_paid text, p_trial text, p_email boolean default false
+  p_case text, p_paid text, p_trial text, p_email boolean default false,
+  p_release_due boolean default false, p_email_due boolean default false,
+  p_repolight boolean default false, p_teacher_id uuid default null, p_repolight_due boolean default false
 ) returns void language plpgsql as $$
 declare actual jsonb;
 begin
-  actual:=public.billing_recovery_due_v1(p_paid is not null,p_trial is not null,false,false,false,p_email);
-  if actual is distinct from jsonb_build_object('paid',p_paid,'trial',p_trial) then
+  actual:=public.billing_recovery_due_v1(p_paid is not null,p_trial is not null,false,false,false,p_email,p_repolight,p_teacher_id);
+  if actual is distinct from jsonb_build_object('paid',p_paid,'trial',p_trial,
+    'assignment_releases',p_release_due,'email_notices',p_email_due,'repolight',p_repolight_due) then
     raise exception 'Wrong recovery check for %: %',p_case,actual;
   end if;
 end;
@@ -116,7 +119,25 @@ begin
 
   perform public.billing_start_live_trial_v1(project,account,
     jsonb_build_object('subject_user_id',trial_user,'operation_id',operation_id));
+  -- The check uses statement time. Make the new trial already active at the
+  -- start of this fixture statement without shortening its 720-hour term.
+  update public.billing_trials set started_at=cutoff,ends_at=cutoff+interval '720 hours' where subject_user_id=trial_user;
+  update public.billing_account_access set starts_at=cutoff,access_ends_at=cutoff+interval '720 hours'
+    where subject_user_id=trial_user;
+  update public.effective_feature_entitlements set starts_at=cutoff,expires_at=cutoff+interval '720 hours'
+    where subject_user_id=trial_user and feature_key='classrooms.create';
   perform pg_temp.assert_due('future trial','idle','idle');
+  insert into private.repolight_provision_outbox(teacher_id,source_revision,eligibility_epoch,next_attempt_at)
+    values(trial_user,private.repolight_provision_revision_v1(trial_user),1,cutoff)
+    on conflict (teacher_id) do update set next_attempt_at=excluded.next_attempt_at;
+  perform pg_temp.assert_due('RepoLight database gate off','idle','idle',false,false,false,true,null,false);
+  update private.repolight_settings set managed_provisioning_enabled=true where singleton;
+  perform pg_temp.assert_due('RepoLight outside worker scope','idle','idle',false,false,false,true,paid_user,false);
+  perform pg_temp.assert_due('RepoLight trial retry in scope','idle','idle',false,false,false,true,trial_user,true);
+  perform pg_temp.assert_due('RepoLight trial retry in full rollout','idle','idle',false,false,false,true,null,true);
+  update private.repolight_provision_outbox set next_attempt_at=statement_timestamp()+interval '1 hour'
+    where teacher_id=trial_user;
+  perform pg_temp.assert_due('RepoLight retry still backing off','idle','idle',false,false,false,true,null,false);
   update public.billing_trials set started_at=cutoff-interval '720 hours',ends_at=cutoff where subject_user_id=trial_user;
   update public.billing_account_access set starts_at=cutoff-interval '720 hours',access_ends_at=cutoff
     where subject_user_id=trial_user;
@@ -213,8 +234,8 @@ begin
     values(v_assignment,classroom_id,trial_user,'Shared work',clock_timestamp()+interval '1 day');
   insert into private.billing_assignment_release_intents(assignment_id,classroom_id,subject_user_id,scheduled_for,created_at)
     values(v_assignment,classroom_id,trial_user,cutoff,cutoff-interval '1 minute');
-  perform pg_temp.assert_due('shared release wakes one lane','idle','due');
-  perform pg_temp.assert_due('shared release when trial is off','due',null);
+  perform pg_temp.assert_due('shared release visible to both lanes','idle','idle',false,true);
+  perform pg_temp.assert_due('shared release when trial is off','idle',null,false,true);
   update private.billing_assignment_release_intents intent set state='cancelled',processed_at=clock_timestamp()
     where intent.assignment_id=v_assignment and intent.subject_user_id=trial_user;
 
@@ -226,7 +247,7 @@ begin
   perform pg_temp.assert_due('email still sending','idle','idle',true);
   update private.billing_live_email_notices set sending_started_at=cutoff-interval '5 minutes' where id=notice_id;
   perform pg_temp.assert_due('email disabled in application','idle','idle');
-  perform pg_temp.assert_due('interrupted email needs attention','idle','due',true);
+  perform pg_temp.assert_due('interrupted email needs attention','idle','idle',true,false,true);
   if public.billing_claim_live_email_notice_v1(project,account) is distinct from '{"status":"empty","attention":1}'::jsonb then
     raise exception 'Email handler did not recognize the interrupted attempt';
   end if;

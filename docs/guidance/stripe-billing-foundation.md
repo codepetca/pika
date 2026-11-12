@@ -763,9 +763,14 @@ up to 15 minutes to propagate.
 
 After migration 329, the recovery Worker makes one read-only Supabase RPC per
 tick for its enabled lanes. It invokes a Vercel route only when the RPC reports
-work due for that lane. Assignment releases and billing email notices can wake
-either lane, so shared work alone requires one call. The app's dedicated daily
-RepoLight provisioning cron handles that outbox when there is no billing work.
+work due for that lane. Assignment releases, billing email notices and due
+provisioning retries for active billing or trial accounts can wake either lane.
+Shared work normally requires one call. If the first endpoint does not confirm
+shared recovery, the Worker can try the other available lane. General RepoLight
+discovery and legacy provisioning use the dedicated daily cron.
+Checkout reservations retain their existing retry schedule during a provider
+write pause so the handler can still recover persisted sessions and retire
+stale attempts.
 
 Before deploying this Worker version, provision the production Supabase
 publishable API key as `BILLING_RECOVERY_SUPABASE_PUBLISHABLE_KEY`. Generate a
@@ -773,12 +778,15 @@ dedicated random 32-byte base64url secret for
 `BILLING_RECOVERY_CHECK_SECRET` and store its lowercase hexadecimal SHA-256
 digest in Supabase Vault under `pika_billing_recovery_check_sha256`. Use the
 exact secret bytes with no trailing newline when computing the digest. The
-RPC returns only lane statuses. Match the Worker's
+RPC returns only lane statuses and shared-work flags. Match the Worker's
 `BILLING_LIVE_SCHEDULED_INSTALLATION_ENABLED`,
 `BILLING_LIVE_SCHEDULED_CANCELLATION_ENABLED`,
 `BILLING_LIVE_SCHEDULED_CLOSEOUT_ENABLED` and
 `BILLING_LIVE_EMAIL_NOTICES_ENABLED` switches to the Vercel runtime and update
 them together when those features change.
+Set `BILLING_RECOVERY_REPOLIGHT_SCOPE` to `full` for an enabled full rollout.
+For an enabled scoped rollout, set it as a Worker secret to the exact pilot
+teacher UUID. Leave it unset when the managed RepoLight runtime or rollout is off.
 
 An idle check emits the regular heartbeat with outcome `idle`. An unavailable,
 unauthorized, or malformed check fails the tick and alerts through the existing
@@ -786,8 +794,10 @@ recovery monitoring. If recovery must continue during a sustained check outage,
 use a scoped operator invocation or roll back to the last working caller version.
 
 Verify at least five distinct consecutive scheduled times with an `idle` or
-`ok` receipt for each enabled lane. Exercise a due item on an isolated target.
-Check the observed delay and oldest due work
+`ok` receipt for each enabled lane. With customer admission closed, separately
+verify one authenticated successful production response per enabled endpoint.
+Exercise a due item on an isolated target and confirm idle ticks issue no
+Vercel calls. Check the observed delay and oldest due work
 before admitting customers. Alert on a failed Worker invocation, a lane's
 `needs_attention` receipt, and a missing heartbeat per enabled lane. Verify
 the alert receiver and trigger an intentional failure using an isolated

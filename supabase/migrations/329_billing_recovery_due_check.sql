@@ -4,7 +4,7 @@ begin;
 -- locks or leases. Each handler still rechecks eligibility before acting.
 create function private.billing_recovery_due_v1(
   p_paid boolean, p_trial boolean, p_installation boolean, p_cancellation boolean,
-  p_scheduled_closeout boolean, p_email boolean
+  p_scheduled_closeout boolean, p_email boolean, p_repolight boolean, p_repolight_teacher_id uuid
 ) returns jsonb language plpgsql stable security definer set search_path='' as $$
 declare
   v_secret text := nullif(current_setting('request.headers', true), '')::jsonb->>'x-pika-billing-recovery-secret';
@@ -12,7 +12,9 @@ declare
   v_now timestamptz := statement_timestamp();
   v_paid text;
   v_trial text;
-  v_shared boolean;
+  v_assignment_releases boolean := false;
+  v_email_notices boolean := false;
+  v_repolight boolean := false;
 begin
   if v_secret is null or char_length(v_secret) not between 32 and 256
     or v_secret !~ '^[A-Za-z0-9_-]+$'
@@ -143,14 +145,14 @@ begin
     v_trial:='due';
   end if;
 
-  -- Either endpoint can process these queues. Shared work alone wakes one
-  -- healthy lane, and an already-due lane can process it in the same call.
-  if v_paid is distinct from 'due' and v_trial is distinct from 'due'
-    and (v_paid='idle' or v_trial='idle') then
-    v_shared := exists (
+  -- Either endpoint can process these queues. Keep them visible even if a
+  -- lane has other work, so a failed endpoint cannot own the shared queues.
+  if v_paid in ('idle','due') or v_trial in ('idle','due') then
+    v_assignment_releases := exists (
       select 1 from private.billing_assignment_release_intents
       where state='pending' and scheduled_for<=v_now and v_settings.classroom_new_work_cutoff_enabled
-    ) or (p_email and v_settings.live_email_notices_enabled and exists (
+    );
+    v_email_notices := coalesce(p_email,false) and v_settings.live_email_notices_enabled and exists (
       select 1 from private.billing_live_email_notices notice
       where notice.project_ref=v_settings.live_project_ref and notice.stripe_account=v_settings.live_stripe_account
         and (
@@ -158,13 +160,28 @@ begin
             and (notice.source='trial' or not private.billing_live_undo_awaiting_proof_v1(notice.source_id)))
           or (notice.state='sending' and notice.sending_started_at<=v_now-interval '5 minutes')
         )
-    ));
-    if v_shared then
-      if v_trial='idle' then v_trial:='due'; else v_paid:='due'; end if;
-    end if;
+    );
+    -- Keep billing-created provisioning retries on their existing cadence.
+    -- General discovery and legacy provisioning belong to their own cron.
+    v_repolight := coalesce(p_repolight,false)
+      and exists (select 1 from private.repolight_settings where singleton and managed_provisioning_enabled)
+      and exists (
+        select 1 from private.repolight_provision_outbox pending
+        join public.account_plans plan on plan.subject_user_id=pending.teacher_id
+        join public.billing_account_access access on access.subject_user_id=pending.teacher_id
+          and access.account_plan_revision=plan.revision
+        where plan.plan_key in ('plus','pro') and plan.management_source in ('billing','trial')
+          and access.starts_at<=v_now and access.access_ends_at>v_now
+          and (p_repolight_teacher_id is null or pending.teacher_id=p_repolight_teacher_id)
+          and (
+            (pending.state='pending' and pending.next_attempt_at<=v_now)
+            or (pending.state='processing' and pending.lease_expires_at<=v_now)
+          )
+      );
   end if;
 
-  return jsonb_build_object('paid',v_paid,'trial',v_trial);
+  return jsonb_build_object('paid',v_paid,'trial',v_trial,
+    'assignment_releases',v_assignment_releases,'email_notices',v_email_notices,'repolight',v_repolight);
 end;
 $$;
 
@@ -172,13 +189,14 @@ $$;
 -- schema stays off the Data API and needs no new USAGE grant.
 create function public.billing_recovery_due_v1(
   p_paid boolean, p_trial boolean, p_installation boolean, p_cancellation boolean,
-  p_scheduled_closeout boolean, p_email boolean
+  p_scheduled_closeout boolean, p_email boolean, p_repolight boolean, p_repolight_teacher_id uuid
 ) returns jsonb language sql stable security invoker set search_path=''
-return private.billing_recovery_due_v1(p_paid,p_trial,p_installation,p_cancellation,p_scheduled_closeout,p_email);
+return private.billing_recovery_due_v1(
+  p_paid,p_trial,p_installation,p_cancellation,p_scheduled_closeout,p_email,p_repolight,p_repolight_teacher_id);
 
-revoke all on function private.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean) from public,anon,authenticated,service_role;
-revoke all on function public.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean) from public,anon,authenticated,service_role;
-grant execute on function private.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean) to anon;
-grant execute on function public.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean) to anon;
+revoke all on function private.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean,boolean,uuid) from public,anon,authenticated,service_role;
+revoke all on function public.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean,boolean,uuid) from public,anon,authenticated,service_role;
+grant execute on function private.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean,boolean,uuid) to anon;
+grant execute on function public.billing_recovery_due_v1(boolean,boolean,boolean,boolean,boolean,boolean,boolean,uuid) to anon;
 
 commit;

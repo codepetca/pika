@@ -38,6 +38,8 @@ const paidReceipt = {
   assignmentReleases: {},
 }
 const trialReceipt = { lifecycle: { processed: 0 }, assignmentReleases: {} }
+const dueReceipt = (paid: string | null, trial: string | null, shared = {}) =>
+  Response.json({ paid, trial, assignment_releases: false, email_notices: false, repolight: false, ...shared })
 const fetchStub = vi.fn()
 const dueCheckStub = vi.fn()
 
@@ -45,7 +47,7 @@ beforeEach(() => {
   fetchStub.mockReset()
   dueCheckStub.mockReset().mockImplementation(async (_url: string, request: RequestInit) => {
     const { p_paid, p_trial } = JSON.parse(String(request.body))
-    return Response.json({ paid: p_paid ? 'due' : null, trial: p_trial ? 'due' : null })
+    return dueReceipt(p_paid ? 'due' : null, p_trial ? 'due' : null)
   })
   vi.stubGlobal('fetch', (url: string, request: RequestInit) => (
     url === duePath ? dueCheckStub(url, request) : fetchStub(url, request)
@@ -70,7 +72,7 @@ describe('Pika billing recovery scheduler', () => {
   })
 
   it('makes one Supabase check for both lanes and emits idle heartbeats without calling Vercel', async () => {
-    dueCheckStub.mockResolvedValueOnce(Response.json({ paid: 'idle', trial: 'idle' }))
+    dueCheckStub.mockResolvedValueOnce(dueReceipt('idle', 'idle'))
     await expect(worker.scheduled(tick, { ...enabled, BILLING_LIVE_EMAIL_NOTICES_ENABLED: 'true' })).resolves.toBeUndefined()
     expect(dueCheckStub).toHaveBeenCalledExactlyOnceWith(duePath, expect.objectContaining({
       method: 'POST', redirect: 'manual', signal: expect.any(AbortSignal),
@@ -80,7 +82,7 @@ describe('Pika billing recovery scheduler', () => {
       },
       body: JSON.stringify({
         p_paid: true, p_trial: true, p_installation: false, p_cancellation: false,
-        p_scheduled_closeout: false, p_email: true,
+        p_scheduled_closeout: false, p_email: true, p_repolight: false, p_repolight_teacher_id: null,
       }),
     }))
     expect(fetchStub).not.toHaveBeenCalled()
@@ -95,7 +97,7 @@ describe('Pika billing recovery scheduler', () => {
   it.each([
     ['idle', false], ['unavailable', true],
   ])('calls only trial when paid is %s', async (paidStatus, shouldFail) => {
-    dueCheckStub.mockResolvedValueOnce(Response.json({ paid: paidStatus, trial: 'due' }))
+    dueCheckStub.mockResolvedValueOnce(dueReceipt(paidStatus, 'due'))
     fetchStub.mockResolvedValueOnce(Response.json(trialReceipt))
     const scheduled = worker.scheduled(tick, enabled)
     if (shouldFail) await expect(scheduled).rejects.toThrow('needs attention')
@@ -104,6 +106,57 @@ describe('Pika billing recovery scheduler', () => {
     if (shouldFail) expect(console.error).toHaveBeenCalledWith(expect.objectContaining({
       lane: 'paid', outcome: 'due_check_lane_unavailable',
     }))
+  })
+
+  it('calls one lane for shared work when the first receipt confirms it', async () => {
+    dueCheckStub.mockResolvedValueOnce(dueReceipt('idle', 'idle', { assignment_releases: true }))
+    fetchStub.mockResolvedValueOnce(Response.json(trialReceipt))
+    await expect(worker.scheduled(tick, enabled)).resolves.toBeUndefined()
+    expect(dueCheckStub).toHaveBeenCalledTimes(1)
+    expect(fetchStub).toHaveBeenCalledExactlyOnceWith(trialPath, expect.anything())
+    expect(console.info).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome: 'idle' }))
+  })
+
+  it('falls back to paid after a failed trial call when shared work is due', async () => {
+    dueCheckStub.mockResolvedValueOnce(dueReceipt('idle', 'idle', { assignment_releases: true }))
+    fetchStub.mockResolvedValueOnce(new Response(null, { status: 401 })).mockResolvedValueOnce(Response.json(paidReceipt))
+    await expect(worker.scheduled(tick, enabled)).rejects.toThrow('needs attention')
+    expect(dueCheckStub).toHaveBeenCalledTimes(1)
+    expect(fetchStub.mock.calls.map(([url]) => url)).toEqual([trialPath, paidPath])
+    expect(console.info).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome: 'ok' }))
+    expect(console.error).toHaveBeenCalledWith(expect.objectContaining({ lane: 'trial', outcome: 'http_error' }))
+  })
+
+  it('falls back when an independently due paid call never reaches due email work', async () => {
+    dueCheckStub.mockResolvedValueOnce(dueReceipt('due', 'idle', { email_notices: true }))
+    fetchStub.mockResolvedValueOnce(Response.json(paidReceipt))
+      .mockResolvedValueOnce(Response.json({ ...trialReceipt, emailNotices: { processed: 1 } }))
+    await expect(worker.scheduled(tick, { ...enabled, BILLING_LIVE_EMAIL_NOTICES_ENABLED: 'true' })).rejects.toThrow('needs attention')
+    expect(dueCheckStub).toHaveBeenCalledTimes(1)
+    expect(fetchStub.mock.calls.map(([url]) => url)).toEqual([paidPath, trialPath])
+    expect(console.error).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome: 'shared_recovery_unconfirmed' }))
+  })
+
+  it.each([
+    ['off', false, null],
+    ['full', true, null],
+    ['e1e1e1e1-e1e1-41e1-81e1-e1e1e1e1e1e1', true, 'e1e1e1e1-e1e1-41e1-81e1-e1e1e1e1e1e1'],
+    ['invalid', false, null],
+  ])('uses the configured RepoLight scope %s', async (scope, provision, teacherId) => {
+    dueCheckStub.mockResolvedValueOnce(dueReceipt('idle', 'idle', { repolight: provision }))
+    fetchStub.mockResolvedValueOnce(Response.json(trialReceipt))
+    await expect(worker.scheduled(tick, { ...enabled, BILLING_RECOVERY_REPOLIGHT_SCOPE: scope })).resolves.toBeUndefined()
+    expect(JSON.parse(dueCheckStub.mock.calls[0][1].body)).toMatchObject({
+      p_repolight: provision, p_repolight_teacher_id: teacherId,
+    })
+    expect(fetchStub).toHaveBeenCalledTimes(provision ? 1 : 0)
+  })
+
+  it('does not repeat shared work when only an unrelated paid subtask failed', async () => {
+    dueCheckStub.mockResolvedValueOnce(dueReceipt('due', 'idle', { assignment_releases: true }))
+    fetchStub.mockResolvedValueOnce(Response.json({ ...paidReceipt, reconciliation: { failed: 1 } }))
+    await expect(worker.scheduled(tick, enabled)).rejects.toThrow('needs attention')
+    expect(fetchStub).toHaveBeenCalledExactlyOnceWith(paidPath, expect.anything())
   })
 
   it.each([

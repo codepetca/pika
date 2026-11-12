@@ -10503,6 +10503,8 @@ export type Database = {
           p_email: boolean
           p_installation: boolean
           p_paid: boolean
+          p_repolight: boolean
+          p_repolight_teacher_id: string
           p_scheduled_closeout: boolean
           p_trial: boolean
         }
