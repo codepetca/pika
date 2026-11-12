@@ -54450,11 +54450,7 @@ Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff 
 
 The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
 
-<!-- pika-session-log-archive-batch:e3b0ff80eebb9a77dc156d6e70c60a400ca8812ca90428bf1dd49db9aec3998e -->
-## 2026-11-08 Stripe SDK decimal compatibility
-
-The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
-
+<!-- pika-session-log-archive-batch:59d7f5f636ee51b27a7cf50c0fb5485c9379cf7f422d65d14d37f1a90fd35ee8 -->
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.

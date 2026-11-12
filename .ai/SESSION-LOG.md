@@ -167,10 +167,10 @@ Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unb
 
 Extended the shared attestation and submission deadline to 15 seconds for create and reconciliation after a hosted first admission exceeded eight seconds. Other operations retain their eight-second default; explicit overrides remain supported.
 
-## 2026-11-12 Billing recovery due-work check
-
-Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloudflare Worker preserves idle heartbeats, calls Vercel for due work and can fail over shared queues. The RPC uses a dedicated Vault-verified credential and returns lane statuses and shared-work flags. Synthetic PostgREST and rollback-only checks cover authorization, checkout, reconciliation, renewal closeout, trial expiry, assignment releases, interrupted email and scoped RepoLight retries. Coordinate activation with the paid-subscription rollout after migration and credential provisioning.
-
 ## 2026-11-12 Timeline branch base sync
 
 Returned PR #1799 to draft and rebased its unchanged feature patch onto main aa4689bf. Focused checks passed: 97 test files, 1,843 tests, architecture, UI/design policy, TypeScript and lint. Exact-head CI remains required after publication.
+
+## 2026-11-12 Billing recovery due-work check
+
+Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloudflare Worker preserves idle heartbeats, calls Vercel for due work and can fail over shared queues. The RPC uses a dedicated Vault-verified credential and returns lane statuses and shared-work flags. Synthetic PostgREST and rollback-only checks cover authorization, checkout, reconciliation, renewal closeout, trial expiry, assignment releases, interrupted email and scoped RepoLight retries. Coordinate activation with the paid-subscription rollout after migration and credential provisioning.
