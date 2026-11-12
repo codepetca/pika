@@ -8,6 +8,9 @@ export type SendEmailOptions = {
   to: string
   signal?: AbortSignal
   tags?: string[]
+  // Cloudflare Workers supports manual redirects and rejects redirect: error.
+  manualRedirect?: true
+  idempotencyKey?: string
 } & ({ templateParams: Record<string, any> } | { subject: string; textContent: string })
 
 /**
@@ -40,7 +43,7 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   try {
     response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
-      redirect: 'error',
+      redirect: opts.manualRedirect ? 'manual' : 'error',
       ...(opts.signal && { signal: opts.signal }),
       headers: {
         accept: 'application/json',
@@ -52,7 +55,9 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
           email: fromEmail,
           name: fromName,
         },
-        to: [{ email: opts.to }],
+        ...(opts.idempotencyKey
+          ? { messageVersions: [{ to: [{ email: opts.to }] }], headers: { idempotencyKey: opts.idempotencyKey } }
+          : { to: [{ email: opts.to }] }),
         ...content,
         ...(opts.tags && { tags: opts.tags }),
       }),
@@ -63,6 +68,11 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   }
 
   if (!response.ok) {
+    if (opts.idempotencyKey && response.status === 400) {
+      const failure = await response.json().catch(() => undefined)
+      // Brevo uses this response when it has already accepted this batch key.
+      if (failure?.code === 'duplicate_parameter') return {}
+    }
     await response.body?.cancel().catch(() => {})
     throw new Error(`Failed to send email via Brevo (${response.status})`)
   }

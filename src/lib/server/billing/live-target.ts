@@ -81,7 +81,7 @@ export function readBillingLiveCheckoutConfig(env: NodeJS.ProcessEnv = process.e
     return null
   }
   const target = readExactLiveBillingTarget(env)
-  const secretKey = env.STRIPE_LIVE_SECRET_KEY
+  const secretKey = env.STRIPE_LIVE_SECRET_KEY?.trim()
   if (!secretKey || !/^(?:sk|rk)_live_[A-Za-z0-9]{16,255}$/.test(secretKey)) {
     throw new Error('Invalid live checkout configuration')
   }
@@ -96,7 +96,7 @@ export function readBillingLivePaymentWorkerConfig(env: NodeJS.ProcessEnv = proc
   if (!checkout) return null
   const workerSecret = env.BILLING_LIVE_PAYMENT_WORKER_SECRET
   if (!workerSecret || workerSecret.length < 32 || workerSecret === env.BILLING_WORKER_SECRET
-    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret === checkout.secretKey
+    || workerSecret === env.BILLING_LIVE_TRIAL_WORKER_SECRET || workerSecret.trim() === checkout.secretKey
     || workerSecret === env.STRIPE_LIVE_WEBHOOK_SECRET) {
     throw new Error('Invalid live payment worker configuration')
   }

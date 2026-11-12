@@ -55164,3 +55164,20 @@ Teacher Billing now saves the scheduled change quote and confirmation, reports i
 ## 2026-11-08 Scheduled change cancellation and recovery
 
 Teacher Billing now saves the scheduled change quote and confirmation, reports installation, and records cancellation or undo with exact paid Max cutoff. The paid worker holds separate installation and cancellation lanes. Tested nine teacher states in Playwright on desktop and mobile in light and dark, including keyboard dialog confirmations and semantic states. A signed-in student was redirected and denied the fixture. The isolated Stripe sandbox rejected a stale Max-only schedule update after the Pro phase started and preserved the Pro invoice. The owned native replay verified late undo and handed an exact draft or paid Pro invoice to normal renewal processing. The launch switches default off.
+
+<!-- pika-session-log-archive-batch:510f3be7b87f0b4063a4518114cf92eeb8ee540eb5e843824f1d453ecdca8e7e -->
+## 2026-11-08 Billing recovery cadence and CI contracts
+
+Added a private Cloudflare Cron Trigger caller for the existing paid and trial recovery endpoints. The two-minute canary interval and both independent caller switches are explicit in the Worker config. The Worker pins the app origin, rejects redirects, bounds receipt reads, and records sanitized failed invocations even when Pika returns a partial failure in HTTP 200. Wrangler packaged the source and exercised its local schedule with both switches off. An enabled workerd run with all outbound calls bound to a local fixture verified success, swapped-token rejection and a refused redirect. Separate synthetic calls reached both actual Pika POST handlers and proved bearer isolation. The CI database job now executes the scheduled billing rollback fixtures 322–325 in order. The operator runbook records activation, cadence evidence, alert verification and durable queue checks.
+
+<!-- pika-session-log-archive-batch:c1d30682324167f2ea0d6bfe0e7563cb7877411c61a69cf2e9286de3c15fe773 -->
+## 2026-11-08 Stripe exclusive tax custody
+
+Taxed live offerings pin an immutable exclusive-tax mode through Checkout, paid invoice verification, scheduled renewal and cancellation, and unpaid closeout. Verified Stripe automatic tax is separate from the plan subtotal and the captured payment must equal the gross. Tax admission remains independently gated, with Canadian registration and address-only portal prerequisites. The live catalog CLI previews and creates distinct unavailable tax versions when authorized. Separate catalog keys let existing untaxed Max subscribers keep a compatible Pro downgrade while taxed Pro is available. Focused tests and the owned PostgreSQL replay cover legacy and opted-in shapes. The designated Stripe sandbox still needs its tax configuration and a real taxable checkout and renewal rehearsal.
+
+<!-- pika-session-log-archive-batch:360300656a8bfa5ef21dc81b5d05a38b37c9d6672d43ec81bf28f8a501056dd2 -->
+## 2026-11-08 Teacher billing access notices
+
+UI brief. Extend the teacher Plans and billing page and the teacher Classrooms landing page. Reuse the existing Billing card and Pattern Lab fixtures, the compact inline warning from Student Today, and the shared secondary button style. Share the feature-owned warning between the two teacher surfaces. The exact access date is the primary signal. Verify upcoming trial and paid expiry, failed renewal, recovered renewal, and expired access on desktop and mobile in light and dark, plus student exclusion. Existing links and buttons require no composite-widget review.
+
+The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
