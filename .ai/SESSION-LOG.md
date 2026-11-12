@@ -174,3 +174,6 @@ Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloud
 ## 2026-11-12 Billing launch benefits and refund support
 
 Plans and billing explains the seven-day first-purchase refund window, where to email support, and what a confirmed full refund means for paid access and student work. The initial offers are Pro, Max and the Pro trial with classroom capacity and RepoLight. Included AI grading allowances are deferred. Customer checkout, trial admission and provider writes remain closed.
+## 2026-11-12 — RepoLight report summary
+
+- Simplified the teacher repository report, retained coverage caveats and detailed evidence, and distinguished feedback availability checks from unavailable imports. Reused the existing report dialog, timeline, metrics and evidence view; no student surface changed. Verification: focused report and work-panel tests passed; broader checks and visual matrix are in progress.
