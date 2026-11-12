@@ -58,5 +58,9 @@
   {
     "name": "328_billing_live_full_refund.sql",
     "sha256": "691a47b836d9d935200fceb42844b8dfbe19cfaab66dcf08848d61e9edbf07cc"
+  },
+  {
+    "name": "329_billing_recovery_due_check.sql",
+    "sha256": "98b18269d67ac4d172dc7952be3058a13d6776e117a8476fcd98dbf4974dc525"
   }
 ]

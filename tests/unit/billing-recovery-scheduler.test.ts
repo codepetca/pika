@@ -15,16 +15,21 @@ vi.mock('@/lib/server/billing/lifecycle-runtime', () => ({ processLiveTrialLifec
 
 const paidSecret = 'synthetic-paid-' + 'a'.repeat(32)
 const trialSecret = 'synthetic-trial-' + 'b'.repeat(32)
+const dueSecret = 'synthetic-due-' + 'c'.repeat(32)
+const publishableKey = 'sb_publishable_synthetic'
 const enabled = {
   BILLING_PAID_RECOVERY_ENABLED: 'true',
   BILLING_TRIAL_RECOVERY_ENABLED: 'true',
   BILLING_LIVE_PAYMENT_WORKER_SECRET: paidSecret,
   BILLING_LIVE_TRIAL_WORKER_SECRET: trialSecret,
+  BILLING_RECOVERY_CHECK_SECRET: dueSecret,
+  BILLING_RECOVERY_SUPABASE_PUBLISHABLE_KEY: publishableKey,
 }
 const config = JSON.parse(readFileSync(new URL('../../workers/billing-recovery/wrangler.jsonc', import.meta.url), 'utf8'))
 const tick = { cron: '*/2 * * * *', scheduledTime: 1_794_178_080_000 }
 const paidPath = 'https://pika.codepet.ca/api/billing/stripe/live/process'
 const trialPath = 'https://pika.codepet.ca/api/billing/trial/process'
+const duePath = 'https://zhioqbapgfcrronyuidm.supabase.co/rest/v1/rpc/billing_recovery_due_v1'
 const paidReceipt = {
   purchases: { processed: 1, failed: 0 },
   reconciliation: { processed: 0, exceptions: 0 },
@@ -34,10 +39,17 @@ const paidReceipt = {
 }
 const trialReceipt = { lifecycle: { processed: 0 }, assignmentReleases: {} }
 const fetchStub = vi.fn()
+const dueCheckStub = vi.fn()
 
 beforeEach(() => {
   fetchStub.mockReset()
-  vi.stubGlobal('fetch', fetchStub)
+  dueCheckStub.mockReset().mockImplementation(async (_url: string, request: RequestInit) => {
+    const { p_paid, p_trial } = JSON.parse(String(request.body))
+    return Response.json({ paid: p_paid ? 'due' : null, trial: p_trial ? 'due' : null })
+  })
+  vi.stubGlobal('fetch', (url: string, request: RequestInit) => (
+    url === duePath ? dueCheckStub(url, request) : fetchStub(url, request)
+  ))
   vi.spyOn(console, 'info').mockImplementation(() => undefined)
   vi.spyOn(console, 'error').mockImplementation(() => undefined)
 })
@@ -53,6 +65,67 @@ describe('Pika billing recovery scheduler', () => {
       triggers: { crons: [tick.cron] }, vars: { BILLING_PAID_RECOVERY_ENABLED: 'false', BILLING_TRIAL_RECOVERY_ENABLED: 'false' } })
     await expect(worker.scheduled(tick, config.vars)).resolves.toBeUndefined()
     await expect(worker.scheduled({ ...tick, cron: '* * * * *' }, enabled)).rejects.toThrow('Unexpected')
+    expect(fetchStub).not.toHaveBeenCalled()
+    expect(dueCheckStub).not.toHaveBeenCalled()
+  })
+
+  it('makes one Supabase check for both lanes and emits idle heartbeats without calling Vercel', async () => {
+    dueCheckStub.mockResolvedValueOnce(Response.json({ paid: 'idle', trial: 'idle' }))
+    await expect(worker.scheduled(tick, { ...enabled, BILLING_LIVE_EMAIL_NOTICES_ENABLED: 'true' })).resolves.toBeUndefined()
+    expect(dueCheckStub).toHaveBeenCalledExactlyOnceWith(duePath, expect.objectContaining({
+      method: 'POST', redirect: 'manual', signal: expect.any(AbortSignal),
+      headers: {
+        apikey: publishableKey, 'x-pika-billing-recovery-secret': dueSecret,
+        'Content-Type': 'application/json', Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        p_paid: true, p_trial: true, p_installation: false, p_cancellation: false,
+        p_scheduled_closeout: false, p_email: true,
+      }),
+    }))
+    expect(fetchStub).not.toHaveBeenCalled()
+    for (const lane of ['paid', 'trial']) {
+      expect(console.info).toHaveBeenCalledWith(expect.objectContaining({
+        event: 'pika_billing_recovery', lane, outcome: 'idle', scheduledAt: tick.scheduledTime,
+      }))
+    }
+    expect(console.error).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['idle', false], ['unavailable', true],
+  ])('calls only trial when paid is %s', async (paidStatus, shouldFail) => {
+    dueCheckStub.mockResolvedValueOnce(Response.json({ paid: paidStatus, trial: 'due' }))
+    fetchStub.mockResolvedValueOnce(Response.json(trialReceipt))
+    const scheduled = worker.scheduled(tick, enabled)
+    if (shouldFail) await expect(scheduled).rejects.toThrow('needs attention')
+    else await expect(scheduled).resolves.toBeUndefined()
+    expect(fetchStub).toHaveBeenCalledExactlyOnceWith(trialPath, expect.anything())
+    if (shouldFail) expect(console.error).toHaveBeenCalledWith(expect.objectContaining({
+      lane: 'paid', outcome: 'due_check_lane_unavailable',
+    }))
+  })
+
+  it.each([
+    [() => new Response(dueSecret, { status: 404 }), 'due_check_http_error'],
+    [() => Response.json({ paid: false, trial: 'due' }), 'invalid_due_check_receipt'],
+    [() => Response.json({ paid: 'idle', trial: 'due', extra: dueSecret }), 'invalid_due_check_receipt'],
+    [() => { throw new Error(dueSecret) }, 'due_check_failed'],
+  ])('reports an unusable check and skips both endpoints (%#)', async (response, outcome) => {
+    dueCheckStub.mockImplementationOnce(response)
+    await expect(worker.scheduled(tick, enabled)).rejects.toThrow('needs attention')
+    expect(fetchStub).not.toHaveBeenCalled()
+    expect(console.error).toHaveBeenCalledTimes(2)
+    expect(console.error).toHaveBeenCalledWith(expect.objectContaining({ lane: 'paid', outcome }))
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain(dueSecret)
+  })
+
+  it('rejects invalid or reused due-check credentials before contacting either provider', async () => {
+    for (const env of [
+      { ...enabled, BILLING_RECOVERY_CHECK_SECRET: paidSecret },
+      { ...enabled, BILLING_RECOVERY_SUPABASE_PUBLISHABLE_KEY: 'sb_secret_synthetic' },
+    ]) await expect(worker.scheduled(tick, env)).rejects.toThrow('needs attention')
+    expect(dueCheckStub).not.toHaveBeenCalled()
     expect(fetchStub).not.toHaveBeenCalled()
   })
 

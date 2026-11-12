@@ -10497,6 +10497,17 @@ export type Database = {
         Args: { p_project_ref: string; p_request: Json }
         Returns: Json
       }
+      billing_recovery_due_v1: {
+        Args: {
+          p_cancellation: boolean
+          p_email: boolean
+          p_installation: boolean
+          p_paid: boolean
+          p_scheduled_closeout: boolean
+          p_trial: boolean
+        }
+        Returns: Json
+      }
       billing_register_live_checkout_offering_v1: {
         Args: {
           p_project_ref: string

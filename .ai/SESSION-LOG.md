@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 Billing email notices
-
-Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
-
 ## 2026-11-08 Stripe SDK decimal compatibility
 
 The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
@@ -188,3 +184,7 @@ Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unb
 ## 2026-11-11 RepoLight submission deadline
 
 Extended the shared attestation and submission deadline to 15 seconds for create and reconciliation after a hosted first admission exceeded eight seconds. Other operations retain their eight-second default; explicit overrides remain supported.
+
+## 2026-11-12 Billing recovery due-work check
+
+Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloudflare Worker preserves idle heartbeats and invokes Vercel only for a due lane. The RPC uses a dedicated Vault-verified credential and returns lane statuses. Synthetic PostgREST and rollback-only database checks cover authorization, checkout, reconciliation, renewal closeout, trial expiry, assignment releases and interrupted email. Coordinate activation with the paid-subscription rollout after migration and credential provisioning.

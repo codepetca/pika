@@ -27,10 +27,10 @@ source_id="$(docker inspect "$source_container" --format '{{.Id}}')"
 source_version="$(docker exec "$source_container" psql -U postgres -d postgres -Atqc 'select max(version) from supabase_migrations.schema_migrations')"
 [[ "$source_version" =~ ^[0-9]{3}$ ]] || exit 1
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
-# Source extensions 298–328 are sealed below and do not modify Auth/Storage.
+# Source extensions 298–329 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 328)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([297,300,301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328].includes(migrations.length),'Attendance proof target must end at 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327 or 328'); validateDisposableBillingReplayMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 329)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([297,300,301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329].includes(migrations.length),'Attendance proof target must end at 297, 300, 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328 or 329'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_attendance_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-attendance-membership.XXXXXX)"
