@@ -243,6 +243,10 @@ runtime keys remain `plus` and `pro` until a reviewed implementation updates
 their mapping; never interpret legacy `pro` as the new five-classroom product
 or rewrite historical purchased terms solely because a display name changed.
 
+Owner decision 2026-11-12: the first release includes Pro, Max and the
+30-day Pro trial with classroom capacity and RepoLight repository analysis.
+Included AI grading allowances are deferred to a later release.
+
 Annual plans charge the full annual amount upfront. Show that total clearly;
 do not advertise the previously proposed two-month discount, which these final
 prices supersede. Paid plans share core teaching tools and differ primarily by
@@ -293,6 +297,8 @@ purchase-order billing. Sponsored/manual grant precedence remains deferred.
   Thereafter cancellation normally stops renewal without refunding unused time,
   subject to applicable requirements. Correct duplicate/incorrect charges;
   handle exceptional refund requests through support with an audit trail.
+- Plans and billing directs customers to email `info@codepet.ca` from their
+  Pika account address with the Stripe invoice number and purchase date.
 - Owner decision 2026-11-10: end the refunded paid term once Stripe confirms
   the full refund. Apply Free access and preserve student work under SUB-12.
   Keep the original payment receipt and the audit of the refund. Handle
@@ -457,10 +463,8 @@ provider settings, charges or production changes follow from this policy alone.
 
 ## Remaining launch prerequisites
 
-- Validate AI unit costs, publish final quantities, and specify reset anchors,
-  whole-unit rounding, workload limits and reservation behavior at transitions.
 - Implement once-per-teacher trial eligibility, verified paid conversion and
-  precedence preventing stacked trial/paid allowances.
+  precedence preventing stacked trial and paid access.
 - Define deterministic classroom activity ranking and tie-breaking, and implement
   subscription archives that preserve SUB-12 without enabling unrelated archived
   mutations or automatic retention purges.
@@ -474,6 +478,10 @@ provider settings, charges or production changes follow from this policy alone.
 - Rehearse real Stripe test-mode flows in an isolated runtime. No live enablement,
   production deployment, account changes or migration application is authorized
   by this policy. See the [foundation](stripe-billing-foundation.md).
+
+Before introducing included AI grading allowances, validate unit costs, publish
+final quantities, and specify reset anchors, whole-unit rounding, workload
+limits, reservation behavior at transitions, and trial-to-paid precedence.
 
 ## Acceptance evidence for implementation
 

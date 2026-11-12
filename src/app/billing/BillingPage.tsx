@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Card, FormField, PageState, Select } from '@/ui'
+import { Button, buttonVariants, Card, FormField, PageState, Select } from '@/ui'
+import { launchTrial } from '@/lib/billing/launch-catalog'
 import { BillingSubscriptionStatusSchema, fetchBillingSubscription, type BillingSubscriptionStatus } from '@/lib/billing/subscription'
 import { BillingAccessNotice } from '@/components/billing/BillingAccessNotice'
 import { BillingUpgradeCard } from './BillingUpgradeCard'
@@ -238,11 +239,15 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
         onChanged={refreshSubscription} /> : null}
       {subscription.options?.trialAvailable ? <Card><h2 className="text-lg font-semibold">Try Pro</h2>
         <p className="mt-1 text-sm text-text-muted">Start a 30-day Pro trial without a card or automatic charge. One trial is available per teacher.</p>
+        <p className="mt-1 text-sm text-text-muted">Includes up to {launchTrial.activeClassroomCap} active classrooms and RepoLight repository analysis.</p>
         <Button className="mt-4" onClick={() => void startTrial()} disabled={busy}>Start 30-day Pro trial</Button>
       </Card> : null}
       {purchaseAvailable && subscription.options?.checkoutAvailable && catalog.length > 0 ? <Card><h2 className="text-lg font-semibold">Choose a paid plan</h2>
         <div className="mt-3"><FormField label="Plan, currency and billing interval"><Select disabled={busy} value={selected} onChange={event => setSelected(event.target.value)} options={catalog.map(item => ({ value: item.offeringVersionId, label: `${item.name} · ${item.currency.toUpperCase()} ${(item.unitAmount / 100).toFixed(2)} / ${item.interval === 'year' ? 'year' : 'month'}` }))} /></FormField></div>
-        {offer ? <p className="mt-2 text-sm text-text-muted">{offer.classroomLimit} active classrooms. {offer.interval === 'year' ? 'Full annual amount charged upfront. ' : ''}Prices exclude applicable tax.</p> : null}
+        {offer ? <p className="mt-2 text-sm text-text-muted">
+          {offer.classroomLimit} active classrooms{offer.plan === 'pro' || offer.plan === 'max' ? ' and RepoLight repository analysis' : ''}.
+          {' '}{offer.interval === 'year' ? 'Full annual amount charged upfront. ' : ''}Prices exclude applicable tax.
+        </p> : null}
         <Button className="mt-4" onClick={() => void checkout()} disabled={busy || !selected}>Continue to checkout</Button>
       </Card> : null}
       {purchaseAvailable && upgradesAvailable
@@ -257,5 +262,18 @@ export function BillingPage({ userId, billingAvailable = true, purchaseAvailable
       </Card> : null}
       {message ? <p role="status" className="text-sm text-text-default">{message}</p> : null}
     </> : null}
+    <Card>
+      <h2 className="text-lg font-semibold">Refunds and billing support</h2>
+      <p className="mt-2 text-sm text-text-muted">
+        You can request a full refund within seven days of your first paid purchase, including an annual plan.
+        Once Stripe confirms the full refund, your paid access ends and existing student work stays available.
+      </p>
+      <p className="mt-2 text-sm text-text-muted">
+        Email us from the address on your Pika account. Include your Stripe invoice number and purchase date.
+        Keep payment card details out of your message.
+      </p>
+      <a className={buttonVariants({ variant: 'secondary', size: 'sm', className: 'mt-3' })}
+        href="mailto:info@codepet.ca?subject=Pika%20billing%20support">Email info@codepet.ca</a>
+    </Card>
   </div>
 }
