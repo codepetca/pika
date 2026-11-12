@@ -76,7 +76,7 @@ export function useAssignmentRepoLight({classroomId,assignmentId,studentId,activ
   async function analyze() {
     const chosen = current.context?.source.repositoryChoices.some(choice => choice.requirementId === selectedRequirementId)
     const resolved = current.context?.source.available || (current.context?.source.notice === 'repolight_requirement_required' && chosen)
-    if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.busy || current.context?.state !== 'ready' || !resolved) return
+    if (ownerRef.current !== owner || !access.current.active || access.current.paused || current.busy || current.checking || current.context?.state !== 'ready' || !resolved) return
     const sourceKey = JSON.stringify(current.context.source)
     if (admission.current?.owner !== owner || admission.current.sourceKey !== sourceKey) admission.current = {owner,sourceKey,requestId:crypto.randomUUID()}
     const cycle = ++generation.current

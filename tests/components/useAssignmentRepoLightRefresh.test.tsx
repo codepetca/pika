@@ -27,6 +27,8 @@ describe('repository feedback availability', () => {
     expect(result.current.report).not.toBeNull()
     act(() => result.current.refreshStatus())
     await waitFor(() => expect(result.current.checking).toBe(true))
+    await act(async () => { await result.current.analyze() })
+    expect(requests.read).toHaveBeenCalledTimes(3)
     await act(async () => outcome === 'no run' ? finish({...context,run:null}) : fail(new Error('Refresh failed')))
     await waitFor(() => expect(result.current.checking).toBe(false))
     expect(result.current.run).toBeNull()

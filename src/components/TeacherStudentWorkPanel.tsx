@@ -358,7 +358,7 @@ export function TeacherStudentWorkPanel({
       {repository.context.source.notice && <p className="text-xs text-text-muted">{repositoryNotice(repository.context.source.notice)}</p>}
       {repository.context.source.periodDefaulted && <p className="text-xs text-text-muted">The analysis period defaults to the last 60 local dates.</p>}
       <p className="text-xs text-text-muted">{repository.context.source.githubUsername ? `Requested username: ${repository.context.source.githubUsername}` : 'No username supplied; repository overview.'}</p>
-      <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={repository.busy || mutationsDisabled || writesPaused || !(repository.context.source.available || (repository.context.source.notice === 'repolight_requirement_required' && repository.context.source.repositoryChoices.some(choice => choice.requirementId === selectedRequirementId)))} onClick={() => {void repository.analyze()}}>Analyze repository</Button>
+      <div className="flex flex-wrap gap-2"><Button size="sm" variant="secondary" disabled={repository.busy || repository.checking || mutationsDisabled || writesPaused || !(repository.context.source.available || (repository.context.source.notice === 'repolight_requirement_required' && repository.context.source.repositoryChoices.some(choice => choice.requirementId === selectedRequirementId)))} onClick={() => {void repository.analyze()}}>Analyze repository</Button>
       </div>
     </>}
     {repository.run && <p role="status" className="text-xs text-text-muted">Analysis {repository.run.status}{repository.run.errorCode ? ` · ${repository.run.errorCode.replaceAll('_',' ')}` : ''}{repository.run.nextRetryAt ? ` · retry after ${repository.run.nextRetryAt}` : ''}</p>}
