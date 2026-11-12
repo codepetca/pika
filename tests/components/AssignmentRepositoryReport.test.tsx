@@ -35,6 +35,28 @@ const choose = (scope: string) => fireEvent.change(screen.getByLabelText('Report
 afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks()})
 
 describe('AssignmentRepositoryReport',()=>{
+  it('shows only the matched student’s dated activity and report assignment dates',()=>{
+    render(<AssignmentRepositoryReport bundle={fixture(false,true)} assignmentDates={{releasedAt:'2026-10-20T04:00:00Z',dueAt:'2026-10-23T04:00:00Z'}} assignmentSummary={{scopeKey:'contributor:alice',text:'Summary',rulesVersion:'1.0.0',timeline:[{date:'2026-10-20',commitCount:1}],timelineComplete:true}} canImport={false} onImportFeedback={vi.fn()} />)
+    const timeline = screen.getByRole('region',{name:'Student commit timeline'})
+    expect(within(timeline).getByText(/Assignment released:/)).toHaveTextContent('Due:')
+    expect(within(timeline).getByText('2026-10-20')).toBeInTheDocument()
+    expect(within(timeline).queryByText('2026-10-22')).not.toBeInTheDocument()
+    choose('repository')
+    expect(screen.queryByRole('region',{name:'Student commit timeline'})).not.toBeInTheDocument()
+  })
+  it('distinguishes repeated local hours at the fall DST transition',()=>{
+    render(<AssignmentRepositoryReport bundle={fixture(false,true)} assignmentDates={{releasedAt:'2026-11-01T05:30:00Z',dueAt:'2026-11-01T06:30:00Z'}} assignmentSummary={{scopeKey:'contributor:alice',text:'Summary',rulesVersion:'1.0.0',timeline:[],timelineComplete:true}} canImport={false} onImportFeedback={vi.fn()} />)
+    const timeline = screen.getByRole('region',{name:'Student commit timeline'})
+    expect(within(timeline).getByText(/Assignment released:/)).toHaveTextContent('EDT')
+    expect(within(timeline).getByText(/Assignment released:/)).toHaveTextContent('EST')
+  })
+  it('marks incomplete coverage and unknown assignment dates without implying zeroes',()=>{
+    render(<AssignmentRepositoryReport bundle={fixture(true,true)} assignmentSummary={{scopeKey:'contributor:alice',text:'Summary',rulesVersion:'1.0.0',timeline:[{date:'2026-10-20',commitCount:1}],timelineComplete:false}} canImport={false} onImportFeedback={vi.fn()} />)
+    const timeline = screen.getByRole('region',{name:'Student commit timeline'})
+    expect(within(timeline).getByText(/unlisted days are unknown/)).toBeInTheDocument()
+    expect(within(timeline).getByText(/Assignment released: Unavailable/)).toBeInTheDocument()
+    expect(within(timeline).getByText('1 observed')).toBeInTheDocument()
+  })
   it('uses the assignment draft only for the matched account and restores it after edits',()=>{
     render(<AssignmentRepositoryReport bundle={fixture(false,true)} assignmentSummary={{scopeKey:'contributor:alice',text:'Assignment-specific summary.',rulesVersion:'1.0.0'}} canImport onImportFeedback={vi.fn()} />)
     expect(text()).toBe('Assignment-specific summary.')

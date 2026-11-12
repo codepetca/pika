@@ -54441,7 +54441,34 @@ UI brief. Extend the teacher Plans and billing page and the teacher Classrooms l
 
 The teacher-only status read returns a notice only when the new client opts in. Billing and Classrooms refresh on focus so a successful renewal clears the warning. Verified the exact elapsed reminder boundaries and reviewed 32 Playwright captures across both roles, viewports and themes. The slice covers in-app notices.
 
-<!-- pika-session-log-archive-batch:23b7e05a4558125eb870d853981cc5b29100933253a49e587e4fc955ea5eee1d -->
+<!-- pika-session-log-archive-batch:9ee1380bc070f2529899ef8fce6a08f09159a469bb25905b85ad9ae7639b774b -->
 ## 2026-11-08 Billing email notices
 
 Migration 327 queues live teacher cancellation, failed renewal, upcoming cutoff and expiry notices under independent default-off controls. Both recovery lanes use the existing Brevo sender after access processing. The private queue resolves the current verified recipient at claim, suppresses stale access revisions, and retains ambiguous attempts for operator review. Synthetic transport checks cover accepted and uncertain sends. Live email delivery requires a separate authorized canary.
+
+## 2026-11-08 Stripe SDK decimal compatibility
+
+The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
+
+<!-- pika-session-log-archive-batch:e3b0ff80eebb9a77dc156d6e70c60a400ca8812ca90428bf1dd49db9aec3998e -->
+## 2026-11-08 Stripe SDK decimal compatibility
+
+The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
+
+## 2026-11-09 — Sync billing launch with main
+
+Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+rehearsal, replacement, customer UI and profile admission are pending. Replay
+through 307 also verified scheduled-aware closeout ownership, a captured Pro
+invoice winning the cutoff race, and an unpaid closeout preserving Free and
+the original Max receipt.
+
+The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
+webhooks, trial and RepoLight access, the restricted portal, actual Max grace
+and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
+update invoice only with exact fresh phase proof, and the observed retained
+balance on an independently verified void. See the billing foundation receipt.
+fresh terminal schedule proof for detached delinquent subscriptions. The
+follow-up preserves ordinary cancellation after settlement and keeps terminal
+markers out of authorization once Stripe proves the exact canceled phase.
+The sealed disposable 001–307 replay passed.

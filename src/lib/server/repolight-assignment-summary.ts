@@ -1,8 +1,9 @@
+import { formatDayInZone } from '@/lib/contracts/repolight/engine/time'
 import { makeRepositoryTarget, normalizeGitHubLogin } from '@/lib/contracts/repolight/engine/repo'
 import type { PublicRepositoryBundle, PublicRepositoryRequest } from '@/lib/contracts/repolight/report/bundle-contract'
 
 /** Uses the fingerprint-bound assignment source and the selected linked account only. */
-export function assignmentSummary(bundle: PublicRepositoryBundle, request: PublicRepositoryRequest, assignment: { released_at: string | null; due_at: string | null }): {scopeKey:string; text:string; rulesVersion:'1.0.0'} | null {
+export function assignmentSummary(bundle: PublicRepositoryBundle, request: PublicRepositoryRequest, assignment: { released_at: string | null; due_at: string | null }): {scopeKey:string; text:string; rulesVersion:'1.0.0'; timeline?: {date:string; commitCount:number}[]; timelineComplete?: boolean} | null {
   const login = request.githubUsername && normalizeGitHubLogin(request.githubUsername)
   const selection = bundle.selection
   if (!login || selection.status !== 'matched' || selection.requestedGithubLogin !== login) return null
@@ -47,5 +48,11 @@ export function assignmentSummary(bundle: PublicRepositoryBundle, request: Publi
     timing = `the first observed commit author timestamp was ${date}, approximately ${hours} hours after release, and ${share}`
   }
   const feedback = limitations.length ? `These observations are provisional because of ${limitations.join(', ')}` : concentrated ? 'For a future assignment, consider recording checkpoints earlier' : 'These figures describe recorded commit author timestamps'
-  return {scopeKey, rulesVersion:'1.0.0', text:`For the selected GitHub account, the assignment contains ${count}; ${timing}. ${feedback}.`}
+  const daily = new Map<string, number>()
+  for (const commit of commits) {
+    const day = formatDayInZone(commit.authoredAt!, period.timezone)
+    daily.set(day, (daily.get(day) ?? 0) + 1)
+  }
+  const timeline = [...daily].map(([date, commitCount]) => ({date, commitCount})).sort((a,b) => a.date.localeCompare(b.date))
+  return {scopeKey, rulesVersion:'1.0.0', timeline, timelineComplete: limitations.length === 0 && facts.metrics.commits.status === 'available', text:`For the selected GitHub account, the assignment contains ${count}; ${timing}. ${feedback}.`}
 }

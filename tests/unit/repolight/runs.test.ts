@@ -210,6 +210,7 @@ describe('report-only durable orchestration', () => {
     expect(output.run.status).toBe('stale'); expect(output.run.canImport).toBe(false)
     expect(output.report.bundle).toEqual(wire.bundle); expect(f.factory).not.toHaveBeenCalled()
     expect(output.report.assignmentSummary).toBeNull()
+    expect(output.report).not.toHaveProperty('assignmentDates')
     expect(output).not.toHaveProperty('source_json'); expect(output.run).not.toHaveProperty('connection_json')
   })
   it('derives a matched assignment draft without modifying the saved report or its digest', async () => {
@@ -224,6 +225,7 @@ describe('report-only durable orchestration', () => {
       report:{schemaVersion:'1.0',analysisId:bundle.bundleRef,reportRef:bundle.bundleRef,requestFingerprint:prepared.requestFingerprint,clientBinding:prepared.envelope.clientBinding,reportDigest:digestRepoLightJson(bundle),bundle}})
     const output = await getAssignmentRepoLightReport(f.actor,f.target,f.row.id,f.deps)
     expect(output.report.assignmentSummary).toMatchObject({scopeKey:'contributor:github-sample-student',text:expect.stringContaining('12 included commits')})
+    expect(output.report.assignmentDates).toEqual({releasedAt:new Date(f.source.assignment.released_at!).toISOString(),dueAt:new Date(f.source.assignment.due_at!).toISOString()})
     expect(output.report.bundle).toEqual(bundle)
     expect(output.report.reportDigest).toBe(digestRepoLightJson(bundle))
   })

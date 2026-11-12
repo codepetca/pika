@@ -11,28 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-08 Stripe SDK decimal compatibility
-
-The live paid pause rehearsal reproduced a Checkout verification failure after the pinned Stripe SDK decoded a Price decimal into a Decimal object. Normalize that representation before exact minor-unit comparisons in Checkout, upgrade quotes, applied-upgrade recovery and the exclusive-tax catalog. Detect SDK Decimal objects at validation time so existing Stripe test doubles can still load. Retain fractional, foreign and mismatched amount rejection. The regression test uses real SDK decoding with local response fixtures. The change adds no schema migration.
-
-## 2026-11-09 — Sync billing launch with main
-
-Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
-rehearsal, replacement, customer UI and profile admission are pending. Replay
-through 307 also verified scheduled-aware closeout ownership, a captured Pro
-invoice winning the cutoff race, and an unpaid closeout preserving Free and
-the original Max receipt.
-
-The isolated Stripe rehearsal verified hosted Pro and Max checkout, signed
-webhooks, trial and RepoLight access, the restricted portal, actual Max grace
-and Pro payment recovery, and unpaid closeout. Accepted the observed scheduled
-update invoice only with exact fresh phase proof, and the observed retained
-balance on an independently verified void. See the billing foundation receipt.
-fresh terminal schedule proof for detached delinquent subscriptions. The
-follow-up preserves ordinary cancellation after settlement and keeps terminal
-markers out of authorization once Stripe proves the exact canceled phase.
-The sealed disposable 001–307 replay passed.
-
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
@@ -177,6 +155,10 @@ Set the classroom grading default to GPT-6.1 Sol after the owner's model compari
 
 Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
 
+## 2026-11-10 RepoLight assignment timeline
+
+Added matched student assignment-period timeline with explicit evidence limits; focused tests passed. Visual fixture checked at desktop/mobile light; authenticated report and full theme matrix remain for review.
+
 ## 2026-11-11 Closed hosted billing verification
 
 Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unbound live receipt. Hosted trial recovery sent one eligible reminder through the production outbox to the approved canary inbox. The synthetic records were cleaned up and admission stayed closed. Paid recovery rejected the configured Stripe key because it included surrounding whitespace. A private hosted read authenticated to the pinned account after trimming. The runtime now trims the key before strict live-mode validation and still rejects a bearer equal to the normalized key.
@@ -188,3 +170,7 @@ Extended the shared attestation and submission deadline to 15 seconds for create
 ## 2026-11-12 Billing recovery due-work check
 
 Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloudflare Worker preserves idle heartbeats, calls Vercel for due work and can fail over shared queues. The RPC uses a dedicated Vault-verified credential and returns lane statuses and shared-work flags. Synthetic PostgREST and rollback-only checks cover authorization, checkout, reconciliation, renewal closeout, trial expiry, assignment releases, interrupted email and scoped RepoLight retries. Coordinate activation with the paid-subscription rollout after migration and credential provisioning.
+
+## 2026-11-12 Timeline branch base sync
+
+Returned PR #1799 to draft and rebased its unchanged feature patch onto main aa4689bf. Focused checks passed: 97 test files, 1,843 tests, architecture, UI/design policy, TypeScript and lint. Exact-head CI remains required after publication.
