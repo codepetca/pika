@@ -7,9 +7,16 @@ import { checkInRoom, roomCookieName, roomCookieSchema, roomIdSchema } from '@/l
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
+
+const roomCheckInSchema = z.object({
+  roomId: roomIdSchema,
+  scanId: z.string().uuid(),
+  attemptId: z.string().uuid(),
+}).strict()
+
 export const POST = withErrorHandler('PostStudentRoomAttendanceCheckIn', async request => {
   const user = await requireRole('student')
-  const body = z.object({ roomId: roomIdSchema, scanId: z.string().uuid(), attemptId: z.string().uuid() }).strict().parse(await request.json())
+  const body = roomCheckInSchema.parse(await request.json())
   let raw: unknown
   try { raw = JSON.parse((await cookies()).get(roomCookieName)?.value ?? 'null') } catch { raw = null }
   const cookie = roomCookieSchema.safeParse(raw)
