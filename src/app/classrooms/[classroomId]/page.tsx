@@ -140,7 +140,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         palEnabled={palEnabled}
         attendanceAvailable={attendanceAvailable}
         classroomQrAvailable={attendanceAvailable}
-        roomAttendanceAvailable={attendanceAvailable && isBaraRoomAttendanceConfigured()}
+        roomAttendanceAvailable={user.role === 'teacher' && attendanceAvailable && isBaraRoomAttendanceConfigured()}
       />
     )
   }

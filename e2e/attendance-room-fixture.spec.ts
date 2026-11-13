@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 const roomId = 'room1234567890123456'
 const classId = '30000000-0000-4000-8000-000000000001'
-const list = { ok: true, rooms: [{ room_id: roomId, label: 'Room 101', can_manage: true }, { room_id: 'other123456789012345', label: 'Room 102', can_manage: true }], default_room_id: roomId, meeting: { room_id: 'other123456789012345', revision: 3, accepting_until: null } }
+const list = { ok: true, rooms: [{ room_id: roomId, label: 'Room 101', can_manage: true, paired: true }, { room_id: 'other123456789012345', label: 'Room 102', can_manage: true, paired: true }], default_room_id: roomId, meeting: { room_id: 'other123456789012345', revision: 3, accepting_until: null } }
 
 test('mocked teacher room dialog and move picker', async ({ page }) => {
   await page.route('**/api/teacher/attendance/rooms', async route => {

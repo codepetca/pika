@@ -1,7 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
 import { getCurrentUser } from '@/lib/auth'
-import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
 import { postBaraRoomCommand } from '@/lib/server/bara-attendance-client'
 import { roomCookieName, roomIdSchema } from '@/lib/server/room-attendance-student'
 
@@ -9,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = await params
   const user = await getCurrentUser()
-  if (user?.role === 'teacher' && (await resolveAttendanceProtocolCompatibility(user)).status !== 'admitted') {
+  if (user?.role === 'teacher') {
     const move = NextResponse.redirect(new URL(`/attendance/room/${encodeURIComponent(roomId)}/move`, request.url), 303)
     move.headers.set('Cache-Control', 'no-store')
     move.headers.set('Referrer-Policy', 'no-referrer')

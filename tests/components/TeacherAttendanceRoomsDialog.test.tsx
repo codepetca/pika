@@ -5,7 +5,7 @@ import { TeacherAttendanceRoomsDialog } from '@/app/classrooms/[classroomId]/Tea
 
 const room = 'room1234567890123456'
 const classroom = '11111111-1111-4111-8111-111111111111'
-const list = { ok: true, rooms: [{ room_id: room, label: 'Room 101', can_manage: true }], default_room_id: null, meeting: { room_id: null, revision: 0, accepting_until: null } }
+const list = { ok: true, rooms: [{ room_id: room, label: 'Room 101', can_manage: true, paired: true }], default_room_id: null, meeting: { room_id: null, revision: 0, accepting_until: null } }
 
 afterEach(() => { vi.unstubAllGlobals() })
 

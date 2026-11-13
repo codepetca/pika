@@ -836,7 +836,7 @@ type RoomCommands = {
     candidates: Array<{ roster_ref: string; occurrence_ref: string }> | null
   }]
   list: [RoomStaff & Partial<RoomMeeting>, {
-    rooms: Array<{ room_id: string; label: string; can_manage: boolean }>
+    rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean }>
     default_room_id: string | null
     meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null
   }]
@@ -894,7 +894,7 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
       const { rooms, default_room_id: defaultRoom, meeting } = value
       return (defaultRoom === null || isRoomId(defaultRoom))
         && Array.isArray(rooms) && rooms.length <= 200 && rooms.every(room => isPlainObject(room)
-          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean')
+          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean')
         && (meeting === null || (isPlainObject(meeting)
           && (meeting.room_id === null || isRoomId(meeting.room_id)) && isRevision(meeting.revision)
           && (meeting.accepting_until === null || isRevision(meeting.accepting_until)))) ? value : null

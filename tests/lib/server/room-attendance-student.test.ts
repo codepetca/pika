@@ -27,12 +27,12 @@ describe('room student check-in', () => {
     const secondId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
     const second = { roster_ref: 'roster_b', occurrence_ref: 'occurrence_b' }
     mocks.candidates.mockResolvedValue({ ok: true, candidates: [candidate, second] })
-    const supabase = { from: () => ({ select: () => ({ eq: (_column: string, value: string) => ({
-      maybeSingle: async () => ({ data: { classroom_id: value === candidate.roster_ref ? classroomId : secondId }, error: null }),
+    const supabase = { from: (table: string) => ({ select: () => ({ eq: (_column: string, value: string) => ({
+      maybeSingle: async () => ({ data: table === 'classrooms' ? { title: 'Class B' } : { classroom_id: value === candidate.roster_ref ? classroomId : secondId }, error: null }),
     }) }) }) }
     mocks.execute.mockResolvedValueOnce({ state: 'checked_in' }).mockRejectedValueOnce(new Error('timeout'))
     await expect(checkInRoom({ ...input, supabase })).resolves.toEqual([
-      { state: 'checked_in' }, expect.objectContaining({ state: 'needs_staff' }),
+      { state: 'checked_in' }, expect.objectContaining({ state: 'needs_staff', classroomName: 'Class B' }),
     ])
     await expect(checkInRoom({ ...input, supabase })).resolves.toHaveLength(2)
     expect(mocks.seal.mock.calls.map(call => call[0].classroomId)).toEqual([classroomId, secondId, classroomId, secondId])

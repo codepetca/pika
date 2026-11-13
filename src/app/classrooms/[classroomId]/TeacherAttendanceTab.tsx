@@ -238,7 +238,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             operation: 'list', classroom_id: classroom.id, date: selectedDate,
           }) },
         })
-        if (rooms.meeting?.room_id || (!rooms.meeting && rooms.default_room_id)) {
+        if (rooms.meeting?.room_id || (!rooms.meeting && rooms.rooms.some(room => room.room_id === rooms.default_room_id && room.paired))) {
           setRoomsOpen(true)
           return
         }

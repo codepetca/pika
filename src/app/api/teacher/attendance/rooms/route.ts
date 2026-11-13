@@ -61,6 +61,7 @@ export const POST = withErrorHandler('TeacherAttendanceRooms', async request => 
   try { result = await postBaraRoomCommand(command) }
   catch (error) {
     if (error instanceof BaraAttendanceClientError) {
+      if (error.code === 'room_unpaired') throw new ApiError(409, 'Pair the room display before assigning this room')
       if (error.status === 409) throw new ApiError(409, 'Attendance changed or this meeting is not open. Refresh and try again')
       if (error.status === 403 || error.status === 404) throw new ApiError(403, 'This room is not available to this class')
       throw new ApiError(503, 'Room attendance is temporarily unavailable')

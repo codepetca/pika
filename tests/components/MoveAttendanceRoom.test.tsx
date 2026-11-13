@@ -12,7 +12,7 @@ it('offers open eligible classes and undoes the selected move', async () => {
     if (url === '/api/teacher/classrooms') data = { classrooms: [{ id: 'a', title: 'Open class' }, { id: 'b', title: 'Closed class' }] }
     else {
       const command = JSON.parse(String(init?.body)); commands.push(command)
-      data = command.operation === 'list' ? { rooms: [{ room_id: room, label: 'Room 220' }], meeting: command.classroom_id === 'a' ? { room_id: null } : null } : command.operation === 'move' ? { revision: 4 } : { ok: true }
+      data = command.operation === 'list' ? { rooms: [{ room_id: room, label: 'Room 220', paired: true }], meeting: command.classroom_id === 'a' ? { room_id: null } : null } : command.operation === 'move' ? { revision: 4 } : { ok: true }
     }
     return new Response(JSON.stringify(data), { status: 200, headers: { 'Content-Type': 'application/json' } })
   }))

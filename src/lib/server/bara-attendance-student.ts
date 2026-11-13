@@ -245,7 +245,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     throw new StudentAttendanceCheckInError('invalid_entry')
   }
   const admitted = (await resolveAttendanceProtocolCompatibility(input.pikaUser)).status === 'admitted'
-  const resolveGeneration = admitted || input.requireActiveMembership
+  const resolveGeneration = admitted
     ? resolveAttendanceMembershipScanGeneration
     : input.resolveGeneration ?? resolveAttendanceScanGeneration
   const readGeneration = async () => {
@@ -356,7 +356,7 @@ export async function executeStudentAttendanceCheckIn(input: {
         classDate: occurrenceMetadata.classDate,
         serverNow: responseNow.toISOString(),
         validUntil: toTorontoStartOfDayIso(addDaysToDateString(occurrenceMetadata.classDate, 1)),
-        occurrenceBinding: (admitted || input.requireActiveMembership) && generation.status === 'active'
+        occurrenceBinding: admitted && generation.status === 'active'
           ? deriveStudentAttendanceMembershipOccurrenceBinding({
               studentId: input.pikaUser.id,
               classroomId: entry.classroomId,
@@ -369,5 +369,5 @@ export async function executeStudentAttendanceCheckIn(input: {
               occurrenceRef: entry.occurrenceRef,
             }),
       }
-    : mapped
+    : input.requireActiveMembership ? { ...mapped, classroomName: parsedClassroom.data.title } : mapped
 }

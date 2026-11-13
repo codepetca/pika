@@ -2,15 +2,13 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { withErrorHandler } from '@/lib/api-handler'
-import { requireAuth, requireRole } from '@/lib/auth'
-import { resolveAttendanceProtocolCompatibility } from '@/lib/server/classroom-experience-admission'
+import { requireRole } from '@/lib/auth'
 import { checkInRoom, roomCookieName, roomCookieSchema, roomIdSchema } from '@/lib/server/room-attendance-student'
 import { getServiceRoleClient } from '@/lib/supabase'
 
 export const dynamic = 'force-dynamic'
 export const POST = withErrorHandler('PostStudentRoomAttendanceCheckIn', async request => {
-  const auth = await requireAuth()
-  const user = (await resolveAttendanceProtocolCompatibility(auth)).status === 'admitted' ? auth : await requireRole('student')
+  const user = await requireRole('student')
   const body = z.object({ roomId: roomIdSchema, scanId: z.string().uuid(), attemptId: z.string().uuid() }).strict().parse(await request.json())
   let raw: unknown
   try { raw = JSON.parse((await cookies()).get(roomCookieName)?.value ?? 'null') } catch { raw = null }

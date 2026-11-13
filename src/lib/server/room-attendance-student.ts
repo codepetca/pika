@@ -46,8 +46,15 @@ export async function checkInRoom(input: {
       rosterRef: candidate.roster_ref, occurrenceRef: candidate.occurrence_ref,
       checkInToken: `room_${input.continuation}.${input.browserKey}`,
       expiresAt: new Date(Date.now() + 60_000).toISOString() })
-    return executeStudentAttendanceCheckIn({ supabase: input.supabase, pikaUser: input.pikaUser,
-      entryToken, attemptId: input.attemptId, requireActiveMembership: true })
+    try {
+      return await executeStudentAttendanceCheckIn({ supabase: input.supabase, pikaUser: input.pikaUser,
+        entryToken, attemptId: input.attemptId, requireActiveMembership: true })
+    } catch (error) {
+      const { data } = await input.supabase.from('classrooms').select('title').eq('id', mapping.data.classroom_id).maybeSingle()
+      if (typeof data?.title !== 'string') throw error
+      return { state: 'needs_staff', title: 'Could not confirm check-in',
+        description: 'Try again or ask your teacher to check your attendance.', classroomName: data.title }
+    }
   }))
   const confirmed = results.flatMap(result => result.status === 'fulfilled' && result.value ? [result.value] : [])
   const failure = results.find(result => result.status === 'rejected')

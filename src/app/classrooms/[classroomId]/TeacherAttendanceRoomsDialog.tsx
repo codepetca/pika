@@ -5,7 +5,7 @@ import { Button, DialogPanel, FormField, Input, QrCode, Select } from '@/ui'
 import { fetchJSON } from '@/lib/request-cache'
 import { serializeQrSvg } from '@/lib/qr-svg'
 
-type Room = { room_id: string; label: string; can_manage: boolean }
+type Room = { room_id: string; label: string; can_manage: boolean; paired: boolean }
 type RoomList = { rooms: Room[]; default_room_id: string | null; meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null }
 
 function initialRoom(list: RoomList) {
@@ -73,7 +73,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
     URL.revokeObjectURL(url)
   }
   const selected = list?.rooms.find(room => room.room_id === roomId)
-  const canMove = Boolean(list?.meeting && list.meeting.room_id !== roomId)
+  const canMove = Boolean(selected?.paired && list?.meeting && list.meeting.room_id !== roomId)
   return <DialogPanel isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg" ariaLabelledBy={titleId}>
     <h2 id={titleId} className="text-lg font-semibold">Attendance rooms</h2>
     <div className="space-y-4 overflow-y-auto p-1">
@@ -82,18 +82,18 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
       {!list && !error && <p>Loading rooms…</p>}
       {list && <>
         {list.rooms.length > 0 && <>
-          <FormField label="Room"><Select value={roomId} onChange={e => { setRoomId(e.target.value); setDisplayUrl('') }} options={list.rooms.map(room => ({ value: room.room_id, label: room.label }))} /></FormField>
+          <FormField label="Room"><Select value={roomId} onChange={e => { setRoomId(e.target.value); setDisplayUrl('') }} options={list.rooms.map(room => ({ value: room.room_id, label: room.paired ? room.label : `${room.label} (unpaired)` }))} /></FormField>
           <p className="text-sm text-text-muted">Changing the default affects future meetings. Move this meeting separately if it has already started.</p>
           <p className="text-sm text-text-muted">Default: {list.rooms.find(room => room.room_id === list.default_room_id)?.label ?? 'None'}. Current meeting: {list.rooms.find(room => room.room_id === list.meeting?.room_id)?.label ?? 'No room'}.</p>
           {canMove && <Button variant="secondary" aria-pressed={saveDefault} disabled={busy} onClick={() => setSaveDefault(value => !value)}>Also use as the default for future meetings</Button>}
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy || !roomId || !canMove} onClick={() => void act('move', { room_id: roomId, save_default: saveDefault })}>Move this meeting</Button>
-            <Button variant="secondary" disabled={busy || !roomId} onClick={() => void act('default', { room_id: roomId })}>Set default for future meetings</Button>
+            <Button variant="secondary" disabled={busy || !selected?.paired || list.default_room_id === roomId} onClick={() => void act('default', { room_id: roomId })}>Set default for future meetings</Button>
             {list.default_room_id && <Button variant="secondary" disabled={busy} onClick={() => void act('default', { room_id: null })}>Clear default</Button>}
             {undo !== null && <Button variant="secondary" disabled={busy} onClick={() => void act('undo', { revision: undo })}>Undo move</Button>}
           </div>
           {selected && typeof window !== 'undefined' && <div className="space-y-2"><p className="text-sm">Teacher room sticker: scan to move an open class here.</p><div ref={qrRef}><QrCode value={`${window.location.origin}/attendance/room/${selected.room_id}/move`} label="Teacher room sticker" className="w-40 bg-qr-background p-4" /></div><Button variant="secondary" onClick={downloadSticker}>Download sticker</Button></div>}
-          {selected?.can_manage && <><FormField label="Room display notice"><Input value={notice} maxLength={200} onChange={event => setNotice(event.target.value)} /></FormField><p className="text-sm text-text-muted">Replace the display notices with this message, or clear them.</p><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy || !notice.trim()} onClick={() => void act('notices', { room_id: roomId, notices: [notice.trim()] })}>Publish notice</Button><Button variant="secondary" disabled={busy} onClick={() => void act('notices', { room_id: roomId, notices: [] })}>Clear notices</Button></div><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy} onClick={() => void act('pair', { room_id: roomId })}>Pair room display</Button><Button variant="secondary" disabled={busy} onClick={() => void act('revoke', { room_id: roomId })}>Disconnect display</Button></div></>}
+          {selected?.can_manage && <><FormField label="Room display notice"><Input value={notice} maxLength={200} onChange={event => setNotice(event.target.value)} /></FormField><p className="text-sm text-text-muted">Replace the display notices with this message, or clear them.</p><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy || !notice.trim()} onClick={() => void act('notices', { room_id: roomId, notices: [notice.trim()] })}>Publish notice</Button><Button variant="secondary" disabled={busy} onClick={() => void act('notices', { room_id: roomId, notices: [] })}>Clear notices</Button></div><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy} onClick={() => void act('pair', { room_id: roomId })}>Pair room display</Button><Button variant="secondary" disabled={busy || !selected.paired} onClick={() => void act('revoke', { room_id: roomId })}>Disconnect display</Button></div></>}
           {displayUrl && <p className="break-all text-sm">Open on the room display: <a className="underline" href={displayUrl} rel="noreferrer">Open paired display</a> <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(displayUrl).then(() => setError(''), () => setError('Could not copy the display link'))}>Copy link</Button></p>}
         </>}
         <FormField label="New room name"><Input value={label} maxLength={80} onChange={e => setLabel(e.target.value)} /></FormField>
