@@ -271,7 +271,7 @@ async function loadCurrentOpenOccurrence(input: {
   return occurrence
 }
 
-async function assertStudentRosterBoundary(input: {
+export async function assertStudentRosterBoundary(input: {
   supabase: any
   classroomId: string
   studentId: string

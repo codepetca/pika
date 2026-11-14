@@ -190,6 +190,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   }>
   verifyCanaryClassroom?: (input: { supabase: any; classroomId: string }) => Promise<void>
   resolveGeneration?: typeof resolveAttendanceScanGeneration
+  requireActiveMembership?: boolean
 }) {
   const transportState = input.integrationState ?? getBaraAttendanceIntegrationState()
   if (transportState !== 'ready') {
@@ -253,7 +254,7 @@ export async function executeStudentAttendanceCheckIn(input: {
     } catch { throw new StudentAttendanceCheckInError('upstream_unavailable') }
   }
   const generation = await readGeneration()
-  if (generation.status === 'forbidden') return membershipUnavailable()
+  if (generation.status === 'forbidden' || (input.requireActiveMembership && generation.status !== 'active')) return membershipUnavailable()
   // Resolve display metadata before sending the attendance command, so a failed
   // read cannot hide an otherwise confirmed check-in behind a retry screen.
   const { data: classroom, error: classroomError } = await input.supabase
@@ -289,7 +290,7 @@ export async function executeStudentAttendanceCheckIn(input: {
   if (occurrenceMetadata.classDate !== formatDateInToronto(now())) return checkInClosed()
   // Bootstrap-compatible scans always use the exact membership identity, independently
   // of the legacy cleanup rollout's optional wire-field gate.
-  const participantRef = generation.status === 'active' && (admitted || process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true')
+  const participantRef = generation.status === 'active' && (admitted || input.requireActiveMembership || process.env.STUDENT_PROVIDER_CLEANUP_ENABLED === 'true')
     ? generation.participant_ref : undefined
   const digest = createHash('sha256')
     .update(
@@ -314,7 +315,7 @@ export async function executeStudentAttendanceCheckIn(input: {
 
   const send = input.send ?? postBaraStudentCheckIn
   let result: BaraStudentCheckInResult
-  if (admitted && !sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
+  if ((admitted || input.requireActiveMembership) && !sameAttendanceScanGeneration(generation, await readGeneration())) return membershipUnavailable()
   try {
     result = await send(payload)
   } catch (error) {
@@ -368,5 +369,5 @@ export async function executeStudentAttendanceCheckIn(input: {
               occurrenceRef: entry.occurrenceRef,
             }),
       }
-    : mapped
+    : input.requireActiveMembership ? { ...mapped, classroomName: parsedClassroom.data.title } : mapped
 }
