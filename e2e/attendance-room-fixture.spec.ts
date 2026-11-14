@@ -53,3 +53,15 @@ test('mocked two-class check-in on mobile', async ({ browser }) => {
   await page.screenshot({ path: '/tmp/pika-room-fixture-student-two-classes-mobile.png', fullPage: true })
   await context.close()
 })
+
+
+test('closed student room never calls check-in', async ({ page }) => {
+  let calls = 0
+  await page.route('**/api/student/attendance/room-check-in', async route => { calls++; await route.abort() })
+  await page.goto('/e2e-fixtures/attendance-room?view=closed')
+  await expect(page.getByRole('heading', { name: 'Check-in is closed' })).toBeVisible()
+  await page.screenshot({ path: '/tmp/pika-room-closed-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: '/tmp/pika-room-closed-mobile.png', fullPage: true })
+  expect(calls).toBe(0)
+})
