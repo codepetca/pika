@@ -14,15 +14,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     move.headers.set('Referrer-Policy', 'no-referrer')
     return move
   }
-  const scanId = randomUUID()
-  const proof = request.nextUrl.searchParams.get('proof') ?? ''
+  const proof = request.nextUrl.searchParams.get('proof')
   const target = new URL(`/attendance/room/${encodeURIComponent(roomId)}`, request.url)
-  target.searchParams.set('scan', scanId)
+  const scanId = proof === null ? null : randomUUID()
+  if (scanId) target.searchParams.set('scan', scanId)
   const response = NextResponse.redirect(target, 303)
   response.headers.set('Cache-Control', 'no-store')
   response.headers.set('Referrer-Policy', 'no-referrer')
   response.cookies.delete(roomCookieName)
-  if (!roomIdSchema.safeParse(roomId).success || !/^[a-f0-9]{64}$/.test(proof)) return response
+  if (proof === null || !scanId || !roomIdSchema.safeParse(roomId).success || !/^[a-f0-9]{64}$/.test(proof)) return response
   const browserKey = randomBytes(32).toString('base64url')
   try {
     const result = await postBaraRoomCommand({ operation: 'capture', room_id: roomId, proof, browser_key: browserKey })

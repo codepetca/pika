@@ -54473,3 +54473,14 @@ The sealed disposable 001–307 replay passed.
 ## 2026-11-09 — Sync billing launch with main
 
 Merged the latest main into the sandbox billing launch candidate. Preserved the session entries from both branches. The incoming source changes cover teacher roster navigation, Course Guide reads and local loopback sign-in.
+
+<!-- pika-session-log-archive-batch:084f181fae5222a6cb74a1f564cd92d8e5ec232a476903d61ff6285f04bde3d0 -->
+## 2026-11-09 — Combined assignment copy action
+
+Consolidated teacher bulk grade and comment copying into one menu item and dialog. Grade is selected when available; teachers can choose the comment separately, and each unchecked field hides its preview and stays unchanged. Reused the existing atomic request for grade only, comment only, or both. Verified the three request shapes in component tests and the teacher workspace in desktop and mobile light and dark browser runs.
+
+Independent review prompted three follow-ups: dismiss the dialog if its source or recipients change, retain keyboard access to the preview while copying, and show a failed save in the dialog. Added regressions for source and recipient changes and the failed save.
+
+## 2026-11-09 — Classroom cutoff rebase
+
+Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.

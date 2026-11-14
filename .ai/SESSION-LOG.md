@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Combined assignment copy action
-
-Consolidated teacher bulk grade and comment copying into one menu item and dialog. Grade is selected when available; teachers can choose the comment separately, and each unchecked field hides its preview and stays unchanged. Reused the existing atomic request for grade only, comment only, or both. Verified the three request shapes in component tests and the teacher workspace in desktop and mobile light and dark browser runs.
-
-Independent review prompted three follow-ups: dismiss the dialog if its source or recipients change, retain keyboard access to the preview while copying, and show a failed save in the dialog. Added regressions for source and recipient changes and the failed save.
-
-## 2026-11-09 — Classroom cutoff rebase
-
-Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
-
 ## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
 
 Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.
@@ -174,6 +164,13 @@ Migration 329 adds a read-only Supabase check for both recovery lanes. The Cloud
 ## 2026-11-12 Billing launch benefits and refund support
 
 Plans and billing explains the seven-day first-purchase refund window, where to email support, and what a confirmed full refund means for paid access and student work. The initial offers are Pro, Max and the Pro trial with classroom capacity and RepoLight. Included AI grading allowances are deferred. Customer checkout, trial admission and provider writes remain closed.
+
 ## 2026-11-12 — RepoLight report summary
 
 - Simplified the teacher repository report, retained coverage caveats and detailed evidence, and distinguished feedback availability checks from unavailable imports. Reused the existing report dialog, timeline, metrics and evidence view; no student surface changed. Verification: focused report and work-panel tests passed; broader checks and visual matrix are in progress.
+
+## 2026-11-14 — Proofless room QR
+
+- Worktree `codex/room-qr-when-closed`, base `0a7372f41`: proofless scans clear prior capture and show closed state; teacher continuation uses existing move flow. No schema or production changes.
+- UI brief: student closed state and teacher move; reuse room check-in Card/status composition and existing MoveRoom, extend only the room state copy. Desktop/mobile and light/dark are relevant; no composite control changes. Reference: existing room check-in card and shared page-state conventions; no new shared pattern. Pattern Lab comparison remains outstanding.
+- Verified room browser fixtures and the student closed and teacher move paths at desktop and mobile widths in light and dark.

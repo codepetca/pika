@@ -23,6 +23,30 @@ describe('room QR capture', () => {
     expect(response.headers.get('set-cookie')).toMatch(/Max-Age=120/)
     expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({ operation: 'capture', room_id: roomId, proof: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', browser_key: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/) }))
   })
+  it.each([null, { role: 'student' }])('clears stale capture for a proofless QR (%s)', async user => {
+    mocks.user.mockResolvedValue(user)
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan`, { headers: { cookie: 'pika_room_attendance=stale' } }), { params })
+    expect(response.headers.get('location')).toBe(`https://pika.example/attendance/room/${roomId}`)
+    expect(response.headers.get('set-cookie')).toMatch(/pika_room_attendance=;.*Expires=Thu, 01 Jan 1970/)
+    expect(mocks.command).not.toHaveBeenCalled()
+  })
+  it('retains the rescan state when an otherwise valid proof has expired', async () => {
+    mocks.command.mockResolvedValue({ ok: true, continuation: null })
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?proof=${'a'.repeat(64)}`, { headers: { cookie: 'pika_room_attendance=stale' } }), { params })
+    expect(new URL(response.headers.get('location')!).searchParams.get('scan')).toMatch(/^[0-9a-f-]{36}$/)
+    expect(response.headers.get('set-cookie')).toMatch(/pika_room_attendance=;.*Expires=Thu, 01 Jan 1970/)
+  })
+  it('retains the rescan state for malformed proof', async () => {
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?proof=bad`), { params })
+    expect(new URL(response.headers.get('location')!).searchParams.get('scan')).toMatch(/^[0-9a-f-]{36}$/)
+    expect(mocks.command).not.toHaveBeenCalled()
+  })
+  it('routes a teacher with no proof to move', async () => {
+    mocks.user.mockResolvedValue({ role: 'teacher' })
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan`), { params })
+    expect(response.headers.get('location')).toBe(`https://pika.example/attendance/room/${roomId}/move`)
+    expect(mocks.command).not.toHaveBeenCalled()
+  })
   it('routes a teacher to move without capturing the proof', async () => {
     mocks.user.mockResolvedValue({ role: 'teacher' }); mocks.compatibility.mockResolvedValue({ status: 'legacy' })
     const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?proof=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`), { params })
