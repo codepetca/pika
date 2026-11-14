@@ -51,8 +51,14 @@ describe('teacher room command boundary', () => {
     expect(JSON.stringify(await response.json())).not.toContain('provider secret')
   })
   it('returns the configured display setup URL with the room list', async () => {
+    mocks.send.mockResolvedValue({ ok: true, rooms: [], default_room_id: null, meeting: null, short_code_pairing: true })
     const response = await POST(request({ classroom_id: classroom, operation: 'list' }))
     expect(await response.json()).toMatchObject({ display_setup_url: 'https://bara.test/display' })
+  })
+  it('keeps the setup link hidden with older Bara deployments', async () => {
+    mocks.send.mockResolvedValue({ ok: true, rooms: [], default_room_id: null, meeting: null })
+    const response = await POST(request({ classroom_id: classroom, operation: 'list' }))
+    expect(await response.json()).toMatchObject({ display_setup_url: null })
   })
   it('does not include occurrence on create when a date is selected', async () => {
     const response = await POST(request({ classroom_id: classroom, date: '2026-11-13', operation: 'create', label: 'Lab' }))

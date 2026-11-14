@@ -836,6 +836,7 @@ type RoomCommands = {
     candidates: Array<{ roster_ref: string; occurrence_ref: string }> | null
   }]
   list: [RoomStaff & Partial<RoomMeeting>, {
+    short_code_pairing?: true
     rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean }>
     default_room_id: string | null
     meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null
@@ -898,7 +899,8 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
           && isOpaqueRef(candidate.roster_ref) && isOpaqueRef(candidate.occurrence_ref))) ? value : null
     case 'list': {
       const { rooms, default_room_id: defaultRoom, meeting } = value
-      return (defaultRoom === null || isRoomId(defaultRoom))
+      return (value.short_code_pairing === undefined || value.short_code_pairing === true)
+        && (defaultRoom === null || isRoomId(defaultRoom))
         && Array.isArray(rooms) && rooms.length <= 200 && rooms.every(room => isPlainObject(room)
           && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean')
         && (meeting === null || (isPlainObject(meeting)

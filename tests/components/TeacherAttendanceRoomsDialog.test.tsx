@@ -25,7 +25,7 @@ it('moves the selected meeting and can undo with the returned revision', async (
   expect(requests).toContainEqual(expect.objectContaining({ operation: 'move', room_id: room, save_default: true }))
 })
 
- it('normalizes a pasted code and pairs the selected room', async () => {
+it('normalizes a pasted code and pairs the selected room', async () => {
   const requests: any[] = []
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
     const body = JSON.parse(init.body); requests.push(body)

@@ -73,5 +73,8 @@ export const POST = withErrorHandler('TeacherAttendanceRooms', async request => 
     }
     throw error
   }
-  return NextResponse.json(input.operation === 'list' ? { ...result, display_setup_url: baraRoomDisplaySetupUrl() } : result, { headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } })
+  return NextResponse.json(input.operation === 'list' ? {
+    ...result,
+    display_setup_url: 'short_code_pairing' in result && result.short_code_pairing === true ? baraRoomDisplaySetupUrl() : null,
+  } : result, { headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } })
 })

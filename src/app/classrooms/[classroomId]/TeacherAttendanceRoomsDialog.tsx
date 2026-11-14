@@ -100,6 +100,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
           </div>
           {selected && typeof window !== 'undefined' && <div className="space-y-2"><p className="text-sm">Teacher room sticker: scan to move an open class here.</p><div ref={qrRef}><QrCode value={`${window.location.origin}/attendance/room/${selected.room_id}/move`} label="Teacher room sticker" className="w-40 bg-qr-background p-4" /></div><Button variant="secondary" onClick={downloadSticker}>Download sticker</Button></div>}
           {selected?.can_manage && <>
+            {selected.paired && <p className="text-sm text-text-muted">Pairing a new display will disconnect the current display.</p>}
             {list.display_setup_url && <form className="space-y-2" onSubmit={event => {
               event.preventDefault()
               if (validCode && !busy) void act('pair_code', { room_id: roomId, pairing_code: canonicalCode })
@@ -108,7 +109,6 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
                 <a className="break-all underline" href={list.display_setup_url} target="_blank" rel="noreferrer">{list.display_setup_url}</a>
                 {' '}and enter its code here.
               </p>
-              {selected.paired && <p className="text-sm text-text-muted">Pairing a new display will disconnect the current display.</p>}
               <FormField label="Display pairing code">
                 <Input value={pairingCode} maxLength={15} autoComplete="off" autoCapitalize="characters" spellCheck={false}
                   placeholder="ABCD-EFGH" onChange={event => setPairingCode(event.target.value.toUpperCase().replace(/[ -]/g, '').replace(/^(.{4})(?=.)/, '$1-'))} />
@@ -116,7 +116,9 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
               <Button type="submit" disabled={busy || !validCode}>Pair display</Button>
             </form>}
             <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" disabled={busy} onClick={() => void act('pair', { room_id: roomId })}>Create pairing link instead</Button>
+              <Button variant="secondary" disabled={busy} onClick={() => void act('pair', { room_id: roomId })}>
+                {list.display_setup_url ? 'Create pairing link instead' : 'Create display pairing link'}
+              </Button>
               <Button variant="secondary" disabled={busy || !selected.paired} onClick={() => void act('revoke', { room_id: roomId })}>Disconnect display</Button>
             </div>
             <FormField label="Room display notice"><Input value={notice} maxLength={200} onChange={event => setNotice(event.target.value)} /></FormField>
