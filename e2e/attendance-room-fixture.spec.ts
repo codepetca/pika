@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 const roomId = 'room1234567890123456'
 const classId = '30000000-0000-4000-8000-000000000001'
-const list = { ok: true, rooms: [{ room_id: roomId, label: 'Room 101', can_manage: true, paired: true }, { room_id: 'other123456789012345', label: 'Room 102', can_manage: true, paired: true }], default_room_id: roomId, meeting: { room_id: 'other123456789012345', revision: 3, accepting_until: null } }
+const list = { display_setup_url: 'https://bara.test/display', ok: true, rooms: [{ room_id: roomId, label: 'Room 101', can_manage: true, paired: true }, { room_id: 'other123456789012345', label: 'Room 102', can_manage: true, paired: true }], default_room_id: roomId, meeting: { room_id: 'other123456789012345', revision: 3, accepting_until: null } }
 
 test('mocked teacher room dialog and move picker', async ({ page }) => {
   await page.route('**/api/teacher/attendance/rooms', async route => {
@@ -14,7 +14,15 @@ test('mocked teacher room dialog and move picker', async ({ page }) => {
   await expect(dialog.getByLabel('Room', { exact: true })).toBeVisible()
   await dialog.getByLabel('Room', { exact: true }).selectOption(roomId)
   await expect(dialog.getByLabel('Teacher room sticker')).toBeVisible()
+  await expect(dialog.getByText('Pairing a new display will disconnect the current display.')).toBeVisible()
+  await dialog.getByLabel('Display pairing code').fill('abcd-2345')
   await page.screenshot({ path: '/tmp/pika-room-fixture-teacher-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await dialog.getByLabel('Display pairing code').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: '/tmp/pika-room-pair-mobile.png', fullPage: true })
+  await dialog.getByRole('button', { name: 'Pair display', exact: true }).click()
+  await expect(dialog.getByRole('status')).toHaveText('Room 101 display paired')
+  await page.setViewportSize({ width: 1440, height: 900 })
   await page.route('**/api/teacher/classrooms', route => route.fulfill({ json: { classrooms: [{ id: classId, title: 'Biology 11' }] } }))
   await page.route('**/api/teacher/attendance/session?**', route => route.fulfill({ json: { session: { state: 'open' } } }))
   await page.goto('/e2e-fixtures/attendance-room?view=move')
