@@ -1,5 +1,7 @@
 'use client'
 
+import { TeacherAttendanceRoomsDialog } from './TeacherAttendanceRoomsDialog'
+
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
 
 import {
@@ -65,7 +67,8 @@ import {
   compareNullableStrings,
   toggleSort,
 } from '@/lib/table-sort'
-import { fetchCachedJSON } from '@/lib/request-cache'
+import { fetchCachedJSON, fetchJSON } from '@/lib/request-cache'
+import type { BaraRoomResult } from '@/lib/server/bara-attendance-client'
 import type { Classroom, Entry } from '@/types'
 import { format, parseISO } from 'date-fns'
 import { AttendanceWindowDialog } from './AttendanceWindowDialog'
@@ -130,6 +133,7 @@ interface Props {
   classroom: Classroom
   attendanceEnabled?: boolean
   classroomQrAvailable?: boolean
+  roomAttendanceAvailable?: boolean
   manualAttendanceEnabled?: boolean
   onSelectEntry?: (entry: Entry | null, studentName: string, studentId: string | null) => void
   onDateChange?: (date: string) => void
@@ -144,6 +148,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   classroom,
   attendanceEnabled = false,
   classroomQrAvailable = false,
+  roomAttendanceAvailable = false,
   manualAttendanceEnabled = false,
   onSelectEntry,
   onDateChange,
@@ -222,8 +227,30 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   })
   const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
+  const [roomsOpen, setRoomsOpen] = useState(false)
   const [classroomQrOpen, setClassroomQrOpen] = useState(false)
   useEffect(() => { setClassroomQrOpen(false) }, [classroom.id, classroomQrAvailable])
+  async function openAttendanceQr() {
+    if (roomAttendanceAvailable) {
+      try {
+        const rooms = await fetchJSON<BaraRoomResult<'list'>>('/api/teacher/attendance/rooms', {
+          init: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+            operation: 'list', classroom_id: classroom.id, date: selectedDate,
+          }) },
+        })
+        if (rooms.meeting?.room_id || (!rooms.meeting && rooms.rooms.some(room => room.room_id === rooms.default_room_id && room.paired))) {
+          setRoomsOpen(true)
+          return
+        }
+      } catch {
+        setRoomsOpen(true)
+        return
+      }
+    }
+    if (classroomQrAvailable) setClassroomQrOpen(true)
+    else attendance.openQrPresentation()
+  }
+
   const occurrenceStart = formatTeacherAttendanceTime(attendance.view?.session.sessionStartsAt ?? null)
   const occurrenceEnd = formatTeacherAttendanceTime(attendance.view?.session.sessionEndsAt ?? null)
   const qrTimeLabel = occurrenceStart && occurrenceEnd ? `${occurrenceStart} - ${occurrenceEnd}` : hours.label ?? (classroom.archived_at ? attendance.windowLabel : null)
@@ -735,6 +762,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   const moreActions: TeacherWorkSurfaceActionItem[] = [
+    ...(attendanceEnabled && roomAttendanceAvailable && !classroom.archived_at ? [{ id: 'attendance-rooms', label: 'Attendance rooms', onSelect: () => setRoomsOpen(true) }] : []),
     ...(showAttendance ? [{
       id: 'edit-attendance-time',
       label: 'Edit time',
@@ -829,9 +857,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
                 size="sm"
                 className="h-11 w-11 rounded-none border-0"
                 disabled={classroomQrAvailable ? Boolean(classroom.archived_at) : !qrAvailable}
-                onClick={classroomQrAvailable
-                  ? () => setClassroomQrOpen(true)
-                  : attendance.openQrPresentation}
+                onClick={() => void openAttendanceQr()}
               />
             ) : null}
             <Button
@@ -1394,6 +1420,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           </div>
         ) : null}
       </ContentDialog>
+      <TeacherAttendanceRoomsDialog classroomId={classroom.id} date={selectedDate} isOpen={roomsOpen} onClose={() => setRoomsOpen(false)} />
       <TeacherClassroomQrDialog
         key={classroom.id}
         classroomId={classroom.id}

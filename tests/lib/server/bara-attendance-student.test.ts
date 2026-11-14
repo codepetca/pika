@@ -115,6 +115,27 @@ describe('native Pika student attendance check-in', () => {
     }) })
   })
 
+  it('uses an existing classroom generation and its ordinary Daily binding for a room scan', async () => {
+    resolveGeneration.mockResolvedValue(membership)
+    vi.stubEnv('STUDENT_PROVIDER_CLEANUP_ENABLED', 'false')
+    const send = vi.fn().mockResolvedValue(accepted())
+    const result = await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send, requireActiveMembership: true })
+    expect(resolveMembershipGeneration).not.toHaveBeenCalled()
+    expect(resolveGeneration).toHaveBeenCalledTimes(3)
+    expect(send).toHaveBeenCalledWith(expect.objectContaining({ participant_ref: membership.participant_ref }))
+    expect(result).toMatchObject({ state: 'checked_in', classroomName,
+      occurrenceBinding: deriveStudentAttendanceOccurrenceBinding({ studentId, classroomId, occurrenceRef: 'occurrence_one' }) })
+  })
+
+  it('requires an active generation even if the original resolver is absent', async () => {
+    const send = vi.fn()
+    await expect(executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
+      integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send, requireActiveMembership: true }))
+      .resolves.toMatchObject({ state: 'needs_staff' })
+    expect(send).not.toHaveBeenCalled()
+  })
+
   it('keeps unadmitted scans on the legacy resolver', async () => {
     await executeStudentAttendanceCheckIn({ supabase, pikaUser, entryToken: entryToken(), attemptId,
       integrationState: 'ready', resolveActor: vi.fn().mockResolvedValue(actor), send: vi.fn().mockResolvedValue(accepted()) })

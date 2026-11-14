@@ -112,6 +112,7 @@ interface ClassroomPageClientProps {
   palEnabled?: boolean
   attendanceAvailable?: boolean
   classroomQrAvailable?: boolean
+  roomAttendanceAvailable?: boolean
   testExperienceMode?: 'existing' | 'shared'
 }
 
@@ -187,6 +188,7 @@ export function ClassroomPageClient({
   palEnabled = false,
   attendanceAvailable = true,
   classroomQrAvailable = false,
+  roomAttendanceAvailable = false,
   testExperienceMode = 'existing',
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
@@ -334,6 +336,7 @@ export function ClassroomPageClient({
           availableTabs={validTabs}
           featureVisibility={featureVisibility}
           classroomQrAvailable={classroomQrAvailable}
+          roomAttendanceAvailable={roomAttendanceAvailable}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -594,6 +597,7 @@ function ClassroomPageContent({
   availableTabs,
   featureVisibility,
   classroomQrAvailable,
+  roomAttendanceAvailable,
 }: {
   initialNow: number
   classroom: Classroom
@@ -610,6 +614,7 @@ function ClassroomPageContent({
   availableTabs: readonly string[]
   featureVisibility: ClassroomFeatureVisibility
   classroomQrAvailable: boolean
+  roomAttendanceAvailable: boolean
 }) {
   const currentTorontoDate = useTorontoToday()
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
@@ -2002,6 +2007,7 @@ function ClassroomPageContent({
                         isActive={activeTab === 'daily'}
                         attendanceEnabled={featureVisibility.attendance}
                         classroomQrAvailable={classroomQrAvailable}
+                        roomAttendanceAvailable={roomAttendanceAvailable}
                         manualAttendanceEnabled={!featureVisibility.attendance}
                       />
                     </TabContentTransition>
