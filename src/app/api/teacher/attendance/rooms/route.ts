@@ -6,18 +6,20 @@ import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { assertBaraAttendanceClassroomAccess } from '@/lib/server/bara-attendance-scope'
 import { resolveVerifiedPikaAttendanceTeacher } from '@/lib/server/bara-attendance-teacher'
-import { BaraAttendanceClientError, isBaraRoomAttendanceConfigured, postBaraRoomCommand, type BaraRoomCommand } from '@/lib/server/bara-attendance-client'
+import { BaraAttendanceClientError, baraRoomDisplaySetupUrl, isBaraRoomAttendanceConfigured, postBaraRoomCommand, type BaraRoomCommand } from '@/lib/server/bara-attendance-client'
 
 const ref = z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/)
 const commandSchema = z.object({
   classroom_id: z.string().uuid(), date: z.string().date().optional(),
-  operation: z.enum(['list', 'create', 'pair', 'revoke', 'default', 'move', 'undo', 'notices']),
+  operation: z.enum(['list', 'create', 'pair', 'pair_code', 'revoke', 'default', 'move', 'undo', 'notices']),
   room_id: ref.nullable().optional(), label: z.string().trim().min(1).max(80).optional(),
   revision: z.number().int().nonnegative().optional(), save_default: z.boolean().optional(),
+  pairing_code: z.string().regex(/^[0-9A-HJKMNP-TV-Z]{8}$/).optional(),
   notices: z.array(z.string().trim().min(1).max(200)).max(10).optional(),
 }).strict().superRefine((input, ctx) => {
   const bad = (path: string) => ctx.addIssue({ code: 'custom', path: [path], message: 'Required for this operation' })
-  if (['pair', 'revoke', 'move', 'notices'].includes(input.operation) && !input.room_id) bad('room_id')
+  if (['pair', 'pair_code', 'revoke', 'move', 'notices'].includes(input.operation) && !input.room_id) bad('room_id')
+  if (input.operation === 'pair_code' && !input.pairing_code) bad('pairing_code')
   if (input.operation === 'default' && input.room_id === undefined) bad('room_id')
   if (input.operation === 'create' && !input.label) bad('label')
   if (['move', 'undo'].includes(input.operation) && !input.date) bad('date')
@@ -51,6 +53,7 @@ export const POST = withErrorHandler('TeacherAttendanceRooms', async request => 
     case 'list': command = { ...staff, operation: 'list', ...(occurrenceRef.success ? { occurrence_ref: occurrenceRef.data } : {}) }; break
     case 'create': command = { ...staff, operation: 'create', label: input.label! }; break
     case 'pair': command = { ...staff, operation: 'pair', room_id: input.room_id! }; break
+    case 'pair_code': command = { ...staff, operation: 'pair_code', room_id: input.room_id!, pairing_code: input.pairing_code! }; break
     case 'revoke': command = { ...staff, operation: 'revoke', room_id: input.room_id! }; break
     case 'default': command = { ...staff, operation: 'default', room_id: input.room_id! }; break
     case 'move': command = { ...staff, operation: 'move', room_id: input.room_id!, occurrence_ref: occurrenceRef.data!, ...(input.save_default !== undefined ? { save_default: input.save_default } : {}) }; break
@@ -61,6 +64,8 @@ export const POST = withErrorHandler('TeacherAttendanceRooms', async request => 
   try { result = await postBaraRoomCommand(command) }
   catch (error) {
     if (error instanceof BaraAttendanceClientError) {
+      if (error.code === 'pairing_code_invalid' && error.status === 422) throw new ApiError(422, 'This code is invalid or expired. Get a new code from the display and try again')
+      if (error.code === 'pairing_rate_limited' && error.status === 429) throw new ApiError(429, 'Too many pairing attempts. Try again in a few minutes')
       if (error.code === 'room_unpaired') throw new ApiError(409, 'Pair the room display before assigning this room')
       if (error.status === 409) throw new ApiError(409, 'Attendance changed or this meeting is not open. Refresh and try again')
       if (error.status === 403 || error.status === 404) throw new ApiError(403, 'This room is not available to this class')
@@ -68,5 +73,5 @@ export const POST = withErrorHandler('TeacherAttendanceRooms', async request => 
     }
     throw error
   }
-  return NextResponse.json(result, { headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } })
+  return NextResponse.json(input.operation === 'list' ? { ...result, display_setup_url: baraRoomDisplaySetupUrl() } : result, { headers: { 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } })
 })

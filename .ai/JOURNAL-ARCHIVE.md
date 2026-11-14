@@ -54484,3 +54484,8 @@ Independent review prompted three follow-ups: dismiss the dialog if its source o
 ## 2026-11-09 — Classroom cutoff rebase
 
 Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
+
+<!-- pika-session-log-archive-batch:92148f7671415585af79ecfa32d9bcb3ba2b855b4868edbd49417f0f5e72776d -->
+## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
+
+Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.

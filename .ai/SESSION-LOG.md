@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
-
-Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.
-
 ## 2026-11-09 — Seal the Test publication cutoff proof
 
 Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
@@ -174,3 +170,8 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 - Worktree `codex/room-qr-when-closed`, base `0a7372f41`: proofless scans clear prior capture and show closed state; teacher continuation uses existing move flow. No schema or production changes.
 - UI brief: student closed state and teacher move; reuse room check-in Card/status composition and existing MoveRoom, extend only the room state copy. Desktop/mobile and light/dark are relevant; no composite control changes. Reference: existing room check-in card and shared page-state conventions; no new shared pattern. Pattern Lab comparison remains outstanding.
 - Verified room browser fixtures and the student closed and teacher move paths at desktop and mobile widths in light and dark.
+
+## 2026-11-14 Room display short-code pairing
+
+- Added teacher room display pairing by short code, preserving the legacy pairing link and notice controls. Bara origin supplies the setup URL locally; room authorization remains server-derived.
+- Verified focused API/component tests; browser fixture and focused repository checks run for this worktree. No deployment or migration.

@@ -842,6 +842,7 @@ type RoomCommands = {
   }]
   create: [RoomStaff & { label: string }, RoomTarget]
   pair: [RoomStaff & RoomTarget, { display_url: string }]
+  pair_code: [RoomStaff & RoomTarget & { pairing_code: string }, object]
   revoke: [RoomStaff & RoomTarget, object]
   default: [RoomStaff & { room_id: string | null }, object]
   move: [RoomStaff & RoomTarget & RoomMeeting & { save_default?: boolean }, { revision: number }]
@@ -866,6 +867,11 @@ function roomDisplayOrigin() {
   } catch {
     return null
   }
+}
+
+export function baraRoomDisplaySetupUrl() {
+  const origin = roomDisplayOrigin()
+  return origin ? `${origin}/display` : null
 }
 
 export function isBaraRoomAttendanceConfigured() {
@@ -926,6 +932,7 @@ export async function postBaraRoomCommand<const T extends BaraRoomCommand>(
   if (!result) {
     throw new BaraAttendanceClientError('Bara returned an invalid room response', 'invalid_response', true, status)
   }
+  if (command.operation === 'pair_code') return { ok: true } as BaraRoomResult<T['operation']>
   if (command.operation === 'pair') {
     return {
       ok: true,

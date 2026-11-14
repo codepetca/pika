@@ -7,7 +7,7 @@ vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.fr
 vi.mock('@/lib/server/classrooms', () => ({ assertTeacherCanMutateClassroom: mocks.owns }))
 vi.mock('@/lib/server/bara-attendance-scope', () => ({ assertBaraAttendanceClassroomAccess: mocks.access }))
 vi.mock('@/lib/server/bara-attendance-teacher', () => ({ resolveVerifiedPikaAttendanceTeacher: mocks.actor }))
-vi.mock('@/lib/server/bara-attendance-client', () => ({ isBaraRoomAttendanceConfigured: mocks.configured, postBaraRoomCommand: mocks.send, BaraAttendanceClientError: class extends Error { constructor(message: string, _code: string, _retryable: boolean, readonly status: number) { super(message) } } }))
+vi.mock('@/lib/server/bara-attendance-client', () => ({ baraRoomDisplaySetupUrl: () => 'https://bara.test/display', isBaraRoomAttendanceConfigured: mocks.configured, postBaraRoomCommand: mocks.send, BaraAttendanceClientError: class extends Error { constructor(message: string, readonly code: string, _retryable: boolean, readonly status: number) { super(message) } } }))
 import { POST } from '@/app/api/teacher/attendance/rooms/route'
 import { BaraAttendanceClientError } from '@/lib/server/bara-attendance-client'
 
@@ -33,6 +33,26 @@ describe('teacher room command boundary', () => {
     const response = await POST(request({ classroom_id: classroom, date: '2026-11-13', operation: 'move', room_id: 'room1234567890123456', save_default: true }))
     expect(response.status).toBe(200)
     expect(mocks.send).toHaveBeenCalledWith({ operation: 'move', roster_ref: 'roster', actor_principal_ref: 'principal', actor_display_name: 'Teacher', occurrence_ref: 'occurrence', room_id: 'room1234567890123456', save_default: true })
+  })
+  it('sends a canonical pairing code with the authorized staff context', async () => {
+    const response = await POST(request({ classroom_id: classroom, operation: 'pair_code', room_id: 'room1234567890123456', pairing_code: 'ABCD2345' }))
+    expect(response.status).toBe(200)
+    expect(mocks.send).toHaveBeenCalledWith({ operation: 'pair_code', room_id: 'room1234567890123456', pairing_code: 'ABCD2345', roster_ref: 'roster', actor_principal_ref: 'principal', actor_display_name: 'Teacher' })
+  })
+  it('rejects invalid codes before contacting Bara', async () => {
+    const response = await POST(request({ classroom_id: classroom, operation: 'pair_code', room_id: 'room1234567890123456', pairing_code: 'ABCDI234' }))
+    expect(response.status).toBe(400)
+    expect(mocks.send).not.toHaveBeenCalled()
+  })
+  it.each([['pairing_code_invalid', 422], ['pairing_rate_limited', 429]])('maps %s safely', async (code, status) => {
+    mocks.send.mockRejectedValue(new BaraAttendanceClientError('provider secret', code, false, status))
+    const response = await POST(request({ classroom_id: classroom, operation: 'pair_code', room_id: 'room1234567890123456', pairing_code: 'ABCD2345' }))
+    expect(response.status).toBe(status)
+    expect(JSON.stringify(await response.json())).not.toContain('provider secret')
+  })
+  it('returns the configured display setup URL with the room list', async () => {
+    const response = await POST(request({ classroom_id: classroom, operation: 'list' }))
+    expect(await response.json()).toMatchObject({ display_setup_url: 'https://bara.test/display' })
   })
   it('does not include occurrence on create when a date is selected', async () => {
     const response = await POST(request({ classroom_id: classroom, date: '2026-11-13', operation: 'create', label: 'Lab' }))
