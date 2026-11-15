@@ -54494,3 +54494,8 @@ Hosted CI exposed exact trigger inventory checks that predated migration 308. Th
 ## 2026-11-09 — Seal the Test publication cutoff proof
 
 Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
+
+<!-- pika-session-log-archive-batch:673f5998e7d3a1ba7eec61e5db54b12c6d9a85464a86c88e33dbd11af2f5c42a -->
+## 2026-11-09 — Sync the classroom cutoff proof with main
+
+Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.
