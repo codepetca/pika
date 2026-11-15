@@ -69,6 +69,10 @@ describe('ColdClassroomPurgeDialog', () => {
     expect(dialog).toHaveTextContent(/no longer be able to restore or recover/)
     expect(dialog).toHaveTextContent(/User accounts, Course Blueprints, other classrooms/)
     expect(dialog).toHaveTextContent(/before its scheduled retention date of Aug 20, 2099/)
+    expect(dialog).toHaveTextContent('Student count is unavailable for this stored classroom.')
+    expect(within(dialog).queryByText('students', { exact: true })).not.toBeInTheDocument()
+    expect(dialog).toHaveTextContent(/42\s*stored records/)
+    expect(dialog).toHaveTextContent(/4\s*files · 2 KB/)
     expect(dialog).toHaveTextContent(/2 classroom archives and 1 related Gradex extract/)
     expect(dialog).toHaveTextContent(/1 registered file is already absent from Storage/)
 

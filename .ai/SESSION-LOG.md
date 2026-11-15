@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Seal the Test publication cutoff proof
-
-Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
-
 ## 2026-11-09 — Sync the classroom cutoff proof with main
 
 Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.
@@ -174,3 +170,8 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 ## 2026-11-15 — Contextual cold restore actor identity
 
 - Contextual cold restore verifies actor and managed-file subject UUIDs against the exact classroom's cold ledger. Legacy restore and compaction keep role matching. Disposable schema replay and native Storage exercise both owner labels, changed learner label, nonowner denial, and same-key recovery after a request interrupted before SQL and a lost reply after commit. The archive checksum and restored bytes match. Historical Test files whose subject UUID is absent from the ledger retain role-checked recovery.
+
+## 2026-11-15 — Prepare stored classroom deletion preview for classroom roles
+
+- Squash-merged #1815 into `main`. Replaced the account-label count in the stored classroom deletion preview with a note that the student count is unavailable. Reused the existing ContentDialog, confirmation controls, impact cards, and muted detail. Reference: existing dialog and Pattern Lab confirmation. No new composite widget.
+- Verified owner confirmation and retry states and learner exclusion on desktop and mobile in light and dark with the cold purge Playwright matrix. Existing purge request and resume tests passed. The API accepts inventories with or without the legacy count. Inventory digests and the operation protocol stay compatible.

@@ -54489,3 +54489,8 @@ Rebased the reviewed classroom cutoff patch onto main after the scheduled billin
 ## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
 
 Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.
+
+<!-- pika-session-log-archive-batch:4b4d3ebd55a0b4274da588d29ab27ca59bb25ebd6de399640f071d7f89acd9dc -->
+## 2026-11-09 — Seal the Test publication cutoff proof
+
+Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
