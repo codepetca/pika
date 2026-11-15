@@ -107,8 +107,9 @@ protects those identities while the cold tombstone exists. Finalization still
 locks and checks the exact tombstone. Missing required identity evidence fails
 before file reservations. Historical compaction could omit a Test file subject
 that appeared in no retained resource row. Recovery of those archives requires
-a live subject UUID and the existing actor role checks. Historical snapshots
-and checksums are preserved. Legacy restore and compaction continue to require
+a live subject UUID and the existing actor role checks alongside the cold
+ledger for row actors. The file-only user lookup inherits the legacy deletion
+semantics of managed Storage. Historical snapshots and checksums are preserved. Legacy restore and compaction continue to require
 matching account roles.
 
 The adapter binds the supplied operation key to its actor/classroom/archive, and

@@ -562,22 +562,22 @@ export async function restoreClassroomArchive(args: {
     const unfencedFileSubjects = new Set<string>()
     if (coldActorIds) {
       for (const object of verified.manifest.storage_objects) {
-        const id = object.managed_owner?.data_subject_user_id
+        if (object.bucket !== 'test-documents' || object.managed_owner?.resource_type !== 'test') continue
+        const id = object.managed_owner.data_subject_user_id
         if (id && !coldActorIds.has(id) && !archivedActorIds.has(id)) unfencedFileSubjects.add(id)
       }
     }
-    // Historical compaction indexed row actors, which can omit a file-only
-    // subject. Such archives can use the existing role checks, but cannot use
-    // UUID-only reconciliation without a cold-ledger fence for the subject.
-    let currentActors: Awaited<ReturnType<typeof loadCurrentActors>> = []
-    if (!coldActorIds || unfencedFileSubjects.size > 0) {
-      currentActors = await loadCurrentActors(args.supabase, [...archivedActorIds, ...unfencedFileSubjects])
-      const currentIds = new Set(currentActors.map((actor) => actor.id))
-      if ([...unfencedFileSubjects].some((id) => !currentIds.has(id))) {
-        throw new Error('Archive restore has an unresolved managed file subject')
-      }
-    }
-    const actorEvidence = coldActorIds && unfencedFileSubjects.size === 0 ? { coldActorIds } : { currentActors }
+    // Historical compaction could omit a Test file's subject when no
+    // resource row referenced that user. Preserve the legacy role checks
+    // for those archives alongside the cold ledger for retained row actors.
+    const actorEvidence = coldActorIds && unfencedFileSubjects.size === 0
+      ? { coldActorIds }
+      : {
+          coldActorIds: coldActorIds ?? undefined,
+          currentActors: await loadCurrentActors(
+            args.supabase, [...archivedActorIds, ...unfencedFileSubjects],
+          ),
+        }
     plan = buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified,

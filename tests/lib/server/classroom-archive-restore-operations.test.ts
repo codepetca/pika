@@ -60,7 +60,14 @@ function archiveV2ResourceCounts() {
 const STORAGE_ONLY_ID = '00000000-0000-4000-8000-000000000006'
 const TEST_ID = '10000000-0000-4000-8000-000000000007'
 
-function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false, storageOnlySubject = false) {
+function fixture(options: {
+  archiveVersion?: 1 | 2
+  withOverrides?: boolean
+  withItems?: boolean
+  storageOnlySubject?: boolean
+  wrongTestFileOwner?: boolean
+}) {
+  const { archiveVersion: version = 1, withOverrides, withItems, storageOnlySubject } = options
   const sourceResources = resources()
   if (withOverrides) Object.assign(sourceResources, {
     gradebook_score_overrides: [{ id: '15700000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, student_id: STUDENT_ID, created_by: TEACHER_ID, assessment_id: ASSIGNMENT_ID, assessment_type: 'assignment', earned: 8 }],
@@ -139,7 +146,7 @@ function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false, s
           createdByUserId: TEACHER_ID,
           dataSubjectUserId: STORAGE_ONLY_ID,
           resourceType: 'test',
-          resourceId: TEST_ID,
+          resourceId: options.wrongTestFileOwner ? ASSIGNMENT_ID : TEST_ID,
         },
       }] : []),
     ],
@@ -168,8 +175,9 @@ function createSupabaseMock(options: {
   storageOnlySubject?: boolean
   missingStorageSubject?: boolean
   changedStudentRole?: boolean
+  wrongTestFileOwner?: boolean
 } = {}) {
-  const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems, options.storageOnlySubject)
+  const bundle = fixture(options)
   const counts = Object.fromEntries(
     bundle.manifest.resources.map((resource) => [resource.table, resource.row_count]),
   )
@@ -460,9 +468,20 @@ describe('classroom archive restore coordinator', () => {
   it.each([
     ['an unknown file subject', { missingStorageSubject: true }],
     ['a changed actor role with an unfenced file subject', { changedStudentRole: true }],
+    ['a Test file whose ownership does not match its retained Test', { wrongTestFileOwner: true }],
   ] as const)('rejects %s before any restore or storage mutations', async (_case, options) => {
     const mock = createSupabaseMock({ archiveVersion: 2, coldActors, storageOnlySubject: true, ...options })
     expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.stored.size).toBe(0)
+  })
+
+  it('requires a cold ledger entry for a retained row actor even with a live file-only subject', async () => {
+    const mock = createSupabaseMock({
+      archiveVersion: 2, coldActors: [coldActors[0]], storageOnlySubject: true,
+    })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.from).toHaveBeenCalledWith('users')
     expect(mock.rpc).not.toHaveBeenCalled()
     expect(mock.stored.size).toBe(0)
   })
