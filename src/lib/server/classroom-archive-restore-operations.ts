@@ -555,11 +555,29 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const actorEvidence = actorVerification === 'cold-actor-id'
-      ? { coldActorIds: await loadColdActorIds(args.supabase, args.classroomId) }
-      : { currentActors: await loadCurrentActors(
-          args.supabase, decodeClassroomArchiveData(verified).actors.map((actor) => actor.id),
-        ) }
+    const archivedActorIds = new Set(decodeClassroomArchiveData(verified).actors.map((actor) => actor.id))
+    const coldActorIds = actorVerification === 'cold-actor-id'
+      ? await loadColdActorIds(args.supabase, args.classroomId)
+      : null
+    const unfencedFileSubjects = new Set<string>()
+    if (coldActorIds) {
+      for (const object of verified.manifest.storage_objects) {
+        const id = object.managed_owner?.data_subject_user_id
+        if (id && !coldActorIds.has(id) && !archivedActorIds.has(id)) unfencedFileSubjects.add(id)
+      }
+    }
+    // Historical compaction indexed row actors, which can omit a file-only
+    // subject. Such archives can use the existing role checks, but cannot use
+    // UUID-only reconciliation without a cold-ledger fence for the subject.
+    let currentActors: Awaited<ReturnType<typeof loadCurrentActors>> = []
+    if (!coldActorIds || unfencedFileSubjects.size > 0) {
+      currentActors = await loadCurrentActors(args.supabase, [...archivedActorIds, ...unfencedFileSubjects])
+      const currentIds = new Set(currentActors.map((actor) => actor.id))
+      if ([...unfencedFileSubjects].some((id) => !currentIds.has(id))) {
+        throw new Error('Archive restore has an unresolved managed file subject')
+      }
+    }
+    const actorEvidence = coldActorIds && unfencedFileSubjects.size === 0 ? { coldActorIds } : { currentActors }
     plan = buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified,
@@ -866,13 +884,6 @@ export async function restoreClassroomArchive(args: {
     emitRestoreMetric(result, startedAt)
     return result
   } catch (cause) {
-    await Promise.all(reservedManagedObjectIds.map((objectId) =>
-      queueManagedStorageCleanupBestEffort({
-        supabase: args.supabase,
-        objectId,
-        errorCode: 'classroom_archive_restore_failed',
-      }),
-    ))
     const error = cause instanceof ClassroomArchiveRestoreError
       ? cause
       : new ClassroomArchiveRestoreError(
@@ -881,6 +892,18 @@ export async function restoreClassroomArchive(args: {
           503,
           true,
         )
+    // An interrupted begin may leave unbound file reservations. On the
+    // contextual path an immediate cleanup would strand the deterministic
+    // IDs for this key. The existing reservation expiry handles abandonment.
+    if (actorVerification === 'legacy-role' || operationStarted || !error.retryable) {
+      await Promise.all(reservedManagedObjectIds.map((objectId) =>
+        queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId,
+          errorCode: 'classroom_archive_restore_failed',
+        }),
+      ))
+    }
     const cleanupAuthorized = operationStarted
       ? await recordRestoreFailure({
         supabase: args.supabase,

@@ -173,4 +173,4 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 
 ## 2026-11-15 — Contextual cold restore actor identity
 
-- Contextual cold restore verifies actor and managed-file subject UUIDs against the exact classroom's cold ledger. Legacy restore and compaction keep role matching. Disposable schema replay and native Storage exercise both owner labels, changed learner label, nonowner denial, and same-key recovery after losing the committed finalizer reply.
+- Contextual cold restore verifies actor and managed-file subject UUIDs against the exact classroom's cold ledger. Legacy restore and compaction keep role matching. Disposable schema replay and native Storage exercise both owner labels, changed learner label, nonowner denial, and same-key recovery after a request interrupted before SQL and a lost reply after commit. The archive checksum and restored bytes match. Historical Test files whose subject UUID is absent from the ledger retain role-checked recovery.

@@ -58,6 +58,7 @@ function archiveV2ResourceCounts() {
 }
 
 const STORAGE_ONLY_ID = '00000000-0000-4000-8000-000000000006'
+const TEST_ID = '10000000-0000-4000-8000-000000000007'
 
 function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false, storageOnlySubject = false) {
   const sourceResources = resources()
@@ -67,6 +68,20 @@ function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false, s
   if (withItems) Object.assign(sourceResources, {
     gradebook_items: [{ id: '16100000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, created_by: TEACHER_ID, title: 'Attendance', points_possible: 20 }],
     gradebook_item_scores: [{ id: '16100000-0000-4000-8000-000000000021', classroom_id: CLASSROOM_ID, item_id: '16100000-0000-4000-8000-000000000020', student_id: STUDENT_ID, earned: 18, returned_at: '2026-07-12T12:00:00.000Z' }],
+  })
+  if (storageOnlySubject) Object.assign(sourceResources, {
+    tests: [{
+      id: TEST_ID,
+      classroom_id: CLASSROOM_ID,
+      created_by: TEACHER_ID,
+      documents: [{
+        id: '10000000-0000-4000-8000-000000000008',
+        title: 'Archived reference',
+        source: 'upload',
+        storage_bucket: 'test-documents',
+        storage_path: 'teacher/reference.png',
+      }],
+    }],
   })
   const archiveResources = version === 2
     ? Object.fromEntries(
@@ -106,20 +121,28 @@ function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false, s
         },
       },
     ],
-    storageObjects: [{
-      bucket: 'assignment-artifacts',
-      sourcePath: 'student/evidence.png',
-      contentType: 'image/png',
-      bytes: Buffer.from('restore evidence'),
-      ...(storageOnlySubject && { managedOwner: {
-        objectId: '10000000-0000-4000-8000-000000000005',
-        purpose: 'student_assignment_artifact' as const,
-        createdByUserId: TEACHER_ID,
-        dataSubjectUserId: STORAGE_ONLY_ID,
-        resourceType: 'assignment_doc',
-        resourceId: DOC_ID,
-      } }),
-    }],
+    storageObjects: [
+      {
+        bucket: 'assignment-artifacts',
+        sourcePath: 'student/evidence.png',
+        contentType: 'image/png',
+        bytes: Buffer.from('restore evidence'),
+      },
+      ...(storageOnlySubject ? [{
+        bucket: 'test-documents' as const,
+        sourcePath: 'teacher/reference.png',
+        contentType: 'image/png',
+        bytes: Buffer.from('archived test reference'),
+        managedOwner: {
+          objectId: '10000000-0000-4000-8000-000000000005',
+          purpose: 'teacher_test_material' as const,
+          createdByUserId: TEACHER_ID,
+          dataSubjectUserId: STORAGE_ONLY_ID,
+          resourceType: 'test',
+          resourceId: TEST_ID,
+        },
+      }] : []),
+    ],
   })
 }
 
@@ -143,6 +166,8 @@ function createSupabaseMock(options: {
   withItems?: boolean
   coldActors?: unknown[]
   storageOnlySubject?: boolean
+  missingStorageSubject?: boolean
+  changedStudentRole?: boolean
 } = {}) {
   const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems, options.storageOnlySubject)
   const counts = Object.fromEntries(
@@ -167,7 +192,18 @@ function createSupabaseMock(options: {
   let postUploadReadFailed = false
   let metadataReads = 0
   let operationResourceCounts = counts
+  const reservations = new Map<unknown, { id: unknown; storage_bucket: unknown; storage_path: unknown }>()
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (options.storageOnlySubject && name === 'begin_managed_storage_upload') {
+      const reservation = {
+        id: args.p_object_id, storage_bucket: args.p_storage_bucket, storage_path: args.p_storage_path,
+      }
+      reservations.set(reservation.id, reservation)
+      return { data: { ...reservation, status: 'reserved' }, error: null }
+    }
+    if (options.storageOnlySubject && name === 'verify_managed_storage_upload') {
+      return { data: { ...reservations.get(args.p_object_id), status: 'verified' }, error: null }
+    }
     if (name === 'begin_classroom_archive_restore_v2') {
       if (options.v2Unavailable) {
         return { data: null, error: { code: 'PGRST202', message: 'missing v2 function' } }
@@ -323,7 +359,10 @@ function createSupabaseMock(options: {
       in: vi.fn(async () => ({
         data: [
           { id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher' },
-          { id: STUDENT_ID, email: 'student@example.test', role: 'student' },
+          { id: STUDENT_ID, email: 'student@example.test', role: options.changedStudentRole ? 'teacher' : 'student' },
+          ...(options.storageOnlySubject && !options.missingStorageSubject
+            ? [{ id: STORAGE_ONLY_ID, email: 'file-subject@example.test', role: 'student' }]
+            : []),
         ],
         error: null,
       })),
@@ -407,8 +446,22 @@ describe('classroom archive restore coordinator', () => {
     expect(mock.stored.size).toBe(0)
   })
 
-  it('requires a cold identity for a retained managed file subject outside the resource rows', async () => {
+  it('preserves role-checked recovery of a historical Test file with a file-only subject', async () => {
     const mock = createSupabaseMock({ archiveVersion: 2, coldActors, storageOnlySubject: true })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: true })
+    expect(mock.from).toHaveBeenCalledWith('users')
+    expect(mock.rpc).toHaveBeenCalledWith('begin_managed_storage_upload', expect.objectContaining({
+      p_data_subject_user_id: STORAGE_ONLY_ID,
+      p_purpose: 'teacher_test_material',
+    }))
+    expect(mock.stored.size).toBe(2)
+  })
+
+  it.each([
+    ['an unknown file subject', { missingStorageSubject: true }],
+    ['a changed actor role with an unfenced file subject', { changedStudentRole: true }],
+  ] as const)('rejects %s before any restore or storage mutations', async (_case, options) => {
+    const mock = createSupabaseMock({ archiveVersion: 2, coldActors, storageOnlySubject: true, ...options })
     expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
     expect(mock.rpc).not.toHaveBeenCalled()
     expect(mock.stored.size).toBe(0)

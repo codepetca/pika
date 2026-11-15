@@ -104,9 +104,12 @@ separate existing hot-unarchive writer retains active-classroom entitlements.
 Contextual restore reconciles retained actor UUIDs and managed-file subjects
 against the classroom's cold actor ledger. The ledger's user foreign key
 protects those identities while the cold tombstone exists. Finalization still
-locks and checks the exact tombstone. Archives without the required evidence
-fail before file reservations. Historical snapshots and checksums are preserved.
-Legacy restore and compaction continue to require matching account roles.
+locks and checks the exact tombstone. Missing required identity evidence fails
+before file reservations. Historical compaction could omit a Test file subject
+that appeared in no retained resource row. Recovery of those archives requires
+a live subject UUID and the existing actor role checks. Historical snapshots
+and checksums are preserved. Legacy restore and compaction continue to require
+matching account roles.
 
 The adapter binds the supplied operation key to its actor/classroom/archive, and
 conflicting keys fail before private recovery effects. It verifies successful
@@ -118,14 +121,17 @@ serializable transaction or an authorization lock. Existing SQL rechecks the
 tombstone and lifecycle fences when it begins and completes restoration.
 
 Uncertain or malformed evidence returns the existing privacy-safe recovery503
-and preserves the same operation key for manual reconciliation. It neither
+and preserves the same operation key for manual reconciliation. Retryable
+failures before the restore operation starts leave deterministic file
+reservations available to that key until their existing expiry. It neither
 retries automatically, deletes objects, nor asserts that the restore rolled back.
 Purge, compaction policy, retention timers and general page activation are not
 part of this change.
 
 The loopback-only recovery drill uses fresh, sequential fixtures for both owner
 labels. It verifies nonowner denial, historical snapshots, restored rows and file
-bytes, and completed replay. One fixture changes a learner's account label and
-discards the successful finalizer reply. The contextual route recovers by the
-same operation key, and the legacy coordinator continues to reject the changed
+bytes, archive checksums, and completed replay. One fixture changes a learner's
+account label, interrupts the begin request before it reaches PostgreSQL, then
+discards the successful finalizer reply on retry. The contextual server adapter
+recovers by the same operation key. The legacy coordinator rejects the changed
 label. The untouched-label fixture also exercises legacy replay.

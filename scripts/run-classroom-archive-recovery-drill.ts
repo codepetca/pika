@@ -470,12 +470,17 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
   })
   const ids = fixtureIds()
   const exerciseRoleDrift = ownerRole === 'student'
+  let withholdBegin = false
   let discardFinalizerReply = false
   let finalizerReplyDiscarded = false
   const supabase = getServiceRoleClient({
     fetch: async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input)
       if (url.origin !== target.supabaseUrl) throw new Error('Recovery drill fetch must stay local')
+      if (withholdBegin && url.pathname.endsWith('/rpc/begin_classroom_archive_restore_v2')) {
+        withholdBegin = false
+        throw new Error('Recovery drill withheld the begin request')
+      }
       const response = await fetch(input, { ...init, redirect: 'error' })
       if (discardFinalizerReply && url.pathname.endsWith('/rpc/complete_classroom_archive_restore')) {
         const result = await response.clone().json()
@@ -527,7 +532,8 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
     }
     const archive = archiveMetadataSchema.parse(archiveResponse.data)
     archiveObjectPath = archive.storage_path
-    await readStorageBytes(supabase, archive.storage_bucket, archive.storage_path)
+    const originalArchiveBytes = await readStorageBytes(supabase, archive.storage_bucket, archive.storage_path)
+    if (sha256Bytes(originalArchiveBytes) !== archive.artifact_sha256) throw new Error('Original archive hash did not match')
 
     process.env.CLASSROOM_ARCHIVE_COMPACTION_ENABLED = 'true'
     process.env.CLASSROOM_ARCHIVE_COMPACTION_TEACHER_IDS = ids.teacher
@@ -601,6 +607,14 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
       if (strict.ok) throw new Error('Legacy restore accepted a changed actor label')
       await assertRowAbsent(supabase, 'classroom_archive_operations', 'id', strictOperationId)
       await assertRowAbsent(supabase, 'classrooms', 'id', ids.classrooms)
+
+      withholdBegin = true
+      const interrupted = await restoreContextualClassroomArchive(restoreInput)
+      if (withholdBegin || interrupted.ok || interrupted.error_code !== 'classroom_archive_recovery_unverified') {
+        throw new Error('Restore did not report the intended interruption before begin')
+      }
+      await assertRowAbsent(supabase, 'classroom_archive_operations', 'id', ids.restoreOperation)
+      await assertRowAbsent(supabase, 'classrooms', 'id', ids.classrooms)
     }
 
     discardFinalizerReply = exerciseRoleDrift
@@ -657,7 +671,8 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
       'classroom_id',
       ids.classrooms,
     )
-    await readStorageBytes(supabase, archive.storage_bucket, archive.storage_path)
+    const retainedArchiveBytes = await readStorageBytes(supabase, archive.storage_bucket, archive.storage_path)
+    if (sha256Bytes(retainedArchiveBytes) !== archive.artifact_sha256) throw new Error('Retained archive bytes changed')
 
     const exportReplay = await exportClassroomArchive({
       supabase,
@@ -736,6 +751,7 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
       idempotent_replays_verified: 5,
       changed_actor_label_verified: exerciseRoleDrift,
       lost_commit_reply_recovered: finalizerReplyDiscarded,
+      interrupted_begin_recovered: exerciseRoleDrift,
     }))
   } finally {
     try {
