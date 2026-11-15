@@ -303,6 +303,32 @@ async function loadCurrentActors(
   }).strict()).parse(actors)
 }
 
+const coldActorRowSchema = z.object({ classroom_id: uuidSchema, actor_id: uuidSchema }).strict()
+const coldActorPageSize = 200
+const coldActorLimit = 10_000 // Matches the compaction actor limit.
+
+async function loadColdActorIds(supabase: SupabaseClient, classroomId: string): Promise<ReadonlySet<string>> {
+  const ids = new Set<string>()
+  // The cold ledger's restrictive user FK protects these identities while the
+  // tombstone exists. Restore finalization locks and rechecks that tombstone.
+  for (let offset = 0; offset <= coldActorLimit; offset += coldActorPageSize) {
+    const response = await supabase.from('classroom_cold_archive_actors')
+      .select('classroom_id,actor_id').eq('classroom_id', classroomId)
+      .order('actor_id', { ascending: true })
+      .range(offset, offset + coldActorPageSize - 1)
+    if (response.error) throw new Error('Cold archive actor lookup failed')
+    const rows = z.array(coldActorRowSchema).max(coldActorPageSize).parse(response.data)
+    for (const row of rows) {
+      if (row.classroom_id !== classroomId || ids.has(row.actor_id) || ids.size === coldActorLimit) {
+        throw new Error('Cold archive actor lookup returned inconsistent evidence')
+      }
+      ids.add(row.actor_id)
+    }
+    if (rows.length < coldActorPageSize) return ids
+  }
+  throw new Error('Cold archive actor lookup exceeded its bound')
+}
+
 function chunkRestoreRows(rows: Record<string, unknown>[]): Record<string, unknown>[][] {
   const chunks: Record<string, unknown>[][] = []
   let chunk: Record<string, unknown>[] = []
@@ -475,7 +501,7 @@ export async function restoreClassroomArchive(args: {
   classroomId: string
   databaseBudgetBytes: number
   supabaseUrl: string
-}): Promise<ClassroomArchiveRestoreResult> {
+}, actorVerification: 'legacy-role' | 'cold-actor-id' = 'legacy-role'): Promise<ClassroomArchiveRestoreResult> {
   const startedAt = Date.now()
   let operationStarted = false
   let finalizationAttempted = false
@@ -529,16 +555,16 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const decoded = decodeClassroomArchiveData(verified)
-    const currentActors = await loadCurrentActors(
-      args.supabase,
-      decoded.actors.map((actor) => actor.id),
-    )
+    const actorEvidence = actorVerification === 'cold-actor-id'
+      ? { coldActorIds: await loadColdActorIds(args.supabase, args.classroomId) }
+      : { currentActors: await loadCurrentActors(
+          args.supabase, decodeClassroomArchiveData(verified).actors.map((actor) => actor.id),
+        ) }
     plan = buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified,
       operationId: args.operationId,
-      currentActors,
+      ...actorEvidence,
       supabaseUrl: args.supabaseUrl,
     })
     const targetResources = await readDeployedClassroomArchiveResources(args.supabase)

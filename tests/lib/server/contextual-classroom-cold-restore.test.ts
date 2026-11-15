@@ -52,10 +52,11 @@ const uncertain = { ok: false, status: 503, operation_id: operationId, error_cod
 
 describe('contextual cold restore installed SDK boundary', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.restore.mockResolvedValue(completed()) })
-  it('preflights cold current ownership before invoking the unchanged coordinator and verifies durable hot completion', async () => {
+  it('preflights cold current ownership before invoking the coordinator with cold actor evidence and verifies durable hot completion', async () => {
     const f = fixture([cold(), null, operation(), archive(), hot()])
     expect(await restoreContextualClassroomArchive(input(f.supabase))).toEqual(completed())
     expect(mocks.restore).toHaveBeenCalledOnce()
+    expect(mocks.restore).toHaveBeenCalledWith(input(f.supabase), 'cold-actor-id')
     expect(f.urls[0].pathname).toContain('read_classroom_archive_recovery_for_owner_v1')
     const query = f.urls.find(url => url.pathname.endsWith('classroom_archive_operations') && url.searchParams.has('teacher_id'))!
     expect(query.searchParams.get('teacher_id')).toBe(`eq.${actorId}`)

@@ -584,10 +584,12 @@ type BuildClassroomArchiveRestorePlanArgs = {
   verified: VerifiedBundle
   artifactChecksumVerified: boolean
   operationId: string
-  currentActors: CurrentActor[]
   supabaseUrl: string
   deriveLegacyManagedOwnership?: boolean
-}
+} & (
+  | { currentActors: CurrentActor[]; coldActorIds?: never }
+  | { coldActorIds: ReadonlySet<string>; currentActors?: never }
+)
 
 function buildClassroomArchiveRestorePlanForVersion(
   args: BuildClassroomArchiveRestorePlanArgs,
@@ -676,18 +678,6 @@ function buildClassroomArchiveRestorePlanForVersion(
     archivedActorIds,
     CLASSROOM_ARCHIVE_V2_RESOURCES,
   )
-  const currentActorsById = new Map(
-    args.currentActors.map((actor) => {
-      const parsed = currentActorSchema.parse(actor)
-      return [parsed.id, parsed]
-    }),
-  )
-  const unresolvedActorIds = archivedActors.flatMap((actor) => {
-    if (!retainedActorIds.has(actor.id)) return []
-    const current = currentActorsById.get(actor.id)
-    return current?.role === actor.role ? [] : [actor.id]
-  })
-
   const retainedStorageReferences = new Set(
     discoverClassroomStorageReferences(retainedSourceResources, args.supabaseUrl)
       .map((reference) => `${reference.bucket}\0${reference.path}`),
@@ -792,6 +782,25 @@ function buildClassroomArchiveRestorePlanForVersion(
     archivedActorIds,
     CLASSROOM_ARCHIVE_V2_RESOURCES,
   )
+
+  let unresolvedActorIds: string[]
+  if (args.coldActorIds) {
+    // Restored files retain their data subject. The uploader is the verified
+    // restoring owner, so a historic uploader is not a restored identity.
+    for (const object of storageObjects) {
+      if (object.dataSubjectUserId) retainedActorIds.add(object.dataSubjectUserId)
+    }
+    const coldActorIds = args.coldActorIds
+    unresolvedActorIds = [...retainedActorIds].filter((id) => !coldActorIds.has(id))
+  } else {
+    const currentRoles = new Map(args.currentActors.map((actor) => {
+      const current = currentActorSchema.parse(actor)
+      return [current.id, current.role]
+    }))
+    unresolvedActorIds = archivedActors
+      .filter((actor) => retainedActorIds.has(actor.id) && currentRoles.get(actor.id) !== actor.role)
+      .map((actor) => actor.id)
+  }
 
   const preflight = classroomArchiveRestorePreflightSchema.parse({
     archive_id: manifest.archive_id,

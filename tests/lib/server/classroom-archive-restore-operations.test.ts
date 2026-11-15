@@ -57,7 +57,9 @@ function archiveV2ResourceCounts() {
   )
 }
 
-function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false) {
+const STORAGE_ONLY_ID = '00000000-0000-4000-8000-000000000006'
+
+function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false, storageOnlySubject = false) {
   const sourceResources = resources()
   if (withOverrides) Object.assign(sourceResources, {
     gradebook_score_overrides: [{ id: '15700000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, student_id: STUDENT_ID, created_by: TEACHER_ID, assessment_id: ASSIGNMENT_ID, assessment_type: 'assignment', earned: 8 }],
@@ -109,6 +111,14 @@ function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false) {
       sourcePath: 'student/evidence.png',
       contentType: 'image/png',
       bytes: Buffer.from('restore evidence'),
+      ...(storageOnlySubject && { managedOwner: {
+        objectId: '10000000-0000-4000-8000-000000000005',
+        purpose: 'student_assignment_artifact' as const,
+        createdByUserId: TEACHER_ID,
+        dataSubjectUserId: STORAGE_ONLY_ID,
+        resourceType: 'assignment_doc',
+        resourceId: DOC_ID,
+      } }),
     }],
   })
 }
@@ -131,8 +141,10 @@ function createSupabaseMock(options: {
   withOverrides?: boolean
   pre163?: boolean
   withItems?: boolean
+  coldActors?: unknown[]
+  storageOnlySubject?: boolean
 } = {}) {
-  const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems)
+  const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems, options.storageOnlySubject)
   const counts = Object.fromEntries(
     bundle.manifest.resources.map((resource) => [resource.table, resource.row_count]),
   )
@@ -259,7 +271,14 @@ function createSupabaseMock(options: {
     return { data: true, error: null }
   })
 
-  function from(table: string) {
+  const from = vi.fn((table: string) => {
+    if (table === 'classroom_cold_archive_actors') {
+      const query = {
+        select: vi.fn(() => query), eq: vi.fn(() => query), order: vi.fn(() => query),
+        range: vi.fn(async () => ({ data: options.coldActors, error: null })),
+      }
+      return query
+    }
     if (table === 'classroom_archive_resource_contract_versions') {
       const data = CLASSROOM_ARCHIVE_V2_RESOURCES
         .filter((resource) => !options.pre157 || resource.table !== 'gradebook_score_overrides')
@@ -310,7 +329,7 @@ function createSupabaseMock(options: {
       })),
     }
     return query
-  }
+  })
 
   const storage = {
     from: vi.fn((bucket: string) => ({
@@ -353,7 +372,7 @@ function createSupabaseMock(options: {
       }),
     })),
   }
-  return { client: { rpc, from, storage } as any, removed, rpc, stored }
+  return { client: { rpc, from, storage } as any, from, removed, rpc, stored }
 }
 
 describe('classroom archive restore coordinator', () => {
@@ -361,6 +380,38 @@ describe('classroom archive restore coordinator', () => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.spyOn(console, 'info').mockImplementation(() => undefined)
+  })
+
+  const coldActors = [TEACHER_ID, STUDENT_ID].map(actor_id => ({ classroom_id: CLASSROOM_ID, actor_id }))
+  const coldInput = (supabase: ReturnType<typeof createSupabaseMock>['client']) => ({
+    supabase, operationId: OPERATION_ID, archiveId: ARCHIVE_ID,
+    teacherId: TEACHER_ID, classroomId: CLASSROOM_ID, databaseBudgetBytes: 524288000,
+    supabaseUrl: 'https://project.supabase.co',
+  })
+
+  it.each([1, 2] as const)('restores format %i from cold actor UUIDs without reading current roles', async archiveVersion => {
+    const mock = createSupabaseMock({ archiveVersion, coldActors })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: true })
+    expect(mock.from).toHaveBeenCalledWith('classroom_cold_archive_actors')
+    expect(mock.from).not.toHaveBeenCalledWith('users')
+  })
+
+  it.each([
+    ['missing actor', [coldActors[0]]],
+    ['duplicate actor', [...coldActors, coldActors[1]]],
+    ['other classroom', [coldActors[0], { ...coldActors[1], classroom_id: ARCHIVE_ID }]],
+  ])('rejects %s before any restore or storage mutations', async (_case, rows) => {
+    const mock = createSupabaseMock({ coldActors: rows })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.stored.size).toBe(0)
+  })
+
+  it('requires a cold identity for a retained managed file subject outside the resource rows', async () => {
+    const mock = createSupabaseMock({ archiveVersion: 2, coldActors, storageOnlySubject: true })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.stored.size).toBe(0)
   })
 
   it('requires a separate restore flag, exact teacher allowlist, and explicit database budget', () => {

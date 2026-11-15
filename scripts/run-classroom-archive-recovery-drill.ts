@@ -469,7 +469,25 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
   })
   const ids = fixtureIds()
-  const supabase = getServiceRoleClient()
+  const exerciseRoleDrift = ownerRole === 'student'
+  let discardFinalizerReply = false
+  let finalizerReplyDiscarded = false
+  const supabase = getServiceRoleClient({
+    fetch: async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input)
+      if (url.origin !== target.supabaseUrl) throw new Error('Recovery drill fetch must stay local')
+      const response = await fetch(input, { ...init, redirect: 'error' })
+      if (discardFinalizerReply && url.pathname.endsWith('/rpc/complete_classroom_archive_restore')) {
+        const result = await response.clone().json()
+        if (response.ok && result.ok === true && result.replayed === false) {
+          discardFinalizerReply = false
+          finalizerReplyDiscarded = true
+          throw new Error('Recovery drill discarded the reply after restore committed')
+        }
+      }
+      return response
+    },
+  })
   const sourceObjectPath = `recovery-drill/${ids.classrooms}/evidence.png`
   const sourceObjectBytes = Buffer.from('pika synthetic classroom archive recovery evidence')
   const sourceObjectSha256 = sha256Bytes(sourceObjectBytes)
@@ -566,7 +584,7 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
     await assertRowAbsent(supabase, 'classrooms', 'id', ids.classrooms)
     await assertRowAbsent(supabase, 'classroom_archive_operations', 'id', ids.restoreOperation)
 
-    const restored = await restoreContextualClassroomArchive({
+    const restoreInput = {
       supabase,
       operationId: ids.restoreOperation,
       archiveId: ids.exportOperation,
@@ -574,8 +592,28 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
       classroomId: ids.classrooms,
       databaseBudgetBytes: 2_147_483_648,
       supabaseUrl: target.supabaseUrl,
-    })
-    if (!restored.ok) operationFailure('Archive restore', restored)
+    }
+    if (exerciseRoleDrift) {
+      const changed = await supabase.from('users').update({ role: 'teacher' }).eq('id', ids.student)
+      if (changed.error) throw new Error('Could not change the synthetic learner label')
+      const strictOperationId = randomUUID()
+      const strict = await restoreClassroomArchive({ ...restoreInput, operationId: strictOperationId })
+      if (strict.ok) throw new Error('Legacy restore accepted a changed actor label')
+      await assertRowAbsent(supabase, 'classroom_archive_operations', 'id', strictOperationId)
+      await assertRowAbsent(supabase, 'classrooms', 'id', ids.classrooms)
+    }
+
+    discardFinalizerReply = exerciseRoleDrift
+    const restored = await restoreContextualClassroomArchive(restoreInput)
+    if (exerciseRoleDrift) {
+      if (!finalizerReplyDiscarded || restored.ok || restored.error_code !== 'classroom_archive_recovery_unverified') {
+        throw new Error('Role-independent restore did not report the intended lost-commit outcome')
+      }
+      const recovery = await restoreContextualClassroomArchive(restoreInput)
+      if (!recovery.ok || !recovery.replayed) throw new Error('Committed restore was not recoverable by key')
+    } else if (!restored.ok) {
+      operationFailure('Archive restore', restored)
+    }
 
     const restoredOwnerResponse = await supabase
       .from('managed_storage_objects')
@@ -672,8 +710,8 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
     if (!restoreReplay.ok || !restoreReplay.replayed) {
       throw new Error('Archive restore replay was not idempotent')
     }
-    if (!legacyRestoreReplay.ok || !legacyRestoreReplay.replayed) {
-      throw new Error('Legacy archive restore replay was not idempotent')
+    if (exerciseRoleDrift ? legacyRestoreReplay.ok : !legacyRestoreReplay.ok || !legacyRestoreReplay.replayed) {
+      throw new Error('Legacy restore replay did not preserve its role check')
     }
     if (!cleanupReplay.ok || cleanupReplay.claimed !== 0) {
       throw new Error('Archive cleanup replay claimed completed work')
@@ -696,6 +734,8 @@ async function runRecoveryDrill(ownerRole: 'teacher' | 'student') {
       cold_tombstone_removed: true,
       contextual_nonowner_denial_verified: true,
       idempotent_replays_verified: 5,
+      changed_actor_label_verified: exerciseRoleDrift,
+      lost_commit_reply_recovered: finalizerReplyDiscarded,
     }))
   } finally {
     try {

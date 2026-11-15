@@ -101,7 +101,12 @@ The existing restore coordinator, byte/manifest/actor checks, staging, transacti
 and durable cleanup remain authoritative. Recovery creates `archived_hot`, never
 `active`; database staging headroom is not a subscription classroom quota. The
 separate existing hot-unarchive writer retains active-classroom entitlements.
-No source actor's historical role is rewritten or ignored during reconciliation.
+Contextual restore reconciles retained actor UUIDs and managed-file subjects
+against the classroom's cold actor ledger. The ledger's user foreign key
+protects those identities while the cold tombstone exists. Finalization still
+locks and checks the exact tombstone. Archives without the required evidence
+fail before file reservations. Historical snapshots and checksums are preserved.
+Legacy restore and compaction continue to require matching account roles.
 
 The adapter binds the supplied operation key to its actor/classroom/archive, and
 conflicting keys fail before private recovery effects. It verifies successful
@@ -118,10 +123,9 @@ retries automatically, deletes objects, nor asserts that the restore rolled back
 Purge, compaction policy, retention timers and general page activation are not
 part of this change.
 
-The existing loopback-only recovery drill is being extended to fresh, sequential
-fixtures for both owner labels, contextual nonowner denial before operation
-creation, actual contextual restore and completed replay, and legacy coordinator
-replay. All existing full-row, restored-byte, immutable-archive and teardown
-assertions remain. Source/SDK tests do not establish native PostgreSQL/Storage
-acceptance; the actual guarded CI drill, independent review and final-head CI
-remain gates. No new native result is claimed by this preparation.
+The loopback-only recovery drill uses fresh, sequential fixtures for both owner
+labels. It verifies nonowner denial, historical snapshots, restored rows and file
+bytes, and completed replay. One fixture changes a learner's account label and
+discards the successful finalizer reply. The contextual route recovers by the
+same operation key, and the legacy coordinator continues to reject the changed
+label. The untouched-label fixture also exercises legacy replay.
