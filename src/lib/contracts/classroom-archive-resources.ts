@@ -4,6 +4,31 @@ export type ClassroomArchiveResourceDefinition = {
   actor_columns: readonly string[]
 }
 
+export function validateClassroomArchiveActorReferences(
+  resources: Record<string, Record<string, unknown>[]>,
+  archiveActorIds: ReadonlySet<string>,
+  contractResources: readonly ClassroomArchiveResourceDefinition[],
+  options?: { exact: true },
+): Set<string> {
+  const referencedActorIds = new Set<string>()
+  for (const resource of contractResources) {
+    for (const row of resources[resource.table] || []) {
+      for (const column of resource.actor_columns) {
+        const actorId = row[column]
+        if (actorId === null || actorId === undefined) continue
+        if (typeof actorId !== 'string' || !archiveActorIds.has(actorId)) {
+          throw new Error(`Archive actor snapshot is missing ${resource.table}.${column}`)
+        }
+        referencedActorIds.add(actorId)
+      }
+    }
+  }
+  if (options?.exact && referencedActorIds.size !== archiveActorIds.size) {
+    throw new Error('Archive actor snapshots include unreferenced actors')
+  }
+  return referencedActorIds
+}
+
 function archiveResource<const Table extends string>(
   table: Table,
   actorColumns: readonly string[] = [],

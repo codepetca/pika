@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { CLASSROOM_ARCHIVE_V2_RESOURCES } from '@/lib/contracts/classroom-archive-resources'
+import type { ClassroomArchiveActorSnapshot } from '@/lib/contracts/classroom-artifacts'
 import {
+  decodeClassroomArchiveData,
   verifyClassroomArchiveBundle,
 } from '@/lib/server/classroom-archive-format'
 import {
@@ -14,6 +16,17 @@ const CLASSROOM_ID = '00000000-0000-4000-8000-000000000002'
 const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 const STUDENT_ID = '00000000-0000-4000-8000-000000000004'
 const SNAPSHOT_AT = '2026-07-13T12:00:00.000Z'
+const ownerSnapshot: ClassroomArchiveActorSnapshot = {
+  id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher', profile: null,
+}
+const learnerSnapshot: ClassroomArchiveActorSnapshot = {
+  id: STUDENT_ID, email: 'student@example.test', role: 'student', profile: null,
+}
+const enrollment = {
+  id: '00000000-0000-4000-8000-000000000005',
+  classroom_id: CLASSROOM_ID,
+  student_id: STUDENT_ID,
+}
 
 function v2ResourceCounts(rows: Record<string, unknown[]> = {}) {
   return Object.fromEntries(
@@ -30,7 +43,7 @@ type QueryState = {
   inFilter?: { column: string; values: string[] }
 }
 
-function createSupabaseMock(options: {
+type ExportMockOptions = {
   completionFailure?: boolean
   sourceRows?: Record<string, Array<Record<string, unknown>>>
   v2BeginError?: { code?: string; message?: string }
@@ -38,7 +51,10 @@ function createSupabaseMock(options: {
   v2Unavailable?: boolean
   managedMode?: 'enforced' | 'compatibility'
   managedImages?: Array<Record<string, unknown>>
-} = {}) {
+  actorRows?: Array<{ actor_id: string; snapshot: ClassroomArchiveActorSnapshot }>
+}
+
+function createSupabaseMock(options: ExportMockOptions = {}) {
   const sourceRows: Record<string, Array<Record<string, unknown>>> = {
     classrooms: [{
       id: CLASSROOM_ID,
@@ -130,23 +146,7 @@ function createSupabaseMock(options: {
     }
     if (state.table === 'classroom_archive_snapshot_actors') {
       return {
-        data: [{
-          snapshot: {
-            id: TEACHER_ID,
-            email: 'teacher@example.test',
-            role: 'teacher',
-            profile: null,
-          },
-        }, ...(options.sourceRows
-          ? [{
-              snapshot: {
-                id: STUDENT_ID,
-                email: 'student@example.test',
-                role: 'student',
-                profile: null,
-              },
-            }]
-          : [])],
+        data: options.actorRows ?? [{ actor_id: TEACHER_ID, snapshot: ownerSnapshot }],
         error: null,
       }
     }
@@ -228,6 +228,58 @@ describe('classroom archive export coordinator', () => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.spyOn(console, 'info').mockImplementation(() => undefined)
+  })
+
+  it('matches actors by resource UUID and preserves their captured account labels', async () => {
+    const mock = createSupabaseMock({
+      sourceRows: { classroom_enrollments: [enrollment] },
+      actorRows: [
+        { actor_id: TEACHER_ID, snapshot: { ...ownerSnapshot, role: 'student' } },
+        { actor_id: STUDENT_ID, snapshot: { ...learnerSnapshot, role: 'teacher' } },
+      ],
+    })
+    const result = await exportClassroomArchive({
+      supabase: mock.client, operationId: OPERATION_ID, teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID, expectedSourceRevision: 7,
+      retention: { mode: 'teacher_managed', delete_after: null },
+      sourceAppCommit: 'abcdef1234567890', supabaseUrl: 'https://project.supabase.co',
+    })
+    expect(result.ok).toBe(true)
+    const verified = verifyClassroomArchiveBundle([...mock.stored.values()][0])
+    if (!verified.ok) throw new Error(verified.error)
+    expect(decodeClassroomArchiveData(verified).actors).toEqual([
+      { ...ownerSnapshot, role: 'student' },
+      { ...learnerSnapshot, role: 'teacher' },
+    ])
+  })
+
+  it.each<[string, ExportMockOptions]>([
+    ['missing referenced actor', { sourceRows: { classroom_enrollments: [enrollment] } }],
+    ['unreferenced actor', { actorRows: [
+      { actor_id: TEACHER_ID, snapshot: ownerSnapshot },
+      { actor_id: STUDENT_ID, snapshot: learnerSnapshot },
+    ] }],
+    ['substituted snapshot ID', { actorRows: [{ actor_id: TEACHER_ID, snapshot: learnerSnapshot }] }],
+    ['duplicate actor', { actorRows: [
+      { actor_id: TEACHER_ID, snapshot: ownerSnapshot },
+      { actor_id: TEACHER_ID, snapshot: ownerSnapshot },
+    ] }],
+  ])('refuses export with a %s before reserving or uploading the archive', async (_case, options) => {
+    const mock = createSupabaseMock(options)
+    const result = await exportClassroomArchive({
+      supabase: mock.client, operationId: OPERATION_ID, teacherId: TEACHER_ID,
+      classroomId: CLASSROOM_ID, expectedSourceRevision: 7,
+      retention: { mode: 'teacher_managed', delete_after: null },
+      sourceAppCommit: 'abcdef1234567890', supabaseUrl: 'https://project.supabase.co',
+    })
+    expect(result).toMatchObject({
+      ok: false, status: 409, error_code: 'archive_actor_snapshot_mismatch', retryable: false,
+    })
+    expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+      'begin_classroom_archive_export_v2_expected_revision',
+      'fail_classroom_archive_export',
+    ])
+    expect(mock.stored.size).toBe(0)
   })
 
   it('requires both the server enable flag and an exact teacher canary match', () => {
