@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Sync the classroom cutoff proof with main
-
-Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.
-
 ## 2026-11-09 — Show all classroom Calendar Grid entries
 
 Removed the three-line lesson preview cap and showed each weekend event in its own chip. Grid weeks grow with their contents; long chip titles still use horizontal ellipsis. Retained inline teacher editing and covered busy cells and read-only student previews in the browser matrix.
@@ -175,3 +171,8 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 
 - Squash-merged #1815 into `main`. Replaced the account-label count in the stored classroom deletion preview with a note that the student count is unavailable. Reused the existing ContentDialog, confirmation controls, impact cards, and muted detail. Reference: existing dialog and Pattern Lab confirmation. No new composite widget.
 - Verified owner confirmation and retry states and learner exclusion on desktop and mobile in light and dark with the cold purge Playwright matrix. Existing purge request and resume tests passed. The API accepts inventories with or without the legacy count. Inventory digests and the operation protocol stay compatible.
+
+## 2026-11-15 — Verify actor UUIDs before archive writer staging
+
+- Squash-merged #1816 after independent review and full CI. Export now checks captured actor IDs against the exact resource references before Storage, and compaction checks the verified IDs before role reads and staging. Existing archive labels and compaction authorization stay compatible.
+- The v2 reader accepts archives that predate RepoLight and still rejects partial RepoLight resource families. Disposable export, compaction, managed Storage, and recovery passed with both owner labels through migrations 292 and 329. Existing rollout holds stay in force.

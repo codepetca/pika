@@ -18,6 +18,7 @@ const TEACHER_ID = '00000000-0000-4000-8000-000000000003'
 const OPERATION_ID = '00000000-0000-4000-8000-000000000004'
 const OTHER_ARCHIVE_ID = '00000000-0000-4000-8000-000000000005'
 const OTHER_CLASSROOM_ID = '00000000-0000-4000-8000-000000000006'
+const STUDENT_ID = '00000000-0000-4000-8000-000000000008'
 const ARCHIVE_PATH = `${TEACHER_ID}/${CLASSROOM_ID}/${ARCHIVE_ID}/classroom-v2.tar.gz`
 const AUTHORING_IMAGE_ID = 'abcdef10-0000-4000-8000-000000000007'
 const AUTHORING_IMAGE_URL = `/api/storage/authoring-images?object_id=${AUTHORING_IMAGE_ID}`
@@ -28,7 +29,12 @@ function emptyResources() {
   )
 }
 
-function fixture(options: { classroomId?: string; objectCount?: number; authoringImage?: boolean } = {}) {
+function fixture(options: {
+  classroomId?: string
+  objectCount?: number
+  authoringImage?: boolean
+  actorMismatch?: 'missing' | 'extra'
+} = {}) {
   const classroomId = options.classroomId ?? CLASSROOM_ID
   const storageObjects = Array.from({ length: options.objectCount ?? 1 }, (_, index) => ({
     bucket: options.authoringImage ? 'test-documents' as const : index % 2 === 0
@@ -73,6 +79,9 @@ function fixture(options: { classroomId?: string; objectCount?: number; authorin
           id: `10000000-0000-4000-8000-${String(index + 1).padStart(12, '0')}`,
           storage_path: object.sourcePath,
         })),
+      ...(options.actorMismatch === 'missing' ? {
+        classroom_enrollments: [{ id: OTHER_ARCHIVE_ID, classroom_id: classroomId, student_id: STUDENT_ID }],
+      } : {}),
       ...(options.authoringImage ? {
         assignments: [{ id: OTHER_ARCHIVE_ID, classroom_id: classroomId, created_by: TEACHER_ID,
           instructions_markdown: `![Field guide](${AUTHORING_IMAGE_URL})`,
@@ -89,7 +98,9 @@ function fixture(options: { classroomId?: string; objectCount?: number; authorin
       email: 'teacher@example.test',
       role: 'teacher',
       profile: null,
-    }],
+    }, ...(options.actorMismatch === 'extra'
+      ? [{ id: STUDENT_ID, email: 'student@example.test', role: 'student', profile: null }]
+      : [])],
     storageObjects,
   })
 }
@@ -146,11 +157,13 @@ function createSupabaseMock(options: {
   mismatchedCompleteVerification?: boolean
   completeFailure?: boolean
   unresolvedActor?: boolean
+  actorMismatch?: 'missing' | 'extra'
 } = {}) {
   const bundle = fixture({
     classroomId: options.wrongManifestIdentity ? OTHER_CLASSROOM_ID : CLASSROOM_ID,
     objectCount: options.objectCount,
     authoringImage: options.authoringImage,
+    actorMismatch: options.actorMismatch,
   })
   const expectedResourceCounts = resourceCounts(bundle)
   const expectedStorageCounts = storageObjectCounts(bundle)
@@ -536,6 +549,21 @@ describe('classroom archive cold-compaction coordinator', () => {
       expect.anything(),
     )
   })
+
+  it.each(['missing', 'extra'] as const)(
+    'refuses compaction with a %s actor before reading live roles or staging any rows or objects',
+    async (actorMismatch) => {
+      const mock = createSupabaseMock({ actorMismatch })
+      expect(await compactClassroomArchive(operationArgs(mock))).toMatchObject({
+        ok: false, status: 409, error_code: 'archive_compaction_actor_snapshot_mismatch', retryable: false,
+      })
+      expect(mock.client.from).not.toHaveBeenCalled()
+      expect(mock.rpc.mock.calls.map(([name]) => name)).toEqual([
+        'begin_classroom_archive_compaction_v2',
+        'fail_classroom_archive_compaction',
+      ])
+    },
+  )
 
   it('bounds cleanup staging batches and verifies the final aggregate', async () => {
     const objectCount = CLASSROOM_ARCHIVE_COMPACTION_OBJECT_BATCH_SIZE + 1

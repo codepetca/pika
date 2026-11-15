@@ -167,19 +167,33 @@ describe('classroom archive format', () => {
 
   it('decodes legacy v2 archives without newer resources as empty rows', () => {
     const fixture = buildClassroomArchiveV2Fixture({
-      omitGradebookCategories: true,
-      omitGradebookScoreOverrides: true,
-      omitGuidedDraftProvenance: true,
+      omittedTables: [
+        'gradebook_categories', 'gradebook_score_overrides', 'classroom_guided_draft_provenance',
+        'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports',
+      ],
     })
     const verification = verifyClassroomArchiveBundle(fixture.archive)
 
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
-    expect(decodeClassroomArchiveData(verification).resources.gradebook_categories).toEqual([])
-    expect(decodeClassroomArchiveData(verification).resources.gradebook_score_overrides).toEqual([])
-    expect(decodeClassroomArchiveData(verification).resources.gradebook_items).toEqual([])
-    expect(decodeClassroomArchiveData(verification).resources.gradebook_item_scores).toEqual([])
-    expect(decodeClassroomArchiveData(verification).resources.classroom_guided_draft_provenance).toEqual([])
+    expect(decodeClassroomArchiveData(verification).resources).toMatchObject({
+      gradebook_categories: [],
+      gradebook_score_overrides: [],
+      gradebook_items: [],
+      gradebook_item_scores: [],
+      classroom_guided_draft_provenance: [],
+      assignment_repolight_runs: [],
+      assignment_repolight_reports: [],
+      assignment_repolight_feedback_imports: [],
+    })
+    expect(verification.manifest.content_sha256).toBe(fixture.manifest.content_sha256)
+  })
+
+  it('rejects v2 archives containing only part of the RepoLight resource family', () => {
+    const fixture = buildClassroomArchiveV2Fixture({
+      omittedTables: ['assignment_repolight_reports'],
+    })
+    expect(verifyClassroomArchiveBundle(fixture.archive)).toMatchObject({ ok: false })
   })
 
   it('preserves private guided Assignment and Test provenance in a v2 archive', () => {

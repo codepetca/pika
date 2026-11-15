@@ -12,7 +12,7 @@ import {
   CLASSROOM_ARCHIVE_V2_RESOURCES,
   CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
   LEGACY_QUIZ_ARCHIVE_V1_RESOURCES,
-  type ClassroomArchiveResourceDefinition,
+  validateClassroomArchiveActorReferences,
 } from '@/lib/contracts/classroom-archive-resources'
 import {
   decodeClassroomArchiveData,
@@ -557,29 +557,6 @@ function rewriteResourceValue(args: {
   return rewritten
 }
 
-function validateActorReferences(
-  resources: Record<string, JsonObject[]>,
-  archivedActorIds: Set<string>,
-  contractResources: readonly ClassroomArchiveResourceDefinition[],
-): Set<string> {
-  const referencedActorIds = new Set<string>()
-  for (const resource of contractResources) {
-    for (const row of resources[resource.table] || []) {
-      for (const column of resource.actor_columns) {
-        const actorId = row[column]
-        if (actorId === null || actorId === undefined) continue
-        if (typeof actorId !== 'string' || !archivedActorIds.has(actorId)) {
-          throw new Error(
-            `Archive actor snapshot is missing ${resource.table}.${column}=${String(actorId)}`,
-          )
-        }
-        referencedActorIds.add(actorId)
-      }
-    }
-  }
-  return referencedActorIds
-}
-
 type BuildClassroomArchiveRestorePlanArgs = {
   verified: VerifiedBundle
   artifactChecksumVerified: boolean
@@ -628,7 +605,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     role: actor.role,
   }))
   const archivedActorIds = new Set(archivedActors.map((actor) => actor.id))
-  validateActorReferences(
+  validateClassroomArchiveActorReferences(
     schemaAdaptedResources,
     archivedActorIds,
     sourceContract.resources,
@@ -673,7 +650,7 @@ function buildClassroomArchiveRestorePlanForVersion(
   const retainedSourceResources = manifest.version === CLASSROOM_ARCHIVE_V1_VERSION
     ? discardRetiredQuizResources(schemaAdaptedResources)
     : schemaAdaptedResources
-  const retainedActorIds = validateActorReferences(
+  const retainedActorIds = validateClassroomArchiveActorReferences(
     retainedSourceResources,
     archivedActorIds,
     CLASSROOM_ARCHIVE_V2_RESOURCES,
@@ -777,7 +754,7 @@ function buildClassroomArchiveRestorePlanForVersion(
     recordActors: rewrittenResources.classroom_retired_assessment_record_actors || [],
     archiveActorIds: archivedActors.map((actor) => actor.id),
   })
-  validateActorReferences(
+  validateClassroomArchiveActorReferences(
     rewrittenResources,
     archivedActorIds,
     CLASSROOM_ARCHIVE_V2_RESOURCES,

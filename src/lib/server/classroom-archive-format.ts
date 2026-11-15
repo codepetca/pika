@@ -1,5 +1,8 @@
 import { isImmutableRepoLightArchiveResource } from '@/lib/server/repolight-archive'
-import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
+import {
+  CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES,
+  resolveClassroomArchiveV2Resources,
+} from '@/lib/contracts/classroom-archive-resources'
 import { createHash } from 'node:crypto'
 import { gzipSync, gunzipSync } from 'node:zlib'
 import {
@@ -628,7 +631,7 @@ export function decodeClassroomArchiveData(
     if (
       !descriptor
       && verified.manifest.version === 2
-      && ['gradebook_categories', 'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores', 'classroom_guided_draft_provenance'].includes(resource.table)
+      && CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES.includes(resource.table)
     ) {
       resources[resource.table] = []
       continue

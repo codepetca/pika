@@ -1,7 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
-import { CLASSROOM_ARCHIVE_V2_RESTORE_ORDER } from '@/lib/contracts/classroom-archive-resources'
-import { CLASSROOM_ARCHIVE_V2_VERSION } from '@/lib/contracts/classroom-artifacts'
+import {
+  CLASSROOM_ARCHIVE_V2_RESTORE_ORDER,
+  validateClassroomArchiveActorReferences,
+} from '@/lib/contracts/classroom-archive-resources'
+import { CLASSROOM_ARCHIVE_V2_VERSION, getClassroomArchiveContract } from '@/lib/contracts/classroom-artifacts'
 import { classroomArchiveCompactionVerificationSchema } from '@/lib/contracts/classroom-lifecycle'
 import {
   canonicalJsonStringify,
@@ -431,6 +434,21 @@ async function downloadAndVerifyArchive(args: {
 
   const decoded = decodeClassroomArchiveData(verified)
   const actorIds = decoded.actors.map((actor) => actor.id)
+  try {
+    validateClassroomArchiveActorReferences(
+      decoded.resources,
+      new Set(actorIds),
+      getClassroomArchiveContract(verified.manifest.version).resources,
+      { exact: true },
+    )
+  } catch {
+    throw new ClassroomArchiveCompactionError(
+      'archive_compaction_actor_snapshot_mismatch',
+      'Verified classroom archive actor snapshots do not match its resource references',
+      409,
+      false,
+    )
+  }
   const currentActors: Array<{ id: string; email: string; role: 'student' | 'teacher' }> = []
   for (let offset = 0; offset < actorIds.length; offset += 200) {
     const response = await args.supabase
