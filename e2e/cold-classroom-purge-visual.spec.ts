@@ -135,6 +135,8 @@ test('captures cold Classroom deletion and the student boundary matrix', async (
     })
     await expect(dialog).toBeVisible()
     await expect(dialog.getByText('This cannot be undone.')).toBeVisible()
+    await expect(dialog.getByText('Student count is unavailable for this stored classroom.')).toBeVisible()
+    await expect(dialog.getByText('students', { exact: true })).toHaveCount(0)
     await page.screenshot({
       path: `/tmp/pika-cold-purge-dialog-${entry.name}.png`,
       fullPage: true,
@@ -144,6 +146,7 @@ test('captures cold Classroom deletion and the student boundary matrix', async (
     await dialog.getByRole('button', { name: 'Delete permanently' }).click()
     await expect(dialog.getByRole('alert')).toContainText('waiting safely')
     await expect(dialog.getByText(/recovery archive is deleted last/i)).toBeVisible()
+    await expect(dialog.getByText('Student count is unavailable for this stored classroom.')).toBeVisible()
     await page.screenshot({
       path: `/tmp/pika-cold-purge-progress-${entry.name}.png`,
       fullPage: true,
