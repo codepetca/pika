@@ -332,7 +332,7 @@ function hasExactKeyValue(value: unknown, key: string, expected: string): boolea
 }
 
 function legacyRestoreManagedOwner(args: {
-  object: VerifiedBundle['manifest']['storage_objects'][number]
+  object: Pick<VerifiedBundle['manifest']['storage_objects'][number], 'bucket' | 'source_path'>
   resources: Record<string, JsonObject[]>
   teacherId: string
   supabaseOrigin: string
@@ -584,10 +584,12 @@ type BuildClassroomArchiveRestorePlanArgs = {
   verified: VerifiedBundle
   artifactChecksumVerified: boolean
   operationId: string
-  currentActors: CurrentActor[]
   supabaseUrl: string
   deriveLegacyManagedOwnership?: boolean
-}
+} & (
+  | { currentActors: CurrentActor[]; coldActorIds?: ReadonlySet<string> }
+  | { coldActorIds: ReadonlySet<string>; currentActors?: never }
+)
 
 function buildClassroomArchiveRestorePlanForVersion(
   args: BuildClassroomArchiveRestorePlanArgs,
@@ -676,18 +678,6 @@ function buildClassroomArchiveRestorePlanForVersion(
     archivedActorIds,
     CLASSROOM_ARCHIVE_V2_RESOURCES,
   )
-  const currentActorsById = new Map(
-    args.currentActors.map((actor) => {
-      const parsed = currentActorSchema.parse(actor)
-      return [parsed.id, parsed]
-    }),
-  )
-  const unresolvedActorIds = archivedActors.flatMap((actor) => {
-    if (!retainedActorIds.has(actor.id)) return []
-    const current = currentActorsById.get(actor.id)
-    return current?.role === actor.role ? [] : [actor.id]
-  })
-
   const retainedStorageReferences = new Set(
     discoverClassroomStorageReferences(retainedSourceResources, args.supabaseUrl)
       .map((reference) => `${reference.bucket}\0${reference.path}`),
@@ -793,6 +783,44 @@ function buildClassroomArchiveRestorePlanForVersion(
     CLASSROOM_ARCHIVE_V2_RESOURCES,
   )
 
+  const unresolvedActorIds = new Set<string>()
+  const currentRoles = args.currentActors && new Map(args.currentActors.map((actor) => {
+    const current = currentActorSchema.parse(actor)
+    return [current.id, current.role]
+  }))
+  if (currentRoles) {
+    for (const actor of archivedActors) {
+      if (retainedActorIds.has(actor.id) && currentRoles.get(actor.id) !== actor.role) {
+        unresolvedActorIds.add(actor.id)
+      }
+    }
+  }
+  if (args.coldActorIds) {
+    const coldActorIds = args.coldActorIds
+    for (const id of retainedActorIds) {
+      if (!coldActorIds.has(id)) unresolvedActorIds.add(id)
+    }
+    // The restoring owner supplies the uploader identity. An older Test
+    // file may have a live file-only subject, which still requires strict
+    // role checks for the retained row actors.
+    for (const object of storageObjects) {
+      const id = object.dataSubjectUserId
+      if (!id || coldActorIds.has(id)) continue
+      if (object.bucket === 'test-documents' && !archivedActorIds.has(id) && currentRoles?.has(id)) {
+        const owner = legacyRestoreManagedOwner({
+          object: { bucket: object.bucket, source_path: object.sourcePath },
+          resources: retainedSourceResources,
+          teacherId: manifest.teacher_id,
+          supabaseOrigin: origin,
+        })
+        if (object.purpose === owner.purpose
+          && object.resourceType === owner.resourceType
+          && object.resourceId === owner.resourceId) continue
+      }
+      unresolvedActorIds.add(id)
+    }
+  }
+
   const preflight = classroomArchiveRestorePreflightSchema.parse({
     archive_id: manifest.archive_id,
     target_schema_migration: targetSchemaMigration,
@@ -801,13 +829,13 @@ function buildClassroomArchiveRestorePlanForVersion(
     resource_checksums_verified: true,
     resource_counts_verified: true,
     storage_objects_verified: true,
-    actor_snapshots_verified: unresolvedActorIds.length === 0,
+    actor_snapshots_verified: unresolvedActorIds.size === 0,
     schema_adapter_available: true,
-    unresolved_actor_ids: unresolvedActorIds,
+    unresolved_actor_ids: [...unresolvedActorIds],
     adapter_chain: adapterChain,
   })
   if (!isClassroomArchiveRestoreReady(preflight)) {
-    throw new Error(`Archive restore has unresolved actors: ${unresolvedActorIds.join(',')}`)
+    throw new Error(`Archive restore has unresolved actors: ${[...unresolvedActorIds].join(',')}`)
   }
 
   const orderedResources = Object.fromEntries(
