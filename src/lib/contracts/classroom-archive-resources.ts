@@ -190,18 +190,34 @@ export const CLASSROOM_ARCHIVE_V2_RESTORE_ORDER = [
 
 // Additive migrations may be absent on older deployed schemas. Historical archive
 // manifests may omit these resources and decode them as empty collections.
+const REPOLIGHT_ARCHIVE_TABLES = [
+  'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports',
+] as const
+
 export const ADDITIVE_CLASSROOM_ARCHIVE_TABLES: readonly string[] = [
   'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores',
   'classroom_guided_draft_provenance',
-  'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports',
+  ...REPOLIGHT_ARCHIVE_TABLES,
 ]
+
+export const CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES: readonly string[] = [
+  'gradebook_categories',
+  ...ADDITIVE_CLASSROOM_ARCHIVE_TABLES,
+]
+
+export function hasPartialClassroomArchiveRepoLightFamily(tables: ReadonlySet<string>): boolean {
+  return REPOLIGHT_ARCHIVE_TABLES.some((table) => tables.has(table))
+    && !REPOLIGHT_ARCHIVE_TABLES.every((table) => tables.has(table))
+}
+
 export function resolveClassroomArchiveV2Resources(tableNames: readonly string[]) {
   const actual = new Set(tableNames)
   if (actual.has('gradebook_items') !== actual.has('gradebook_item_scores')) {
     throw new Error('Classroom archive resource contract is invalid')
   }
-  const reportFamily=['assignment_repolight_runs','assignment_repolight_reports','assignment_repolight_feedback_imports']
-  if (reportFamily.some(table=>actual.has(table)) && !reportFamily.every(table=>actual.has(table))) throw new Error('Classroom archive report resource family is incomplete')
+  if (hasPartialClassroomArchiveRepoLightFamily(actual)) {
+    throw new Error('Classroom archive report resource family is incomplete')
+  }
   const selected = CLASSROOM_ARCHIVE_V2_RESOURCES.filter((resource) =>
     !ADDITIVE_CLASSROOM_ARCHIVE_TABLES.includes(resource.table) || actual.has(resource.table),
   )

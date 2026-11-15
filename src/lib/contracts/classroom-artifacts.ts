@@ -4,7 +4,9 @@ import {
 } from '@/lib/contracts/classroom-data'
 import {
   CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
+  hasPartialClassroomArchiveRepoLightFamily,
 } from '@/lib/contracts/classroom-archive-resources'
 import {
   COURSE_BLUEPRINT_PACKAGE_EXTENSION,
@@ -244,8 +246,16 @@ export const classroomArchiveManifestV1Schema = createClassroomArchiveManifestSc
 export const classroomArchiveManifestV2Schema = createClassroomArchiveManifestSchema(
   CLASSROOM_ARCHIVE_V2_VERSION,
   CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table),
-  ['gradebook_categories', 'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores', 'classroom_guided_draft_provenance', 'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports'],
-)
+  CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES,
+).superRefine((manifest, context) => {
+  if (hasPartialClassroomArchiveRepoLightFamily(new Set(manifest.resources.map((resource) => resource.table)))) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Classroom archive report resource family is incomplete',
+      path: ['resources'],
+    })
+  }
+})
 
 export const classroomArchiveManifestHeaderSchema = z.object({
   format: z.literal(CLASSROOM_ARCHIVE_FORMAT),
