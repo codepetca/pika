@@ -113,7 +113,10 @@ describe('cold classroom purge worker', () => {
     expect(shared.deleteObject).not.toHaveBeenCalled()
   })
 
-  it('accepts the success envelope returned by the production inventory RPC', async () => {
+  it.each([
+    { description: 'with the legacy count', studentFields: { student_count: 3 } },
+    { description: 'without the legacy count', studentFields: {} },
+  ])('accepts verified inventory $description', async ({ studentFields }) => {
     const impact = {
       classroom_id: CLASSROOM_ID,
       archive_id: OBJECT_ID,
@@ -122,7 +125,7 @@ describe('cold classroom purge worker', () => {
       storage_inventory_sha256: 'a'.repeat(64),
       cold_resource_inventory_sha256: 'b'.repeat(64),
       cold_resource_count: 6,
-      student_count: 0,
+      ...studentFields,
       managed_file_count: 1,
       managed_file_bytes: 2106,
       missing_file_count: 0,

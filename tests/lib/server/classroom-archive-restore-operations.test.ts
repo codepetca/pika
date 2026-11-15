@@ -57,7 +57,17 @@ function archiveV2ResourceCounts() {
   )
 }
 
-function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false) {
+const STORAGE_ONLY_ID = '00000000-0000-4000-8000-000000000006'
+const TEST_ID = '10000000-0000-4000-8000-000000000007'
+
+function fixture(options: {
+  archiveVersion?: 1 | 2
+  withOverrides?: boolean
+  withItems?: boolean
+  storageOnlySubject?: boolean
+  wrongTestFileOwner?: boolean
+}) {
+  const { archiveVersion: version = 1, withOverrides, withItems, storageOnlySubject } = options
   const sourceResources = resources()
   if (withOverrides) Object.assign(sourceResources, {
     gradebook_score_overrides: [{ id: '15700000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, student_id: STUDENT_ID, created_by: TEACHER_ID, assessment_id: ASSIGNMENT_ID, assessment_type: 'assignment', earned: 8 }],
@@ -65,6 +75,20 @@ function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false) {
   if (withItems) Object.assign(sourceResources, {
     gradebook_items: [{ id: '16100000-0000-4000-8000-000000000020', classroom_id: CLASSROOM_ID, created_by: TEACHER_ID, title: 'Attendance', points_possible: 20 }],
     gradebook_item_scores: [{ id: '16100000-0000-4000-8000-000000000021', classroom_id: CLASSROOM_ID, item_id: '16100000-0000-4000-8000-000000000020', student_id: STUDENT_ID, earned: 18, returned_at: '2026-07-12T12:00:00.000Z' }],
+  })
+  if (storageOnlySubject) Object.assign(sourceResources, {
+    tests: [{
+      id: TEST_ID,
+      classroom_id: CLASSROOM_ID,
+      created_by: TEACHER_ID,
+      documents: [{
+        id: '10000000-0000-4000-8000-000000000008',
+        title: 'Archived reference',
+        source: 'upload',
+        storage_bucket: 'test-documents',
+        storage_path: 'teacher/reference.png',
+      }],
+    }],
   })
   const archiveResources = version === 2
     ? Object.fromEntries(
@@ -104,12 +128,28 @@ function fixture(version: 1 | 2 = 1, withOverrides = false, withItems = false) {
         },
       },
     ],
-    storageObjects: [{
-      bucket: 'assignment-artifacts',
-      sourcePath: 'student/evidence.png',
-      contentType: 'image/png',
-      bytes: Buffer.from('restore evidence'),
-    }],
+    storageObjects: [
+      {
+        bucket: 'assignment-artifacts',
+        sourcePath: 'student/evidence.png',
+        contentType: 'image/png',
+        bytes: Buffer.from('restore evidence'),
+      },
+      ...(storageOnlySubject ? [{
+        bucket: 'test-documents' as const,
+        sourcePath: 'teacher/reference.png',
+        contentType: 'image/png',
+        bytes: Buffer.from('archived test reference'),
+        managedOwner: {
+          objectId: '10000000-0000-4000-8000-000000000005',
+          purpose: 'teacher_test_material' as const,
+          createdByUserId: TEACHER_ID,
+          dataSubjectUserId: STORAGE_ONLY_ID,
+          resourceType: 'test',
+          resourceId: options.wrongTestFileOwner ? ASSIGNMENT_ID : TEST_ID,
+        },
+      }] : []),
+    ],
   })
 }
 
@@ -131,8 +171,13 @@ function createSupabaseMock(options: {
   withOverrides?: boolean
   pre163?: boolean
   withItems?: boolean
+  coldActors?: unknown[]
+  storageOnlySubject?: boolean
+  missingStorageSubject?: boolean
+  changedStudentRole?: boolean
+  wrongTestFileOwner?: boolean
 } = {}) {
-  const bundle = fixture(options.archiveVersion, options.withOverrides, options.withItems)
+  const bundle = fixture(options)
   const counts = Object.fromEntries(
     bundle.manifest.resources.map((resource) => [resource.table, resource.row_count]),
   )
@@ -155,7 +200,18 @@ function createSupabaseMock(options: {
   let postUploadReadFailed = false
   let metadataReads = 0
   let operationResourceCounts = counts
+  const reservations = new Map<unknown, { id: unknown; storage_bucket: unknown; storage_path: unknown }>()
   const rpc = vi.fn(async (name: string, args: Record<string, unknown>) => {
+    if (options.storageOnlySubject && name === 'begin_managed_storage_upload') {
+      const reservation = {
+        id: args.p_object_id, storage_bucket: args.p_storage_bucket, storage_path: args.p_storage_path,
+      }
+      reservations.set(reservation.id, reservation)
+      return { data: { ...reservation, status: 'reserved' }, error: null }
+    }
+    if (options.storageOnlySubject && name === 'verify_managed_storage_upload') {
+      return { data: { ...reservations.get(args.p_object_id), status: 'verified' }, error: null }
+    }
     if (name === 'begin_classroom_archive_restore_v2') {
       if (options.v2Unavailable) {
         return { data: null, error: { code: 'PGRST202', message: 'missing v2 function' } }
@@ -259,7 +315,14 @@ function createSupabaseMock(options: {
     return { data: true, error: null }
   })
 
-  function from(table: string) {
+  const from = vi.fn((table: string) => {
+    if (table === 'classroom_cold_archive_actors') {
+      const query = {
+        select: vi.fn(() => query), eq: vi.fn(() => query), order: vi.fn(() => query),
+        range: vi.fn(async () => ({ data: options.coldActors, error: null })),
+      }
+      return query
+    }
     if (table === 'classroom_archive_resource_contract_versions') {
       const data = CLASSROOM_ARCHIVE_V2_RESOURCES
         .filter((resource) => !options.pre157 || resource.table !== 'gradebook_score_overrides')
@@ -304,13 +367,16 @@ function createSupabaseMock(options: {
       in: vi.fn(async () => ({
         data: [
           { id: TEACHER_ID, email: 'teacher@example.test', role: 'teacher' },
-          { id: STUDENT_ID, email: 'student@example.test', role: 'student' },
+          { id: STUDENT_ID, email: 'student@example.test', role: options.changedStudentRole ? 'teacher' : 'student' },
+          ...(options.storageOnlySubject && !options.missingStorageSubject
+            ? [{ id: STORAGE_ONLY_ID, email: 'file-subject@example.test', role: 'student' }]
+            : []),
         ],
         error: null,
       })),
     }
     return query
-  }
+  })
 
   const storage = {
     from: vi.fn((bucket: string) => ({
@@ -353,7 +419,7 @@ function createSupabaseMock(options: {
       }),
     })),
   }
-  return { client: { rpc, from, storage } as any, removed, rpc, stored }
+  return { client: { rpc, from, storage } as any, from, removed, rpc, stored }
 }
 
 describe('classroom archive restore coordinator', () => {
@@ -361,6 +427,63 @@ describe('classroom archive restore coordinator', () => {
     vi.restoreAllMocks()
     vi.unstubAllEnvs()
     vi.spyOn(console, 'info').mockImplementation(() => undefined)
+  })
+
+  const coldActors = [TEACHER_ID, STUDENT_ID].map(actor_id => ({ classroom_id: CLASSROOM_ID, actor_id }))
+  const coldInput = (supabase: ReturnType<typeof createSupabaseMock>['client']) => ({
+    supabase, operationId: OPERATION_ID, archiveId: ARCHIVE_ID,
+    teacherId: TEACHER_ID, classroomId: CLASSROOM_ID, databaseBudgetBytes: 524288000,
+    supabaseUrl: 'https://project.supabase.co',
+  })
+
+  it.each([1, 2] as const)('restores format %i from cold actor UUIDs without reading current roles', async archiveVersion => {
+    const mock = createSupabaseMock({ archiveVersion, coldActors })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: true })
+    expect(mock.from).toHaveBeenCalledWith('classroom_cold_archive_actors')
+    expect(mock.from).not.toHaveBeenCalledWith('users')
+  })
+
+  it.each([
+    ['missing actor', [coldActors[0]]],
+    ['duplicate actor', [...coldActors, coldActors[1]]],
+    ['other classroom', [coldActors[0], { ...coldActors[1], classroom_id: ARCHIVE_ID }]],
+  ])('rejects %s before any restore or storage mutations', async (_case, rows) => {
+    const mock = createSupabaseMock({ coldActors: rows })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.stored.size).toBe(0)
+  })
+
+  it('preserves role-checked recovery of a historical Test file with a file-only subject', async () => {
+    const mock = createSupabaseMock({ archiveVersion: 2, coldActors, storageOnlySubject: true })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: true })
+    expect(mock.from).toHaveBeenCalledWith('users')
+    expect(mock.rpc).toHaveBeenCalledWith('begin_managed_storage_upload', expect.objectContaining({
+      p_data_subject_user_id: STORAGE_ONLY_ID,
+      p_purpose: 'teacher_test_material',
+    }))
+    expect(mock.stored.size).toBe(2)
+  })
+
+  it.each([
+    ['an unknown file subject', { missingStorageSubject: true }],
+    ['a changed actor role with an unfenced file subject', { changedStudentRole: true }],
+    ['a Test file whose ownership does not match its retained Test', { wrongTestFileOwner: true }],
+  ] as const)('rejects %s before any restore or storage mutations', async (_case, options) => {
+    const mock = createSupabaseMock({ archiveVersion: 2, coldActors, storageOnlySubject: true, ...options })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.stored.size).toBe(0)
+  })
+
+  it('requires a cold ledger entry for a retained row actor even with a live file-only subject', async () => {
+    const mock = createSupabaseMock({
+      archiveVersion: 2, coldActors: [coldActors[0]], storageOnlySubject: true,
+    })
+    expect(await restoreClassroomArchive(coldInput(mock.client), 'cold-actor-id')).toMatchObject({ ok: false })
+    expect(mock.from).toHaveBeenCalledWith('users')
+    expect(mock.rpc).not.toHaveBeenCalled()
+    expect(mock.stored.size).toBe(0)
   })
 
   it('requires a separate restore flag, exact teacher allowlist, and explicit database budget', () => {

@@ -55225,3 +55225,18 @@ Independent review prompted three follow-ups: dismiss the dialog if its source o
 ## 2026-11-09 — Classroom cutoff rebase
 
 Rebased the reviewed classroom cutoff patch onto main after the scheduled billing renewal PR landed. Preserved the billing and main continuity records and kept migrations 308–310 byte-for-byte identical.
+
+<!-- pika-session-log-archive-batch:b959e18dd92322ad23e277f0891dd8b3d70c2057695898ed7b9737b72f4f083f -->
+## 2026-11-09 — Test lifecycle proof catalog for the billing cutoff
+
+Hosted CI exposed exact trigger inventory checks that predated migration 308. The reorder, creation, pristine discard and publication proofs now require the Test publication cutoff trigger and its reviewed definition where the billing cutoff column exists. The original reorder check failed on the disposable schema at 310, and the corrected check passed at 307 and 310. Dropping or disabling the trigger, altering its predicate, or granting additional execution failed the corrected check. The change is limited to proof tooling.
+
+<!-- pika-session-log-archive-batch:4b4d3ebd55a0b4274da588d29ab27ca59bb25ebd6de399640f071d7f89acd9dc -->
+## 2026-11-09 — Seal the Test publication cutoff proof
+
+Independent review identified the reachable billing helper outside the trigger proof. Bound each catalog to the reviewed source profile, verify the dormant cutoff column and setting, and pin both routines and the trigger predicate. Native catalog blocks pass at 310, historical capability checks pass at 307, mismatched profiles fail, and nine mutations to the catalog or setting fail closed.
+
+<!-- pika-session-log-archive-batch:673f5998e7d3a1ba7eec61e5db54b12c6d9a85464a86c88e33dbd11af2f5c42a -->
+## 2026-11-09 — Sync the classroom cutoff proof with main
+
+Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.

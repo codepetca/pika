@@ -9,7 +9,8 @@ export const coldClassroomPurgeImpactSchema = z.object({
   storage_inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/),
   cold_resource_inventory_sha256: z.string().regex(/^[a-f0-9]{64}$/),
   cold_resource_count: z.number().int().positive(),
-  student_count: z.number().int().nonnegative(),
+  // Older database readers still return this account-role count.
+  student_count: z.number().int().nonnegative().optional(),
   managed_file_count: z.number().int().nonnegative(),
   managed_file_bytes: z.number().int().nonnegative(),
   missing_file_count: z.number().int().nonnegative(),
