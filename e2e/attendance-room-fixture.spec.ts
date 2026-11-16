@@ -5,16 +5,31 @@ const classId = '30000000-0000-4000-8000-000000000001'
 const list = { ok: true, rooms: [{ room_id: roomId, label: 'Room 101', can_manage: true, paired: true }, { room_id: 'other123456789012345', label: 'Room 102', can_manage: true, paired: true }], default_room_id: roomId, meeting: { room_id: 'other123456789012345', revision: 3, accepting_until: null } }
 
 test('mocked teacher room dialog and move picker', async ({ page }) => {
+  let meetingRoomId = list.rooms[1].room_id
   await page.route('**/api/teacher/attendance/rooms', async route => {
     const body = route.request().postDataJSON()
-    await route.fulfill({ json: body.operation === 'list' ? list : body.operation === 'move' ? { ok: true, revision: 4 } : { ok: true } })
+    if (body.operation === 'move') meetingRoomId = body.room_id
+    if (body.operation === 'undo') meetingRoomId = list.rooms[1].room_id
+    const response = body.operation === 'list'
+      ? { ...list, meeting: { ...list.meeting, room_id: meetingRoomId } }
+      : body.operation === 'move' ? { ok: true, revision: 4 } : { ok: true }
+    await route.fulfill({ json: response })
   })
   await page.goto('/e2e-fixtures/attendance-room')
   const dialog = page.getByRole('dialog', { name: 'Attendance rooms' })
-  await expect(dialog.getByRole('combobox', { name: 'Room', exact: true })).toHaveValue(roomId)
-  await expect(dialog.getByText('This meeting: Room 102')).toBeVisible()
+  const defaultPicker = dialog.getByRole('combobox', { name: 'Default room' })
+  const meetingPicker = dialog.getByRole('combobox', { name: 'This meeting' })
+  await expect(defaultPicker).toHaveValue(roomId)
+  await expect(meetingPicker).toHaveValue(list.rooms[1].room_id)
   await expect(dialog.getByLabel('Teacher room sticker')).toBeVisible()
   await page.screenshot({ path: '/tmp/pika-room-fixture-teacher-desktop.png', fullPage: true })
+  await meetingPicker.selectOption(roomId)
+  const undo = dialog.getByRole('button', { name: 'Undo move' })
+  await expect(undo).toBeEnabled()
+  await expect(meetingPicker).toHaveValue(roomId)
+  await expect(defaultPicker).toHaveValue(roomId)
+  await undo.click()
+  await expect(meetingPicker).toHaveValue(list.rooms[1].room_id)
   await page.route('**/api/teacher/classrooms', route => route.fulfill({ json: { classrooms: [{ id: classId, title: 'Biology 11' }] } }))
   await page.route('**/api/teacher/attendance/session?**', route => route.fulfill({ json: { session: { state: 'open' } } }))
   await page.goto('/e2e-fixtures/attendance-room?view=move')
@@ -44,14 +59,15 @@ test('saving None clears the default without moving the current meeting', async 
   await page.emulateMedia({ colorScheme: 'dark' })
   await page.goto('/e2e-fixtures/attendance-room')
   const dialog = page.getByRole('dialog', { name: 'Attendance rooms' })
-  const room = dialog.getByRole('combobox', { name: 'Room', exact: true })
+  const room = dialog.getByRole('combobox', { name: 'Default room' })
+  const meeting = dialog.getByRole('combobox', { name: 'This meeting' })
   const save = dialog.getByRole('button', { name: 'Save default' })
   await expect(room).toHaveValue(roomId)
   await room.focus()
   await expect(room).toBeFocused()
   await page.screenshot({ path: '/tmp/pika-room-default-mobile-dark.png', fullPage: true })
   await room.selectOption({ label: 'None' })
-  await expect(dialog.getByRole('button', { name: 'Move this meeting' })).toBeDisabled()
+  await expect(meeting).toHaveValue(currentRoomId)
   expect(mutations).toEqual([])
   await save.click()
   await expect(save).toBeDisabled()
@@ -61,7 +77,7 @@ test('saving None clears the default without moving the current meeting', async 
 
   await page.reload()
   await expect(room).toHaveValue('')
-  await expect(dialog.getByText('This meeting: Room 102')).toBeVisible()
+  await expect(meeting).toHaveValue(currentRoomId)
   await expect(save).toBeDisabled()
   await room.selectOption(currentRoomId)
   await save.click()

@@ -175,4 +175,4 @@ Use G-prefixed compact codes for standalone assessments and “Add general asses
 
 ## 2026-11-16 — Simplify the Attendance rooms picker
 
-The teacher dialog opens on the saved classroom default or None. Saving None clears the default for future meetings without moving the current meeting. Removed the intro and duplicate default summary; reused the shared dialog and the Gradebook picker's hidden accessible label. The existing browser fixture covers reopening with no default, saving a replacement, and the separate meeting move.
+The teacher dialog has a This meeting picker when attendance is open. Choosing a paired room moves that meeting immediately and offers Undo move. The separate Default room picker opens on the saved default or None; Save default applies the selection to future meetings. Reused the Pattern Lab dialog and the Gradebook picker. The browser fixture covers direct moves, undo, and default changes. The component test covers retry after a rejected move.
