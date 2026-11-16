@@ -180,3 +180,9 @@ Use G-prefixed compact codes for standalone assessments and “Add general asses
 ## 2026-11-16 — Simplify the Attendance rooms picker
 
 The teacher dialog has a This meeting picker when attendance is open. Choosing a paired room moves that meeting immediately and offers Undo move. The separate Default room picker opens on the saved default or None; Save default applies the selection to future meetings. Reused the Pattern Lab dialog and the Gradebook picker. The browser fixture covers direct moves, undo, and default changes. The component test covers retry after a rejected move.
+
+## 2026-11-16 — Limit WorkOS email code requests
+
+WorkOS signup, sign-in, and resend share limits of five code requests per normalized email and 90 per client per hour. The existing database limiter runs before WorkOS issues a code or Brevo sends it. A disposable PostgreSQL check returned five successful responses followed by HTTP 429, with five WorkOS and five stubbed email calls.
+
+Production public admission, checkout, and trial signup are closed. The launch alert check found no Vercel or Cloudflare monitor for signup delivery or admission failures. Brevo did not return a transactional webhook.
