@@ -23,7 +23,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   const [busy, setBusy] = useState(false)
   const [undo, setUndo] = useState<number | null>(null)
   const [displayUrl, setDisplayUrl] = useState('')
-  const [saveDefault, setSaveDefault] = useState(false)
+  const [saveDefaultRoomId, setSaveDefaultRoomId] = useState<string | null>(null)
 
   async function command(operation: string, fields: Record<string, unknown> = {}) {
     return fetchJSON<any>('/api/teacher/attendance/rooms', {
@@ -39,7 +39,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   useEffect(() => {
     if (!isOpen) return
     let active = true
-    setList(null); setError(''); setUndo(null); setDisplayUrl(''); setNotice(''); setSaveDefault(false)
+    setList(null); setError(''); setUndo(null); setDisplayUrl(''); setNotice(''); setSaveDefaultRoomId(null)
     void command('list').then((next: RoomList) => {
       if (!active) return
       setList(next); setRoomId(initialRoom(next))
@@ -75,6 +75,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   const meetingRoom = list?.rooms.find(room => room.room_id === list.meeting?.room_id)
   const canMove = Boolean(selected?.paired && list?.meeting && list.meeting.room_id !== roomId)
   const canSaveDefault = Boolean(list && (roomId || null) !== list.default_room_id && (roomId === '' || selected?.paired))
+  const saveDefault = saveDefaultRoomId === roomId
   return <DialogPanel isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg" ariaLabelledBy={titleId}>
     <h2 id={titleId} className="text-lg font-semibold">Attendance rooms</h2>
     <div className="space-y-4 overflow-y-auto p-1">
@@ -86,12 +87,12 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
             <Select
               value={roomId}
               disabled={busy}
-              onChange={e => { setRoomId(e.target.value); setDisplayUrl(''); setSaveDefault(false) }}
+              onChange={e => { setRoomId(e.target.value); setDisplayUrl(''); setSaveDefaultRoomId(null) }}
               options={[{ value: '', label: 'None' }, ...list.rooms.map(room => ({ value: room.room_id, label: room.paired ? room.label : `${room.label} (unpaired)` }))]}
             />
           </FormField>
           {list.meeting && <p className="text-sm text-text-muted">This meeting: {meetingRoom?.label ?? 'No room'}</p>}
-          {canMove && canSaveDefault && <Button variant="secondary" aria-pressed={saveDefault} disabled={busy} onClick={() => setSaveDefault(value => !value)}>Also set as default</Button>}
+          {canMove && canSaveDefault && <Button variant="secondary" aria-pressed={saveDefault} disabled={busy} onClick={() => setSaveDefaultRoomId(saveDefault ? null : roomId)}>Also set as default</Button>}
           <div className="flex flex-wrap gap-2">
             <Button disabled={busy || !canMove} onClick={() => void act('move', { room_id: roomId, save_default: canSaveDefault && saveDefault })}>Move this meeting</Button>
             <Button variant="secondary" disabled={busy || !canSaveDefault} onClick={() => void act('default', { room_id: roomId || null })}>Save default</Button>

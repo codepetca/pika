@@ -25,3 +25,34 @@ it('moves the selected meeting and can undo with the returned revision', async (
   await waitFor(() => expect(requests).toContainEqual(expect.objectContaining({ operation: 'undo', revision: 7, date: '2026-11-13' })))
   expect(requests).toContainEqual(expect.objectContaining({ operation: 'move', room_id: room, save_default: true }))
 })
+
+it('keeps the default opt-in tied to the room it was selected for', async () => {
+  const newRoom = 'room1234567890123457'
+  const requests: any[] = []
+  let rooms = list.rooms
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); requests.push(body)
+    if (body.operation === 'create') rooms = [...rooms, { room_id: newRoom, label: 'Room 102', can_manage: true, paired: false }]
+    if (body.operation === 'pair') rooms = rooms.map(entry => entry.room_id === newRoom ? { ...entry, paired: true } : entry)
+    return Response.json({
+      ok: true,
+      ...(body.operation === 'list' ? { ...list, rooms } : {}),
+      ...(body.operation === 'create' ? { room_id: newRoom } : {}),
+      ...(body.operation === 'pair' ? { display_url: '/display' } : {}),
+      ...(body.operation === 'move' ? { revision: 7 } : {}),
+    })
+  }))
+  const user = userEvent.setup()
+  render(<TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} />)
+  const picker = await screen.findByRole('combobox', { name: 'Room' })
+  await user.selectOptions(picker, room)
+  await user.click(screen.getByRole('button', { name: 'Also set as default' }))
+  await user.type(screen.getByLabelText('New room name'), 'Room 102')
+  await user.click(screen.getByRole('button', { name: 'Create room' }))
+  await waitFor(() => expect(picker).toHaveValue(newRoom))
+  await user.click(screen.getByRole('button', { name: 'Pair room display' }))
+  const optIn = await screen.findByRole('button', { name: 'Also set as default' })
+  expect(optIn).toHaveAttribute('aria-pressed', 'false')
+  await user.click(screen.getByRole('button', { name: 'Move this meeting' }))
+  await waitFor(() => expect(requests).toContainEqual(expect.objectContaining({ operation: 'move', room_id: newRoom, save_default: false })))
+})
