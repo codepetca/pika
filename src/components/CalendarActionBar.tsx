@@ -25,7 +25,7 @@ interface CalendarActionBarProps {
 
 export function CalendarActionBar({ viewMode, currentDate, rangeStart, rangeEnd, onPrev, onNext, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
   return <PageActionBar className={cn('py-0', className)} primary={context ?? null} center={<>
-    <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="h-6 gap-0 border border-border bg-surface-2 p-0"
+    <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="gap-0 border border-border bg-surface-2 p-0 [&>button]:text-sm"
       options={[
         { value: 'list', label: 'List', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
         { value: 'grid', label: 'Grid', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
