@@ -8,6 +8,9 @@ import { PageActionBar } from '@/components/PageLayout'
 import { TeacherWorkSurfaceIconMenuButton, type TeacherWorkSurfaceActionItem } from '@/components/teacher-work-surface/TeacherWorkSurfaceActionCluster'
 import type { CalendarViewMode } from '@/components/LessonCalendar'
 
+const compactControlSurface = 'rounded-control border border-border bg-surface-2 py-0.5 text-sm'
+const viewOptionClassName = 'bg-transparent px-2 py-0 text-sm hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5'
+
 interface CalendarActionBarProps {
   viewMode: CalendarViewMode
   currentDate: Date
@@ -25,17 +28,20 @@ interface CalendarActionBarProps {
 
 export function CalendarActionBar({ viewMode, currentDate, rangeStart, rangeEnd, onPrev, onNext, onToday, onViewModeChange, trailing, context, moreActions, className = '' }: CalendarActionBarProps) {
   return <PageActionBar className={cn('py-0', className)} primary={context ?? null} center={<>
-    <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="gap-0 border border-border bg-surface-2 p-0 [&>button]:text-sm"
-      options={[
-        { value: 'list', label: 'List', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
-        { value: 'grid', label: 'Grid', className: 'min-h-0 bg-transparent px-2 py-0 hover:bg-transparent [&>span]:rounded-control [&>span]:px-1 [&>span]:py-0.5', activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
-      ]} />
+    <div className="relative inline-flex shrink-0">
+      <span aria-hidden="true" className={cn('pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2', compactControlSurface)}>&nbsp;</span>
+      <SegmentedControl<CalendarViewMode> ariaLabel="Calendar view" value={viewMode} onChange={onViewModeChange} className="relative gap-0 bg-transparent p-0"
+        options={[
+          { value: 'list', label: 'List', className: viewOptionClassName, activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
+          { value: 'grid', label: 'Grid', className: viewOptionClassName, activeClassName: '[&>span]:bg-info-bg [&>span]:text-primary', inactiveClassName: '[&>span]:text-text-muted' },
+        ]} />
+    </div>
     {(!rangeStart || !rangeEnd) && <>
       <span role="status" aria-live="polite" aria-atomic="true" className="sr-only">{format(currentDate, 'MMMM yyyy')}</span>
       <IconButton variant="ghost" size="sm" icon={ChevronLeft} label="Previous month" onClick={onPrev} />
       <IconButton variant="ghost" size="sm" icon={ChevronRight} label="Next month" onClick={onNext} />
     </>}
-    <Button variant="ghost" size="sm" className="min-h-0 px-0 py-0 hover:bg-transparent" onClick={onToday}><span className="rounded-control border border-border bg-surface-2 px-2 py-0.5 text-text-default">Today</span></Button>
+    <Button variant="ghost" size="sm" className="px-0 py-0 hover:bg-transparent" onClick={onToday}><span className={cn(compactControlSurface, 'px-2 text-text-default')}>Today</span></Button>
     {trailing}
   </>} trailing={moreActions && moreActions.length > 0 ? <TeacherWorkSurfaceIconMenuButton
     ariaLabel="More actions" menuAriaLabel="Calendar actions" tooltip="More actions"

@@ -175,4 +175,4 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 
 ## 2026-11-16 — Align Calendar view toggle with Today
 
-- Reused the shared Calendar action bar and segmented control shown in Pattern Lab. The visible List/Grid and Today borders now align at 26px. Playwright verified both roles, desktop and mobile, light and dark, both selections, and keyboard focus.
+- Reused the shared Calendar action bar and segmented control shown in Pattern Lab. The visible List/Grid and Today borders now align at 26px, with 44px interactive targets. Playwright verified both roles, desktop and mobile, light and dark, both selections, and keyboard focus.
