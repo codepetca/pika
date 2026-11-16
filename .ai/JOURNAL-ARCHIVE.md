@@ -55250,3 +55250,14 @@ Removed the three-line lesson preview cap and showed each weekend event in its o
 ## 2026-11-09 — Fade horizontally clipped display text
 
 Recorded the shared fade in Design and added a Pattern Lab example for plain text and chip labels. Existing truncation uses the fade only where text overflows. Calendar keeps every lesson line and entry, and forced colours retains native ellipsis. Test evidence is tracked with the draft PR.
+
+<!-- pika-session-log-archive-batch:6d2f617152852db31104d51408ccdc35a0dfbc9db2169cea9b4952633d411c00 -->
+## 2026-11-09 — Calendar and text fade review
+
+Completed the independent review of PR #1786 after the owner authorized proceeding. The local focused run found two deterministic failures. Updated the browser inventory for the eight new Pattern Lab cases and kept Gradebook score colour on the text span while the wrapper owns the unreturned background.
+
+Hosted coverage identified more Gradebook tests coupled to the score wrapper and a repeat timeout in the teacher gallery contract. Pointed the assertions at the score text and narrowed gallery lookups to their own controls and example.
+
+## 2026-11-09 — Open Calendar Grid near today
+
+Calendar Grid opens with the preceding week directly below the sticky headings when it fits above today in the upper half of the scroller. For a tall preceding week, today's week starts below the headings. Today uses the same placement. List keeps its centered target and late initial data respects manual scroll. Verified the Grid opening and Today action with teacher and student Playwright captures at desktop and mobile widths in both themes.
