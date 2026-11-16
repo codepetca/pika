@@ -11,8 +11,8 @@ test('mocked teacher room dialog and move picker', async ({ page }) => {
   })
   await page.goto('/e2e-fixtures/attendance-room')
   const dialog = page.getByRole('dialog', { name: 'Attendance rooms' })
-  await expect(dialog.getByLabel('Room', { exact: true })).toBeVisible()
-  await dialog.getByLabel('Room', { exact: true }).selectOption(roomId)
+  await expect(dialog.getByRole('combobox', { name: 'Room', exact: true })).toHaveValue(roomId)
+  await expect(dialog.getByText('This meeting: Room 102')).toBeVisible()
   await expect(dialog.getByLabel('Teacher room sticker')).toBeVisible()
   await page.screenshot({ path: '/tmp/pika-room-fixture-teacher-desktop.png', fullPage: true })
   await page.route('**/api/teacher/classrooms', route => route.fulfill({ json: { classrooms: [{ id: classId, title: 'Biology 11' }] } }))
@@ -24,6 +24,53 @@ test('mocked teacher room dialog and move picker', async ({ page }) => {
   await page.screenshot({ path: '/tmp/pika-room-fixture-move-mobile.png', fullPage: true })
   await page.getByRole('button', { name: 'Move Biology 11 here' }).click()
   await expect(page.getByRole('button', { name: 'Undo move' })).toBeVisible()
+})
+
+test('saving None clears the default without moving the current meeting', async ({ page }) => {
+  const currentRoomId = list.rooms[1].room_id
+  let defaultRoomId: string | null = roomId
+  const mutations: unknown[] = []
+  await page.route('**/api/teacher/attendance/rooms', async route => {
+    const body = route.request().postDataJSON()
+    if (body.operation === 'list') {
+      await route.fulfill({ json: { ...list, default_room_id: defaultRoomId } })
+    } else {
+      mutations.push({ operation: body.operation, room_id: body.room_id })
+      if (body.operation === 'default') defaultRoomId = body.room_id
+      await route.fulfill({ json: { ok: true } })
+    }
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.goto('/e2e-fixtures/attendance-room')
+  const dialog = page.getByRole('dialog', { name: 'Attendance rooms' })
+  const room = dialog.getByRole('combobox', { name: 'Room', exact: true })
+  const save = dialog.getByRole('button', { name: 'Save default' })
+  await expect(room).toHaveValue(roomId)
+  await room.focus()
+  await expect(room).toBeFocused()
+  await page.screenshot({ path: '/tmp/pika-room-default-mobile-dark.png', fullPage: true })
+  await room.selectOption({ label: 'None' })
+  await expect(dialog.getByRole('button', { name: 'Move this meeting' })).toBeDisabled()
+  expect(mutations).toEqual([])
+  await save.click()
+  await expect(save).toBeDisabled()
+  await expect(room).toBeEnabled()
+  expect(mutations).toEqual([{ operation: 'default', room_id: null }])
+  await page.screenshot({ path: '/tmp/pika-room-none-mobile-dark.png', fullPage: true })
+
+  await page.reload()
+  await expect(room).toHaveValue('')
+  await expect(dialog.getByText('This meeting: Room 102')).toBeVisible()
+  await expect(save).toBeDisabled()
+  await room.selectOption(currentRoomId)
+  await save.click()
+  await expect(save).toBeDisabled()
+  await expect(room).toBeEnabled()
+  expect(mutations).toEqual([
+    { operation: 'default', room_id: null },
+    { operation: 'default', room_id: currentRoomId },
+  ])
 })
 
 test('mocked student result on mobile', async ({ browser }) => {

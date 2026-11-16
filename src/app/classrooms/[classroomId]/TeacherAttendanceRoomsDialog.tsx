@@ -9,8 +9,7 @@ type Room = { room_id: string; label: string; can_manage: boolean; paired: boole
 type RoomList = { rooms: Room[]; default_room_id: string | null; meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null }
 
 function initialRoom(list: RoomList) {
-  return [list.meeting?.room_id, list.default_room_id].find(id => list.rooms.some(room => room.room_id === id))
-    ?? list.rooms[0]?.room_id ?? ''
+  return list.rooms.find(room => room.room_id === list.default_room_id)?.room_id ?? ''
 }
 
 export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClose }: { classroomId: string; date: string; isOpen: boolean; onClose: () => void }) {
@@ -35,7 +34,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   async function load() {
     const next = await command('list') as RoomList
     setList(next)
-    setRoomId(current => next.rooms.some(room => room.room_id === current) ? current : initialRoom(next))
+    setRoomId(current => current === '' || next.rooms.some(room => room.room_id === current) ? current : initialRoom(next))
   }
   useEffect(() => {
     if (!isOpen) return
@@ -73,23 +72,29 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
     URL.revokeObjectURL(url)
   }
   const selected = list?.rooms.find(room => room.room_id === roomId)
+  const meetingRoom = list?.rooms.find(room => room.room_id === list.meeting?.room_id)
   const canMove = Boolean(selected?.paired && list?.meeting && list.meeting.room_id !== roomId)
+  const canSaveDefault = Boolean(list && (roomId || null) !== list.default_room_id && (roomId === '' || selected?.paired))
   return <DialogPanel isOpen={isOpen} onClose={onClose} maxWidth="max-w-lg" ariaLabelledBy={titleId}>
     <h2 id={titleId} className="text-lg font-semibold">Attendance rooms</h2>
     <div className="space-y-4 overflow-y-auto p-1">
-      <p className="text-sm text-text-muted">Choose where this class meets. A room display can serve several classes at once.</p>
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       {!list && !error && <p>Loading rooms…</p>}
       {list && <>
         {list.rooms.length > 0 && <>
-          <FormField label="Room"><Select value={roomId} onChange={e => { setRoomId(e.target.value); setDisplayUrl('') }} options={list.rooms.map(room => ({ value: room.room_id, label: room.paired ? room.label : `${room.label} (unpaired)` }))} /></FormField>
-          <p className="text-sm text-text-muted">Changing the default affects future meetings. Move this meeting separately if it has already started.</p>
-          <p className="text-sm text-text-muted">Default: {list.rooms.find(room => room.room_id === list.default_room_id)?.label ?? 'None'}. Current meeting: {list.rooms.find(room => room.room_id === list.meeting?.room_id)?.label ?? 'No room'}.</p>
-          {canMove && <Button variant="secondary" aria-pressed={saveDefault} disabled={busy} onClick={() => setSaveDefault(value => !value)}>Also use as the default for future meetings</Button>}
+          <FormField label="Room" hideLabel collapseHiddenLabel>
+            <Select
+              value={roomId}
+              disabled={busy}
+              onChange={e => { setRoomId(e.target.value); setDisplayUrl(''); setSaveDefault(false) }}
+              options={[{ value: '', label: 'None' }, ...list.rooms.map(room => ({ value: room.room_id, label: room.paired ? room.label : `${room.label} (unpaired)` }))]}
+            />
+          </FormField>
+          {list.meeting && <p className="text-sm text-text-muted">This meeting: {meetingRoom?.label ?? 'No room'}</p>}
+          {canMove && canSaveDefault && <Button variant="secondary" aria-pressed={saveDefault} disabled={busy} onClick={() => setSaveDefault(value => !value)}>Also set as default</Button>}
           <div className="flex flex-wrap gap-2">
-            <Button disabled={busy || !roomId || !canMove} onClick={() => void act('move', { room_id: roomId, save_default: saveDefault })}>Move this meeting</Button>
-            <Button variant="secondary" disabled={busy || !selected?.paired || list.default_room_id === roomId} onClick={() => void act('default', { room_id: roomId })}>Set default for future meetings</Button>
-            {list.default_room_id && <Button variant="secondary" disabled={busy} onClick={() => void act('default', { room_id: null })}>Clear default</Button>}
+            <Button disabled={busy || !canMove} onClick={() => void act('move', { room_id: roomId, save_default: canSaveDefault && saveDefault })}>Move this meeting</Button>
+            <Button variant="secondary" disabled={busy || !canSaveDefault} onClick={() => void act('default', { room_id: roomId || null })}>Save default</Button>
             {undo !== null && <Button variant="secondary" disabled={busy} onClick={() => void act('undo', { revision: undo })}>Undo move</Button>}
           </div>
           {selected && typeof window !== 'undefined' && <div className="space-y-2"><p className="text-sm">Teacher room sticker: scan to move an open class here.</p><div ref={qrRef}><QrCode value={`${window.location.origin}/attendance/room/${selected.room_id}/move`} label="Teacher room sticker" className="w-40 bg-qr-background p-4" /></div><Button variant="secondary" onClick={downloadSticker}>Download sticker</Button></div>}

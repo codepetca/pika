@@ -11,16 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Calendar and text fade review
-
-Completed the independent review of PR #1786 after the owner authorized proceeding. The local focused run found two deterministic failures. Updated the browser inventory for the eight new Pattern Lab cases and kept Gradebook score colour on the text span while the wrapper owns the unreturned background.
-
-Hosted coverage identified more Gradebook tests coupled to the score wrapper and a repeat timeout in the teacher gallery contract. Pointed the assertions at the score text and narrowed gallery lookups to their own controls and example.
-
-## 2026-11-09 — Open Calendar Grid near today
-
-Calendar Grid opens with the preceding week directly below the sticky headings when it fits above today in the upper half of the scroller. For a tall preceding week, today's week starts below the headings. Today uses the same placement. List keeps its centered target and late initial data respects manual scroll. Verified the Grid opening and Today action with teacher and student Playwright captures at desktop and mobile widths in both themes.
-
 ## 2026-11-09 — Guarded assignment release rebase
 
 Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
@@ -182,3 +172,7 @@ The sealed replay and native service-role deletion checks passed. Local email-co
 ## 2026-11-16 — Label general assessments in Gradebook
 
 Use G-prefixed compact codes for standalone assessments and “Add general assessment” in the Gradebook menu, create dialog and Pattern Lab. The mobile inspector labels the type “General assessment.” Reuse the existing Gradebook toolbar, compact table, mobile student inspector and dialog. Teacher desktop/mobile in light/dark cover compact labels, the open menu and create form. Student Grades displays titles. The API regression test covers numbering of existing general assessments.
+
+## 2026-11-16 — Simplify the Attendance rooms picker
+
+The teacher dialog opens on the saved classroom default or None. Saving None clears the default for future meetings without moving the current meeting. Removed the intro and duplicate default summary; reused the shared dialog and the Gradebook picker's hidden accessible label. The existing browser fixture covers reopening with no default, saving a replacement, and the separate meeting move.
