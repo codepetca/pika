@@ -24,6 +24,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   const [undo, setUndo] = useState<number | null>(null)
   const [displayUrl, setDisplayUrl] = useState('')
   const [pendingMeetingRoomId, setPendingMeetingRoomId] = useState<string | null>(null)
+  const [meetingNeedsRefresh, setMeetingNeedsRefresh] = useState(false)
 
   async function command(operation: string, fields: Record<string, unknown> = {}) {
     return fetchJSON<any>('/api/teacher/attendance/rooms', {
@@ -34,12 +35,14 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   async function load() {
     const next = await command('list') as RoomList
     setList(next)
+    setMeetingNeedsRefresh(false)
     setRoomId(current => current === '' || next.rooms.some(room => room.room_id === current) ? current : initialRoom(next))
   }
   useEffect(() => {
     if (!isOpen) return
     let active = true
     setList(null); setError(''); setUndo(null); setDisplayUrl(''); setNotice('')
+    setMeetingNeedsRefresh(false)
     void command('list').then((next: RoomList) => {
       if (!active) return
       setList(next); setRoomId(initialRoom(next))
@@ -51,21 +54,30 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
 
   async function act(operation: string, fields: Record<string, unknown> = {}) {
     setBusy(true); setError(''); setDisplayUrl('')
+    let undoCompleted = false
     try {
-      const result = await command(operation, fields)
-      if (operation === 'move' && typeof fields.room_id === 'string') {
-        const meetingRoomId = fields.room_id
-        setUndo(result.revision)
-        setList(current => current?.meeting ? {
-          ...current,
-          meeting: { ...current.meeting, room_id: meetingRoomId, revision: result.revision },
-        } : current)
+      if (operation !== 'list') {
+        const result = await command(operation, fields)
+        if (operation === 'move' && typeof fields.room_id === 'string') {
+          const meetingRoomId = fields.room_id
+          setUndo(result.revision)
+          setList(current => current?.meeting ? {
+            ...current,
+            meeting: { ...current.meeting, room_id: meetingRoomId, revision: result.revision },
+          } : current)
+        }
+        if (operation === 'undo') {
+          undoCompleted = true
+          setUndo(null)
+        }
+        if (operation === 'pair') setDisplayUrl(result.display_url)
+        if (operation === 'create') { setLabel(''); setRoomId(result.room_id) }
       }
-      if (operation === 'undo') setUndo(null)
-      if (operation === 'pair') setDisplayUrl(result.display_url)
-      if (operation === 'create') { setLabel(''); setRoomId(result.room_id) }
       await load()
-    } catch (err) { setError(err instanceof Error ? err.message : 'Room attendance is temporarily unavailable') }
+    } catch (err) {
+      if (undoCompleted) setMeetingNeedsRefresh(true)
+      setError(err instanceof Error ? err.message : 'Room attendance is temporarily unavailable')
+    }
     finally { setBusy(false) }
   }
   async function moveMeeting(destination: string) {
@@ -103,7 +115,8 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
       {!list && !error && <p>Loading rooms…</p>}
       {list && <>
         {rooms.length > 0 && <>
-          {list.meeting && <div className="space-y-2">
+          {meetingNeedsRefresh && <Button variant="secondary" disabled={busy} onClick={() => void act('list')}>Refresh rooms</Button>}
+          {list.meeting && !meetingNeedsRefresh && <div className="space-y-2">
             <FormField label="This meeting">
               <Select
                 value={pendingMeetingRoomId ?? meetingRoom?.room_id ?? ''}

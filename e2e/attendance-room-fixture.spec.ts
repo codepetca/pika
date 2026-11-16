@@ -6,10 +6,19 @@ const list = { ok: true, rooms: [{ room_id: roomId, label: 'Room 101', can_manag
 
 test('mocked teacher room dialog and move picker', async ({ page }) => {
   let meetingRoomId = list.rooms[1].room_id
+  let failNextList = false
   await page.route('**/api/teacher/attendance/rooms', async route => {
     const body = route.request().postDataJSON()
     if (body.operation === 'move') meetingRoomId = body.room_id
-    if (body.operation === 'undo') meetingRoomId = list.rooms[1].room_id
+    if (body.operation === 'undo') {
+      meetingRoomId = list.rooms[1].room_id
+      failNextList = true
+    }
+    if (body.operation === 'list' && failNextList) {
+      failNextList = false
+      await route.fulfill({ status: 503, json: { error: 'Room attendance is temporarily unavailable' } })
+      return
+    }
     const response = body.operation === 'list'
       ? { ...list, meeting: { ...list.meeting, room_id: meetingRoomId } }
       : body.operation === 'move' ? { ok: true, revision: 4 } : { ok: true }
@@ -29,6 +38,10 @@ test('mocked teacher room dialog and move picker', async ({ page }) => {
   await expect(meetingPicker).toHaveValue(roomId)
   await expect(defaultPicker).toHaveValue(roomId)
   await undo.click()
+  await expect(dialog.getByRole('alert')).toContainText('Room attendance is temporarily unavailable')
+  await expect(meetingPicker).toHaveCount(0)
+  await page.screenshot({ path: '/tmp/pika-room-direct-refresh.png', fullPage: true })
+  await dialog.getByRole('button', { name: 'Refresh rooms' }).click()
   await expect(meetingPicker).toHaveValue(list.rooms[1].room_id)
   await page.route('**/api/teacher/classrooms', route => route.fulfill({ json: { classrooms: [{ id: classId, title: 'Biology 11' }] } }))
   await page.route('**/api/teacher/attendance/session?**', route => route.fulfill({ json: { session: { state: 'open' } } }))
