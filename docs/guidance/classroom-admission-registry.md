@@ -85,10 +85,7 @@ Each operation is bounded to 5,000 combined input UUIDs; there is no global
 100-user registry cap. Duplicate/null/multidimensional arrays, unknown users,
 overlaps, stale grant/enable revisions, future revisions, invalid digests and malformed approval references
 refuse without partial grants. No membership, quota, plan or provider state is
-written. Batch/origin records are immutable; bootstrap policy binding cannot
-be reset. This interface includes no admission-removal or account-deletion path.
-Those operations require a separate explicit lifecycle design before any future
-affected account deletion; a foreign-key failure must not be bypassed by a purge.
+written. Batch and bootstrap history is immutable. The active grant can be removed only as a consequence of deleting its local account under migration 330. Batch receipts retain the original committed counts and digests. An admitted owner must resolve all owned classrooms, including cold archives, before deleting the account. Protected exclusions and existing deletion safeguards still apply.
 
 ## Attendance compatibility boundary
 

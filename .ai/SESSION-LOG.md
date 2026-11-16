@@ -173,6 +173,12 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 - Squash-merged #1816 after independent review and full CI. Export now checks captured actor IDs against the exact resource references before Storage, and compaction checks the verified IDs before role reads and staging. Existing archive labels and compaction authorization stay compatible.
 - The v2 reader accepts archives that predate RepoLight and still rejects partial RepoLight resource families. Disposable export, compaction, managed Storage, and recovery passed with both owner labels through migrations 292 and 329. Existing rollout holds stay in force.
 
+## 2026-11-16 — Account deletion for admitted users
+
+Migration 330 removes live classroom admission when its Pika account is deleted. Batch receipts retain their original counts and digests. Protected exclusions and unresolved classroom ownership still block deletion.
+
+The sealed replay and native service-role deletion checks passed. Local email-code signup with mock delivery, Free classroom admission, invalid and duplicate joins, stale-session rejection, and signup after deletion passed against the disposable database. Production public admission, checkout and trial signup remain closed.
+
 ## 2026-11-16 — Align Calendar view toggle with Today
 
 - Reused the shared Calendar action bar and segmented control shown in Pattern Lab. The visible List/Grid and Today borders now align at 26px, with 44px interactive targets. Playwright verified both roles, desktop and mobile, light and dark, both selections, and keyboard focus.
