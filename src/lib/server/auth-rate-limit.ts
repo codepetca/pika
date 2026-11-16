@@ -18,6 +18,7 @@ export type AuthRateLimitAction =
   | 'signup_code'
   | 'signup_verify'
   | 'signup_confirm'
+  | 'workos_code'
   | 'reset_code'
   | 'reset_verify'
   | 'reset_confirm'
