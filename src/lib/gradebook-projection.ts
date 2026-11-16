@@ -558,7 +558,7 @@ export function projectOwnerGradebook(source: OwnerProjectionSource, availabilit
     }),
     ...items.map((item, index) => ({
       assessment_id: item.id, assessment_type: 'item' as const,
-      code: assessmentCode('I', index), title: item.title,
+      code: assessmentCode('G', index), title: item.title,
       possible: Number(item.points_possible), weight: Number(item.gradebook_weight),
       include_in_final: item.include_in_final,
       scored_count: itemScores.filter((score) => score.item_id === item.id).length,
