@@ -55240,3 +55240,8 @@ Independent review identified the reachable billing helper outside the trigger p
 ## 2026-11-09 — Sync the classroom cutoff proof with main
 
 Merged main after the assignment grade and comment copy change. Preserved both continuity histories and verified the reviewed cutoff patch against the new base.
+
+<!-- pika-session-log-archive-batch:870c7c64e116b787b691521b7132e30b10c20273ddf63968a519e5d47ae59d09 -->
+## 2026-11-09 — Show all classroom Calendar Grid entries
+
+Removed the three-line lesson preview cap and showed each weekend event in its own chip. Grid weeks grow with their contents; long chip titles still use horizontal ellipsis. Retained inline teacher editing and covered busy cells and read-only student previews in the browser matrix.

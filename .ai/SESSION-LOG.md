@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Show all classroom Calendar Grid entries
-
-Removed the three-line lesson preview cap and showed each weekend event in its own chip. Grid weeks grow with their contents; long chip titles still use horizontal ellipsis. Retained inline teacher editing and covered busy cells and read-only student previews in the browser matrix.
-
 ## 2026-11-09 — Fade horizontally clipped display text
 
 Recorded the shared fade in Design and added a Pattern Lab example for plain text and chip labels. Existing truncation uses the fade only where text overflows. Calendar keeps every lesson line and entry, and forced colours retains native ellipsis. Test evidence is tracked with the draft PR.
@@ -180,3 +176,7 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 
 - Squash-merged #1816 after independent review and full CI. Export now checks captured actor IDs against the exact resource references before Storage, and compaction checks the verified IDs before role reads and staging. Existing archive labels and compaction authorization stay compatible.
 - The v2 reader accepts archives that predate RepoLight and still rejects partial RepoLight resource families. Disposable export, compaction, managed Storage, and recovery passed with both owner labels through migrations 292 and 329. Existing rollout holds stay in force.
+
+## 2026-11-16 — Align Calendar view toggle with Today
+
+- Reused the shared Calendar action bar and segmented control shown in Pattern Lab. The visible List/Grid and Today borders now align at 26px, with 44px interactive targets. Playwright verified both roles, desktop and mobile, light and dark, both selections, and keyboard focus.
