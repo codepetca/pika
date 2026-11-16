@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Fade horizontally clipped display text
-
-Recorded the shared fade in Design and added a Pattern Lab example for plain text and chip labels. Existing truncation uses the fade only where text overflows. Calendar keeps every lesson line and entry, and forced colours retains native ellipsis. Test evidence is tracked with the draft PR.
-
 ## 2026-11-09 — Calendar and text fade review
 
 Completed the independent review of PR #1786 after the owner authorized proceeding. The local focused run found two deterministic failures. Updated the browser inventory for the eight new Pattern Lab cases and kept Gradebook score colour on the text span while the wrapper owns the unreturned background.
@@ -176,3 +172,7 @@ Plans and billing explains the seven-day first-purchase refund window, where to 
 ## 2026-11-16 — Align Calendar view toggle with Today
 
 - Reused the shared Calendar action bar and segmented control shown in Pattern Lab. The visible List/Grid and Today borders now align at 26px, with 44px interactive targets. Playwright verified both roles, desktop and mobile, light and dark, both selections, and keyboard focus.
+
+## 2026-11-16 — Label general assessments in Gradebook
+
+Use G-prefixed compact codes for standalone assessments and “Add general assessment” in the Gradebook menu, create dialog and Pattern Lab. The mobile inspector labels the type “General assessment.” Reuse the existing Gradebook toolbar, compact table, mobile student inspector and dialog. Teacher desktop/mobile in light/dark cover compact labels, the open menu and create form. Student Grades displays titles. The API regression test covers numbering of existing general assessments.

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { GradebookItemEditor } from '@/components/gradebook/GradebookItemEditor'
 import type { GradebookAssessmentColumn } from '@/types'
 
-const item: GradebookAssessmentColumn = { assessment_id: 'item-1', assessment_type: 'item', code: 'I1', title: 'Attendance – Term 1', possible: 20, weight: 10, include_in_final: true, category_id: null, scored_count: 2, returned_count: 0 }
+const item: GradebookAssessmentColumn = { assessment_id: 'item-1', assessment_type: 'item', code: 'G1', title: 'Attendance – Term 1', possible: 20, weight: 10, include_in_final: true, category_id: null, scored_count: 2, returned_count: 0 }
 
 describe('GradebookItemEditor', () => {
   it('creates with explicit points, inclusion and category weight', () => {
@@ -11,7 +11,7 @@ describe('GradebookItemEditor', () => {
     render(<GradebookItemEditor isOpen item={null} categories={[]} onClose={vi.fn()} onSave={save} />)
     fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Attendance – Term 1' } })
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Points possible' }), { target: { value: '20' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add other assessment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add general assessment' }))
     expect(save).toHaveBeenCalledWith({ title: 'Attendance – Term 1', points_possible: 20, gradebook_category_id: null, gradebook_weight: 10, include_in_final: true })
   })
   it('accepts zero but rejects a blank weight', () => {
@@ -20,9 +20,9 @@ describe('GradebookItemEditor', () => {
     fireEvent.change(screen.getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Practice' } })
     const weight = screen.getByRole('spinbutton', { name: 'Category weight' })
     fireEvent.change(weight, { target: { value: '' } })
-    expect(screen.getByRole('button', { name: 'Add other assessment' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Add general assessment' })).toBeDisabled()
     fireEvent.change(weight, { target: { value: '0' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add other assessment' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Add general assessment' }))
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ gradebook_weight: 0 }))
   })
   it('proposes the selected category weight and validates details without a return action', () => {

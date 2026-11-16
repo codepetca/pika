@@ -112,7 +112,7 @@ export function GradebookToolbar({ preferences, onChange, selectedCount, isReadO
       />
       <TeacherWorkSurfaceIconMenuButton ariaLabel="Gradebook more actions" tooltip="More actions" icon={<MoreVertical className="h-4 w-4" aria-hidden="true" />} menuPlacement="down" menuAlign="end" items={[
       { id: 'edit-categories', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly, onSelect: onEditCategories },
-      { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || !itemsAvailable || !onAddItem, onSelect: () => onAddItem?.() },
+      { id: 'add-item', label: 'Add general assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, disabled: isReadOnly || !itemsAvailable || !onAddItem, onSelect: () => onAddItem?.() },
       { id: 'name-order', dividerBefore: true, label: preferences.lastNameFirst ? 'Show first name in column 1' : 'Show last name in column 1', onSelect: () => onChange({ lastNameFirst: !preferences.lastNameFirst }) },
       { id: 'ultra-compact', label: 'Ultra-compact gradebook', checked: preferences.ultraCompact, onSelect: () => onChange({ ultraCompact: !preferences.ultraCompact }) },
       { id: 'show-gridlines', label: 'Show gridlines', checked: preferences.showGridlines ?? false, onSelect: () => onChange({ showGridlines: !preferences.showGridlines }) },
