@@ -55245,3 +55245,8 @@ Merged main after the assignment grade and comment copy change. Preserved both c
 ## 2026-11-09 — Show all classroom Calendar Grid entries
 
 Removed the three-line lesson preview cap and showed each weekend event in its own chip. Grid weeks grow with their contents; long chip titles still use horizontal ellipsis. Retained inline teacher editing and covered busy cells and read-only student previews in the browser matrix.
+
+<!-- pika-session-log-archive-batch:4a2cb2eb7f09df51bb28f53c60f5a18552c86bfaf5702aa0860e8d0e86bd01ce -->
+## 2026-11-09 — Fade horizontally clipped display text
+
+Recorded the shared fade in Design and added a Pattern Lab example for plain text and chip labels. Existing truncation uses the fade only where text overflows. Calendar keeps every lesson line and entry, and forced colours retains native ellipsis. Test evidence is tracked with the draft PR.

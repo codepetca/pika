@@ -1,10 +1,11 @@
 # Standalone Gradebook items
 
-Teachers can use **More actions → Add other assessment** in Gradebook to record
+Teachers can use **More actions → Add general assessment** in Gradebook to record
 original marks outside Classwork assignments or Tests. Classwork and Tests
 appear automatically; the creation dialog explains this distinction. A manually scored
 **Attendance – Term 1** item is one example; no attendance automation or daily
-attendance columns are involved.
+attendance columns are involved. Compact column labels use `G1`, `G2`, and so on
+for general assessments.
 
 ## Mark and calculation contract
 
@@ -79,7 +80,7 @@ owners, and the Pattern Lab student Grades row composition.
 | Deletion safeguard | ConfirmDialog | reuse | Explicit deletion scope and consequence |
 | Student disclosure | Classwork summary and shared Card | extend | No new navigation or fake work |
 
-Primary signal: **Edit categories** first with a settings icon, followed by **Add other assessment** in More actions and existing editable marks. Dividers follow **Add other assessment** and precede **Export gradebook**. No
+Primary signal: **Edit categories** first with a settings icon, followed by **Add general assessment** in More actions and existing editable marks. Dividers follow **Add general assessment** and precede **Export gradebook**. No
 charts, decorative status symbols, automated attendance, new shared primitives,
 or new top-level surfaces. Both roles, desktop/mobile, light/dark; default,
 create/edit, blank/scored/returned, clear, deletion confirmation, loading,

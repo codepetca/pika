@@ -55,7 +55,7 @@ export function GradebookItemEditor({
     <ContentDialog
       isOpen={isOpen}
       onClose={isSaving ? () => undefined : onClose}
-      title={item ? 'Edit item' : 'Add other assessment'}
+      title={item ? 'Edit item' : 'Add general assessment'}
       maxWidth="sm:max-w-md"
       showFooterClose={false}
     >
@@ -126,7 +126,7 @@ export function GradebookItemEditor({
             ) : null}
             <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
             <Button type="submit" loading={isSaving} disabled={!valid || isSaving}>
-              {item ? 'Save item' : 'Add other assessment'}
+              {item ? 'Save item' : 'Add general assessment'}
             </Button>
           </div>
         </fieldset>
