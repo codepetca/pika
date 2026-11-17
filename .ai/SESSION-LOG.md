@@ -179,6 +179,8 @@ The Codepet operations inbox is already verified in Cloudflare. Live alert deliv
 
 ## 2026-11-17 Shared attendance room catalog
 
+- Added signed shared-room student poster preview using the existing classroom print composition. Focused transport, authorization and component tests passed; pilot print verification pending.
+
 - Follow-up: require explicit poster check-in confirmation and filter sticker destinations by per-class eligibility; focused tests and TypeScript passed.
 
 - Implemented Pika shared Bara room selection and verified-student poster capture; focused tests and policy checks passed. Mocked Playwright room fixtures passed (6), including shared catalog desktop/mobile; authenticated UI verification unavailable without local test accounts. No publication or database changes.

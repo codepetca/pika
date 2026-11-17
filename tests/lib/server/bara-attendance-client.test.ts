@@ -537,4 +537,17 @@ describe('Bara attendance server client', () => {
     await expect(postBaraRoomCommand({ operation: 'capture_poster', room_id: room.room_id, poster_key: 'p'.repeat(40), browser_key: 'b'.repeat(43), actor_principal_ref: 'principal_student' }, { fetcher: closed as typeof fetch })).resolves.toMatchObject({ closed: true })
   })
 
+  it('pins student poster URLs to the configured origin and exact requested room', async () => {
+    vi.stubEnv('BARA_ATTENDANCE_ROOM_DISPLAY_ORIGIN', 'https://bara.example')
+    const room_id = 'room1234567890123456'
+    const staff = { roster_ref: 'roster_one', actor_principal_ref: 'principal_teacher', actor_display_name: 'Teacher' }
+    const path = `/rooms/${room_id}/scan?poster=${'a'.repeat(40)}`
+    const send = (student_poster_path: string | null) => vi.fn(async () => Response.json({ ok: true, label: '223', student_poster_path })) as typeof fetch
+    await expect(postBaraRoomCommand({ operation: 'poster', room_id, ...staff }, { fetcher: send(path) })).resolves.toEqual({ ok: true, label: '223', student_poster_url: `https://bara.example${path}` })
+    await expect(postBaraRoomCommand({ operation: 'poster', room_id, ...staff }, { fetcher: send(null) })).resolves.toMatchObject({ student_poster_url: null })
+    for (const bad of [`/rooms/other123456789012345/scan?poster=${'a'.repeat(40)}`, path + '&x=1', `https://evil.example${path}`]) {
+      await expect(postBaraRoomCommand({ operation: 'poster', room_id, ...staff }, { fetcher: send(bad) })).rejects.toMatchObject({ code: 'invalid_response' })
+    }
+  })
+
 })

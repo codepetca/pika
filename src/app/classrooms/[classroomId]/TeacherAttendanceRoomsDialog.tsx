@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Button, DialogPanel, FormField, Input, QrCode, Select } from '@/ui'
 import { fetchJSON } from '@/lib/request-cache'
 import { serializeQrSvg } from '@/lib/qr-svg'
+import { TeacherRoomPosterDialog } from './TeacherRoomPosterDialog'
 
 type Room = { room_id: string; label: string; can_manage: boolean; paired: boolean; attendance_ready?: boolean; selectable?: false }
 type RoomList = { shared_catalog?: true; rooms: Room[]; default_room_id: string | null; meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null }
@@ -27,6 +28,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   const [displayUrl, setDisplayUrl] = useState('')
   const [pendingMeetingRoomId, setPendingMeetingRoomId] = useState<string | null>(null)
   const [meetingNeedsRefresh, setMeetingNeedsRefresh] = useState(false)
+  const [posterRoom, setPosterRoom] = useState<string | null>(null)
 
   async function command(operation: string, fields: Record<string, unknown> = {}) {
     return fetchJSON<any>('/api/teacher/attendance/rooms', {
@@ -41,7 +43,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
     setRoomId(current => current === '' || next.rooms.some(room => room.room_id === current) ? current : initialRoom(next))
   }
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) { setPosterRoom(null); return }
     let active = true
     setList(null); setError(''); setUndo(null); setDisplayUrl(''); setNotice('')
     setMeetingNeedsRefresh(false)
@@ -110,7 +112,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
     paired: ready(room),
   }))
   const canSaveDefault = Boolean(list && (roomId || null) !== list.default_room_id && (roomId === '' || selected && ready(selected)))
-  return <DialogPanel isOpen={isOpen} onClose={onClose} closeDisabled={busy} maxWidth="max-w-lg" ariaLabelledBy={titleId}>
+  return <><DialogPanel isOpen={isOpen && !posterRoom} onClose={onClose} closeDisabled={busy} maxWidth="max-w-lg" ariaLabelledBy={titleId}>
     <h2 id={titleId} className="text-lg font-semibold">Attendance rooms</h2>
     <div className="space-y-4 overflow-y-auto p-1">
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
@@ -143,6 +145,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
             />
           </FormField>
           <Button variant="secondary" disabled={busy || !canSaveDefault} onClick={() => void act('default', { room_id: roomId || null })}>Save default</Button>
+          {list.shared_catalog && selected && selected.selectable !== false && <Button variant="secondary" disabled={busy} onClick={() => setPosterRoom(selected.room_id)}>Print student poster</Button>}
           {selected && typeof window !== 'undefined' && <div className="space-y-2"><p className="text-sm">Teacher room sticker: scan to move an open class here.</p><div ref={qrRef}><QrCode value={`${window.location.origin}/attendance/room/${selected.room_id}/move`} label="Teacher room sticker" className="w-40 bg-qr-background p-4" /></div><Button variant="secondary" onClick={downloadSticker}>Download sticker</Button></div>}
           {!list.shared_catalog && selected?.can_manage && <><FormField label="Room display notice"><Input value={notice} maxLength={200} onChange={event => setNotice(event.target.value)} /></FormField><p className="text-sm text-text-muted">Replace the display notices with this message, or clear them.</p><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy || !notice.trim()} onClick={() => void act('notices', { room_id: roomId, notices: [notice.trim()] })}>Publish notice</Button><Button variant="secondary" disabled={busy} onClick={() => void act('notices', { room_id: roomId, notices: [] })}>Clear notices</Button></div><div className="flex flex-wrap gap-2"><Button variant="secondary" disabled={busy} onClick={() => void act('pair', { room_id: roomId })}>Pair room display</Button><Button variant="secondary" disabled={busy || !selected.paired} onClick={() => void act('revoke', { room_id: roomId })}>Disconnect display</Button></div></>}
           {displayUrl && <p className="break-all text-sm">Open on the room display: <a className="underline" href={displayUrl} rel="noreferrer">Open paired display</a> <Button variant="secondary" onClick={() => void navigator.clipboard.writeText(displayUrl).then(() => setError(''), () => setError('Could not copy the display link'))}>Copy link</Button></p>}
@@ -152,4 +155,6 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
       </>}
     </div>
   </DialogPanel>
+  {isOpen && posterRoom && <TeacherRoomPosterDialog key={posterRoom} classroomId={classroomId} roomId={posterRoom} onClose={() => setPosterRoom(null)} />}
+  </>
 }
