@@ -832,11 +832,13 @@ type RoomMeeting = { occurrence_ref: string }
 
 type RoomCommands = {
   capture: [RoomScan & { proof: string }, { continuation: string | null }]
-  candidates: [RoomScan & { continuation: string }, {
+  capture_poster: [RoomScan & { poster_key: string; actor_principal_ref: string }, { continuation: string | null; closed?: true }]
+  candidates: [RoomScan & { continuation: string; actor_principal_ref?: string }, {
     candidates: Array<{ roster_ref: string; occurrence_ref: string }> | null
   }]
   list: [RoomStaff & Partial<RoomMeeting>, {
-    rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean }>
+    rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean; attendance_ready?: boolean; selectable?: boolean }>
+    shared_catalog?: true
     default_room_id: string | null
     meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null
   }]
@@ -884,6 +886,8 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
   if (!isPlainObject(value) || value.ok !== true) return null
   switch (operation) {
     case 'capture':
+    case 'capture_poster':
+      if (value.closed !== undefined && value.closed !== true) return null
       return value.continuation === null
         || (typeof value.continuation === 'string' && /^[A-Za-z0-9_-]{40}$/.test(value.continuation)) ? value : null
     case 'candidates':
@@ -892,9 +896,12 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
           && isOpaqueRef(candidate.roster_ref) && isOpaqueRef(candidate.occurrence_ref))) ? value : null
     case 'list': {
       const { rooms, default_room_id: defaultRoom, meeting } = value
-      return (defaultRoom === null || isRoomId(defaultRoom))
+      return (value.shared_catalog === undefined || value.shared_catalog === true)
+        && (defaultRoom === null || isRoomId(defaultRoom))
         && Array.isArray(rooms) && rooms.length <= 200 && rooms.every(room => isPlainObject(room)
-          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean')
+          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean'
+          && (room.attendance_ready === undefined || typeof room.attendance_ready === 'boolean')
+          && (room.selectable === undefined || room.selectable === false))
         && (meeting === null || (isPlainObject(meeting)
           && (meeting.room_id === null || isRoomId(meeting.room_id)) && isRevision(meeting.revision)
           && (meeting.accepting_until === null || isRevision(meeting.accepting_until)))) ? value : null

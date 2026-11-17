@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { postBaraRoomCommand } from '@/lib/server/bara-attendance-client'
 import { sealAttendanceEntryToken } from '@/lib/server/bara-attendance-entry-token'
-import { executeStudentAttendanceCheckIn, type StudentAttendanceCheckInView } from '@/lib/server/bara-attendance-student'
+import { resolveVerifiedPikaAttendanceStudent, executeStudentAttendanceCheckIn, type StudentAttendanceCheckInView } from '@/lib/server/bara-attendance-student'
 import { getBaraAttendanceClassroomIdAccess } from '@/lib/server/bara-attendance-scope'
 import { assertStudentRosterBoundary, ClassroomAttendanceQrError } from '@/lib/server/classroom-attendance-qr'
 
@@ -12,6 +12,7 @@ export const roomCookieSchema = z.object({
   scanId: z.string().uuid(),
   continuation: z.string().regex(/^[A-Za-z0-9_-]{40}$/),
   browserKey: z.string().regex(/^[A-Za-z0-9_-]{43}$/),
+  poster: z.literal(true).optional(),
 }).strict()
 
 export async function checkInRoom(input: {
@@ -21,9 +22,11 @@ export async function checkInRoom(input: {
   continuation: string
   browserKey: string
   attemptId: string
+  poster?: true
 }) {
+  const actor = input.poster ? await resolveVerifiedPikaAttendanceStudent({ supabase: input.supabase, pikaUser: input.pikaUser }) : null
   const result = await postBaraRoomCommand({ operation: 'candidates', room_id: input.roomId,
-    continuation: input.continuation, browser_key: input.browserKey })
+    continuation: input.continuation, browser_key: input.browserKey, ...(actor ? { actor_principal_ref: actor.principalRef } : {}) })
   if (!result.candidates) return null
   const unique = new Map(result.candidates.map(candidate =>
     [`${candidate.roster_ref}\0${candidate.occurrence_ref}`, candidate]))

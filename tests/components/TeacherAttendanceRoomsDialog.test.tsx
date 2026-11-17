@@ -73,3 +73,18 @@ it('restores the assigned room when a move fails and allows retrying', async () 
   expect(picker).toHaveValue(otherRoom)
   expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
+
+
+it('uses shared room readiness and hides Bara-managed room controls', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ...list, shared_catalog: true, rooms: [
+    { ...list.rooms[0], paired: false, attendance_ready: true },
+    { ...list.rooms[1], selectable: false },
+  ] })))
+  render(<TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} />)
+  await screen.findByRole('combobox', { name: 'This meeting' })
+  expect(screen.getAllByRole('option', { name: 'Room 101' })[0]).toBeEnabled()
+  expect(screen.getAllByRole('option', { name: 'Room 102' })[0]).toBeDisabled()
+  expect(screen.queryByRole('button', { name: 'Create room' })).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Pair room display' })).not.toBeInTheDocument()
+  expect(screen.queryByLabelText('Room display notice')).not.toBeInTheDocument()
+})
