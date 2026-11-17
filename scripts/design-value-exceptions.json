@@ -146,7 +146,7 @@
       ]
     },
     {
-      "file": "src/app/classrooms/[classroomId]/TeacherClassroomQrDialog.tsx",
+      "file": "src/app/classrooms/[classroomId]/AttendancePoster.tsx",
       "reviewBy": "phase-3-attendance-printable-qr-geometry",
       "values": [
         {
