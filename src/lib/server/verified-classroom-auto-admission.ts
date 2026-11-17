@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { logServerError } from '@/lib/server/diagnostics'
 import { classroomExperienceRegistryBootstrapManifest } from '@/lib/server/classroom-experience-admission'
+import { scheduleClassroomLaunchAlert } from '@/lib/server/classroom-launch-alerts'
 
 const resultSchema = z.object({
   version: z.literal(1),
@@ -10,7 +10,8 @@ const resultSchema = z.object({
 }).strict()
 
 type Result = z.infer<typeof resultSchema>
-type EnsureRpc = (name: 'ensure_verified_classroom_admission_v1', args: { p_actor_id: string, p_bootstrap_manifest_sha256: string }) => PromiseLike<{ data: unknown, error: unknown }>
+type AdmissionRpcName = 'ensure_verified_classroom_admission_v1' | 'read_verified_classroom_auto_admission_eligibility_v1'
+type AdmissionRpc = (name: AdmissionRpcName, args: { p_actor_id: string, p_bootstrap_manifest_sha256: string }) => PromiseLike<{ data: unknown, error: unknown }>
 
 /** This switch adds a caller-side gate; the registry has its own independent policy. */
 export function isVerifiedClassroomAutoAdmissionEnabled(): boolean {
@@ -36,19 +37,28 @@ async function bounded<T>(request: PromiseLike<T>): Promise<T> {
   }
 }
 
+async function queryAdmission<T>(name: AdmissionRpcName, actorId: string, schema: z.ZodType<T>): Promise<T | null> {
+  try {
+    const manifest = activeRegistryManifest()
+    if (!manifest) return null
+    const client = getServiceRoleClient({
+      fetch: (input, init) => fetch(input, { ...init, cache: 'no-store', signal: AbortSignal.timeout(5_000) }),
+    })
+    const rpc = (client.rpc as unknown as AdmissionRpc).bind(client)
+    const { data, error } = await bounded(rpc(name, { p_actor_id: actorId, p_bootstrap_manifest_sha256: manifest }))
+    if (error) throw new Error('Classroom admission unavailable')
+    const parsed = schema.safeParse(data)
+    if (!parsed.success) throw new Error('Classroom admission unavailable')
+    return parsed.data
+  } catch (error) {
+    scheduleClassroomLaunchAlert('admission')
+    throw error
+  }
+}
+
 /** The caller supplies a trusted server-resolved actor, never a client-provided identity. */
-export async function ensureVerifiedClassroomAdmission(actorId: string): Promise<Result | null> {
-  const manifest = activeRegistryManifest()
-  if (!manifest) return null
-  const client = getServiceRoleClient({
-    fetch: (input, init) => fetch(input, { ...init, cache: 'no-store', signal: AbortSignal.timeout(5_000) }),
-  })
-  const rpc = (client.rpc as unknown as EnsureRpc).bind(client)
-  const { data, error } = await bounded(rpc('ensure_verified_classroom_admission_v1', { p_actor_id: actorId, p_bootstrap_manifest_sha256: manifest }))
-  if (error) throw new Error('Classroom admission unavailable')
-  const parsed = resultSchema.safeParse(data)
-  if (!parsed.success) throw new Error('Classroom admission unavailable')
-  return parsed.data
+export function ensureVerifiedClassroomAdmission(actorId: string): Promise<Result | null> {
+  return queryAdmission('ensure_verified_classroom_admission_v1', actorId, resultSchema)
 }
 
 /** Admission is independent of authentication; an outage must not break sign-in. */
@@ -56,27 +66,14 @@ export async function tryEnsureVerifiedClassroomAdmission(actorId: string): Prom
   try {
     await ensureVerifiedClassroomAdmission(actorId)
   } catch {
-    // Content-free diagnostic: no database error or user identity is passed through.
-    try { logServerError('auth.session') } catch { /* Authentication must still succeed. */ }
     // The registry remains authoritative and fails closed for classroom access.
     // A signed-in user can explicitly retry through the admission endpoint.
   }
 }
 
 const eligibilitySchema = z.object({ version: z.literal(1), eligible: z.boolean() }).strict()
-type EligibilityRpc = (name: 'read_verified_classroom_auto_admission_eligibility_v1', args: { p_actor_id: string, p_bootstrap_manifest_sha256: string }) => PromiseLike<{ data: unknown, error: unknown }>
 
 /** Read-only advisory check. The admission writer independently rechecks eligibility. */
 export async function canRequestVerifiedClassroomAdmission(actorId: string): Promise<boolean> {
-  const manifest = activeRegistryManifest()
-  if (!manifest) return false
-  const client = getServiceRoleClient({
-    fetch: (input, init) => fetch(input, { ...init, cache: 'no-store', signal: AbortSignal.timeout(5_000) }),
-  })
-  const rpc = (client.rpc as unknown as EligibilityRpc).bind(client)
-  const { data, error } = await bounded(rpc('read_verified_classroom_auto_admission_eligibility_v1', { p_actor_id: actorId, p_bootstrap_manifest_sha256: manifest }))
-  if (error) throw new Error('Classroom admission unavailable')
-  const parsed = eligibilitySchema.safeParse(data)
-  if (!parsed.success) throw new Error('Classroom admission unavailable')
-  return parsed.data.eligible
+  return (await queryAdmission('read_verified_classroom_auto_admission_eligibility_v1', actorId, eligibilitySchema))?.eligible ?? false
 }

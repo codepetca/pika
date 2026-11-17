@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { ApiError } from '@/lib/api-error'
 
-const { mockStart, mockSavePending, mockRpc } = vi.hoisted(() => ({
+const { mockStart, mockSavePending, mockRpc, mockScheduleAlert } = vi.hoisted(() => ({
   mockStart: vi.fn(),
   mockSavePending: vi.fn(),
   mockRpc: vi.fn(),
+  mockScheduleAlert: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase', () => ({
@@ -13,6 +14,9 @@ vi.mock('@/lib/supabase', () => ({
 }))
 vi.mock('@/lib/server/workos-magic-auth', () => ({
   startWorkOSMagicAuth: mockStart,
+}))
+vi.mock('@/lib/server/classroom-launch-alerts', () => ({
+  scheduleClassroomLaunchAlert: mockScheduleAlert,
 }))
 vi.mock('@/lib/server/workos-magic-pending', () => ({
   savePendingWorkOSMagicAuth: mockSavePending,
@@ -110,6 +114,7 @@ describe('POST /api/auth/workos/magic/start', () => {
     expect(recipientAttempts.size).toBe(1)
     expect(mockStart).toHaveBeenCalledTimes(5)
     expect(mockSavePending).toHaveBeenCalledTimes(5)
+    expect(mockScheduleAlert).not.toHaveBeenCalled()
   })
 
   it('stops at an exhausted client budget before touching the recipient budget or provider', async () => {
@@ -147,6 +152,16 @@ describe('POST /api/auth/workos/magic/start', () => {
 
     expect(response.status).toBe(503)
     expect(data.error).toBe('Authentication is temporarily unavailable')
+    expect(mockSavePending).not.toHaveBeenCalled()
+  })
+
+  it('reports an unusable provider expiry without saving pending state', async () => {
+    mockStart.mockResolvedValueOnce({ expiresAt: 'invalid' })
+
+    const response = await POST(request({ email: 'student@example.com' }))
+
+    expect(response.status).toBe(500)
+    expect(mockScheduleAlert).toHaveBeenCalledExactlyOnceWith('signup-email')
     expect(mockSavePending).not.toHaveBeenCalled()
   })
 })

@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { rpc, getServiceRoleClient } = vi.hoisted(() => {
+const { rpc, getServiceRoleClient, scheduleAlert } = vi.hoisted(() => {
   const rpc = vi.fn()
-  return { rpc, getServiceRoleClient: vi.fn(() => ({ rpc })) }
+  return { rpc, getServiceRoleClient: vi.fn(() => ({ rpc })), scheduleAlert: vi.fn() }
 })
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient }))
+vi.mock('@/lib/server/classroom-launch-alerts', () => ({ scheduleClassroomLaunchAlert: scheduleAlert }))
 import { canRequestVerifiedClassroomAdmission, ensureVerifiedClassroomAdmission, tryEnsureVerifiedClassroomAdmission } from '@/lib/server/verified-classroom-auto-admission'
 
 const actor = 'b7644f6e-df35-4097-a8ae-81cc006ca79f'
@@ -29,6 +30,7 @@ describe('verified classroom auto admission', () => {
     process.env.PIKA_CLASSROOM_VERIFIED_AUTO_ADMISSION_ENABLED = 'TRUE'
     await expect(ensureVerifiedClassroomAdmission(actor)).resolves.toBeNull()
     expect(getServiceRoleClient).not.toHaveBeenCalled()
+    expect(scheduleAlert).not.toHaveBeenCalled()
   })
 
   it.each(['admitted', 'already_admitted', 'growth_stopped', 'excluded', 'unverified'] as const)(
@@ -38,6 +40,7 @@ describe('verified classroom auto admission', () => {
       await expect(ensureVerifiedClassroomAdmission(actor)).resolves.toEqual({ version: 1, outcome, registry_revision: 4 })
       expect(rpc).toHaveBeenCalledOnce()
       expect(rpc).toHaveBeenCalledWith('ensure_verified_classroom_admission_v1', { p_actor_id: actor, p_bootstrap_manifest_sha256: manifest })
+      expect(scheduleAlert).not.toHaveBeenCalled()
     },
   )
 
@@ -62,6 +65,7 @@ describe('verified classroom auto admission', () => {
     const operation = tryEnsureVerifiedClassroomAdmission(actor)
     await vi.advanceTimersByTimeAsync(5000)
     await expect(operation).resolves.toBeUndefined()
+    expect(scheduleAlert).toHaveBeenCalledExactlyOnceWith('admission')
   })
 
   it('rejects errors, extra fields and untrusted result shapes', async () => {
@@ -87,6 +91,7 @@ describe('verified classroom auto admission', () => {
     await expect(canRequestVerifiedClassroomAdmission(actor)).resolves.toBe(false)
     rpc.mockResolvedValueOnce({ data: { version: 1, eligible: true, detail: 'extra' }, error: null })
     await expect(canRequestVerifiedClassroomAdmission(actor)).rejects.toThrow('Classroom admission unavailable')
+    expect(scheduleAlert).toHaveBeenCalledExactlyOnceWith('admission')
   })
 
   it('does not break successful authentication on a registry outage', async () => {
