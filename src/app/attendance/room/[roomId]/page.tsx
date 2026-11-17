@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers'
+import { roomCookieName, roomCookieSchema } from '@/lib/server/room-attendance-student'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { getCurrentUser } from '@/lib/auth'
@@ -17,5 +19,10 @@ export default async function RoomPage({ params, searchParams }: {
     redirect(`/login?next=${encodeURIComponent(next)}`)
   }
   if (user.role === 'teacher') redirect(`${path}/move`)
-  return <RoomAttendanceCheckIn roomId={roomId} scanId={parsedScan.data ?? null} />
+  let raw: unknown
+  try { raw = JSON.parse((await cookies()).get(roomCookieName)?.value ?? 'null') } catch { raw = null }
+  const cookie = roomCookieSchema.safeParse(raw)
+  const poster = cookie.success && cookie.data.poster === true && cookie.data.roomId === roomId
+    && parsedScan.success && cookie.data.scanId === parsedScan.data
+  return <RoomAttendanceCheckIn roomId={roomId} scanId={parsedScan.data ?? null} requireConfirmation={poster} />
 }

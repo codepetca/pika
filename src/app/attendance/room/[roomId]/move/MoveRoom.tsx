@@ -7,7 +7,7 @@ import { getTodayInToronto } from '@/lib/timezone'
 import type { BaraRoomResult } from '@/lib/server/bara-attendance-client'
 
 type Choice = { id: string; title: string }
-type Destination = { label: string; paired: boolean; choices: Choice[]; classes: Choice[] }
+type Destination = { label: string; choices: Choice[]; classes: Choice[] }
 
 async function roomCommand<K extends 'list' | 'move' | 'undo' | 'default'>(
   classroomId: string,
@@ -48,10 +48,11 @@ export function MoveRoom({ roomId }: { roomId: string }) {
         }))
         if (!active) return
         const found = lists.flatMap(item => item.status === 'fulfilled' && item.value.room ? [item.value] : [])
-        const choices = found.filter(item => item.canMove).map(item => item.classroom)
+        const eligible = found.filter(item => item.room && (item.room.attendance_ready ?? item.room.paired) && item.room.selectable !== false)
+        const choices = eligible.filter(item => item.canMove).map(item => item.classroom)
         const room = found[0]?.room
-        const classes = found.map(item => item.classroom)
-        setDestination(room ? { label: room.label, paired: (room.attendance_ready ?? room.paired) && room.selectable !== false, choices, classes } : null)
+        const classes = eligible.map(item => item.classroom)
+        setDestination(room ? { label: room.label, choices, classes } : null)
         setClassroomId(choices[0]?.id ?? classes[0]?.id ?? '')
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : 'Could not load classes')
@@ -90,7 +91,7 @@ export function MoveRoom({ roomId }: { roomId: string }) {
   return <main className="mx-auto max-w-lg space-y-4 p-6">
     <h1 className="text-xl font-semibold">{destination ? `Move class to ${destination.label}` : 'Move class to this room'}</h1>
     {loading ? <p role="status">Loading open classes…</p> : error && !choices.length ? <p role="alert">{error}</p> : !choices.length ? <p>This room is unavailable.</p>
-      : !destination?.paired ? <p>This room is not available for attendance.</p> : <>
+      : <>
       {choices.length > 1 && <FormField label="Class"><Select value={classroomId} disabled={busy || revision !== null || defaultSaved} onChange={event => setClassroomId(event.target.value)} options={choices.map(choice => ({ value: choice.id, label: choice.title }))} /></FormField>}
       {open && revision === null && <Button variant="secondary" aria-pressed={saveDefault} disabled={busy} onClick={() => setSaveDefault(value => !value)}>Use this room for future meetings too</Button>}
       {error && <p role="alert">{error}</p>}

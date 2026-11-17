@@ -160,3 +160,16 @@ test('shared catalog offers ready rooms without room administration', async ({ p
   await page.setViewportSize({ width: 390, height: 844 })
   await page.screenshot({ path: '/tmp/pika-shared-room-mobile.png', fullPage: true })
 })
+
+test('poster asks before sending student attendance', async ({ page }) => {
+  let calls = 0
+  await page.route('**/api/student/attendance/room-check-in', route => { calls++; return route.fulfill({ json: { results: [] } }) })
+  await page.goto('/e2e-fixtures/attendance-room?view=poster')
+  await expect(page.getByRole('button', { name: 'Check in', exact: true })).toBeVisible()
+  expect(calls).toBe(0)
+  await page.screenshot({ path: '/tmp/pika-poster-confirm-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: '/tmp/pika-poster-confirm-mobile.png', fullPage: true })
+  await page.getByRole('button', { name: 'Check in', exact: true }).click()
+  await expect.poll(() => calls).toBe(1)
+})
