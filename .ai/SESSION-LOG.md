@@ -186,3 +186,9 @@ The teacher dialog has a This meeting picker when attendance is open. Choosing a
 WorkOS signup, sign-in, and resend share limits of five code requests per normalized email and 90 per client per hour. The existing database limiter runs before WorkOS issues a code or Brevo sends it. A disposable PostgreSQL check returned five successful responses followed by HTTP 429, with five WorkOS and five stubbed email calls.
 
 Production public admission, checkout, and trial signup are closed. The launch alert check found no Vercel or Cloudflare monitor for signup delivery or admission failures. Brevo did not return a transactional webhook.
+
+## 2026-11-16 — Prepare classroom launch alerts
+
+Report unexpected signup code issuance, email delivery, and admission registry failures with separate diagnostics and category-only requests to a protected Cloudflare Worker. A Durable Object groups repeats and retries delivery through an independent mail provider.
+
+The Codepet operations inbox is already verified in Cloudflare. Live alert delivery needs a sending domain and a canary. The root domain uses iCloud mail. Public admission, checkout, and trial signup are closed.

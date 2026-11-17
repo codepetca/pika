@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withErrorHandler } from '@/lib/api-handler'
 import { startWorkOSMagicAuthSchema } from '@/lib/validations/auth'
 import { consumeAuthRequestRateLimits } from '@/lib/server/auth-rate-limit'
+import { scheduleClassroomLaunchAlert } from '@/lib/server/classroom-launch-alerts'
 import { startWorkOSMagicAuth } from '@/lib/server/workos-magic-auth'
 import { savePendingWorkOSMagicAuth } from '@/lib/server/workos-magic-pending'
 import { requireWorkOSMagicAuthPilot, safePikaPath } from '@/lib/server/workos-pilot'
@@ -24,6 +25,7 @@ export const POST = withErrorHandler('StartWorkOSMagicAuth', async (request: Nex
   const challenge = await startWorkOSMagicAuth(input.email, request)
 
   if (!Number.isFinite(Date.parse(challenge.expiresAt))) {
+    scheduleClassroomLaunchAlert('signup-email')
     throw new Error('WorkOS returned an invalid Magic Auth expiry')
   }
 

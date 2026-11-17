@@ -134,6 +134,7 @@ const EVENTS = [
   'daily_log.pal_prepare', 'daily_log.pal_delivery',
   'api.unexpected', 'auth.session', 'auth.rate_limit', 'auth.signup',
   'auth.reset', 'auth.verify', 'auth.email', 'journal.summary',
+  'classroom.launch.signup_email', 'classroom.launch.admission', 'classroom.launch.alert_delivery',
   'journal.query', 'journal.feedback',
   'test.submit',
   'test.submit_result',
