@@ -1,6 +1,7 @@
 import type { AuthenticationResponse } from '@workos-inc/node'
 import { getWorkOS } from '@workos-inc/authkit-nextjs'
 import { ApiError } from '@/lib/api-error'
+import { scheduleClassroomLaunchAlert } from '@/lib/server/classroom-launch-alerts'
 import { getWorkOSPilotConfig } from '@/lib/server/workos-pilot'
 import {
   deliverWorkOSMagicAuthCode,
@@ -31,6 +32,7 @@ export function mapWorkOSMagicAuthError(error: unknown, phase: 'start' | 'verify
   if (phase === 'start' && status !== null && status >= 400 && status < 500) {
     throw new ApiError(400, 'Unable to send a sign-in code to that email')
   }
+  if (phase === 'start') scheduleClassroomLaunchAlert('signup-email')
   throw new ApiError(503, 'Authentication is temporarily unavailable')
 }
 
