@@ -30,6 +30,8 @@ export function mapWorkOSMagicAuthError(error: unknown, phase: 'start' | 'verify
     throw new ApiError(401, 'Invalid or expired code')
   }
   if (phase === 'start' && status !== null && status >= 400 && status < 500) {
+    // WorkOS uses these statuses when the server API key is invalid or lacks permission.
+    if (status === 401 || status === 403) scheduleClassroomLaunchAlert('signup-email')
     throw new ApiError(400, 'Unable to send a sign-in code to that email')
   }
   if (phase === 'start') scheduleClassroomLaunchAlert('signup-email')
@@ -50,8 +52,14 @@ export async function startWorkOSMagicAuth(email: string, request: Request): Pro
   expiresAt: string
   radarAuthAttemptId?: string
 }> {
-  getWorkOSPilotConfig()
-  const delivery = getWorkOSMagicAuthEmailDelivery()
+  let delivery: ReturnType<typeof getWorkOSMagicAuthEmailDelivery>
+  try {
+    getWorkOSPilotConfig()
+    delivery = getWorkOSMagicAuthEmailDelivery()
+  } catch (error) {
+    scheduleClassroomLaunchAlert('signup-email')
+    throw error
+  }
   try {
     const result = await getWorkOS().userManagement.createMagicAuth({
       email,

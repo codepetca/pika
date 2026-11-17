@@ -86,6 +86,18 @@ describe('WorkOS Magic Auth provider boundary', () => {
       new Request('https://pika.codepet.ca/api/auth/workos/magic/start'),
     )).rejects.toThrow('invalid delivery configuration')
     expect(mocks.createMagicAuth).not.toHaveBeenCalled()
+    expect(mocks.scheduleAlert).toHaveBeenCalledExactlyOnceWith('signup-email')
+  })
+
+  it('reports invalid server configuration before requesting a provider code', async () => {
+    vi.stubEnv('WORKOS_API_KEY', '')
+
+    await expect(startWorkOSMagicAuth(
+      'student@example.com',
+      new Request('https://pika.codepet.ca/api/auth/workos/magic/start'),
+    )).rejects.toMatchObject({ statusCode: 503 })
+    expect(mocks.createMagicAuth).not.toHaveBeenCalled()
+    expect(mocks.scheduleAlert).toHaveBeenCalledExactlyOnceWith('signup-email')
   })
 
   it('reports an actionable code delivery failure without including its error or recipient', async () => {
@@ -164,5 +176,19 @@ describe('WorkOS Magic Auth provider boundary', () => {
         statusCode: 429,
         message: 'Too many code requests. Please try again later.',
       }))
+  })
+
+  it.each([401, 403])('reports a WorkOS key failure with status %s', (status) => {
+    expect(() => mapWorkOSMagicAuthError({ status }, 'start')).toThrowError(
+      expect.objectContaining({ statusCode: 400 }),
+    )
+    expect(mocks.scheduleAlert).toHaveBeenCalledExactlyOnceWith('signup-email')
+  })
+
+  it('keeps provider request validation failures quiet', () => {
+    expect(() => mapWorkOSMagicAuthError({ status: 422 }, 'start')).toThrowError(
+      expect.objectContaining({ statusCode: 400 }),
+    )
+    expect(mocks.scheduleAlert).not.toHaveBeenCalled()
   })
 })

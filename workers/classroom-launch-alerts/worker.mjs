@@ -4,6 +4,7 @@ import { classroomLaunchAlerts } from '../../src/lib/contracts/classroom-launch-
 
 const prefix = '/v1/launch-alerts/'
 const cooldownMs = 30 * 60 * 1000
+const retryDelaysMs = [1, 5, 15, 30, 60, 120].map((minutes) => minutes * 60_000)
 const tokenPattern = /^[a-f0-9]{64}$/
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const encoder = new TextEncoder()
@@ -19,17 +20,21 @@ export class ClassroomLaunchAlertDelivery extends DurableObject {
     return this.ctx.blockConcurrencyWhile(async () => {
       const storage = this.ctx.storage
       const now = Date.now()
-      if ((storage.kv.get('suppressUntil') ?? 0) > now) return
+      if (storage.kv.get('pending') || (storage.kv.get('suppressUntil') ?? 0) > now) return
       await storage.setAlarm(now)
-      storage.kv.put('pending', kind)
-      storage.kv.put('suppressUntil', now + cooldownMs)
+      storage.kv.put('pending', { kind, retryIndex: 0 })
     })
   }
 
   async alarm() {
-    const storage = this.ctx.storage.kv
-    const kind = storage.get('pending')
-    if (!Object.hasOwn(classroomLaunchAlerts, kind) || !deliveryEnabled(this.env)) return
+    const storage = this.ctx.storage
+    const pending = storage.kv.get('pending')
+    if (!pending) return
+    const { kind, retryIndex } = pending
+    if (!Object.hasOwn(classroomLaunchAlerts, kind) || !deliveryEnabled(this.env)) {
+      storage.kv.delete('pending')
+      return
+    }
     try {
       await this.env.ALERT_EMAIL.send({
         from: this.env.PIKA_LAUNCH_ALERT_FROM,
@@ -38,10 +43,19 @@ export class ClassroomLaunchAlertDelivery extends DurableObject {
         text: classroomLaunchAlerts[kind],
       })
     } catch {
-      // Cloudflare retries this alarm. Do not include provider error details in logs.
-      throw new Error('Pika launch alert email delivery failed')
+      const delay = retryDelaysMs[retryIndex]
+      if (delay === undefined) {
+        storage.kv.delete('pending')
+        console.error({ event: 'pika_classroom_launch_alert_delivery_exhausted', kind })
+        return
+      }
+      await storage.setAlarm(Date.now() + delay)
+      storage.kv.put('pending', { kind, retryIndex: retryIndex + 1 })
+      console.warn({ event: 'pika_classroom_launch_alert_retry', kind })
+      return
     }
-    storage.delete('pending')
+    storage.kv.put('suppressUntil', Date.now() + cooldownMs)
+    storage.kv.delete('pending')
     console.info({ event: 'pika_classroom_launch_alert_sent', kind })
   }
 }

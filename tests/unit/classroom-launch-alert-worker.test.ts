@@ -1,4 +1,4 @@
-import { expect, it, vi } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import worker, { ClassroomLaunchAlertDelivery } from '../../workers/classroom-launch-alerts/worker.mjs'
 
 vi.mock('cloudflare:workers', () => ({
@@ -37,10 +37,9 @@ it('only queues known events with the configured token and delivery enabled', as
   expect(enqueue).toHaveBeenCalledExactlyOnceWith('admission')
 })
 
-it('suppresses another alert during the cooldown and keeps pending work for retry', async () => {
+function makeDelivery(send: ReturnType<typeof vi.fn>) {
   const state = new Map()
   const setAlarm = vi.fn()
-  const send = vi.fn().mockRejectedValueOnce(new Error('private provider detail')).mockResolvedValue(undefined)
   const ctx = {
     blockConcurrencyWhile: <T>(callback: () => T) => callback(),
     storage: {
@@ -49,20 +48,66 @@ it('suppresses another alert during the cooldown and keeps pending work for retr
     },
   }
   const delivery = new ClassroomLaunchAlertDelivery(ctx, { ...alertEnv, ALERT_EMAIL: { send } })
+  return { state, setAlarm, delivery }
+}
+
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.useRealTimers()
+})
+
+it('retries past the platform retry window and starts cooldown after delivery', async () => {
+  vi.useFakeTimers()
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const now = Date.now()
+  const send = vi.fn().mockRejectedValueOnce(new Error('private provider detail'))
+    .mockRejectedValueOnce(new Error('still unavailable'))
+    .mockResolvedValue(undefined)
+  const { state, setAlarm, delivery } = makeDelivery(send)
 
   await delivery.enqueue('canary')
   await delivery.enqueue('canary')
-  expect(setAlarm).toHaveBeenCalledTimes(1)
-  await expect(delivery.alarm()).rejects.toThrow('Pika launch alert email delivery failed')
-  expect(state.get('pending')).toBe('canary')
+  expect(setAlarm).toHaveBeenCalledExactlyOnceWith(now)
   await delivery.alarm()
+  expect(setAlarm).toHaveBeenLastCalledWith(now + 60_000)
+  vi.setSystemTime(now + 60_000)
   await delivery.alarm()
+  expect(setAlarm).toHaveBeenLastCalledWith(now + 6 * 60_000)
+  expect(state.get('pending')).toEqual({ kind: 'canary', retryIndex: 2 })
+  vi.setSystemTime(now + 6 * 60_000)
+  await delivery.enqueue('canary')
+  expect(setAlarm).toHaveBeenCalledTimes(3)
+  await delivery.alarm()
+  await delivery.enqueue('canary')
+  expect(setAlarm).toHaveBeenCalledTimes(3)
   expect(state.has('pending')).toBe(false)
-  expect(send).toHaveBeenCalledTimes(2)
+  expect(send).toHaveBeenCalledTimes(3)
   expect(send).toHaveBeenLastCalledWith({
     from: 'alerts@example.test',
     to: 'ops@example.test',
     subject: 'Pika launch alert test',
     text: 'Synthetic Pika launch alert. No action is needed.',
   })
+  vi.setSystemTime(now + 36 * 60_000)
+  await delivery.enqueue('canary')
+  expect(setAlarm).toHaveBeenCalledTimes(4)
+})
+
+it('logs exhausted retries and accepts fresh reports after a prolonged outage', async () => {
+  vi.spyOn(console, 'warn').mockImplementation(() => {})
+  const logError = vi.spyOn(console, 'error').mockImplementation(() => {})
+  const send = vi.fn().mockRejectedValue(new Error('private provider detail'))
+  const { setAlarm, state, delivery } = makeDelivery(send)
+  await delivery.enqueue('admission')
+  for (let attempt = 0; attempt < 7; attempt += 1) await delivery.alarm()
+  expect(send).toHaveBeenCalledTimes(7)
+  expect(setAlarm).toHaveBeenCalledTimes(7)
+  expect(logError).toHaveBeenCalledExactlyOnceWith({
+    event: 'pika_classroom_launch_alert_delivery_exhausted',
+    kind: 'admission',
+  })
+  expect(state.has('pending')).toBe(false)
+
+  await delivery.enqueue('admission')
+  expect(setAlarm).toHaveBeenCalledTimes(8)
 })
