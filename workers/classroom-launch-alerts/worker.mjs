@@ -21,8 +21,9 @@ export class ClassroomLaunchAlertDelivery extends DurableObject {
       const storage = this.ctx.storage
       const now = Date.now()
       if (storage.kv.get('pending') || (storage.kv.get('suppressUntil') ?? 0) > now) return
-      await storage.setAlarm(now)
+      // SQLite storage commits the pending record and alarm together in one turn.
       storage.kv.put('pending', { kind, retryIndex: 0 })
+      await storage.setAlarm(now)
     })
   }
 
@@ -49,8 +50,8 @@ export class ClassroomLaunchAlertDelivery extends DurableObject {
         console.error({ event: 'pika_classroom_launch_alert_delivery_exhausted', kind })
         return
       }
-      await storage.setAlarm(Date.now() + delay)
       storage.kv.put('pending', { kind, retryIndex: retryIndex + 1 })
+      await storage.setAlarm(Date.now() + delay)
       console.warn({ event: 'pika_classroom_launch_alert_retry', kind })
       return
     }

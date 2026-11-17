@@ -56,6 +56,19 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+it('submits pending state before waiting for the alarm write to commit', async () => {
+  const { state, setAlarm, delivery } = makeDelivery(vi.fn())
+  const write = Promise.withResolvers<void>()
+  setAlarm.mockReturnValueOnce(write.promise)
+
+  const enqueue = delivery.enqueue('canary')
+  expect(state.get('pending')).toEqual({ kind: 'canary', retryIndex: 0 })
+  expect(setAlarm).toHaveBeenCalledTimes(1)
+
+  write.resolve()
+  await enqueue
+})
+
 it('retries past the platform retry window and starts cooldown after delivery', async () => {
   vi.useFakeTimers()
   vi.spyOn(console, 'warn').mockImplementation(() => {})
@@ -71,6 +84,9 @@ it('retries past the platform retry window and starts cooldown after delivery', 
   await delivery.alarm()
   expect(setAlarm).toHaveBeenLastCalledWith(now + 60_000)
   vi.setSystemTime(now + 60_000)
+  setAlarm.mockImplementationOnce(() => {
+    expect(state.get('pending')).toEqual({ kind: 'canary', retryIndex: 2 })
+  })
   await delivery.alarm()
   expect(setAlarm).toHaveBeenLastCalledWith(now + 6 * 60_000)
   expect(state.get('pending')).toEqual({ kind: 'canary', retryIndex: 2 })
