@@ -1195,12 +1195,18 @@ export default function TeacherBlueprintsPage() {
         }),
       })
       const data = await response.json().catch(() => ({}))
-      if (!isCurrent()) return
+      if (selectedBlueprintIdRef.current !== blueprintId) return
       if (!response.ok) {
+        if (!isCurrent()) return
         throw new Error(data.errors?.join('\n') || data.error || 'Failed to apply copilot preview')
       }
-      setAiPreview(null)
-      setActiveTab('proposals')
+      if (isCurrent()) {
+        setAiPreview(null)
+        setActiveTab('proposals')
+      }
+      // A committed proposal belongs to the Blueprint even if the teacher
+      // changed draft section/unit while it was saving. Reconcile the list
+      // without replacing that newer preview or navigation intent.
       await loadProposals(blueprintId)
     } catch (err: any) {
       if (isCurrent()) setError(err.message || 'Failed to apply copilot preview')

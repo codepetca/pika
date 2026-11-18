@@ -26,14 +26,20 @@ creation and classwork reorder.
 When disabled, authentication remains global-teacher-first and happens before
 body parsing. When enabled but unmatched, a teacher-valued user stays on the
 legacy route and a student-valued user receives the legacy role denial. Missing
-or malformed enabled configuration fails closed. The legacy route retains its
-existing queries, partial-write behavior, status codes and messages; only an
-exact matched pair uses the contextual transaction.
+or malformed enabled configuration fails closed. Both legacy and contextual
+batches use an atomic owner transaction; failures roll back the entire batch.
+The legacy route retains its established status and response behavior and uses
+`save_legacy_assignments_bulk_for_owner_v1`, including its historical access to
+Blueprint-retired rows. Exact matched pairs use `save_assignments_bulk_for_owner_v1`.
+Both paths create new Assignments as drafts.
 
 ## Transaction boundary
 
-`public.save_assignments_bulk_for_owner_v1` receives server-normalized
-instruction fields and the complete batch. It:
+`public.save_assignments_bulk_for_owner_v1` and
+`public.save_legacy_assignments_bulk_for_owner_v1` receive server-normalized
+instruction fields and the complete batch. They share one atomic transaction;
+the legacy wrapper preserves its historical Blueprint-retired-row behavior.
+Each transaction:
 
 - authorizes the requested Classroom and rejects missing or foreign existing
   Assignment IDs before taking any request-supplied Assignment lock;
@@ -42,18 +48,20 @@ instruction fields and the complete batch. It:
 - acquires the shared Classroom-operation fence and locks the current Classroom;
 - rechecks exact current ownership and active Classroom state;
 - locks and rebinds every referenced existing Assignment to that Classroom;
-- validates missing IDs, archived Blueprint lineage and live-to-draft denial
-  before any insert or update;
+- validates missing IDs and live-to-draft denial before any insert or update;
+  contextual batches also reject archived Blueprint lineage while legacy batches
+  preserve their historical access;
 - allocates Assignment positions around current material and survey positions;
 - creates new items as drafts and applies existing-item edit/release semantics;
   and
 - returns actor, Classroom, count and Assignment binding evidence that the
   server verifies.
 
-The public RPC is `SECURITY DEFINER` with an empty search path and is executable
+Both public RPCs are `SECURITY DEFINER` with an empty search path and are executable
 only by `service_role`. Migration 199 moves migration 198's original implementation
-into `private`, revokes direct service-role execution, and exposes the tenant-scoped
-wrapper. Applying either migration changes no durable product rows and routes no requests.
+into `private` and exposes the tenant-scoped wrapper; migration 310 adds the legacy
+wrapper and shared implementation. Applying these migrations changes no durable
+product rows and does not by itself activate the contextual gate.
 
 ## Verification and rollout
 

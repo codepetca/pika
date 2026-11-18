@@ -54,7 +54,9 @@ function tokenizeLine(line: string): string[] {
     tokens = line.split(/\s+/).filter(t => t.length > 0)
   } else {
     // For tab or comma, split and trim each token
-    tokens = line.split(separator).map(t => t.trim()).filter(t => t.length > 0)
+    // Delimited fields are positional: blank optional cells must not shift a
+    // guardian email into the student-number column.
+    tokens = line.split(separator).map(t => t.trim())
   }
 
   return tokens
@@ -107,7 +109,7 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
   }
 
   // Need at least 3 tokens: firstName, lastName, email
-  if (tokens.length < 3) {
+  if (tokens.length < 3 || !tokens[0] || !tokens[1]) {
     return {
       student: null,
       error: {
@@ -127,7 +129,13 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
   // otherwise it is the optional student number.
   const hasStudentNumber = fourthToken && !fourthToken.includes('@')
   const studentNumber = hasStudentNumber ? fourthToken : undefined
-  const counselorEmailCandidate = hasStudentNumber ? tokens[4] : fourthToken
+  if (fourthToken?.includes('@') && tokens[4]) {
+    return {
+      student: null,
+      error: { line: lineNumber, error: 'Only one guardian email is allowed', raw: line },
+    }
+  }
+  const counselorEmailCandidate = hasStudentNumber || !fourthToken ? tokens[4] : fourthToken
 
   // Validate email format
   if (!EMAIL_REGEX.test(emailCandidate)) {
@@ -179,8 +187,8 @@ export function parseRosterInput(input: string): ParseResult {
 
   // Keep physical line numbers so reported errors match the textarea.
   input.split('\n').forEach((rawLine, index) => {
-    const line = rawLine.trim()
-    if (!line) return
+    const line = rawLine.replace(/\r$/, '')
+    if (!line.trim()) return
     const lineNumber = index + 1
     const { student, error } = parseLine(line, lineNumber)
 

@@ -37,10 +37,25 @@ export function applyJsonPatch<TContent extends JsonObject>(
 
 export function tryApplyJsonPatch<TContent extends JsonObject>(
   base: TContent,
-  patch: JsonPatchOperation[]
+  patch: JsonPatchOperation[],
+  options?: { maxContentBytes: number },
 ): { success: boolean; content: TContent } {
   const cloned = cloneContent(base)
   try {
+    if (options) {
+      const withinLimit = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).byteLength <= options.maxContentBytes
+      if (!Number.isSafeInteger(options.maxContentBytes) || options.maxContentBytes < 1 || !withinLimit(cloned)) {
+        return { success: false, content: cloned }
+      }
+      let content = cloned
+      for (const operation of patch) {
+        // Check every intermediate document: root-copy operations must not
+        // amplify a small request exponentially before the final size check.
+        content = applyPatch(content, [operation], true, false).newDocument as TContent
+        if (!withinLimit(content)) return { success: false, content: cloned }
+      }
+      return { success: true, content }
+    }
     const result = applyPatch(cloned, patch, true, false)
     return { success: true, content: result.newDocument as TContent }
   } catch {

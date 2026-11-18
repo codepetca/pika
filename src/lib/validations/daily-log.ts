@@ -10,11 +10,12 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format 
 }, 'Invalid calendar date')
 
 // Bound both rich-text attributes and patch values, not just visible characters.
-function withinWireLimit(value: unknown): boolean {
-  try { return new TextEncoder().encode(JSON.stringify(value)).byteLength <= 60_000 } catch { return false }
+export const DAILY_LOG_MAX_WIRE_BYTES = 60_000
+export function withinDailyLogWireLimit(value: unknown): boolean {
+  try { return new TextEncoder().encode(JSON.stringify(value)).byteLength <= DAILY_LOG_MAX_WIRE_BYTES } catch { return false }
 }
 const contentSchema = z.unknown().transform((value, context) => {
-  if (!isValidTiptapContent(value) || !withinWireLimit(value)) {
+  if (!isValidTiptapContent(value) || !withinDailyLogWireLimit(value)) {
     context.addIssue({ code: 'custom', message: 'Invalid rich_content format or size' })
     return z.NEVER
   }
@@ -47,7 +48,7 @@ export const dailyLogPostSchema = z.object({
   mood: z.enum(['😊', '🙂', '😐'], { error: 'Invalid mood value' }).nullable().optional(),
   entry_id: identifierSchema.optional(),
   version: revisionSchema.optional(),
-}).refine(withinWireLimit, 'Daily Log payload exceeds size limit')
+}).refine(withinDailyLogWireLimit, 'Daily Log payload exceeds size limit')
 
 export const dailyLogPatchSchema = z.object({
   classroom_id: identifierSchema,
@@ -57,4 +58,4 @@ export const dailyLogPatchSchema = z.object({
   rich_content: contentSchema.optional(),
   patch: z.array(patchOperationSchema).max(2000).optional(),
 }).refine(value => value.rich_content !== undefined || value.patch !== undefined, 'rich_content or patch is required')
-  .refine(withinWireLimit, 'Daily Log payload exceeds size limit')
+  .refine(withinDailyLogWireLimit, 'Daily Log payload exceeds size limit')
