@@ -54520,3 +54520,16 @@ Hosted coverage identified more Gradebook tests coupled to the score wrapper and
 ## 2026-11-09 — Open Calendar Grid near today
 
 Calendar Grid opens with the preceding week directly below the sticky headings when it fits above today in the upper half of the scroller. For a tall preceding week, today's week starts below the headings. Today uses the same placement. List keeps its centered target and late initial data respects manual scroll. Verified the Grid opening and Today action with teacher and student Playwright captures at desktop and mobile widths in both themes.
+
+<!-- pika-session-log-archive-batch:cc5e2309570f97249be7bc45c764b107f4649849d39d2eb67271a5b13f3b09e6 -->
+## 2026-11-09 — Guarded assignment release rebase
+
+Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
+
+## 2026-11-09 — Rebase the live Pro trial
+
+Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
+
+## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
+
+The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.

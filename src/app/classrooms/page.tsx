@@ -11,8 +11,8 @@ import { AppShell } from '@/components/AppShell'
 import { ClassroomBillingNotice } from '@/components/billing/ClassroomBillingNotice'
 import { TeacherClassroomsIndex } from './TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from './StudentClassroomsIndex'
-import { isContextualClassroomHomeAdmitted, loadContextualClassroomHome } from '@/lib/server/contextual-classroom-home'
-import { isClassroomExperienceRegistryConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { isSharedClassroomHomeAdmitted, loadContextualClassroomHome } from '@/lib/server/contextual-classroom-home'
+import { isClassroomExperienceRegistryConfigured } from '@/lib/server/classroom-experience-admission'
 import { canRequestVerifiedClassroomAdmission, isVerifiedClassroomAutoAdmissionEnabled } from '@/lib/server/verified-classroom-auto-admission'
 import { ClassroomAdmissionOffer, ClassroomAdmissionOfferUnavailable } from './ClassroomAdmissionOffer'
 import { readClassroomHomeVisibility } from '@/lib/server/classroom-home-visibility'
@@ -36,9 +36,7 @@ export default async function ClassroomsIndexPage() {
   const billingAvailable = user.role === 'teacher'
     && (isBillingPurchaseAvailable() || isBillingLiveTrialAvailable() || isBillingLivePaymentAvailable())
 
-  const contextualHomeAdmitted = await isContextualClassroomHomeAdmitted(user)
-  if (contextualHomeAdmitted
-    && (await resolveClassroomExperienceAdmission(user)).status === 'admitted') {
+  if (await isSharedClassroomHomeAdmitted(user)) {
     const displayInfo = await getUserDisplayInfo(user, supabase)
     let initialClassrooms: Classroom[] = []
     let initialReadError = false

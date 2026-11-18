@@ -6,9 +6,7 @@ import {
   loadClassroomHomeCreationAccess,
 } from '@/lib/server/classroom-home-creation'
 
-const home = vi.hoisted(() => ({ admitted: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireAuth: vi.fn(), requireRole: vi.fn() }))
-vi.mock('@/lib/server/contextual-classroom-home', () => ({ isContextualClassroomHomeAdmitted: home.admitted }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
 
 const actorId = '11111111-1111-4111-8111-111111111111'
@@ -22,7 +20,7 @@ const access = {
 const client = (data: unknown = access, error: unknown = null) => ({ rpc: vi.fn().mockResolvedValue({ data, error }) })
 
 describe('classroom home creation capability', () => {
-  beforeEach(() => { vi.clearAllMocks(); home.admitted.mockReturnValue(true) })
+  beforeEach(() => { vi.clearAllMocks() })
   afterEach(() => { vi.unstubAllEnvs() })
 
   it('reads only the authenticated subject and projects no quota or plan metadata', async () => {
@@ -77,7 +75,7 @@ describe('classroom home actor admission', () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actorId] }))
     vi.mocked(requireAuth).mockResolvedValue({ id: actorId, role: 'student' } as never)
     vi.mocked(requireRole).mockResolvedValue({ id: actorId, role: 'teacher' } as never)
-    home.admitted.mockReturnValue(true)
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', JSON.stringify([actorId]))
   })
   afterEach(() => { vi.unstubAllEnvs() })
 
@@ -87,7 +85,7 @@ describe('classroom home actor admission', () => {
   })
 
   it.each(['home', 'shared'])('retains the legacy teacher guard for unmatched %s admission', async (gate) => {
-    if (gate === 'home') home.admitted.mockReturnValue(false)
+    if (gate === 'home') vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', '[]')
     else vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [otherId] }))
     await expect(authorizeClassroomHomeActor()).resolves.toMatchObject({ contextual: false })
     expect(requireRole).toHaveBeenCalledWith('teacher')
@@ -115,7 +113,7 @@ describe('classroom home actor admission', () => {
   })
 
   it('does not hide malformed configured shared admission behind a home-cohort miss', async () => {
-    home.admitted.mockReturnValue(false)
+    vi.stubEnv('PIKA_CLASSROOM_HOME_ACCESS_USER_IDS', '[]')
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')
     await expect(authorizeClassroomHomeActor()).rejects.toMatchObject({ statusCode: 503 })
     expect(requireRole).not.toHaveBeenCalled()

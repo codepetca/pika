@@ -32,9 +32,13 @@ describe('registry Home audience compatibility', () => {
       await expect(resolveClassroomExperienceAdmission({ id })).resolves.toEqual({ status: 'admitted' })
     }
     await expect(authenticateContextualClassroomHome()).resolves.toEqual(user)
+    vi.mocked(readClassroomAdmissionRegistry).mockClear()
     await expect(authorizeClassroomHomeActor()).resolves.toMatchObject({ contextual: true, user })
+    expect(readClassroomAdmissionRegistry).toHaveBeenCalledTimes(1)
+    vi.mocked(readClassroomAdmissionRegistry).mockClear()
     await expect(authenticateClassroomEnrollmentRequest()).resolves.toMatchObject({ mode: 'home_code', user })
     expect(requireRole).not.toHaveBeenCalled()
+    expect(readClassroomAdmissionRegistry).toHaveBeenCalledTimes(1)
     expect(readClassroomAdmissionRegistry).toHaveBeenCalledWith(user.id, config.bootstrapManifestSha256)
   })
 
