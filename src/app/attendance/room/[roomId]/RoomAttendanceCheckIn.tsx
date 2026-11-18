@@ -9,12 +9,13 @@ import { studentAttendanceCheckInViewSchema, type StudentAttendanceCheckInView }
 import { isCurrentAttendanceConfirmation } from '@/lib/student-attendance-confirmation'
 import { invalidateStudentAttendanceStatus, preserveAuthoritativeStudentAttendanceConfirmation } from '@/lib/student-attendance-client'
 
-type View = { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'result'; results: StudentAttendanceCheckInView[] | null }
-export function RoomAttendanceCheckIn({ roomId, scanId }: {
+type View = { kind: 'confirm' } | { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'result'; results: StudentAttendanceCheckInView[] | null }
+export function RoomAttendanceCheckIn({ roomId, scanId, requireConfirmation = false }: {
   roomId: string
   scanId: string | null
+  requireConfirmation?: boolean
 }) {
-  const [view, setView] = useState<View>(scanId ? { kind: 'loading' } : { kind: 'result', results: null })
+  const [view, setView] = useState<View>(scanId ? (requireConfirmation ? { kind: 'confirm' } : { kind: 'loading' }) : { kind: 'result', results: null })
   const attempt = useRef<string | null>(null)
   const run = useCallback(async (signal?: AbortSignal) => {
     if (!scanId) { setView({ kind: 'result', results: null }); return }
@@ -43,9 +44,9 @@ export function RoomAttendanceCheckIn({ roomId, scanId }: {
   }, [roomId, scanId])
   useEffect(() => {
     const controller = new AbortController()
-    void run(controller.signal)
+    if (!requireConfirmation) void run(controller.signal)
     return () => controller.abort()
-  }, [run])
+  }, [run, requireConfirmation])
   useEffect(() => {
     if (view.kind !== 'result' || !view.results?.some(result => result.state === 'checked_in' || result.state === 'already_checked_in')) return
     const suspend = () => setView({ kind: 'unavailable' })
@@ -59,7 +60,8 @@ export function RoomAttendanceCheckIn({ roomId, scanId }: {
   return <main className="flex min-h-screen items-center justify-center bg-page px-4 py-10">
     <Card className="flex min-h-96 w-full max-w-md flex-col justify-center p-6 text-center sm:p-8">
       <p className="text-xl font-semibold text-primary">Pika attendance</p>
-      {view.kind === 'loading' ? <div className="py-10" role="status"><Spinner size="lg" /><h1 className="mt-5 text-xl font-semibold text-text-default">Checking you in…</h1><p className="mt-2 text-sm text-text-muted">Keep this page open for the result.</p></div>
+      {view.kind === 'confirm' ? <div className="pt-6"><h1 className="text-xl font-semibold text-text-default">Check in to attendance</h1><Button className="mt-6 w-full" onClick={() => void run()}>Check in</Button></div>
+        : view.kind === 'loading' ? <div className="py-10" role="status"><Spinner size="lg" /><h1 className="mt-5 text-xl font-semibold text-text-default">Checking you in…</h1><p className="mt-2 text-sm text-text-muted">Keep this page open for the result.</p></div>
         : view.kind === 'unavailable' ? <div className="pt-6" role="alert"><AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" /><h1 className="mt-4 text-xl font-semibold text-text-default">Unable to confirm check-in</h1><Button className="mt-6 w-full" onClick={() => void run()}>Try again</Button></div>
         : !scanId ? <div className="pt-6" role="status"><AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" /><h1 className="mt-4 text-xl font-semibold text-text-default">Check-in is closed</h1><p className="mt-2 text-sm text-text-muted">Scan the current room QR when check-in opens.</p></div>
         : !view.results?.length ? <div className="pt-6" role="alert"><AlertCircle className="mx-auto h-12 w-12 text-warning" aria-hidden="true" /><h1 className="mt-4 text-xl font-semibold text-text-default">Unable to check in</h1><p className="mt-2 text-sm text-text-muted">Scan the current room QR again, or ask your teacher for help.</p></div>

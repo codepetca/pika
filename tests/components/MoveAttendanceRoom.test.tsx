@@ -24,3 +24,24 @@ it('offers open eligible classes and undoes the selected move', async () => {
   expect(commands).toContainEqual(expect.objectContaining({ operation: 'move', classroom_id: 'a', room_id: room }))
   expect(commands).toContainEqual(expect.objectContaining({ operation: 'undo', classroom_id: 'a', revision: 4 }))
 })
+
+it('offers only classes for which this room is selectable and ready', async () => {
+  const commands: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === '/api/teacher/classrooms') return Response.json({ classrooms: [
+      { id: 'a', title: 'Legacy class' }, { id: 'b', title: 'Ready class' }, { id: 'c', title: 'Unready class' },
+    ] })
+    const command = JSON.parse(String(init?.body)); commands.push(command)
+    const roomData = command.classroom_id === 'a' ? { paired: true, selectable: false }
+      : command.classroom_id === 'b' ? { paired: false, attendance_ready: true } : { paired: true, attendance_ready: false }
+    return Response.json(command.operation === 'list'
+      ? { rooms: [{ room_id: room, label: 'Room 220', ...roomData }], meeting: { room_id: null } }
+      : { revision: 4 })
+  }))
+  const user = userEvent.setup()
+  render(<MoveRoom roomId={room} />)
+  await user.click(await screen.findByRole('button', { name: 'Move Ready class here' }))
+  expect(commands).toContainEqual(expect.objectContaining({ operation: 'move', classroom_id: 'b' }))
+  expect(screen.queryByText('Legacy class')).not.toBeInTheDocument()
+  expect(screen.queryByText('Unready class')).not.toBeInTheDocument()
+})

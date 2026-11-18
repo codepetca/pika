@@ -141,3 +141,35 @@ test('closed student room never calls check-in', async ({ page }) => {
   await page.screenshot({ path: '/tmp/pika-room-closed-mobile.png', fullPage: true })
   expect(calls).toBe(0)
 })
+
+
+test('shared catalog offers ready rooms without room administration', async ({ page }) => {
+  await page.route('**/api/teacher/attendance/rooms', async route => {
+    const body = route.request().postDataJSON()
+    await route.fulfill({ json: body.operation === 'list' ? { ...list, shared_catalog: true, rooms: [
+      { ...list.rooms[0], paired: false, attendance_ready: true },
+      { ...list.rooms[1], selectable: false },
+    ] } : { ok: true, revision: 4 } })
+  })
+  await page.goto('/e2e-fixtures/attendance-room')
+  const dialog = page.getByRole('dialog', { name: 'Attendance rooms' })
+  await expect(dialog.getByRole('option', { name: 'Room 101' }).first()).toBeEnabled()
+  await expect(dialog.getByRole('option', { name: 'Room 102' }).first()).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Create room' })).toHaveCount(0)
+  await page.screenshot({ path: '/tmp/pika-shared-room-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: '/tmp/pika-shared-room-mobile.png', fullPage: true })
+})
+
+test('poster asks before sending student attendance', async ({ page }) => {
+  let calls = 0
+  await page.route('**/api/student/attendance/room-check-in', route => { calls++; return route.fulfill({ json: { results: [] } }) })
+  await page.goto('/e2e-fixtures/attendance-room?view=poster')
+  await expect(page.getByRole('button', { name: 'Check in', exact: true })).toBeVisible()
+  expect(calls).toBe(0)
+  await page.screenshot({ path: '/tmp/pika-poster-confirm-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: '/tmp/pika-poster-confirm-mobile.png', fullPage: true })
+  await page.getByRole('button', { name: 'Check in', exact: true }).click()
+  await expect.poll(() => calls).toBe(1)
+})

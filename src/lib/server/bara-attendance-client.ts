@@ -832,14 +832,17 @@ type RoomMeeting = { occurrence_ref: string }
 
 type RoomCommands = {
   capture: [RoomScan & { proof: string }, { continuation: string | null }]
-  candidates: [RoomScan & { continuation: string }, {
+  capture_poster: [RoomScan & { poster_key: string; actor_principal_ref: string }, { continuation: string | null; closed?: true }]
+  candidates: [RoomScan & { continuation: string; actor_principal_ref?: string }, {
     candidates: Array<{ roster_ref: string; occurrence_ref: string }> | null
   }]
   list: [RoomStaff & Partial<RoomMeeting>, {
-    rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean }>
+    rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean; attendance_ready?: boolean; selectable?: boolean }>
+    shared_catalog?: true
     default_room_id: string | null
     meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null
   }]
+  poster: [RoomStaff & RoomTarget, { label: string; student_poster_url: string | null }]
   create: [RoomStaff & { label: string }, RoomTarget]
   pair: [RoomStaff & RoomTarget, { display_url: string }]
   revoke: [RoomStaff & RoomTarget, object]
@@ -884,6 +887,8 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
   if (!isPlainObject(value) || value.ok !== true) return null
   switch (operation) {
     case 'capture':
+    case 'capture_poster':
+      if (value.closed !== undefined && value.closed !== true) return null
       return value.continuation === null
         || (typeof value.continuation === 'string' && /^[A-Za-z0-9_-]{40}$/.test(value.continuation)) ? value : null
     case 'candidates':
@@ -892,13 +897,20 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
           && isOpaqueRef(candidate.roster_ref) && isOpaqueRef(candidate.occurrence_ref))) ? value : null
     case 'list': {
       const { rooms, default_room_id: defaultRoom, meeting } = value
-      return (defaultRoom === null || isRoomId(defaultRoom))
+      return (value.shared_catalog === undefined || value.shared_catalog === true)
+        && (defaultRoom === null || isRoomId(defaultRoom))
         && Array.isArray(rooms) && rooms.length <= 200 && rooms.every(room => isPlainObject(room)
-          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean')
+          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean'
+          && (room.attendance_ready === undefined || typeof room.attendance_ready === 'boolean')
+          && (room.selectable === undefined || room.selectable === false))
         && (meeting === null || (isPlainObject(meeting)
           && (meeting.room_id === null || isRoomId(meeting.room_id)) && isRevision(meeting.revision)
           && (meeting.accepting_until === null || isRevision(meeting.accepting_until)))) ? value : null
     }
+    case 'poster':
+      return typeof value.label === 'string' && value.label.trim().length > 0 && value.label.length <= 80
+        && (value.student_poster_path === null || (typeof value.student_poster_path === 'string'
+          && /^\/rooms\/[A-Za-z0-9]{16,64}\/scan\?poster=[A-Za-z0-9_-]{40}$/.test(value.student_poster_path))) ? value : null
     case 'create':
       return isRoomId(value.room_id) ? value : null
     case 'move':
@@ -916,7 +928,7 @@ export async function postBaraRoomCommand<const T extends BaraRoomCommand>(
 ): Promise<BaraRoomResult<T['operation']>> {
   const config = configuration()
   const displayOrigin = roomDisplayOrigin()
-  if (command.operation === 'pair' && !displayOrigin) {
+  if ((command.operation === 'pair' || command.operation === 'poster') && !displayOrigin) {
     throw new BaraAttendanceClientError('Bara room display is not configured', 'configuration', false)
   }
   const { parsed, status } = await signedRequest(
@@ -925,6 +937,13 @@ export async function postBaraRoomCommand<const T extends BaraRoomCommand>(
   const result = parseRoomResult(command.operation, parsed)
   if (!result) {
     throw new BaraAttendanceClientError('Bara returned an invalid room response', 'invalid_response', true, status)
+  }
+  if (command.operation === 'poster') {
+    const path = result.student_poster_path
+    if (path !== null && (typeof path !== 'string' || !path.startsWith(`/rooms/${command.room_id}/scan?poster=`))) {
+      throw new BaraAttendanceClientError('Bara returned an invalid room response', 'invalid_response', true, status)
+    }
+    return { ok: true, label: result.label, student_poster_url: path === null ? null : `${displayOrigin}${path}` } as BaraRoomResult<T['operation']>
   }
   if (command.operation === 'pair') {
     return {

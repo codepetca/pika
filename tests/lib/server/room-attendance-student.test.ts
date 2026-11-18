@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ candidates: vi.fn(), boundary: vi.fn(), access: vi.fn(), execute: vi.fn(), seal: vi.fn() }))
+const mocks = vi.hoisted(() => ({ candidates: vi.fn(), boundary: vi.fn(), access: vi.fn(), execute: vi.fn(), seal: vi.fn(), actor: vi.fn() }))
 vi.mock('@/lib/server/bara-attendance-client', () => ({ postBaraRoomCommand: mocks.candidates }))
 vi.mock('@/lib/server/classroom-attendance-qr', () => ({ assertStudentRosterBoundary: mocks.boundary, ClassroomAttendanceQrError: class extends Error { constructor(readonly code: string) { super(code) } } }))
 vi.mock('@/lib/server/bara-attendance-scope', () => ({ getBaraAttendanceClassroomIdAccess: mocks.access }))
 vi.mock('@/lib/server/bara-attendance-entry-token', () => ({ sealAttendanceEntryToken: mocks.seal }))
-vi.mock('@/lib/server/bara-attendance-student', () => ({ executeStudentAttendanceCheckIn: mocks.execute }))
+vi.mock('@/lib/server/bara-attendance-student', () => ({ executeStudentAttendanceCheckIn: mocks.execute, resolveVerifiedPikaAttendanceStudent: mocks.actor }))
 import { checkInRoom } from '@/lib/server/room-attendance-student'
 
 const classroomId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
@@ -15,13 +15,18 @@ const input = { supabase: { from: () => ({ select: () => ({ eq: () => ({ maybeSi
   pikaUser: { id: studentId, email: 'student@example.com', role: 'student' }, roomId: 'room123456789012', continuation: 'a'.repeat(40), browserKey: 'b'.repeat(43), attemptId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc' }
 
 describe('room student check-in', () => {
-  beforeEach(() => { vi.resetAllMocks(); mocks.candidates.mockResolvedValue({ ok: true, candidates: [candidate] }); mocks.boundary.mockResolvedValue(undefined); mocks.access.mockResolvedValue({ state: 'ready' }); mocks.seal.mockReturnValue('sealed'); mocks.execute.mockResolvedValue({ state: 'checked_in' }) })
+  beforeEach(() => { vi.resetAllMocks(); mocks.actor.mockResolvedValue({ principalRef: 'principal_student' }); mocks.candidates.mockResolvedValue({ ok: true, candidates: [candidate] }); mocks.boundary.mockResolvedValue(undefined); mocks.access.mockResolvedValue({ state: 'ready' }); mocks.seal.mockReturnValue('sealed'); mocks.execute.mockResolvedValue({ state: 'checked_in' }) })
   it('deduplicates candidates and reuses the guarded attendance check-in', async () => {
     mocks.candidates.mockResolvedValue({ ok: true, candidates: [candidate, candidate] })
     await expect(checkInRoom(input)).resolves.toEqual([{ state: 'checked_in' }])
     expect(mocks.seal).toHaveBeenCalledWith(expect.objectContaining({ classroomId, rosterRef: candidate.roster_ref,
       occurrenceRef: candidate.occurrence_ref, checkInToken: `room_${input.continuation}.${input.browserKey}` }))
     expect(mocks.execute).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ requireActiveMembership: true }))
+  })
+  it('binds poster candidates to the currently verified student', async () => {
+    await checkInRoom({ ...input, poster: true })
+    expect(mocks.candidates).toHaveBeenCalledWith(expect.objectContaining({ operation: 'candidates', actor_principal_ref: 'principal_student' }))
+    expect(mocks.boundary).toHaveBeenCalled()
   })
   it('maps each candidate to its own classroom and retries with the same attempt', async () => {
     const secondId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
