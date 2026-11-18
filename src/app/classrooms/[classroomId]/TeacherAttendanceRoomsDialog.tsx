@@ -42,6 +42,7 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [needsRefresh, setNeedsRefresh] = useState(false)
+  const [recovery, setRecovery] = useState<'undoMeeting' | 'undoDefault' | null>(null)
   const [pendingRoom, setPendingRoom] = useState<string | null>(null)
   const [undo, setUndo] = useState<LocationUndo | null>(null)
   const active = useRef(true)
@@ -57,7 +58,7 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   useEffect(() => {
     let activeLoad = true
     if (!enabled) return () => { activeLoad = false }
-    setBusy(false); onBusyChange?.(false); setPendingRoom(null); setNeedsRefresh(false); setList(null); setError(''); setUndo(null)
+    setBusy(false); onBusyChange?.(false); setPendingRoom(null); setNeedsRefresh(false); setRecovery(null); setList(null); setError(''); setUndo(null)
     void command('list').then((next: RoomList) => {
       if (activeLoad && current()) setList(next)
     }).catch((err: Error) => { if (activeLoad && current()) setError(err.message) })
@@ -81,8 +82,30 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   async function retryRefresh() {
     if (busy || disabled) return
     setBusy(true); onBusyChange?.(true); setError('')
-    await refreshAfterWrite()
-    if (current()) { setBusy(false); onBusyChange?.(false) }
+    try {
+      const next = await command('list') as RoomList
+      if (!current()) return
+      setList(next); setNeedsRefresh(false)
+      if (recovery && undo) {
+        if ((undo.revision === null || next.meeting !== null) && (next.meeting?.room_id ?? null) === undo.previousMeeting) {
+          if (!undo.restoreDefault || next.default_room_id === undo.previousDefault) setUndo(null)
+          else {
+            setUndo({ ...undo, meetingUndone: true })
+            setError('Meeting restored. Retry undo to restore the future attendance location.')
+          }
+        } else if (recovery === 'undoMeeting' && next.meeting && next.meeting.revision === undo.revision) {
+          setError('Undo was not confirmed. You can retry the location change undo.')
+        } else {
+          setUndo(null)
+          setError('Attendance location changed elsewhere. Review the current location before making another change.')
+        }
+      }
+      setRecovery(null)
+    } catch {
+      if (current()) setError('Could not refresh the attendance location. Try again.')
+    } finally {
+      if (current()) { setBusy(false); onBusyChange?.(false) }
+    }
   }
 
   async function chooseLocation(destination: string) {
@@ -102,7 +125,10 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
       setList(previous => previous ? { ...previous, default_room_id: destination, meeting: previous.meeting && needsMove ? { ...previous.meeting, room_id: destination, revision: result.revision } : previous.meeting } : previous)
       await refreshAfterWrite()
     } catch (err) {
-      if (current()) setError(err instanceof Error ? err.message : 'Room attendance is temporarily unavailable')
+      if (current()) {
+        setUndo(null); setRecovery(null); setNeedsRefresh(true)
+        setError(`${err instanceof Error ? err.message : 'Room attendance is temporarily unavailable'}. Refresh location to check whether the change was applied.`)
+      }
     } finally {
       if (current()) { setBusy(false); onBusyChange?.(false); setPendingRoom(null) }
     }
@@ -127,18 +153,18 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
       }
       setUndo(null)
       await refreshAfterWrite()
-    } catch (err) {
+    } catch {
       if (!current()) return
-      if (meetingUndone && undo.restoreDefault) {
-        setUndo({ ...undo, meetingUndone: true })
-        setError('Meeting restored, but the future attendance location could not be restored. Retry to finish undoing the change.')
-      } else setError(err instanceof Error ? err.message : 'Room attendance is temporarily unavailable')
+      setUndo({ ...undo, meetingUndone })
+      setRecovery(meetingUndone ? 'undoDefault' : 'undoMeeting')
+      setNeedsRefresh(true)
+      setError('Undo could not be confirmed. Refresh location before continuing.')
     } finally {
       if (current()) { setBusy(false); onBusyChange?.(false) }
     }
   }
 
-  const location = pendingRoom ?? list?.meeting?.room_id ?? list?.default_room_id ?? ''
+  const location = pendingRoom ?? (list?.meeting ? list.meeting.room_id ?? '' : list?.default_room_id ?? '')
   const rooms = list?.rooms ?? []
   const selected = rooms.find(room => room.room_id === location)
   const partialUndo = Boolean(undo?.meetingUndone && undo.restoreDefault)

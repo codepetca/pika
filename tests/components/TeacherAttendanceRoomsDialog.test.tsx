@@ -39,21 +39,85 @@ it('updates the meeting and future location, and undoes both', async () => {
   expect(calls).toContainEqual(expect.objectContaining({ operation: 'default', room_id: room }))
 })
 
-it('keeps the confirmed location when a move fails without changing the future default separately', async () => {
+it('locks a failed move until refresh reveals whether it was applied', async () => {
+  let meeting = room; let defaultRoom = room
   const calls: any[] = []
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
     const body = JSON.parse(init.body); calls.push(body)
-    if (body.operation === 'move') return Response.json({ error: 'Location unavailable' }, { status: 409 })
-    return Response.json({ shared_catalog: true, rooms, default_room_id: room, meeting: { room_id: room, revision: 1, accepting_until: null } })
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; throw new Error('network') }
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision: 7, accepting_until: null } })
   }))
   const user = userEvent.setup(); renderDialog()
   const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
   await user.selectOptions(picker, other)
-  expect(await screen.findByRole('alert')).toHaveTextContent('Location unavailable')
-  expect(picker).toHaveValue(room)
-  expect(calls).toContainEqual(expect.objectContaining({ operation: 'move', room_id: other, save_default: true }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Refresh location')
+  expect(picker).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Print student poster' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  expect(picker).toHaveValue(other)
+  expect(picker).toBeEnabled()
   expect(calls.some(call => call.operation === 'default')).toBe(false)
   expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+})
+
+it('shows an unassigned meeting even when a future default exists', async () => {
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') return Response.json({ revision: 7 })
+    return Response.json({ shared_catalog: true, rooms, default_room_id: room, meeting: { room_id: calls.some(call => call.operation === 'move') ? room : null, revision: 1, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  expect(picker).toHaveValue('')
+  await user.selectOptions(picker, room)
+  await waitFor(() => expect(picker).toHaveValue(room))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'move', room_id: room, save_default: true }))
+})
+
+it('reconciles a lost undo response without repeating the undo', async () => {
+  let meeting = room; let defaultRoom = room; let revision = 1
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; revision = 7; return Response.json({ revision }) }
+    if (body.operation === 'undo') { meeting = room; revision = 8; throw new Error('network') }
+    if (body.operation === 'default') defaultRoom = body.room_id
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, other)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Undo could not be confirmed')
+  expect(picker).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  expect(await screen.findByRole('button', { name: 'Retry undo' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Retry undo' }))
+  await waitFor(() => expect(picker).toBeEnabled())
+  expect(picker).toHaveValue(room)
+  expect(calls.filter(call => call.operation === 'undo')).toHaveLength(1)
+  expect(calls.filter(call => call.operation === 'default')).toHaveLength(1)
+})
+
+it.each([false, true])('only offers undo retry for an unchanged revision (changed elsewhere: %s)', async changedElsewhere => {
+  let meeting = room; let defaultRoom = room; let revision = 1
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; revision = 7; return Response.json({ revision }) }
+    if (body.operation === 'undo') { if (changedElsewhere) revision = 9; throw new Error('network') }
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Attendance Location' }), other)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  await user.click(await screen.findByRole('button', { name: 'Refresh location' }))
+  if (changedElsewhere) {
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed elsewhere')
+    expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+  } else {
+    expect(await screen.findByRole('button', { name: 'Undo location change' })).toBeEnabled()
+  }
 })
 
 it('retries only the unfinished default restoration after a partial undo', async () => {
@@ -71,11 +135,12 @@ it('retries only the unfinished default restoration after a partial undo', async
   const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
   await user.selectOptions(picker, other)
   await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent('Retry to finish')
+  expect(await screen.findByRole('alert')).toHaveTextContent('Undo could not be confirmed')
   expect(picker).toBeDisabled()
   await user.click(screen.getByRole('button', { name: 'Close' }))
   expect(onClose).toHaveBeenCalledOnce()
-  await user.click(screen.getByRole('button', { name: 'Retry undo' }))
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  await user.click(await screen.findByRole('button', { name: 'Retry undo' }))
   await waitFor(() => expect(picker).toBeEnabled())
   expect(picker).toHaveValue(room)
   expect(calls.filter(call => call.operation === 'undo')).toHaveLength(1)
