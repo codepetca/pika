@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Rebase reviewed live billing routing and closeout
-
-Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
-
 ## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
 
 Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
@@ -199,3 +195,7 @@ Owner requested Attendance Location with one dropdown, and explicitly confirmed 
 - Verified code27203bd9 locally: focused gate2313/2313 plus architecture, UI/design policy, TypeScript and lint; isolated production build and8/8 browser fixture scenarios pass. Bara334 tests/typecheck pass.
 - Real loopback Pika/Supabase + Bara/Convex flow with existing synthetic users: Room223 catalog, current/default assignment, poster, persistent display reload, poster check-in, live-QR duplicate, signed callbacks and persisted check-in fact verified. Schema001–330 reused; no migrations.
 - WorkOS authentication is emulated. Private launchers isolate local cookie names/origins; hosted pilot/production unchanged. Source code unchanged; private restart/evidence handoff at /private/tmp/bara-pika-local-completion/README.md.
+
+## 2026-11-18 — Correct pending schedule browser check
+
+Production release CI exposed a stale Playwright action that waited for a deliberately disabled modal backdrop. The test now asserts the backdrop is disabled and sends a real outside pointer click while saving; the existing modal-stays-open assertion remains. All four desktop/mobile light/dark projects pass the affected case against the isolated production build. No application behavior, snapshots, database or configuration changed.

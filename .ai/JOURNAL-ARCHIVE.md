@@ -54548,3 +54548,8 @@ Carried the reviewed checkout patch onto main after the live trial squash merge.
 ## 2026-11-09 — Rebase live paid reconciliation after checkout
 
 Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
+
+<!-- pika-session-log-archive-batch:161ce53a0f6481f11032afd7c58747d2ffdf3f547a00230bd82f29291d082e9b -->
+## 2026-11-09 — Rebase reviewed live billing routing and closeout
+
+Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
