@@ -625,7 +625,7 @@ test('prototypes survey editing with accessible split panes and local authoring 
   const workspace = page.getByRole('dialog').filter({ has: page.getByRole('button', { name: 'Close survey editor' }) })
   await workspace.getByRole('button', { name: 'Preview', exact: true }).click()
   await expect(workspace.getByText('Student preview', { exact: true })).toBeVisible()
-  const previewTitle = workspace.getByRole('textbox', { name: 'Survey title', exact: true })
+  const previewTitle = workspace.getByRole('textbox', { name: 'Title', exact: true })
   await previewTitle.fill('Updated preview title')
   await previewTitle.press('Tab')
   const previewSave = workspace.getByRole('status').filter({ hasText: /^(Saved|Saving…|Unsaved)$/ })
