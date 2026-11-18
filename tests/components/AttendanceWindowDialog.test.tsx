@@ -63,6 +63,46 @@ describe('AttendanceWindowDialog', () => {
     expect(onClose).not.toHaveBeenCalled()
   })
 
+  it('keeps room controls usable when schedules fail to load', async () => {
+    const calls: string[] = []
+    let meeting = 'one'
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).includes('/schedules')) return response({ error: 'Schedules unavailable' }, 503)
+      const body = JSON.parse(String(init?.body))
+      calls.push(body.operation)
+      if (body.operation === 'move') { meeting = body.room_id; return response({ revision: 8 }) }
+      if (body.operation === 'poster') return response({ label: 'Room 1', student_poster_url: null })
+      return response({ shared_catalog: true, rooms: [
+        { room_id: 'one', label: 'Room 1', paired: true, can_manage: false },
+        { room_id: 'two', label: 'Room 2', paired: true, can_manage: false },
+      ], default_room_id: 'one', meeting: { room_id: meeting, revision: 1, accepting_until: null } })
+    })
+    render(<TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date="2026-08-18" isOpen roomAttendanceAvailable onSaved={vi.fn()} onClose={vi.fn()} /></AppMessageProvider></TooltipProvider>)
+    expect(await screen.findByText('Attendance hours unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+    const picker = await screen.findByRole('combobox', { name: 'This meeting' })
+    fireEvent.change(picker, { target: { value: 'two' } })
+    await screen.findByRole('button', { name: 'Undo move' })
+    expect(picker).toHaveValue('two')
+    fireEvent.click(screen.getByRole('button', { name: 'Print student poster' }))
+    expect(await screen.findByText('Ask an administrator to enable the student QR for this room.')).toBeVisible()
+    expect(calls).toContain('poster')
+  })
+
+  it('hides the previous date editor while the next date loads', async () => {
+    let finishLoad!: (result: Response) => void
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockImplementationOnce(() => new Promise<Response>(resolve => { finishLoad = resolve }))
+    const view = (date: string) => <TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date={date} isOpen onSaved={vi.fn()} onClose={vi.fn()} /></AppMessageProvider></TooltipProvider>
+    const { rerender } = render(view('2026-08-18'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeVisible()
+    rerender(view('2026-08-19'))
+    expect(await screen.findByText('Loading attendance hours')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Save timing' })).not.toBeInTheDocument()
+    await act(async () => { finishLoad(response(schedules)) })
+    expect(await screen.findByRole('radio', { name: /Regular schedule/ })).toBeVisible()
+  })
+
   it('disables room writes while applying a schedule', async () => {
     let finishSync!: (result: Response) => void
     vi.mocked(fetch).mockImplementation(async (url, init) => {

@@ -314,18 +314,19 @@ function AttendanceWindowDialogContent({
       closeDisabled={saving || roomBusy}
       showFooterClose={false}
     >
-      {loading ? (
-        <PageState kind="loading" title="Loading attendance hours" compact />
-      ) : error && schedules.length === 0 ? (
-        <PageState
-          kind="error"
-          title="Attendance hours unavailable"
-          description={error}
-          compact
-          action={<Button type="button" onClick={() => void loadPolicy()}>Try again</Button>}
-        />
-      ) : !editing ? (
+      {!editing || loading ? (
         <div className="space-y-4">
+          {loading ? (
+            <PageState kind="loading" title="Loading attendance hours" compact />
+          ) : error && schedules.length === 0 ? (
+            <PageState
+              kind="error"
+              title="Attendance hours unavailable"
+              description={error}
+              compact
+              action={<Button type="button" onClick={() => void loadPolicy()}>Try again</Button>}
+            />
+          ) : <>
           <p className="text-sm text-text-muted">Choose the attendance schedule for {date ? format(parseISO(date), 'EEEE, MMMM d') : 'the selected date'}.</p>
           <fieldset className="space-y-2">
             <legend className="sr-only">Attendance schedule</legend>
@@ -340,12 +341,15 @@ function AttendanceWindowDialogContent({
             ))}
           </fieldset>
           <Button type="button" variant="secondary" disabled={saving || roomBusy} onClick={() => editSchedule('new')}><Plus className="h-4 w-4" aria-hidden="true" /> Add schedule</Button>
+          </>}
           {roomAttendanceAvailable && <section className="space-y-3 border-t border-border pt-4"><h4 className="text-sm font-semibold">Attendance rooms</h4>{roomContent}</section>}
-          {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" disabled={saving || roomBusy} onClick={onClose}>Cancel</Button>
-            <Button type="button" variant="primary" loading={saving} disabled={roomBusy} onClick={() => void applySchedule()}>Apply schedule</Button>
-          </div>
+          {!loading && !(error && schedules.length === 0) && <>
+            {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="secondary" disabled={saving || roomBusy} onClick={onClose}>Cancel</Button>
+              <Button type="button" variant="primary" loading={saving} disabled={roomBusy} onClick={() => void applySchedule()}>Apply schedule</Button>
+            </div>
+          </>}
         </div>
       ) : (
         <form

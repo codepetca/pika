@@ -266,14 +266,17 @@ test('Daily schedules combine meeting rooms, poster and sticker controls', async
 
 
 test('schedules show room loading, error and empty states', async ({ page }, testInfo) => {
-  let state: 'loading' | 'error' | 'empty' = 'loading'
+  let state: 'loading' | 'error' | 'empty' | 'healthy' = 'loading'
+  let schedulesFail = false
   let finishRead!: () => void
   const pending = new Promise<void>(resolve => { finishRead = resolve })
-  await page.route('**/api/teacher/attendance/schedules?**', route => route.fulfill({ json: { schedules: [{ id: null, name: 'Regular schedule', policy: null }], selectedId: null } }))
+  await page.route('**/api/teacher/attendance/schedules?**', route => route.fulfill(schedulesFail
+    ? { status: 503, json: { error: 'Schedules unavailable' } }
+    : { json: { schedules: [{ id: null, name: 'Regular schedule', policy: null }], selectedId: null } }))
   await page.route('**/api/teacher/attendance/rooms', async route => {
     if (state === 'loading') { await pending; await route.fulfill({ status: 503, json: { error: 'Room attendance is temporarily unavailable' } }); return }
     if (state === 'error') { await route.fulfill({ status: 503, json: { error: 'Room attendance is temporarily unavailable' } }); return }
-    await route.fulfill({ json: { shared_catalog: true, rooms: [], default_room_id: null, meeting: null } })
+    await route.fulfill({ json: state === 'healthy' ? { ...list, shared_catalog: true } : { shared_catalog: true, rooms: [], default_room_id: null, meeting: null } })
   })
   await page.goto('/e2e-fixtures/attendance-room?view=schedules')
   await expect(page.getByText('Loading rooms…')).toBeVisible()
@@ -287,4 +290,13 @@ test('schedules show room loading, error and empty states', async ({ page }, tes
   await expect(page.getByRole('heading', { name: 'Attendance rooms' })).toBeVisible()
   await expect(page.getByRole('combobox', { name: 'Default room' })).toHaveCount(0)
   await page.screenshot({ path: testInfo.outputPath('rooms-empty.png'), animations: 'disabled' })
+  schedulesFail = true
+  state = 'healthy'
+  await page.reload()
+  const dialog = page.getByRole('dialog', { name: 'Attendance schedules' })
+  await expect(dialog.getByRole('heading', { name: 'Attendance hours unavailable' })).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Try again' })).toBeEnabled()
+  await expect(dialog.getByRole('combobox', { name: 'This meeting' })).toBeEnabled()
+  await expect(dialog.getByRole('button', { name: 'Print student poster' })).toBeEnabled()
+  await page.screenshot({ path: testInfo.outputPath('schedules-error-rooms-healthy.png'), animations: 'disabled' })
 })
