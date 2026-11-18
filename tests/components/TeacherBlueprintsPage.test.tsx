@@ -601,7 +601,7 @@ describe('TeacherBlueprintsPage', () => {
     }))
   })
 
-  it.each(['section', 'unit'] as const)('reconciles a committed proposal after changing the drafting %s', async change => {
+  it.each(['section', 'unit', 'workspace', 'content-tab', 'back', 'preview', 'direction'] as const)('reconciles a committed proposal after changing the drafting %s', async change => {
     const defaultFetch = vi.mocked(fetch).getMockImplementation()!
     const unitId = '11111111-1111-4111-8111-111111111111'
     let resolveApply!: (response: Response) => void
@@ -630,12 +630,26 @@ describe('TeacherBlueprintsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Propose Change' }))
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/ai/apply'))).toBe(true))
     const readsBefore = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/b-2/proposals')).length
-    fireEvent.change(screen.getByRole('combobox', { name: change === 'section' ? 'Draft Section' : 'Unit guidance' }), { target: { value: change === 'section' ? 'outline' : unitId } })
+    if (change === 'section' || change === 'unit') {
+      fireEvent.change(screen.getByRole('combobox', { name: change === 'section' ? 'Draft Section' : 'Unit guidance' }), { target: { value: change === 'section' ? 'outline' : unitId } })
+    } else if (change === 'workspace') openSection('Settings', 'Course Details')
+    else if (change === 'content-tab') fireEvent.click(screen.getByRole('tab', { name: 'Outline' }))
+    else if (change === 'back') {
+      window.history.replaceState(null, '', '/teacher/blueprints?section=overview')
+      fireEvent.popState(window)
+    } else if (change === 'direction') fireEvent.change(screen.getByRole('textbox', { name: 'Direction' }), { target: { value: 'New direction after proposing' } })
+    else fireEvent.change(screen.getByRole('textbox', { name: 'Draft preview Markdown' }), { target: { value: 'Newer teacher-edited preview' } })
     await act(async () => { committed = true; resolveApply(jsonResponse({ proposal: proposalFixture('committed', 4) })) })
     await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/b-2/proposals')).length).toBe(readsBefore + 1))
-    expect(screen.getByRole('tab', { name: 'AI Drafting' })).toHaveAttribute('aria-selected', 'true')
-    expect(screen.getByRole('combobox', { name: 'Draft Section' })).toHaveValue(change === 'section' ? 'outline' : 'tests')
-    if (change === 'unit') expect(screen.getByRole('combobox', { name: 'Unit guidance' })).toHaveValue(unitId)
+    if (change === 'workspace') expect(screen.getByRole('tab', { name: 'Course Details' })).toHaveAttribute('aria-selected', 'true')
+    else if (change === 'content-tab' || change === 'back') expect(screen.getByRole('tab', { name: change === 'back' ? 'Overview' : 'Outline' })).toHaveAttribute('aria-selected', 'true')
+    else {
+      expect(screen.getByRole('tab', { name: 'AI Drafting' })).toHaveAttribute('aria-selected', 'true')
+      expect(screen.getByRole('combobox', { name: 'Draft Section' })).toHaveValue(change === 'section' ? 'outline' : 'tests')
+      if (change === 'unit') expect(screen.getByRole('combobox', { name: 'Unit guidance' })).toHaveValue(unitId)
+      if (change === 'preview') expect(screen.getByRole('textbox', { name: 'Draft preview Markdown' })).toHaveValue('Newer teacher-edited preview')
+      if (change === 'direction') expect(screen.getByRole('textbox', { name: 'Direction' })).toHaveValue('New direction after proposing')
+    }
     openSection('Updates', /^Proposals/)
     expect(await screen.findByText('ai changes')).toBeInTheDocument()
   })

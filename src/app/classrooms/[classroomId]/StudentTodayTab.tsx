@@ -31,6 +31,7 @@ import {
 import { useStudentNotifications } from '@/components/StudentNotificationsProvider'
 import { countCharacters, extractPlainText, isEmpty, plainTextToTiptapContent } from '@/lib/tiptap-content'
 import { createJsonPatch, shouldStoreSnapshot } from '@/lib/json-patch'
+import { withinDailyLogWireLimit } from '@/lib/validations/daily-log'
 import { notifyImmediatePalDelivery } from '@/lib/pal-browser-events'
 import {
   listDailyLogDrafts,
@@ -541,9 +542,13 @@ export function StudentTodayTab({
     lastSaveAttemptAtRef.current = Date.now()
 
     const baseContent = parseSavedContent(savedContent)
-    const patch = createJsonPatch(baseContent, newContent)
+    // Historical logs could exceed today's wire limit through rich-text attributes.
+    // The server cannot safely apply a patch to those bases, so send a full edit.
+    const canPatchBase = withinDailyLogWireLimit(baseContent)
+    const patch = canPatchBase ? createJsonPatch(baseContent, newContent) : []
     const shouldSendPatch =
       !options?.forceFull &&
+      canPatchBase &&
       entryId &&
       patch.length > 0 &&
       !shouldStoreSnapshot(patch, newContent)
