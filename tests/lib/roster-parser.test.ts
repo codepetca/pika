@@ -142,6 +142,43 @@ Jane Smith jane@example.com
   })
 
   describe('validation and errors', () => {
+    it.each([',', '\t'])('preserves a blank ID column with %j delimiters', (separator) => {
+      const line = ['Jane', 'Doe', 'jane@example.com', '', 'guardian@example.com'].join(separator)
+      expect(parseRosterInput(line)).toMatchObject({ students: [{ firstName: 'Jane', lastName: 'Doe', email: 'jane@example.com', counselorEmail: 'guardian@example.com' }], errors: [] })
+      expect(parseRosterInput(line).students[0]).not.toHaveProperty('studentNumber')
+    })
+    it.each([',', '\t'])('keeps a fourth-field guardian when followed by an empty cell using %j delimiters', (separator) => {
+      const result = parseRosterInput(['Jane', 'Doe', 'jane@example.com', 'guardian@example.com', ''].join(separator))
+      expect(result.students[0]).toMatchObject({ counselorEmail: 'guardian@example.com' })
+      expect(result.errors).toHaveLength(0)
+    })
+    it.each([',', '\t'])('rejects overlapping guardian fields using %j delimiters', (separator) => {
+      const result = parseRosterInput(['Jane', 'Doe', 'jane@example.com', 'first@example.com', 'second@example.com'].join(separator))
+      expect(result.students).toHaveLength(0)
+      expect(result.errors[0].error).toMatch(/guardian email/i)
+    })
+    it.each([',', '\t'])('rejects invalid fifth-field guardian with blank ID using %j delimiters', (separator) => {
+      const result = parseRosterInput(['Jane', 'Doe', 'jane@example.com', '', 'guardian.example.com'].join(separator))
+      expect(result.students).toHaveLength(0)
+      expect(result.errors[0]).toMatchObject({ line: 1, error: 'Invalid guardian email format' })
+    })
+    it.each([',', '\t'])('rejects empty first or last name using %j delimiters', (separator) => {
+      for (const parts of [['', 'Doe', 'jane@example.com'], ['Jane', '', 'jane@example.com']]) {
+        const result = parseRosterInput(parts.join(separator))
+        expect(result.students).toHaveLength(0)
+        expect(result.errors[0].error).toMatch(/first and last name/i)
+      }
+    })
+    it.each(['guardian@bad', '123 guardian@bad'])('rejects an invalid optional secondary email in %s', (optional) => {
+      const result = parseRosterInput(`Jane Doe jane@example.com ${optional}`)
+      expect(result.students).toHaveLength(0)
+      expect(result.errors[0]).toMatchObject({ line: 1, error: 'Invalid guardian email format' })
+    })
+
+    it('reports physical line numbers while ignoring blank lines', () => {
+      const result = parseRosterInput('Jane Doe jane@example.com\n\nAda Lovelace bad')
+      expect(result.errors[0]).toMatchObject({ line: 3, error: 'Invalid email format' })
+    })
     it('returns error for line with missing email', () => {
       const input = 'John Doe'
       const result = parseRosterInput(input)

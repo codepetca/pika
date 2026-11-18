@@ -11,22 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Guarded assignment release rebase
-
-Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
-
-## 2026-11-09 — Rebase the live Pro trial
-
-Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
-
-## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
-
-The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.
-
-## 2026-11-09 — Sync the reviewed live trial with main
-
-The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
-
 ## 2026-11-09 — Rebase reviewed live checkout after the trial merge
 
 Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
@@ -188,3 +172,11 @@ Production public admission, checkout, and trial signup are closed. The launch a
 Report unexpected signup code issuance, email delivery, and admission registry failures with separate diagnostics and category-only requests to a protected Cloudflare Worker. A Durable Object groups repeats and retries delivery through an independent mail provider.
 
 The Codepet operations inbox is already verified in Cloudflare. Live alert delivery needs a sending domain and a canary. The root domain uses iCloud mail. Public admission, checkout, and trial signup are closed.
+
+## 2026-11-17 — Audit Pika product consistency and architecture
+
+Audited b61ab87d6 in an isolated worktree with three bounded reviewers and coordinator verification. Recorded 22 findings/opportunities, 14 accepted local teacher/student captures and the proposed sequence within the existing product-experience epic; no application code, migrations or hosted systems changed. Architecture/UI/design policy checks and 13 focused files/240 tests passed. History-error scoring and silent guardian-email loss reproduced locally; image-access finding narrowed to policy parity. See docs/guidance/ui/product-experience-audit-2026-11-17.md. Implementation and full Phase 6 verification remain outstanding.
+
+## 2026-11-18 — Implement audited consistency and integrity fixes
+
+Implemented bounded grading-history reads/failure retry, legacy Daily Log CAS, transactional assignment bulk reuse and named API schemas, legacy private-image membership/visibility parity, roster validation/dialog behavior, accessible date/card metadata and 44px controls/reduced motion. Extracted owner-scoped repository/test grading-start controllers and validated/scoped Blueprint copilot responses. Reconciled audit and architecture guidance; the existing product-experience epic remains open. Risk profiles: async-grading, workspace-state. Final focused checks pass (664 files, 14,750 tests, eight skips, TypeScript, lint, architecture/UI/design policies), precommit audit passes, and changed-UI teacher/student desktop/mobile light/dark matrix passes. PR #1833 is draft. Two initial reviews found seven gaps; two correction batches add intermediate patch bounds, absent-row revision conflicts, real roster refresh recovery/delimited-cell integrity, committed proposal reconciliation and newer grading-selection preservation. Historical oversized Daily repair and Blueprint tab/preview intent also have regressions and browser evidence. Targeted browser matrices and focused regressions pass; targeted/final fixed-SHA review and CI remain in progress. Test-history transaction work is isolated; its source preflight found native harness/compatibility corrections. In the isolated A5 follow-up, approved331 applied to a network-none disposable container; its first fixture rolled back and corrected verification awaits fresh approval. No existing database, production, merge or deployment changes.

@@ -23,34 +23,15 @@ import {
   verifyContextualDailyLogPatchPreimage,
   verifyContextualDailyLogPostPreimage,
 } from '@/lib/server/contextual-daily-log-save'
-import type { JsonPatchOperation, MoodEmoji, TiptapContent } from '@/types'
+import type { TiptapContent } from '@/types'
+import { dailyLogPostSchema, dailyLogPatchSchema, DAILY_LOG_MAX_WIRE_BYTES, withinDailyLogWireLimit } from '@/lib/validations/daily-log'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/
-const VALID_MOODS: MoodEmoji[] = ['😊', '🙂', '😐']
 const MAX_CHARS = 2000
 const DEFAULT_BROAD_ENTRIES_LIMIT = 100
 const MAX_ENTRIES_LIMIT = 100
-
-type EntryContentPayload = {
-  classroom_id: string
-  date: string
-  text?: string
-  rich_content?: TiptapContent
-  minutes_reported?: number | null
-  mood?: MoodEmoji | null
-}
-
-type EntryPatchPayload = {
-  classroom_id: string
-  date: string
-  entry_id?: string
-  version: number
-  rich_content?: TiptapContent
-  patch?: JsonPatchOperation[]
-}
 
 function normalizeContent(
   content?: TiptapContent | null,
@@ -59,10 +40,6 @@ function normalizeContent(
   if (content) return content
   if (text) return plainTextToTiptapContent(text)
   return { type: 'doc', content: [] } as TiptapContent
-}
-
-function isValidDateString(date: string) {
-  return DATE_REGEX.test(date)
 }
 
 async function verifyClassDay(
@@ -93,6 +70,9 @@ async function verifyClassDay(
 }
 
 function validateContentPayload(content: TiptapContent) {
+  if (!withinDailyLogWireLimit(content)) {
+    return { ok: false, error: 'Daily Log content exceeds size limit' }
+  }
   if (!isValidTiptapContent(content)) {
     return { ok: false, error: 'Invalid rich_content format' }
   }
@@ -189,35 +169,10 @@ export const GET = withErrorHandler('GetStudentEntries', async (request, context
  * Creates or updates an entry for the current student
  */
 export const POST = withErrorHandler('PostStudentEntry', async (request, context) => {
-  let cachedBody: EntryContentPayload | undefined
-  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => {
-    cachedBody = (await request.json()) as EntryContentPayload
-    return cachedBody.classroom_id
-  })
-  const body = cachedBody ?? (await request.json()) as EntryContentPayload
-
-  const { classroom_id, date, text, rich_content, minutes_reported, mood } = body
-
-  if (!classroom_id || !date) {
-    return NextResponse.json(
-      { error: 'classroom_id and date are required' },
-      { status: 400 }
-    )
-  }
-
-  if (!isValidDateString(date)) {
-    return NextResponse.json(
-      { error: 'Invalid date format (use YYYY-MM-DD)' },
-      { status: 400 }
-    )
-  }
-
-  if (mood && !VALID_MOODS.includes(mood)) {
-    return NextResponse.json(
-      { error: 'Invalid mood value' },
-      { status: 400 }
-    )
-  }
+  let bodyPromise: Promise<ReturnType<typeof dailyLogPostSchema.parse>> | undefined
+  const readBody = () => bodyPromise ??= (async () => dailyLogPostSchema.parse(await request.json()))()
+  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => (await readBody()).classroom_id)
+  const { classroom_id, date, text, rich_content, minutes_reported, mood, entry_id, version } = await readBody()
 
   const content = normalizeContent(rich_content, text)
 
@@ -271,6 +226,10 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
     const contextualExisting = verifyContextualDailyLogPostPreimage({
       actorId: user.id, classroomId: classroom_id, date, entry: preimage,
     })
+    if ((entry_id !== undefined && entry_id !== contextualExisting?.id)
+      || (version !== undefined && version !== (contextualExisting?.version ?? 0))) {
+      return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: contextualExisting }, { status: 409 })
+    }
     const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
     const result = await saveContextualDailyLog({
       supabase,
@@ -309,6 +268,20 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       { error: 'Failed to fetch entry' },
       { status: 500 }
     )
+  }
+
+  if ((entry_id !== undefined && entry_id !== existing?.id)
+    || (version !== undefined && version !== (existing ? existing.version ?? 1 : 0))) {
+    return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: existing ?? null }, { status: 409 })
+  }
+
+  // Re-read by the caller's exact subject/classroom/date when a competing write wins.
+  const entryConflict = async () => {
+    const { data: latest, error } = await supabase.from('entries')
+      .select('id, version, text, rich_content, minutes_reported, mood')
+      .eq('student_id', user.id).eq('classroom_id', classroom_id).eq('date', date).maybeSingle()
+    if (error) return NextResponse.json({ error: 'Failed to fetch entry' }, { status: 500 })
+    return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: latest }, { status: 409 })
   }
 
   let entry
@@ -370,8 +343,9 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
         version: nextVersion,
       })
       .eq('id', existing.id)
+      .eq('version', existing.version ?? 1)
       .select()
-      .single()
+      .maybeSingle()
 
     if (error) {
       console.error('Error updating entry:', error)
@@ -381,6 +355,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       )
     }
 
+    if (!data) return entryConflict()
     entry = data
   } else {
     const { data, error } = await supabase
@@ -399,6 +374,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       .single()
 
     if (error) {
+      if (error.code === '23505') return entryConflict()
       console.error('Error creating entry:', error)
       return NextResponse.json(
         { error: 'Failed to create entry' },
@@ -417,56 +393,10 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
  * Applies JSON Patch or full-content updates with optimistic concurrency.
  */
 export const PATCH = withErrorHandler('PatchStudentEntry', async (request, context) => {
-  let cachedBody: EntryPatchPayload | undefined
-  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => {
-    cachedBody = (await request.json()) as EntryPatchPayload
-    return cachedBody.classroom_id
-  })
-  const body = cachedBody ?? (await request.json()) as EntryPatchPayload
-
-  const { classroom_id, date, entry_id, version, rich_content, patch } = body
-
-  if (!classroom_id || !date) {
-    return NextResponse.json(
-      { error: 'classroom_id and date are required' },
-      { status: 400 }
-    )
-  }
-
-  if (!isValidDateString(date)) {
-    return NextResponse.json(
-      { error: 'Invalid date format (use YYYY-MM-DD)' },
-      { status: 400 }
-    )
-  }
-
-  if (!Number.isInteger(version)) {
-    return NextResponse.json(
-      { error: 'version is required' },
-      { status: 400 }
-    )
-  }
-
-  if (!rich_content && !patch) {
-    return NextResponse.json(
-      { error: 'rich_content or patch is required' },
-      { status: 400 }
-    )
-  }
-
-  if (patch && !Array.isArray(patch)) {
-    return NextResponse.json(
-      { error: 'Invalid patch format' },
-      { status: 400 }
-    )
-  }
-
-  if (rich_content && !isValidTiptapContent(rich_content)) {
-    return NextResponse.json(
-      { error: 'Invalid rich_content format' },
-      { status: 400 }
-    )
-  }
+  let bodyPromise: Promise<ReturnType<typeof dailyLogPatchSchema.parse>> | undefined
+  const readBody = () => bodyPromise ??= (async () => dailyLogPatchSchema.parse(await request.json()))()
+  const dailyLogAccess = await authorizeContextualDailyLogRequest(async () => (await readBody()).classroom_id)
+  const { classroom_id, date, entry_id, version, rich_content, patch } = await readBody()
 
   const user = dailyLogAccess.user
   const supabase = getServiceRoleClient()
@@ -575,7 +505,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     }
     let nextContent: TiptapContent
     if (patch && patch.length > 0) {
-      const patched = tryApplyJsonPatch(normalizeContent(contextualExisting.rich_content, contextualExisting.text), patch)
+      const patched = tryApplyJsonPatch(normalizeContent(contextualExisting.rich_content, contextualExisting.text), patch, { maxContentBytes: DAILY_LOG_MAX_WIRE_BYTES })
       if (!patched.success) return NextResponse.json({ error: 'Invalid patch' }, { status: 400 })
       nextContent = patched.content
     } else if (patch && patch.length === 0) {
@@ -716,7 +646,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
 
   if (patch && patch.length > 0) {
     const baseContent = normalizeContent(existing.rich_content, existing.text)
-    const patched = tryApplyJsonPatch(baseContent, patch)
+    const patched = tryApplyJsonPatch(baseContent, patch, { maxContentBytes: DAILY_LOG_MAX_WIRE_BYTES })
     if (!patched.success) {
       return NextResponse.json(
         { error: 'Invalid patch' },

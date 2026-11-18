@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { ClassworkTypeIcon } from '@/components/ClassworkTypeIcon'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -49,6 +50,7 @@ export function SortableAssignmentCard({
   onEdit,
   onDelete,
 }: SortableAssignmentCardProps) {
+  const descriptionId = useId()
   const showEditActions = editMode && !isReadOnly
   const {
     attributes,
@@ -97,7 +99,7 @@ export function SortableAssignmentCard({
           <button
             type="button"
             className={[
-              'p-1 -ml-1 touch-none transition-colors',
+              'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control touch-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
               isDragDisabled
                 ? 'text-text-muted cursor-default'
                 : 'text-text-muted hover:text-text-default cursor-grab active:cursor-grabbing',
@@ -120,8 +122,13 @@ export function SortableAssignmentCard({
           }}
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-left"
           aria-label={editMode ? `Edit ${assignment.title}` : assignment.title}
+          aria-describedby={descriptionId}
           disabled={pending}
         >
+          <span id={descriptionId} className="sr-only">
+            {status ?? (isDraft ? 'Draft' : 'Posted')}{scheduledAt ? `, ${formatScheduledRelease(scheduledAt)}` : ''}. Due: {formatDueDate(assignment.due_at)}.{' '}
+            {!status && !isDraft ? (assignment.stats ? `${assignment.stats.submitted}/${assignment.stats.total_students} submitted` : countsUnavailable ? 'Count unavailable' : 'Loading count') : ''}
+          </span>
           <span className="min-w-0">
             <span className={[
               'flex items-center gap-2 font-medium',

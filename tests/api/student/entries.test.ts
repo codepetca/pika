@@ -40,7 +40,7 @@ vi.mock('@/lib/timezone', () => ({
 vi.mock('@/lib/server/classrooms', () => ({
   assertStudentCanAccessClassroom: vi.fn(async () => ({
     ok: true,
-    classroom: { id: 'classroom-1', archived_at: null },
+    classroom: { id: '22222222-2222-4222-8222-222222222222', archived_at: null },
   })),
 }))
 vi.mock('@/lib/server/pal-outbox', () => ({
@@ -81,17 +81,17 @@ describe('GET /api/student/entries', () => {
         order: vi.fn().mockResolvedValue({
           data: [
             {
-              id: 'entry-1',
+              id: '33333333-3333-4333-8333-333333333333',
               student_id: 'student-1',
-              classroom_id: 'classroom-1',
+              classroom_id: '22222222-2222-4222-8222-222222222222',
               date: '2024-10-15',
               text: 'Entry 1',
               on_time: true,
             },
             {
-              id: 'entry-2',
+              id: '33333333-3333-4333-8333-333333333332',
               student_id: 'student-1',
-              classroom_id: 'classroom-1',
+              classroom_id: '22222222-2222-4222-8222-222222222222',
               date: '2024-10-14',
               text: 'Entry 2',
               on_time: true,
@@ -106,7 +106,7 @@ describe('GET /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
                 is: vi.fn(() => ({
-                  data: [{ classroom_id: 'classroom-1' }],
+                  data: [{ classroom_id: '22222222-2222-4222-8222-222222222222' }],
                   error: null,
                 })),
               })),
@@ -134,7 +134,7 @@ describe('GET /api/student/entries', () => {
 
       expect(response.status).toBe(200)
       expect(data.entries).toHaveLength(2)
-      expect(data.entries[0].id).toBe('entry-1')
+      expect(data.entries[0].id).toBe('33333333-3333-4333-8333-333333333333')
       expect(limitMock).toHaveBeenCalledWith(100)
     })
 
@@ -151,7 +151,7 @@ describe('GET /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
                 is: vi.fn(() => ({
-                  data: [{ classroom_id: 'classroom-1' }],
+                  data: [{ classroom_id: '22222222-2222-4222-8222-222222222222' }],
                   error: null,
                 })),
               })),
@@ -187,7 +187,7 @@ describe('GET /api/student/entries', () => {
         limit: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         then: vi.fn((resolve: any) => resolve({
-          data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
+          data: [{ id: '33333333-3333-4333-8333-333333333333', classroom_id: '22222222-2222-4222-8222-222222222223' }],
           error: null
         }))
       }
@@ -197,13 +197,13 @@ describe('GET /api/student/entries', () => {
       }))
       ;(mockSupabaseClient.from as any) = mockFrom
 
-      const request = new NextRequest('http://localhost:3000/api/student/entries?classroom_id=classroom-2')
+      const request = new NextRequest('http://localhost:3000/api/student/entries?classroom_id=22222222-2222-4222-8222-222222222223')
 
       await GET(request)
 
       // Verify eq was called twice: once for student_id, once for classroom_id
       expect(mockQuery.eq).toHaveBeenCalledWith('student_id', 'student-1')
-      expect(mockQuery.eq).toHaveBeenCalledWith('classroom_id', 'classroom-2')
+      expect(mockQuery.eq).toHaveBeenCalledWith('classroom_id', '22222222-2222-4222-8222-222222222223')
       expect(mockQuery.limit).not.toHaveBeenCalled()
     })
 
@@ -213,7 +213,7 @@ describe('GET /api/student/entries', () => {
         limit: vi.fn().mockReturnThis(),
         order: vi.fn().mockReturnThis(),
         then: vi.fn((resolve: any) => resolve({
-          data: [{ id: 'entry-1', classroom_id: 'classroom-2' }],
+          data: [{ id: '33333333-3333-4333-8333-333333333333', classroom_id: '22222222-2222-4222-8222-222222222223' }],
           error: null,
         })),
       }
@@ -223,7 +223,7 @@ describe('GET /api/student/entries', () => {
       }))
       ;(mockSupabaseClient.from as any) = mockFrom
 
-      const request = new NextRequest('http://localhost:3000/api/student/entries?classroom_id=classroom-2&limit=12')
+      const request = new NextRequest('http://localhost:3000/api/student/entries?classroom_id=22222222-2222-4222-8222-222222222223&limit=12')
 
       await GET(request)
 
@@ -243,7 +243,7 @@ describe('GET /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn(() => ({
                 is: vi.fn(() => ({
-                  data: [{ classroom_id: 'classroom-1' }],
+                  data: [{ classroom_id: '22222222-2222-4222-8222-222222222222' }],
                   error: null,
                 })),
               })),
@@ -288,7 +288,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
         }),
@@ -347,14 +347,14 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id and date are required')
+      expect(data.error).toMatch(/classroom_id:|date:/)
     })
 
     it('should return 400 when date is missing', async () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           text: 'Test entry',
         }),
       })
@@ -363,14 +363,14 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('classroom_id and date are required')
+      expect(data.error).toMatch(/classroom_id:|date:/)
     })
 
     it('should return 400 when date format is invalid', async () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '10/15/2024',
           text: 'Test entry',
         }),
@@ -380,14 +380,14 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid date format (use YYYY-MM-DD)')
+      expect(data.error).toContain('Invalid date format (use YYYY-MM-DD)')
     })
 
     it('should return 400 when mood is invalid', async () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
           mood: '😡', // Invalid mood
@@ -398,7 +398,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(400)
-      expect(data.error).toBe('Invalid mood value')
+      expect(data.error).toContain('Invalid mood value')
     })
 
     it('should accept valid moods (😊, 🙂, 😐)', async () => {
@@ -432,7 +432,7 @@ describe('POST /api/student/entries', () => {
             insert: vi.fn(() => ({
               select: vi.fn(() => ({
                 single: vi.fn().mockResolvedValue({
-                  data: { id: 'entry-1', mood: '😊' },
+                  data: { id: '33333333-3333-4333-8333-333333333333', mood: '😊' },
                   error: null,
                 }),
               })),
@@ -445,7 +445,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
           mood: '😊',
@@ -469,7 +469,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-999',
+          classroom_id: '22222222-2222-4222-8222-222222222999',
           date: '2024-10-15',
           text: 'Test entry',
         }),
@@ -506,7 +506,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
         }),
@@ -548,7 +548,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
         }),
@@ -568,9 +568,9 @@ describe('POST /api/student/entries', () => {
         select: vi.fn(() => ({
           single: vi.fn().mockResolvedValue({
             data: {
-              id: 'entry-new-1',
+              id: '33333333-3333-4333-8333-333333333335',
               student_id: 'student-1',
-              classroom_id: 'classroom-1',
+              classroom_id: '22222222-2222-4222-8222-222222222222',
               date: '2024-10-15',
               text: 'Test entry',
               on_time: true,
@@ -616,7 +616,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
           minutes_reported: 60,
@@ -627,10 +627,10 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.entry.id).toBe('entry-new-1')
+      expect(data.entry.id).toBe('33333333-3333-4333-8333-333333333335')
       expect(mockInsert).toHaveBeenCalledWith({
         student_id: 'student-1',
-        classroom_id: 'classroom-1',
+        classroom_id: '22222222-2222-4222-8222-222222222222',
         date: '2024-10-15',
         text: 'Test entry',
         rich_content: {
@@ -649,20 +649,12 @@ describe('POST /api/student/entries', () => {
     })
 
     it('should update existing entry when one exists', async () => {
-      const mockUpdate = vi.fn(() => ({
-        eq: vi.fn(() => ({
-          select: vi.fn(() => ({
-            single: vi.fn().mockResolvedValue({
-              data: {
-                id: 'entry-existing-1',
-                text: 'Updated entry',
-                on_time: true,
-              },
-              error: null,
-            }),
-          })),
-        })),
-      }))
+      const updateQuery = {
+        eq: vi.fn().mockReturnThis(),
+        select: vi.fn().mockReturnThis(),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { id: '33333333-3333-4333-8333-333333333334', text: 'Updated entry', on_time: true }, error: null }),
+      }
+      const mockUpdate = vi.fn(() => updateQuery)
 
       const mockFrom = vi.fn((table: string) => {
         if (table === 'classroom_enrollments') {
@@ -690,7 +682,7 @@ describe('POST /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValueOnce({
-                data: { id: 'entry-existing-1' },
+                data: { id: '33333333-3333-4333-8333-333333333334' },
                 error: null,
               }),
             })),
@@ -703,7 +695,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Updated entry',
         }),
@@ -713,7 +705,7 @@ describe('POST /api/student/entries', () => {
       const data = await response.json()
 
       expect(response.status).toBe(200)
-      expect(data.entry.id).toBe('entry-existing-1')
+      expect(data.entry.id).toBe('33333333-3333-4333-8333-333333333334')
       expect(data.entry.text).toBe('Updated entry')
       expect(mockUpdate).toHaveBeenCalledWith({
         text: 'Updated entry',
@@ -766,7 +758,7 @@ describe('POST /api/student/entries', () => {
             insert: vi.fn(() => ({
               select: vi.fn(() => ({
                 single: vi.fn().mockResolvedValue({
-                  data: { id: 'entry-1' },
+                  data: { id: '33333333-3333-4333-8333-333333333333' },
                   error: null,
                 }),
               })),
@@ -779,7 +771,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
         }),
@@ -819,7 +811,7 @@ describe('POST /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValueOnce({
-                data: { id: 'entry-1' },
+                data: { id: '33333333-3333-4333-8333-333333333333' },
                 error: null,
               }),
             })),
@@ -827,7 +819,7 @@ describe('POST /api/student/entries', () => {
               eq: vi.fn(() => ({
                 select: vi.fn(() => ({
                   single: vi.fn().mockResolvedValue({
-                    data: { id: 'entry-1' },
+                    data: { id: '33333333-3333-4333-8333-333333333333' },
                     error: null,
                   }),
                 })),
@@ -841,7 +833,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Updated entry',
         }),
@@ -898,7 +890,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Test entry',
         }),
@@ -922,7 +914,7 @@ describe('POST /api/student/entries', () => {
           ok: true,
           created: false,
           entry: {
-            id: 'entry-1',
+            id: '33333333-3333-4333-8333-333333333333',
             version: 2,
             text: 'Updated reflection',
             minutes_reported: 30,
@@ -950,7 +942,7 @@ describe('POST /api/student/entries', () => {
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValue({
                 data: {
-                  id: 'entry-1',
+                  id: '33333333-3333-4333-8333-333333333333',
                   version: 1,
                   minutes_reported: 30,
                   mood: '😊',
@@ -967,7 +959,7 @@ describe('POST /api/student/entries', () => {
         {
           method: 'POST',
           body: JSON.stringify({
-            classroom_id: 'classroom-1',
+            classroom_id: '22222222-2222-4222-8222-222222222222',
             date: '2024-10-15',
             text: 'Updated reflection',
           }),
@@ -1014,19 +1006,14 @@ describe('POST /api/student/entries', () => {
             select: vi.fn(() => ({
               eq: vi.fn().mockReturnThis(),
               single: vi.fn().mockResolvedValueOnce({
-                data: { id: 'entry-1' },
+                data: { id: '33333333-3333-4333-8333-333333333333' },
                 error: null,
               }),
             })),
             update: vi.fn(() => ({
-              eq: vi.fn(() => ({
-                select: vi.fn(() => ({
-                  single: vi.fn().mockResolvedValue({
-                    data: null,
-                    error: { message: 'Update failed' },
-                  }),
-                })),
-              })),
+              eq: vi.fn().mockReturnThis(),
+              select: vi.fn().mockReturnThis(),
+              maybeSingle: vi.fn().mockResolvedValue({ data: null, error: { message: 'Update failed' } }),
             })),
           }
         }
@@ -1036,7 +1023,7 @@ describe('POST /api/student/entries', () => {
       const request = new NextRequest('http://localhost:3000/api/student/entries', {
         method: 'POST',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           text: 'Updated entry',
         }),
@@ -1076,7 +1063,7 @@ describe('PATCH /api/student/entries', () => {
         ok: true,
         created: true,
         entry: {
-          id: 'entry-1',
+          id: '33333333-3333-4333-8333-333333333333',
           version: 1,
           text: 'First autosaved log',
           rich_content: content,
@@ -1115,7 +1102,7 @@ describe('PATCH /api/student/entries', () => {
       {
         method: 'PATCH',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           version: 1,
           rich_content: content,
@@ -1125,14 +1112,14 @@ describe('PATCH /api/student/entries', () => {
 
     expect(response.status).toBe(200)
     await expect(response.json()).resolves.toMatchObject({
-      entry: { id: 'entry-1' },
+      entry: { id: '33333333-3333-4333-8333-333333333333' },
       pal_delivery: 'delivered',
     })
     expect(mockRpc).toHaveBeenCalledWith(
       'upsert_student_entry_with_pal_event_atomic',
       expect.objectContaining({
         p_student_id: 'student-1',
-        p_classroom_id: 'classroom-1',
+        p_classroom_id: '22222222-2222-4222-8222-222222222222',
         p_date: '2024-10-15',
         p_pal_event: classroomRequested ? null : expect.objectContaining({
           event_type: 'daily_log.completed',
@@ -1141,7 +1128,7 @@ describe('PATCH /api/student/entries', () => {
       }),
     )
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
-      membership: { studentId: 'student-1', classroomId: 'classroom-1' },
+      membership: { studentId: 'student-1', classroomId: '22222222-2222-4222-8222-222222222222' },
       event: classroomRequested ? null : expect.objectContaining({ event_type: 'daily_log.completed' }),
       supabase: mockSupabaseClient,
     })
@@ -1161,7 +1148,7 @@ describe('PATCH /api/student/entries', () => {
       data: {
         ok: true,
         created: true,
-        entry: { id: 'entry-empty', version: 1, text: '', rich_content: content },
+        entry: { id: '33333333-3333-4333-8333-333333333336', version: 1, text: '', rich_content: content },
       },
       error: null,
     })
@@ -1196,7 +1183,7 @@ describe('PATCH /api/student/entries', () => {
       {
         method: 'PATCH',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
           version: 1,
           rich_content: content,
@@ -1236,7 +1223,7 @@ describe('PATCH /api/student/entries', () => {
         ok: true,
         created: false,
         entry: {
-          id: 'entry-1',
+          id: '33333333-3333-4333-8333-333333333333',
           version: 2,
           text: 'Now this qualifies',
           rich_content: nextContent,
@@ -1263,7 +1250,7 @@ describe('PATCH /api/student/entries', () => {
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
               data: {
-                id: 'entry-1',
+                id: '33333333-3333-4333-8333-333333333333',
                 version: 1,
                 text: '',
                 rich_content: emptyContent,
@@ -1282,9 +1269,9 @@ describe('PATCH /api/student/entries', () => {
       {
         method: 'PATCH',
         body: JSON.stringify({
-          classroom_id: 'classroom-1',
+          classroom_id: '22222222-2222-4222-8222-222222222222',
           date: '2024-10-15',
-          entry_id: 'entry-1',
+          entry_id: '33333333-3333-4333-8333-333333333333',
           version: 1,
           rich_content: nextContent,
         }),
@@ -1321,7 +1308,7 @@ describe('PATCH /api/student/entries', () => {
       select: vi.fn(() => ({
           maybeSingle: vi.fn().mockResolvedValue({
             data: {
-              id: 'entry-1',
+              id: '33333333-3333-4333-8333-333333333333',
               version: 3,
               text: 'Hello world',
               rich_content: nextContent,
@@ -1359,7 +1346,7 @@ describe('PATCH /api/student/entries', () => {
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
               data: {
-                id: 'entry-1',
+                id: '33333333-3333-4333-8333-333333333333',
                 version: 2,
                 text: 'Hello',
                 rich_content: baseContent,
@@ -1376,9 +1363,9 @@ describe('PATCH /api/student/entries', () => {
     const request = new NextRequest('http://localhost:3000/api/student/entries', {
       method: 'PATCH',
       body: JSON.stringify({
-        classroom_id: 'classroom-1',
+        classroom_id: '22222222-2222-4222-8222-222222222222',
         date: '2024-10-15',
-        entry_id: 'entry-1',
+        entry_id: '33333333-3333-4333-8333-333333333333',
         version: 2,
         patch,
       }),
@@ -1425,7 +1412,7 @@ describe('PATCH /api/student/entries', () => {
             eq: vi.fn().mockReturnThis(),
             single: vi.fn().mockResolvedValue({
               data: {
-                id: 'entry-1',
+                id: '33333333-3333-4333-8333-333333333333',
                 version: 3,
                 text: 'Server entry',
                 rich_content: {
@@ -1444,7 +1431,7 @@ describe('PATCH /api/student/entries', () => {
     const request = new NextRequest('http://localhost:3000/api/student/entries', {
       method: 'PATCH',
       body: JSON.stringify({
-        classroom_id: 'classroom-1',
+        classroom_id: '22222222-2222-4222-8222-222222222222',
         date: '2024-10-15',
         version: 2,
         rich_content: {
@@ -1478,11 +1465,11 @@ describe('PATCH /api/student/entries', () => {
         select: vi.fn(() => ({
           eq: vi.fn().mockReturnThis(),
           single: vi.fn().mockImplementation(async () => ({
-            data: { id: 'entry-1', version: 2, text: 'Original', rich_content: baseContent }, error: null,
+            data: { id: '33333333-3333-4333-8333-333333333333', version: 2, text: 'Original', rich_content: baseContent }, error: null,
           })),
           maybeSingle: vi.fn().mockImplementation(async () => {
             reads += 1
-            return { data: { id: 'entry-1', version: 3, text: 'Other tab', rich_content: baseContent }, error: null }
+            return { data: { id: '33333333-3333-4333-8333-333333333333', version: 3, text: 'Other tab', rich_content: baseContent }, error: null }
           }),
         })),
         update: vi.fn(() => updateQuery),
@@ -1493,7 +1480,7 @@ describe('PATCH /api/student/entries', () => {
     const response = await PATCH(new NextRequest('http://localhost:3000/api/student/entries', {
       method: 'PATCH',
       body: JSON.stringify({
-        classroom_id: 'classroom-1', date: '2024-10-15', entry_id: 'entry-1',
+        classroom_id: '22222222-2222-4222-8222-222222222222', date: '2024-10-15', entry_id: '33333333-3333-4333-8333-333333333333',
         version: 2, rich_content: nextContent,
       }),
     }))
@@ -1501,5 +1488,76 @@ describe('PATCH /api/student/entries', () => {
     expect(response.status).toBe(409)
     expect(versionFilter).toHaveBeenCalledWith('version', 2)
     expect(reads).toBe(1)
+  })
+})
+
+describe('Daily Log write boundary and legacy POST concurrency', () => {
+  const classroomId = '22222222-2222-4222-8222-222222222222'
+  const entryId = '33333333-3333-4333-8333-333333333333'
+  const body = { classroom_id: classroomId, date: '2024-10-15', text: 'My reflection' }
+  beforeEach(() => vi.clearAllMocks())
+  it.each([null, 1, [], { ...body, minutes_reported: -1 }, { ...body, minutes_reported: 1.5 },
+    { ...body, minutes_reported: '30' }, { ...body, minutes_reported: 1441 }, { ...body, date: '2024-02-30' }, { ...body, classroom_id: 'invalid' }, { ...body, text: 42 }, { ...body, rich_content: { type: 'doc', content: [null] } },
+  ])('rejects malformed POST %j before database access', async payload => {
+    const response = await POST(new NextRequest('http://localhost/api/student/entries', { method: 'POST', body: JSON.stringify(payload) }))
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+  it.each([
+    { version: '1', rich_content: { type: 'doc', content: [] } },
+    { version: 1, patch: [{ op: 'replace', path: '/content' }] },
+    { version: 1, patch: [{ op: 'move', path: '/content' }] },
+    { version: 1, patch: Array.from({ length: 2001 }, () => ({ op: 'remove', path: '/content/0' })) },
+    { version: 1, patch: [{ op: 'add', path: '/attrs', value: 'x'.repeat(60_001) }] },
+    { version: 1, rich_content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(2001) }] }] } },
+  ])('rejects malformed or oversized PATCH before database access', async payload => {
+    const response = await PATCH(new NextRequest('http://localhost/api/student/entries', { method: 'PATCH', body: JSON.stringify({ classroom_id: classroomId, date: body.date, ...payload }) }))
+    expect(response.status).toBe(400)
+    expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+  })
+
+  it.each(['POST', 'PATCH'] as const)('authenticates %s before reading an invalid body', async method => {
+    const { requireRole } = await import('@/lib/auth')
+    vi.mocked(requireRole).mockRejectedValueOnce(mockAuthenticationError())
+    const input = new NextRequest('http://localhost/api/student/entries', { method, body: 'null' })
+    const read = vi.spyOn(input, 'json')
+    expect((await (method === 'POST' ? POST : PATCH)(input)).status).toBe(401)
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('rejects a supplied stale POST version before legacy or Pal persistence', async () => {
+    const update = vi.fn()
+    mockSupabaseClient.from.mockImplementation((table: string) => ({
+      select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), update,
+      single: vi.fn(async () => ({ data: table === 'class_days' ? { is_class_day: true } : { id: entryId, version: 3 }, error: null })),
+    }))
+    const input = new NextRequest('http://localhost/api/student/entries', { method: 'POST', body: JSON.stringify({ ...body, entry_id: entryId, version: 2 }) })
+    const read = vi.spyOn(input, 'json')
+    const response = await POST(input)
+    expect(response.status).toBe(409)
+    expect((await response.json()).entry).toMatchObject({ id: entryId, version: 3 })
+    expect(update).not.toHaveBeenCalled()
+    expect(read).toHaveBeenCalledTimes(1)
+  })
+
+  it.each(['update', 'create'] as const)('returns the competing entry after a legacy POST %s race', async mode => {
+    const latest = { id: entryId, version: 3, text: 'Other tab', rich_content: { type: 'doc', content: [] } }
+    const versionFilter = vi.fn().mockReturnThis()
+    const update = vi.fn(() => ({ eq: versionFilter, select: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })), single: vi.fn(async () => ({ data: null, error: null })) })) }))
+    const insert = vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(async () => ({ data: null, error: { code: '23505' } })) })) }))
+    mockSupabaseClient.from.mockImplementation((table: string) => {
+      if (table === 'class_days') return { select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(), single: vi.fn(async () => ({ data: { is_class_day: true }, error: null })) }
+      if (table === 'entries') return {
+        select: vi.fn().mockReturnThis(), eq: vi.fn().mockReturnThis(),
+        single: vi.fn(async () => ({ data: mode === 'update' ? { id: entryId, version: 2 } : null, error: null })),
+        maybeSingle: vi.fn(async () => ({ data: latest, error: null })), update, insert,
+      }
+      throw new Error(`Unexpected table ${table}`)
+    })
+    const response = await POST(new NextRequest('http://localhost/api/student/entries', { method: 'POST', body: JSON.stringify(body) }))
+    expect(response.status).toBe(409)
+    expect((await response.json()).entry).toEqual(latest)
+    if (mode === 'update') expect(versionFilter).toHaveBeenCalledWith('version', 2)
+    expect(mode === 'update' ? insert : update).not.toHaveBeenCalled()
   })
 })

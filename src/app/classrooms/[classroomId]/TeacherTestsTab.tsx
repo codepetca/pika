@@ -1,5 +1,7 @@
 'use client'
 
+import { useTestGradingBatchController } from '@/hooks/useTestGradingBatchController'
+
 import gradingTableStyles from './test-grading-table.module.css'
 
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
@@ -588,7 +590,6 @@ export function TeacherTestsTab({
     void retryTests()
   }, [retryTests])
   const [gradingInfo, setGradingInfo] = useState('')
-  const [isBatchAutoGrading, setIsBatchAutoGrading] = useState(false)
   const [isBatchReturning, setIsBatchReturning] = useState(false)
   const [isBatchUnsubmitting, setIsBatchUnsubmitting] = useState(false)
   const [isBatchUpdatingAccess, setIsBatchUpdatingAccess] = useState(false)
@@ -759,13 +760,26 @@ export function TeacherTestsTab({
   )
   const {
     selectedIds: batchSelectedIds,
-    toggleSelect: toggleBatchSelect,
-    toggleSelectAll: toggleBatchSelectAll,
+    toggleSelect: toggleBatchSelectValue,
+    toggleSelectAll: toggleBatchSelectAllValues,
     allSelected: batchAllSelected,
     someSelected: batchSelectionIndeterminate,
     clearSelection: clearBatchSelection,
     selectedCount: batchSelectedCount,
   } = useTableSelection(gradingRowIds)
+  const batchSelectionGeneration = useRef(0)
+  const gradingStartSelectionGeneration = useRef(0)
+  const toggleBatchSelect = (id: string) => {
+    batchSelectionGeneration.current += 1
+    toggleBatchSelectValue(id)
+  }
+  const toggleBatchSelectAll = () => {
+    batchSelectionGeneration.current += 1
+    toggleBatchSelectAllValues()
+  }
+  const clearGradingStartSelection = () => {
+    if (batchSelectionGeneration.current === gradingStartSelectionGeneration.current) clearBatchSelection()
+  }
   const { columnWidths: gradingColumnWidths, setColumnWidth: setGradingColumnWidth } = useTableColumnWidths({
     storageKey: 'teacher-test-grading:v3',
     columns: TEST_GRADING_COLUMN_LIMITS,
@@ -866,7 +880,6 @@ export function TeacherTestsTab({
     setGradingError('')
     setGradingInfo('')
     setTestGradingSaveState({ canSave: false, isSaving: false, status: 'idle', scopeKey: null })
-    setIsBatchAutoGrading(false)
     setIsBatchReturning(false)
     setIsBatchUnsubmitting(false)
     setIsBatchUpdatingAccess(false)
@@ -1482,13 +1495,22 @@ export function TeacherTestsTab({
 
     setUnavailableTestAiPollKey(null)
     const pollKey = `${selectedTestId}:${activeTestAiRunId}`
+    const pollClassroomId = classroom.id
+    const pollTestId = selectedTestId
+    const pollMode = testExperienceMode
+    const isCurrentPollOwner = () => currentClassroomIdRef.current === pollClassroomId &&
+      currentTestExperienceModeRef.current === pollMode &&
+      gradingSelectionRef.current.workspaceState === 'selected' &&
+      gradingSelectionRef.current.selectedWorkspaceTab === 'grading' &&
+      gradingSelectionRef.current.selectedTestId === pollTestId
     return startAiGradingRunPolling({
       resource: 'test',
       resourceId: selectedTestId,
       runId: activeTestAiRunId,
       statusUrl: `${apiBasePath}/${selectedTestId}/auto-grade-runs/${activeTestAiRunId}`,
-      onRun: setTestAiGradingRun,
+      onRun: run => { if (isCurrentPollOwner()) setTestAiGradingRun(run) },
       onUnavailable: () => {
+        if (!isCurrentPollOwner()) return
         setUnavailableTestAiPollKey(pollKey)
         setGradingError('Grading status is unavailable. Reload this page to reconnect to the saved run.')
       },
@@ -1501,6 +1523,7 @@ export function TeacherTestsTab({
     isDraftSelectedTest,
     selectedTestId,
     selectedWorkspaceTab,
+    testExperienceMode,
     workspaceState,
   ])
 
@@ -1512,7 +1535,6 @@ export function TeacherTestsTab({
     handledCompletedRunKeysRef.current.add(handledKey)
 
     const message = formatTestAiGradingRunMessage(activeTestAiRun)
-    clearBatchSelection()
     void loadGradingRows({ fresh: true })
     setTestGradingPanelRefreshToken((prev) => prev + 1)
     invalidateGradebookForClassroom(classroom.id)
@@ -1526,7 +1548,7 @@ export function TeacherTestsTab({
       setGradingInfo('')
       setGradingError('')
     }
-  }, [activeTestAiRun, classroom.id, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
+  }, [activeTestAiRun, classroom.id, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
   function handleOpenTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
@@ -1705,51 +1727,22 @@ export function TeacherTestsTab({
     ]
   )
 
-  async function handleBatchAutoGrade(gradeScope: 'ungraded' | 'all', options?: {
-    studentIds?: string[]
-    preserveSelection?: boolean
-    infoPrefix?: string
-  }) {
-    const targetStudentIds = options?.studentIds || batchSelectedStudentIds
-    if (!selectedTestId || targetStudentIds.length === 0) return
-
-    setIsBatchAutoGrading(true)
-    setGradingError('')
-    setGradingInfo('')
-    try {
-      const response = await fetch(`${apiBasePath}/${selectedTestId}/auto-grade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_ids: targetStudentIds,
-          grade_scope: gradeScope,
-        }),
-      })
-      const data = await response.json()
-      if (response.status === 202 && data.run) {
-        setTestAiGradingRun(data.run as TestAiGradingRunSummary)
-        if (!options?.preserveSelection) {
-          clearBatchSelection()
-        }
+  const gradingBatch = useTestGradingBatchController({
+    classroomId: classroom.id,
+    testId: workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? selectedTestId : null,
+    mode: testExperienceMode,
+    onStart: () => { gradingStartSelectionGeneration.current = batchSelectionGeneration.current; setGradingError(''); setGradingInfo('') },
+    onRun: (run, started, preserveSelection) => {
+      setTestAiGradingRun(run)
+      if (started) {
+        if (!preserveSelection) clearGradingStartSelection()
         showMessage({ text: 'Grading started', tone: 'info' })
-        return
       }
-      if (response.status === 409 && data.run) {
-        setTestAiGradingRun(data.run as TestAiGradingRunSummary)
-        throw new Error(data.error || 'Another grading run is already active')
-      }
-      if (!response.ok) throw new Error(data.error || 'Auto-grade failed')
-
-      const summary = (data.summary ?? {}) as {
-        message?: string
-        skipped_unanswered_count?: number
-        skipped_already_graded_count?: number
-        skipped_student_count?: number
-      }
+    },
+    onError: setGradingError,
+    onNoop: async (summary, preserveSelection, isCurrent) => {
       const summaryParts: string[] = []
-      if (summary.message) {
-        summaryParts.push(summary.message)
-      }
+      if (summary.message) summaryParts.push(summary.message)
       if (Number(summary.skipped_unanswered_count ?? 0) > 0) {
         summaryParts.push(`${summary.skipped_unanswered_count} answer${summary.skipped_unanswered_count === 1 ? '' : 's'} unanswered`)
       }
@@ -1761,19 +1754,15 @@ export function TeacherTestsTab({
       }
       showMessage({ text: summaryParts.join(' • ') || 'No AI grading was needed', tone: 'info' })
       setGradingInfo('')
-      if (!options?.preserveSelection) {
-        clearBatchSelection()
-      }
+      if (!preserveSelection) clearGradingStartSelection()
       await loadGradingRows({ fresh: true })
+      if (!isCurrent()) return
       setTestGradingPanelRefreshToken((prev) => prev + 1)
       invalidateGradebookForClassroom(classroom.id)
       onTestGradingDataRefresh?.()
-    } catch (error: any) {
-      setGradingError(error.message || 'Auto-grade failed')
-    } finally {
-      setIsBatchAutoGrading(false)
-    }
-  }
+    },
+  })
+  const isBatchAutoGrading = gradingBatch.running
 
   async function handleBatchReturn() {
     if (!selectedTestId || batchSelectedCount === 0) return
@@ -3396,7 +3385,7 @@ export function TeacherTestsTab({
         onCancel={() => setShowBatchGradeModal(false)}
         onConfirm={() => {
           setShowBatchGradeModal(false)
-          void handleBatchAutoGrade('all')
+          void gradingBatch.start('all', batchSelectedStudentIds)
         }}
       />
 

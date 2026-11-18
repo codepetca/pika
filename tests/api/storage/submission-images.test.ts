@@ -4,9 +4,13 @@ import { GET } from '@/app/api/storage/submission-images/route'
 
 vi.mock('@/lib/auth', () => ({ requireAuth: vi.fn() }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: vi.fn() }))
+vi.mock('@/lib/server/classrooms', () => ({
+  assertStudentCanAccessClassroom: vi.fn(async () => ({ ok: true })),
+}))
 
 import { requireAuth } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 
 const OBJECT_ID = '10000000-0000-4000-8000-000000000001'
 const DOC_ID = '20000000-0000-4000-8000-000000000001'
@@ -31,6 +35,7 @@ function createSupabase(options: {
   dataSubjectUserId?: string
   createdByUserId?: string
   contextualResult?: unknown
+  assignment?: Record<string, unknown>
 } = {}) {
   const createSignedUrl = vi.fn(async () => ({
     data: { signedUrl: 'https://project.supabase.co/storage/v1/object/sign/submission-images/work.png?token=short-lived' },
@@ -57,7 +62,7 @@ function createSupabase(options: {
       student_id: options.studentId || 'student-1',
       assignment_id: ASSIGNMENT_ID,
     },
-    assignments: { classroom_id: CLASSROOM_ID },
+    assignments: { classroom_id: CLASSROOM_ID, is_draft: false, released_at: null, ...options.assignment },
     classrooms: { teacher_id: options.classroomTeacherId || 'teacher-1' },
   }
   return {
@@ -96,7 +101,10 @@ function createSupabase(options: {
 }
 
 describe('GET /api/storage/submission-images', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(assertStudentCanAccessClassroom).mockResolvedValue({ ok: true } as never)
+  })
   afterEach(() => vi.unstubAllEnvs())
 
   it.each(['object_id=invalid', 'path=legacy.png'])('rejects malformed shared config before query, lookup or public compatibility (%s)', async (query) => {
@@ -171,6 +179,33 @@ describe('GET /api/storage/submission-images', () => {
       `http://localhost:3000/api/storage/submission-images?object_id=${OBJECT_ID}`,
     ))
     expect(response.status).toBe(404)
+    expect(createSignedUrl).not.toHaveBeenCalled()
+  })
+
+  it.each(['removed membership', 'archived classroom'])('does not sign retained own-image bytes after %s', async () => {
+    vi.mocked(requireAuth).mockResolvedValue({ id: 'student-1', role: 'student' } as never)
+    vi.mocked(assertStudentCanAccessClassroom).mockResolvedValueOnce({
+      ok: false, status: 403, error: 'Classroom access is unavailable',
+    })
+    const { client, createSignedUrl } = createSupabase()
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+
+    const response = await GET(new NextRequest(`http://localhost/api/storage/submission-images?object_id=${OBJECT_ID}`))
+
+    expect(response.status).toBe(404)
+    expect(assertStudentCanAccessClassroom).toHaveBeenCalledWith('student-1', CLASSROOM_ID)
+    expect(createSignedUrl).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { is_draft: true, released_at: null },
+    { is_draft: false, released_at: '2099-01-01T00:00:00Z' },
+    { is_draft: false, released_at: 'invalid' },
+  ])('does not sign an owned image when its assignment is not visible (%j)', async assignment => {
+    vi.mocked(requireAuth).mockResolvedValue({ id: 'student-1', role: 'student' } as never)
+    const { client, createSignedUrl } = createSupabase({ assignment })
+    vi.mocked(getServiceRoleClient).mockReturnValue(client as never)
+    expect((await GET(new NextRequest(`http://localhost/api/storage/submission-images?object_id=${OBJECT_ID}`))).status).toBe(404)
     expect(createSignedUrl).not.toHaveBeenCalled()
   })
 

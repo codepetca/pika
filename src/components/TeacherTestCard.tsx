@@ -84,7 +84,7 @@ export function TeacherTestCard({
           <button
             type="button"
             className={[
-              '-ml-1 touch-none p-1 text-text-muted transition-colors',
+              'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control touch-none text-text-muted transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
               isDragDisabled
                 ? 'cursor-default'
                 : 'cursor-grab hover:text-text-default active:cursor-grabbing',

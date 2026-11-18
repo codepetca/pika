@@ -376,6 +376,8 @@ export function TeacherCalendarTab({ classroom }: Props) {
                             if (dateString === getTodayInToronto() && isClassDay) setDayToExclude(dateString)
                             else void toggleDay(dateString, !isClassDay)
                           }}
+                          aria-label={format(day, 'EEEE, MMMM d, yyyy')}
+                          aria-current={isToday ? 'date' : undefined}
                           aria-pressed={isClassDay}
                           aria-busy={isPending || undefined}
                           className={`aspect-square p-1 rounded text-xs font-medium transition-colors ${colorClasses} ${isPending ? 'cursor-wait' : toggleDisabled ? 'cursor-not-allowed' : ''} ${outlineClasses}`}
