@@ -54520,3 +54520,25 @@ Hosted coverage identified more Gradebook tests coupled to the score wrapper and
 ## 2026-11-09 — Open Calendar Grid near today
 
 Calendar Grid opens with the preceding week directly below the sticky headings when it fits above today in the upper half of the scroller. For a tall preceding week, today's week starts below the headings. Today uses the same placement. List keeps its centered target and late initial data respects manual scroll. Verified the Grid opening and Today action with teacher and student Playwright captures at desktop and mobile widths in both themes.
+
+<!-- pika-session-log-archive-batch:f2cf102fdce3a3f90dc088ac6c62ecdb7e6b8aed39feea79e480e17e32fbbf6b -->
+## 2026-11-02 — Teacher Tests query overlap
+
+On `codex/teacher-tests-query-overlap`, prepared a legacy teacher Tests list change that overlaps authorized question and attempt reads while preserving question-first errors. A synthetic one-test/one-student probe with 80 ms delays per read measured 168 ms before and 89 ms after, with six table requests in both successful runs; these are mocked timings, not production measurements. Focused route checks cover overlap, authorization, error precedence and late rejections. Production deployment remains pending.
+
+## 2026-11-02 — Teacher Tests intent prefetch
+
+Start a bounded teacher Tests read on navigation intent, share only in-flight work, and invalidate on Test updates before list refresh. Skip speculative work for constrained connections and after Tests mounts; completed snapshots remain uncached for freshness.
+
+<!-- pika-session-log-archive-batch:dbb6b89fc8d49d74ec44597a2236e5b340180b62529a5a938652f771855fc473 -->
+## 2026-11-09 — Guarded assignment release rebase
+
+Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
+
+## 2026-11-09 — Rebase the live Pro trial
+
+Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
+
+## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
+
+The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.

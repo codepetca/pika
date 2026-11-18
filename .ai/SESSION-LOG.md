@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Guarded assignment release rebase
-
-Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
-
-## 2026-11-09 — Rebase the live Pro trial
-
-Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
-
-## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
-
-The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.
-
 ## 2026-11-09 — Sync the reviewed live trial with main
 
 The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
@@ -188,3 +176,7 @@ Production public admission, checkout, and trial signup are closed. The launch a
 Report unexpected signup code issuance, email delivery, and admission registry failures with separate diagnostics and category-only requests to a protected Cloudflare Worker. A Durable Object groups repeats and retries delivery through an independent mail provider.
 
 The Codepet operations inbox is already verified in Cloudflare. Live alert delivery needs a sending domain and a canary. The root domain uses iCloud mail. Public admission, checkout, and trial signup are closed.
+
+## 2026-11-18 — Repair Classwork autosave CI
+
+Synced PR #1782 with current main and moved its unapplied Classwork snapshot migration to 331. Updated image-reference proof catalogs for the exact installed snapshot schema, refreshed survey and scheduled-material browser fixtures, and projected current assignment release intents through authoring responses. Verification and independent review are tracked on the PR before requesting CI.

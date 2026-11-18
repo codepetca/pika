@@ -88,7 +88,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329 or 330')
+  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331].includes(migrations.length), 'Expected a complete replay through a reviewed billing or Classwork migration')
   assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
     '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
   assert.equal(disposableBillingReplayTail.length, 6)
@@ -141,12 +141,18 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
       assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
     }
   }
-  if (migrations.length === 330) {
+  if (migrations.length >= 330) {
     const migration = migrations[329]
     const sha256 = 'c378912340219641e12f0a1e534718a33b524657a5bbfe9da30fb87e7398d078'
     assert.equal(migration.name, '330_classroom_admission_account_deletion.sql')
     assert.equal(migration.sha256, sha256)
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
   }
-
+  if (migrations.length === 331) {
+    const migration = migrations[330]
+    const sha256 = '60f9bde20e8f52dfd3037e69f8f1b69ebf89fa974cc1009b57bba16cf7ec97bf'
+    assert.equal(migration.name, '331_classwork_authoring_drafts.sql')
+    assert.equal(migration.sha256, sha256)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+  }
 }

@@ -8,7 +8,7 @@ import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifec
 const runner = readFileSync('scripts/check-repolight-analysis-access-database.sh', 'utf8')
 
 describe('RepoLight offline replay source boundary', () => {
-  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', true], ['325', true], ['326', true], ['327', true], ['328', true], ['329', true], ['330', true], ['331', false], ['x', false]])(
+  it.each([['233', false], ['234', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', true], ['325', true], ['326', true], ['327', true], ['328', true], ['329', true], ['330', true], ['331', true], ['332', false], ['x', false]])(
     'admits source version %s: %s', (version, accepted) => {
       const start = runner.indexOf('[[ "$source_version" =~')
       const end = runner.indexOf('pnpm --dir "$root"', start)
@@ -26,6 +26,7 @@ describe('RepoLight offline replay source boundary', () => {
     expect(command).toBeDefined()
     const result = spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['-e', command!], { encoding: 'utf8' })
     expect(result.status, result.stderr).toBe(0)
+    expect(runner).toMatch(/if \[[\s\S]*?331_classwork_authoring_drafts\.sql" \]\]; then\n  if ! sql < "\$root\/scripts\/check-classwork-authoring-drafts-database\.sql"/)
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 303\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-renewal-pending-database.sql"/)
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 304\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-expiry-conflicts-database.sql"/)
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 307\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-scheduled-plan-change-admission-database.sql"/)
