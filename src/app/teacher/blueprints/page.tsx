@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Plus, RotateCw } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, ConfirmDialog, FormField, IconButton, Input, PageHeading, PageState, SaveStatus, Select, TabPanel, Tabs } from '@/ui'
@@ -223,6 +223,13 @@ export default function TeacherBlueprintsPage() {
     const section = searchParams.get('section')
     return isEditorTab(section) ? section : 'overview'
   })
+  const copilotNavigationIntentRef = useRef({ tab: activeTab, generation: 0 })
+  const copilotPreviewEditRef = useRef(0)
+  useLayoutEffect(() => {
+    if (copilotNavigationIntentRef.current.tab !== activeTab) {
+      copilotNavigationIntentRef.current = { tab: activeTab, generation: copilotNavigationIntentRef.current.generation + 1 }
+    }
+  }, [activeTab])
   const [drafts, setDrafts] = useState(emptyCourseBlueprintDraftState)
   const [meta, setMeta] = useState({
     title: '',
@@ -1178,6 +1185,8 @@ export default function TeacherBlueprintsPage() {
     if (!selectedBlueprintId || !aiPreview) return
     const blueprintId = selectedBlueprintId
     const requestId = ++copilotRequestIdRef.current
+    const navigationIntent = copilotNavigationIntentRef.current.generation
+    const previewEdit = copilotPreviewEditRef.current
     const isCurrent = () => selectedBlueprintIdRef.current === blueprintId && copilotRequestIdRef.current === requestId
     setAiBusy(true)
     setError('')
@@ -1200,9 +1209,11 @@ export default function TeacherBlueprintsPage() {
         if (!isCurrent()) return
         throw new Error(data.errors?.join('\n') || data.error || 'Failed to apply copilot preview')
       }
-      if (isCurrent()) {
+      if (isCurrent() && copilotPreviewEditRef.current === previewEdit) {
         setAiPreview(null)
-        setActiveTab('proposals')
+        if (copilotNavigationIntentRef.current.generation === navigationIntent && copilotNavigationIntentRef.current.tab === 'copilot') {
+          setActiveTab('proposals')
+        }
       }
       // A committed proposal belongs to the Blueprint even if the teacher
       // changed draft section/unit while it was saving. Reconcile the list
@@ -1924,7 +1935,7 @@ export default function TeacherBlueprintsPage() {
                         </select>
                       </FormField>
                       <FormField label="Direction">
-                        <Input value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Focus on a coding-heavy semester with weekly checkpoints." />
+                        <Input value={aiPrompt} onChange={(e) => { copilotNavigationIntentRef.current.generation += 1; setAiPrompt(e.target.value) }} placeholder="Focus on a coding-heavy semester with weekly checkpoints." />
                       </FormField>
                     </div>
 
@@ -1999,7 +2010,7 @@ export default function TeacherBlueprintsPage() {
                         <textarea
                           aria-label="Draft preview Markdown"
                           value={aiPreview.content}
-                          onChange={(e) => setAiPreview((current) => (current ? { ...current, content: e.target.value } : current))}
+                          onChange={(e) => { copilotPreviewEditRef.current += 1; setAiPreview((current) => (current ? { ...current, content: e.target.value } : current)) }}
                           className="min-h-[420px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       </div>
