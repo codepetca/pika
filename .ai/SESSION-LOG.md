@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Rebase live paid reconciliation after checkout
-
-Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
-
 ## 2026-11-09 — Rebase reviewed live billing routing and closeout
 
 Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
@@ -197,3 +193,9 @@ Moved the existing room controls into Daily's Attendance schedules flow and remo
 ## 2026-11-18 — Simplify attendance to one location
 
 Owner requested Attendance Location with one dropdown, and explicitly confirmed it should apply to current and future meetings. Removed visible default/meeting distinction, Save default, room administration and teacher move-sticker QR from this flow. Existing commands update current+future assignment; Undo restores the previous meeting and class location with partial-failure retry. Kept the selected room's student poster, shared catalog/readiness/permissions, request generations and schedule flow. Continuing draft PR1834 on its existing branch; final test/review/visual receipts are in the PR and cloud runbook. No backend, dependency, auth, migration or hosting changes.
+
+## 2026-11-18 — Local attendance schedules completion
+
+- Verified code27203bd9 locally: focused gate2313/2313 plus architecture, UI/design policy, TypeScript and lint; isolated production build and8/8 browser fixture scenarios pass. Bara334 tests/typecheck pass.
+- Real loopback Pika/Supabase + Bara/Convex flow with existing synthetic users: Room223 catalog, current/default assignment, poster, persistent display reload, poster check-in, live-QR duplicate, signed callbacks and persisted check-in fact verified. Schema001–330 reused; no migrations.
+- WorkOS authentication is emulated. Private launchers isolate local cookie names/origins; hosted pilot/production unchanged. Source code unchanged; private restart/evidence handoff at /private/tmp/bara-pika-local-completion/README.md.

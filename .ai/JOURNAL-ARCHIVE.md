@@ -54543,3 +54543,8 @@ The live trial passed all required CI at 535e6542b. Main then advanced with the 
 ## 2026-11-09 — Rebase reviewed live checkout after the trial merge
 
 Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
+
+<!-- pika-session-log-archive-batch:8e5f95a654b3ae10fa1f8ee89c723ef724d0fd2c89340e00e6411883c9147792 -->
+## 2026-11-09 — Rebase live paid reconciliation after checkout
+
+Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
