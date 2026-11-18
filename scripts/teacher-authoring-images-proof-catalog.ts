@@ -96,7 +96,7 @@ export function teacherAuthoringImagesCatalogSql() {
      and c.relrowsecurity and not c.relforcerowsecurity and pg_catalog.pg_get_userbyid(c.relowner)='postgres'
      and not exists(select 1 from pg_catalog.aclexplode(coalesce(c.relacl,pg_catalog.acldefault('r',c.relowner))) a where a.grantee<>c.relowner)
      and not exists(select 1 from pg_catalog.pg_attribute a cross join lateral pg_catalog.aclexplode(a.attacl) acl where a.attrelid=c.oid and acl.grantee<>c.relowner)
-     and not exists(select 1 from pg_catalog.pg_policy p where p.polrelid=c.oid))
+     and not exists(select 1 from pg_catalog.pg_policy authoring_policy where authoring_policy.polrelid=c.oid))
    or (select count(*) from pg_catalog.pg_trigger t where t.tgname='classwork_authoring_drafts_image_references' and not t.tgisinternal)<>1
    or not exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid=${classworkDrafts}
      and t.tgname='classwork_authoring_drafts_image_references' and t.tgfoid='public.sync_teacher_authoring_image_references()'::regprocedure
