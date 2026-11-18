@@ -1,22 +1,20 @@
-# Attendance schedules and rooms
+# Attendance schedules and location
 
-User goal: open the existing Daily Attendance schedules action to assign a room and print its student poster or teacher sticker. Remove the separate Attendance rooms overflow entry.
+User goal: use Daily's existing Attendance schedules action to choose one attendance location. The room section is headed **Attendance Location**, followed by one dropdown (for example, Room 223), without visible Default room / This meeting labels or a second room picker. Remove the teacher-only move sticker from this flow; keep the student attendance poster for the selected location.
 
-Reference: the production AttendanceWindowDialog schedule picker/editor and TeacherAttendanceRoomsDialog controls, with Pattern Lab dialog-entry/modal-close as overlay references. Follow DESIGN.md and stable.md; no experimental pattern or human promotion needed.
+The latest owner direction supersedes the earlier dual-picker UI requirement. The single choice is treated as the class location for the current and future meetings (explicitly confirmed by the owner). Use existing move with save_default when a meeting exists; use the existing class-room setting when no meeting exists. Do not introduce backend, auth, schema or catalog changes. Undo must restore both parts of the prior location assignment or visibly retain recovery for a partial failure.
 
-Risk: workspace-state. Room state belongs to classroom ID + selected attendance date + open lifetime. Ignore previous-owner responses, reset owner-scoped selection and poster state on navigation, and cover a late-response regression.
+Reference: production AttendanceWindowDialog and its existing room owner; approved native Select/FormField and shared modal-close behavior. Pattern Lab's modal-close reference remains visual evidence. Follow DESIGN.md and stable.md; no experimental primitive or promotion needed.
 
 | Need | Existing candidate | Decision | Reason |
 | --- | --- | --- | --- |
-| Schedule selection/edit/save | AttendanceWindowDialog | extend | Keep existing timing and delivery acknowledgement |
-| Room assignment | TeacherAttendanceRoomsDialog | reuse | One implementation preserves room commands and permissions |
-| Student poster and teacher sticker | TeacherRoomPosterDialog, AttendancePoster, QrCode | reuse | Retain room-specific semantics |
-| Overlay behavior | ContentDialog, DialogPanel | reuse | Shared focus, close and keyboard contracts |
+| Schedule picker/edit/save | AttendanceWindowDialog | reuse | Preserve timing and delivery acknowledgement |
+| One location picker | Existing room owner and Select/FormField | extend | One visible choice; hidden accessible label |
+| Student attendance QR | TeacherRoomPosterDialog, AttendancePoster | reuse | Print the chosen physical room's student poster |
+| Overlay behavior | ContentDialog, DialogPanel | reuse | Preserve focus, close and keyboard contracts |
 
-Teacher only; student n/a because student UI and check-in contracts do not change. Verify desktop 1440×900 and mobile 390×844, light/dark, closed/open/focus, loaded/loading/error/empty/unready, selection/edit/save/acknowledgement, move/Undo and poster return. Primary signal: schedule selection and room assignment appear in one existing dialog. Composite-widget accessibility review: yes (dialog focus, native selects, busy/disabled controls, poster overlay).
+Risk: workspace-state. Requests and selection belong to classroom + selected date + open generation. Preserve A→B→A stale-response protection, schedule-error independence, busy guards and poster return. Keep shared admin-created catalog, permissions/readiness, disabled/error/retry states, normal Daily entry and unchanged external room-return links.
 
-Default room and This meeting remain separate. Changing today's room leaves the default intact. Keep admin-created shared catalog, readiness and permissions, error/retry states, Undo, room-return links, date/classroom switching and the normal Daily entry point. Exclude new manager, auth/data architecture, new dependencies, hosted migrations and deployment.
+Teacher only; student n/a because student UI and check-in contracts are unchanged. Verify desktop1440×900/mobile390×844, light/dark; loaded/empty/loading/error/unready, saving, Undo/recovery, schedule edit/apply/acknowledgement and poster return. Primary signal: one location dropdown under one heading. Composite widget review: dialog focus, native selection, busy/disabled actions and poster overlay.
 
-Implementation: compose the existing room owner into the schedules flow and route former room-dialog entry paths there. Verify with closest component tests, focused checks and Playwright. Independent review covers the complete fixed commit after draft publication. Keep the PR draft as requested.
-
-Model recommendation: GPT-6.1 Terra medium for bounded UI implementation; GPT-6.1 Sol high for integration review.
+No duplicate room manager, teacher move QR, extra room controls, new dependency, auth/data architecture, hosted migration or deployment. Keep PR1834 draft. Model recommendation: GPT-6.1 Terra medium for bounded UI work; GPT-6.1 Sol high for consequential integration review.

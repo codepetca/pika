@@ -54538,3 +54538,8 @@ The isolated Test reorder fixture now selects the exact RepoLight billing trigge
 ## 2026-11-09 — Sync the reviewed live trial with main
 
 The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
+
+<!-- pika-session-log-archive-batch:173aadfd2c84aa13eea9cbb75bf85379e95c87b9a2130d43885446cf57c21eac -->
+## 2026-11-09 — Rebase reviewed live checkout after the trial merge
+
+Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.

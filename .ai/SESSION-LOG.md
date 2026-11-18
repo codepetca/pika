@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Rebase reviewed live checkout after the trial merge
-
-Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
-
 ## 2026-11-09 — Rebase live paid reconciliation after checkout
 
 Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
@@ -197,3 +193,7 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 ## 2026-11-18 — Consolidate attendance rooms in schedules
 
 Moved the existing room controls into Daily's Attendance schedules flow and removed the separate overflow entry. Reused room/poster owners; kept default and meeting room mutations separate, preserved Undo and unsaved selection through poster preview, and guarded stale responses across date/classroom/open lifetimes. Worktree `/workspace/worktrees/pika-attendance-schedules`, branch `codex/attendance-schedules-rooms`, stacked on open PR1831 at3199cb2. Component and browser verification includes the normal Daily action and desktop/mobile light/dark evidence; detailed final receipts and cloud service limitations are recorded in the PR and `/workspace/README-Bara-Pika.md`. No hosted configuration, migration, deployment, merge or promotion.
+
+## 2026-11-18 — Simplify attendance to one location
+
+Owner requested Attendance Location with one dropdown, and explicitly confirmed it should apply to current and future meetings. Removed visible default/meeting distinction, Save default, room administration and teacher move-sticker QR from this flow. Existing commands update current+future assignment; Undo restores the previous meeting and class location with partial-failure retry. Kept the selected room's student poster, shared catalog/readiness/permissions, request generations and schedule flow. Continuing draft PR1834 on its existing branch; final test/review/visual receipts are in the PR and cloud runbook. No backend, dependency, auth, migration or hosting changes.

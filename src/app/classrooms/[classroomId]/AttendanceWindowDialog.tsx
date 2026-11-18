@@ -342,7 +342,7 @@ function AttendanceWindowDialogContent({
           </fieldset>
           <Button type="button" variant="secondary" disabled={saving || roomBusy} onClick={() => editSchedule('new')}><Plus className="h-4 w-4" aria-hidden="true" /> Add schedule</Button>
           </>}
-          {roomAttendanceAvailable && <section className="space-y-3 border-t border-border pt-4"><h4 className="text-sm font-semibold">Attendance rooms</h4>{roomContent}</section>}
+          {roomAttendanceAvailable && <section className="space-y-3 border-t border-border pt-4"><h4 className="text-sm font-semibold">Attendance Location</h4>{roomContent}</section>}
           {!loading && !(error && schedules.length === 0) && <>
             {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
             <div className="flex justify-end gap-2">
