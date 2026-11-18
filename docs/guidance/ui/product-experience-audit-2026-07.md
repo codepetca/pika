@@ -1,5 +1,11 @@
 # Product Experience Audit (July 2026)
 
+Current follow-up: [2026-11-17 product, design and architecture audit](product-experience-audit-2026-11-17.md).
+The original ranked findings below describe the July investigation; several are
+resolved in the later progress sections and must not be treated as a current defect queue.
+The six-phase backlog remains the owning roadmap. The November follow-up records
+fresh evidence, remaining risks and proposed work packets without declaring epic completion.
+
 ## Decision
 
 Pika should evolve through small vertical changes, not a replacement architecture or a one-time visual redesign. The current classroom shell, semantic tokens, server-side domain modules, atomic grading operations, blueprint round-trip operations, and verified archive format are useful foundations. The largest risks come from inconsistent product shells, oversized client coordinators, missing shared interaction guarantees, failures that look like empty states, and partially productized lifecycle systems.
@@ -7,7 +13,7 @@ Pika should evolve through small vertical changes, not a replacement architectur
 The first implementation work should protect user data before visual consolidation:
 
 1. Completed in PR #890: the legacy permanent classroom Delete route and UI are disabled. Any future hot-data removal must run exclusively through the verified archive compaction state machine.
-2. Prevent assignment submission when the latest document save failed.
+2. Completed in the Safety Wave: assignment submission stops when the latest document save fails; preserve its save/submit regression coverage.
 3. Completed in PR #894: the teacher dashboard entry-detail path uses the teacher-owned authorization contract.
 4. Reconcile the blueprint runtime/package-doc v3 contract with the shared transfer/lifecycle v2 contract.
 
@@ -42,7 +48,7 @@ The classroom shell is the strongest base. Teacher and student utility layouts d
 | Finding | Evidence | Required outcome |
 | --- | --- | --- |
 | A hot-archived classroom can be permanently deleted from the normal Archived UI. Archiving itself only sets `archived_at`, and the legacy route bypasses compaction source-revision, actor, row-count, object, tombstone, and atomic-deletion guarantees. | `TeacherClassroomsIndex.tsx`, `api/teacher/classrooms/[id]/route.ts`, migration `085`, screenshots `40` and `41` | Disable the legacy Delete route and UI. Future hot-data removal must be available only through the verified archive compaction state machine and its explicit lifecycle policy. |
-| Assignment submission can continue after the pre-submit save fails because `saveContent` catches the error instead of rejecting. The API can receive an older database document. | `StudentAssignmentEditor.tsx`; no regression test covers this path | Submission stops, preserves the draft, exposes a retryable error, and has a regression test proving no stale submission. |
+| Resolved in the Safety Wave: assignment submission stops after a failed pre-submit save. The original July finding was that the API could receive an older database document. | `StudentAssignmentEditor.tsx`; `tests/components/StudentAssignmentEditor.save-submit.test.tsx` | Preserve draft/error recovery and the regression proving no stale submission. |
 
 ### P1: Correctness, Accessibility, And Product Architecture
 
@@ -251,7 +257,7 @@ Course Guide/resources progress:
 - Guide options now offers a one-time teacher curriculum import assistant for bounded PDFs or public HTTPS document links. It creates a cited, editable draft and requires a separate confirmation before append-only apply; the live classroom remains authoritative and no Blueprint synchronization is created.
 
 1. Assignments: save/submit integrity, error states, mobile workspace modes, Gradex status boundary.
-2. Tests: completed list errors, authoring/grading separation, and standalone preview authorization/framing; remaining accessible flags/save status and deferred mobile navigation.
+2. Tests: completed list errors, authoring/grading separation, standalone preview authorization/framing, accessible flags and save-status announcements; deferred mobile navigation remains subject to current-source verification.
 3. Daily and attendance: explicit failures, mobile history/table modes, Toronto timestamp verification.
 4. Dashboard: completed teacher-owned entry detail, governed recovery/dialog behavior, and removal of invalid classroom commands; responsive summary-first attendance remains deferred.
 5. Roster: completed desktop keyboard behavior, bulk-action recovery, and alt-email access; mobile row detail remains deferred.

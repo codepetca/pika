@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ClassroomRowFrame, ClassroomRowGhost, SortableClassroomRow } from '@/components/SortableClassroomRow'
 import { createMockClassroom } from '../helpers/mocks'
+import { TooltipProvider } from '@/ui'
 
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: vi.fn(() => ({
@@ -32,6 +33,17 @@ describe('SortableClassroomRow', () => {
     rerender(<ClassroomRowFrame classroom={{ title: 'Joined science', term_label: null, start_date: null, end_date: null }} dragHandle={null} action={null} onOpen={onOpen} isDisabled />)
     expect(screen.getByRole('button', { name: /^Joined science Semester dates/ })).toBeDisabled()
   })
+  it('keeps reorder and archive actions full sized and independent', () => {
+    const onOpen = vi.fn(), onArchive = vi.fn()
+    render(<SortableClassroomRow classroom={createMockClassroom({ title: 'Math 101' })} onOpen={onOpen} onArchive={onArchive} />, { wrapper: TooltipProvider })
+    expect(screen.getByRole('button', { name: 'Drag to reorder Math 101' })).toHaveClass('h-11', 'w-11')
+    const archive = screen.getByRole('button', { name: 'Archive Math 101' })
+    expect(archive).toHaveClass('h-11', 'w-11')
+    fireEvent.click(archive)
+    expect(onArchive).toHaveBeenCalledOnce()
+    expect(onOpen).not.toHaveBeenCalled()
+  })
+
   it('uses gradient-only classroom theming on sortable rows', () => {
     const classroom = createMockClassroom({ id: 'c1', title: 'Math 101', theme_color: 'teal' })
 
@@ -40,7 +52,8 @@ describe('SortableClassroomRow', () => {
         classroom={classroom}
         onOpen={vi.fn()}
         onArchive={vi.fn()}
-      />
+      />,
+      { wrapper: TooltipProvider },
     )
 
     const card = screen.getByTestId('classroom-card')

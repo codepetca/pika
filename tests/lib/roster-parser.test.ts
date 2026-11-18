@@ -142,6 +142,16 @@ Jane Smith jane@example.com
   })
 
   describe('validation and errors', () => {
+    it.each(['guardian@bad', '123 guardian@bad'])('rejects an invalid optional secondary email in %s', (optional) => {
+      const result = parseRosterInput(`Jane Doe jane@example.com ${optional}`)
+      expect(result.students).toHaveLength(0)
+      expect(result.errors[0]).toMatchObject({ line: 1, error: 'Invalid guardian email format' })
+    })
+
+    it('reports physical line numbers while ignoring blank lines', () => {
+      const result = parseRosterInput('Jane Doe jane@example.com\n\nAda Lovelace bad')
+      expect(result.errors[0]).toMatchObject({ line: 3, error: 'Invalid email format' })
+    })
     it('returns error for line with missing email', () => {
       const input = 'John Doe'
       const result = parseRosterInput(input)

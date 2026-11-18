@@ -93,8 +93,8 @@ describe('TeacherCalendarTab concurrent class-day toggles', () => {
       </AppMessageProvider>,
     )
 
-    const firstDayButton = await screen.findByRole('button', { name: '9' })
-    const secondDayButton = screen.getByRole('button', { name: '10' })
+    const firstDayButton = await screen.findByRole('button', { name: 'Wednesday, September 9, 2026' })
+    const secondDayButton = screen.getByRole('button', { name: 'Thursday, September 10, 2026' })
 
     fireEvent.click(firstDayButton)
     fireEvent.click(secondDayButton)

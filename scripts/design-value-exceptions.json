@@ -320,30 +320,6 @@
       ]
     },
     {
-      "file": "src/components/AddStudentsModal.tsx",
-      "reviewBy": "phase-3-roster",
-      "values": [
-        {
-          "kind": "arbitrary-spacing",
-          "count": 1,
-          "fingerprint": "4d80d2738b0dc134",
-          "reason": "layout-geometry"
-        },
-        {
-          "kind": "raw-color-class",
-          "count": 1,
-          "fingerprint": "830020e061d92a58",
-          "reason": "legacy-visual-value"
-        },
-        {
-          "kind": "raw-z-index",
-          "count": 1,
-          "fingerprint": "3eef1ce97dba458a",
-          "reason": "special-layer"
-        }
-      ]
-    },
-    {
       "file": "src/components/AssignmentArtifactsCell.tsx",
       "reviewBy": "phase-3-assignments",
       "values": [

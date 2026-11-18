@@ -4305,6 +4305,44 @@ describe('TeacherClassroomView', () => {
     expect(await screen.findByText(/A valid GitHub username is required/)).toBeInTheDocument()
   })
 
+  it('does not repaint the new assignment when an old repository batch finishes late', async () => {
+    mockStudentSelectionState.selectedIds = new Set(['student-1', 'student-2'])
+    mockStudentSelectionState.selectedCount = 2
+    const details = makeAssignmentDetails('assignment-1', 'Assignment One', 'student-1')
+    details.students.push(makeStudentSubmissionRow('student-2'))
+    ;(global.fetch as ReturnType<typeof vi.fn>).mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('/repolight/runs')) return Promise.resolve({ ok: true, json: async () => ({ state: 'ready', source: { repositoryChoices: [], available: true, repositoryUrl: 'https://github.com/example/repo', githubUsername: 'sample', usernameProvenance: 'artifact', requirementId: null, period: null, periodDefaulted: false, notice: null }, run: null }) })
+      if (url.endsWith('/assignment-1')) return Promise.resolve({ ok: true, json: async () => details })
+      if (url.endsWith('/assignment-2')) return Promise.resolve({ ok: true, json: async () => makeAssignmentDetails('assignment-2', 'Assignment Two', 'student-2') })
+      return Promise.resolve({ ok: false, json: async () => ({ error: 'unavailable' }) })
+    })
+    let rejectBatch!: (reason: Error) => void
+    mockExecuteRepoLightBatch.mockReturnValue(new Promise((_resolve, reject) => { rejectBatch = reject }))
+    const view = render(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-1" />)
+    await screen.findByTestId('teacher-work-panel')
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/repolight/runs'), expect.anything()))
+    await act(async () => {
+      const call = mockFetchJSONWithCache.mock.calls.findIndex(([key]) => String(key).startsWith('repolight-batch-access:'))
+      await mockFetchJSONWithCache.mock.results[call].value
+    })
+    fireEvent.click(await getSelectedStudentAction('Analyze repos for 2 students'))
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Analyze repos for 2 students?' })).getByRole('button', { name: 'Analyze repos' }))
+    await waitFor(() => expect(mockExecuteRepoLightBatch).toHaveBeenCalledOnce())
+    const request = mockExecuteRepoLightBatch.mock.calls[0][0]
+    expect(screen.getByRole('dialog', { name: 'Repository analysis' })).toBeInTheDocument()
+
+    view.rerender(<TeacherClassroomView classroom={classroom} selectedAssignmentId="assignment-2" />)
+    expect(await screen.findByRole('checkbox', { name: 'Select student-2 Student' })).toBeInTheDocument()
+    expect(request.signal.aborted).toBe(true)
+    act(() => request.onProgress({ studentId: 'student-1', index: 0, total: 1, phase: 'finished', result: { studentId: 'student-1', status: 'failed', reason: 'Old batch result' } }))
+    await act(async () => { rejectBatch(new Error('Old batch failure')); await Promise.resolve() })
+    expect(screen.queryByRole('dialog', { name: 'Repository analysis' })).not.toBeInTheDocument()
+    expect(screen.queryByText('Old batch result')).not.toBeInTheDocument()
+    expect(screen.queryByText('Old batch failure')).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: 'Select student-2 Student' })).toBeInTheDocument()
+  })
+
   it.each([1, 2])('confirms AI grading for %i selected students before starting and polling a Gradex assignment run', async (selectedCount) => {
     const selectedIds = ['student-1', 'student-2'].slice(0, selectedCount)
     mockStudentSelectionState.selectedIds = new Set(selectedIds)

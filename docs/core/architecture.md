@@ -39,7 +39,7 @@ Pika is a Next.js App Router application (versions: `package.json` and `pnpm-loc
 ```
 src/
 ├── app/
-│   ├── api/                       # API routes (~130 route files)
+│   ├── api/                       # Authenticated API boundaries and feature-owned commands
 │   │   ├── auth/                  # signup, verify-signup, create-password, login, reset, me, logout
 │   │   ├── student/               # classrooms, join, entries, assignments, tests
 │   │   ├── teacher/               # classrooms, roster, class-days, attendance, assignments,
@@ -48,14 +48,19 @@ src/
 │   ├── login/, signup/, forgot-password/, reset-password/…
 │   ├── student/                   # student today/history dashboards
 │   ├── teacher/                   # teacher dashboard
-│   └── classrooms/[classroomId]/  # classroom detail page with ~19 tabs
-│       └── ClassroomPageClient.tsx # ~1500 LOC god component (gradual decomposition ongoing)
+│   └── classrooms/[classroomId]/  # Classroom routes and feature workspaces
+│       ├── ClassroomPageClient.tsx # Role-aware shell, route selection and workspace composition
+│       ├── TeacherClassroomView.tsx # Classwork coordination and selected-student workspace
+│       └── TeacherTestsTab.tsx     # Test list, selected workspace and grading integration
 ├── components/                    # Feature components and modals
+│   ├── assignment-workspace/useTeacherStudentWorkController.ts # Selected student-work ownership
 │   ├── TestDetailPanel.tsx        # Test editor/viewer (draft mode)
-│   ├── AssignmentModal.tsx        # Assignment editor (~900 LOC, scheduling)
+│   ├── AssignmentModal.tsx        # Assignment authoring and scheduling
 │   ├── TestStudentGradingPanel.tsx # Per-student test grading
 │   └── ...
-├── hooks/                         # Custom React hooks (extracted from components)
+├── hooks/                         # Scoped client controllers; no server/data-access imports
+│   ├── useRepoLightBatchController.ts # Classroom/Assignment-owned repository batch lifecycle
+│   └── useTestGradingBatchController.ts # Classroom/Test/mode-owned grading start lifecycle
 ├── lib/                           # Core utilities
 │   ├── api-handler.ts             # withErrorHandler wrapper + ApiError (MANDATORY for routes)
 │   ├── request-cache.ts           # Client-side in-memory cache (15–20s TTL)
@@ -71,7 +76,7 @@ src/
 └── ui/                            # Design-system primitives (import from @/ui NOT @/components)
     ├── Button, Input, FormField, Select, AlertDialog, ConfirmDialog, Card, Tooltip, SplitButton
 
-supabase/migrations/               # 001–045+ schema + RLS
+supabase/migrations/               # Ordered forward-only schema, ACL and transactional contracts
 tests/                             # Vitest unit + API suites
 .claude/commands/                  # Claude Code slash commands
 .codex/prompts/                    # Codex CLI prompt mirrors

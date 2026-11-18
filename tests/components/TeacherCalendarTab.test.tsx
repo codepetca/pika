@@ -78,6 +78,14 @@ describe('TeacherCalendarTab class-day toggles', () => {
     vi.unstubAllGlobals()
   })
 
+  it('names each date with its full date and identifies today across months', () => {
+    render(<TeacherCalendarTab classroom={{ ...classroom, end_date: '2026-10-31' }} />, { wrapper: Wrapper })
+    expect(screen.getByRole('button', { name: 'Friday, September 4, 2026' })).toHaveAttribute('aria-current', 'date')
+    expect(screen.getByRole('button', { name: 'Friday, September 4, 2026' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Thursday, September 3, 2026' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Sunday, October 4, 2026' })).not.toHaveAttribute('aria-current')
+  })
+
   it.each([false, undefined])('allows adding today when its saved state is %s', async (savedState) => {
     if (savedState !== undefined) {
       classDaysState.classDays.push({ ...classDay, id: 'today', date: '2026-09-04', is_class_day: savedState })
@@ -86,7 +94,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ class_day: today }) })
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
 
-    const button = await screen.findByRole('button', { name: '4', exact: true })
+    const button = await screen.findByRole('button', { name: 'Friday, September 4, 2026', exact: true })
     expect(button).toBeEnabled()
     fireEvent.click(button)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -101,7 +109,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
     const user = userEvent.setup()
     classDaysState.classDays.push({ ...classDay, id: 'today', date: '2026-09-04' })
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
-    const button = await screen.findByRole('button', { name: '4', exact: true })
+    const button = await screen.findByRole('button', { name: 'Friday, September 4, 2026', exact: true })
 
     await user.click(button)
     expect(screen.getByRole('dialog', { name: 'Make today a non-class day?' })).toBeInTheDocument()
@@ -124,7 +132,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
     const request = deferred<{ ok: boolean; json: () => Promise<unknown> }>()
     fetchMock.mockReturnValue(request.promise)
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
-    const button = await screen.findByRole('button', { name: '4', exact: true })
+    const button = await screen.findByRole('button', { name: 'Friday, September 4, 2026', exact: true })
 
     fireEvent.click(button)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -151,7 +159,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
     classDaysState.classDays.push({ ...classDay, id: 'today', date: '2026-09-04' })
     fetchMock.mockResolvedValue({ ok: false, json: async () => ({ error: 'Could not save class day' }) })
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
-    const button = await screen.findByRole('button', { name: '4', exact: true })
+    const button = await screen.findByRole('button', { name: 'Friday, September 4, 2026', exact: true })
     fireEvent.click(button)
     fireEvent.click(screen.getByRole('button', { name: 'Make non-class day' }))
     await screen.findByText('Could not save class day')
@@ -163,20 +171,20 @@ describe('TeacherCalendarTab class-day toggles', () => {
   it('disables past dates whether they are class days or non-class days', async () => {
     classDaysState.classDays.push({ ...classDay, id: 'past', date: '2026-09-03' })
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
-    for (const day of ['2', '3']) {
+    for (const day of ['Wednesday, September 2, 2026', 'Thursday, September 3, 2026']) {
       const button = await screen.findByRole('button', { name: day, exact: true })
       expect(button).toBeDisabled()
       fireEvent.click(button)
     }
-    expect(screen.getByRole('button', { name: '3', exact: true })).toHaveClass('bg-success-bg-muted', 'text-success')
-    expect(screen.getByRole('button', { name: '3', exact: true })).not.toHaveClass('hover:bg-success-bg')
-    expect(screen.getByRole('button', { name: '2', exact: true })).toHaveClass('bg-surface-2', 'text-text-muted')
+    expect(screen.getByRole('button', { name: 'Thursday, September 3, 2026', exact: true })).toHaveClass('bg-success-bg-muted', 'text-success')
+    expect(screen.getByRole('button', { name: 'Thursday, September 3, 2026', exact: true })).not.toHaveClass('hover:bg-success-bg')
+    expect(screen.getByRole('button', { name: 'Wednesday, September 2, 2026', exact: true })).toHaveClass('bg-surface-2', 'text-text-muted')
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('confirms excluding a future class day that has become today while the tab stayed open', async () => {
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
-    const button = await screen.findByRole('button', { name: '9', exact: true })
+    const button = await screen.findByRole('button', { name: 'Wednesday, September 9, 2026', exact: true })
     todayInToronto.date = '2026-09-09'
     fireEvent.click(button)
     expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -186,7 +194,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
   it('does not submit an exclusion left open across Toronto midnight', async () => {
     classDaysState.classDays.push({ ...classDay, id: 'today', date: '2026-09-04' })
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
-    fireEvent.click(await screen.findByRole('button', { name: '4', exact: true }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Friday, September 4, 2026', exact: true }))
     todayInToronto.date = '2026-09-05'
     fireEvent.click(screen.getByRole('button', { name: 'Make non-class day' }))
     expect(screen.getByText('Cannot modify past class days')).toBeInTheDocument()
@@ -195,7 +203,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
 
   it('keeps archived classrooms read-only, including today', async () => {
     render(<TeacherCalendarTab classroom={{ ...classroom, archived_at: '2026-09-01T12:00:00Z' }} />, { wrapper: Wrapper })
-    const button = await screen.findByRole('button', { name: '4', exact: true })
+    const button = await screen.findByRole('button', { name: 'Friday, September 4, 2026', exact: true })
     expect(button).toBeDisabled()
     fireEvent.click(button)
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -207,7 +215,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
     fetchMock.mockReturnValue(request.promise)
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
 
-    const dayButton = await screen.findByRole('button', { name: '9' })
+    const dayButton = await screen.findByRole('button', { name: 'Wednesday, September 9, 2026' })
     expect(dayButton).toHaveAttribute('aria-pressed', 'true')
 
     fireEvent.click(dayButton)
@@ -247,7 +255,7 @@ describe('TeacherCalendarTab class-day toggles', () => {
     fetchMock.mockReturnValue(request.promise)
     render(<TeacherCalendarTab classroom={classroom} />, { wrapper: Wrapper })
 
-    const dayButton = await screen.findByRole('button', { name: '9' })
+    const dayButton = await screen.findByRole('button', { name: 'Wednesday, September 9, 2026' })
     fireEvent.click(dayButton)
     expect(dayButton).toHaveAttribute('aria-pressed', 'false')
 

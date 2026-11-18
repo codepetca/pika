@@ -65,11 +65,10 @@ describe('AddStudentsModal', () => {
 
     const warning = screen.getByRole('status')
     expect(rosterInput).toHaveAttribute('aria-invalid', 'true')
-    expect(rosterInput).toHaveAccessibleDescription('Use this format: Jane Doe email@example.com')
-    expect(warning).toHaveTextContent('Use this format: Jane Doe email@example.com')
+    expect(rosterInput).toHaveAccessibleDescription('Line 1: Invalid email format')
+    expect(warning).toHaveTextContent('Line 1: Invalid email format')
     expect(warning).not.toHaveTextContent('Some lines need attention before they can be added.')
     expect(screen.queryByText('Line 1: Ada Lovelace not-an-email')).not.toBeInTheDocument()
-    expect(warning).not.toHaveTextContent(/error/i)
     const highlightedLine = document.querySelector('[aria-hidden="true"] .bg-warning-bg')
     expect(highlightedLine).toHaveTextContent('Ada Lovelace not-an-email')
     expect(highlightedLine).toHaveClass('text-warning')
@@ -84,8 +83,88 @@ describe('AddStudentsModal', () => {
     expect(screen.getByRole('button', { name: 'Add 1 Student' })).toBeEnabled()
   })
 
+  it('identifies invalid lines and submits only valid rows without discarding the entered text', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, upsertedCount: 1 }) })
+    vi.stubGlobal('fetch', fetchMock)
+    renderWithTooltips(<AddStudentsModal isOpen onClose={vi.fn()} classroomId="classroom-1" onSuccess={vi.fn()} />)
+    const input = screen.getByLabelText('Enter student information')
+    const value = 'Ada Lovelace ada@example.com\n\nJane Doe jane@example.com 123 guardian@bad'
+    fireEvent.change(input, { target: { value } })
+    expect(input).toHaveValue(value)
+    expect(input).toHaveAccessibleDescription('Line 3: Invalid guardian email format Only valid rows will be added.')
+    expect(screen.getByRole('status')).not.toHaveTextContent('guardian@bad')
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' })) })
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).students).toEqual([
+      { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@example.com' },
+    ])
+    expect(input).toHaveValue('Jane Doe jane@example.com 123 guardian@bad')
+    expect(screen.getByText('Valid students added. Correct the remaining lines.')).toBeInTheDocument()
+  })
+
+  it('uses a named modal and restores focus when dismissed', async () => {
+    function Harness() {
+      const [open, setOpen] = useState(false)
+      return <><button onClick={() => setOpen(true)}>Open roster</button><AddStudentsModal isOpen={open} onClose={() => setOpen(false)} classroomId="classroom-1" onSuccess={vi.fn()} /></>
+    }
+    renderWithTooltips(<Harness />)
+    const opener = screen.getByRole('button', { name: 'Open roster' })
+    opener.focus()
+    fireEvent.click(opener)
+    const dialog = screen.getByRole('dialog', { name: 'Add Students' })
+    expect(dialog).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true })
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    await act(async () => {})
+    expect(opener).toHaveFocus()
+  })
+
+  it('allows backdrop and close button dismissal and guards all dismissal while adding', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})))
+    const onClose = vi.fn()
+    renderWithTooltips(<AddStudentsModal isOpen onClose={onClose} classroomId="classroom-1" onSuccess={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close Add Students' }))
+    expect(onClose).toHaveBeenCalledTimes(2)
+    fireEvent.change(screen.getByLabelText('Enter student information'), { target: { value: 'Ada Lovelace ada@example.com' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' }))
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close Add Students' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps input and warns when a response does not confirm every submitted row', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, upsertedCount: 0, errors: [{ error: 'Rejected' }] }) }))
+    const onClose = vi.fn()
+    const onSuccess = vi.fn()
+    renderWithTooltips(<AddStudentsModal isOpen onClose={onClose} classroomId="classroom-1" onSuccess={onSuccess} />)
+    const input = screen.getByLabelText('Enter student information')
+    const value = 'Ada Lovelace ada@example.com'
+    fireEvent.change(input, { target: { value } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' })) })
+    expect(input).toHaveValue(value)
+    expect(screen.getByRole('alert')).toHaveTextContent('Some students may have been added. Check the roster before retrying.')
+    expect(onSuccess).toHaveBeenCalledWith('classroom-1')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('does not offer confirmed rows for resubmission when the roster refresh fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, upsertedCount: 1 }) }))
+    const onClose = vi.fn()
+    renderWithTooltips(<AddStudentsModal isOpen onClose={onClose} classroomId="classroom-1" onSuccess={vi.fn().mockRejectedValue(new Error('Refresh failed'))} />)
+    const input = screen.getByLabelText('Enter student information')
+    fireEvent.change(input, { target: { value: 'Ada Lovelace ada@example.com\nJane Doe jane@example.com 123 guardian@bad' } })
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' })) })
+    expect(input).toHaveValue('Jane Doe jane@example.com 123 guardian@bad')
+    expect(screen.getByRole('alert')).toHaveTextContent('Students were added, but the roster could not be refreshed.')
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
   it('submits a guardian email when the manual entry omits a student number', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) })
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, upsertedCount: 1 }) })
     vi.stubGlobal('fetch', fetchMock)
     renderWithTooltips(
       <AddStudentsModal
@@ -113,7 +192,7 @@ describe('AddStudentsModal', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => {
       resolveAdd = () => resolve({
         ok: true,
-        json: () => Promise.resolve({ success: true }),
+        json: () => Promise.resolve({ success: true, upsertedCount: 1 }),
       })
     })))
     const onCloseA = vi.fn()
@@ -169,7 +248,7 @@ describe('AddStudentsModal', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => {
       resolveAdd = () => resolve({
         ok,
-        json: () => Promise.resolve(ok ? { success: true } : { error: 'Add failed' }),
+        json: () => Promise.resolve(ok ? { success: true, upsertedCount: 1 } : { error: 'Add failed' }),
       })
     })))
     const onClose = vi.fn()
@@ -213,7 +292,8 @@ describe('AddStudentsModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add 1 Student' }))
     expect(await screen.findByRole('button', { name: 'Adding...' })).toBeDisabled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Switch classroom' }))
+    // Simulate a parent transition; the modal correctly makes background controls inert.
+    fireEvent.click(screen.getByText('Switch classroom'))
     expect(screen.queryByText('Switching')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Enter student information')).toHaveValue(
       'Ada Lovelace ada@example.com',
@@ -244,7 +324,7 @@ describe('AddStudentsModal', () => {
     vi.stubGlobal('fetch', vi.fn(() => new Promise((resolve) => {
       resolveAdd = () => resolve({
         ok,
-        json: () => Promise.resolve(ok ? { success: true } : { error: 'Add failed' }),
+        json: () => Promise.resolve(ok ? { success: true, upsertedCount: 1 } : { error: 'Add failed' }),
       })
     })))
     const onClose = vi.fn()
