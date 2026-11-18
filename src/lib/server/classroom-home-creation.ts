@@ -2,8 +2,8 @@ import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { requireAuth, requireRole } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { isContextualClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
-import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { isSharedClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
+import { isClassroomExperienceAdmissionConfigured } from '@/lib/server/classroom-experience-admission'
 
 type CreationClient = Pick<ReturnType<typeof getServiceRoleClient>, 'rpc'>
 const canonicalUuid = z.string().uuid().transform(value => value.toLowerCase())
@@ -38,8 +38,7 @@ const creationAccessEnvelopeSchema = z.object({ data: creationAccessSchema, erro
 export async function authorizeClassroomHomeActor() {
   if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED === 'true' && isClassroomExperienceAdmissionConfigured()) {
     const user = await requireAuth()
-    const sharedAdmission = await resolveClassroomExperienceAdmission(user)
-    if ((await isContextualClassroomHomeAdmitted(user)) && sharedAdmission.status === 'admitted') {
+    if (await isSharedClassroomHomeAdmitted(user)) {
       return { user, contextual: true }
     }
   }

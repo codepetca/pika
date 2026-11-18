@@ -8,7 +8,7 @@ import type { ReactElement } from 'react'
 
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), teacher: vi.fn(), from: vi.fn(), redirect: vi.fn(), display: vi.fn(),
-  homeAdmission: vi.fn(), experienceAdmission: vi.fn(), home: vi.fn(), visibility: vi.fn(), creation: vi.fn(),
+  homeAdmission: vi.fn(), home: vi.fn(), visibility: vi.fn(), creation: vi.fn(),
   autoEnabled: vi.fn(), registryConfigured: vi.fn(), eligibility: vi.fn(), billingAvailable: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mocks.user }))
@@ -25,8 +25,8 @@ vi.mock('@/components/AppShell', () => ({ AppShell: () => null }))
 vi.mock('@/app/classrooms/TeacherClassroomsIndex', () => ({ TeacherClassroomsIndex: () => null }))
 vi.mock('@/app/classrooms/StudentClassroomsIndex', () => ({ StudentClassroomsIndex: () => null }))
 vi.mock('@/lib/server/classrooms', () => ({ hydrateClassroomRecords: (data: unknown) => data, classroomStudentRecord: (data: unknown) => data }))
-vi.mock('@/lib/server/contextual-classroom-home', () => ({ isContextualClassroomHomeAdmitted: mocks.homeAdmission, loadContextualClassroomHome: mocks.home }))
-vi.mock('@/lib/server/classroom-experience-admission', () => ({ resolveClassroomExperienceAdmission: mocks.experienceAdmission, isClassroomExperienceRegistryConfigured: mocks.registryConfigured }))
+vi.mock('@/lib/server/contextual-classroom-home', () => ({ isSharedClassroomHomeAdmitted: mocks.homeAdmission, loadContextualClassroomHome: mocks.home }))
+vi.mock('@/lib/server/classroom-experience-admission', () => ({ isClassroomExperienceRegistryConfigured: mocks.registryConfigured }))
 vi.mock('@/lib/server/verified-classroom-auto-admission', () => ({ isVerifiedClassroomAutoAdmissionEnabled: mocks.autoEnabled, canRequestVerifiedClassroomAdmission: mocks.eligibility }))
 vi.mock('@/lib/server/classroom-home-visibility', () => ({ readClassroomHomeVisibility: mocks.visibility }))
 vi.mock('@/lib/server/classroom-home-creation', () => ({ loadClassroomHomeCreationAccess: mocks.creation }))
@@ -52,7 +52,6 @@ describe('classroom index required server reads', () => {
     mocks.display.mockResolvedValue({})
     mocks.redirect.mockImplementation(() => { throw new Error('REDIRECT') })
     mocks.homeAdmission.mockReturnValue(false)
-    mocks.experienceAdmission.mockReturnValue({ status: 'not-admitted' })
     mocks.autoEnabled.mockReturnValue(false)
     mocks.billingAvailable.mockReturnValue(false)
     mocks.registryConfigured.mockReturnValue(true)
@@ -159,7 +158,6 @@ describe('classroom index required server reads', () => {
   it.each(['teacher', 'student'])('renders the same live home for admitted %s accounts without changing session identity', async (role) => {
     mocks.user.mockResolvedValue({ id: 'actor', role })
     mocks.homeAdmission.mockReturnValue(true)
-    mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
     mocks.teacher.mockResolvedValue(success([{ id: 'owned' }]))
     mocks.home.mockResolvedValue({ owned: [{ id: 'owned' }], joined: [
       { id: 'visible', enrollment_id: 'membership-a' }, { id: 'hidden', enrollment_id: 'membership-b' },
@@ -181,7 +179,6 @@ describe('classroom index required server reads', () => {
 
   it('does not fall back to a role-based list when live persistence is unavailable', async () => {
     mocks.homeAdmission.mockReturnValue(true)
-    mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
     mocks.teacher.mockResolvedValue(success([]))
     mocks.home.mockResolvedValue({ owned: [], joined: [] })
     mocks.creation.mockResolvedValue({ canCreate: false })
@@ -193,7 +190,6 @@ describe('classroom index required server reads', () => {
   it.each(['teacher', 'student'])('fails closed then recovers %s Home without replacing retained admission', async role => {
     mocks.user.mockResolvedValue({ id: 'actor', role })
     mocks.homeAdmission.mockReturnValue(true)
-    mocks.experienceAdmission.mockReturnValue({ status: 'admitted' })
     mocks.home.mockResolvedValue({ owned: [{ id: 'owned' }], joined: [
       { id: 'joined', enrollment_id: 'membership-a' },
       { id: 'hidden', enrollment_id: 'membership-b' },
@@ -211,7 +207,6 @@ describe('classroom index required server reads', () => {
     expect(JSON.stringify(unavailable)).not.toContain('PRIVATE')
     expect(await indexProps()).toEqual(disabled)
     expect(mocks.homeAdmission).toHaveBeenCalledTimes(3)
-    expect(mocks.experienceAdmission).toHaveBeenCalledTimes(3)
     expect(mocks.teacher).not.toHaveBeenCalled()
     expect(mocks.from).not.toHaveBeenCalled()
   })

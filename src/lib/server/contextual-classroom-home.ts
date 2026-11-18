@@ -140,6 +140,15 @@ export async function isContextualClassroomHomeAdmitted(user: Pick<Authenticated
   return cohort.includes(identity.data)
 }
 
+/** The complete experience also needs shared admission on legacy v1 installs. */
+export async function isSharedClassroomHomeAdmitted(user: Pick<AuthenticatedUser, 'id'>): Promise<boolean> {
+  if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED !== 'true') return false
+  const admission = await resolveClassroomExperienceAdmission(user)
+  if (isClassroomExperienceRegistryConfigured()) return admission.status === 'admitted'
+  const homeAdmitted = await isContextualClassroomHomeAdmitted(user)
+  return homeAdmitted && admission.status === 'admitted'
+}
+
 export async function authenticateContextualClassroomHome(): Promise<AuthenticatedUser> {
   const user = await requireAuth()
   if (!(await isContextualClassroomHomeAdmitted(user))) throw new ApiError(404, 'Not found')

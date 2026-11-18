@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import { ApiError } from '@/lib/api-error'
 import { AuthorizationError, requireAuth, requireRole } from '@/lib/auth'
-import { isContextualClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
-import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
+import { isSharedClassroomHomeAdmitted } from '@/lib/server/contextual-classroom-home'
+import { isClassroomExperienceAdmissionConfigured } from '@/lib/server/classroom-experience-admission'
 import type { AuthenticatedUser } from '@/types'
 
 const canonicalUuid = z.string().uuid().transform((value) => value.toLowerCase())
@@ -50,8 +50,7 @@ export async function authenticateClassroomEnrollmentRequest(): Promise<Authenti
   let homeUser: AuthenticatedUser | undefined
   if (process.env.PIKA_CLASSROOM_HOME_ACCESS_ENABLED === 'true' && isClassroomExperienceAdmissionConfigured()) {
     homeUser = await requireAuth()
-    const sharedAdmission = await resolveClassroomExperienceAdmission(homeUser)
-    if ((await isContextualClassroomHomeAdmitted(homeUser)) && sharedAdmission.status === 'admitted') {
+    if (await isSharedClassroomHomeAdmitted(homeUser)) {
       return trustedAuthentication({ mode: 'home_code', user: homeUser })
     }
   }
