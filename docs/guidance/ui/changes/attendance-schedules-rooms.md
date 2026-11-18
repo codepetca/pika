@@ -17,4 +17,16 @@ Risk: workspace-state. Requests and selection belong to classroom + selected dat
 
 Teacher only; student n/a because student UI and check-in contracts are unchanged. Verify desktop1440×900/mobile390×844, light/dark; loaded/empty/loading/error/unready, saving, Undo/recovery, schedule edit/apply/acknowledgement and poster return. Primary signal: one location dropdown under one heading. Composite widget review: dialog focus, native selection, busy/disabled actions and poster overlay.
 
-No duplicate room manager, teacher move QR, extra room controls, new dependency, auth/data architecture, hosted migration or deployment. Keep PR1834 draft. Model recommendation: GPT-6.1 Terra medium for bounded UI work; GPT-6.1 Sol high for consequential integration review.
+No duplicate room manager, teacher move QR, extra room controls, new dependency, auth/data architecture, hosted migration or deployment. Follow the draft-first review lifecycle for follow-up changes. Model recommendation: GPT-6.1 Terra medium for bounded UI work; GPT-6.1 Sol high for consequential integration review.
+
+## Legacy location recovery — 2026-11-18
+
+When a legacy future location is no longer selectable, a successful move to a shared room cannot be undone in full. Keep the new selection and explain that Undo is unavailable; preserve normal Undo when the previous future location remains restorable. Reset the notice with the classroom, date, dialog lifetime and later actions; do not show it after an uncertain write or failed refresh.
+
+| Need | Existing candidate | Decision | Reason |
+| --- | --- | --- | --- |
+| Location state and ownership | TeacherAttendanceRoomsDialog room owner | extend | Keep rollback eligibility with the existing snapshot and request generation |
+| Location control | Select and FormField | reuse | Existing native picker already reflects unavailable locations |
+| Recovery explanation | Existing inline status copy | reuse | A concise status needs no new primitive |
+
+Teacher only; student UI n/a. Verify with and without a current meeting, desktop/mobile and light/dark, including subsequent valid changes and uncertain refresh. No backend or catalog changes.
