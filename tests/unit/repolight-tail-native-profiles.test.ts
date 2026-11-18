@@ -76,9 +76,15 @@ describe('sealed 300 native source profiles (offline only)', () => {
     expect(testMemberListReviewedIsolatedCatalog(beforeEmail, current.slice(0, 327))).toEqual(emailCatalog)
     expect(testMemberListReviewedIsolatedCatalog(emailCatalog, current.slice(0, 327))).toEqual(emailCatalog)
     expect(() => testMemberListReviewedIsolatedCatalog(emailCatalog, current.slice(0, 326))).toThrow()
-    const refundCatalog = [...emailCatalog, 'private.billing_live_full_refunds', 'private.classwork_authoring_drafts'].sort()
-    expect(testMemberListReviewedIsolatedCatalog(emailCatalog, current)).toEqual(refundCatalog)
-    expect(testMemberListReviewedIsolatedCatalog(refundCatalog, current)).toEqual(refundCatalog)
+    const refundCatalog = [...emailCatalog, 'private.billing_live_full_refunds'].sort()
+    const classworkCatalog = [...refundCatalog, 'private.classwork_authoring_drafts'].sort()
+    expect(testMemberListReviewedIsolatedCatalog(emailCatalog, current)).toEqual(classworkCatalog)
+    for (const count of [328, 329, 330]) {
+      const prefix = disposableClassroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current.slice(0, count))
+      expect(prefix).toEqual(refundCatalog)
+      expect(testMemberListReviewedIsolatedCatalog(prefix, current)).toEqual(classworkCatalog)
+    }
+    expect(testMemberListReviewedIsolatedCatalog(classworkCatalog, current)).toEqual(classworkCatalog)
     expect(() => testMemberListReviewedIsolatedCatalog(refundCatalog, current.slice(0, 327))).toThrow()
     for (const count of [308, 309]) {
       expect(() => testMemberListReviewedIsolatedCatalog(catalog307, current.slice(0, count))).toThrow()
