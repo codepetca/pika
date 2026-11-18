@@ -76,6 +76,7 @@ and an index, not a higher authority than `DESIGN.md`, semantic tokens, or `src/
 
 ## Related Files
 
+- [`product-experience-audit-2026-11-17.md`](./product-experience-audit-2026-11-17.md) — dated follow-up evidence; not new stable guidance
 - [`product-experience-audit-2026-07.md`](./product-experience-audit-2026-07.md)
 - [`product-experience-evidence-2026-07.md`](./product-experience-evidence-2026-07.md)
 - [`audit-v1.md`](/docs/guidance/ui/audit-v1.md)

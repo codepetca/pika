@@ -35,6 +35,13 @@ describe('TeacherTestCard Preview', () => {
 })
 
 describe('TeacherTestCard', () => {
+  it('keeps a full-sized keyboard reorder handle in edit mode', () => {
+    const test = createMockTest({ title: 'Unit Test' })
+    render(<DndContext><SortableContext items={[test.id]}><TeacherTestCard test={test} isReadOnly={false} editMode
+      onSelect={vi.fn()} onRequestPreview={vi.fn()} onRequestDelete={vi.fn()} /></SortableContext></DndContext>, { wrapper: TooltipProvider })
+    expect(screen.getByRole('button', { name: 'Drag to reorder Unit Test' })).toHaveClass('h-11', 'w-11')
+  })
+
   it('exposes unknown counts and prevents opening the workspace before statistics load', () => {
     const test = createMockTest({ title: 'Test title', status: 'active' })
     render(<DndContext><SortableContext items={[test.id]}><TeacherTestCard test={test} statsPending isReadOnly editMode={false}

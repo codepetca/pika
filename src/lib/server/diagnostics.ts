@@ -131,6 +131,7 @@ const EVENTS = [
   'assignment.bulk_survey_positions',
   'assignment.bulk_create',
   'assignment.bulk_update',
+  'assignment.bulk_save',
   'daily_log.pal_prepare', 'daily_log.pal_delivery',
   'api.unexpected', 'auth.session', 'auth.rate_limit', 'auth.signup',
   'auth.reset', 'auth.verify', 'auth.email', 'journal.summary',

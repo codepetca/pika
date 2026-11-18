@@ -561,7 +561,7 @@ describe('TeacherBlueprintsPage', () => {
           target: 'tests', content: 'Original test draft', draft_provenance_token: 'signed-token',
           original_content_sha256: 'a'.repeat(64),
           guidance: {
-            blueprint_revision: 4, unit_exception_id: null, unit_label: null,
+            target: 'tests', blueprint_revision: 4, unit_exception_id: null, unit_label: null,
             rules_markdown: 'Saved course rules', trial: false,
           },
         } }))
@@ -599,6 +599,62 @@ describe('TeacherBlueprintsPage', () => {
       draft_provenance_token: 'signed-token',
       expected_blueprint_revision: 4,
     }))
+  })
+
+  it.each([
+    {},
+    { suggestion: { target: 'analyze', content: '', analysis: { missing: [], suggestions: 'bad' } } },
+    { suggestion: { target: 'analyze', content: '', analysis: { missing: [] } } },
+  ])('shows a recoverable error for malformed copilot responses', async (payload) => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    vi.mocked(fetch).mockImplementation((input, init) => String(input).endsWith('/ai/suggest')
+      ? Promise.resolve(jsonResponse(payload)) : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    openSection('Content', 'AI Drafting')
+    fireEvent.click(screen.getByRole('button', { name: 'Review Course Blueprint' }))
+    expect(await screen.findByText(/response was invalid.*try again/i)).toBeInTheDocument()
+    expect(screen.queryByText('Completeness Review')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review Course Blueprint' })).toBeEnabled()
+  })
+
+  it('ignores an old blueprint copilot response after switching owners', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let resolveSuggestion!: (response: Response) => void
+    const pending = new Promise<Response>((resolve) => { resolveSuggestion = resolve })
+    let resolveNewSuggestion!: (response: Response) => void
+    const pendingNew = new Promise<Response>((resolve) => { resolveNewSuggestion = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => String(input) === '/api/teacher/course-blueprints/b-2/ai/suggest'
+      ? pending : String(input) === '/api/teacher/course-blueprints/b-1/ai/suggest' ? pendingNew : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    openSection('Content', 'AI Drafting')
+    fireEvent.click(screen.getByRole('button', { name: 'Review Course Blueprint' }))
+    fireEvent.click(screen.getByRole('button', { name: /Blueprint One/ }))
+    await screen.findByRole('heading', { name: 'Blueprint One' })
+    openSection('Content', 'AI Drafting')
+    fireEvent.click(screen.getByRole('button', { name: 'Review Course Blueprint' }))
+    await act(async () => resolveSuggestion(jsonResponse({ suggestion: { target: 'analyze', content: '', analysis: { missing: ['OLD BLUEPRINT'], suggestions: [], counts: { assignments: 0, tests: 0, lesson_templates: 0, materials: 0, surveys: 0 } } } })))
+    expect(screen.queryByText(/OLD BLUEPRINT/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Working...' })).toBeDisabled()
+    await act(async () => resolveNewSuggestion(jsonResponse({ suggestion: { target: 'analyze', content: '', analysis: { missing: ['NEW BLUEPRINT'], suggestions: [], counts: { assignments: 0, tests: 0, lesson_templates: 0, materials: 0, surveys: 0 } } } })))
+    expect(screen.getByText(/NEW BLUEPRINT/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Review Course Blueprint' })).toBeEnabled()
+  })
+
+  it('discards an in-flight draft when the requested section changes', async () => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    let resolveSuggestion!: (response: Response) => void
+    const pending = new Promise<Response>((resolve) => { resolveSuggestion = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => String(input).endsWith('/ai/suggest') ? pending : defaultFetch(input, init))
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    openSection('Content', 'AI Drafting')
+    fireEvent.click(screen.getByRole('button', { name: 'Draft Preview' }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Draft Section' }), { target: { value: 'outline' } })
+    await act(async () => resolveSuggestion(jsonResponse({ suggestion: { target: 'overview', content: 'Old draft', analysis: { missing: [], suggestions: [], counts: { assignments: 0, tests: 0, lesson_templates: 0, materials: 0, surveys: 0 } } } })))
+    expect(screen.queryByText('Preview: Overview')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Draft Preview' })).toBeEnabled()
   })
 
   it('reuses one import key when the same course package is retried', async () => {

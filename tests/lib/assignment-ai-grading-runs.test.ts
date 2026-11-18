@@ -229,13 +229,19 @@ function buildTickHarness(opts: {
     submitted_at?: string | null
   } | null
   docHistory?: Array<{
+    id?: string
     word_count: number
     paste_word_count: number | null
     trigger: string
     created_at: string
   }>
+  historyPageFailure?: { offset: number; data: null; error: unknown }
   upsertError: unknown
 }) {
+  const historySelections = vi.fn()
+  const historyOrders = vi.fn()
+  const historyRanges = vi.fn()
+  const authenticityUpdate = vi.fn(() => ({ eq: vi.fn(async () => ({ error: null })) }))
   const run = {
     id: 'run-1',
     assignment_id: 'assignment-1',
@@ -444,6 +450,7 @@ function buildTickHarness(opts: {
           })),
         })),
         upsert: vi.fn(async () => ({ error: opts.upsertError })),
+        update: authenticityUpdate,
       }
     }
 
@@ -456,19 +463,44 @@ function buildTickHarness(opts: {
     }
 
     if (table === 'assignment_doc_history') {
-      return {
-        select: vi.fn(() => ({
-          eq: vi.fn(() => ({
-            order: vi.fn(async () => ({ data: opts.docHistory ?? [], error: null })),
-          })),
-        })),
+      let offset = 0
+      let end = 999
+      const orders: string[] = []
+      const query = {
+        select: vi.fn((selection: string) => { historySelections(selection); return query }),
+        eq: vi.fn(() => query),
+        order: vi.fn((column: string, options: unknown) => {
+          orders.push(column)
+          historyOrders(column, options)
+          return query
+        }),
+        range: vi.fn((start: number, finish: number) => {
+          offset = start; end = finish
+          historyRanges(start, finish)
+          return query
+        }),
+        then: (resolve: (value: unknown) => unknown) => {
+          const rows = (opts.docHistory ?? []).map((row, index) => ({
+            ...row, id: row.id ?? `history-${String(index).padStart(6, '0')}`,
+          })).sort((a, b) => {
+            for (const column of orders) {
+              const difference = String(a[column as keyof typeof a]).localeCompare(String(b[column as keyof typeof b]))
+              if (difference) return difference
+            }
+            return 0
+          })
+          return Promise.resolve(opts.historyPageFailure?.offset === offset
+            ? opts.historyPageFailure
+            : { data: rows.slice(offset, end + 1), error: null }).then(resolve)
+        },
       }
+      return query
     }
 
     throw new Error(`Unexpected table: ${table}`)
   })
 
-  return { run, items }
+  return { run, items, historySelections, historyOrders, historyRanges, authenticityUpdate }
 }
 
 describe('metered Assignment run lifecycle', () => {
@@ -1285,5 +1317,98 @@ describe('createOrResumeAssignmentAiGradingRun', () => {
       process.env.DEEPSEEK_API_KEY = originalApiKey
       vi.unstubAllGlobals()
     }
+  })
+})
+
+
+describe('complete grading process history', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockLoadClassroomAiSanitizationContext.mockResolvedValue({ students: [], initialsMap: {} })
+    vi.stubEnv('ASSIGNMENT_AI_GRADING_USAGE_METERING_ENABLED', 'false')
+  })
+  const doc = {
+    id: 'doc-1', student_id: 'student-1',
+    content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'I completed every part of this assignment and explained the reasoning in detail.' }] }] },
+    feedback: null, authenticity_score: null, updated_at: '2026-04-21T12:00:00Z',
+    is_submitted: true, submitted_at: '2026-04-20T23:59:00.000Z',
+  }
+  const providerResult = { score_completion: 8, score_thinking: 9, score_workflow: 4, feedback: 'Good work', model: 'deepseek-flash' }
+  const tick = () => tickAssignmentAiGradingRun({ assignmentId: 'assignment-1', runId: 'run-1' })
+  const gradeCall = () => mockSupabaseClient.rpc.mock.calls.find(([name]) => name === 'finalize_assignment_ai_grading_item_and_settle_usage_v1')?.[1]
+  const historyRow = (wordCount: number, createdAt: string, id?: string) => ({
+    id, word_count: wordCount, paste_word_count: 0, trigger: 'autosave', created_at: createdAt,
+  })
+
+  it.each([
+    { offset: 0, data: null, error: { code: '57014', message: 'PRIVATE student history' } },
+    { offset: 0, data: null, error: null },
+    { offset: 1000, data: null, error: { code: '57014', message: 'PRIVATE later page' } },
+  ])('refuses unavailable history at offset $offset before usage, provider or grade writes', async (historyPageFailure) => {
+    const harness = buildTickHarness({ workerContractVersion: 1, skipReason: null, assignmentDoc: doc,
+      docHistory: Array.from({ length: 1000 }, (_, i) => historyRow(i, '2026-04-20T12:00:00.000Z')),
+      historyPageFailure, upsertError: null })
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue(providerResult as never)
+    await tick()
+    expect(provider).not.toHaveBeenCalled()
+    const names = mockSupabaseClient.rpc.mock.calls.map(([name]) => name)
+    expect(names).not.toContain('reserve_assignment_ai_grading_item_usage_with_lease_v1')
+    expect(gradeCall()).toBeUndefined()
+    expect(harness.authenticityUpdate).not.toHaveBeenCalled()
+    expect(harness.items[0]).toMatchObject({ status: 'queued', attempt_count: 1, last_error_code: 'history_unavailable' })
+    expect(harness.items[0].last_error_message).not.toContain('PRIVATE')
+  })
+
+  it('bounds history retries without reserving provider usage or persisting a fallback grade', async () => {
+    const harness = buildTickHarness({ workerContractVersion: 1, skipReason: null, assignmentDoc: doc,
+      historyPageFailure: { offset: 0, data: null, error: { code: '57014', message: 'PRIVATE history failure' } }, upsertError: null })
+    const provider = vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue(providerResult as never)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      harness.items[0].next_retry_at = null
+      await tick()
+      expect(harness.items[0]).toMatchObject({ attempt_count: attempt, status: attempt < 3 ? 'queued' : 'failed' })
+    }
+    expect(provider).not.toHaveBeenCalled()
+    expect(gradeCall()).toBeUndefined()
+    expect(mockSupabaseClient.rpc.mock.calls.map(([name]) => name)).not.toContain('reserve_assignment_ai_grading_item_usage_with_lease_v1')
+  })
+
+  it('includes a decisive later event beyond 1000 rows with deterministic tied-timestamp ordering and reuses metrics', async () => {
+    const rows = Array.from({ length: 1000 }, (_, i) => historyRow(0, '2026-04-20T12:00:00.000Z', `history-${String(i).padStart(6, '0')}`))
+    rows.push(historyRow(1000, '2026-04-20T12:00:00.000Z', 'history-001000'))
+    // Deliberately reverse the transport fixture: created_at alone cannot select a stable page.
+    const harness = buildTickHarness({ workerContractVersion: 1, skipReason: null, assignmentDoc: doc, docHistory: rows.reverse(), upsertError: null })
+    vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue(providerResult as never)
+    await tick()
+    expect(gradeCall()).toMatchObject({ p_score_workflow: 8 })
+    expect(harness.authenticityUpdate).toHaveBeenCalledWith(expect.objectContaining({ authenticity_score: 0 }))
+    expect(harness.historyRanges.mock.calls).toEqual([[0, 999], [1000, 1999]])
+    expect(harness.historyOrders.mock.calls).toEqual([
+      ['created_at', { ascending: true }], ['id', { ascending: true }],
+      ['created_at', { ascending: true }], ['id', { ascending: true }],
+    ])
+    for (const [selection] of harness.historySelections.mock.calls) {
+      expect(selection.split(',').map((field: string) => field.trim()).sort()).toEqual(['created_at', 'id', 'paste_word_count', 'trigger', 'word_count'])
+    }
+  })
+
+  it('keeps genuine empty history generous, including a submitted-late document', async () => {
+    const harness = buildTickHarness({ workerContractVersion: 1, skipReason: null,
+      assignmentDoc: { ...doc, submitted_at: '2026-04-30T23:59:00.000Z' }, docHistory: [], upsertError: null })
+    vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue(providerResult as never)
+    await tick()
+    expect(gradeCall()).toMatchObject({ p_score_workflow: 10 })
+    expect(harness.authenticityUpdate).not.toHaveBeenCalled()
+  })
+
+  it('retains normal lateness and authenticity scoring from one successful history collection', async () => {
+    const harness = buildTickHarness({ workerContractVersion: 1, skipReason: null,
+      assignmentDoc: { ...doc, submitted_at: '2026-04-30T23:59:00.000Z' },
+      docHistory: [historyRow(0, '2026-04-20T12:00:00.000Z'), historyRow(100, '2026-04-20T12:10:00.000Z')], upsertError: null })
+    vi.spyOn(aiGrading, 'gradeStudentWork').mockResolvedValue(providerResult as never)
+    await tick()
+    expect(gradeCall()).toMatchObject({ p_score_workflow: 7 })
+    expect(harness.authenticityUpdate).toHaveBeenCalledWith({ authenticity_score: 100, authenticity_flags: [] })
+    expect(harness.historySelections).toHaveBeenCalledTimes(1)
   })
 })

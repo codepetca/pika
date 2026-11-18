@@ -4308,6 +4308,39 @@ describe('TeacherTestsTab', () => {
     expect(screen.queryByText(/Graded 0/)).not.toBeInTheDocument()
   })
 
+  it('does not publish an old grading-start response after switching tests', async () => {
+    const first = makeTest({ id: 'test-1', title: 'First Test', status: 'active' })
+    const second = makeTest({ id: 'test-2', title: 'Second Test', status: 'active' })
+    let resolveStart!: (response: { ok: boolean; status: number; json: () => Promise<unknown> }) => void
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/api/teacher/tests?classroom_id=')) return Promise.resolve({ ok: true, json: async () => ({ tests: [first, second] }) })
+      if (url === '/api/teacher/tests/test-1/auto-grade' && init?.method === 'POST') return new Promise(resolve => { resolveStart = resolve })
+      if (url.endsWith('/test-1/results')) return Promise.resolve(makeResultsResponse({ testId: 'test-1', testTitle: 'First Test' }))
+      if (url.endsWith('/test-2/results')) return Promise.resolve(makeResultsResponse({ testId: 'test-2', testTitle: 'Second Test', students: [makeGradingStudent({ student_id: 'student-2', name: 'Bob Baker', first_name: 'Bob', last_name: 'Baker' })] }))
+      return Promise.reject(new Error(`Unexpected fetch ${url}`))
+    })
+    const view = renderTab({ selectedTestId: 'test-1', selectedTestMode: 'grading' })
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade 1 student' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AI grade', exact: true }))
+    await waitFor(() => expect(resolveStart).toBeTypeOf('function'))
+    const start = fetchMock.mock.calls.find(([url]) => url === '/api/teacher/tests/test-1/auto-grade')!
+
+    view.rerender(<TeacherTestsTab classroom={classroom} selectedTestId="test-2" selectedTestMode="grading" />)
+    expect(await screen.findByText('Bob Baker')).toBeInTheDocument()
+    expect((start[1] as RequestInit).signal?.aborted).toBe(true)
+    const readsBefore = resultsFetchCalls(fetchMock).length
+    await act(async () => { resolveStart({ ok: false, status: 409, json: async () => ({ error: 'Old grading error', run: makeTestAiRun({ id: 'old-run', test_id: 'test-1' }) }) }) })
+    expect(screen.getByText('Bob Baker')).toBeInTheDocument()
+    expect(screen.queryByText('Old grading error')).not.toBeInTheDocument()
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/auto-grade-runs/old-run'))).toBe(false)
+    expect(resultsFetchCalls(fetchMock)).toHaveLength(readsBefore)
+    expect(mockInvalidateGradebookForClassroom).not.toHaveBeenCalled()
+  }, 15000)
+
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
     inspectorReads.enabled = true
     let completed = false

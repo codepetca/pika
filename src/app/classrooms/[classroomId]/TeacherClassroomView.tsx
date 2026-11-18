@@ -5,7 +5,7 @@ import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
 import { usePersistentBoolean } from '@/hooks/usePersistentBoolean'
 
 import { startAiGradingRunPolling } from '@/lib/ai-grading-run-poll'
-import { executeRepoLightBatch, type RepoLightBatchProgress, type RepoLightBatchResult } from '@/lib/repolight-batch'
+import { useRepoLightBatchController } from '@/hooks/useRepoLightBatchController'
 import type { AssignmentGradeApplyTarget } from '@/lib/validations/assignment-grading'
 import { repoLightContextReplySchema } from '@/lib/validations/repolight'
 
@@ -745,14 +745,8 @@ export function TeacherClassroomView({
   const [batchProgressCount, setBatchProgressCount] = useState(0)
   const [showReturnConfirm, setShowReturnConfirm] = useState(false)
   const [showBatchAutoGradeConfirm, setShowBatchAutoGradeConfirm] = useState(false)
-  const [showRepoBatchConfirm, setShowRepoBatchConfirm] = useState(false)
-  const [repoBatchOpen, setRepoBatchOpen] = useState(false)
-  const [repoBatchRunning, setRepoBatchRunning] = useState(false)
-  const [repoBatchProgress, setRepoBatchProgress] = useState<RepoLightBatchProgress | null>(null)
-  const [repoBatchResults, setRepoBatchResults] = useState<RepoLightBatchResult[]>([])
-  const [repoBatchNames, setRepoBatchNames] = useState<Record<string, string>>({})
+  const [repoBatchConfirmOwner, setRepoBatchConfirmOwner] = useState<string | null>(null)
   const [repoApproval, setRepoApproval] = useState<{ key: string; ready: boolean } | null>(null)
-  const repoBatchAbort = useRef<AbortController | null>(null)
   const repoBatchTitleId = useId()
   const [gradeCopyDialog, setGradeCopyDialog] = useState<GradeCopyDialog | null>(null)
   const gradeSelectedConfirmTitleId = useId()
@@ -1795,8 +1789,11 @@ export function TeacherClassroomView({
   useEffect(() => {
     if (gradeCopyDialog && !activeGradeCopyDialog) setGradeCopyDialog(null)
   }, [gradeCopyDialog, activeGradeCopyDialog])
+  const repoBatchOwner = JSON.stringify([classroom.id, selectedAssignmentId])
+  const showRepoBatchConfirm = repoBatchConfirmOwner === repoBatchOwner
+  useEffect(() => { setRepoBatchConfirmOwner(null) }, [repoBatchOwner])
   const repoApprovalStudentId = [...batchSelectedIds][0] ?? null
-  const repoApprovalKey = JSON.stringify([selectedAssignmentId, repoApprovalStudentId])
+  const repoApprovalKey = JSON.stringify([classroom.id, selectedAssignmentId, repoApprovalStudentId])
 
   useEffect(() => {
     if (!selectedAssignmentId || !repoApprovalStudentId) { setRepoApproval(null); return }
@@ -1815,7 +1812,16 @@ export function TeacherClassroomView({
     return () => controller.abort()
   }, [repoApprovalKey, repoApprovalStudentId, selectedAssignmentId])
 
-  useEffect(() => () => { repoBatchAbort.current?.abort() }, [selectedAssignmentId])
+  const repoBatch = useRepoLightBatchController({
+    classroomId: classroom.id,
+    assignmentId: selectedAssignmentId,
+    onError: setError,
+    onComplete: () => {
+      setRefreshCounter(count => count + 1)
+      setGradeSelectedRefreshCounter(count => count + 1)
+    },
+  })
+  const { open: repoBatchOpen, running: repoBatchRunning, progress: repoBatchProgress, results: repoBatchResults, names: repoBatchNames } = repoBatch
 
   useEffect(() => {
     if (!isIndividualStudentView) return
@@ -2548,37 +2554,12 @@ export function TeacherClassroomView({
   async function handleRepoBatch() {
     if (!selectedAssignmentId || selectedStudentActionsBusy || batchSelectedCount === 0 || repoApproval?.key !== repoApprovalKey || !repoApproval.ready) return
     const rows = currentStudentRows.filter(row => batchSelectedIds.has(row.student_id))
-    const names = Object.fromEntries(rows.map(row => [row.student_id, [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.student_email]))
-    const controller = new AbortController()
-    repoBatchAbort.current = controller
-    setRepoBatchNames(names)
-    setRepoBatchResults([])
-    setRepoBatchProgress(null)
-    setShowRepoBatchConfirm(false)
-    setRepoBatchOpen(true)
-    setRepoBatchRunning(true)
-    try {
-      const results = await executeRepoLightBatch({
-        assignmentId: selectedAssignmentId,
-        students: rows.map(row => ({ studentId: row.student_id, expectedDocUpdatedAt: row.doc?.updated_at ?? null })),
-        signal: controller.signal,
-        onProgress: progress => {
-          if (repoBatchAbort.current !== controller) return
-          setRepoBatchProgress(progress)
-          if (progress.result) setRepoBatchResults(previous => [...previous, progress.result!])
-        },
-      })
-      if (repoBatchAbort.current === controller) setRepoBatchResults(results)
-    } catch (caught) {
-      if (repoBatchAbort.current === controller) setError(caught instanceof Error ? caught.message : 'Repository analysis could not start.')
-    } finally {
-      if (repoBatchAbort.current === controller) {
-        repoBatchAbort.current = null
-        setRepoBatchRunning(false)
-        setRefreshCounter(count => count + 1)
-        setGradeSelectedRefreshCounter(count => count + 1)
-      }
-    }
+    setRepoBatchConfirmOwner(null)
+    await repoBatch.start(rows.map(row => ({
+      studentId: row.student_id,
+      expectedDocUpdatedAt: row.doc?.updated_at ?? null,
+      name: [row.student_first_name, row.student_last_name].filter(Boolean).join(' ') || row.student_email,
+    })))
   }
 
   const assignmentLayoutToggle = (
@@ -2603,7 +2584,7 @@ export function TeacherClassroomView({
       id: 'repolight-analyze-selected',
       label: `Analyze repo${batchSelectedCount === 1 ? '' : 's'} for ${batchSelectedCount} student${batchSelectedCount === 1 ? '' : 's'}`,
       icon: <Code className="h-4 w-4" aria-hidden="true" />,
-      onSelect: () => setShowRepoBatchConfirm(true),
+      onSelect: () => setRepoBatchConfirmOwner(repoBatchOwner),
       disabled: selectedStudentActionsBusy || batchSelectedCount > 100,
     }] : []),
     ...(isIndividualStudentView ? [] : [{
@@ -3230,11 +3211,11 @@ export function TeacherClassroomView({
         description="RepoLight adds an individual, rule-based summary to each eligible student's private comment draft. No comments are sent and grades do not change. Keep this page open while analysis runs."
         confirmLabel="Analyze repos"
         isConfirmDisabled={selectedStudentActionsBusy || batchSelectedCount === 0 || batchSelectedCount > 100 || repoApproval?.key !== repoApprovalKey || !repoApproval.ready}
-        onCancel={() => setShowRepoBatchConfirm(false)}
+        onCancel={() => setRepoBatchConfirmOwner(null)}
         onConfirm={() => { void handleRepoBatch() }}
       />
 
-      <DialogPanel isOpen={repoBatchOpen} onClose={() => setRepoBatchOpen(false)} closeDisabled={repoBatchRunning} maxWidth="max-w-lg" ariaLabelledBy={repoBatchTitleId}>
+      <DialogPanel isOpen={repoBatchOpen} onClose={repoBatch.close} closeDisabled={repoBatchRunning} maxWidth="max-w-lg" ariaLabelledBy={repoBatchTitleId}>
         <h2 id={repoBatchTitleId} className="shrink-0 text-base font-semibold text-text-default">Repository analysis</h2>
         <div className="mt-3 min-h-0 overflow-y-auto" aria-live="polite">
           {repoBatchRunning && repoBatchProgress && <p className="text-sm text-text-muted">{repoBatchProgress.phase === 'finished' ? 'Finishing' : repoBatchProgress.phase === 'checking' ? 'Checking' : repoBatchProgress.phase === 'analyzing' ? 'Analyzing' : 'Adding feedback for'} {repoBatchNames[repoBatchProgress.studentId] || 'student'} ({repoBatchProgress.index + 1} of {repoBatchProgress.total}). Keep this page open.</p>}
@@ -3244,7 +3225,7 @@ export function TeacherClassroomView({
           </ul>
         </div>
         <div className="mt-4 flex justify-end">
-          <Button type="button" variant="secondary" onClick={() => repoBatchRunning ? repoBatchAbort.current?.abort() : setRepoBatchOpen(false)}>{repoBatchRunning ? 'Stop' : 'Close'}</Button>
+          <Button type="button" variant="secondary" onClick={() => repoBatchRunning ? repoBatch.stop() : repoBatch.close()}>{repoBatchRunning ? 'Stop' : 'Close'}</Button>
         </div>
       </DialogPanel>
 

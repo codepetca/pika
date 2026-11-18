@@ -3,7 +3,7 @@
 import { useState, useLayoutEffect, useRef } from 'react'
 import { CircleHelp } from 'lucide-react'
 import { parseRosterInput, ParsedStudent, ParseError } from '@/lib/roster-parser'
-import { DialogCloseButton, IconButton } from '@/ui'
+import { DialogPanel, IconButton } from '@/ui'
 
 interface AddStudentsModalProps {
   isOpen: boolean
@@ -20,6 +20,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
   } | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
   const [textareaScroll, setTextareaScroll] = useState({ top: 0, left: 0 })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mirrorRef = useRef<HTMLDivElement>(null)
@@ -39,6 +40,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
     setParseResult(null)
     setIsSubmitting(false)
     setError('')
+    setNotice('')
     setTextareaScroll({ top: 0, left: 0 })
     return () => {
       if (scopeRef.current.generation === generation) {
@@ -84,8 +86,12 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
 
     const operationScope = { ...scopeRef.current }
     const operationClassroomId = classroomId
+    const rejectedLines = new Set(parseResult.errors.map((item) => item.line))
+    const rejectedInput = input.split('\n').filter((_, index) => rejectedLines.has(index + 1)).join('\n')
+    const submittedCount = parseResult.students.length
     setIsSubmitting(true)
     setError('')
+    setNotice('')
 
     try {
       const res = await fetch(`/api/teacher/classrooms/${operationClassroomId}/roster/add`, {
@@ -108,9 +114,24 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
         throw new Error(data.error || 'Failed to add students')
       }
 
-      // Success!
-      await onSuccess(operationClassroomId)
-      if (isCurrentScope(operationScope)) onClose()
+      const confirmed = data.success === true && data.upsertedCount === submittedCount && !data.errors?.length
+      let refreshFailed = false
+      try {
+        await onSuccess(operationClassroomId)
+      } catch {
+        refreshFailed = true
+      }
+      if (!isCurrentScope(operationScope)) return
+      if (!confirmed) {
+        setError('Some students may have been added. Check the roster before retrying.')
+      } else if (rejectedInput || refreshFailed) {
+        setInput(rejectedInput)
+        setParseResult(rejectedInput ? parseRosterInput(rejectedInput) : null)
+        if (refreshFailed) setError('Students were added, but the roster could not be refreshed.')
+        else setNotice('Valid students added. Correct the remaining lines.')
+      } else {
+        onClose()
+      }
     } catch (err: any) {
       if (isCurrentScope(operationScope)) {
         setError(err.message || 'Failed to add students')
@@ -125,26 +146,17 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
     onClose()
   }
 
-  if (!isOpen) return null
-
   const validCount = parseResult?.students.length || 0
   const problemLineNumbers = new Set(parseResult?.errors.map((parseError) => parseError.line) || [])
-  let rosterLineNumber = 0
   const rosterInputLines = input.split('\n').map((line) => {
-    const isRosterLine = line.trim().length > 0
-    if (isRosterLine) rosterLineNumber += 1
-
     return {
       line,
-      lineNumber: isRosterLine ? rosterLineNumber : null,
     }
   })
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
-      <div className="relative bg-surface rounded-lg shadow-xl border border-border max-w-2xl w-full p-6 max-h-[90vh] flex flex-col">
-        <DialogCloseButton onClose={handleClose} label="Close Add Students" disabled={isSubmitting} />
-        <h2 className="pr-14 text-xl font-bold text-text-default mb-4">Add Students</h2>
+    <DialogPanel isOpen={isOpen} onClose={handleClose} closeDisabled={isSubmitting} closeLabel="Close Add Students" ariaLabelledBy="add-students-title" maxWidth="sm:max-w-2xl">
+        <h2 id="add-students-title" className="pr-14 text-xl font-bold text-text-default mb-4">Add Students</h2>
 
         <div className="flex-1 overflow-auto">
           {/* Input Textarea */}
@@ -183,11 +195,11 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                       transform: `translate(${-textareaScroll.left}px, ${-textareaScroll.top}px)`,
                     }}
                   >
-                    {rosterInputLines.map(({ line, lineNumber }, index) => (
+                    {rosterInputLines.map(({ line }, index) => (
                       <div
                         key={index}
                         className={
-                          lineNumber !== null && problemLineNumbers.has(lineNumber)
+                          problemLineNumbers.has(index + 1)
                             ? 'rounded-sm bg-warning-bg text-warning'
                             : 'text-text-default'
                         }
@@ -213,6 +225,7 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                 onChange={(e) => {
                   const nextInput = e.target.value
                   setInput(nextInput)
+                  setNotice('')
                   handleParseInput(nextInput)
                 }}
                 onBlur={() => handleParseInput(input)}
@@ -230,9 +243,10 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
                 <div
                   className="text-sm text-warning"
                 >
-                  <p id="roster-format-guidance" role="status" aria-live="polite">
-                    Use this format: Jane Doe email@example.com
-                  </p>
+                  <div id="roster-format-guidance" role="status" aria-live="polite">
+                    {parseResult.errors.map((item) => <p key={item.line}>Line {item.line}: {item.error}</p>)}
+                    {validCount > 0 && <p>Only valid rows will be added.</p>}
+                  </div>
                 </div>
               )}
             </div>
@@ -240,10 +254,11 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 text-sm text-danger bg-danger-bg border border-danger rounded-md px-3 py-2">
+            <div role="alert" className="mb-4 text-sm text-danger bg-danger-bg border border-danger rounded-md px-3 py-2">
               {error}
             </div>
           )}
+          {notice && <p role="status" className="mb-4 text-sm text-text-muted">{notice}</p>}
         </div>
 
         {/* Action Buttons */}
@@ -269,7 +284,6 @@ export function AddStudentsModal({ isOpen, onClose, classroomId, onSuccess }: Ad
             {isSubmitting ? 'Adding...' : `Add ${validCount} Student${validCount !== 1 ? 's' : ''}`}
           </button>
         </div>
-      </div>
-    </div>
+    </DialogPanel>
   )
 }

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
+import { logServerError } from '@/lib/server/diagnostics'
 import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import type { TableRow } from '@/types/database'
 import type { Json } from '@/types/database.generated'
@@ -78,6 +79,7 @@ function mapBulkError(error: RpcError): never {
   ) {
     throw new ApiError(400, 'Invalid assignment bulk request')
   }
+  logServerError('assignment.bulk_save', error)
   throw new ApiError(503, 'Unable to save assignments')
 }
 

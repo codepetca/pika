@@ -1,6 +1,6 @@
 'use client'
 
-import { CircularProgress } from '@/ui'
+import { CircularProgress, IconButton } from '@/ui'
 import type { ReactNode } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -99,12 +99,12 @@ export function ClassroomRowGhost({ classroom }: { classroom: Classroom }) {
         classroom={classroom}
         className="pointer-events-none"
         dragHandle={
-          <div className="shrink-0 rounded-control p-1 text-text-muted">
+          <div className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control text-text-muted">
             <GripVertical className="h-5 w-5" aria-hidden="true" />
           </div>
         }
         action={
-          <div className="inline-flex h-6 w-6 items-center justify-center rounded-control text-text-muted">
+          <div className="inline-flex h-11 w-11 items-center justify-center rounded-control text-text-muted">
             <Archive className="h-4 w-4" aria-hidden="true" />
           </div>
         }
@@ -158,7 +158,7 @@ export function SortableClassroomRow({
           <button
             type="button"
             className={[
-              'shrink-0 rounded-control p-1 touch-none transition-colors',
+              'inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-control touch-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary',
               isDragDisabled
                 ? 'cursor-default text-text-muted'
                 : 'cursor-grab text-text-muted hover:bg-surface-accent hover:text-text-default active:cursor-grabbing',
@@ -172,16 +172,14 @@ export function SortableClassroomRow({
           </button>
         ) : null}
         action={showEditControls ? (
-          <button
-            type="button"
+          <IconButton
+            icon={Archive}
+            label={`Archive ${classroom.title}`}
+            variant="ghost"
             onClick={onArchive}
-            className="inline-flex h-6 w-6 -mr-1 items-center justify-center rounded-control text-text-muted transition-colors hover:text-text-default"
-            aria-label={`Archive ${classroom.title}`}
-            title={`Archive ${classroom.title}`}
+            className="text-text-muted hover:text-text-default"
             disabled={isDisabled || isOpening}
-          >
-            <Archive className="h-4 w-4" aria-hidden="true" />
-          </button>
+          />
         ) : null}
       />
     </div>
