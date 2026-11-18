@@ -1,3 +1,4 @@
+import { billingTestPublicationProofCatalog } from './billing-test-publication-proof-catalog'
 import { teacherAuthoringImageTriggerRowsSql, teacherAuthoringImagesCatalogSql } from './teacher-authoring-images-proof-catalog'
 /** Inert rollback-only SQL source for migration252. Importing this module opens
  * no connection and performs no SQL. Execution is admitted only through the
@@ -96,9 +97,10 @@ function graph(f: TestOwnerPublicationFixture) {
   ].join(',')})`
 }
 
-function exactTriggers(table: string, expected: readonly (readonly [string,string,string,number])[], message: string) {
+function exactTriggers(table: string, expected: readonly (readonly [string,string,string,number])[], message: string,
+  billingCatalog: ReturnType<typeof billingTestPublicationProofCatalog>) {
   const tuples = expected.map(row => `(${q(row[0])},${q(row[1])},${q(row[2])},${row[3]})`).join(',')
-  const expectedRows = `select * from (values ${tuples}) historical(name,fn_schema,fn_name,tgtype) union all ${teacherAuthoringImageTriggerRowsSql([table], false)}`
+  const expectedRows = `select * from (values ${tuples}) historical(name,fn_schema,fn_name,tgtype) union all ${teacherAuthoringImageTriggerRowsSql([table], false)}${table === 'tests' ? ' union all ' + billingCatalog.triggerRowSql(false) : ''}`
   const actual = `select t.tgname::text,nf.nspname::text,catalog_proc.proname::text,t.tgtype::integer from pg_catalog.pg_trigger t join pg_catalog.pg_proc catalog_proc on catalog_proc.oid=t.tgfoid join pg_catalog.pg_namespace nf on nf.oid=catalog_proc.pronamespace where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal`
   return `if exists((${actual}) except (${expectedRows})) or exists((${expectedRows}) except (${actual})) or exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid=${q(`public.${table}`)}::regclass and not t.tgisinternal and (t.tgenabled<>'O' or t.tgdeferrable or t.tginitdeferred)) then raise exception ${q(message)};end if;`
 }
@@ -133,7 +135,8 @@ function quota253CatalogSql() {
  then raise exception 'Quota253 function or dormant settings differ';end if;end;`
 }
 
-function catalogSql() {
+function catalogSql(repository: string) {
+  const billingCatalog = billingTestPublicationProofCatalog(repository)
   const columns = (table: string, expected: readonly string[], message: string) => `select pg_catalog.array_agg(a.attname::text order by a.attnum) into actual from pg_catalog.pg_attribute a where a.attrelid=${q(`public.${table}`)}::regclass and a.attnum>0 and not a.attisdropped;if actual is distinct from array[${expected.map(q).join(',')}]::text[] then raise exception ${q(message)};end if;`
   return `do $catalog$ declare p pg_catalog.pg_proc;actual text[];checks jsonb;begin select value into checks from pg_temp.owner_publication_checks;
  select proc.* into strict p from pg_catalog.pg_proc proc where proc.oid='public.publish_test_from_draft_for_owner_v1(uuid,uuid,uuid,text,integer,jsonb,timestamp with time zone)'::regprocedure;
@@ -145,10 +148,10 @@ function catalogSql() {
  or not pg_catalog.has_function_privilege('service_role',p.oid,'EXECUTE')
  or exists(select 1 from pg_catalog.aclexplode(coalesce(p.proacl,pg_catalog.acldefault('f',p.proowner))) a where a.privilege_type='EXECUTE' and a.grantee not in (p.proowner,'service_role'::regrole)) then raise exception 'Publication function catalog differs';end if;${note('catalog-function')}
  ${columns('tests',TEST_OWNER_PUBLICATION_TEST_COLUMNS,'Exact21 Test columns differ')}${columns('assessment_drafts',TEST_OWNER_PUBLICATION_DRAFT_COLUMNS,'Exact10 Draft columns differ')}${columns('test_questions',TEST_OWNER_PUBLICATION_QUESTION_COLUMNS,'Exact21 question columns differ')}${note('catalog-columns')}
- ${teacherAuthoringImagesCatalogSql()}
- ${exactTriggers('tests',testTriggers,'Exact Test trigger closure differs')}${quota253CatalogSql()}${note('catalog-test-triggers')}
- ${exactTriggers('assessment_drafts',draftTriggers,'Exact Draft trigger closure differs')}${note('catalog-draft-triggers')}
- ${exactTriggers('test_questions',questionTriggers,'Exact question trigger closure differs')}${note('catalog-question-triggers')}
+ ${teacherAuthoringImagesCatalogSql()}${billingCatalog.checkSql}
+ ${exactTriggers('tests',testTriggers,'Exact Test trigger closure differs',billingCatalog)}${quota253CatalogSql()}${note('catalog-test-triggers')}
+ ${exactTriggers('assessment_drafts',draftTriggers,'Exact Draft trigger closure differs',billingCatalog)}${note('catalog-draft-triggers')}
+ ${exactTriggers('test_questions',questionTriggers,'Exact question trigger closure differs',billingCatalog)}${note('catalog-question-triggers')}
  if not pg_catalog.has_function_privilege('service_role','public.publish_test_from_draft_atomic(uuid,uuid,integer)','EXECUTE')
  or not pg_catalog.has_function_privilege('service_role','public.activate_test_from_draft_atomic(uuid,uuid,integer)','EXECUTE')
  or not pg_catalog.has_function_privilege('service_role','public.snapshot_test_draft_for_owner_v1(uuid,uuid,timestamp with time zone)','EXECUTE')
@@ -180,7 +183,7 @@ function caseProbe(f: TestOwnerPublicationFixture, c: TestOwnerPublicationFixtur
   return probe(c.label, `declare code text;begin begin perform ${publicationCall(c,classId,content)};raise exception 'Denied publication succeeded';exception when others then get stacked diagnostics code=returned_sqlstate;if code<>${q(expected)} then raise exception 'Denied publication code differs';end if;end;end;`)
 }
 
-export function testOwnerPublicationDbContractsManifest(f: TestOwnerPublicationFixture, projectId: string) {
+export function testOwnerPublicationDbContractsManifest(f: TestOwnerPublicationFixture, projectId: string, repository = process.cwd()) {
   validateFixture(f, projectId)
   const basicCases = f.cases.map(c => caseProbe(f,c)).join('\n')
   const target = f.cases[0]; const test = f.tests.find(row => row.id === target.testId)!; const draft = f.drafts.find(row => row.assessment_id === target.testId)!; const question = f.questions.find(row => row.test_id === target.testId)!
@@ -245,7 +248,7 @@ do $guard$ begin if current_setting('application_name')<>${q(projectId+'_draft_c
 create temp table owner_publication_checks(value jsonb not null) on commit drop;insert into owner_publication_checks values('[]'::jsonb);
 create function pg_temp.owner_publication_graph() returns jsonb language sql stable set search_path='' as $snapshot$ select ${graph(f)} $snapshot$;
 create temp table owner_publication_baseline(value jsonb not null) on commit drop;insert into owner_publication_baseline select pg_temp.owner_publication_graph();
-${catalogSql()}${basicCases}${probes}
+${catalogSql(repository)}${basicCases}${probes}
 do $final$ declare checks jsonb;baseline_graph jsonb;begin select value into checks from pg_temp.owner_publication_checks;if (select pg_catalog.jsonb_array_length(checks))<>${TEST_OWNER_PUBLICATION_DB_CHECK_LABELS.length-1} then raise exception 'Publication check count differs';end if;select value into strict baseline_graph from pg_temp.owner_publication_baseline;if baseline_graph is distinct from pg_temp.owner_publication_graph() then raise exception 'Publication final fixture differs';end if;checks:=checks||pg_catalog.jsonb_build_array('final-fixture-equality');update pg_temp.owner_publication_checks set value=checks;end;$final$;
 select pg_catalog.jsonb_build_object('version',1,'checks',(select pg_catalog.jsonb_agg(value order by value) from pg_catalog.jsonb_array_elements_text((select value from pg_temp.owner_publication_checks)) value),'rolledBack',true) as result;rollback;`)
   const expectedResult = freeze({ version: 1 as const, checks: [...TEST_OWNER_PUBLICATION_DB_CHECK_LABELS].sort(), rolledBack: true as const })

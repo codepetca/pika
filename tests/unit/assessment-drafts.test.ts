@@ -929,6 +929,19 @@ describe('assessment drafts', () => {
     })
   })
 
+  it('surfaces an atomic billing cutoff as forbidden during publication', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'PT403', message: 'billing_classroom_new_work_unavailable' },
+    })
+
+    await expect(publishTestFromDraftAtomic({ rpc }, {
+      teacherId: 'teacher-1',
+      testId: 'test-1',
+      expectedDraftVersion: 4,
+    })).resolves.toEqual({ ok: false, status: 403, error: 'Forbidden' })
+  })
+
   it('maps a materialized question lock to a reviewable 409', async () => {
     const rpc = vi.fn().mockResolvedValue({
       data: null,

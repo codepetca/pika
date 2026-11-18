@@ -2,12 +2,13 @@ import { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mock = vi.hoisted(() => ({
-  config: vi.fn(), authenticate: vi.fn(), runtime: vi.fn(), listCatalog: vi.fn(),
+  config: vi.fn(), liveConfig: vi.fn(), authenticate: vi.fn(), runtime: vi.fn(), listCatalog: vi.fn(),
   startCheckout: vi.fn(), getCheckout: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ requireRole: mock.authenticate }))
 vi.mock('@/lib/server/billing/purchase-config', () => ({ readBillingPurchaseConfig: mock.config }))
 vi.mock('@/lib/server/billing/purchase-runtime', () => ({ createBillingPurchaseRuntime: mock.runtime }))
+vi.mock('@/lib/server/billing/live-target', () => ({ readBillingLivePaymentWorkerConfig: mock.liveConfig }))
 
 import { GET as catalog } from '@/app/api/billing/catalog/route'
 import { POST as checkout } from '@/app/api/billing/checkout/route'
@@ -54,6 +55,19 @@ describe('purchase API wiring', () => {
   it('returns404 for another account’s purchase instead of leaking status', async () => {
     const response = await status(new NextRequest(`${origin}/api/billing/checkout/${attemptId}`), context)
     expect(response.status).toBe(404)
+    expect(mock.getCheckout).toHaveBeenCalledWith({ subjectUserId: subject, attemptId })
+  })
+  it('routes new checkout and owned recovery through the live runtime at the trusted origin', async () => {
+    const live = { appOrigin: 'https://pika.codepet.ca', providerMode: 'live' }
+    mock.liveConfig.mockReturnValue(live)
+    const request = new NextRequest(`${live.appOrigin}/api/billing/checkout`, {
+      method: 'POST', headers: { origin: live.appOrigin, 'content-type': 'application/json' },
+      body: JSON.stringify({ offeringVersionId: versionId, operationId: attemptId }),
+    })
+    expect((await checkout(request, context)).status).toBe(200)
+    await status(new NextRequest(`${live.appOrigin}/api/billing/checkout/${attemptId}`), context)
+    expect(mock.runtime.mock.calls).toEqual([[live], [live]])
+    expect(mock.startCheckout).toHaveBeenCalledWith({ subjectUserId: subject, offeringVersionId: versionId, operationId: attemptId })
     expect(mock.getCheckout).toHaveBeenCalledWith({ subjectUserId: subject, attemptId })
   })
 })

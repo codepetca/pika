@@ -38,6 +38,7 @@ interface AppHeaderProps {
     awayTotalSeconds: number
   } | null
   pageTitle?: ReactNode
+  billingAvailable?: boolean
 }
 
 function formatDuration(totalSeconds: number): string {
@@ -62,12 +63,11 @@ export function AppHeader({
   onNavigateHome,
   examModeHeader,
   pageTitle,
+  billingAvailable,
 }: AppHeaderProps) {
   const [now, setNow] = useState(() => new Date(initialNow))
   const [exitCountPulseActive, setExitCountPulseActive] = useState(false)
   const previousExamExitCountRef = useRef<number | null>(null)
-  const classroomTitleRef = useRef<HTMLDivElement>(null)
-  const [classroomTitleOverflows, setClassroomTitleOverflows] = useState(false)
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen()
   const hints = useKeyboardShortcutHint()
 
@@ -90,24 +90,6 @@ export function AppHeader({
   const headerStyle = classroomTheme ? getClassroomThemeStyle(classroomTheme.value) : undefined
   const usesMobileClassroomNavigation = Boolean(onOpenSidebar) && !isExamMode && !pageTitle
   const usesFullWidthClassroomTitle = Boolean(currentClassroom) && !isExamMode && !pageTitle
-
-  useEffect(() => {
-    const element = classroomTitleRef.current
-    if (!element) return
-    let active = true
-    const measure = () => {
-      if (active) setClassroomTitleOverflows(element.scrollWidth > element.clientWidth)
-    }
-    measure()
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure)
-    observer?.observe(element)
-    // Font loading can change text width without resizing its constrained box.
-    void document.fonts?.ready.then(measure)
-    return () => {
-      active = false
-      observer?.disconnect()
-    }
-  }, [currentClassroom?.title])
 
   useEffect(() => {
     if (isExamMode) return
@@ -215,13 +197,8 @@ export function AppHeader({
         {/* Classroom title */}
         {currentClassroom && (
           <div
-            ref={classroomTitleRef}
             title={currentClassroom.title}
-            className="ml-1 max-w-full min-w-0 overflow-hidden whitespace-nowrap text-xl font-bold text-text-default sm:ml-4"
-            style={classroomTitleOverflows ? {
-              maskImage: 'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
-              WebkitMaskImage: 'linear-gradient(to right, black calc(100% - 1.5rem), transparent)',
-            } : undefined}
+            className="ml-1 max-w-full min-w-0 truncate text-xl font-bold text-text-default sm:ml-4"
           >
             {currentClassroom.title}
           </div>
@@ -288,7 +265,7 @@ export function AppHeader({
             <span className="ml-2">{formatInTimeZone(now, 'America/Toronto', 'h:mm a')}</span>
           </span>
         )}
-        <UserMenu user={user} />
+        <UserMenu user={user} billingAvailable={billingAvailable} />
       </div>
     </header>
   )

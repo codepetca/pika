@@ -39,6 +39,15 @@ describe('AppHeader home navigation', () => {
     }
   })
 
+  it.each([true, false])('projects the server billing gate to the teacher menu (%s)', billingAvailable => {
+    render(<AppHeader initialNow={Date.parse('2026-11-08T16:00:00Z')} billingAvailable={billingAvailable}
+      user={{ email: 'teacher@example.com', role: 'teacher' }} />, { wrapper: Wrapper })
+    fireEvent.click(screen.getByRole('button', { name: 'User menu' }))
+    const item = screen.queryByRole('menuitem', { name: 'Plans and billing' })
+    if (billingAvailable) expect(item).toHaveAttribute('href', '/billing')
+    else expect(item).not.toBeInTheDocument()
+  })
+
   it('names a non-classroom sidebar trigger for its destination', () => {
     const onOpenSidebar = vi.fn()
     render(
@@ -148,7 +157,7 @@ describe('AppHeader classroom theme', () => {
     )
 
     const title = screen.getByText('Beta')
-    expect(title).toHaveClass('overflow-hidden', 'whitespace-nowrap', 'text-xl', 'font-bold')
+    expect(title).toHaveClass('truncate', 'text-xl', 'font-bold')
     expect(title).toHaveAttribute('title', 'Beta')
     expect(screen.queryByRole('button', { name: 'Select classroom' })).not.toBeInTheDocument()
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()

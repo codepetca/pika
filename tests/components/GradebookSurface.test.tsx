@@ -66,6 +66,9 @@ describe('Gradebook surface owners', () => {
     const { container } = render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scored], columns: [column], onScoreOpen })} /></TooltipProvider>)
     const mark = screen.getByRole('button', { name: `Edit Demo Student mark for Essay: ${percent}%, overridden, graded, not returned to student` })
     expect(container.querySelectorAll('[data-unreturned-mark]')).toHaveLength(1)
+    const score = within(mark).getByText(`${percent}%`)
+    expect(score).toHaveClass('truncate', percent === 0 ? 'text-danger' : 'text-text-default')
+    expect(score.parentElement).toHaveAttribute('data-unreturned-mark', 'true')
     const user = userEvent.setup()
     mark.focus()
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Graded · Not returned to student')
@@ -178,21 +181,22 @@ describe('Gradebook surface owners', () => {
     expect(screen.getByRole('button', { name: 'Edit A2: Excluded essay' }).closest('th')).not.toHaveAttribute('data-compact-zero-weight')
     const mark = screen.getByRole('button', { name: 'Edit Demo Student mark for Practice: 0%' })
     expect(mark).toBeEnabled()
-    expect(mark.firstElementChild).toHaveClass('text-text-muted')
+    expect(within(mark).getByText('0%')).toHaveClass('text-text-muted')
     view.rerender(<TooltipProvider><GradebookTable {...props} compactZeroWeightAssessments={false} /></TooltipProvider>)
     expect(header).not.toHaveAttribute('data-compact-zero-weight')
     expect(header).toHaveTextContent('Practice')
-    expect(mark.firstElementChild).not.toHaveClass('text-text-muted')
+    expect(within(mark).getByText('0%')).not.toHaveClass('text-text-muted')
     view.rerender(<TooltipProvider><GradebookTable {...props} students={[{ ...scored, assessment_scores: [{ ...scored.assessment_scores[0], earned: 110, percent: 110 }] }]} /></TooltipProvider>)
     expect(screen.getByRole('button', { name: /mark for Practice: 110%.*above maximum/ })).toHaveAttribute('data-above-maximum', 'true')
   })
 
   it('compacts zero-weight GradebookStudentPanel rows while preserving title, metadata and score actions', () => {
-    const column = { assessment_id: 'i1', assessment_type: 'item' as const, code: 'I1', title: 'Practice journal', possible: 10, weight: 0, include_in_final: false }
+    const column = { assessment_id: 'i1', assessment_type: 'item' as const, code: 'G1', title: 'Practice journal', possible: 10, weight: 0, include_in_final: false }
     const scored = { ...student, assessment_scores: [{ assessment_id: 'i1', assessment_type: 'item' as const, earned: 0, possible: 10, percent: 0, is_graded: true }] }
     const props = { student: scored, columns: [column], displayMode: 'percent' as const, onItemOpen: vi.fn(), onItemScoreOpen: vi.fn() }
     const view = render(<GradebookStudentPanel {...props} />)
     const title = screen.getByRole('button', { name: 'Edit item: Practice journal' })
+    expect(within(title).getByText('Practice journal')).toHaveClass('truncate')
     expect(title.closest('[data-compact-zero-weight]')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Edit Demo Student item mark for Practice journal: 0%' })).toBeEnabled()
     expect(screen.getByText('0/10')).toHaveClass('sr-only')
@@ -341,7 +345,7 @@ describe('Gradebook surface owners', () => {
     const manualMark = screen.getByRole('button', { name: 'Edit Demo Student mark for Essay: 80%, overridden' })
     expect(manualMark).not.toHaveClass('text-primary')
     expect(manualMark.querySelector('svg')).toBeNull()
-    expect(manualMark.querySelector('span:last-child')).toHaveClass('text-text-default')
+    expect(within(manualMark).getByText('80%')).toHaveClass('text-text-default')
     fireEvent.click(manualMark)
     expect(onScoreOpen).toHaveBeenCalledWith(studentWithManualMark, column)
     expect(screen.queryByRole('button', { name: /Undo override for Demo Student/ })).not.toBeInTheDocument()
@@ -392,9 +396,9 @@ describe('Gradebook surface owners', () => {
     }
     render(<TooltipProvider><GradebookTable {...makeTableProps({ students: [scoredStudent], columns })} /></TooltipProvider>)
 
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Failing: 49%' }).querySelector('span')).toHaveClass('text-danger')
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Approaching: 50%' }).querySelector('span')).toHaveClass('text-warning')
-    expect(screen.getByRole('button', { name: 'Edit Demo Student mark for Meeting: 70%' }).querySelector('span')).toHaveClass('text-text-default')
+    expect(within(screen.getByRole('button', { name: 'Edit Demo Student mark for Failing: 49%' })).getByText('49%')).toHaveClass('text-danger')
+    expect(within(screen.getByRole('button', { name: 'Edit Demo Student mark for Approaching: 50%' })).getByText('50%')).toHaveClass('text-warning')
+    expect(within(screen.getByRole('button', { name: 'Edit Demo Student mark for Meeting: 70%' })).getByText('70%')).toHaveClass('text-text-default')
   })
 
   it.each([false, true])('opens the assessment dialog from its Category cell with the keyboard (compact=%s)', async (ultraCompact) => {
@@ -406,6 +410,8 @@ describe('Gradebook surface owners', () => {
     }
     render(<TooltipProvider><GradebookTable {...makeTableProps({ columns: [column], showWeights: true, ultraCompact, onAssessmentOpen })} /></TooltipProvider>)
     const categoryButton = screen.getByRole('button', { name: 'Edit category for A1: Essay' })
+    expect(categoryButton).not.toHaveClass('truncate')
+    expect(categoryButton.firstElementChild).toHaveClass('truncate')
     categoryButton.focus()
     expect(categoryButton).toHaveFocus()
     await user.keyboard('{Enter}')
@@ -439,10 +445,12 @@ describe('Gradebook surface owners', () => {
 })
 
 describe('standalone Gradebook controls', () => {
-  const item = { assessment_id: 'item1', assessment_type: 'item' as const, code: 'I1', title: 'Attendance', possible: 20, weight: 10, include_in_final: true }
+  const item = { assessment_id: 'item1', assessment_type: 'item' as const, code: 'G1', title: 'Attendance', possible: 20, weight: 10, include_in_final: true }
   it('opens item details and original marks from the mobile student panel', () => {
     const onItemOpen = vi.fn(), onItemScoreOpen = vi.fn()
     render(<GradebookStudentPanel student={student} columns={[item]} displayMode="percent" onItemOpen={onItemOpen} onItemScoreOpen={onItemScoreOpen} />)
+    expect(screen.getByText('G1', { exact: true })).toBeVisible()
+    expect(screen.getByText('General assessment', { exact: true })).toBeVisible()
     fireEvent.click(screen.getByRole('button', { name: 'Edit item: Attendance' }))
     fireEvent.click(screen.getByRole('button', { name: /Edit Demo Student item mark for Attendance/ }))
     expect(onItemOpen).toHaveBeenCalledWith(item)
@@ -454,12 +462,12 @@ describe('standalone Gradebook controls', () => {
     fireEvent.click(screen.getByRole('button', { name: /Edit Demo Student mark for Attendance/ }))
     expect(onScoreOpen).toHaveBeenCalledWith(student, item)
   })
-  it('keeps other assessment creation in More actions and disables it in read-only classrooms', async () => {
+  it('keeps general assessment creation in More actions and disables it in read-only classrooms', async () => {
     const user = userEvent.setup()
     const onAddItem = vi.fn()
     const props = { preferences: DEFAULT_GRADEBOOK_PREFERENCES, onChange: vi.fn(), selectedCount: 0, onAddItem, onEditCategories: vi.fn(), onCopyEmails: vi.fn(), onExport: vi.fn(), studentGradesVisible: false, onStudentGradesVisibilityChange: vi.fn() }
     const view = render(<TooltipProvider><GradebookToolbar {...props} isReadOnly={false} /></TooltipProvider>)
-    expect(screen.queryByRole('button', { name: /Add item|Add other assessment/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Add item|Add general assessment/ })).not.toBeInTheDocument()
     const trigger = screen.getByRole('button', { name: 'Gradebook more actions' })
     await user.click(trigger)
     expect(trigger).toHaveAttribute('aria-expanded', 'true')
@@ -470,7 +478,7 @@ describe('standalone Gradebook controls', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     view.rerender(<TooltipProvider><GradebookToolbar {...props} isReadOnly /></TooltipProvider>)
     await user.click(trigger)
-    expect(screen.getByRole('menuitem', { name: 'Add other assessment' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Add general assessment' })).toBeDisabled()
     await user.keyboard('{Home}')
     expect(screen.getByRole('menuitem', { name: 'Show last name in column 1' })).toHaveFocus()
     await user.keyboard('{Escape}')

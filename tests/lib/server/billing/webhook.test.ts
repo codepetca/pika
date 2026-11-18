@@ -1,3 +1,4 @@
+import Stripe from 'stripe'
 import { describe, expect, it, vi } from 'vitest'
 import { acceptBillingWebhook, readBillingWebhookBody } from '@/lib/server/billing/webhook'
 
@@ -8,8 +9,50 @@ const event = {
     parent: { subscription_details: { subscription: 'sub_fixture' } },
     customer_email: 'must-not-persist@example.test' } },
 }
+const liveEvent = { ...event, object: 'event', livemode: true, account: null, context: null,
+  data: { object: { ...event.data.object, livemode: true } } }
+const signingSecret = 'whsec_fixture_for_local_signature_tests'
+const stripe = new Stripe('sk_test_fixture')
+function signed(value: unknown) {
+  const payload = JSON.stringify(value)
+  return {
+    raw: Buffer.from(payload),
+    signature: stripe.webhooks.generateTestHeaderString({ payload, secret: signingSecret }),
+    verify: (raw: Buffer, signature: string) => stripe.webhooks.constructEvent(raw, signature, signingSecret),
+  }
+}
 
 describe('durable verified Stripe intake', () => {
+  it('binds a signed live snapshot to the dedicated account with an explicit receipt mode', async () => {
+    const record = vi.fn().mockResolvedValue({ status: 'accepted' })
+    await acceptBillingWebhook({ ...signed(liveEvent), providerMode: 'live', stripeAccount: 'acct_fixture', record })
+    expect(record).toHaveBeenCalledWith(expect.objectContaining({ provider_mode: 'live', stripe_account: 'acct_fixture',
+      payload: { object_id: 'in_fixture', customer_id: 'cus_fixture', subscription_id: 'sub_fixture' } }))
+    expect(JSON.stringify(record.mock.calls)).not.toContain('must-not-persist')
+  })
+
+  it.each([
+    { ...liveEvent, livemode: false },
+    { ...liveEvent, data: event.data },
+    { ...liveEvent, data: { object: { ...liveEvent.data.object, livemode: false } } },
+    { ...liveEvent, account: 'acct_fixture' },
+    { ...liveEvent, context: 'acct_fixture' },
+    { ...liveEvent, object: undefined },
+  ])('rejects a signed live snapshot with incompatible scope', async invalid => {
+    const record = vi.fn()
+    await expect(acceptBillingWebhook({ ...signed(invalid), providerMode: 'live', stripeAccount: 'acct_fixture', record })).rejects.toThrow()
+    expect(record).not.toHaveBeenCalled()
+  })
+
+  it('rejects live snapshots in the sandbox and tampered live payloads', async () => {
+    const fixture = signed(liveEvent)
+    const record = vi.fn()
+    await expect(acceptBillingWebhook({ ...fixture, stripeAccount: 'acct_fixture', record })).rejects.toThrow('Unsupported Stripe event envelope')
+    await expect(acceptBillingWebhook({ ...fixture, raw: Buffer.concat([fixture.raw, Buffer.from(' ')]),
+      providerMode: 'live', stripeAccount: 'acct_fixture', record })).rejects.toThrow('Invalid Stripe signature')
+    expect(record).not.toHaveBeenCalled()
+  })
+
   it('verifies original bytes and persists only minimal references before returning', async () => {
     const raw = Buffer.from(JSON.stringify(event))
     const verify = vi.fn().mockReturnValue(event)

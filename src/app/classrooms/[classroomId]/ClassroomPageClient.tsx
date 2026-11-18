@@ -64,6 +64,7 @@ import { PageDensityProvider } from '@/components/PageLayout'
 import { useMarkdownPreference } from '@/contexts/MarkdownPreferenceContext'
 import { ApiError } from '@/lib/api-error'
 import { fetchJSONWithCache, invalidateCachedJSON, prefetchJSON } from '@/lib/request-cache'
+import { fetchTeacherRoster } from '@/lib/teacher-roster-read'
 import { markClassroomTabSwitchReady, markClassroomTabSwitchStart } from '@/lib/classroom-ux-metrics'
 import { getCalendarAnnouncementDate, getCalendarAssignmentDate } from '@/lib/calendar-items'
 import { getTodayInToronto } from '@/lib/timezone'
@@ -111,6 +112,7 @@ interface ClassroomPageClientProps {
   palEnabled?: boolean
   attendanceAvailable?: boolean
   classroomQrAvailable?: boolean
+  roomAttendanceAvailable?: boolean
   testExperienceMode?: 'existing' | 'shared'
 }
 
@@ -186,6 +188,7 @@ export function ClassroomPageClient({
   palEnabled = false,
   attendanceAvailable = true,
   classroomQrAvailable = false,
+  roomAttendanceAvailable = false,
   testExperienceMode = 'existing',
 }: ClassroomPageClientProps) {
   const { leftSidebarExpanded } = useLayoutInitialState()
@@ -333,6 +336,7 @@ export function ClassroomPageClient({
           availableTabs={validTabs}
           featureVisibility={featureVisibility}
           classroomQrAvailable={classroomQrAvailable}
+          roomAttendanceAvailable={roomAttendanceAvailable}
         />
       </ClassDaysProvider>
     </ThreePanelProvider>
@@ -593,6 +597,7 @@ function ClassroomPageContent({
   availableTabs,
   featureVisibility,
   classroomQrAvailable,
+  roomAttendanceAvailable,
 }: {
   initialNow: number
   classroom: Classroom
@@ -609,6 +614,7 @@ function ClassroomPageContent({
   availableTabs: readonly string[]
   featureVisibility: ClassroomFeatureVisibility
   classroomQrAvailable: boolean
+  roomAttendanceAvailable: boolean
 }) {
   const currentTorontoDate = useTorontoToday()
   const { openLeft, close: closeMobileDrawer } = useMobileDrawer()
@@ -1521,6 +1527,12 @@ function ClassroomPageContent({
     lastTabIntentRef.current[tab] = now
 
     const runPrefetch = () => {
+      if (tab === 'roster' && isTeacher && !mountedTabsRef.current.roster) {
+        const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
+        if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {
+          prefetchJSON(`teacher-roster:${classroom.id}`, () => fetchTeacherRoster(classroom.id), 20_000)
+        }
+      }
       if (tab === 'tests' && isTeacher && !mountedTabsRef.current.tests && (testExperienceMode === 'existing' || !prefetchedTeacherTestsRef.current.has(classroom.id))) {
         const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection
         if (!connection?.saveData && connection?.effectiveType !== 'slow-2g' && connection?.effectiveType !== '2g') {
@@ -1995,6 +2007,7 @@ function ClassroomPageContent({
                         isActive={activeTab === 'daily'}
                         attendanceEnabled={featureVisibility.attendance}
                         classroomQrAvailable={classroomQrAvailable}
+                        roomAttendanceAvailable={roomAttendanceAvailable}
                         manualAttendanceEnabled={!featureVisibility.attendance}
                       />
                     </TabContentTransition>

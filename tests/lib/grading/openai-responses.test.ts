@@ -40,7 +40,7 @@ describe('OpenAI Responses grading provider', () => {
     expect(JSON.parse(fetchImpl.mock.calls[1][1].body).max_output_tokens).toBe(200)
   })
 
-  it.each(['organization_spend_limit_exceeded', 'project_spend_limit_exceeded'] as const)(
+  it.each(['organization_spend_limit_exceeded', 'project_spend_limit_exceeded', 'credit_balance_exhausted'] as const)(
     'recognizes exact %s without retaining the response body', async (code) => {
       const error = await provider(vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { code, message: marker } }),
         { status: 429 }))).generate(request).catch((failure: unknown) => failure)
@@ -65,6 +65,8 @@ describe('OpenAI Responses grading provider', () => {
   it.each([
     JSON.stringify({ error: { code: 'insufficient_quota', message: marker } }),
     JSON.stringify({ error: { code: 'project_spend_limit_exceeded_extra', message: marker } }),
+    JSON.stringify({ error: { code: 'credit_balance_exhausted_extra', message: marker } }),
+    JSON.stringify({ error: { type: 'insufficient_quota', message: marker } }),
     JSON.stringify({ code: 'project_spend_limit_exceeded', message: marker }),
     marker,
     JSON.stringify({ error: { code: 'project_spend_limit_exceeded', message: marker.repeat(2000) } }),

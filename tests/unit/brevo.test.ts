@@ -59,6 +59,21 @@ describe('sendBrevoEmail', () => {
     ).rejects.toThrow('BREVO_TEMPLATE_ID is not configured or invalid')
   })
 
+  it('uses the same batch idempotency key and accepts an acknowledged duplicate', async () => {
+    process.env.BREVO_API_KEY = 'test-api-key'
+    mockFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      code: 'duplicate_parameter', message: 'Email for this idempotency key was already processed',
+    }), { status: 400 }))
+    const idempotencyKey = '6f598141-9818-4f44-adb3-a92c7d537c24'
+    await expect(sendBrevoEmail({
+      to: 'test@example.com', subject: 'Test', textContent: 'Test email', idempotencyKey,
+    })).resolves.toEqual({})
+    expect(JSON.parse(mockFetch.mock.calls[0][1].body)).toMatchObject({
+      messageVersions: [{ to: [{ email: 'test@example.com' }] }],
+      headers: { idempotencyKey },
+    })
+  })
+
   it('should send email with correct API call', async () => {
     process.env.BREVO_API_KEY = 'test-api-key'
     process.env.BREVO_TEMPLATE_ID = '2'
@@ -104,6 +119,25 @@ describe('sendBrevoEmail', () => {
     )
 
     expect(result).toEqual({ messageId: 'msg-123' })
+  })
+
+  it('sends a bounded plain-text billing email without a template', async () => {
+    process.env.BREVO_API_KEY = 'test-api-key'
+    delete process.env.BREVO_TEMPLATE_ID
+    mockFetch.mockResolvedValueOnce({ ok: true, text: async () => JSON.stringify({ messageId: 'msg-123' }) })
+    const signal = new AbortController().signal
+    await expect(sendBrevoEmail({
+      to: 'teacher@example.invalid', subject: 'Pika access ends soon', textContent: 'Open Plans and billing',
+      tags: ['pika-billing-test'], signal,
+    })).resolves.toEqual({ messageId: 'msg-123' })
+    const [url, request] = mockFetch.mock.calls[0]
+    expect(url).toBe('https://api.brevo.com/v3/smtp/email')
+    expect(request).toMatchObject({ method: 'POST', redirect: 'error', signal })
+    const body = JSON.parse(request.body)
+    expect(body).toMatchObject({ to: [{ email: 'teacher@example.invalid' }], subject: 'Pika access ends soon',
+      textContent: 'Open Plans and billing', tags: ['pika-billing-test'] })
+    expect(body).not.toHaveProperty('templateId')
+    expect(body).not.toHaveProperty('params')
   })
 
   it('should use default sender when BREVO_FROM_EMAIL not set', async () => {

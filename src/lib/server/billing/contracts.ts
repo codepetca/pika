@@ -1,3 +1,4 @@
+import { exclusiveInvoiceTaxEvidenceSchema, stripeExclusiveTaxModeSchema } from './billing-tax'
 import { z } from 'zod'
 import { BillingLifecycleClaimFactsSchema } from './lifecycle-contracts'
 
@@ -31,6 +32,39 @@ export const BillingSubscriptionBindingSchema = z.object({
 
 export type BillingSubscriptionBinding = z.infer<typeof BillingSubscriptionBindingSchema>
 
+export const BillingReconciliationScopeSchema = z.object({
+  stripeAccount: z.string().regex(/^acct_[A-Za-z0-9]{1,240}$/),
+  providerMode: z.enum(['test', 'live']),
+}).strict()
+
+export type BillingReconciliationScope = z.infer<typeof BillingReconciliationScopeSchema>
+
+export const LiveBillingSubscriptionBindingSchema = BillingSubscriptionBindingSchema.extend({
+  provider_mode: z.literal('live'),
+  tax_mode: stripeExclusiveTaxModeSchema.optional(),
+})
+export type BillingReconciliationBinding = BillingSubscriptionBinding | z.infer<typeof LiveBillingSubscriptionBindingSchema>
+
+/** Existing callers stay sandbox-only when no explicit scope is supplied. */
+export function matchesBillingReconciliationScope(
+  binding: BillingReconciliationBinding,
+  scope?: BillingReconciliationScope,
+): boolean {
+  return scope === undefined
+    ? binding.provider_mode === 'test'
+    : binding.provider_mode === scope.providerMode && binding.stripe_account === scope.stripeAccount
+}
+
+export const BillingScheduledRenewalSchema = z.object({
+  operation_id: uuidSchema,
+  provider_schedule_id: z.string().regex(/^sub_sched_[A-Za-z0-9]{1,240}$/),
+  effective_at: isoDateTimeSchema,
+  state: z.enum(['scheduled', 'applied']),
+  target_binding: z.discriminatedUnion('provider_mode', [BillingSubscriptionBindingSchema, LiveBillingSubscriptionBindingSchema]),
+}).strict()
+
+export type BillingScheduledRenewal = z.infer<typeof BillingScheduledRenewalSchema>
+
 const claimedSubscriptionSchema = z.object({
   status: z.literal('claimed'),
   subscription_id: uuidSchema,
@@ -43,14 +77,28 @@ const claimedSubscriptionSchema = z.object({
   lifecycle: BillingLifecycleClaimFactsSchema.optional(),
 }).strict()
 
-export const BillingSubscriptionClaimSchema = z.discriminatedUnion('status', [
-  claimedSubscriptionSchema,
+const unavailableClaimSchemas = [
   z.object({ status: z.literal('busy') }).strict(),
   z.object({ status: z.literal('not_found') }).strict(),
+] as const
+
+export const BillingSubscriptionClaimSchema = z.discriminatedUnion('status', [
+  claimedSubscriptionSchema,
+  ...unavailableClaimSchemas,
 ])
 
 export type BillingSubscriptionClaim = z.infer<typeof BillingSubscriptionClaimSchema>
 export type BillingClaimedSubscription = z.infer<typeof claimedSubscriptionSchema>
+
+const liveClaimedSubscriptionSchema = claimedSubscriptionSchema.extend({
+  binding: LiveBillingSubscriptionBindingSchema,
+  lifecycle: BillingLifecycleClaimFactsSchema,
+})
+export const LiveBillingSubscriptionClaimSchema = z.discriminatedUnion('status', [
+  liveClaimedSubscriptionSchema,
+  ...unavailableClaimSchemas,
+])
+export type BillingReconciliationClaim = BillingClaimedSubscription | z.infer<typeof liveClaimedSubscriptionSchema>
 
 const billingWorkBaseSchema = z.object({
   subscription_id: uuidSchema,
@@ -58,26 +106,38 @@ const billingWorkBaseSchema = z.object({
   next_attempt_at: isoDateTimeSchema.nullable(),
 })
 
+const eventWorkItemSchema = billingWorkBaseSchema.extend({
+  kind: z.literal('event'),
+  event_inbox_id: uuidSchema,
+}).strict()
+const reconcileWorkItemSchema = billingWorkBaseSchema.extend({
+  kind: z.literal('reconcile'),
+  event_inbox_id: z.null(),
+}).strict()
+
 export const BillingWorkItemSchema = z.discriminatedUnion('kind', [
-  billingWorkBaseSchema.extend({
-    kind: z.literal('event'),
-    event_inbox_id: uuidSchema,
-  }).strict(),
-  billingWorkBaseSchema.extend({
-    kind: z.literal('reconcile'),
-    event_inbox_id: z.null(),
-  }).strict(),
+  eventWorkItemSchema,
+  reconcileWorkItemSchema,
 ])
 
 export const BillingWorkListSchema = z.object({
   items: z.array(BillingWorkItemSchema).max(100),
 }).strict()
 
+export const LiveBillingWorkListSchema = BillingWorkListSchema.extend({
+  items: z.array(z.discriminatedUnion('kind', [
+    eventWorkItemSchema.extend({ binding: LiveBillingSubscriptionBindingSchema }),
+    reconcileWorkItemSchema.extend({ binding: LiveBillingSubscriptionBindingSchema }),
+  ])).max(100),
+})
+
 export type BillingWorkItem = z.infer<typeof BillingWorkItemSchema>
 
 export const BillingFinishResultSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('applied'), retry_scheduled: z.literal(false) }).strict(),
   z.object({ status: z.literal('replayed'), retry_scheduled: z.literal(false) }).strict(),
+  z.object({ status: z.literal('deferred'), retry_scheduled: z.literal(true) }).strict(),
+  z.object({ status: z.literal('attention'), retry_scheduled: z.literal(false) }).strict(),
   z.object({ status: z.literal('lost_claim'), retry_scheduled: z.literal(true) }).strict(),
   z.object({ status: z.literal('plan_conflict'), retry_scheduled: z.literal(true) }).strict(),
   z.object({ status: z.literal('rejected'), retry_scheduled: z.boolean() }).strict(),
@@ -93,6 +153,7 @@ const providerItemSchema = z.object({
   interval: z.enum(['month', 'year']),
   intervalCount: z.number().int().positive(),
   priceLiveMode: z.boolean(),
+  priceTaxBehavior: z.literal('exclusive').optional(),
   quantity: z.number().int().nonnegative(),
   currentPeriodStart: isoDateTimeSchema,
   currentPeriodEnd: isoDateTimeSchema,
@@ -121,6 +182,7 @@ const providerInvoiceSchema = z.object({
   endingBalance: safeIntegerSchema.nullable(),
   totalDiscountAmount: safeMoneySchema,
   totalTaxAmount: safeMoneySchema,
+  exclusiveTax: exclusiveInvoiceTaxEvidenceSchema.optional(),
   hasDiscounts: z.boolean(),
   hasTaxes: z.boolean(),
   prePaymentCreditNotesAmount: safeMoneySchema,
@@ -134,6 +196,15 @@ const providerInvoiceSchema = z.object({
   linesFullyEnumerated: z.literal(true),
   lines: z.array(providerInvoiceLineSchema).max(100),
   paymentsFullyEnumerated: z.literal(true),
+  modeEvidence: z.object({
+    invoice: z.boolean(),
+    invoicePayments: z.array(z.boolean()).max(100),
+    paidPayment: z.object({
+      paymentIntent: z.boolean(),
+      charge: z.boolean(),
+      amountCaptured: safeMoneySchema.optional(),
+    }).strict().optional(),
+  }).strict().optional(),
   payments: z.array(z.object({
     type: z.literal('payment_intent'),
     status: z.literal('succeeded'),
@@ -177,6 +248,7 @@ export const BillingProviderSubscriptionSnapshotSchema = z.object({
   cancelAt: isoDateTimeSchema.nullable(),
   cancelAtPeriodEnd: z.boolean(),
   pauseCollection: z.boolean(),
+  automaticTaxEnabled: z.literal(true).optional(),
   scheduleId: providerReferenceSchema.nullable(),
   items: z.array(providerItemSchema).max(100),
   latestInvoice: providerInvoiceSchema.nullable(),
@@ -198,6 +270,7 @@ export const BillingSynchronizationReasonSchema = z.enum([
   'changed_price',
   'invoice_missing',
   'invoice_not_paid',
+  'renewal_invoice_pending',
   'invoice_paid_out_of_band',
   'invoice_payment_unapproved',
   'invoice_not_bound',
@@ -213,7 +286,7 @@ export type BillingFinishInput = {
   fencing_token: number
   expected_subscription_revision: number
   expected_account_plan_revision: number
-  outcome: 'paid' | 'noop' | 'exception' | 'renewal_failed' | 'canceled' | 'observed'
+  outcome: 'paid' | 'noop' | 'exception' | 'renewal_failed' | 'renewal_invoice_pending' | 'canceled' | 'observed'
   event_inbox_id: string | null
   invoice_id: string | null
   period_start: string | null
@@ -222,4 +295,10 @@ export type BillingFinishInput = {
   provider_status?: string
   cancel_at_period_end?: boolean
   obligations_cleared?: boolean
+}
+
+export type BillingScheduledRenewalFinishInput = BillingFinishInput & {
+  operation_id: string
+  provider_schedule_id: string
+  target_offering_version_id: string
 }

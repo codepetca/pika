@@ -30,6 +30,26 @@
 }
 
 @layer utilities {
+  [data-text-fades] {
+    --text-fade-edge: right;
+    // Editor labels also declare ellipsis in their scoped stylesheet.
+    text-overflow: clip !important;
+    mask-image: linear-gradient(to var(--text-fade-edge), black calc(100% - 1em), transparent);
+    mask-origin: content-box;
+    mask-clip: content-box;
+  }
+
+  [data-text-fades]:dir(rtl) {
+    --text-fade-edge: left;
+  }
+
+  @media (forced-colors: active) {
+    [data-text-fades] {
+      text-overflow: ellipsis !important;
+      mask-image: none;
+    }
+  }
+
   /* Live Radix semantics retire immediately; only a decorative copy exits. */
   .tooltip-opacity {
     animation: tooltip-opacity-in var(--motion-duration-fast) var(--motion-easing-standard);

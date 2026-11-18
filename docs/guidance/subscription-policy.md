@@ -243,6 +243,10 @@ runtime keys remain `plus` and `pro` until a reviewed implementation updates
 their mapping; never interpret legacy `pro` as the new five-classroom product
 or rewrite historical purchased terms solely because a display name changed.
 
+Owner decision 2026-11-12: the first release includes Pro, Max and the
+30-day Pro trial with classroom capacity and RepoLight repository analysis.
+Included AI grading allowances are deferred to a later release.
+
 Annual plans charge the full annual amount upfront. Show that total clearly;
 do not advertise the previously proposed two-month discount, which these final
 prices supersede. Paid plans share core teaching tools and differ primarily by
@@ -280,6 +284,11 @@ purchase-order billing. Sponsored/manual grant precedence remains deferred.
 - Failed renewals get **seven days of grace from the paid period's end**, keeping
   paid capabilities during retries. Use an exact timestamp, not seven calendar
   midnights. Success clears failed-payment/expiry notices.
+- Owner decision 2026-11-08 for a scheduled Max-to-Pro renewal: if the Pro
+  payment fails, keep the last paid Max classroom limit during the exact
+  seven-day grace period. Apply Pro after verified target payment. If grace
+  expires unpaid, apply Free restrictions. Keep the target invoice separate
+  from the offering that supplies grace access.
 - At the unpaid grace deadline, apply Free restrictions, end the failed
   subscription and close out the unpaid renewal invoice so later automatic
   collection cannot unexpectedly charge it. Grace is complimentary. Reconcile
@@ -288,8 +297,12 @@ purchase-order billing. Sponsored/manual grant precedence remains deferred.
   Thereafter cancellation normally stops renewal without refunding unused time,
   subject to applicable requirements. Correct duplicate/incorrect charges;
   handle exceptional refund requests through support with an audit trail.
-- Refund requests, provider refund state and entitlement effects need an explicit
-  implementation contract before activation; do not invent reversal/grant rules.
+- Plans and billing directs customers to email `info@codepet.ca` from their
+  Pika account address with the Stripe invoice number and purchase date.
+- Owner decision 2026-11-10: end the refunded paid term once Stripe confirms
+  the full refund. Apply Free access and preserve student work under SUB-12.
+  Keep the original payment receipt and the audit of the refund. Handle
+  disputes manually.
 
 ### SUB-12 — Teaching access after expiry or classroom downgrade
 
@@ -450,22 +463,25 @@ provider settings, charges or production changes follow from this policy alone.
 
 ## Remaining launch prerequisites
 
-- Validate AI unit costs, publish final quantities, and specify reset anchors,
-  whole-unit rounding, workload limits and reservation behavior at transitions.
 - Implement once-per-teacher trial eligibility, verified paid conversion and
-  precedence preventing stacked trial/paid allowances.
+  precedence preventing stacked trial and paid access.
 - Define deterministic classroom activity ranking and tie-breaking, and implement
   subscription archives that preserve SUB-12 without enabling unrelated archived
   mutations or automatic retention purges.
-- Confirm tax registrations/configuration, refund entitlement effects and
-  disputes/chargeback handling. Currency changes within a subscription and
-  promotional/sponsored/manual grant precedence remain outside launch scope.
+- Confirm tax registrations and configuration. Verify the operator refund and
+  dispute procedures before opening billing. Currency changes within a
+  subscription and promotional, sponsored or manual grant precedence remain
+  outside launch scope.
 - Complete customer checkout UI, authoritative upgrade quotes, scheduled changes, portal,
   grace/expiry, notices and reconciliation with exact-cutoff/concurrency tests.
   Set quote validity and scheduler cadence explicitly; hosting constraints apply.
 - Rehearse real Stripe test-mode flows in an isolated runtime. No live enablement,
   production deployment, account changes or migration application is authorized
   by this policy. See the [foundation](stripe-billing-foundation.md).
+
+Before introducing included AI grading allowances, validate unit costs, publish
+final quantities, and specify reset anchors, whole-unit rounding, workload
+limits, reservation behavior at transitions, and trial-to-paid precedence.
 
 ## Acceptance evidence for implementation
 

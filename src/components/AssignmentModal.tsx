@@ -19,10 +19,10 @@ import { format, isValid, parse } from 'date-fns'
 import { addDaysToDateString } from '@/lib/date-string'
 import { useAssignmentDateValidation } from '@/hooks/useAssignmentDateValidation'
 import { ScheduleDateTimePicker } from '@/components/ScheduleDateTimePicker'
-import { DEFAULT_SCHEDULE_TIME, getDefaultScheduleDateInSchedulingTimezone, getTodayInSchedulingTimezone, parseScheduleIsoToParts } from '@/lib/scheduling'
+import { getTodayInSchedulingTimezone } from '@/lib/scheduling'
 import { useAssignmentScheduling, type CreateSubmitAction } from '@/hooks/useAssignmentScheduling'
 import { getFutureScheduledReleaseDueDateError } from '@/lib/assignment-schedule-validation'
-import { isAssignmentScheduledForFuture } from '@/lib/assignments'
+import { getAssignmentOwnerScheduleLabel, getAssignmentScheduledReleaseAt } from '@/lib/assignments'
 
 // This provider stays outside ModalLayer's outgoing presentation snapshot.
 // Retained body props remain visual snapshots; context retires live descendants.
@@ -161,11 +161,12 @@ function getScheduledAssignmentDueDateValidationMessage(
   assignment: Assignment | null,
   dueAt: string
 ): string | null {
-  if (!assignment || assignment.is_draft || !assignment.released_at || !dueAt) return null
+  const scheduledAt = assignment && getAssignmentScheduledReleaseAt(assignment)
+  if (!scheduledAt || !dueAt) return null
 
   try {
     return getFutureScheduledReleaseDueDateError({
-      releaseAt: assignment.released_at,
+      releaseAt: scheduledAt,
       dueAt: toTorontoEndOfDayIso(dueAt),
     })
   } catch {
@@ -338,7 +339,6 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   const {
     scheduleDate, setScheduleDate,
     scheduleTime, setScheduleTime,
-    primaryAction, setPrimaryAction,
     showPostNowConfirm, setShowPostNowConfirm,
     showRevertToDraftConfirm, setShowRevertToDraftConfirm,
     showCreateScheduleModal, setShowCreateScheduleModal,
@@ -404,16 +404,6 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           : null
       )
       setDueAt(nextDueAt)
-      if (assignment.released_at && isAssignmentScheduledForFuture(assignment)) {
-        const scheduled = parseScheduleIsoToParts(assignment.released_at)
-        setScheduleDate(scheduled.date)
-        setScheduleTime(scheduled.time)
-        setPrimaryAction('schedule')
-      } else {
-        setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
-        setScheduleTime(DEFAULT_SCHEDULE_TIME)
-        setPrimaryAction('post')
-      }
       lastSavedValuesRef.current = {
         title: nextTitle,
         instructionsMarkdown: nextInstructionsMarkdown,
@@ -476,9 +466,6 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       setSubmissionRequirements([])
       setMarkdownWarning(null)
       setDueAt(defaultDueAt)
-      setScheduleDate(getDefaultScheduleDateInSchedulingTimezone())
-      setScheduleTime(DEFAULT_SCHEDULE_TIME)
-      setPrimaryAction('post')
       const initialValues = {
         title: '',
         instructionsMarkdown: '',
@@ -525,9 +512,6 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
     setCurrentAssignment,
     setDueAt,
     setError,
-    setPrimaryAction,
-    setScheduleDate,
-    setScheduleTime,
   ])
 
   // Get only the fields that changed compared to last saved values
@@ -794,6 +778,11 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         }
 
         const updatedAssignment = data.assignment as Assignment
+        // A content-only save returns canonical fields. Keep the observed
+        // generation until an owner read or scheduling operation reconciles it.
+        if (updatedAssignment.is_draft && updatedAssignment.release_schedule === undefined) {
+          updatedAssignment.release_schedule = currentAssignment.release_schedule
+        }
         savedAssignment = updatedAssignment
         if (!ownsSession(session)) {
           if (options?.closeAfter) onSuccess(updatedAssignment, { closeModal: false })
@@ -1083,7 +1072,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
   }
 
   // Wrapper: hook handles post/schedule/revert; component handles 'draft' already-a-draft case
-  async function handleTriggerPrimaryAction(action: CreateSubmitAction = primaryAction) {
+  async function handleTriggerPrimaryAction(action: CreateSubmitAction = effectivePrimaryAction) {
     if (action === 'draft' && currentAssignment?.is_draft) {
       await saveDraftAndClose()
       return
@@ -1258,6 +1247,8 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           : 'Edit Assignment'
   const relativeDueDate = getRelativeDueDate(dueAt, classDays)
   const scheduleContextLabel = relativeDueDate ? `Due ${relativeDueDate.text}` : null
+  const scheduledAt = currentAssignment && getAssignmentScheduledReleaseAt(currentAssignment)
+  const scheduleLabel = currentAssignment && getAssignmentOwnerScheduleLabel(currentAssignment)
   const scheduleContextTone = relativeDueDate
     ? relativeDueDate.isPast
       ? 'warning'
@@ -1339,9 +1330,11 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
           titleInputRef={titleInputRef}
           onBlur={activeInput(flushAutosave)}
           markdownWarning={markdownWarning}
-          statusContent={currentAssignment && isScheduled && currentAssignment.released_at ? (
+          statusContent={scheduleLabel || scheduledAt ? (
             <span className="text-xs font-medium text-warning">
-              {formatReleaseDate(currentAssignment.released_at)}
+              {scheduleLabel === 'Scheduled' ? null : scheduleLabel}
+              {scheduleLabel === 'Release pending' && scheduledAt ? ' · ' : null}
+              {scheduledAt ? formatReleaseDate(scheduledAt) : null}
             </span>
           ) : undefined}
           topRowActions={

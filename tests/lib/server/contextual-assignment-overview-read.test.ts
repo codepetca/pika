@@ -26,7 +26,7 @@ const artifact = (n: number, parent = doc(0), type = 'link') => ({ id: uuid(n + 
 const run = { id: uuid(90000), assignment_id: assignmentId, status: 'running', model: 'test', requested_count: 1001, gradable_count: 1001, processed_count: 0,
   completed_count: 0, skipped_missing_count: 0, skipped_empty_count: 0, failed_count: 0, error_samples_json: [], started_at: stamp, completed_at: null, created_at: stamp }
 
-function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; artifacts?: any[]; history?: any[]; run?: any; items?: any[]; childServerCap?: number;
+function fixture(options: { assignment?: Record<string, unknown>; count?: number; docs?: any[]; requirements?: any[]; artifacts?: any[]; history?: any[]; run?: any; items?: any[]; childServerCap?: number;
   intercept?: (row: any, url: URL, index: number) => unknown; sign?: (paths: string[]) => unknown } = {}) {
   const urls: URL[] = []
   const bodies: any[] = []
@@ -41,7 +41,7 @@ function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; 
     const select = url.searchParams.get('select') ?? ''
     const after = (key: string) => url.searchParams.getAll(key).find(v => v.startsWith('gt.'))?.slice(3) ?? ''
     let row: any = { id: assignmentId, classroom_id: classroomId, classrooms: classroom }
-    if (select.includes('title,description')) row = { ...assignment, classrooms: { ...classroom, title: 'Class' } }
+    if (select.includes('title,description')) row = { ...assignment, ...options.assignment, classrooms: { ...classroom, title: 'Class' } }
     else if (select.includes('enrollments:')) row.classrooms = { ...classroom, enrollments: enrollments.filter(e => e.id > after('classrooms.enrollments.id')).slice(0, 1000) }
     else if (select.includes('requirements:')) row.requirements = (options.requirements ?? []).filter(r => r.id > after('requirements.id')).slice(0, 1000)
     else if (select.includes('docs:')) {
@@ -67,6 +67,50 @@ function fixture(options: { count?: number; docs?: any[]; requirements?: any[]; 
 }
 
 describe('statement-bound assignment overview with installed SDK', () => {
+  it('rejects ownership transfer while the schedule lookup is in flight', async () => {
+    let transferred = false
+    const f = fixture({ assignment: { is_draft: true }, intercept: row => transferred ? null : row })
+    const baseFetch = f.fetcher.getMockImplementation()!
+    let reached!: () => void; let resume!: () => void
+    const rpcReached = new Promise<void>(resolve => { reached = resolve })
+    const releaseRpc = new Promise<void>(resolve => { resume = resolve })
+    f.fetcher.mockImplementation(async (request: RequestInfo | URL, init?: RequestInit) => {
+      if (String(request).includes('/rpc/get_assignment_release_states_for_owner_v1')) {
+        reached(); await releaseRpc
+        return new Response('[]', { status: 200, headers: { 'content-type': 'application/json' } })
+      }
+      return baseFetch(request, init)
+    })
+    const pending = readContextualAssignmentOverview({ supabase: f.supabase, actorId, assignmentId, includeReleaseSchedule: true })
+    await rpcReached
+    transferred = true; resume()
+    await expect(pending).rejects.toMatchObject({ statusCode: 403 })
+  })
+  it.each(['stalled', 'oversized'])('bounds an owner schedule lookup after the base overview: %s', async mode => {
+    vi.useFakeTimers()
+    try {
+      const f = fixture({ assignment: { is_draft: true } })
+      const baseFetch = f.fetcher.getMockImplementation()!
+      let reached!: () => void
+      const rpcReached = new Promise<void>(resolve => { reached = resolve })
+      let signal: AbortSignal | undefined
+      f.fetcher.mockImplementation(async (request: RequestInfo | URL, init?: RequestInit) => {
+        if (String(request).includes('/rpc/get_assignment_release_states_for_owner_v1')) {
+          signal = init?.signal ?? undefined; reached()
+          if (mode === 'stalled') return new Promise<Response>(() => {})
+          return new Response(JSON.stringify([{ junk: 'x'.repeat(9 * 1024 * 1024) }]), { status: 200 })
+        }
+        return baseFetch(request, init)
+      })
+      const pending = readContextualAssignmentOverview({ supabase: f.supabase, actorId, assignmentId, includeReleaseSchedule: true })
+      const rejected = expect(pending).rejects.toMatchObject({ statusCode: 503 })
+      await rpcReached
+      if (mode === 'stalled') await vi.advanceTimersByTimeAsync(20_000)
+      await rejected
+      if (mode === 'stalled') expect(signal?.aborted).toBe(true)
+      expect(f.urls.length).toBeGreaterThan(1)
+    } finally { vi.useRealTimers() }
+  })
   it.each([{}, { github_login: null }])('reads a submitted repository with no optional GitHub login %#', async metadata => {
     const d = doc(0)
     const repository = { ...artifact(0, d, 'repo_link'), url: 'https://github.com/synthetic-owner/project',

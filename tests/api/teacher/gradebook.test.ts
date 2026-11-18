@@ -1896,6 +1896,8 @@ describe('standalone Gradebook item calculations', () => {
     expect(data.students[0].assessment_scores.find((cell: any) => cell.assessment_id === 'i1')).toMatchObject({ assessment_type: 'item', earned: 10, possible: 20, percent: 50, is_graded: true, returned_at: null })
     expect(data.students[0].assessment_scores.find((cell: any) => cell.assessment_id === 'i1').is_manual_override).toBeUndefined()
     expect(data.students[0].assessment_scores.find((cell: any) => cell.assessment_id === 'blank').earned).toBeNull()
+    expect(data.assessment_columns.filter((column: any) => column.assessment_type === 'item').map((column: any) => column.code))
+      .toEqual(['G1', 'G2', 'G3'])
     expect(data.assessment_columns.find((column: any) => column.assessment_id === 'i1')).toMatchObject({ scored_count: 1, returned_count: 0 })
     expect(data.class_summary.items[0]).toMatchObject({ item_id: 'i1', average_percent: 50, scored_count: 1 })
   })

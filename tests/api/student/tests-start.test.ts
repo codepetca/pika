@@ -46,3 +46,9 @@ it('surfaces closure that races with Start', async () => {
   rpc.mockResolvedValueOnce({ data: null, error: { code: '42501', message: 'This test is closed for you.' } })
   expect((await POST(request(), context)).status).toBe(403)
 })
+it('returns a forbidden response when the atomic billing cutoff rejects a new Start', async () => {
+  rpc.mockResolvedValueOnce({ data: null, error: { code: 'PT403', message: 'billing_classroom_new_work_unavailable' } })
+  const response = await POST(request(), context)
+  expect(response.status).toBe(403)
+  expect(await response.json()).toEqual({ error: 'Forbidden' })
+})

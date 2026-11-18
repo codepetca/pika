@@ -303,6 +303,32 @@ async function loadCurrentActors(
   }).strict()).parse(actors)
 }
 
+const coldActorRowSchema = z.object({ classroom_id: uuidSchema, actor_id: uuidSchema }).strict()
+const coldActorPageSize = 200
+const coldActorLimit = 10_000 // Matches the compaction actor limit.
+
+async function loadColdActorIds(supabase: SupabaseClient, classroomId: string): Promise<ReadonlySet<string>> {
+  const ids = new Set<string>()
+  // The cold ledger's restrictive user FK protects these identities while the
+  // tombstone exists. Restore finalization locks and rechecks that tombstone.
+  for (let offset = 0; offset <= coldActorLimit; offset += coldActorPageSize) {
+    const response = await supabase.from('classroom_cold_archive_actors')
+      .select('classroom_id,actor_id').eq('classroom_id', classroomId)
+      .order('actor_id', { ascending: true })
+      .range(offset, offset + coldActorPageSize - 1)
+    if (response.error) throw new Error('Cold archive actor lookup failed')
+    const rows = z.array(coldActorRowSchema).max(coldActorPageSize).parse(response.data)
+    for (const row of rows) {
+      if (row.classroom_id !== classroomId || ids.has(row.actor_id) || ids.size === coldActorLimit) {
+        throw new Error('Cold archive actor lookup returned inconsistent evidence')
+      }
+      ids.add(row.actor_id)
+    }
+    if (rows.length < coldActorPageSize) return ids
+  }
+  throw new Error('Cold archive actor lookup exceeded its bound')
+}
+
 function chunkRestoreRows(rows: Record<string, unknown>[]): Record<string, unknown>[][] {
   const chunks: Record<string, unknown>[][] = []
   let chunk: Record<string, unknown>[] = []
@@ -475,7 +501,7 @@ export async function restoreClassroomArchive(args: {
   classroomId: string
   databaseBudgetBytes: number
   supabaseUrl: string
-}): Promise<ClassroomArchiveRestoreResult> {
+}, actorVerification: 'legacy-role' | 'cold-actor-id' = 'legacy-role'): Promise<ClassroomArchiveRestoreResult> {
   const startedAt = Date.now()
   let operationStarted = false
   let finalizationAttempted = false
@@ -529,16 +555,34 @@ export async function restoreClassroomArchive(args: {
         false,
       )
     }
-    const decoded = decodeClassroomArchiveData(verified)
-    const currentActors = await loadCurrentActors(
-      args.supabase,
-      decoded.actors.map((actor) => actor.id),
-    )
+    const archivedActorIds = new Set(decodeClassroomArchiveData(verified).actors.map((actor) => actor.id))
+    const coldActorIds = actorVerification === 'cold-actor-id'
+      ? await loadColdActorIds(args.supabase, args.classroomId)
+      : null
+    const unfencedFileSubjects = new Set<string>()
+    if (coldActorIds) {
+      for (const object of verified.manifest.storage_objects) {
+        if (object.bucket !== 'test-documents' || object.managed_owner?.resource_type !== 'test') continue
+        const id = object.managed_owner.data_subject_user_id
+        if (id && !coldActorIds.has(id) && !archivedActorIds.has(id)) unfencedFileSubjects.add(id)
+      }
+    }
+    // Historical compaction could omit a Test file's subject when no
+    // resource row referenced that user. Preserve the legacy role checks
+    // for those archives alongside the cold ledger for retained row actors.
+    const actorEvidence = coldActorIds && unfencedFileSubjects.size === 0
+      ? { coldActorIds }
+      : {
+          coldActorIds: coldActorIds ?? undefined,
+          currentActors: await loadCurrentActors(
+            args.supabase, [...archivedActorIds, ...unfencedFileSubjects],
+          ),
+        }
     plan = buildClassroomArchiveV2RestorePlan({
       verified,
       artifactChecksumVerified,
       operationId: args.operationId,
-      currentActors,
+      ...actorEvidence,
       supabaseUrl: args.supabaseUrl,
     })
     const targetResources = await readDeployedClassroomArchiveResources(args.supabase)
@@ -840,13 +884,6 @@ export async function restoreClassroomArchive(args: {
     emitRestoreMetric(result, startedAt)
     return result
   } catch (cause) {
-    await Promise.all(reservedManagedObjectIds.map((objectId) =>
-      queueManagedStorageCleanupBestEffort({
-        supabase: args.supabase,
-        objectId,
-        errorCode: 'classroom_archive_restore_failed',
-      }),
-    ))
     const error = cause instanceof ClassroomArchiveRestoreError
       ? cause
       : new ClassroomArchiveRestoreError(
@@ -855,6 +892,18 @@ export async function restoreClassroomArchive(args: {
           503,
           true,
         )
+    // An interrupted begin may leave unbound file reservations. On the
+    // contextual path an immediate cleanup would strand the deterministic
+    // IDs for this key. The existing reservation expiry handles abandonment.
+    if (actorVerification === 'legacy-role' || operationStarted || !error.retryable) {
+      await Promise.all(reservedManagedObjectIds.map((objectId) =>
+        queueManagedStorageCleanupBestEffort({
+          supabase: args.supabase,
+          objectId,
+          errorCode: 'classroom_archive_restore_failed',
+        }),
+      ))
+    }
     const cleanupAuthorized = operationStarted
       ? await recordRestoreFailure({
         supabase: args.supabase,

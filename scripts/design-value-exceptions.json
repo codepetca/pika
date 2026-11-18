@@ -457,14 +457,14 @@
       "values": [
         {
           "kind": "arbitrary-spacing",
-          "count": 4,
-          "fingerprint": "e067131724dede5b",
+          "count": 2,
+          "fingerprint": "0f74bc158b0e026d",
           "reason": "layout-geometry"
         },
         {
           "kind": "raw-color-class",
-          "count": 6,
-          "fingerprint": "d663ddb772f17859",
+          "count": 4,
+          "fingerprint": "b7da4e27f63079f8",
           "reason": "legacy-visual-value"
         }
       ]

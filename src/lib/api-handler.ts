@@ -130,13 +130,20 @@ function mapErrorToResponse(error: unknown): NextResponse {
  * ```
  */
 // Retain the route-name argument for source compatibility, but never log caller-provided text.
-export function withErrorHandler(_routeName: string, handler: RouteHandler): RouteHandler {
+export function withErrorHandler(
+  _routeName: string,
+  handler: RouteHandler,
+  { cacheControl }: { cacheControl?: string } = {},
+): RouteHandler {
   return async (request, context) => {
+    let response: NextResponse
     try {
       mapRequestJsonSyntaxErrors(request)
-      return await withAdmissionRequestContext(() => handler(request, context))
+      response = await withAdmissionRequestContext(() => handler(request, context))
     } catch (error) {
-      return mapErrorToResponse(error)
+      response = mapErrorToResponse(error)
     }
+    if (cacheControl) response.headers.set('Cache-Control', cacheControl)
+    return response
   }
 }

@@ -23,7 +23,7 @@
   line-height: inherit;
 }
 
-// Calendar selection changes available space, never lesson typography.
+// Keep grid lesson typography consistent between the preview and editor.
 .calendar-day-text.calendar-grid-text {
   font-size: 0.625rem;
   @apply leading-tight;

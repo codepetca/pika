@@ -53,18 +53,6 @@ describe('term calendar modes', () => {
     expect(screen.getByText('Previous month lesson')).toBeInTheDocument()
   })
 
-  it('unclamps expanded read-only grid text while keeping plain text', () => {
-    const longText = 'First line\nSecond line\nThird line\nFourth line'
-    render(<TooltipProvider><LessonCalendar classroom={classroom} lessonPlans={[lesson('long', '2026-03-02', longText)]}
-      viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable={false}
-      onDateChange={vi.fn()} onViewModeChange={vi.fn()} /></TooltipProvider>)
-    const text = screen.getByText(/First line/)
-    expect(text).toHaveClass('line-clamp-3')
-    fireEvent.click(text)
-    expect(text).not.toHaveClass('line-clamp-3')
-    expect(text).toHaveTextContent('Fourth line')
-  })
-
   it.each([false, true])('centers after initial sources settle unless the user has scrolled (interacted=%s)', interacted => {
     const props = { classroom, lessonPlans: [], viewMode: 'list' as const,
       currentDate: new Date('2026-03-15T12:00:00'), editable: false,

@@ -16,6 +16,16 @@ export function requireSameOriginPost(request: NextRequest): void {
 
   if (origin === expectedOrigin) return
 
+  // Next normalizes 127.0.0.1 to localhost in nextUrl. In development,
+  // accept only the same HTTP loopback host and port the browser requested.
+  const host = request.headers.get('host')
+  const fetchSite = request.headers.get('sec-fetch-site')
+  if (process.env.NODE_ENV === 'development' && host && origin === `http://${host}`
+    && /^127\.0\.0\.1:\d+$/.test(host)
+    && request.nextUrl.protocol === 'http:' && request.nextUrl.hostname === 'localhost'
+    && request.nextUrl.port === host.slice('127.0.0.1:'.length)
+    && fetchSite === 'same-origin') return
+
   const isPrivateSameOriginBrowserRequest = origin === 'null'
     && request.headers.get('sec-fetch-site') === 'same-origin'
   if (isPrivateSameOriginBrowserRequest) return

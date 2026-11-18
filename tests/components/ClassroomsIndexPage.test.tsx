@@ -3,12 +3,13 @@ import ClassroomsIndexPage from '@/app/classrooms/page'
 import { TeacherClassroomsIndex } from '@/app/classrooms/TeacherClassroomsIndex'
 import { StudentClassroomsIndex } from '@/app/classrooms/StudentClassroomsIndex'
 import { ClassroomAdmissionOffer, ClassroomAdmissionOfferUnavailable } from '@/app/classrooms/ClassroomAdmissionOffer'
+import { ClassroomBillingNotice } from '@/components/billing/ClassroomBillingNotice'
 import type { ReactElement } from 'react'
 
 const mocks = vi.hoisted(() => ({
   user: vi.fn(), teacher: vi.fn(), from: vi.fn(), redirect: vi.fn(), display: vi.fn(),
   homeAdmission: vi.fn(), experienceAdmission: vi.fn(), home: vi.fn(), visibility: vi.fn(), creation: vi.fn(),
-  autoEnabled: vi.fn(), registryConfigured: vi.fn(), eligibility: vi.fn(),
+  autoEnabled: vi.fn(), registryConfigured: vi.fn(), eligibility: vi.fn(), billingAvailable: vi.fn(),
 }))
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mocks.user }))
 vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: mocks.from }) }))
@@ -18,6 +19,8 @@ vi.mock('@/lib/server/auth-redirect', () => ({ getServerLoginRedirectPath: async
 vi.mock('next/navigation', () => ({ redirect: mocks.redirect }))
 vi.mock('@/integrations/pal', () => ({ StudentPalAmbientSurfaces: () => null }))
 vi.mock('@/lib/server/pal-config', () => ({ getPalApiUrl: () => undefined }))
+vi.mock('@/lib/server/billing/purchase-config', () => ({ isBillingPurchaseAvailable: mocks.billingAvailable }))
+vi.mock('@/components/billing/ClassroomBillingNotice', () => ({ ClassroomBillingNotice: () => null }))
 vi.mock('@/components/AppShell', () => ({ AppShell: () => null }))
 vi.mock('@/app/classrooms/TeacherClassroomsIndex', () => ({ TeacherClassroomsIndex: () => null }))
 vi.mock('@/app/classrooms/StudentClassroomsIndex', () => ({ StudentClassroomsIndex: () => null }))
@@ -51,6 +54,7 @@ describe('classroom index required server reads', () => {
     mocks.homeAdmission.mockReturnValue(false)
     mocks.experienceAdmission.mockReturnValue({ status: 'not-admitted' })
     mocks.autoEnabled.mockReturnValue(false)
+    mocks.billingAvailable.mockReturnValue(false)
     mocks.registryConfigured.mockReturnValue(true)
     mocks.eligibility.mockResolvedValue(false)
   })
@@ -162,10 +166,12 @@ describe('classroom index required server reads', () => {
     ] })
     mocks.visibility.mockResolvedValue({ actor_id: 'actor', hidden_enrollment_ids: ['membership-b'] })
     mocks.creation.mockResolvedValue({ canCreate: true })
-    const shell = await ClassroomsIndexPage() as ReactElement<{ user: { id: string; role: string }; children: ReactElement }>
+    mocks.billingAvailable.mockReturnValue(true)
+    const shell = await ClassroomsIndexPage() as ReactElement<{ user: { id: string; role: string }; children: (ReactElement | null)[] }>
     expect(shell.props.user).toMatchObject({ id: 'actor', role })
-    expect(shell.props.children.type).toBe(TeacherClassroomsIndex)
-    expect(shell.props.children.props).toMatchObject({
+    expect(shell.props.children.some(child => child?.type === ClassroomBillingNotice)).toBe(role === 'teacher')
+    const home = shell.props.children.find(child => child?.type === TeacherClassroomsIndex)
+    expect(home?.props).toMatchObject({
       initialClassrooms: [{ id: 'owned' }],
       contextualHome: { joined: [{ id: 'visible', enrollment_id: 'membership-a' }], hidden: [{ id: 'hidden', enrollment_id: 'membership-b' }], canCreate: true, canImportBlueprint: role === 'teacher' },
     })

@@ -1,4 +1,5 @@
 import type { z } from 'zod'
+import { projectAssignmentReleaseStates } from '@/lib/server/billing/assignment-release-state'
 import { ApiError } from '@/lib/api-error'
 import { requireAuth } from '@/lib/auth'
 import type { getServiceRoleClient } from '@/lib/supabase'
@@ -39,7 +40,7 @@ export async function authorizeSharedAssignmentListReadActor(): Promise<{ mode: 
 
 /** Current statement authority, including terminal pages; this does not promise a transaction snapshot. */
 export async function readContextualAssignmentList(input: {
-  supabase: Client; actorId: string; classroomId: string; permission: 'owner' | 'member'; now?: Date
+  supabase: Client; actorId: string; classroomId: string; permission: 'owner' | 'member'; now?: Date; includeReleaseSchedule?: boolean
 }) {
   const identity = contextualAssignmentListIdentitySchema.safeParse({ actorId: input.actorId, classroomId: input.classroomId })
   if (!identity.success) throw new ApiError(400, 'Invalid assignment list query')
@@ -52,14 +53,14 @@ export async function readContextualAssignmentList(input: {
   const timer = setTimeout(() => controller.abort(), ASSIGNMENT_LIST_DEADLINE_MS)
   let statements = 0
   const checkDeadline = () => { if (controller.signal.aborted || Date.now() >= deadline) throw unavailable() }
-  async function execute(query: PromiseLike<unknown>): Promise<unknown> {
+  async function execute(query: PromiseLike<unknown> | (() => PromiseLike<unknown>)): Promise<unknown> {
     checkDeadline()
     if (++statements > ASSIGNMENT_LIST_STATEMENT_LIMIT) throw unavailable()
     try {
       const result = await new Promise<unknown>((resolve, reject) => {
         const abort = () => reject(unavailable())
         controller.signal.addEventListener('abort', abort, { once: true })
-        Promise.resolve(query).then(resolve, reject).finally(() => controller.signal.removeEventListener('abort', abort))
+        Promise.resolve(typeof query === 'function' ? query() : query).then(resolve, reject).finally(() => controller.signal.removeEventListener('abort', abort))
       })
       checkDeadline()
       if (!boundedAssignmentListJson(result, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
@@ -231,12 +232,15 @@ export async function readContextualAssignmentList(input: {
         }
       }
     }
-    await decode(queryFor('').maybeSingle(), [])
     result.sort((a, b) => member ? Date.parse(String(a.due_at)) - Date.parse(String(b.due_at)) || String(a.id).localeCompare(String(b.id))
       : Number(a.position) - Number(b.position) || Date.parse(String(a.due_at)) - Date.parse(String(b.due_at)) || String(a.id).localeCompare(String(b.id)))
-    if (!boundedAssignmentListJson({ assignments: result }, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
+    const projected = !member && input.includeReleaseSchedule
+      ? await projectAssignmentReleaseStates(input.supabase, actorId, classroomId, result, { signal: controller.signal, execute })
+      : result
+    await decode(queryFor('').maybeSingle(), [])
+    if (!boundedAssignmentListJson({ assignments: projected }, ASSIGNMENT_LIST_DTO_BYTES)) throw unavailable()
     checkDeadline()
-    return { assignments: result }
+    return { assignments: projected }
   } catch (error) { if (error instanceof ApiError) throw error; throw unavailable() }
   finally { clearTimeout(timer) }
 }

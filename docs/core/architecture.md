@@ -60,8 +60,8 @@ src/
 │   ├── api-handler.ts             # withErrorHandler wrapper + ApiError (MANDATORY for routes)
 │   ├── request-cache.ts           # Client-side in-memory cache (15–20s TTL)
 │   ├── tiptap-content.ts          # Tiptap editor utilities + parseContentField
-│   ├── ai-grading.ts              # AI grading for assignments (DeepSeek)
-│   ├── ai-test-grading.ts         # AI grading for tests (DeepSeek, deepseek-flash)
+│   ├── ai-grading.ts              # AI grading for assignments
+│   ├── ai-test-grading.ts         # AI grading for open-response tests
 │   ├── server/
 │   │   ├── assessment-drafts.ts   # Test draft system (JSON Patch)
 │   │   └── tests.ts               # Test query helpers

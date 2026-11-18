@@ -820,3 +820,117 @@ export async function postBaraParticipantErasure(
   }
   return receipt
 }
+
+type RoomScan = { room_id: string; browser_key: string }
+type RoomStaff = {
+  roster_ref: string
+  actor_principal_ref: string
+  actor_display_name: string
+}
+type RoomTarget = { room_id: string }
+type RoomMeeting = { occurrence_ref: string }
+
+type RoomCommands = {
+  capture: [RoomScan & { proof: string }, { continuation: string | null }]
+  candidates: [RoomScan & { continuation: string }, {
+    candidates: Array<{ roster_ref: string; occurrence_ref: string }> | null
+  }]
+  list: [RoomStaff & Partial<RoomMeeting>, {
+    rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean }>
+    default_room_id: string | null
+    meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null
+  }]
+  create: [RoomStaff & { label: string }, RoomTarget]
+  pair: [RoomStaff & RoomTarget, { display_url: string }]
+  revoke: [RoomStaff & RoomTarget, object]
+  default: [RoomStaff & { room_id: string | null }, object]
+  move: [RoomStaff & RoomTarget & RoomMeeting & { save_default?: boolean }, { revision: number }]
+  undo: [RoomStaff & RoomMeeting & { revision: number }, object]
+  notices: [RoomStaff & RoomTarget & { notices: string[] }, object]
+}
+
+export type BaraRoomOperation = keyof RoomCommands
+export type BaraRoomCommand<K extends BaraRoomOperation = BaraRoomOperation> = {
+  [Operation in K]: { operation: Operation } & RoomCommands[Operation][0]
+}[K]
+export type BaraRoomResult<K extends BaraRoomOperation> = { ok: true } & RoomCommands[K][1]
+
+function roomDisplayOrigin() {
+  const configured = process.env.BARA_ATTENDANCE_ROOM_DISPLAY_ORIGIN?.trim()
+  if (!configured) return null
+  try {
+    const url = new URL(configured)
+    const local = url.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(url.hostname)
+    return (url.protocol === 'https:' || local) && !url.username && !url.password
+      && url.pathname === '/' && !url.search && !url.hash ? url.origin : null
+  } catch {
+    return null
+  }
+}
+
+export function isBaraRoomAttendanceConfigured() {
+  return getBaraAttendanceIntegrationState() === 'ready' && roomDisplayOrigin() !== null
+}
+
+function isRoomId(value: unknown): value is string {
+  return typeof value === 'string' && /^[a-zA-Z0-9]{16,64}$/.test(value)
+}
+
+function isRevision(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
+}
+
+function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
+  if (!isPlainObject(value) || value.ok !== true) return null
+  switch (operation) {
+    case 'capture':
+      return value.continuation === null
+        || (typeof value.continuation === 'string' && /^[A-Za-z0-9_-]{40}$/.test(value.continuation)) ? value : null
+    case 'candidates':
+      return value.candidates === null || (Array.isArray(value.candidates) && value.candidates.length <= 32
+        && value.candidates.every(candidate => isPlainObject(candidate)
+          && isOpaqueRef(candidate.roster_ref) && isOpaqueRef(candidate.occurrence_ref))) ? value : null
+    case 'list': {
+      const { rooms, default_room_id: defaultRoom, meeting } = value
+      return (defaultRoom === null || isRoomId(defaultRoom))
+        && Array.isArray(rooms) && rooms.length <= 200 && rooms.every(room => isPlainObject(room)
+          && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean')
+        && (meeting === null || (isPlainObject(meeting)
+          && (meeting.room_id === null || isRoomId(meeting.room_id)) && isRevision(meeting.revision)
+          && (meeting.accepting_until === null || isRevision(meeting.accepting_until)))) ? value : null
+    }
+    case 'create':
+      return isRoomId(value.room_id) ? value : null
+    case 'move':
+      return isRevision(value.revision) ? value : null
+    case 'pair':
+      return typeof value.credential === 'string' && /^[A-Za-z0-9_-]{40}$/.test(value.credential) ? value : null
+    default:
+      return value
+  }
+}
+
+export async function postBaraRoomCommand<const T extends BaraRoomCommand>(
+  command: T,
+  options: ClientOptions = {},
+): Promise<BaraRoomResult<T['operation']>> {
+  const config = configuration()
+  const displayOrigin = roomDisplayOrigin()
+  if (command.operation === 'pair' && !displayOrigin) {
+    throw new BaraAttendanceClientError('Bara room display is not configured', 'configuration', false)
+  }
+  const { parsed, status } = await signedRequest(
+    config, 'POST', '/api/integrations/pika/v1/rooms', JSON.stringify(command), options,
+  )
+  const result = parseRoomResult(command.operation, parsed)
+  if (!result) {
+    throw new BaraAttendanceClientError('Bara returned an invalid room response', 'invalid_response', true, status)
+  }
+  if (command.operation === 'pair') {
+    return {
+      ok: true,
+      display_url: `${displayOrigin}/rooms/${command.room_id}/display#${result.credential}`,
+    } as BaraRoomResult<T['operation']>
+  }
+  return result as BaraRoomResult<T['operation']>
+}

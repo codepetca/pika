@@ -102,6 +102,12 @@ type Fixture = ReturnType<typeof fixture>
 describe('read-only Stripe upgrade quote', () => {
   it('quotes signed provider credit and debit, preserving the paid term and archived purchased price', async () => {
     const f = fixture()
+    Object.assign(f.oldPrice, { unit_amount_decimal: Stripe.Decimal.from('2000.000') })
+    Object.assign(f.price, { unit_amount_decimal: Stripe.Decimal.from('4000.000') })
+    Object.assign(f.invoice.lines.data[0], { quantity_decimal: Stripe.Decimal.from('1.000') })
+    for (const line of f.preview.lines.data) {
+      Object.assign(line, { quantity_decimal: Stripe.Decimal.from('1.000') })
+    }
     const quote = await createStripeUpgradeQuoteProvider(f.port).prepareQuote(f.input)
     expect(quote).toMatchObject({ binding, target, subscriptionItemId: 'si_bound', prorationDate: now,
       quotedAt: iso(now), paidPeriodStart: iso(start), paidThrough: iso(end), expiresAt: iso(now + 900),
@@ -240,7 +246,7 @@ describe('read-only Stripe upgrade quote', () => {
     ['wrong item identity', f => { f.preview.lines.data[0].parent.subscription_item_details.subscription_item = 'si_other' }],
     ['non-proration', f => { f.preview.lines.data[0].parent.subscription_item_details.proration = false }],
     ['quantity', f => { f.preview.lines.data[0].quantity = 2 }],
-    ['decimal quantity', f => { f.preview.lines.data[0].quantity_decimal = '1.1' }],
+    ['SDK fractional quantity', f => { Object.assign(f.preview.lines.data[0], { quantity_decimal: Stripe.Decimal.from('1.1') }) }],
     ['wrong period start', f => { f.preview.lines.data[0].period.start += 1 }],
     ['cross-period end', f => { f.preview.lines.data[0].period.end += 1 }],
     ['positive old credit', f => { f.preview.lines.data[0].amount = 1000 }],

@@ -763,6 +763,28 @@ export function UiGallery({ role, assignmentControllerFixture = false, testContr
         </PatternSection>}
 
         <PatternSection
+          id="horizontal-text-fade"
+          eyebrow="Typography"
+          title="Horizontal text fade"
+          description="Display text fades only when it runs past the available width. Each line keeps its place and text that fits stays fully visible."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Card tone="panel" padding="sm">
+              <h3 className="mb-2 text-sm font-medium">Plain text</h3>
+              <p className="w-48 max-w-full truncate font-semibold" title="Biology 11 — Ecosystems and field studies">Biology 11 — Ecosystems and field studies</p>
+              <p className="w-48 max-w-full truncate text-sm text-text-muted" title="Compare the field observations with last week’s notes.">Compare the field observations with last week’s notes.</p>
+              <p className="w-48 max-w-full truncate text-sm text-text-muted">Bring your notebook.</p>
+            </Card>
+            <Card tone="panel" padding="sm">
+              <h3 className="mb-2 text-sm font-medium">Label on a coloured surface</h3>
+              <Button type="button" variant="ghost" size="sm" className="w-48 max-w-full justify-start bg-calendar-assessment-bg text-calendar-assessment hover:bg-calendar-assessment-hover">
+                <span className="min-w-0 truncate" title="Due: Field observations worksheet">Due: Field observations worksheet</span>
+              </Button>
+            </Card>
+          </div>
+        </PatternSection>
+
+        <PatternSection
           id="feature-patterns"
           eyebrow="Feature-owned evidence"
           title="Feature patterns"
@@ -882,6 +904,7 @@ function getPatternLabDestinations(role: Role): PatternLabDestination[] {
     { value: 'controls', label: 'Controls — Buttons, fields, tabs, and dialogs' },
     { value: 'page-actions', label: 'Controls — Page action bar' },
     { value: 'icons', label: 'Icons — Approved symbols' },
+    { value: 'horizontal-text-fade', label: 'Typography — Horizontal text fade' },
     { value: 'statuses', label: 'Statuses — Labels and meanings' },
     { value: 'status-colors', label: 'Statuses — Attendance, classwork, and test colors' },
     { value: 'ui-consistency', label: 'Controls — Scoped menus and artifact targets' },

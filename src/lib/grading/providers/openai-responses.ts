@@ -12,7 +12,7 @@ const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses'
 const RETRYABLE_STATUS_CODES = new Set([408, 409, 429, 500, 502, 503, 504])
 const MAX_ERROR_BODY_BYTES = 16 * 1024
 
-export type OpenAiSpendLimitCode = 'organization_spend_limit_exceeded' | 'project_spend_limit_exceeded'
+export type OpenAiSpendLimitCode = 'organization_spend_limit_exceeded' | 'project_spend_limit_exceeded' | 'credit_balance_exhausted'
 
 export class OpenAiSpendLimitError extends GradingProviderError {
   readonly spendLimitCode: OpenAiSpendLimitCode
@@ -21,7 +21,7 @@ export class OpenAiSpendLimitError extends GradingProviderError {
   priorTokenUsage: GradingTokenUsage | null = null
 
   constructor(code: OpenAiSpendLimitCode, statusCode: number) {
-    super({ kind: 'config', message: 'OpenAI spend limit exceeded', retryable: false, statusCode })
+    super({ kind: 'config', message: code === 'credit_balance_exhausted' ? 'OpenAI credit balance exhausted' : 'OpenAI spend limit exceeded', retryable: false, statusCode })
     this.name = 'OpenAiSpendLimitError'
     this.spendLimitCode = code
   }
@@ -192,6 +192,7 @@ async function readSpendLimitCode(response: Response): Promise<OpenAiSpendLimitC
     if (!error || typeof error !== 'object') return null
     const code = (error as { code?: unknown }).code
     return code === 'organization_spend_limit_exceeded' || code === 'project_spend_limit_exceeded'
+      || code === 'credit_balance_exhausted'
       ? code : null
   } catch {
     return null

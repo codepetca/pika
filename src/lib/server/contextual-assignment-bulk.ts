@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { ApiError } from '@/lib/api-error'
 import { isRetryableDatabaseContention } from '@/lib/server/database-contention'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import type { TableRow } from '@/types/database'
 import type { Json } from '@/types/database.generated'
 
@@ -41,7 +42,7 @@ type RpcError = { code?: string; message?: string }
 
 type AssignmentBulkClient = {
   rpc: (
-    name: 'save_assignments_bulk_for_owner_v1',
+    name: 'save_assignments_bulk_for_owner_v1' | 'save_legacy_assignments_bulk_for_owner_v1',
     args: {
       p_actor_id: string
       p_classroom_id: string
@@ -61,6 +62,7 @@ export type ContextualAssignmentBulkResult =
   | { ok: false; errors: string[] }
 
 function mapBulkError(error: RpcError): never {
+  throwBillingClassroomPublicationError(error)
   if (error.code === 'P0002') throw new ApiError(404, 'Classroom not found')
   if (error.code === '42501') throw new ApiError(403, 'Unauthorized')
   if (error.code === '55000' && error.message === 'assignment_bulk_archived') {
@@ -84,6 +86,7 @@ export async function saveAssignmentsBulkForOwner(input: {
   actorId: string
   classroomId: string
   assignments: ContextualAssignmentBulkInput[]
+  preserveLegacyHistory?: boolean
 }): Promise<ContextualAssignmentBulkResult> {
   const actor = canonicalUuid.safeParse(input.actorId)
   const classroom = canonicalUuid.safeParse(input.classroomId)
@@ -101,7 +104,10 @@ export async function saveAssignmentsBulkForOwner(input: {
     rich_instructions: assignment.richInstructions,
     is_draft: assignment.isDraft,
   }))
-  const { data, error } = await input.supabase.rpc('save_assignments_bulk_for_owner_v1', {
+  const rpcName = input.preserveLegacyHistory
+    ? 'save_legacy_assignments_bulk_for_owner_v1'
+    : 'save_assignments_bulk_for_owner_v1'
+  const { data, error } = await input.supabase.rpc(rpcName, {
     p_actor_id: actor.data,
     p_classroom_id: classroom.data,
     p_assignments: payload as Json,

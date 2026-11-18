@@ -4,7 +4,9 @@ import {
 } from '@/lib/contracts/classroom-data'
 import {
   CLASSROOM_ARCHIVE_V1_RESOURCES,
+  CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES,
   CLASSROOM_ARCHIVE_V2_RESOURCES,
+  hasPartialClassroomArchiveRepoLightFamily,
 } from '@/lib/contracts/classroom-archive-resources'
 import {
   COURSE_BLUEPRINT_PACKAGE_EXTENSION,
@@ -88,7 +90,7 @@ function requireExactResourceSet(
   resources: Array<{ table: string; path: string }>,
   expectedTables: string[],
   context: z.RefinementCtx,
-  optionalLegacyTables: string[] = [],
+  optionalLegacyTables: readonly string[] = [],
 ) {
   const actualTables = resources.map((resource) => resource.table)
   const actualSet = new Set(actualTables)
@@ -151,7 +153,7 @@ const classroomArchiveManifestBaseSchema = z.object({
 function createClassroomArchiveManifestSchema<const Version extends 1 | 2>(
   version: Version,
   expectedTables: string[],
-  optionalLegacyTables: string[] = [],
+  optionalLegacyTables: readonly string[] = [],
 ) {
   return classroomArchiveManifestBaseSchema.extend({
     version: z.literal(version),
@@ -162,10 +164,14 @@ function createClassroomArchiveManifestSchema<const Version extends 1 | 2>(
       context,
       optionalLegacyTables,
     )
-    if (version === 2) {
-      const family = ['assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports']
-      const present = new Set(manifest.resources.map(resource => resource.table))
-      if (family.some(table => present.has(table)) && !family.every(table => present.has(table))) context.addIssue({ code: 'custom', message: 'RepoLight archive resource family is incomplete', path: ['resources'] })
+    if (version === 2 && hasPartialClassroomArchiveRepoLightFamily(
+      new Set(manifest.resources.map((resource) => resource.table)),
+    )) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'RepoLight archive resource family is incomplete',
+        path: ['resources'],
+      })
     }
     if (manifest.actors.path !== 'actors.ndjson') {
       context.addIssue({
@@ -244,7 +250,7 @@ export const classroomArchiveManifestV1Schema = createClassroomArchiveManifestSc
 export const classroomArchiveManifestV2Schema = createClassroomArchiveManifestSchema(
   CLASSROOM_ARCHIVE_V2_VERSION,
   CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => resource.table),
-  ['gradebook_categories', 'gradebook_score_overrides', 'gradebook_items', 'gradebook_item_scores', 'classroom_guided_draft_provenance', 'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports'],
+  CLASSROOM_ARCHIVE_V2_OPTIONAL_READER_TABLES,
 )
 
 export const classroomArchiveManifestHeaderSchema = z.object({

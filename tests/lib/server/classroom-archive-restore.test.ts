@@ -261,9 +261,14 @@ describe('classroom archive restore planning', () => {
     })).toThrow('artifact checksum was not verified')
   })
 
-  it('restores verified v2 input directly through the envelope contract', () => {
+  it.each([
+    { description: 'current', omittedTables: [] },
+    { description: 'pre-RepoLight', omittedTables: [
+      'assignment_repolight_runs', 'assignment_repolight_reports', 'assignment_repolight_feedback_imports',
+    ] },
+  ])('restores verified $description v2 input through the envelope contract', ({ omittedTables }) => {
     const verification = verifyClassroomArchiveBundle(
-      buildClassroomArchiveV2Fixture().archive,
+      buildClassroomArchiveV2Fixture({ omittedTables }).archive,
     )
     expect(verification.ok).toBe(true)
     if (!verification.ok) throw new Error(verification.error)
@@ -281,6 +286,10 @@ describe('classroom archive restore planning', () => {
     expect(plan.sourceContractVersion).toBe(2)
     expect(plan.restoreContractVersion).toBe(2)
     expect(plan.adapterChain).toEqual(['classroom-archive-schema-105-to-134'])
+    expect(plan.resources.assignment_repolight_runs).toEqual([])
+    if (omittedTables.length > 0) {
+      expect(plan.sourceResourceCounts).not.toHaveProperty('assignment_repolight_runs')
+    }
   })
 
   it('preserves independent content and guidance versions through archive decoding and restore planning', () => {

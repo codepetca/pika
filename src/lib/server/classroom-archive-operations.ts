@@ -2,12 +2,18 @@ import { createHash, randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import {
   CLASSROOM_ARCHIVE_V2_VERSION,
+  classroomArchiveActorSnapshotSchema,
   classroomArchiveRetentionSchema,
+  type ClassroomArchiveActorSnapshot,
 } from '@/lib/contracts/classroom-artifacts'
 import {
   type ClassroomResourceTable,
 } from '@/lib/contracts/classroom-data'
-import { resolveClassroomArchiveV2Resources } from '@/lib/contracts/classroom-archive-resources'
+import {
+  resolveClassroomArchiveV2Resources,
+  validateClassroomArchiveActorReferences,
+  type ClassroomArchiveResourceDefinition,
+} from '@/lib/contracts/classroom-archive-resources'
 import {
   buildClassroomArchiveBundle,
   canonicalJsonStringify,
@@ -158,9 +164,9 @@ class ClassroomArchiveExportError extends Error {
   }
 }
 
-function assertExactResourceCounts(counts: Record<string, number>) {
+function resolveSnapshotResourceContract(counts: Record<string, number>) {
   try {
-    resolveClassroomArchiveV2Resources(Object.keys(counts))
+    return resolveClassroomArchiveV2Resources(Object.keys(counts))
   } catch {
     throw new ClassroomArchiveExportError(
       'archive_snapshot_contract_invalid',
@@ -320,9 +326,10 @@ async function loadClassroomResources(
   supabase: SupabaseClient,
   operationId: string,
   resourceCounts: Record<string, number>,
+  resourceContract: readonly ClassroomArchiveResourceDefinition[],
 ): Promise<Record<string, Record<string, unknown>[]>> {
   const resources: Record<string, Record<string, unknown>[]> = {}
-  for (const resource of resolveClassroomArchiveV2Resources(Object.keys(resourceCounts))) {
+  for (const resource of resourceContract) {
     if (resource.primary_key.length !== 1) {
       throw new ClassroomArchiveExportError(
         'archive_composite_key_adapter_required',
@@ -345,13 +352,13 @@ async function loadClassroomResources(
 async function loadActorSnapshots(
   supabase: SupabaseClient,
   operationId: string,
-): Promise<unknown[]> {
+): Promise<ClassroomArchiveActorSnapshot[]> {
   const pageSize = 1000
-  const actors: unknown[] = []
+  const actors: ClassroomArchiveActorSnapshot[] = []
   for (let offset = 0; ; offset += pageSize) {
     const { data, error } = await supabase
       .from('classroom_archive_snapshot_actors')
-      .select('snapshot')
+      .select('actor_id,snapshot')
       .eq('operation_id', operationId)
       .order('actor_id', { ascending: true })
       .range(offset, offset + pageSize - 1)
@@ -363,8 +370,19 @@ async function loadActorSnapshots(
         true,
       )
     }
-    const page = (data || []).map((row) => row.snapshot)
-    actors.push(...page)
+    const page = data || []
+    for (const row of page) {
+      const snapshot = classroomArchiveActorSnapshotSchema.safeParse(row.snapshot)
+      if (!snapshot.success || snapshot.data.id !== row.actor_id) {
+        throw new ClassroomArchiveExportError(
+          'archive_actor_snapshot_mismatch',
+          'Classroom archive actor snapshot does not match its captured identity',
+          409,
+          false,
+        )
+      }
+      actors.push(snapshot.data)
+    }
     if (page.length < pageSize) break
   }
   return actors
@@ -721,13 +739,31 @@ export async function exportClassroomArchive(args: {
     }
 
     const snapshot = begun
-    assertExactResourceCounts(snapshot.resource_counts)
+    const resourceContract = resolveSnapshotResourceContract(snapshot.resource_counts)
     const resources = await loadClassroomResources(
       args.supabase,
       args.operationId,
       snapshot.resource_counts,
+      resourceContract,
     )
     const actors = await loadActorSnapshots(args.supabase, args.operationId)
+    const actorIds = new Set(actors.map((actor) => actor.id))
+    try {
+      if (actorIds.size !== actors.length) throw new Error('Archive actor snapshots include duplicate actors')
+      validateClassroomArchiveActorReferences(
+        resources,
+        actorIds,
+        resourceContract,
+        { exact: true },
+      )
+    } catch {
+      throw new ClassroomArchiveExportError(
+        'archive_actor_snapshot_mismatch',
+        'Classroom archive actor snapshots do not match the captured resource references',
+        409,
+        false,
+      )
+    }
     const storageObjects = await downloadStorageObjects(
       args.supabase,
       args.classroomId,

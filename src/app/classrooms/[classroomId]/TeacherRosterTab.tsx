@@ -44,8 +44,8 @@ import { useTableColumnWidths } from '@/hooks/useTableColumnWidths'
 import { useScrollPositionMemory } from '@/hooks/useScrollPositionMemory'
 import { fetchJSONWithCache, invalidateCachedJSON } from '@/lib/request-cache'
 import { formatShortDateInToronto } from '@/lib/timezone'
+import { fetchTeacherRoster } from '@/lib/teacher-roster-read'
 
-type Role = 'student' | 'teacher'
 type RosterSortColumn = 'first_name' | 'last_name' | 'email' | 'counselor_email' | 'joined'
 type RosterResizableColumn = 'first' | 'last' | 'email' | 'counselor'
 
@@ -279,32 +279,7 @@ export function TeacherRosterTab({ classroom }: Props) {
     try {
       const data = await fetchJSONWithCache(
         `teacher-roster:${classroomId}`,
-        async () => {
-          const res = await fetch(`/api/teacher/classrooms/${classroomId}/roster`)
-          const data = await res.json()
-          if (!res.ok) {
-            if (res.status === 401 || res.status === 403) {
-              try {
-                const meData = await fetchJSONWithCache(
-                  'auth-me:roster-error',
-                  async () => {
-                    const meRes = await fetch('/api/auth/me')
-                    return meRes.json().catch(() => ({}))
-                  },
-                  2_000,
-                )
-                const role = (meData?.user?.role ?? null) as Role | null
-                if (role && role !== 'teacher') {
-                  throw new Error('You are not signed in as a teacher. Log out and sign back in as a teacher (student sign-in in another tab replaces the session).')
-                }
-              } catch {
-                // Fallback to generic message below
-              }
-            }
-            throw new Error(data.error || 'Failed to load roster')
-          }
-          return data
-        },
+        () => fetchTeacherRoster(classroomId),
         20_000,
       )
       if (
@@ -917,8 +892,8 @@ export function TeacherRosterTab({ classroom }: Props) {
                       onChange={() => toggleSelect(row.id)}
                       ariaLabel={`Select ${row.first_name ?? ''} ${row.last_name ?? ''}`}
                     />
-                    <DataTableCell className="truncate" title={row.first_name ?? undefined}>{row.first_name ?? '—'}</DataTableCell>
-                    <DataTableCell className="truncate" title={row.last_name ?? undefined}>{row.last_name ?? '—'}</DataTableCell>
+                    <DataTableCell title={row.first_name ?? undefined}><span className="block truncate">{row.first_name ?? '—'}</span></DataTableCell>
+                    <DataTableCell title={row.last_name ?? undefined}><span className="block truncate">{row.last_name ?? '—'}</span></DataTableCell>
                     <DataTableCell className="hidden text-text-muted md:table-cell">
                       <div className="flex min-w-0 items-center gap-2">
                         <span className="truncate" title={row.email}>{row.email}</span>

@@ -26,6 +26,7 @@ export const POST = withErrorHandler('StartStudentTest', async (_request, contex
     p_student_id: user.id,
   })
   if (error) {
+    if (error.code === 'PT403') throw new ApiError(403, 'Forbidden')
     if (error.code === '42501') throw new ApiError(403, error.message)
     if (error.code === 'P0002') throw new ApiError(404, 'Test not found')
     throw new ApiError(503, 'Unable to start the test. Please try again.')

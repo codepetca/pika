@@ -1,13 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { getClassroomCourseGuide, getPublishedCourseGuide } from '@/lib/server/course-guide'
+import { makeQueryBuilder, makeSupabaseFromQueues } from '../../support/supabase'
 
 const mocks = vi.hoisted(() => ({
-  getClassroomActualCourseSite: vi.fn(),
   getPublishedActualCourseSite: vi.fn(),
+  getServiceRoleClient: vi.fn(),
 }))
 
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: mocks.getServiceRoleClient }))
+
 vi.mock('@/lib/server/course-sites', () => ({
-  getClassroomActualCourseSite: mocks.getClassroomActualCourseSite,
   getPublishedActualCourseSite: mocks.getPublishedActualCourseSite,
 }))
 
@@ -241,10 +243,14 @@ describe('getPublishedCourseGuide', () => {
   })
 
   it('builds the same safe projection directly from an authenticated classroom', async () => {
-    mocks.getClassroomActualCourseSite.mockResolvedValue({
-      ok: true,
-      site: {
-        classroom: {
+    const assignmentQuery = makeQueryBuilder({ data: [
+      { title: 'Visible', is_draft: false, released_at: null },
+      { title: 'Draft', is_draft: true, released_at: null },
+      { title: 'Future', is_draft: false, released_at: '2999-01-01T00:00:00Z' },
+    ] })
+    const testQuery = makeQueryBuilder({ data: [{ title: 'Published', status: 'active' }, { title: 'Draft', status: 'draft' }] })
+    const supabase = makeSupabaseFromQueues({
+      classrooms: [makeQueryBuilder({ data: {
           title: 'Private Computer Science',
           class_code: 'ICS4U',
           term_label: null,
@@ -261,26 +267,55 @@ describe('getPublishedCourseGuide', () => {
             lesson_plan_scope: 'current_week',
           },
           course_overview_markdown: 'Private classroom overview',
-          course_outline_markdown: '',
-        },
-        resources: null,
-        assignments: [],
-        tests: [],
-        grading: null,
-        lesson_plans: [],
-        announcements: [],
-      },
+      } })],
+      classroom_resources: [makeQueryBuilder({ data: null })],
+      assignments: [assignmentQuery],
+      tests: [testQuery],
     })
+    mocks.getServiceRoleClient.mockReturnValue(supabase)
 
     const result = await getClassroomCourseGuide('classroom-1')
 
-    expect(mocks.getClassroomActualCourseSite).toHaveBeenCalledWith('classroom-1')
+    expect(supabase.from.mock.calls.map(([table]) => table)).toEqual(['classrooms', 'classroom_resources', 'assignments', 'tests'])
+    expect(assignmentQuery.eq).toHaveBeenCalledWith('classroom_id', 'classroom-1')
+    expect(testQuery.eq).toHaveBeenCalledWith('classroom_id', 'classroom-1')
+    expect(assignmentQuery.select).toHaveBeenCalledWith('title, is_draft, released_at')
+    expect(testQuery.select).toHaveBeenCalledWith('title, status')
     expect(result).toEqual({
       ok: true,
       guide: expect.objectContaining({
         classroom: expect.objectContaining({ title: 'Private Computer Science' }),
         overviewMarkdown: 'Private classroom overview',
+        assignments: [{ key: 'assignment:0', title: 'Visible' }],
+        tests: [{ key: 'test:0', title: 'Published' }],
       }),
     })
+  })
+
+  it('returns an error instead of a partial guide when a required read fails', async () => {
+    const supabase = makeSupabaseFromQueues({
+      classrooms: [makeQueryBuilder({ data: { title: 'Class' } })],
+      classroom_resources: [makeQueryBuilder({ data: null })],
+      assignments: [makeQueryBuilder({ error: { message: 'unavailable' } })],
+      tests: [makeQueryBuilder({ data: [] })],
+    })
+    mocks.getServiceRoleClient.mockReturnValue(supabase)
+    await expect(getClassroomCourseGuide('classroom-1')).resolves.toEqual({
+      ok: false, status: 500, error: 'Failed to load published classroom content',
+    })
+  })
+
+  it('honors hidden guide sections even when their source rows exist', async () => {
+    mocks.getServiceRoleClient.mockReturnValue(makeSupabaseFromQueues({
+      classrooms: [makeQueryBuilder({ data: { title: 'Class', course_overview_markdown: 'Hidden', actual_site_config: { overview: false, resources: false, assignments: false, tests: false } } })],
+      classroom_resources: [makeQueryBuilder({ data: { content: { type: 'doc', content: [{ type: 'text', text: 'Hidden' }] } } })],
+      assignments: [makeQueryBuilder({ data: [{ title: 'Hidden', is_draft: false, released_at: null }] })],
+      tests: [makeQueryBuilder({ data: [{ title: 'Hidden', status: 'active' }] })],
+    }))
+    const result = await getClassroomCourseGuide('classroom-1')
+    expect(result).toEqual({ ok: true, guide: {
+      classroom: { title: 'Class' }, visibility: { overview: false, resources: false, assignments: false, tests: false },
+      overviewMarkdown: '', resourcesContent: null, assignments: [], tests: [],
+    } })
   })
 })

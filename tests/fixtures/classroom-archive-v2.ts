@@ -27,9 +27,7 @@ function encodeRows(rows: JsonObject[], primaryKey: readonly string[]): Buffer {
 export function buildClassroomArchiveV2Fixture(options: {
   resources?: Record<string, JsonObject[]>
   actors?: JsonObject[]
-  omitGradebookCategories?: boolean
-  omitGradebookScoreOverrides?: boolean
-  omitGuidedDraftProvenance?: boolean
+  omittedTables?: readonly string[]
 } = {}) {
   const resources = Object.fromEntries(
     CLASSROOM_ARCHIVE_V2_RESOURCES.map((resource) => [resource.table, [] as JsonObject[]]),
@@ -56,11 +54,7 @@ export function buildClassroomArchiveV2Fixture(options: {
   ]
   const entries: Array<{ path: string; bytes: Buffer }> = []
   const descriptors = CLASSROOM_ARCHIVE_V2_RESOURCES
-    .filter((resource) => (
-      (!options.omitGradebookCategories || resource.table !== 'gradebook_categories')
-      && (!options.omitGradebookScoreOverrides || resource.table !== 'gradebook_score_overrides')
-      && (!options.omitGuidedDraftProvenance || resource.table !== 'classroom_guided_draft_provenance')
-    ))
+    .filter((resource) => !options.omittedTables?.includes(resource.table))
     .map((resource) => {
     const path = `data/${resource.table}.ndjson`
     const bytes = encodeRows(resources[resource.table] || [], resource.primary_key)

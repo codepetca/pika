@@ -113,6 +113,9 @@ afterEach(() => { vi.useRealTimers() })
 describe('frozen Stripe upgrade invoice', () => {
   it('accepts a frozen manual invoice with null pricing and keeps the provider quote', async () => {
     const f = fixture()
+    for (const line of f.invoice.lines.data) {
+      Object.assign(line, { quantity_decimal: Stripe.Decimal.from('1.000') })
+    }
     await expect(f.provider.readEvidence(f.op)).resolves.toEqual({ kind: 'unpaid', invoiceId: 'in_upgrade', status: 'open', quote: f.op.quote })
   })
   it('persists the noncollecting invoice identity before adding frozen lines', async () => {
@@ -411,6 +414,10 @@ describe('read-only applied-upgrade cancellation observation', () => {
   })
   it('observes terminal cancellation at the cutoff only after complete empty unpaid-invoice enumeration', async () => {
     const f = appliedFixture()
+    Object.assign(f.subscription.items.data[0].price, { unit_amount_decimal: Stripe.Decimal.from('1900.000') })
+    for (const line of f.invoice.lines.data) {
+      Object.assign(line, { quantity_decimal: Stripe.Decimal.from('1.000') })
+    }
     Object.assign(f.subscription, { status: 'canceled', cancel_at: seconds(end), cancel_at_period_end: true })
     vi.setSystemTime(end)
     await expect(f.provider.readAppliedEvidence(f.op)).resolves.toMatchObject({ kind: 'paid',

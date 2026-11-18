@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { AlertTriangle, CheckCircle2, FileArchive, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, FileArchive } from 'lucide-react'
 import { Button, ContentDialog, FormField, Input } from '@/ui'
 import { fetchJSON } from '@/lib/request-cache'
 import type { ClassroomPurgeStatus } from '@/lib/validations/classroom-purge'
@@ -226,14 +226,7 @@ export function ColdClassroomPurgeDialog({
           {impact ? (
             <div>
               <h4 className="text-sm font-semibold text-text-default">Deletion impact</h4>
-              <div className="mt-2 grid grid-cols-3 gap-2">
-                <div className="rounded-control border border-border bg-surface-2 p-2 sm:p-3">
-                  <Users className="h-4 w-4 text-text-muted" aria-hidden="true" />
-                  <p className="mt-2 text-lg font-semibold text-text-default">
-                    {formatCount(impact.student_count)}
-                  </p>
-                  <p className="text-xs text-text-muted">students</p>
-                </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
                 <div className="rounded-control border border-border bg-surface-2 p-2 sm:p-3">
                   <CheckCircle2 className="h-4 w-4 text-text-muted" aria-hidden="true" />
                   <p className="mt-2 text-lg font-semibold text-text-default">
@@ -251,6 +244,9 @@ export function ColdClassroomPurgeDialog({
                   </p>
                 </div>
               </div>
+              <p className="mt-2 text-xs text-text-muted">
+                Student count is unavailable for this stored classroom.
+              </p>
               <p className="mt-2 text-xs text-text-muted">
                 Includes {impact.archive_count} classroom archive
                 {impact.archive_count === 1 ? '' : 's'} and {impact.gradex_extract_count} related

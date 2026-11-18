@@ -41,10 +41,6 @@ async function gradeFixture(id: string, promptProfile: TestOpenResponsePromptPro
 }
 
 async function main() {
-  if (!process.env.DEEPSEEK_API_KEY?.trim()) {
-    throw new Error('DEEPSEEK_API_KEY must be set to run the gold-set evaluation.')
-  }
-
   const calibratedTotal = TEST_AI_GRADING_GOLD_SET.filter(
     (fixture) => fixture.provenance === 'calibrated',
   ).length

@@ -405,4 +405,50 @@ do $$ declare f record; c jsonb; r jsonb; old_revision bigint; i integer; begin
   end loop;
 end $$;
 reset role;
+
+-- Only the new lifecycle contract may clear a cancellation observed after an
+-- applied upgrade. Keep older standalone upgrade schema rehearsals usable.
+do $$
+declare fixture upgrade_cases%rowtype; claim jsonb; request jsonb; result jsonb;
+  paid_before public.billing_account_access%rowtype; paid_after public.billing_account_access%rowtype;
+begin
+  if not exists(select 1 from supabase_migrations.schema_migrations where version='302') then return; end if;
+  select * into strict fixture from upgrade_cases where name='applied';
+  select * into strict paid_before from public.billing_account_access where subject_user_id=fixture.subject_id;
+  if exists(select 1 from supabase_migrations.schema_migrations where version='303') and
+    public.billing_get_access_status_v1(jsonb_build_object('subject_user_id',fixture.subject_id,'include_options',true))
+      #>>'{customer_options,paid_terms,upgrade_available}' is distinct from 'false' then
+    raise exception 'Customer options advertised a second upgrade without current full-cycle payment';
+  end if;
+
+  claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',fixture.subscription_id,'lease_seconds',120));
+  request:=jsonb_build_object('subscription_id',fixture.subscription_id,'lease_token',claim->'lease_token',
+    'fencing_token',claim->'fencing_token','expected_subscription_revision',claim->'subscription_revision',
+    'expected_account_plan_revision',claim->'expected_account_plan_revision','provider_status','active',
+    'invoice_id',null,'period_start',null,'period_end',null);
+  result:=public.billing_finish_subscription_v1(request||'{"outcome":"canceled","cancel_at_period_end":true}'::jsonb);
+  if result->>'status' is distinct from 'applied'
+    or public.billing_get_access_status_v1(jsonb_build_object('subject_user_id',fixture.subject_id))->>'renewal_at' is not null then
+    raise exception 'Verified upgrade cancellation did not stop renewal: %',result;
+  end if;
+
+  claim:=public.billing_claim_subscription_v1(jsonb_build_object('subscription_id',fixture.subscription_id,'lease_seconds',120));
+  request:=request||jsonb_build_object('lease_token',claim->'lease_token','fencing_token',claim->'fencing_token',
+    'expected_subscription_revision',claim->'subscription_revision','expected_account_plan_revision',claim->'expected_account_plan_revision',
+    'outcome','observed','cancel_at_period_end',false);
+  if public.billing_finish_subscription_v1(request||'{"fencing_token":1}'::jsonb)->>'status' is distinct from 'lost_claim' then
+    raise exception 'Stale worker could resume a canceled renewal';
+  end if;
+  result:=public.billing_finish_subscription_v1(request);
+  select * into strict paid_after from public.billing_account_access where subject_user_id=fixture.subject_id;
+  if result->>'status' is distinct from 'applied' or paid_after.end_reason is distinct from 'renewal_pending'
+    or paid_after.paid_through is distinct from paid_before.paid_through
+    or paid_after.paid_period_start is distinct from paid_before.paid_period_start
+    or paid_after.access_ends_at is distinct from paid_before.access_ends_at
+    or paid_after.offering_version_id is distinct from paid_before.offering_version_id
+    or paid_after.last_paid_invoice_id is distinct from paid_before.last_paid_invoice_id
+    or (select count(*) from public.stripe_billing_invoice_effects where subscription_id=fixture.subscription_id)<>1 then
+    raise exception 'Resumption changed the original purchase or failed to restore renewal: %',result;
+  end if;
+end $$;
 rollback;

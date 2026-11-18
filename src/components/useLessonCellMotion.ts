@@ -3,7 +3,7 @@
 import { useCallback, useLayoutEffect, useRef } from 'react'
 
 /** Calendar disclosure owns geometry only; editing and saving remain immediate. */
-export function useLessonCellMotion(open: boolean, owner: string, compact = false) {
+export function useLessonCellMotion(open: boolean, owner: string) {
   const outerRef = useRef<HTMLDivElement>(null)
   const innerRef = useRef<HTMLDivElement>(null)
   const pendingRef = useRef<{ height: number; owner: string } | null>(null)
@@ -12,8 +12,6 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const openingRef = useRef(open)
   const durationRef = useRef(0)
-  const previousRef = useRef<{ owner: string; compact: boolean } | null>(null)
-  const visibleHeightRef = useRef<{ owner: string; height: number } | null>(null)
 
   const cancelWork = useCallback(() => {
     if (frameRef.current !== null) cancelAnimationFrame(frameRef.current)
@@ -56,13 +54,7 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
   useLayoutEffect(() => {
     const outer = outerRef.current
     const inner = innerRef.current
-    const previous = previousRef.current
-    previousRef.current = { owner, compact }
-    const cached = visibleHeightRef.current
-    // Read-only selection has no prepare command. Cache committed geometry
-    // before its compact/expanded render so it shares the disclosure lifecycle.
-    const compactChanged = previous?.owner === owner && previous.compact !== compact
-    const pending = pendingRef.current ?? (compactChanged && cached?.owner === owner ? cached : null)
+    const pending = pendingRef.current
     pendingRef.current = null
     if (!outer || !inner || !pending || pending.owner !== owner
       || typeof ResizeObserver === 'undefined'
@@ -88,7 +80,7 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
       if (!activeRef.current) return
       retarget()
     })
-  }, [open, owner, compact, retarget, settle])
+  }, [open, owner, retarget, settle])
 
   useLayoutEffect(() => {
     const outer = outerRef.current
@@ -102,14 +94,11 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
     // TipTap first renders null. Observe its actual mounted height while opening,
     // but leave typing, refreshes and resizing at natural height after settling.
     const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
-      visibleHeightRef.current = { owner, height: outer.getBoundingClientRect().height }
       if (activeRef.current && frameRef.current === null) {
         retarget()
       }
     })
-    visibleHeightRef.current = { owner, height: outer.getBoundingClientRect().height }
     observer?.observe(inner)
-    observer?.observe(outer)
     outer.addEventListener('transitionend', handleEnd)
     media.addEventListener('change', handleMotionChange)
     return () => {
@@ -117,7 +106,6 @@ export function useLessonCellMotion(open: boolean, owner: string, compact = fals
       outer.removeEventListener('transitionend', handleEnd)
       media.removeEventListener('change', handleMotionChange)
       pendingRef.current = null
-      visibleHeightRef.current = null
       settle()
     }
   }, [owner, retarget, settle])

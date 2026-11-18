@@ -102,7 +102,9 @@ describe('upgrade request boundaries', () => {
   })
   it('hides missing and foreign operations', async () => {
     const f = setup(); f.runtime.getUpgrade.mockResolvedValue(null)
-    expect((await f.handlers.status(new NextRequest(origin), context)).status).toBe(404)
+    const response = await f.handlers.status(new NextRequest(origin), context)
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({ error: 'Upgrade operation not found' })
   })
   it('maps missing reservations and confirmations to private 404 responses', async () => {
     const f = setup(); f.runtime.startUpgrade.mockResolvedValue(null); f.runtime.confirmUpgrade.mockResolvedValue(null)

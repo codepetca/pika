@@ -7,7 +7,7 @@ import { createMockClassroom } from '../helpers/mocks'
 vi.mock('@/hooks/useGradebookEmail2', () => ({ useGradebookEmail2: () => ({ rows: [], loading: false, error: null, reload: vi.fn() }) }))
 vi.mock('@/lib/request-cache', () => ({ fetchJSONWithCache: vi.fn((_key: string, load: () => Promise<unknown>) => load()), invalidateCachedJSONMatching: vi.fn() }))
 const classroom = createMockClassroom()
-const item = { assessment_id: 'item-1', assessment_type: 'item', code: 'I1', title: 'Attendance – Term 1', possible: 20, weight: 10, include_in_final: true, category_id: null, scored_count: 1, returned_count: 0 }
+const item = { assessment_id: 'item-1', assessment_type: 'item', code: 'G1', title: 'Attendance – Term 1', possible: 20, weight: 10, include_in_final: true, category_id: null, scored_count: 1, returned_count: 0 }
 function payload(earned: number | null = 15) { return { items_available: true, categories: [], assessment_columns: [item], students: [{ student_id: 'student-1', student_email: 'ada@example.com', student_first_name: 'Ada', student_last_name: 'Lovelace', final_percent: earned == null ? null : earned * 5, assessment_scores: [{ ...item, earned, is_graded: earned != null, percent: earned == null ? null : earned * 5, returned_at: null }] }] } }
 function renderTab(archived = false) { return render(<AppMessageProvider><TooltipProvider><TeacherGradebookTab classroom={{ ...classroom, archived_at: archived ? '2026-01-01' : null }} /></TooltipProvider></AppMessageProvider>) }
 
@@ -20,14 +20,14 @@ describe('Gradebook standalone item interactions', () => {
     fetchMock.mockImplementation(async (_url: string, init?: RequestInit) => init?.method === 'POST' && ++attempts === 1 ? { ok: false, json: async () => ({ error: 'Connection interrupted' }) } : { ok: true, json: async () => payload() })
     renderTab()
     fireEvent.click(await screen.findByRole('button', { name: 'Gradebook more actions' }))
-    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Add other assessment' })).toBeEnabled())
-    fireEvent.click(screen.getByRole('menuitem', { name: 'Add other assessment' }))
-    const dialog = screen.getByRole('dialog', { name: 'Add other assessment' })
+    await waitFor(() => expect(screen.getByRole('menuitem', { name: 'Add general assessment' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Add general assessment' }))
+    const dialog = screen.getByRole('dialog', { name: 'Add general assessment' })
     fireEvent.change(within(dialog).getByRole('textbox', { name: 'Assessment title' }), { target: { value: 'Participation' } })
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Add other assessment' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add general assessment' }))
     await screen.findByText('Connection interrupted')
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Add other assessment' }))
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add other assessment' })).not.toBeInTheDocument())
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Add general assessment' }))
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Add general assessment' })).not.toBeInTheDocument())
     const writes = fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST').map(([, init]) => JSON.parse(init.body))
     expect(writes).toHaveLength(2)
     expect(writes[0]).toMatchObject({ action: 'create', classroom_id: classroom.id, title: 'Participation', points_possible: 100, include_in_final: true })
@@ -65,14 +65,14 @@ describe('Gradebook standalone item interactions', () => {
     const view = renderTab(true)
     await screen.findByRole('button', { name: `Edit item: ${item.title}` })
     fireEvent.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
-    expect(screen.getByRole('menuitem', { name: 'Add other assessment' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Add general assessment' })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Edit Ada Lovelace item mark/ })).toBeDisabled()
     view.unmount()
     fetchMock.mockResolvedValue({ ok: true, json: async () => ({ ...payload(), items_available: false }) })
     renderTab()
     await screen.findByRole('button', { name: `Edit item: ${item.title}` })
     fireEvent.click(screen.getByRole('button', { name: 'Gradebook more actions' }))
-    expect(screen.getByRole('menuitem', { name: 'Add other assessment' })).toBeDisabled()
+    expect(screen.getByRole('menuitem', { name: 'Add general assessment' })).toBeDisabled()
   })
   it('does not refresh a previous classroom after an item write resolves', async () => {
     let resolveWrite: (result: unknown) => void = () => {}

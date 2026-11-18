@@ -21,7 +21,10 @@ vi.mock('@/lib/auth', () => ({
   }),
 }))
 
-const mockSupabaseClient = { from: vi.fn() }
+const mockSupabaseClient = {
+  from: vi.fn(),
+  rpc: vi.fn().mockResolvedValue({ data: null, error: { code: 'PGRST202' } }),
+}
 
 describe('POST /api/teacher/assignments/[id]/release', () => {
   beforeEach(() => {
@@ -384,11 +387,10 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
         headers: { 'Content-Type': 'application/json' },
       })
 
-      await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+      const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
 
-      expect(capturedUpdate).toBeDefined()
-      expect(capturedUpdate.is_draft).toBe(false)
-      expect(capturedUpdate.released_at).toBe(futureIso)
+      expect(response.status).toBe(200)
+      expect(capturedUpdate).toEqual({ is_draft: false, released_at: futureIso })
     })
   })
 

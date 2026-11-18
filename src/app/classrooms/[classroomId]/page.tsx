@@ -1,3 +1,4 @@
+import { isBaraRoomAttendanceConfigured } from '@/lib/server/bara-attendance-client'
 import { redirect, notFound } from 'next/navigation'
 import { getCurrentUser } from '@/lib/auth'
 import { getServiceRoleClient } from '@/lib/supabase'
@@ -139,6 +140,7 @@ export default async function ClassroomPage({ params, searchParams }: PageProps)
         palEnabled={palEnabled}
         attendanceAvailable={attendanceAvailable}
         classroomQrAvailable={attendanceAvailable}
+        roomAttendanceAvailable={user.role === 'teacher' && attendanceAvailable && isBaraRoomAttendanceConfigured()}
       />
     )
   }

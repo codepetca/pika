@@ -103,17 +103,16 @@ describe('LessonCalendar', () => {
     expect(container.querySelectorAll('.overflow-auto')).toHaveLength(1)
   })
 
-  it.each([true, false])('keeps neighboring preview density unchanged when selecting a day (editable=%s)', editable => {
+  it('keeps the neighboring preview in place when editing a lesson', () => {
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
-      viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable={editable}
+      viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
-    const neighborPreview = screen.getByText(/Neighboring long preview/).closest('button')!
-    const initialPreview = neighborPreview.innerHTML
+    const neighborPreview = screen.getByRole('button', { name: 'Edit lesson for March 17, 2026' })
     fireEvent.click(screen.getByText('All mode lesson'))
-    expect(neighborPreview.innerHTML).toBe(initialPreview)
+    expect(screen.getByRole('button', { name: 'Edit lesson for March 17, 2026' })).toBe(neighborPreview)
   })
 
-  it('does not collapse a newly selected date when the previous same-week editor closes', () => {
+  it('keeps the next editor open when a same-week editor closes', () => {
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan, neighboringPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
@@ -122,10 +121,9 @@ describe('LessonCalendar', () => {
     fireEvent.click(screen.getByText(/Neighboring long preview/))
     fireEvent.blur(oldEditor)
     expect(screen.getByRole('textbox', { name: 'Lesson plan for March 17, 2026' })).toBeInTheDocument()
-    expect(screen.getByRole('textbox', { name: 'Lesson plan for March 17, 2026' })).toBeInTheDocument()
   })
 
-  it('keeps an editing grid week expanded when placing the caret again', () => {
+  it('keeps the grid editor mounted when placing the caret again', () => {
     const onContentChange = vi.fn()
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
@@ -138,7 +136,7 @@ describe('LessonCalendar', () => {
     expect(onContentChange).not.toHaveBeenCalled()
   })
 
-  it.each(['Escape', 'blur'])('closes the grid editor and its own expanded week on %s', command => {
+  it.each(['Escape', 'blur'])('closes the grid editor on %s', command => {
     const onContentChange = vi.fn()
     render(<LessonCalendar classroom={mockClassroom} lessonPlans={[allModeLessonPlan]}
       viewMode="grid" currentDate={new Date('2026-03-15T12:00:00')} editable
@@ -212,6 +210,32 @@ describe('LessonCalendar', () => {
       currentDate={new Date('2026-03-15')} editable={false}
       onDateChange={vi.fn()} onViewModeChange={vi.fn()} />, { wrapper: Wrapper })
     expect(screen.getByRole('button', { name: 'Today' })).toBeEnabled()
+  })
+
+  it.each([
+    { state: 'previous week fits', previousTop: 200, keyboardScroll: false, expectedScroll: 288 },
+    { state: 'previous week is tall', previousTop: 60, keyboardScroll: false, expectedScroll: 368 },
+    { state: 'keyboard user has scrolled', previousTop: 200, keyboardScroll: true, expectedScroll: 120 },
+  ])('positions the loaded Grid when $state', ({ previousTop, keyboardScroll, expectedScroll }) => {
+    vi.useFakeTimers()
+    const today = new Date('2026-03-16T16:00:00Z')
+    vi.setSystemTime(today)
+    const classroom = { ...mockClassroom, start_date: '2026-03-01', end_date: '2026-04-01' }
+    const calendar = (loading: boolean) => <LessonCalendar classroom={classroom} lessonPlans={[]} viewMode="grid"
+      currentDate={today} editable={false} initialSourcesLoading={loading}
+      onDateChange={vi.fn()} onViewModeChange={vi.fn()} />
+    const { rerender } = render(calendar(true), { wrapper: Wrapper })
+    const scroller = screen.getByRole('region', { name: 'Calendar dates' })
+    scroller.style.scrollPaddingTop = '32px'
+    scroller.scrollTop = 120
+    Object.defineProperty(scroller, 'clientHeight', { value: 300 })
+    vi.spyOn(scroller.querySelector('[data-calendar-date="2026-03-16"]')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, 280))
+    vi.spyOn(scroller.querySelector('[data-calendar-date="2026-03-09"]')!, 'getBoundingClientRect')
+      .mockReturnValue(new DOMRect(0, previousTop))
+    if (keyboardScroll) fireEvent.keyDown(scroller, { key: 'PageDown' })
+    rerender(calendar(false))
+    expect(scroller.scrollTop).toBe(expectedScroll)
   })
 
   it('opens a focused day dialog from the week header', () => {

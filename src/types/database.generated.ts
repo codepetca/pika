@@ -2881,6 +2881,7 @@ export type Database = {
           paid_through: string
           reason: string | null
           revision: number
+          scheduled_operation_id: string | null
           stage: string
           status: string
           subscription_id: string
@@ -2900,6 +2901,7 @@ export type Database = {
           paid_through: string
           reason?: string | null
           revision?: number
+          scheduled_operation_id?: string | null
           stage?: string
           status?: string
           subscription_id: string
@@ -2919,6 +2921,7 @@ export type Database = {
           paid_through?: string
           reason?: string | null
           revision?: number
+          scheduled_operation_id?: string | null
           stage?: string
           status?: string
           subscription_id?: string
@@ -10177,7 +10180,51 @@ export type Database = {
         Returns: Json
       }
       billing_apply_due_access_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_apply_due_live_paid_access_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_apply_due_live_trial_access_v1: {
+        Args: {
+          p_payload: Json
+          p_project_ref: string
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_apply_live_full_refund_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_attest_live_target_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
+      billing_authorize_live_checkout_write_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: boolean
+      }
       billing_bind_customer_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_checkpoint_live_renewal_closeout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_checkpoint_renewal_closeout_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10187,6 +10234,34 @@ export type Database = {
         Returns: Json
       }
       billing_claim_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_claim_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_claim_live_email_notice_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: Json
+      }
+      billing_claim_live_renewal_closeout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_claim_live_subscription_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_claim_renewal_closeout_v1: {
         Args: { p_request: Json }
         Returns: Json
@@ -10196,11 +10271,71 @@ export type Database = {
         Returns: Json
       }
       billing_claim_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_confirm_live_scheduled_plan_change_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_confirm_scheduled_plan_change_v1: {
+        Args: {
+          p_operation_id: string
+          p_stripe_account: string
+          p_subject_user_id: string
+        }
+        Returns: Json
+      }
       billing_confirm_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_fail_subscription_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_checkout_v1: { Args: { p_request: Json }; Returns: Json }
       billing_finish_lifecycle_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_finish_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_email_notice_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_lifecycle_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_renewal_closeout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_finish_live_scheduled_renewal_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_finish_renewal_closeout_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_finish_scheduled_renewal_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
@@ -10219,6 +10354,50 @@ export type Database = {
         Returns: Json
       }
       billing_get_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_get_live_access_status_v1: {
+        Args: {
+          p_payload: Json
+          p_project_ref: string
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_get_live_checkout_offering_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_get_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_get_live_scheduled_cancellation_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_get_live_scheduled_renewal_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_get_scheduled_renewal_v1: {
+        Args: { p_request: Json }
+        Returns: Json
+      }
       billing_get_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_checkout_offerings_v1: {
         Args: { p_request: Json }
@@ -10228,22 +10407,205 @@ export type Database = {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_list_live_checkout_offerings_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_checkout_work_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_renewal_closeouts_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_scheduled_cancellations_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_scheduled_change_offerings_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_scheduled_installations_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_list_live_work_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_list_renewal_closeouts_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
+      billing_list_scheduled_installations_v1: {
+        Args: { p_limit: number; p_stripe_account: string }
+        Returns: Json
+      }
       billing_list_upgrades_v1: { Args: { p_request: Json }; Returns: Json }
       billing_list_work_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_live_checkout_activation_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
+      billing_live_payment_lifecycle_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
+      billing_live_scheduled_cancellation_command_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_live_scheduled_customer_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
+      billing_live_scheduled_installation_command_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_live_trial_lifecycle_ready_v1: {
+        Args: { p_project_ref: string; p_stripe_account: string }
+        Returns: boolean
+      }
       billing_record_event_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_record_live_event_v1: {
+        Args: { p_project_ref: string; p_request: Json }
+        Returns: Json
+      }
+      billing_recovery_due_v1: {
+        Args: {
+          p_cancellation: boolean
+          p_email: boolean
+          p_installation: boolean
+          p_paid: boolean
+          p_repolight: boolean
+          p_repolight_teacher_id: string
+          p_scheduled_closeout: boolean
+          p_trial: boolean
+        }
+        Returns: Json
+      }
+      billing_register_live_checkout_offering_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_register_offering_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_request_live_scheduled_cancellation_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
       billing_requeue_subscription_v1: {
         Args: { p_request: Json }
         Returns: Json
       }
       billing_reserve_checkout_v1: { Args: { p_request: Json }; Returns: Json }
+      billing_reserve_live_checkout_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_reserve_live_scheduled_plan_change_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_reserve_scheduled_plan_change_v1: {
+        Args: {
+          p_operation_id: string
+          p_stripe_account: string
+          p_subject_user_id: string
+          p_target_offering_version_id: string
+        }
+        Returns: Json
+      }
       billing_reserve_upgrade_v1: { Args: { p_request: Json }; Returns: Json }
       billing_save_checkout_progress_v1: {
         Args: { p_request: Json }
+        Returns: Json
+      }
+      billing_save_live_checkout_progress_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_scheduled_installation_v1: {
+        Args: {
+          p_action: string
+          p_fence?: Json
+          p_operation_id: string
+          p_schedule_id?: string
+        }
+        Returns: Json
+      }
+      billing_set_live_checkout_offering_availability_v1: {
+        Args: {
+          p_project_ref: string
+          p_request: Json
+          p_stripe_account: string
+        }
+        Returns: Json
+      }
+      billing_start_live_trial_v1: {
+        Args: {
+          p_payload: Json
+          p_project_ref: string
+          p_stripe_account: string
+        }
         Returns: Json
       }
       billing_start_trial_v1: { Args: { p_request: Json }; Returns: Json }
@@ -10262,6 +10624,14 @@ export type Database = {
           p_teacher_id: string
         }
         Returns: boolean
+      }
+      cancel_assignment_release_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_intent_id: string
+        }
+        Returns: Json
       }
       claim_assignment_ai_grading_run: {
         Args: {
@@ -12481,6 +12851,14 @@ export type Database = {
         }
         Returns: Json
       }
+      get_assignment_release_states_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_ids: string[]
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       get_assignment_repolight_source_v1: {
         Args: {
           p_actor_id: string
@@ -12848,6 +13226,10 @@ export type Database = {
         Args: { p_at: string; p_limit?: number }
         Returns: Json
       }
+      list_due_billing_assignment_releases_v1: {
+        Args: { p_limit: number }
+        Returns: Json
+      }
       lock_effective_feature_entitlement_v1: {
         Args: { p_feature_key: string; p_subject_user_id: string }
         Returns: undefined
@@ -13169,6 +13551,10 @@ export type Database = {
         Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
+      process_billing_assignment_release_v1: {
+        Args: { p_intent_id: string }
+        Returns: string
+      }
       publish_classwork_authoring_material: {
         Args: {
           p_actor_id: string
@@ -13176,6 +13562,14 @@ export type Database = {
           p_expected_source_revision: string
           p_item_id: string
           p_publication: Json
+        }
+        Returns: Json
+      }
+      publish_scheduled_assignment_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_intent_id: string
         }
         Returns: Json
       }
@@ -13926,6 +14320,10 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_billing_classroom_v1: {
+        Args: { p_classroom: string; p_subject: string }
+        Returns: boolean
+      }
       restore_removed_classroom_students: {
         Args: {
           p_classroom_id: string
@@ -14263,6 +14661,14 @@ export type Database = {
         }
         Returns: Json
       }
+      save_legacy_assignments_bulk_for_owner_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignments: Json
+          p_classroom_id: string
+        }
+        Returns: Json
+      }
       save_lesson_plan_for_owner_v1: {
         Args: {
           p_actor_id: string
@@ -14341,6 +14747,15 @@ export type Database = {
         }
         Returns: Json
       }
+      schedule_assignment_for_billing_v1: {
+        Args: {
+          p_actor_id: string
+          p_assignment_id: string
+          p_expected_intent_id?: string
+          p_scheduled_for: string
+        }
+        Returns: Json
+      }
       seal_classroom_purge_inventory: {
         Args: {
           p_expected_object_count: number
@@ -14373,6 +14788,10 @@ export type Database = {
           p_valid_until: string
         }
         Returns: Json
+      }
+      set_billing_classroom_selection_v1: {
+        Args: { p_keep: string[]; p_operation: string; p_subject: string }
+        Returns: undefined
       }
       set_classroom_auto_admission_enabled_v1: {
         Args: { p_enabled: boolean }

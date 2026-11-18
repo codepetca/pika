@@ -803,7 +803,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           <TeacherGradebookVisibilityControl gradesVisible={gradesVisible} onChange={setGradesVisible} />
           <MoreMenu label="Gradebook" items={[
             { id: 'edit-gradebook', label: 'Edit categories', icon: <Settings className="h-4 w-4" aria-hidden="true" />, onSelect: () => setGradebookEditorOpen(true) },
-            { id: 'add-item', label: 'Add other assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
+            { id: 'add-item', label: 'Add general assessment', icon: <Plus className="h-4 w-4" aria-hidden="true" />, onSelect: () => setItemEditorOpen(true) },
             { id: 'name-order', dividerBefore: true, label: nameOrder === 'first-last' ? 'Show last name in column 1' : 'Show first name in column 1', onSelect: () => setNameOrder((current) => current === 'first-last' ? 'last-first' : 'first-last') },
             { id: 'student-ids', label: 'Show student IDs', checked: showStudentIds, onSelect: () => setShowStudentIds((current) => !current) },
             { id: 'sticky-columns', label: 'Keep key columns visible', checked: keepKeyColumnsVisible, onSelect: () => setKeepKeyColumnsVisible((current) => !current) },
@@ -860,7 +860,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   <DataTableHeaderCell scope="row" align="right" className={cn('!px-2 whitespace-normal bg-surface-2 text-xs font-medium leading-tight text-text-muted', keepKeyColumnsVisible && 'sticky left-10 after:pointer-events-none after:absolute after:-right-2 after:inset-y-0 after:w-2 after:bg-surface-2 after:content-[""]')}>Category</DataTableHeaderCell>
                   {nameColumns.slice(1).map((column) => <DataTableCell key={`category-label-spacer:${column.key}`} aria-hidden="true" className="bg-surface-2">{null}</DataTableCell>)}
                   {showStudentIds ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
-                  {assessmentColumns.map((assessment) => <DataTableCell key={`category:${assessment.assessment_id}`} align="center" className="truncate bg-surface-2 !px-1 text-xs text-text-muted"><Button type="button" variant="ghost" size="xs" aria-label={`Edit category for ${assessment.code}: ${assessment.title}`} className="w-full min-w-0 truncate px-1 font-normal text-text-muted" onClick={() => setSelectedAssessmentTitle(assessment.title)}>{assessment.category_name || 'None'}</Button></DataTableCell>)}
+                  {assessmentColumns.map((assessment) => <DataTableCell key={`category:${assessment.assessment_id}`} align="center" className="overflow-hidden bg-surface-2 !px-1 text-xs text-text-muted"><Button type="button" variant="ghost" size="xs" aria-label={`Edit category for ${assessment.code}: ${assessment.title}`} className="w-full min-w-0 px-1 font-normal text-text-muted" onClick={() => setSelectedAssessmentTitle(assessment.title)}><span className="min-w-0 truncate">{assessment.category_name || 'None'}</span></Button></DataTableCell>)}
                   {fewAssessments ? <DataTableCell aria-hidden="true" className="bg-surface-2">{null}</DataTableCell> : null}
                   <DataTableCell aria-hidden="true" className={cn('bg-gradebook-final', keepKeyColumnsVisible && 'sticky right-0')}>{null}</DataTableCell>
                 </DataTableRow>
@@ -976,13 +976,12 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
                   <DataTableCell
                     key={column.key}
                     className={cn(
-                      'truncate whitespace-nowrap',
                       keepKeyColumnsVisible && index === 0 && 'sticky left-10',
                       keepKeyColumnsVisible && index === 0 && stickyCellSurface,
                     )}
                     title={student[column.key]}
                   >
-                    {student[column.key]}
+                    <span className="block truncate">{student[column.key]}</span>
                   </DataTableCell>
                 ))}
                 {showStudentIds ? <DataTableCell>{student.studentId}</DataTableCell> : null}
@@ -1060,7 +1059,7 @@ function GradebookMockup({ fixtureState, onPrototypeAction }: { fixtureState: Fi
           setGradebookEditorOpen(false)
         }}
       />
-      <GradebookItemEditor isOpen={itemEditorOpen} item={null} categories={categories} onClose={() => setItemEditorOpen(false)} onSave={() => { setItemEditorOpen(false); onPrototypeAction('Add other assessment') }} />
+      <GradebookItemEditor isOpen={itemEditorOpen} item={null} categories={categories} onClose={() => setItemEditorOpen(false)} onSave={() => { setItemEditorOpen(false); onPrototypeAction('Add general assessment') }} />
       <GradebookAssessmentEditorMockup
         isOpen={Boolean(selectedAssessment)}
         assessment={selectedAssessment}

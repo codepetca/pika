@@ -1,5 +1,6 @@
 import Stripe from 'stripe'
 import { z } from 'zod'
+import { stripeSingleQuantityDecimalSchema, stripeUnitAmountDecimalSchema } from './stripe-decimal'
 import { UpgradeOperationSchema, UpgradeProviderContractError, type AppliedUpgradeProvider, type AppliedUpgradeProviderEvidence,
   type UpgradeMutation, type UpgradeOperation,
   type UpgradeProviderEvidence } from './upgrade-contracts'
@@ -50,7 +51,7 @@ const priceSchema = z.object({ id: ref, product: ref, livemode: z.literal(false)
   billing_scheme: z.literal('per_unit'), type: z.literal('recurring'), custom_unit_amount: z.null(), transform_quantity: z.null(),
   tax_behavior: z.enum(['exclusive', 'unspecified']).nullable(),
   recurring: z.object({ interval: z.enum(['month', 'year']), interval_count: z.literal(1), usage_type: z.literal('licensed') }) })
-const appliedPriceSchema = priceSchema.extend({ unit_amount_decimal: z.string().regex(/^\d+(?:\.0+)?$/) })
+const appliedPriceSchema = priceSchema.extend({ unit_amount_decimal: stripeUnitAmountDecimalSchema })
   .refine(price => Number(price.unit_amount_decimal) === price.unit_amount)
 const subscriptionSchema = z.object({ id: ref, customer: ref, livemode: z.literal(false), status: z.literal('active'),
   pending_update: z.null(), cancel_at: z.null(), cancel_at_period_end: z.literal(false), pause_collection: z.null(), schedule: z.null(),
@@ -68,7 +69,7 @@ const appliedSubscriptionSchema = subscriptionSchema.extend({ status: z.enum(['a
 })
 const emptyInvoiceListSchema = z.object({ object: z.literal('list'), has_more: z.literal(false), data: empty })
 const invoiceLineSchema = z.object({ id: ref, livemode: z.literal(false), amount: integer, subtotal: integer,
-  currency: z.string(), quantity: z.literal(1), quantity_decimal: z.string().regex(/^1(?:\.0+)?$/),
+  currency: z.string(), quantity: z.literal(1), quantity_decimal: stripeSingleQuantityDecimalSchema,
   discounts: empty, discount_amounts: empty.nullable(), taxes: empty.nullable(), pretax_credit_amounts: empty.nullable(),
   parent: z.object({ type: z.literal('invoice_item_details'), invoice_item_details: z.object({ invoice_item: ref,
     subscription: ref, proration: z.literal(false) }) }),

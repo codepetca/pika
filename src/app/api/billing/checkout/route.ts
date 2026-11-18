@@ -3,6 +3,7 @@ import { billingPurchaseHandlers } from '@/lib/server/billing/purchase-entrypoin
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
+export const maxDuration = 60
 export const POST = withErrorHandler('PostBillingCheckout', (request, context) => (
   billingPurchaseHandlers.start(request, context)
 ))

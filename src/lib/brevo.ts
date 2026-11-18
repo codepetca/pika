@@ -4,20 +4,23 @@
  * Sends transactional emails using Brevo templates.
  */
 
-export interface SendEmailOptions {
+export type SendEmailOptions = {
   to: string
-  templateParams: Record<string, any>
-}
+  signal?: AbortSignal
+  tags?: string[]
+  // Cloudflare Workers supports manual redirects and rejects redirect: error.
+  manualRedirect?: true
+  idempotencyKey?: string
+} & ({ templateParams: Record<string, any> } | { subject: string; textContent: string })
 
 /**
- * Sends an email via Brevo using a template
+ * Sends a transactional template or a plain-text email via Brevo
  *
- * @throws Error if BREVO_API_KEY or BREVO_TEMPLATE_ID are not configured
+ * @throws Error if the required Brevo configuration is missing
  * @throws Error if Brevo API request fails
  */
 export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageId?: string }> {
   const apiKey = process.env.BREVO_API_KEY
-  const templateId = Number(process.env.BREVO_TEMPLATE_ID)
   const fromEmail = process.env.BREVO_FROM_EMAIL || 'noreply@notify.codepet.ca'
   const fromName = process.env.BREVO_FROM_NAME || 'Pika'
 
@@ -26,8 +29,13 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
     throw new Error('BREVO_API_KEY is not configured')
   }
 
-  if (!templateId || isNaN(templateId)) {
-    throw new Error('BREVO_TEMPLATE_ID is not configured or invalid')
+  let content: { templateId: number; params: Record<string, any> } | { subject: string; textContent: string }
+  if ('templateParams' in opts) {
+    const templateId = Number(process.env.BREVO_TEMPLATE_ID)
+    if (!templateId || isNaN(templateId)) throw new Error('BREVO_TEMPLATE_ID is not configured or invalid')
+    content = { templateId, params: opts.templateParams }
+  } else {
+    content = { subject: opts.subject, textContent: opts.textContent }
   }
 
   // Send email via Brevo API
@@ -35,7 +43,8 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   try {
     response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
-      redirect: 'error',
+      redirect: opts.manualRedirect ? 'manual' : 'error',
+      ...(opts.signal && { signal: opts.signal }),
       headers: {
         accept: 'application/json',
         'content-type': 'application/json',
@@ -46,9 +55,11 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
           email: fromEmail,
           name: fromName,
         },
-        to: [{ email: opts.to }],
-        templateId,
-        params: opts.templateParams,
+        ...(opts.idempotencyKey
+          ? { messageVersions: [{ to: [{ email: opts.to }] }], headers: { idempotencyKey: opts.idempotencyKey } }
+          : { to: [{ email: opts.to }] }),
+        ...content,
+        ...(opts.tags && { tags: opts.tags }),
       }),
     })
   } catch {
@@ -57,6 +68,11 @@ export async function sendBrevoEmail(opts: SendEmailOptions): Promise<{ messageI
   }
 
   if (!response.ok) {
+    if (opts.idempotencyKey && response.status === 400) {
+      const failure = await response.json().catch(() => undefined)
+      // Brevo uses this response when it has already accepted this batch key.
+      if (failure?.code === 'duplicate_parameter') return {}
+    }
     await response.body?.cancel().catch(() => {})
     throw new Error(`Failed to send email via Brevo (${response.status})`)
   }

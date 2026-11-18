@@ -67,7 +67,7 @@ export async function restoreContextualClassroomArchive(input: Input) {
         replayed: true, resource_counts: operation.resource_counts, verification: operation.verification }
     }
 
-    const raw: unknown = await restoreClassroomArchive(args)
+    const raw: unknown = await restoreClassroomArchive(args, 'cold-actor-id')
     const result = contextualColdRestoreResultSchema.parse(raw)
     if (result.operation_id !== args.operationId || (result.ok && result.archive_id !== args.archiveId)) return uncertain()
     if (!result.ok) return result.status === 503 ? uncertain() : result

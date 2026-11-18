@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { ApiError, withErrorHandler } from '@/lib/api-handler'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { authorizeContextualClassworkCreationRequest } from '@/lib/server/contextual-classwork-creation-access'
+import { projectAssignmentReleaseStates } from '@/lib/server/billing/assignment-release-state'
 import {
   classworkDraftResponse,
   classworkItemResponse,
@@ -60,12 +61,23 @@ async function readPayload(request: Request) {
   }
 }
 
+async function projectItemResponse<T extends z.infer<typeof classworkItemResponse>>(
+  db: ReturnType<typeof getServiceRoleClient>,
+  args: { p_actor_id: string; p_classroom_id: string; p_kind: string },
+  response: T,
+) {
+  if (args.p_kind !== 'assignment') return response
+  const [item] = await projectAssignmentReleaseStates(db, args.p_actor_id, args.p_classroom_id, [response.item])
+  return { ...response, item }
+}
+
 export const GET = withErrorHandler('ReadClassworkAuthoringDraft', async (_request, context) => {
   const { db, args, itemId } = await getContext(await context.params)
   if (itemId === 'new') throw new ApiError(404, 'Classwork item not found.')
   const { data, error } = await db.rpc('read_classwork_authoring_draft', { ...args, p_item_id: itemId })
   if (error) throwClassworkDraftError(error)
-  return NextResponse.json(classworkItemResponse.extend(classworkDraftResponse.shape).parse(data), { headers: { 'Cache-Control': 'no-store' } })
+  const response = await projectItemResponse(db, args, classworkItemResponse.extend(classworkDraftResponse.shape).parse(data))
+  return NextResponse.json(response, { headers: { 'Cache-Control': 'no-store' } })
 })
 
 export const PUT = withErrorHandler('SaveClassworkAuthoringDraft', async (request, context) => {
@@ -85,7 +97,10 @@ export const PUT = withErrorHandler('SaveClassworkAuthoringDraft', async (reques
     p_projection: input.saveAsDraft || kind === 'survey' ? projection : undefined,
   })
   if (error) throwClassworkDraftError(error)
-  return NextResponse.json(input.saveAsDraft || kind === 'survey' ? classworkItemResponse.extend(classworkDraftResponse.shape).parse(data) : classworkDraftResponse.parse(data))
+  const response = input.saveAsDraft || kind === 'survey'
+    ? await projectItemResponse(db, args, classworkItemResponse.extend(classworkDraftResponse.shape).parse(data))
+    : classworkDraftResponse.parse(data)
+  return NextResponse.json(response)
 })
 
 export const POST = withErrorHandler('SubmitClassworkAuthoringDraft', async (request, context) => {
@@ -101,7 +116,8 @@ export const POST = withErrorHandler('SubmitClassworkAuthoringDraft', async (req
       p_projection: projection,
     })
     if (error) throwClassworkDraftError(error)
-    return NextResponse.json(classworkItemResponse.extend(classworkDraftResponse.shape).parse(data), { status: 201 })
+    const response = await projectItemResponse(db, args, classworkItemResponse.extend(classworkDraftResponse.shape).parse(data))
+    return NextResponse.json(response, { status: 201 })
   }
 
   const input = postSchema.parse(payload)
@@ -134,5 +150,5 @@ export const POST = withErrorHandler('SubmitClassworkAuthoringDraft', async (req
     p_projection: { source: draft?.content as Json ?? null, values: projection },
   })
   if (error) throwClassworkDraftError(error)
-  return NextResponse.json(classworkItemResponse.parse(data))
+  return NextResponse.json(await projectItemResponse(db, args, classworkItemResponse.parse(data)))
 })

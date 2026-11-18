@@ -1,5 +1,7 @@
+import { projectAssignmentReleaseStates } from '@/lib/server/billing/assignment-release-state'
 import { readAssignmentDeleteOperation, replayCompletedAssignmentDeletion, deleteAssignmentWithRepoLightCleanup } from '@/lib/server/repolight-assignment-delete'
 import { NextRequest, NextResponse } from 'next/server'
+import { throwBillingClassroomPublicationError } from '@/lib/server/billing/classroom-publication-errors'
 import { logServerError } from '@/lib/server/diagnostics'
 import { getServiceRoleClient } from '@/lib/supabase'
 import {
@@ -184,7 +186,9 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
   const sharedActor = await authorizeSharedAssignmentOverviewReadActor()
   if (sharedActor.mode === 'shared') {
     const { assignmentId } = contextualAssignmentOverviewQuerySchema.parse({ assignmentId: (await context.params).id })
-    return NextResponse.json(await readContextualAssignmentOverview({ supabase: getServiceRoleClient(), actorId: sharedActor.user.id, assignmentId }))
+    const supabase = getServiceRoleClient()
+    const result = await readContextualAssignmentOverview({ supabase, actorId: sharedActor.user.id, assignmentId, includeReleaseSchedule: true })
+    return NextResponse.json(result)
   }
   const resolveAssignmentId = async () => (await context.params).id
   const assignmentAccess = await authorizeClassroomAssignmentDetailRequest(resolveAssignmentId, {
@@ -456,8 +460,10 @@ export const GET = withErrorHandler('GetTeacherAssignment', async (request, cont
     assertContextualAssignmentDetailGradingRun(id, activeAiGradingRun)
   }
 
+  const [projectedAssignment] = await projectAssignmentReleaseStates(supabase, assignmentAccess.user.id, assignment.classroom_id, [assignment])
   return NextResponse.json({
     assignment: {
+      ...(projectedAssignment.release_schedule ? { release_schedule: projectedAssignment.release_schedule } : {}),
       id: assignment.id,
       classroom_id: assignment.classroom_id,
       title: assignment.title,
@@ -705,6 +711,7 @@ export const PATCH = withErrorHandler('PatchTeacherAssignment', async (request, 
       .single()
 
     if (error || !updatedAssignment) {
+      throwBillingClassroomPublicationError(error)
       if (isRetryableDatabaseContention(error)) {
         return NextResponse.json(
           { error: 'Assignment changed during this update. Refresh and try again.' },

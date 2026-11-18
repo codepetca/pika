@@ -36,6 +36,37 @@ describe('teacher Classwork authoring draft route', () => {
     expect(rpc).not.toHaveBeenCalled()
   })
 
+  it.each(['read', 'create', 'save', 'apply', 'discard'] as const)(
+    'retains the current assignment release intent after %s',
+    async (operation) => {
+      const updatedAt = '2026-11-18T12:00:00.123456Z'
+      const assignment = { ...item, is_draft: true, released_at: null, updated_at: updatedAt }
+      const releaseSchedule = { id: revision, state: 'pending', scheduled_for: '2026-11-20T12:00:00Z', notice_code: null }
+      const assignmentContent = { title: 'Edited', instructions_markdown: '', due_at: '2026-11-21T23:59:59Z', submission_requirements: [] }
+      const response = { item: assignment, sourceRevision, draft: null }
+      rpc.mockImplementation((name: string) => {
+        if (name === 'get_assignment_release_states_for_owner_v1') {
+          return { abortSignal: () => Promise.resolve({ data: [{ assignment_id: itemId, updated_at: updatedAt, release_schedule: releaseSchedule }], error: null }) }
+        }
+        return Promise.resolve({ data: name === 'read_classwork_authoring_draft' && operation === 'apply'
+          ? { ...response, draft: { revision, content: assignmentContent } } : response, error: null })
+      })
+      const params = { params: Promise.resolve({ id: classroom, itemId: operation === 'create' ? 'new' : itemId, kind: 'assignment' }) }
+      const result = operation === 'read'
+        ? await GET(request('GET'), params)
+        : operation === 'save'
+          ? await PUT(request('PUT', { requestId: revision, expectedRevision: null, expectedSourceRevision: sourceRevision, saveAsDraft: true, content: assignmentContent }), params)
+          : await POST(request('POST', operation === 'create'
+            ? { requestId: revision, content: assignmentContent }
+            : { revision, ...(operation === 'discard' ? { discard: true } : {}) }), params)
+      expect(result.ok).toBe(true)
+      expect((await result.json()).item.release_schedule).toEqual(releaseSchedule)
+      expect(rpc).toHaveBeenLastCalledWith('get_assignment_release_states_for_owner_v1', {
+        p_actor_id: actor, p_classroom_id: classroom, p_assignment_ids: [itemId],
+      })
+    },
+  )
+
   it('passes both revisions to the private save and excludes publication fields', async () => {
     rpc.mockResolvedValue({ data: { draft: { revision, content } }, error: null })
     const result = await PUT(request('PUT', { expectedRevision: null, expectedSourceRevision: sourceRevision, requestId: revision, content }), context)
