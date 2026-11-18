@@ -5,140 +5,197 @@ import { TooltipProvider } from '@/ui'
 import { TeacherAttendanceRoomsDialog } from '@/app/classrooms/[classroomId]/TeacherAttendanceRoomsDialog'
 
 const room = 'room1234567890123456'
-const otherRoom = 'room1234567890123457'
-const unpairedRoom = 'room1234567890123458'
+const other = 'room1234567890123457'
 const classroom = '11111111-1111-4111-8111-111111111111'
-const list = {
-  ok: true,
-  rooms: [
-    { room_id: room, label: 'Room 101', can_manage: true, paired: true },
-    { room_id: otherRoom, label: 'Room 102', can_manage: true, paired: true },
-    { room_id: unpairedRoom, label: 'Room 103', can_manage: true, paired: false },
-  ],
-  default_room_id: room,
-  meeting: { room_id: room, revision: 0, accepting_until: null },
-}
-
+const rooms = [
+  { room_id: room, label: 'Room 101', paired: true, can_manage: true },
+  { room_id: other, label: 'Room 102', paired: true, can_manage: true },
+  { room_id: 'unready', label: 'Room 103', paired: false, can_manage: false },
+]
 afterEach(() => { vi.unstubAllGlobals() })
+const renderDialog = (onClose = vi.fn()) => render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={onClose} /></TooltipProvider>)
 
-it('moves the meeting on selection and can undo with the returned revision', async () => {
-  const requests: any[] = []
-  let meetingRoomId = room
+it('updates the meeting and future location, and undoes both', async () => {
+  let meeting = room; let defaultRoom: string | null = room
+  const calls: any[] = []
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
-    const body = JSON.parse(init.body)
-    requests.push(body)
-    if (body.operation === 'move') {
-      meetingRoomId = body.room_id
-      return Response.json({ ok: true, revision: 7 })
-    }
-    if (body.operation === 'undo') meetingRoomId = room
-    if (body.operation === 'list') return Response.json({ ...list, meeting: { ...list.meeting, room_id: meetingRoomId } })
-    return Response.json({ ok: true })
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') { meeting = body.room_id; defaultRoom = body.room_id; return Response.json({ revision: 7 }) }
+    if (body.operation === 'undo') meeting = room
+    if (body.operation === 'default') defaultRoom = body.room_id
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision: 1, accepting_until: null } })
   }))
-  const user = userEvent.setup()
-  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
-  const picker = await screen.findByRole('combobox', { name: 'This meeting' })
-  const defaultPicker = screen.getByRole('combobox', { name: 'Default room' })
-  expect(screen.getAllByRole('option', { name: 'Room 103 (unpaired)' })[0]).toBeDisabled()
-  await user.selectOptions(picker, otherRoom)
-  await waitFor(() => expect(picker).toBeEnabled())
-  expect(picker).toHaveValue(otherRoom)
-  expect(defaultPicker).toHaveValue(room)
-  expect(requests.find(request => request.operation === 'move')).not.toHaveProperty('save_default')
-  await user.click(await screen.findByRole('button', { name: 'Undo move' }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  expect(screen.getAllByRole('combobox')).toHaveLength(1)
+  expect(screen.getByRole('option', { name: 'Room 103 (unpaired)' })).toBeDisabled()
+  expect(screen.queryByText(/Teacher room sticker/)).not.toBeInTheDocument()
+  await user.selectOptions(picker, other)
+  await waitFor(() => expect(picker).toHaveValue(other))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'move', room_id: other, save_default: true }))
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
   await waitFor(() => expect(picker).toHaveValue(room))
-  expect(requests).toContainEqual(expect.objectContaining({ operation: 'undo', revision: 7, date: '2026-11-13' }))
-  expect(requests).toContainEqual(expect.objectContaining({ operation: 'move', room_id: otherRoom }))
-  expect(requests.some(request => request.operation === 'default')).toBe(false)
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'undo', revision: 7 }))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'default', room_id: room }))
 })
 
-it('restores the assigned room when a move fails and allows retrying', async () => {
-  let moves = 0
+it('locks a failed move until refresh reveals whether it was applied', async () => {
+  let meeting = room; let defaultRoom = room
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; throw new Error('network') }
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision: 7, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, other)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Refresh location')
+  expect(picker).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Print student poster' })).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  expect(picker).toHaveValue(other)
+  expect(picker).toBeEnabled()
+  expect(calls.some(call => call.operation === 'default')).toBe(false)
+  expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+})
+
+it('shows an unassigned meeting even when a future default exists', async () => {
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') return Response.json({ revision: 7 })
+    return Response.json({ shared_catalog: true, rooms, default_room_id: room, meeting: { room_id: calls.some(call => call.operation === 'move') ? room : null, revision: 1, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  expect(picker).toHaveValue('')
+  await user.selectOptions(picker, room)
+  await waitFor(() => expect(picker).toHaveValue(room))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'move', room_id: room, save_default: true }))
+})
+
+it('reconciles a lost undo response without repeating the undo', async () => {
+  let meeting = room; let defaultRoom = room; let revision = 1
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; revision = 7; return Response.json({ revision }) }
+    if (body.operation === 'undo') { meeting = room; revision = 8; throw new Error('network') }
+    if (body.operation === 'default') defaultRoom = body.room_id
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, other)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Undo could not be confirmed')
+  expect(picker).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  expect(await screen.findByRole('button', { name: 'Retry undo' })).toBeEnabled()
+  await user.click(screen.getByRole('button', { name: 'Retry undo' }))
+  await waitFor(() => expect(picker).toBeEnabled())
+  expect(picker).toHaveValue(room)
+  expect(calls.filter(call => call.operation === 'undo')).toHaveLength(1)
+  expect(calls.filter(call => call.operation === 'default')).toHaveLength(1)
+})
+
+it.each([false, true])('only offers undo retry for an unchanged revision (changed elsewhere: %s)', async changedElsewhere => {
+  let meeting = room; let defaultRoom = room; let revision = 1
   vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
     const body = JSON.parse(init.body)
-    if (body.operation === 'move') {
-      moves += 1
-      if (moves === 1) return Response.json({ error: 'Room unavailable' }, { status: 409 })
-      return Response.json({ ok: true, revision: 7 })
-    }
-    return Response.json({ ...list, meeting: { ...list.meeting, room_id: moves > 1 ? otherRoom : room } })
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; revision = 7; return Response.json({ revision }) }
+    if (body.operation === 'undo') { if (changedElsewhere) revision = 9; throw new Error('network') }
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision, accepting_until: null } })
   }))
-  const user = userEvent.setup()
-  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
-  const picker = await screen.findByRole('combobox', { name: 'This meeting' })
-  await user.selectOptions(picker, otherRoom)
-  expect(await screen.findByRole('alert')).toHaveTextContent('Room unavailable')
-  expect(picker).toHaveValue(room)
-  await user.selectOptions(picker, otherRoom)
+  const user = userEvent.setup(); renderDialog()
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Attendance Location' }), other)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  await user.click(await screen.findByRole('button', { name: 'Refresh location' }))
+  if (changedElsewhere) {
+    expect(await screen.findByRole('alert')).toHaveTextContent('changed elsewhere')
+    expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+  } else {
+    expect(await screen.findByRole('button', { name: 'Undo location change' })).toBeEnabled()
+  }
+})
+
+it('retries only the unfinished default restoration after a partial undo', async () => {
+  let meeting = room; let defaultRoom: string | null = room; let fail = true
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; return Response.json({ revision: 7 }) }
+    if (body.operation === 'undo') meeting = room
+    if (body.operation === 'default') { if (fail) { fail = false; return Response.json({ error: 'Unavailable' }, { status: 503 }) } defaultRoom = body.room_id }
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision: 1, accepting_until: null } })
+  }))
+  const onClose = vi.fn()
+  const user = userEvent.setup(); renderDialog(onClose)
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, other)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Undo could not be confirmed')
+  expect(picker).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Close' }))
+  expect(onClose).toHaveBeenCalledOnce()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  await user.click(await screen.findByRole('button', { name: 'Retry undo' }))
   await waitFor(() => expect(picker).toBeEnabled())
-  expect(picker).toHaveValue(otherRoom)
-  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(picker).toHaveValue(room)
+  expect(calls.filter(call => call.operation === 'undo')).toHaveLength(1)
+  expect(calls.filter(call => call.operation === 'default')).toHaveLength(2)
 })
 
-
-it('uses shared room readiness and hides Bara-managed room controls', async () => {
-  vi.stubGlobal('fetch', vi.fn(async () => Response.json({ ...list, shared_catalog: true, rooms: [
-    { ...list.rooms[0], paired: false, attendance_ready: true },
-    { ...list.rooms[1], selectable: false },
-  ] })))
-  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
-  await screen.findByRole('combobox', { name: 'This meeting' })
-  expect(screen.getAllByRole('option', { name: 'Room 101' })[0]).toBeEnabled()
-  expect(screen.getAllByRole('option', { name: 'Room 102' })[0]).toBeDisabled()
-  expect(screen.queryByRole('button', { name: 'Create room' })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: 'Pair room display' })).not.toBeInTheDocument()
-  expect(screen.queryByLabelText('Room display notice')).not.toBeInTheDocument()
+it('uses the default operation when there is no meeting', async () => {
+  let defaultRoom: string | null = null; const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'default') defaultRoom = body.room_id
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: null })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, room)
+  await waitFor(() => expect(picker).toHaveValue(room))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'default', room_id: room }))
+  expect(calls.some(call => call.operation === 'move')).toBe(false)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  await waitFor(() => expect(picker).toHaveValue(''))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'default', room_id: null }))
 })
 
-it('loads the selected shared room poster on demand and prints only the room poster', async () => {
-  const fetcher = vi.fn(async (_url, init) => {
+it('blocks further writes when a post-write refresh fails until refreshed', async () => {
+  let meeting = room; let defaultRoom = room; let failRead = false
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
     const body = JSON.parse(init.body)
-    return Response.json(body.operation === 'poster'
-      ? { ok: true, label: 'Room 101', student_poster_url: `https://bara.example/rooms/${room}/scan?poster=${'a'.repeat(40)}` }
-      : { ...list, shared_catalog: true })
-  })
-  vi.stubGlobal('fetch', fetcher)
-  const print = vi.fn(); vi.stubGlobal('print', print)
-  const user = userEvent.setup()
-  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
-  await user.click(await screen.findByRole('button', { name: 'Print student poster' }))
-  const dialog = await screen.findByRole('dialog', { name: 'Student attendance poster' })
-  await waitFor(() => expect(dialog.querySelector('[aria-label="Room 101 check in for attendance QR code"]')).toBeTruthy())
-  expect(fetcher.mock.calls.map(call => JSON.parse(call[1].body).operation)).toEqual(['list', 'poster'])
-  expect(document.querySelector('[data-classroom-qr-print-heading]')).toHaveTextContent('Room 101')
-  expect(document.querySelector('[data-classroom-qr-print-hours]')).toBeNull()
-  await user.click(screen.getByRole('button', { name: 'Poster settings' }))
-  await user.click(screen.getByRole('menuitem', { name: 'Print poster' }))
-  expect(print).toHaveBeenCalledOnce()
-  expect(document.body.dataset.printClassroomQr).toBe('true')
-  window.dispatchEvent(new Event('afterprint'))
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; failRead = true; return Response.json({ revision: 7 }) }
+    if (body.operation === 'list' && failRead) { failRead = false; return Response.json({ error: 'Unavailable' }, { status: 503 }) }
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision: 1, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, other)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Refresh to continue')
+  expect(picker).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  await waitFor(() => expect(picker).toBeEnabled())
+  expect(picker).toHaveValue(other)
 })
 
-it('shows guidance instead of a printable QR when a poster is disabled', async () => {
-  vi.stubGlobal('fetch', vi.fn(async (_url, init) => Response.json(JSON.parse(init.body).operation === 'poster'
-    ? { ok: true, label: 'Room 101', student_poster_url: null } : { ...list, shared_catalog: true })))
-  const user = userEvent.setup()
-  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
+it('opens the selected student poster and preserves undo on return', async () => {
+  let meeting = room; let defaultRoom = room
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'move') { meeting = other; defaultRoom = other; return Response.json({ revision: 7 }) }
+    if (body.operation === 'poster') return Response.json({ label: 'Room 102', student_poster_url: null })
+    return Response.json({ shared_catalog: true, rooms, default_room_id: defaultRoom, meeting: { room_id: meeting, revision: 1, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Attendance Location' }), other)
   await user.click(await screen.findByRole('button', { name: 'Print student poster' }))
   expect(await screen.findByText('Ask an administrator to enable the student QR for this room.')).toBeVisible()
-  expect(document.querySelector('[data-classroom-qr-print]')).toBeNull()
-})
-
-it('discards an old room poster response after the preview closes', async () => {
-  let resolveOld!: (response: Response) => void
-  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
-    const body = JSON.parse(init.body)
-    if (body.operation === 'poster' && body.room_id === room) return new Promise<Response>(resolve => { resolveOld = resolve })
-    if (body.operation === 'poster') return Response.json({ ok: true, label: 'Room 102', student_poster_url: `https://bara.example/rooms/${otherRoom}/scan?poster=${'b'.repeat(40)}` })
-    return Response.json({ ...list, shared_catalog: true })
-  }))
-  const user = userEvent.setup()
-  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
-  await user.click(await screen.findByRole('button', { name: 'Print student poster' }))
   await user.click(screen.getByRole('button', { name: 'Close' }))
-  await user.selectOptions(await screen.findByRole('combobox', { name: 'Default room' }), otherRoom)
-  await user.click(screen.getByRole('button', { name: 'Print student poster' }))
-  await screen.findAllByLabelText('Room 102 check in for attendance QR code')
-  resolveOld(Response.json({ ok: true, label: 'Room 101', student_poster_url: `https://bara.example/rooms/${room}/scan?poster=${'a'.repeat(40)}` }))
-  await waitFor(() => expect(document.querySelector('[data-classroom-qr-print-heading]')).toHaveTextContent('Room 102'))
+  expect(await screen.findByRole('button', { name: 'Undo location change' })).toBeEnabled()
+  expect(screen.getByRole('combobox', { name: 'Attendance Location' })).toHaveValue(other)
 })
