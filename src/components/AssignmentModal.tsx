@@ -781,7 +781,7 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
         // A content-only save returns canonical fields. Keep the observed
         // generation until an owner read or scheduling operation reconciles it.
         if (updatedAssignment.is_draft && updatedAssignment.release_schedule === undefined) {
-          updatedAssignment.release_schedule = currentAssignment.release_schedule
+          updatedAssignment.release_schedule = target.release_schedule
         }
         savedAssignment = updatedAssignment
         if (!ownsSession(session)) {

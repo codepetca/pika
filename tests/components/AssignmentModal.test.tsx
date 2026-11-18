@@ -162,6 +162,28 @@ describe('AssignmentModal', () => {
   })
 
   describe('edit mode', () => {
+    it('preserves the observed release intent when saving scheduled draft content', async () => {
+      const releaseSchedule = {
+        id: '30000000-0000-4000-8000-000000000099',
+        state: 'pending' as const,
+        scheduled_for: '2099-03-01T14:00:00Z',
+        notice_code: null,
+      }
+      const assignment = { ...baseAssignment, due_at: toTorontoEndOfDayIso('2099-03-02'), release_schedule: releaseSchedule }
+      vi.mocked(fetch).mockResolvedValue({
+        ok: true,
+        json: async () => ({ assignment: { ...baseAssignment, due_at: assignment.due_at, title: 'Updated reading' } }),
+      } as Response)
+      const onSuccess = vi.fn()
+      const onClose = vi.fn()
+      render(<AssignmentModal isOpen classroomId="classroom-1" assignment={assignment} onClose={onClose} onSuccess={onSuccess} />)
+      fireEvent.change(screen.getByLabelText(/Title/), { target: { value: 'Updated reading' } })
+      fireEvent.keyDown(screen.getByRole('dialog').parentElement!, { key: 'Escape' })
+      fireEvent.click(screen.getByRole('button', { name: 'Save and close' }))
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      expect(onSuccess).toHaveBeenCalledWith(expect.objectContaining({ title: 'Updated reading', release_schedule: releaseSchedule }))
+    })
+
     it('requests deletion from the edit modal', () => {
       const onRequestDelete = vi.fn()
       render(<AssignmentModal isOpen classroomId="classroom-1" assignment={baseAssignment} onClose={vi.fn()} onSuccess={vi.fn()} onRequestDelete={onRequestDelete} />)
