@@ -4341,6 +4341,34 @@ describe('TeacherTestsTab', () => {
     expect(mockInvalidateGradebookForClassroom).not.toHaveBeenCalled()
   }, 15000)
 
+  it.each([202, 200])('preserves a newly selected student through a delayed grading response %s', async (status) => {
+    const run = makeTestAiRun({ id: 'run-selection', test_id: 'test-1', status: 'running', requested_count: 1, eligible_student_count: 1, queued_response_count: 1, pending_count: 1 })
+    let resolveStart!: (value: { ok: boolean; status: number; json: () => Promise<unknown> }) => void
+    const students = [makeGradingStudent(), makeGradingStudent({ student_id: 'student-2', name: 'Bob Baker', first_name: 'Bob', last_name: 'Baker' })]
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/api/teacher/tests?classroom_id=')) return Promise.resolve({ ok: true, json: async () => ({ tests: [makeTest({ id: 'test-1', title: 'Unit Test', status: 'active' })] }) })
+      if (url === '/api/teacher/tests/test-1/results') return Promise.resolve(makeResultsResponse({ students }))
+      if (url === '/api/teacher/tests/test-1/auto-grade' && init?.method === 'POST') return new Promise(resolve => { resolveStart = resolve })
+      if (url === '/api/teacher/tests/test-1/auto-grade-runs/run-selection') return Promise.resolve({ ok: true, json: async () => ({ run: { ...run, status: 'completed', processed_count: 1, completed_count: 1, pending_count: 0 } }) })
+      return Promise.reject(new Error(`Unexpected fetch ${url}`))
+    })
+    renderTab()
+    fireEvent.click(await screen.findByText('Unit Test'))
+    await screen.findByText('Alice Zephyr')
+    fireEvent.click(screen.getByLabelText('Select Alice Zephyr'))
+    fireEvent.click(screen.getByRole('button', { name: 'Student actions for 1 selected' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'AI Grade 1 student' }))
+    fireEvent.click(screen.getByRole('button', { name: 'AI grade', exact: true }))
+    await waitFor(() => expect(resolveStart).toBeTypeOf('function'))
+    fireEvent.click(screen.getByLabelText('Select Bob Baker'))
+    expect(screen.getByLabelText('Select Bob Baker')).toBeChecked()
+    await act(async () => { resolveStart({ ok: true, status, json: async () => status === 202 ? { run } : { summary: { message: 'No AI grading was needed' } } }) })
+    if (status === 202) await screen.findByText('Graded 1 answer')
+    else await screen.findByText('No AI grading was needed')
+    await waitFor(() => expect(screen.getByLabelText('Select Bob Baker')).toBeChecked())
+  }, 15000)
+
   it('starts a background AI grading run, polls it, and refreshes rows on completion', async () => {
     inspectorReads.enabled = true
     let completed = false

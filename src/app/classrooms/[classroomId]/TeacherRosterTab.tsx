@@ -265,9 +265,11 @@ export function TeacherRosterTab({ classroom }: Props) {
   async function loadRoster({
     preserveRoster = false,
     isRetry = false,
+    propagateFailure = false,
   }: {
     preserveRoster?: boolean
     isRetry?: boolean
+    propagateFailure?: boolean
   } = {}) {
     const classroomId = classroom.id
     const requestId = loadRequestIdRef.current + 1
@@ -302,6 +304,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         setLoadedClassroomId(null)
       }
       setLoadError(err.message || 'Failed to load roster')
+      if (propagateFailure) throw err
     } finally {
       if (loadRequestIdRef.current === requestId && currentClassroomIdRef.current === classroomId) {
         setLoading(false)
@@ -576,11 +579,11 @@ export function TeacherRosterTab({ classroom }: Props) {
     setPendingRemoval({ rows: rows.map(toRemovalTarget) })
   }
 
-  function refreshRosterAfterMutation(mutatedClassroomId: string) {
+  function refreshRosterAfterMutation(mutatedClassroomId: string, propagateFailure = false) {
     invalidateCachedJSON(`teacher-roster:${mutatedClassroomId}`)
     if (currentClassroomIdRef.current !== mutatedClassroomId) return
     rosterMutationVersionRef.current += 1
-    return loadRoster({ preserveRoster: hasCurrentRoster })
+    return loadRoster({ preserveRoster: hasCurrentRoster, propagateFailure })
   }
 
   function retryRosterLoad() {
@@ -1033,7 +1036,7 @@ export function TeacherRosterTab({ classroom }: Props) {
         isOpen={isAddModalOpen}
         onClose={() => setAddModalOpen(false)}
         classroomId={classroom.id}
-        onSuccess={refreshRosterAfterMutation}
+        onSuccess={(classroomId) => refreshRosterAfterMutation(classroomId, true)}
       />
 
       <UploadRosterModal

@@ -760,13 +760,26 @@ export function TeacherTestsTab({
   )
   const {
     selectedIds: batchSelectedIds,
-    toggleSelect: toggleBatchSelect,
-    toggleSelectAll: toggleBatchSelectAll,
+    toggleSelect: toggleBatchSelectValue,
+    toggleSelectAll: toggleBatchSelectAllValues,
     allSelected: batchAllSelected,
     someSelected: batchSelectionIndeterminate,
     clearSelection: clearBatchSelection,
     selectedCount: batchSelectedCount,
   } = useTableSelection(gradingRowIds)
+  const batchSelectionGeneration = useRef(0)
+  const gradingStartSelectionGeneration = useRef(0)
+  const toggleBatchSelect = (id: string) => {
+    batchSelectionGeneration.current += 1
+    toggleBatchSelectValue(id)
+  }
+  const toggleBatchSelectAll = () => {
+    batchSelectionGeneration.current += 1
+    toggleBatchSelectAllValues()
+  }
+  const clearGradingStartSelection = () => {
+    if (batchSelectionGeneration.current === gradingStartSelectionGeneration.current) clearBatchSelection()
+  }
   const { columnWidths: gradingColumnWidths, setColumnWidth: setGradingColumnWidth } = useTableColumnWidths({
     storageKey: 'teacher-test-grading:v3',
     columns: TEST_GRADING_COLUMN_LIMITS,
@@ -1522,7 +1535,6 @@ export function TeacherTestsTab({
     handledCompletedRunKeysRef.current.add(handledKey)
 
     const message = formatTestAiGradingRunMessage(activeTestAiRun)
-    clearBatchSelection()
     void loadGradingRows({ fresh: true })
     setTestGradingPanelRefreshToken((prev) => prev + 1)
     invalidateGradebookForClassroom(classroom.id)
@@ -1536,7 +1548,7 @@ export function TeacherTestsTab({
       setGradingInfo('')
       setGradingError('')
     }
-  }, [activeTestAiRun, classroom.id, clearBatchSelection, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
+  }, [activeTestAiRun, classroom.id, hasActiveTestAiRun, loadGradingRows, onTestGradingDataRefresh, showMessage])
 
   function handleOpenTest(test: TestAssessmentWithStats) {
     navigateTestWorkspace({ testId: test.id, mode: 'grading', studentId: null })
@@ -1719,11 +1731,11 @@ export function TeacherTestsTab({
     classroomId: classroom.id,
     testId: workspaceState === 'selected' && selectedWorkspaceTab === 'grading' ? selectedTestId : null,
     mode: testExperienceMode,
-    onStart: () => { setGradingError(''); setGradingInfo('') },
+    onStart: () => { gradingStartSelectionGeneration.current = batchSelectionGeneration.current; setGradingError(''); setGradingInfo('') },
     onRun: (run, started, preserveSelection) => {
       setTestAiGradingRun(run)
       if (started) {
-        if (!preserveSelection) clearBatchSelection()
+        if (!preserveSelection) clearGradingStartSelection()
         showMessage({ text: 'Grading started', tone: 'info' })
       }
     },
@@ -1742,7 +1754,7 @@ export function TeacherTestsTab({
       }
       showMessage({ text: summaryParts.join(' • ') || 'No AI grading was needed', tone: 'info' })
       setGradingInfo('')
-      if (!preserveSelection) clearBatchSelection()
+      if (!preserveSelection) clearGradingStartSelection()
       await loadGradingRows({ fresh: true })
       if (!isCurrent()) return
       setTestGradingPanelRefreshToken((prev) => prev + 1)

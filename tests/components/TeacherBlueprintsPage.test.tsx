@@ -601,6 +601,45 @@ describe('TeacherBlueprintsPage', () => {
     }))
   })
 
+  it.each(['section', 'unit'] as const)('reconciles a committed proposal after changing the drafting %s', async change => {
+    const defaultFetch = vi.mocked(fetch).getMockImplementation()!
+    const unitId = '11111111-1111-4111-8111-111111111111'
+    let resolveApply!: (response: Response) => void
+    let committed = false
+    const pendingApply = new Promise<Response>(resolve => { resolveApply = resolve })
+    vi.mocked(fetch).mockImplementation((input, init) => {
+      const url = String(input)
+      if (url === '/api/teacher/course-blueprints/b-2' && (!init?.method || init.method === 'GET')) return Promise.resolve(jsonResponse({ blueprint: {
+        ...blueprintDetail, authoring_guidance: { course_expectations_markdown: '', assignment_guidance_markdown: '', test_guidance_markdown: '',
+          unit_exceptions: [{ id: unitId, unit_label: 'Unit One', assignment_guidance_markdown: '', test_guidance_markdown: '' }] },
+      } }))
+      if (url.endsWith('/ai/suggest')) return Promise.resolve(jsonResponse({ suggestion: {
+        target: 'tests', content: 'A saved-guidance test draft', draft_provenance_token: 'signed-token', original_content_sha256: 'a'.repeat(64),
+        guidance: { target: 'tests', blueprint_revision: 4, unit_exception_id: null, unit_label: null, rules_markdown: 'Saved rules', trial: false },
+      } }))
+      if (url.endsWith('/ai/apply')) return pendingApply
+      if (url === '/api/teacher/course-blueprints/b-2/proposals') return Promise.resolve(jsonResponse({ proposals: committed ? [proposalFixture('committed', 4)] : [] }))
+      return defaultFetch(input, init)
+    })
+    render(<TeacherBlueprintsPage />)
+    await screen.findByRole('heading', { name: 'Blueprint Two' })
+    openSection('Content', 'AI Drafting')
+    fireEvent.change(screen.getByRole('combobox', { name: 'Draft Section' }), { target: { value: 'tests' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Draft Preview' }))
+    await screen.findByText('Preview: Tests')
+    fireEvent.click(screen.getByRole('button', { name: 'Propose Change' }))
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).endsWith('/ai/apply'))).toBe(true))
+    const readsBefore = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/b-2/proposals')).length
+    fireEvent.change(screen.getByRole('combobox', { name: change === 'section' ? 'Draft Section' : 'Unit guidance' }), { target: { value: change === 'section' ? 'outline' : unitId } })
+    await act(async () => { committed = true; resolveApply(jsonResponse({ proposal: proposalFixture('committed', 4) })) })
+    await waitFor(() => expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/b-2/proposals')).length).toBe(readsBefore + 1))
+    expect(screen.getByRole('tab', { name: 'AI Drafting' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('combobox', { name: 'Draft Section' })).toHaveValue(change === 'section' ? 'outline' : 'tests')
+    if (change === 'unit') expect(screen.getByRole('combobox', { name: 'Unit guidance' })).toHaveValue(unitId)
+    openSection('Updates', /^Proposals/)
+    expect(await screen.findByText('ai changes')).toBeInTheDocument()
+  })
+
   it.each([
     {},
     { suggestion: { target: 'analyze', content: '', analysis: { missing: [], suggestions: 'bad' } } },

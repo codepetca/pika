@@ -24,7 +24,7 @@ import {
   verifyContextualDailyLogPostPreimage,
 } from '@/lib/server/contextual-daily-log-save'
 import type { TiptapContent } from '@/types'
-import { dailyLogPostSchema, dailyLogPatchSchema } from '@/lib/validations/daily-log'
+import { dailyLogPostSchema, dailyLogPatchSchema, DAILY_LOG_MAX_WIRE_BYTES, withinDailyLogWireLimit } from '@/lib/validations/daily-log'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -70,6 +70,9 @@ async function verifyClassDay(
 }
 
 function validateContentPayload(content: TiptapContent) {
+  if (!withinDailyLogWireLimit(content)) {
+    return { ok: false, error: 'Daily Log content exceeds size limit' }
+  }
   if (!isValidTiptapContent(content)) {
     return { ok: false, error: 'Invalid rich_content format' }
   }
@@ -224,7 +227,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       actorId: user.id, classroomId: classroom_id, date, entry: preimage,
     })
     if ((entry_id !== undefined && entry_id !== contextualExisting?.id)
-      || (version !== undefined && contextualExisting && version !== contextualExisting.version)) {
+      || (version !== undefined && version !== (contextualExisting?.version ?? 0))) {
       return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: contextualExisting }, { status: 409 })
     }
     const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
@@ -268,8 +271,8 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   }
 
   if ((entry_id !== undefined && entry_id !== existing?.id)
-    || (version !== undefined && existing && version !== (existing.version ?? 1))) {
-    return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: existing }, { status: 409 })
+    || (version !== undefined && version !== (existing ? existing.version ?? 1 : 0))) {
+    return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: existing ?? null }, { status: 409 })
   }
 
   // Re-read by the caller's exact subject/classroom/date when a competing write wins.
@@ -502,7 +505,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     }
     let nextContent: TiptapContent
     if (patch && patch.length > 0) {
-      const patched = tryApplyJsonPatch(normalizeContent(contextualExisting.rich_content, contextualExisting.text), patch)
+      const patched = tryApplyJsonPatch(normalizeContent(contextualExisting.rich_content, contextualExisting.text), patch, { maxContentBytes: DAILY_LOG_MAX_WIRE_BYTES })
       if (!patched.success) return NextResponse.json({ error: 'Invalid patch' }, { status: 400 })
       nextContent = patched.content
     } else if (patch && patch.length === 0) {
@@ -643,7 +646,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
 
   if (patch && patch.length > 0) {
     const baseContent = normalizeContent(existing.rich_content, existing.text)
-    const patched = tryApplyJsonPatch(baseContent, patch)
+    const patched = tryApplyJsonPatch(baseContent, patch, { maxContentBytes: DAILY_LOG_MAX_WIRE_BYTES })
     if (!patched.success) {
       return NextResponse.json(
         { error: 'Invalid patch' },
