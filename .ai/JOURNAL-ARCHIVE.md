@@ -54533,3 +54533,8 @@ Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch
 ## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
 
 The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.
+
+<!-- pika-session-log-archive-batch:d9721068cabfbc85271f595548b5c0e6a5d2f7b8214a069dddf9dfa2954085f7 -->
+## 2026-11-09 — Sync the reviewed live trial with main
+
+The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.

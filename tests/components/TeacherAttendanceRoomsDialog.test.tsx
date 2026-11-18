@@ -142,3 +142,23 @@ it('discards an old room poster response after the preview closes', async () => 
   resolveOld(Response.json({ ok: true, label: 'Room 101', student_poster_url: `https://bara.example/rooms/${room}/scan?poster=${'a'.repeat(40)}` }))
   await waitFor(() => expect(document.querySelector('[data-classroom-qr-print-heading]')).toHaveTextContent('Room 102'))
 })
+
+
+it('preserves an undo and an unsaved default when returning from the poster', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'move') return Response.json({ revision: 7 })
+    if (body.operation === 'poster') return Response.json({ label: 'Room 102', student_poster_url: null })
+    return Response.json({ ...list, shared_catalog: true })
+  }))
+  const user = userEvent.setup()
+  render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'This meeting' }), otherRoom)
+  await screen.findByRole('button', { name: 'Undo move' })
+  await user.selectOptions(screen.getByRole('combobox', { name: 'Default room' }), otherRoom)
+  await user.click(screen.getByRole('button', { name: 'Print student poster' }))
+  expect(screen.queryByRole('dialog', { name: 'Attendance rooms' })).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: 'Close' }))
+  expect(await screen.findByRole('button', { name: 'Undo move' })).toBeInTheDocument()
+  expect(screen.getByRole('combobox', { name: 'Default room' })).toHaveValue(otherRoom)
+})

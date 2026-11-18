@@ -11,6 +11,8 @@ import {
   parseTeacherAttendancePolicy,
   type TeacherAttendancePolicy,
 } from '@/lib/teacher-attendance-policy'
+import { useTeacherAttendanceRoomsContent } from './TeacherAttendanceRoomsDialog'
+import { TeacherRoomPosterDialog } from './TeacherRoomPosterDialog'
 import { getTodayInToronto } from '@/lib/timezone'
 import {
   ATTENDANCE_SESSION_TOO_LONG_MESSAGE,
@@ -34,6 +36,7 @@ interface AttendanceWindowDialogProps {
   date: string
   isOpen: boolean
   onClose: () => void
+  roomAttendanceAvailable?: boolean
   onSaved: (policy: TeacherAttendancePolicy, scheduleSynced: boolean) => void
 }
 
@@ -63,6 +66,7 @@ function AttendanceWindowDialogContent({
   isOpen,
   onClose,
   onSaved,
+  roomAttendanceAvailable = false,
 }: AttendanceWindowDialogProps) {
   const { showMessage } = useAppMessage()
   const [schedules, setSchedules] = useState<Schedule[]>([])
@@ -73,6 +77,9 @@ function AttendanceWindowDialogContent({
   const [pendingDelivery, setPendingDelivery] = useState<{ policy: TeacherAttendancePolicy; regular: boolean } | null>(null)
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [roomBusy, setRoomBusy] = useState(false)
+  const [poster, setPoster] = useState<{ owner: string; room: string } | null>(null)
+  useEffect(() => { setRoomBusy(false); setPoster(null) }, [classroomId, date, isOpen])
   const [error, setError] = useState('')
   const [revision, setRevision] = useState<number | null>(null)
   const [sessionStartsLocal, setSessionStartsLocal] = useState('09:00')
@@ -83,6 +90,9 @@ function AttendanceWindowDialogContent({
   const [entryClosesMinutesBeforeEnd, setEntryClosesMinutesBeforeEnd] = useState(0)
   const [absentMinutesBeforeEnd, setAbsentMinutesBeforeEnd] = useState(0)
   const [enabled, setEnabled] = useState(true)
+  const owner = `${classroomId}:${date}`
+  const currentPosterRoom = poster?.owner === owner ? poster.room : null
+  const roomContent = useTeacherAttendanceRoomsContent({ classroomId, date, enabled: isOpen && roomAttendanceAvailable, disabled: saving || Boolean(pendingDelivery), onBusyChange: setRoomBusy, onPoster: room => setPoster({ owner, room }) })
   const mounted = useRef(true)
   const requestSequence = useRef(0)
   const dateRef = useRef(date)
@@ -167,7 +177,7 @@ function AttendanceWindowDialogContent({
   }
 
   async function applySchedule() {
-    if (saving) return
+    if (saving || roomBusy) return
     const selected = schedules.find((schedule) => schedule.id === selectedId)
     if (!selected?.policy) { setError('Set up attendance timing before applying a schedule.'); return }
     const request = ++requestSequence.current
@@ -294,12 +304,14 @@ function AttendanceWindowDialogContent({
   }
 
   return (
+    <>
     <ContentDialog
-      isOpen={isOpen}
-      onClose={() => { if (!saving) onClose() }}
+      isOpen={isOpen && !currentPosterRoom}
+      onClose={() => { if (!saving && !roomBusy) onClose() }}
       title={editing ? (editing === 'new' ? 'Add schedule' : `Edit ${editing.name}`) : 'Attendance schedules'}
       maxWidth="max-w-lg"
-      showHeaderClose={!saving}
+      showHeaderClose={!saving && !roomBusy}
+      closeDisabled={saving || roomBusy}
       showFooterClose={false}
     >
       {loading ? (
@@ -320,18 +332,19 @@ function AttendanceWindowDialogContent({
             {schedules.map((schedule) => (
               <div key={schedule.id ?? 'regular'} className={`flex items-center gap-2 rounded-control border p-3 ${selectedId === schedule.id ? 'border-primary bg-surface' : 'border-border bg-surface-2'}`}>
                 <label className="flex min-h-control flex-1 cursor-pointer items-center gap-3">
-                  <Input type="radio" name="attendance-schedule" className="h-4 min-h-0 w-4 shrink-0 p-0" checked={selectedId === schedule.id} disabled={saving} onChange={() => setSelectedId(schedule.id)} />
+                  <Input type="radio" name="attendance-schedule" className="h-4 min-h-0 w-4 shrink-0 p-0" checked={selectedId === schedule.id} disabled={saving || roomBusy} onChange={() => setSelectedId(schedule.id)} />
                   <span><span className="block text-sm font-medium text-text-default">{schedule.name}{schedule.id === null ? ' · Default' : ''}</span><span className="block text-sm text-text-muted">{schedule.policy ? formatTeacherAttendancePolicyHours(schedule.policy) : 'Set up timing'}</span></span>
                 </label>
-                <IconButton type="button" variant="ghost" label={`Edit ${schedule.name} settings`} icon={Settings2} disabled={saving} onClick={() => editSchedule(schedule)} />
+                <IconButton type="button" variant="ghost" label={`Edit ${schedule.name} settings`} icon={Settings2} disabled={saving || roomBusy} onClick={() => editSchedule(schedule)} />
               </div>
             ))}
           </fieldset>
-          <Button type="button" variant="secondary" disabled={saving} onClick={() => editSchedule('new')}><Plus className="h-4 w-4" aria-hidden="true" /> Add schedule</Button>
+          <Button type="button" variant="secondary" disabled={saving || roomBusy} onClick={() => editSchedule('new')}><Plus className="h-4 w-4" aria-hidden="true" /> Add schedule</Button>
+          {roomAttendanceAvailable && <section className="space-y-3 border-t border-border pt-4"><h4 className="text-sm font-semibold">Attendance rooms</h4>{roomContent}</section>}
           {error ? <p role="alert" className="text-sm text-danger">{error}</p> : null}
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" disabled={saving} onClick={onClose}>Cancel</Button>
-            <Button type="button" variant="primary" loading={saving} onClick={() => void applySchedule()}>Apply schedule</Button>
+            <Button type="button" variant="secondary" disabled={saving || roomBusy} onClick={onClose}>Cancel</Button>
+            <Button type="button" variant="primary" loading={saving} disabled={roomBusy} onClick={() => void applySchedule()}>Apply schedule</Button>
           </div>
         </div>
       ) : (
@@ -465,5 +478,7 @@ function AttendanceWindowDialogContent({
         </form>
       )}
     </ContentDialog>
+    {isOpen && currentPosterRoom && <TeacherRoomPosterDialog key={currentPosterRoom} classroomId={classroomId} roomId={currentPosterRoom} onClose={() => setPoster(null)} />}
+    </>
   )
 }

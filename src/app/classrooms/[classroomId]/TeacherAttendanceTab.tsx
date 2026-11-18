@@ -1,7 +1,5 @@
 'use client'
 
-import { TeacherAttendanceRoomsDialog } from './TeacherAttendanceRoomsDialog'
-
 import { useStudentTableGridlines } from '@/hooks/useStudentTableGridlines'
 
 import {
@@ -227,10 +225,12 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   })
   const hours = useTeacherAttendancePolicy(classroom.id, attendanceEnabled && isActive && !classroom.archived_at)
   const [scheduleDeliveryFailure, setScheduleDeliveryFailure] = useState<string | null>(null)
-  const [roomsOpen, setRoomsOpen] = useState(false)
   const [classroomQrOpen, setClassroomQrOpen] = useState(false)
   useEffect(() => { setClassroomQrOpen(false) }, [classroom.id, classroomQrAvailable])
   async function openAttendanceQr() {
+    const ownerClassroom = classroom.id
+    const ownerDate = selectedDate
+    const isCurrentOwner = () => currentClassroomIdRef.current === ownerClassroom && currentSelectedDateRef.current === ownerDate
     if (roomAttendanceAvailable) {
       try {
         const rooms = await fetchJSON<BaraRoomResult<'list'>>('/api/teacher/attendance/rooms', {
@@ -238,12 +238,14 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
             operation: 'list', classroom_id: classroom.id, date: selectedDate,
           }) },
         })
+        if (!isCurrentOwner()) return
         if (rooms.meeting?.room_id || (!rooms.meeting && rooms.rooms.some(room => room.room_id === rooms.default_room_id && room.paired))) {
-          setRoomsOpen(true)
+          attendance.setAttendanceHoursOpen(true)
           return
         }
       } catch {
-        setRoomsOpen(true)
+        if (!isCurrentOwner()) return
+        attendance.setAttendanceHoursOpen(true)
         return
       }
     }
@@ -762,7 +764,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
   }
 
   const moreActions: TeacherWorkSurfaceActionItem[] = [
-    ...(attendanceEnabled && roomAttendanceAvailable && !classroom.archived_at ? [{ id: 'attendance-rooms', label: 'Attendance rooms', onSelect: () => setRoomsOpen(true) }] : []),
     ...(showAttendance ? [{
       id: 'edit-attendance-time',
       label: 'Edit time',
@@ -1420,7 +1421,6 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
           </div>
         ) : null}
       </ContentDialog>
-      <TeacherAttendanceRoomsDialog classroomId={classroom.id} date={selectedDate} isOpen={roomsOpen} onClose={() => setRoomsOpen(false)} />
       <TeacherClassroomQrDialog
         key={classroom.id}
         classroomId={classroom.id}
@@ -1432,6 +1432,7 @@ export const TeacherAttendanceTab = forwardRef<TeacherAttendanceTabHandle, Props
       {attendanceEnabled ? (
         <AttendanceWindowDialog
           date={selectedDate}
+          roomAttendanceAvailable={roomAttendanceAvailable}
           key={classroom.id}
           classroomId={classroom.id}
           isOpen={attendance.attendanceHoursOpen}
