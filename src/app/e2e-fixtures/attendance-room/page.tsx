@@ -9,7 +9,8 @@ export default async function AttendanceRoomFixture({ searchParams }: { searchPa
   if (process.env.NODE_ENV === 'production' && process.env.PIKA_E2E_FIXTURES !== 'true') notFound()
   const { view } = await searchParams
   if (view === 'closed') return <RoomAttendanceCheckIn roomId={roomId} scanId={null} />
+  if (view === 'poster') return <RoomAttendanceCheckIn roomId={roomId} scanId="30000000-0000-4000-8000-000000000003" requireConfirmation />
   if (view === 'student') return <RoomAttendanceCheckIn roomId={roomId} scanId="30000000-0000-4000-8000-000000000003" />
   if (view === 'move') return <MoveRoom roomId={roomId} />
-  return <main><TeacherRoomFixture /></main>
+  return <main><TeacherRoomFixture schedules={view === 'schedules'} /></main>
 }

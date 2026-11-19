@@ -39,6 +39,20 @@ describe('teacher room command boundary', () => {
     expect(response.status).toBe(200)
     expect(mocks.send).toHaveBeenCalledWith({ operation: 'create', roster_ref: 'roster', actor_principal_ref: 'principal', actor_display_name: 'Teacher', label: 'Lab' })
   })
+  it('authorizes poster reads for the selected room without an occurrence', async () => {
+    mocks.send.mockResolvedValue({ ok: true, label: '223', student_poster_url: null })
+    const response = await POST(request({ classroom_id: classroom, date: '2026-11-13', operation: 'poster', room_id: 'room1234567890123456' }))
+    expect(response.status).toBe(200)
+    expect(mocks.access).toHaveBeenCalled()
+    expect(mocks.actor).toHaveBeenCalled()
+    expect(mocks.send).toHaveBeenCalledWith({ operation: 'poster', roster_ref: 'roster', actor_principal_ref: 'principal', actor_display_name: 'Teacher', room_id: 'room1234567890123456' })
+  })
+  it('blocks an unauthorized poster read before contacting Bara', async () => {
+    mocks.owns.mockResolvedValue({ ok: false, status: 403, error: 'Forbidden' })
+    const response = await POST(request({ classroom_id: classroom, operation: 'poster', room_id: 'room1234567890123456' }))
+    expect(response.status).toBe(403)
+    expect(mocks.send).not.toHaveBeenCalled()
+  })
   it('rejects caller-supplied roster references and does not send a command', async () => {
     const response = await POST(request({ classroom_id: classroom, operation: 'list', roster_ref: 'other' }))
     expect(response.status).toBe(400)

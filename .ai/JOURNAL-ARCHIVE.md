@@ -55261,3 +55261,41 @@ Hosted coverage identified more Gradebook tests coupled to the score wrapper and
 ## 2026-11-09 — Open Calendar Grid near today
 
 Calendar Grid opens with the preceding week directly below the sticky headings when it fits above today in the upper half of the scroller. For a tall preceding week, today's week starts below the headings. Today uses the same placement. List keeps its centered target and late initial data respects manual scroll. Verified the Grid opening and Today action with teacher and student Playwright captures at desktop and mobile widths in both themes.
+
+<!-- pika-session-log-archive-batch:c1bd6e82e86ffcdef567991d4a0642a8e3821ae48cdf0d8b00841c503d2ac7e4 -->
+## 2026-11-09 — Guarded assignment release rebase
+
+Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
+
+## 2026-11-09 — Rebase the live Pro trial
+
+Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
+
+## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
+
+The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.
+
+<!-- pika-session-log-archive-batch:d9721068cabfbc85271f595548b5c0e6a5d2f7b8214a069dddf9dfa2954085f7 -->
+## 2026-11-09 — Sync the reviewed live trial with main
+
+The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
+
+<!-- pika-session-log-archive-batch:173aadfd2c84aa13eea9cbb75bf85379e95c87b9a2130d43885446cf57c21eac -->
+## 2026-11-09 — Rebase reviewed live checkout after the trial merge
+
+Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
+
+<!-- pika-session-log-archive-batch:8e5f95a654b3ae10fa1f8ee89c723ef724d0fd2c89340e00e6411883c9147792 -->
+## 2026-11-09 — Rebase live paid reconciliation after checkout
+
+Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
+
+<!-- pika-session-log-archive-batch:161ce53a0f6481f11032afd7c58747d2ffdf3f547a00230bd82f29291d082e9b -->
+## 2026-11-09 — Rebase reviewed live billing routing and closeout
+
+Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
+
+<!-- pika-session-log-archive-batch:445fb48a60f2d370ffa2df5da1af20989a85e15e643e0062fcd412eeaada29b2 -->
+## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
+
+Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.

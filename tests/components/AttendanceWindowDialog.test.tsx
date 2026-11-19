@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { AttendanceWindowDialog } from '@/app/classrooms/[classroomId]/AttendanceWindowDialog'
 import { AppMessageProvider, TooltipProvider } from '@/ui'
 
@@ -29,6 +29,93 @@ function renderDialog(date = '2026-08-18') {
 describe('AttendanceWindowDialog', () => {
   beforeEach(() => vi.stubGlobal('fetch', vi.fn()))
   afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+
+  it('keeps room writes in the schedules flow and ignores a late move after the date changes', async () => {
+    let finishMove!: (result: Response) => void
+    const roomList = (label: string) => ({ shared_catalog: true, rooms: [
+      { room_id: 'one', label, paired: true, can_manage: false },
+      { room_id: 'two', label: 'Room 2', paired: true, can_manage: false },
+    ], default_room_id: 'one', meeting: { room_id: 'one', revision: 1, accepting_until: null } })
+    const requests: Array<{ operation: string; date: string }> = []
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).includes('/schedules')) return response(schedules)
+      const body = JSON.parse(String(init?.body))
+      requests.push(body)
+      if (body.operation === 'move') return new Promise<Response>(resolve => { finishMove = resolve })
+      return response(roomList(body.date === '2026-08-18' ? 'Old room' : 'New room'))
+    })
+    const onClose = vi.fn()
+    const view = (date: string) => <TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date={date} isOpen roomAttendanceAvailable onSaved={vi.fn()} onClose={onClose} /></AppMessageProvider></TooltipProvider>
+    const { rerender } = render(view('2026-08-18'))
+    const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+    fireEvent.change(picker, { target: { value: 'two' } })
+    expect(screen.getByRole('button', { name: 'Apply schedule' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled()
+    rerender(view('2026-08-19'))
+    await screen.findAllByRole('option', { name: 'New room' })
+    rerender(view('2026-08-18'))
+    await screen.findAllByRole('option', { name: 'Old room' })
+    const oldReads = requests.filter(request => request.date === '2026-08-18' && request.operation === 'list').length
+    await act(async () => { finishMove(response({ revision: 8 })); await Promise.resolve(); await Promise.resolve() })
+    await waitFor(() => expect(screen.getByRole('combobox', { name: 'Attendance Location' })).toHaveValue('one'))
+    expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+    expect(requests.filter(request => request.date === '2026-08-18' && request.operation === 'list')).toHaveLength(oldReads)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('keeps room controls usable when schedules fail to load', async () => {
+    const calls: string[] = []
+    let meeting = 'one'
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).includes('/schedules')) return response({ error: 'Schedules unavailable' }, 503)
+      const body = JSON.parse(String(init?.body))
+      calls.push(body.operation)
+      if (body.operation === 'move') { meeting = body.room_id; return response({ revision: 8 }) }
+      if (body.operation === 'poster') return response({ label: 'Room 1', student_poster_url: null })
+      return response({ shared_catalog: true, rooms: [
+        { room_id: 'one', label: 'Room 1', paired: true, can_manage: false },
+        { room_id: 'two', label: 'Room 2', paired: true, can_manage: false },
+      ], default_room_id: 'one', meeting: { room_id: meeting, revision: 1, accepting_until: null } })
+    })
+    render(<TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date="2026-08-18" isOpen roomAttendanceAvailable onSaved={vi.fn()} onClose={vi.fn()} /></AppMessageProvider></TooltipProvider>)
+    expect(await screen.findByText('Attendance hours unavailable')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeEnabled()
+    const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+    fireEvent.change(picker, { target: { value: 'two' } })
+    await screen.findByRole('button', { name: 'Undo location change' })
+    expect(picker).toHaveValue('two')
+    fireEvent.click(screen.getByRole('button', { name: 'Print student poster' }))
+    expect(await screen.findByText('Ask an administrator to enable the student QR for this room.')).toBeVisible()
+    expect(calls).toContain('poster')
+  })
+
+  it('hides the previous date editor while the next date loads', async () => {
+    let finishLoad!: (result: Response) => void
+    vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockImplementationOnce(() => new Promise<Response>(resolve => { finishLoad = resolve }))
+    const view = (date: string) => <TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date={date} isOpen onSaved={vi.fn()} onClose={vi.fn()} /></AppMessageProvider></TooltipProvider>
+    const { rerender } = render(view('2026-08-18'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
+    expect(screen.getByRole('button', { name: 'Save timing' })).toBeVisible()
+    rerender(view('2026-08-19'))
+    expect(await screen.findByText('Loading attendance hours')).toBeVisible()
+    expect(screen.queryByRole('button', { name: 'Save timing' })).not.toBeInTheDocument()
+    await act(async () => { finishLoad(response(schedules)) })
+    expect(await screen.findByRole('radio', { name: /Regular schedule/ })).toBeVisible()
+  })
+
+  it('disables room writes while applying a schedule', async () => {
+    let finishSync!: (result: Response) => void
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (String(url).includes('/schedules')) return response(schedules)
+      if (String(url).includes('/sync')) return new Promise<Response>(resolve => { finishSync = resolve })
+      return response({ rooms: [{ room_id: 'one', label: 'Room 1', paired: true, can_manage: false }], default_room_id: 'one', meeting: { room_id: 'one', revision: 1, accepting_until: null } })
+    })
+    render(<TooltipProvider><AppMessageProvider><AttendanceWindowDialog classroomId={classroomId} date="2026-08-18" isOpen roomAttendanceAvailable onSaved={vi.fn()} onClose={vi.fn()} /></AppMessageProvider></TooltipProvider>)
+    const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply schedule' }))
+    expect(picker).toBeDisabled()
+    finishSync(response(delivery))
+  })
 
   it('loads schedules for the selected date and applies the chosen schedule only after delivery', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(response(schedules)).mockResolvedValueOnce(response({ id: 'alternate', revision: 4 })).mockResolvedValueOnce(response(delivery))

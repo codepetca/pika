@@ -11,38 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Guarded assignment release rebase
-
-Preserved the reviewed assignment release and live target preflight changes while carrying forward the classroom cutoff proof corrections. Migrations 311–312 retain their reviewed bytes.
-
-## 2026-11-09 — Rebase the live Pro trial
-
-Carried the reviewed cardless Pro trial, RepoLight and learner-work cutoff patch onto main after the guarded assignment-release change. Preserved both continuity histories and the exact migration 313 source.
-
-## 2026-11-09 — Verify the live trial billing trigger in the reorder proof
-
-The isolated Test reorder fixture now selects the exact RepoLight billing trigger columns for the reviewed migration profile. A disposable PostgreSQL catalog accepted both source definitions with their corresponding witnesses and rejected crossed profiles and a missing watched column. Application code and migrations are unchanged.
-
-## 2026-11-09 — Sync the reviewed live trial with main
-
-The live trial passed all required CI at 535e6542b. Main then advanced with the Calendar and text overflow changes. Retained both Pattern Lab test additions and reconciled the browser case inventory to count their combined desktop and mobile coverage.
-
-## 2026-11-09 — Rebase reviewed live checkout after the trial merge
-
-Carried the reviewed checkout patch onto main after the live trial squash merge. Preserved both continuity histories and the exact migration 314–316 source. The isolated Test reorder proof now uses the shared RepoLight witness for the checkout profiles, which retain the trial trigger columns.
-
-## 2026-11-09 — Rebase live paid reconciliation after checkout
-
-Carried the reviewed paid reconciliation and access cutoff patch onto main after the checkout squash merge. Preserved both continuity histories and the exact migration 317–319 source. The shared Test reorder proof now requires the exact RepoLight billing trigger for migration 319. A disposable PostgreSQL catalog accepted the three reviewed trigger definitions with their corresponding witnesses and rejected crossed profiles and a disabled trigger.
-
-## 2026-11-09 — Rebase reviewed live billing routing and closeout
-
-Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
-
-## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
-
-Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
-
 ## 2026-11-09 — Sync scheduled renewal settlement with main
 
 The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.
@@ -192,3 +160,46 @@ Production public admission, checkout, and trial signup are closed. The launch a
 Report unexpected signup code issuance, email delivery, and admission registry failures with separate diagnostics and category-only requests to a protected Cloudflare Worker. A Durable Object groups repeats and retries delivery through an independent mail provider.
 
 The Codepet operations inbox is already verified in Cloudflare. Live alert delivery needs a sending domain and a canary. The root domain uses iCloud mail. Public admission, checkout, and trial signup are closed.
+
+## 2026-11-17 Shared attendance room catalog
+
+- Added signed shared-room student poster preview using the existing classroom print composition. Focused transport, authorization and component tests passed; pilot print verification pending.
+
+- Follow-up: require explicit poster check-in confirmation and filter sticker destinations by per-class eligibility; focused tests and TypeScript passed.
+
+- Implemented Pika shared Bara room selection and verified-student poster capture; focused tests and policy checks passed. Mocked Playwright room fixtures passed (6), including shared catalog desktop/mobile; authenticated UI verification unavailable without local test accounts. No publication or database changes.
+
+# Pika Session Log
+
+Rolling recent session log for AI/human handoffs. Keep this file small; full historical session history lives in `.ai/JOURNAL-ARCHIVE.md`.
+
+**Rules:**
+- Append one concise entry for meaningful work, then immediately run `node scripts/trim-session-log.mjs` in the same change.
+- Start each entry heading with a valid ISO date (`## YYYY-MM-DD ...`) so retention can identify the latest entries.
+- CI allows at most 60 entries; the trim step compacts to the latest 40 entries by default so there is headroom for future appends.
+- Use `node scripts/trim-session-log.mjs --check` to reject empty entries and verify the log is chronological and within the 60-entry cap.
+- Keep enough recent entries for weekly automations to inspect roughly the last week of work.
+- The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
+- Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
+
+## 2026-11-18 — Consolidate attendance rooms in schedules
+
+Moved the existing room controls into Daily's Attendance schedules flow and removed the separate overflow entry. Reused room/poster owners; kept default and meeting room mutations separate, preserved Undo and unsaved selection through poster preview, and guarded stale responses across date/classroom/open lifetimes. Worktree `/workspace/worktrees/pika-attendance-schedules`, branch `codex/attendance-schedules-rooms`, stacked on open PR1831 at3199cb2. Component and browser verification includes the normal Daily action and desktop/mobile light/dark evidence; detailed final receipts and cloud service limitations are recorded in the PR and `/workspace/README-Bara-Pika.md`. No hosted configuration, migration, deployment, merge or promotion.
+
+## 2026-11-18 — Simplify attendance to one location
+
+Owner requested Attendance Location with one dropdown, and explicitly confirmed it should apply to current and future meetings. Removed visible default/meeting distinction, Save default, room administration and teacher move-sticker QR from this flow. Existing commands update current+future assignment; Undo restores the previous meeting and class location with partial-failure retry. Kept the selected room's student poster, shared catalog/readiness/permissions, request generations and schedule flow. Continuing draft PR1834 on its existing branch; final test/review/visual receipts are in the PR and cloud runbook. No backend, dependency, auth, migration or hosting changes.
+
+## 2026-11-18 — Local attendance schedules completion
+
+- Verified code27203bd9 locally: focused gate2313/2313 plus architecture, UI/design policy, TypeScript and lint; isolated production build and8/8 browser fixture scenarios pass. Bara334 tests/typecheck pass.
+- Real loopback Pika/Supabase + Bara/Convex flow with existing synthetic users: Room223 catalog, current/default assignment, poster, persistent display reload, poster check-in, live-QR duplicate, signed callbacks and persisted check-in fact verified. Schema001–330 reused; no migrations.
+- WorkOS authentication is emulated. Private launchers isolate local cookie names/origins; hosted pilot/production unchanged. Source code unchanged; private restart/evidence handoff at /private/tmp/bara-pika-local-completion/README.md.
+
+## 2026-11-18 — Correct pending schedule browser check
+
+Production release CI exposed a stale Playwright action that waited for a deliberately disabled modal backdrop. The test now asserts the backdrop is disabled and sends a real outside pointer click while saving; the existing modal-stays-open assertion remains. All four desktop/mobile light/dark projects pass the affected case against the isolated production build. No application behavior, snapshots, database or configuration changed.
+
+## 2026-11-18 — Preserve usable location after legacy room migration
+
+The shared catalog may expose a legacy previous location that cannot be selected again. A successful move from that location now omits an impossible whole-location Undo and explains why; normal reversible moves and uncertain-response recovery remain available. Covered current and absent meetings, a rejected legacy rollback, later valid changes and failed refresh. No backend, auth, schema or dependency changes.

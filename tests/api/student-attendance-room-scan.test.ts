@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-const mocks = vi.hoisted(() => ({ user: vi.fn(), compatibility: vi.fn(), command: vi.fn() }))
+const mocks = vi.hoisted(() => ({ user: vi.fn(), compatibility: vi.fn(), command: vi.fn(), actor: vi.fn() }))
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({}) }))
+vi.mock('@/lib/server/bara-attendance-student', () => ({ resolveVerifiedPikaAttendanceStudent: mocks.actor }))
 vi.mock('@/lib/auth', () => ({ getCurrentUser: mocks.user }))
 vi.mock('@/lib/server/classroom-experience-admission', () => ({ resolveAttendanceProtocolCompatibility: mocks.compatibility }))
 vi.mock('@/lib/server/bara-attendance-client', () => ({ postBaraRoomCommand: mocks.command }))
@@ -9,7 +11,7 @@ const roomId = 'abcd1234abcd1234'
 const params = Promise.resolve({ roomId })
 
 describe('room QR capture', () => {
-  beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue(null); mocks.command.mockResolvedValue({ ok: true, continuation: 'a'.repeat(40) }) })
+  beforeEach(() => { vi.resetAllMocks(); mocks.user.mockResolvedValue(null); mocks.actor.mockResolvedValue({ principalRef: 'principal_student' }); mocks.command.mockResolvedValue({ ok: true, continuation: 'a'.repeat(40) }) })
   it('exchanges the proof and redirects to a clean URL with an HTTP-only bounded cookie', async () => {
     const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?proof=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa`), { params })
     expect(response.status).toBe(303)
@@ -40,6 +42,34 @@ describe('room QR capture', () => {
     const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?proof=bad`), { params })
     expect(new URL(response.headers.get('location')!).searchParams.get('scan')).toMatch(/^[0-9a-f-]{36}$/)
     expect(mocks.command).not.toHaveBeenCalled()
+  })
+  it('resumes a signed-out poster scan after login', async () => {
+    const key = 'p'.repeat(40)
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?poster=${key}`), { params })
+    const login = new URL(response.headers.get('location')!)
+    expect(login.pathname).toBe('/login')
+    expect(login.searchParams.get('next')).toBe(`/attendance/room/${roomId}/scan?poster=${key}`)
+    expect(response.headers.get('referrer-policy')).toBe('no-referrer')
+    expect(mocks.command).not.toHaveBeenCalled()
+  })
+  it('captures a poster for the verified student and redirects to a clean URL', async () => {
+    mocks.user.mockResolvedValue({ id: 'student', email: 's@example.com', role: 'student' })
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?poster=${'p'.repeat(40)}`), { params })
+    expect(mocks.command).toHaveBeenCalledWith(expect.objectContaining({ operation: 'capture_poster', poster_key: 'p'.repeat(40), actor_principal_ref: 'principal_student' }))
+    expect(new URL(response.headers.get('location')!).searchParams.has('poster')).toBe(false)
+    expect(JSON.parse(response.cookies.get('pika_room_attendance')!.value).poster).toBe(true)
+  })
+  it('shows the existing closed state when poster attendance is closed', async () => {
+    mocks.user.mockResolvedValue({ role: 'student' })
+    mocks.command.mockResolvedValue({ ok: true, continuation: null, closed: true })
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?poster=${'p'.repeat(40)}`), { params })
+    expect(new URL(response.headers.get('location')!).search).toBe('')
+  })
+  it('does not capture when student verification fails', async () => {
+    mocks.user.mockResolvedValue({ role: 'student' }); mocks.actor.mockRejectedValue(new Error('unverified'))
+    const response = await GET(new NextRequest(`https://pika.example/attendance/room/${roomId}/scan?poster=${'p'.repeat(40)}`), { params })
+    expect(mocks.command).not.toHaveBeenCalled()
+    expect(response.cookies.get('pika_room_attendance')?.value).toBe('')
   })
   it('routes a teacher with no proof to move', async () => {
     mocks.user.mockResolvedValue({ role: 'teacher' })

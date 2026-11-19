@@ -1134,6 +1134,7 @@ describe('TeacherAttendanceTab', () => {
       if (url.startsWith('/api/teacher/attendance/policy?')) {
         return mockJson({ policy: null })
       }
+      if (url === '/api/teacher/attendance/rooms') return mockJson({ shared_catalog: true, rooms: [{ room_id: 'room-1', label: 'Room 1', can_manage: false, paired: true }], default_room_id: 'room-1', meeting: null })
       if (url.startsWith('/api/teacher/attendance/schedules?')) return mockJson({ schedules: [], selectedId: null })
       throw new Error(`Unhandled fetch: ${url}`)
     })
@@ -1142,7 +1143,7 @@ describe('TeacherAttendanceTab', () => {
     render(
       <TooltipProvider>
         <AppMessageProvider>
-          <TeacherAttendanceTab classroom={classroom} attendanceEnabled />
+          <TeacherAttendanceTab classroom={classroom} attendanceEnabled roomAttendanceAvailable />
         </AppMessageProvider>
       </TooltipProvider>,
     )
@@ -1160,8 +1161,12 @@ describe('TeacherAttendanceTab', () => {
       'Attendance hours are not configured. Daily logs remain available.',
     )
 
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
+    expect(screen.queryByRole('menuitem', { name: 'Attendance rooms' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'More actions' }))
     await user.click(timingTrigger)
     expect(await screen.findByRole('heading', { name: 'Attendance schedules' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'Room 1' })).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: 'Edit Regular schedule settings' }))
     expect(screen.getByLabelText('Session starts*')).toHaveValue('09:00')
   })
