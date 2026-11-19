@@ -54558,3 +54558,8 @@ Carried the reviewed activation routes, unpaid renewal closeout, and migration 3
 ## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
 
 Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
+
+<!-- pika-session-log-archive-batch:b009ba1a0a0d8142bd3648b569e5c8c2aa78f53c21cd521a82acbfff3d97ab26 -->
+## 2026-11-09 — Sync scheduled renewal settlement with main
+
+The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.
