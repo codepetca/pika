@@ -839,9 +839,12 @@ type RoomCommands = {
   list: [RoomStaff & Partial<RoomMeeting>, {
     rooms: Array<{ room_id: string; label: string; can_manage: boolean; paired: boolean; attendance_ready?: boolean; selectable?: boolean }>
     shared_catalog?: true
+    locations?: Array<{ location_id: string; label: string; selectable?: false }>
+    location_id?: string | null
     default_room_id: string | null
     meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null
   }]
+  location: [RoomStaff & { location_id: string | null }, object]
   poster: [RoomStaff & RoomTarget, { label: string; student_poster_url: string | null }]
   create: [RoomStaff & { label: string }, RoomTarget]
   pair: [RoomStaff & RoomTarget, { display_url: string }]
@@ -897,7 +900,8 @@ function parseRoomResult(operation: BaraRoomOperation, value: unknown) {
           && isOpaqueRef(candidate.roster_ref) && isOpaqueRef(candidate.occurrence_ref))) ? value : null
     case 'list': {
       const { rooms, default_room_id: defaultRoom, meeting } = value
-      return (value.shared_catalog === undefined || value.shared_catalog === true)
+      return ((value.locations === undefined && value.location_id === undefined) || (Array.isArray(value.locations) && value.locations.length <= 200 && value.locations.every(location => isPlainObject(location) && isOpaqueRef(location.location_id) && typeof location.label === 'string' && location.label.trim().length > 0 && location.label.length <= 80 && (location.selectable === undefined || location.selectable === false)) && new Set(value.locations.map(location => isPlainObject(location) ? location.location_id : null)).size === value.locations.length && (value.location_id === null || isOpaqueRef(value.location_id))))
+        && (value.shared_catalog === undefined || value.shared_catalog === true)
         && (defaultRoom === null || isRoomId(defaultRoom))
         && Array.isArray(rooms) && rooms.length <= 200 && rooms.every(room => isPlainObject(room)
           && isRoomId(room.room_id) && typeof room.label === 'string' && typeof room.can_manage === 'boolean' && typeof room.paired === 'boolean'

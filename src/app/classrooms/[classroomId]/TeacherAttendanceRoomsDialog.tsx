@@ -6,7 +6,7 @@ import { fetchJSON } from '@/lib/request-cache'
 import { TeacherRoomPosterDialog } from './TeacherRoomPosterDialog'
 
 type Room = { room_id: string; label: string; can_manage: boolean; paired: boolean; attendance_ready?: boolean; selectable?: false }
-type RoomList = { shared_catalog?: true; rooms: Room[]; default_room_id: string | null; meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null }
+type RoomList = { locations?: Array<{ location_id: string; label: string; selectable?: false }>; location_id?: string | null; shared_catalog?: true; rooms: Room[]; default_room_id: string | null; meeting: { room_id: string | null; revision: number; accepting_until: number | null } | null }
 
 const ready = (room: Room) => (room.attendance_ready ?? room.paired) && room.selectable !== false
 
@@ -20,7 +20,7 @@ export function TeacherAttendanceRoomsDialog({ classroomId, date, isOpen, onClos
   const rooms = useTeacherAttendanceRoomsContent({ classroomId, date, enabled: isOpen, onBusyChange: setBusy, onPoster: setPosterRoom })
   return <>
     <DialogPanel isOpen={isOpen && !posterRoom} onClose={onClose} closeDisabled={busy} maxWidth="max-w-lg" ariaLabelledBy={titleId}>
-      <h2 id={titleId} className="text-lg font-semibold">Attendance Location</h2>
+      <h2 id={titleId} className="text-lg font-semibold text-text-default">Attendance Location</h2>
       <div className="min-h-0 overflow-y-auto">{rooms}</div>
     </DialogPanel>
     {isOpen && posterRoom && <TeacherRoomPosterDialog key={posterRoom} classroomId={classroomId} roomId={posterRoom} onClose={() => setPosterRoom(null)} />}
@@ -109,6 +109,23 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
     }
   }
 
+  async function chooseSchool(destination: string | null) {
+    if (!list || busy || disabled || needsRefresh || (destination !== null && !list.locations?.some(item => item.location_id === destination && item.selectable !== false))) return
+    setBusy(true); onBusyChange?.(true); setError(''); setUndo(null); setRecovery(null); setNoticeGeneration(null)
+    try {
+      await command('location', { location_id: destination })
+      if (!current()) return
+      const refreshed = await refreshAfterWrite()
+      if (refreshed && refreshed.location_id !== destination && current()) {
+        setNeedsRefresh(true); setError('Location could not be confirmed. Refresh to continue.')
+      }
+    } catch (err) {
+      if (current()) { setNeedsRefresh(true); setError(`${err instanceof Error ? err.message : 'Location is temporarily unavailable'}. Refresh location to check whether the change was applied.`) }
+    } finally {
+      if (current()) { setBusy(false); onBusyChange?.(false) }
+    }
+  }
+
   async function chooseLocation(destination: string) {
     if (!list || busy || disabled || needsRefresh || undo?.meetingUndone || !list.rooms.some(room => room.room_id === destination && ready(room))) return
     const needsMove = Boolean(list.meeting && list.meeting.room_id !== destination)
@@ -171,6 +188,7 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   const location = pendingRoom ?? (list?.meeting ? list.meeting.room_id ?? '' : list?.default_room_id ?? '')
   const rooms = list?.rooms ?? []
   const selected = rooms.find(room => room.room_id === location)
+  const missingSchool = list?.location_id && !list.locations?.some(item => item.location_id === list.location_id) ? list.location_id : null
   const partialUndo = Boolean(undo?.meetingUndone && undo.restoreDefault)
   const options = rooms.map(room => ({ value: room.room_id, label: (room.attendance_ready ?? room.paired) ? room.label : `${room.label} (unpaired)`, disabled: !ready(room) }))
   if (location && !selected) options.unshift({ value: location, label: 'Current location unavailable', disabled: true })
@@ -179,8 +197,13 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
     {!list && (listState?.generation !== generation || !error) && <p>Loading rooms…</p>}
     {noticeGeneration === generation && <p role="status" className="text-sm text-text-muted">Previous location unavailable. Undo is unavailable.</p>}
     {needsRefresh && <Button variant="secondary" disabled={busy || disabled} onClick={() => void retryRefresh()}>Refresh location</Button>}
-    {list && (rooms.length === 0 && !location ? <p className="text-sm text-text-muted">No attendance locations are available.</p> : <>
-      <FormField label="Attendance Location" hideLabel collapseHiddenLabel>
+    {list?.locations && <FormField label="School location">
+      <Select value={list.location_id ?? ''} disabled={busy || disabled || needsRefresh} onChange={event => void chooseSchool(event.target.value || null)}
+        options={[{ value: '', label: 'Custom' }, ...(missingSchool ? [{ value: missingSchool, label: 'Current location unavailable', disabled: true }] : []), ...list.locations.map(item => ({ value: item.location_id, label: item.label, disabled: item.selectable === false }))]} />
+    </FormField>}
+    {list?.locations && list.location_id === null && (list.default_room_id || list.meeting?.room_id) && <Button variant="secondary" disabled={busy || disabled || needsRefresh} onClick={() => void chooseSchool(null)}>Clear room</Button>}
+    {list && (rooms.length === 0 && !location ? <p className="text-sm text-text-muted">{list.locations && list.location_id === null ? "Use the class QR code for attendance." : "No attendance locations are available."}</p> : <>
+      <FormField label={list.locations ? "Room" : "Attendance Location"} hideLabel={!list.locations} collapseHiddenLabel={!list.locations}>
         <Select value={location} disabled={busy || disabled || partialUndo || needsRefresh || !rooms.some(ready)} aria-busy={pendingRoom !== null}
           onChange={event => void chooseLocation(event.target.value)}
           options={[{ value: '', label: 'Choose a room', disabled: true }, ...options]} />

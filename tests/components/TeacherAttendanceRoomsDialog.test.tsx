@@ -285,3 +285,102 @@ it('ignores a late legacy location response after changing dates', async () => {
   expect(screen.queryByText('Previous location unavailable. Undo is unavailable.')).not.toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
 })
+
+it('selects a school and can return to Custom', async () => {
+  let school: string | null = null
+  const calls: any[] = []
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'location') { school = body.location_id; return Response.json({ ok: true }) }
+    return Response.json({ shared_catalog: true, locations: [{ location_id: 'peths', label: 'PETHS' }], location_id: school, rooms: school ? rooms : [], default_room_id: null, meeting: null })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'School location' })
+  expect(screen.getByText('Use the class QR code for attendance.')).toBeInTheDocument()
+  await user.selectOptions(picker, 'peths')
+  await waitFor(() => expect(picker).toHaveValue('peths'))
+  await user.selectOptions(picker, '')
+  await waitFor(() => expect(picker).toHaveValue(''))
+  expect(calls).toContainEqual(expect.objectContaining({ operation: 'location', location_id: null }))
+})
+
+it('locks the school selector after an uncertain location write until refreshed', async () => {
+  let school: string | null = null
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'location') { school = body.location_id; throw new Error('network') }
+    return Response.json({ locations: [{ location_id: 'peths', label: 'PETHS' }], location_id: school, rooms: [], default_room_id: null, meeting: null })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'School location' })
+  await user.selectOptions(picker, 'peths')
+  expect(await screen.findByRole('alert')).toHaveTextContent('Refresh location')
+  expect(picker).toBeDisabled()
+  await user.click(screen.getByRole('button', { name: 'Refresh location' }))
+  await waitFor(() => expect(picker).toHaveValue('peths'))
+  expect(picker).toBeEnabled()
+})
+
+it('does not apply a late school response to a different classroom', async () => {
+  let finish!: (value: Response) => void
+  const pending = new Promise<Response>(resolve => { finish = resolve })
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'location') return pending
+    return Response.json({ locations: [{ location_id: 'peths', label: 'PETHS' }], location_id: null, rooms: [], default_room_id: null, meeting: null })
+  }))
+  const user = userEvent.setup()
+  const view = render(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'School location' }), 'peths')
+  view.rerender(<TooltipProvider><TeacherAttendanceRoomsDialog classroomId="22222222-2222-4222-8222-222222222222" date="2026-11-13" isOpen onClose={vi.fn()} /></TooltipProvider>)
+  await waitFor(() => expect(screen.getByRole('combobox', { name: 'School location' })).toHaveValue(''))
+  await act(async () => { finish(Response.json({ ok: true })) })
+  expect(screen.getByRole('combobox', { name: 'School location' })).toHaveValue('')
+})
+
+it('shows an unavailable saved school and allows recovery to Custom', async () => {
+  let school: string | null = 'missing'
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'location') { school = body.location_id; return Response.json({ ok: true }) }
+    return Response.json({ locations: [], location_id: school, rooms: [], default_room_id: null, meeting: null })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'School location' })
+  expect(picker).toHaveValue('missing')
+  expect(screen.getByRole('option', { name: 'Current location unavailable' })).toBeDisabled()
+  await user.selectOptions(picker, '')
+  await waitFor(() => expect(picker).toHaveValue(''))
+})
+
+it('clears a future room when the current meeting is unassigned in Custom', async () => {
+  let defaultRoom: string | null = room
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'location') { defaultRoom = null; return Response.json({ ok: true }) }
+    return Response.json({ locations: [], location_id: null, rooms, default_room_id: defaultRoom, meeting: { room_id: null, revision: 1, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  await user.click(await screen.findByRole('button', { name: 'Clear room' }))
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear room' })).not.toBeInTheDocument())
+})
+
+it('allows Custom after a partially restored undo', async () => {
+  let meeting: string | null = room; let future: string | null = room; let school: string | null = 'peths'
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'move') { meeting = other; future = other; return Response.json({ revision: 7 }) }
+    if (body.operation === 'undo') { meeting = room; return Response.json({ ok: true }) }
+    if (body.operation === 'default') throw new Error('network')
+    if (body.operation === 'location') { school = null; meeting = null; future = null; return Response.json({ ok: true }) }
+    return Response.json({ shared_catalog: true, locations: [{ location_id: 'peths', label: 'PETHS' }], location_id: school, rooms, default_room_id: future, meeting: { room_id: meeting, revision: 1, accepting_until: null } })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Room' }), other)
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  await user.click(await screen.findByRole('button', { name: 'Refresh location' }))
+  expect(await screen.findByRole('button', { name: 'Retry undo' })).toBeEnabled()
+  await user.selectOptions(screen.getByRole('combobox', { name: 'School location' }), '')
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Retry undo' })).not.toBeInTheDocument())
+  expect(meeting).toBeNull(); expect(future).toBeNull()
+})

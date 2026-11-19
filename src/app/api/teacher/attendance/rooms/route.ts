@@ -11,13 +11,14 @@ import { BaraAttendanceClientError, isBaraRoomAttendanceConfigured, postBaraRoom
 const ref = z.string().regex(/^[A-Za-z0-9._~-]{1,128}$/)
 const commandSchema = z.object({
   classroom_id: z.string().uuid(), date: z.string().date().optional(),
-  operation: z.enum(['list', 'poster', 'create', 'pair', 'revoke', 'default', 'move', 'undo', 'notices']),
-  room_id: ref.nullable().optional(), label: z.string().trim().min(1).max(80).optional(),
+  operation: z.enum(['list', 'location', 'poster', 'create', 'pair', 'revoke', 'default', 'move', 'undo', 'notices']),
+  room_id: ref.nullable().optional(), location_id: ref.nullable().optional(), label: z.string().trim().min(1).max(80).optional(),
   revision: z.number().int().nonnegative().optional(), save_default: z.boolean().optional(),
   notices: z.array(z.string().trim().min(1).max(200)).max(10).optional(),
 }).strict().superRefine((input, ctx) => {
   const bad = (path: string) => ctx.addIssue({ code: 'custom', path: [path], message: 'Required for this operation' })
   if (['poster', 'pair', 'revoke', 'move', 'notices'].includes(input.operation) && !input.room_id) bad('room_id')
+  if (input.operation === 'location' && input.location_id === undefined) bad('location_id')
   if (input.operation === 'default' && input.room_id === undefined) bad('room_id')
   if (input.operation === 'create' && !input.label) bad('label')
   if (['move', 'undo'].includes(input.operation) && !input.date) bad('date')
@@ -49,6 +50,7 @@ export const POST = withErrorHandler('TeacherAttendanceRooms', async request => 
   let command: BaraRoomCommand
   switch (input.operation) {
     case 'list': command = { ...staff, operation: 'list', ...(occurrenceRef.success ? { occurrence_ref: occurrenceRef.data } : {}) }; break
+    case 'location': command = { ...staff, operation: 'location', location_id: input.location_id! }; break
     case 'poster': command = { ...staff, operation: 'poster', room_id: input.room_id! }; break
     case 'create': command = { ...staff, operation: 'create', label: input.label! }; break
     case 'pair': command = { ...staff, operation: 'pair', room_id: input.room_id! }; break

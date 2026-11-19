@@ -34,6 +34,16 @@ describe('teacher room command boundary', () => {
     expect(response.status).toBe(200)
     expect(mocks.send).toHaveBeenCalledWith({ operation: 'move', roster_ref: 'roster', actor_principal_ref: 'principal', actor_display_name: 'Teacher', occurrence_ref: 'occurrence', room_id: 'room1234567890123456', save_default: true })
   })
+  it('forwards a Custom location with authorized staff and roster proof', async () => {
+    const response = await POST(request({ classroom_id: classroom, operation: 'location', location_id: null }))
+    expect(response.status).toBe(200)
+    expect(mocks.send).toHaveBeenCalledWith({ operation: 'location', location_id: null, roster_ref: 'roster', actor_principal_ref: 'principal', actor_display_name: 'Teacher' })
+    expect(mocks.access).toHaveBeenCalled()
+  })
+  it('rejects a location command without a location value', async () => {
+    expect((await POST(request({ classroom_id: classroom, operation: 'location' }))).status).toBe(400)
+    expect(mocks.send).not.toHaveBeenCalled()
+  })
   it('does not include occurrence on create when a date is selected', async () => {
     const response = await POST(request({ classroom_id: classroom, date: '2026-11-13', operation: 'create', label: 'Lab' }))
     expect(response.status).toBe(200)
