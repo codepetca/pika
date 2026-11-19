@@ -54553,3 +54553,8 @@ Carried the reviewed paid reconciliation and access cutoff patch onto main after
 ## 2026-11-09 — Rebase reviewed live billing routing and closeout
 
 Carried the reviewed activation routes, unpaid renewal closeout, and migration 320–321 source onto main after the paid reconciliation squash merge. Preserved both continuity histories. The Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the two additional closed profiles.
+
+<!-- pika-session-log-archive-batch:445fb48a60f2d370ffa2df5da1af20989a85e15e643e0062fcd412eeaada29b2 -->
+## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
+
+Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.

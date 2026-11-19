@@ -220,3 +220,35 @@ test('schedules show room loading, error and empty states', async ({ page }, tes
   await expect(dialog.getByRole('button', { name: 'Print student poster' })).toBeEnabled()
   await page.screenshot({ path: testInfo.outputPath('schedules-error-rooms-healthy.png'), animations: 'disabled' })
 })
+
+for (const hasMeeting of [false, true]) {
+  test(`legacy location migration remains usable (meeting: ${hasMeeting})`, async ({ page }, testInfo) => {
+    const legacy = 'legacy12345678901234'
+    let defaultRoom = legacy
+    let meeting = legacy
+    const requests: Array<Record<string, unknown>> = []
+    await page.route('**/api/teacher/attendance/rooms', async route => {
+      const request = route.request().postDataJSON(); requests.push(request)
+      if (request.operation === 'default' && request.room_id === legacy) return route.fulfill({ status: 403, json: { error: 'Forbidden' } })
+      if (request.operation === 'move') { meeting = request.room_id; defaultRoom = request.room_id; return route.fulfill({ json: { revision: 4 } }) }
+      if (request.operation === 'default') { defaultRoom = request.room_id; return route.fulfill({ json: { ok: true } }) }
+      return route.fulfill({ json: { shared_catalog: true, rooms: [...list.rooms, { room_id: legacy, label: 'Previous room', paired: true, can_manage: false, selectable: false }], default_room_id: defaultRoom, meeting: hasMeeting ? { ...list.meeting, room_id: meeting } : null } })
+    })
+    await page.goto('/e2e-fixtures/attendance-room')
+    const dialog = page.getByRole('dialog', { name: 'Attendance Location' })
+    const picker = dialog.getByRole('combobox', { name: 'Attendance Location' })
+    await picker.selectOption(roomId)
+    await expect(dialog.getByText('Previous location unavailable. Undo is unavailable.')).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Undo location change' })).toHaveCount(0)
+    for (const [size, viewport] of [['desktop', { width: 1440, height: 900 }], ['mobile', { width: 390, height: 844 }]] as const) {
+      await page.setViewportSize(viewport)
+      for (const theme of ['light', 'dark'] as const) {
+        await page.evaluate(value => { document.documentElement.classList.toggle('dark', value === 'dark'); document.documentElement.style.colorScheme = value }, theme)
+        await page.screenshot({ path: testInfo.outputPath(`legacy-${size}-${theme}.png`), animations: 'disabled' })
+      }
+    }
+    await picker.selectOption(list.rooms[1].room_id)
+    await expect(dialog.getByRole('button', { name: 'Undo location change' })).toBeVisible()
+    expect(requests.some(request => request.operation === 'default' && request.room_id === legacy)).toBe(false)
+  })
+}

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Rebase reviewed Max-to-Pro renewal settlement
-
-Carried the reviewed scheduled renewal settlement and verified Max retry onto main after the activation squash merge. Preserved both continuity histories and the exact migration 322–323 source. The isolated Test reorder proof uses the shared migration 319 RepoLight trigger witness for both additional profiles.
-
 ## 2026-11-09 — Sync scheduled renewal settlement with main
 
 The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.
@@ -199,3 +195,7 @@ Owner requested Attendance Location with one dropdown, and explicitly confirmed 
 ## 2026-11-18 — Correct pending schedule browser check
 
 Production release CI exposed a stale Playwright action that waited for a deliberately disabled modal backdrop. The test now asserts the backdrop is disabled and sends a real outside pointer click while saving; the existing modal-stays-open assertion remains. All four desktop/mobile light/dark projects pass the affected case against the isolated production build. No application behavior, snapshots, database or configuration changed.
+
+## 2026-11-18 — Preserve usable location after legacy room migration
+
+The shared catalog may expose a legacy previous location that cannot be selected again. A successful move from that location now omits an impossible whole-location Undo and explains why; normal reversible moves and uncertain-response recovery remain available. Covered current and absent meetings, a rejected legacy rollback, later valid changes and failed refresh. No backend, auth, schema or dependency changes.

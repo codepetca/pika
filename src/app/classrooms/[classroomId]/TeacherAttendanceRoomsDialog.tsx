@@ -45,6 +45,7 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   const [recovery, setRecovery] = useState<'undoMeeting' | 'undoDefault' | null>(null)
   const [pendingRoom, setPendingRoom] = useState<string | null>(null)
   const [undo, setUndo] = useState<LocationUndo | null>(null)
+  const [noticeGeneration, setNoticeGeneration] = useState<number | null>(null)
   const active = useRef(true)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const current = () => active.current && ownerRef.current.generation === generation
@@ -58,7 +59,7 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   useEffect(() => {
     let activeLoad = true
     if (!enabled) return () => { activeLoad = false }
-    setBusy(false); onBusyChange?.(false); setPendingRoom(null); setNeedsRefresh(false); setRecovery(null); setList(null); setError(''); setUndo(null)
+    setBusy(false); onBusyChange?.(false); setPendingRoom(null); setNeedsRefresh(false); setRecovery(null); setList(null); setError(''); setUndo(null); setNoticeGeneration(null)
     void command('list').then((next: RoomList) => {
       if (activeLoad && current()) setList(next)
     }).catch((err: Error) => { if (activeLoad && current()) setError(err.message) })
@@ -72,10 +73,10 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
       const next = await command('list') as RoomList
       if (!current()) return false
       setList(next); setNeedsRefresh(false)
-      return true
+      return next
     } catch {
       if (current()) { setNeedsRefresh(true); setError('Location changed, but could not be refreshed. Refresh to continue.') }
-      return false
+      return null
     }
   }
 
@@ -115,15 +116,18 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
     if (!needsMove && !needsDefault) return
     const previousDefault = list.default_room_id
     const previousMeeting = list.meeting?.room_id ?? null
+    const canUndo = !needsDefault || previousDefault === null || list.rooms.some(room => room.room_id === previousDefault && ready(room))
+    setNoticeGeneration(null)
     setBusy(true); onBusyChange?.(true); setPendingRoom(destination); setError('')
     try {
       const result = needsMove
         ? await command('move', { room_id: destination, save_default: true })
         : await command('default', { room_id: destination })
       if (!current()) return
-      setUndo({ previousDefault, previousMeeting, revision: needsMove ? result.revision : null, restoreDefault: needsDefault, meetingUndone: false })
+      setUndo(canUndo ? { previousDefault, previousMeeting, revision: needsMove ? result.revision : null, restoreDefault: needsDefault, meetingUndone: false } : null)
       setList(previous => previous ? { ...previous, default_room_id: destination, meeting: previous.meeting && needsMove ? { ...previous.meeting, room_id: destination, revision: result.revision } : previous.meeting } : previous)
-      await refreshAfterWrite()
+      const refreshed = await refreshAfterWrite()
+      if (refreshed && current() && !canUndo && refreshed.default_room_id === destination && (!needsMove || refreshed.meeting?.room_id === destination)) setNoticeGeneration(generation)
     } catch (err) {
       if (current()) {
         setUndo(null); setRecovery(null); setNeedsRefresh(true)
@@ -173,6 +177,7 @@ export function useTeacherAttendanceRoomsContent({ classroomId, date, enabled, d
   return <div className="space-y-4 p-1">
     {listState?.generation === generation && error && <p role="alert" className="text-sm text-danger">{error}</p>}
     {!list && (listState?.generation !== generation || !error) && <p>Loading rooms…</p>}
+    {noticeGeneration === generation && <p role="status" className="text-sm text-text-muted">Previous location unavailable. Undo is unavailable.</p>}
     {needsRefresh && <Button variant="secondary" disabled={busy || disabled} onClick={() => void retryRefresh()}>Refresh location</Button>}
     {list && (rooms.length === 0 && !location ? <p className="text-sm text-text-muted">No attendance locations are available.</p> : <>
       <FormField label="Attendance Location" hideLabel collapseHiddenLabel>

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, expect, it, vi } from 'vitest'
 import { TooltipProvider } from '@/ui'
@@ -198,4 +198,90 @@ it('opens the selected student poster and preserves undo on return', async () =>
   await user.click(screen.getByRole('button', { name: 'Close' }))
   expect(await screen.findByRole('button', { name: 'Undo location change' })).toBeEnabled()
   expect(screen.getByRole('combobox', { name: 'Attendance Location' })).toHaveValue(other)
+})
+
+it.each([false, true])('does not offer an impossible legacy default undo (meeting: %s)', async hasMeeting => {
+  const legacy = 'legacy-room'
+  let defaultRoom = legacy
+  let meeting = legacy
+  let previousMeeting = legacy
+  let revision = 1
+  const calls: any[] = []
+  const catalog = [...rooms, { room_id: legacy, label: 'Previous room', paired: true, can_manage: false, selectable: false as const }]
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body); calls.push(body)
+    if (body.operation === 'default' && body.room_id === legacy) return Response.json({ error: 'Forbidden' }, { status: 403 })
+    if (body.operation === 'move') { previousMeeting = meeting; meeting = body.room_id; defaultRoom = body.room_id; return Response.json({ revision: ++revision }) }
+    if (body.operation === 'undo') meeting = previousMeeting
+    if (body.operation === 'default') defaultRoom = body.room_id
+    return Response.json({ shared_catalog: true, rooms: catalog, default_room_id: defaultRoom, meeting: hasMeeting ? { room_id: meeting, revision, accepting_until: null } : null })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  const picker = await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await user.selectOptions(picker, room)
+  expect(await screen.findByText('Previous location unavailable. Undo is unavailable.')).toBeVisible()
+  expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+  expect(picker).toBeEnabled()
+  expect(calls.some(call => call.operation === 'default' && call.room_id === legacy)).toBe(false)
+  await user.selectOptions(picker, other)
+  expect(screen.queryByText('Previous location unavailable. Undo is unavailable.')).not.toBeInTheDocument()
+  await user.click(await screen.findByRole('button', { name: 'Undo location change' }))
+  await waitFor(() => expect(picker).toHaveValue(room))
+  expect(calls.some(call => call.operation === 'default' && call.room_id === legacy)).toBe(false)
+})
+
+it('does not show an unavailable-undo notice when the post-write refresh fails', async () => {
+  const legacy = 'legacy-room'
+  let failedRefresh = false
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'default') { failedRefresh = true; return Response.json({ ok: true }) }
+    if (failedRefresh) return Response.json({ error: 'Unavailable' }, { status: 503 })
+    return Response.json({ shared_catalog: true, rooms: [...rooms, { room_id: legacy, label: 'Previous room', paired: true, can_manage: false, selectable: false }], default_room_id: legacy, meeting: null })
+  }))
+  const user = userEvent.setup(); renderDialog()
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Attendance Location' }), room)
+  expect(await screen.findByRole('alert')).toHaveTextContent('could not be refreshed')
+  expect(screen.queryByText('Previous location unavailable. Undo is unavailable.')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
+})
+
+it('clears the unavailable-undo notice when the date changes or dialog closes', async () => {
+  const legacy = 'legacy-room'
+  let defaultRoom = legacy
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'default') { defaultRoom = body.room_id; return Response.json({ ok: true }) }
+    return Response.json({ shared_catalog: true, rooms: [...rooms, { room_id: legacy, label: 'Previous room', paired: true, can_manage: false, selectable: false }], default_room_id: defaultRoom, meeting: null })
+  }))
+  const view = (date: string, isOpen: boolean) => <TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date={date} isOpen={isOpen} onClose={vi.fn()} /></TooltipProvider>
+  const user = userEvent.setup(); const { rerender } = render(view('2026-11-13', true))
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Attendance Location' }), room)
+  expect(await screen.findByText('Previous location unavailable. Undo is unavailable.')).toBeVisible()
+  rerender(view('2026-11-14', true))
+  await screen.findByRole('combobox', { name: 'Attendance Location' })
+  expect(screen.queryByText('Previous location unavailable. Undo is unavailable.')).not.toBeInTheDocument()
+  rerender(view('2026-11-14', false))
+  rerender(view('2026-11-14', true))
+  await screen.findByRole('combobox', { name: 'Attendance Location' })
+  expect(screen.queryByText('Previous location unavailable. Undo is unavailable.')).not.toBeInTheDocument()
+})
+
+
+it('ignores a late legacy location response after changing dates', async () => {
+  const legacy = 'legacy-room'
+  let finish!: (value: Response) => void
+  vi.stubGlobal('fetch', vi.fn(async (_url, init) => {
+    const body = JSON.parse(init.body)
+    if (body.operation === 'default') return new Promise<Response>(resolve => { finish = resolve })
+    return Response.json({ shared_catalog: true, rooms: [...rooms, { room_id: legacy, label: 'Previous room', paired: true, can_manage: false, selectable: false }], default_room_id: legacy, meeting: null })
+  }))
+  const view = (date: string) => <TooltipProvider><TeacherAttendanceRoomsDialog classroomId={classroom} date={date} isOpen onClose={vi.fn()} /></TooltipProvider>
+  const user = userEvent.setup(); const { rerender } = render(view('2026-11-13'))
+  await user.selectOptions(await screen.findByRole('combobox', { name: 'Attendance Location' }), room)
+  rerender(view('2026-11-14'))
+  await screen.findByRole('combobox', { name: 'Attendance Location' })
+  await act(async () => { finish(Response.json({ ok: true })) })
+  expect(screen.queryByText('Previous location unavailable. Undo is unavailable.')).not.toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Undo location change' })).not.toBeInTheDocument()
 })
