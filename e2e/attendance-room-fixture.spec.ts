@@ -252,3 +252,32 @@ for (const hasMeeting of [false, true]) {
     expect(requests.some(request => request.operation === 'default' && request.room_id === legacy)).toBe(false)
   })
 }
+
+test('school location picker supports Custom and school rooms', async ({ page }, testInfo) => {
+  let location: string | null = null
+  let selectedRoom: string | null = null
+  await page.route('**/api/teacher/attendance/rooms', async route => {
+    const body = route.request().postDataJSON()
+    if (body.operation === 'location') { location = body.location_id; selectedRoom = null; return route.fulfill({ json: { ok: true } }) }
+    if (body.operation === 'default') { selectedRoom = body.room_id; return route.fulfill({ json: { ok: true } }) }
+    return route.fulfill({ json: { ...list, ...(location ? { shared_catalog: true } : {}), locations: [{ location_id: 'peths', label: 'PETHS' }], location_id: location, rooms: location ? [{ ...list.rooms[0], label: '220' }, { ...list.rooms[1], label: '223' }] : [], default_room_id: selectedRoom, meeting: null } })
+  })
+  await page.goto('/e2e-fixtures/attendance-room')
+  const dialog = page.getByRole('dialog', { name: 'Attendance Location' })
+  await expect(dialog.getByText('Use the class QR code for attendance.')).toBeVisible()
+  await dialog.getByRole('combobox', { name: 'School location' }).selectOption('peths')
+  await expect(dialog.getByRole('combobox', { name: 'Room' })).toContainText('220')
+  await dialog.getByRole('combobox', { name: 'Room' }).selectOption('other123456789012345')
+  await expect(dialog.getByRole('button', { name: 'Print student poster' })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('school-location-desktop.png'), fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: testInfo.outputPath('school-location-mobile.png'), fullPage: true })
+  await page.emulateMedia({ colorScheme: 'dark' })
+  await page.evaluate(() => document.documentElement.classList.add('dark'))
+  await page.screenshot({ path: testInfo.outputPath('school-location-mobile-dark.png'), fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.screenshot({ path: testInfo.outputPath('school-location-desktop-dark.png'), fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await dialog.getByRole('combobox', { name: 'School location' }).selectOption('')
+  await expect(dialog.getByText('Use the class QR code for attendance.')).toBeVisible()
+})

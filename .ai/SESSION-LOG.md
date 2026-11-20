@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Sync scheduled renewal settlement with main
-
-The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced with the retired Blueprint draft scheduling compatibility change before merge. The billing patch and migration source match the reviewed candidate.
-
 ## 2026-11-09 — Rebase reviewed scheduled renewal closeout
 
 Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-to-Pro settlement squash merge. Preserved both continuity histories and the exact migration 324 source. The isolated Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the additional closed profile.
@@ -203,3 +199,7 @@ Production release CI exposed a stale Playwright action that waited for a delibe
 ## 2026-11-18 — Preserve usable location after legacy room migration
 
 The shared catalog may expose a legacy previous location that cannot be selected again. A successful move from that location now omits an impossible whole-location Undo and explains why; normal reversible moves and uncertain-response recovery remain available. Covered current and absent meetings, a rejected legacy rollback, later valid changes and failed refresh. No backend, auth, schema or dependency changes.
+
+## 2026-11-19 School location picker
+
+Added the attendance school location picker and Custom fallback, retaining room poster and undo behavior. Integration contract coordinated with Bara; verification recorded in the task handoff.

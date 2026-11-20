@@ -531,6 +531,14 @@ describe('Bara attendance server client', () => {
     const fetcher = vi.fn(async () => Response.json({ ok: true, shared_catalog: true, rooms: [room], default_room_id: null, meeting: null }))
     const staff = { roster_ref: 'roster_one', actor_principal_ref: 'principal_teacher', actor_display_name: 'Teacher' }
     await expect(postBaraRoomCommand({ operation: 'list', ...staff }, { fetcher: fetcher as typeof fetch })).resolves.toMatchObject({ shared_catalog: true, rooms: [room] })
+    const school = vi.fn(async () => Response.json({ ok: true, locations: [{ location_id: 'peths', label: 'PETHS' }], location_id: 'peths', rooms: [room], default_room_id: null, meeting: null }))
+    await expect(postBaraRoomCommand({ operation: 'list', ...staff }, { fetcher: school as typeof fetch })).resolves.toMatchObject({ location_id: 'peths' })
+    for (const locations of [[{ location_id: 'peths', label: ' ' }], [{ location_id: 'peths', label: 'PETHS' }, { location_id: 'peths', label: 'Duplicate' }]]) {
+      const invalid = vi.fn(async () => Response.json({ ok: true, locations, location_id: null, rooms: [], default_room_id: null, meeting: null }))
+      await expect(postBaraRoomCommand({ operation: 'list', ...staff }, { fetcher: invalid as typeof fetch })).rejects.toMatchObject({ code: 'invalid_response' })
+    }
+    const incomplete = vi.fn(async () => Response.json({ ok: true, locations: [], rooms: [], default_room_id: null, meeting: null }))
+    await expect(postBaraRoomCommand({ operation: 'list', ...staff }, { fetcher: incomplete as typeof fetch })).rejects.toMatchObject({ code: 'invalid_response' })
     const bad = vi.fn(async () => Response.json({ ok: true, shared_catalog: true, rooms: [{ ...room, attendance_ready: 'yes' }], default_room_id: null, meeting: null }))
     await expect(postBaraRoomCommand({ operation: 'list', ...staff }, { fetcher: bad as typeof fetch })).rejects.toMatchObject({ code: 'invalid_response' })
     const closed = vi.fn(async () => Response.json({ ok: true, continuation: null, closed: true }))
