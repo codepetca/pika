@@ -11,7 +11,8 @@ vi.mock('@/lib/server/safe-external-document', () => ({
 
 describe('course guide curriculum extraction', () => {
   beforeEach(() => {
-    process.env.OPENAI_API_KEY = 'test-key'
+    vi.stubEnv('OPENAI_API_KEY', 'test-key')
+    vi.stubEnv('OPENAI_CURRICULUM_IMPORT_MODEL', undefined)
     mocks.fetchSafeExternalDocument.mockResolvedValue({
       body: Buffer.from('%PDF-1.7 curriculum'),
       finalUrl: 'https://example.ca/curriculum.pdf',
@@ -21,15 +22,14 @@ describe('course guide curriculum extraction', () => {
   })
 
   afterEach(() => {
-    delete process.env.OPENAI_API_KEY
-    delete process.env.OPENAI_CURRICULUM_IMPORT_MODEL
+    vi.unstubAllEnvs()
     vi.restoreAllMocks()
   })
 
   it('sends a non-stored structured file request and returns a sourced draft', async () => {
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
       status: 'completed',
-      model: 'gpt-5-mini',
+      model: 'gpt-6.1-sol',
       output_text: JSON.stringify({
         document_title: 'Computer Studies, Grades 10 to 12',
         overview_markdown: 'A factual overview.',
@@ -53,8 +53,9 @@ describe('course guide curriculum extraction', () => {
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit
     const body = JSON.parse(String(request.body))
     expect(body).toMatchObject({
-      model: 'gpt-5-mini',
+      model: 'gpt-6.1-sol',
       store: false,
+      reasoning: { effort: 'low' },
       max_output_tokens: 8000,
       text: { format: { type: 'json_schema', strict: true } },
     })
@@ -66,7 +67,8 @@ describe('course guide curriculum extraction', () => {
     })
   })
 
-  it('fetches public URLs through the bounded external-document path', async () => {
+  it('fetches bounded public documents and honors the explicit model override', async () => {
+    vi.stubEnv('OPENAI_CURRICULUM_IMPORT_MODEL', ' gpt-5-mini ')
     const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
       status: 'completed',
       output_text: JSON.stringify({
@@ -85,6 +87,8 @@ describe('course guide curriculum extraction', () => {
     )
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const body = JSON.parse(String((fetchMock.mock.calls[0]?.[1] as RequestInit).body))
+    expect(body.model).toBe('gpt-5-mini')
+    expect(body).not.toHaveProperty('reasoning')
     expect(body.input[1].content[1]).toEqual({
       type: 'input_file',
       filename: 'curriculum.pdf',

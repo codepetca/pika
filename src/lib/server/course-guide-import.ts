@@ -7,7 +7,7 @@ import {
 } from '@/lib/validations/course-guide-import'
 import { fetchSafeExternalDocument } from '@/lib/server/safe-external-document'
 
-const DEFAULT_MODEL = 'gpt-5-mini'
+const DEFAULT_MODEL = 'gpt-6.1-sol'
 const EXTRACTION_TIMEOUT_MS = 45_000
 const MAX_OUTPUT_TOKENS = 8_000
 
@@ -128,6 +128,7 @@ export async function extractCourseGuideImportDraft(
 
   const fileInput = await buildFileInput(source)
 
+  const model = process.env.OPENAI_CURRICULUM_IMPORT_MODEL?.trim() || DEFAULT_MODEL
   let response: Response
   assertAIOutboundEnabled()
   try {
@@ -140,8 +141,9 @@ export async function extractCourseGuideImportDraft(
       },
       signal: AbortSignal.timeout(EXTRACTION_TIMEOUT_MS),
       body: JSON.stringify({
-        model: process.env.OPENAI_CURRICULUM_IMPORT_MODEL?.trim() || DEFAULT_MODEL,
+        model,
         store: false,
+        ...(model === DEFAULT_MODEL ? { reasoning: { effort: 'low' } } : {}),
         max_output_tokens: MAX_OUTPUT_TOKENS,
         input: [
           {

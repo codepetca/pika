@@ -324,6 +324,8 @@ describe('callOpenAIForDeveloperFeedback', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv, OPENAI_API_KEY: 'test-key' }
+    delete process.env.OPENAI_DEVELOPER_FEEDBACK_MODEL
+    delete process.env.OPENAI_SUMMARY_MODEL
   })
 
   afterEach(() => {
@@ -353,6 +355,28 @@ describe('callOpenAIForDeveloperFeedback', () => {
     expect(result.candidates).toHaveLength(1)
     const requestInit = fetchMock.mock.calls[0][1] as RequestInit
     const body = JSON.parse(String(requestInit.body))
-    expect(body.store).toBe(false)
+    expect(body).toMatchObject({
+      model: 'gpt-6.1-sol',
+      store: false,
+      reasoning: { effort: 'low' },
+    })
+  })
+
+  it.each([
+    [' gpt-4o-mini ', 'gpt-5-nano', 'gpt-4o-mini'],
+    ['   ', ' gpt-5-nano ', 'gpt-5-nano'],
+  ])('uses feedback override %j before summary override %j', async (feedbackModel, summaryModel, expected) => {
+    process.env.OPENAI_DEVELOPER_FEEDBACK_MODEL = feedbackModel
+    process.env.OPENAI_SUMMARY_MODEL = summaryModel
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ output_text: JSON.stringify({ candidates: [] }) }),
+    } as Response)
+
+    await callOpenAIForDeveloperFeedback('system', 'user')
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+    expect(body.model).toBe(expected)
+    expect(body).not.toHaveProperty('reasoning')
   })
 })

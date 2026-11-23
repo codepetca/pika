@@ -279,6 +279,7 @@ describe('callOpenAIForSummary', () => {
 
   beforeEach(() => {
     process.env = { ...originalEnv, OPENAI_API_KEY: 'test-key' }
+    delete process.env.OPENAI_SUMMARY_MODEL
   })
 
   afterEach(() => {
@@ -368,7 +369,7 @@ describe('callOpenAIForSummary', () => {
       ok: true,
       json: async () => ({
         status: 'completed',
-        model: 'gpt-5-nano-2025-08-07',
+        model: 'gpt-6.1-sol',
         output_text: JSON.stringify(mockResponse),
       }),
     } as Response)
@@ -379,7 +380,7 @@ describe('callOpenAIForSummary', () => {
       { log_1: 'J.S.' }
     )
     expect(result.overview).toBe('Follow-ups identified.')
-    expect(result.provider_model).toBe('gpt-5-nano-2025-08-07')
+    expect(result.provider_model).toBe('gpt-6.1-sol')
     expect(result.action_items).toEqual([
       {
         text: 'J.S. reported an urgent safety or abuse concern.',
@@ -392,7 +393,11 @@ describe('callOpenAIForSummary', () => {
 
     const requestInit = fetchMock.mock.calls[0][1] as RequestInit
     const body = JSON.parse(String(requestInit.body))
-    expect(body.store).toBe(false)
+    expect(body).toMatchObject({
+      model: 'gpt-6.1-sol',
+      store: false,
+      reasoning: { effort: 'low' },
+    })
     expect(body.text.format).toMatchObject({
       type: 'json_schema',
       name: 'daily_log_follow_up_summary',
@@ -401,6 +406,20 @@ describe('callOpenAIForSummary', () => {
     expect(body.text.format.schema.additionalProperties).toBe(false)
     expect(body.text.format.schema.properties.action_items.items.required).toContain('detail')
     expect(body.text.format.schema.properties.action_items.items.properties.detail).toMatchObject({ maxLength: 240, minLength: 1 })
+  })
+
+  it('preserves an explicit summary model without forcing Sol reasoning settings', async () => {
+    process.env.OPENAI_SUMMARY_MODEL = ' gpt-5-nano '
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'completed', output_text: JSON.stringify({ action_items: [] }) }),
+    } as Response)
+
+    await callOpenAIForSummary('system', 'user', {})
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1]?.body))
+    expect(body.model).toBe('gpt-5-nano')
+    expect(body).not.toHaveProperty('reasoning')
   })
 
   it('rejects markdown-wrapped output', async () => {
