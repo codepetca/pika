@@ -30,6 +30,10 @@ to Test amber. Use soft blue for announcements and retain visible Megaphone,
 FileText and ListChecks icons on the title-only chips in every view, including
 compact grids. This supersedes the orange/peach announcement palette.
 
+Owner approved 2026-11-23: use a red-orange announcement chip distinct from
+amber Due/Test chips. Keep the megaphone in the same color as the title with
+no separate icon fill. This supersedes the soft blue palette.
+
 ## Acceptance target
 
 - Surface: Calendar week, month, term, weekend and presented-day chips;
@@ -53,7 +57,7 @@ compact grids. This supersedes the orange/peach announcement palette.
 
 Exact theme values live only in `src/styles/tokens.css`. Use the
 `calendar-assessment` (due/tests), `calendar-resource` (slate Material),
-`calendar-survey` (light-green Survey) and `calendar-announcement` (soft blue) Tailwind
+`calendar-survey` (light-green Survey) and `calendar-announcement` (red-orange) Tailwind
 color groups, including their `bg` and `hover` variants. These encode content
 identity, independently of success, warning, or completion status.
 
