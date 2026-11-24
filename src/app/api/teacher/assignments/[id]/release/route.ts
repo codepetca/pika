@@ -4,7 +4,7 @@ import { resolveBillingAssignmentRelease, stageBillingAssignmentRelease } from '
 import { logServerError } from '@/lib/server/diagnostics'
 import { z } from 'zod'
 import { getServiceRoleClient } from '@/lib/supabase'
-import { withErrorHandler } from '@/lib/api-handler'
+import { apiErrors, withErrorHandler } from '@/lib/api-handler'
 import {
   getFutureScheduledReleaseDueDateError,
 } from '@/lib/assignment-schedule-validation'
@@ -26,8 +26,17 @@ export const POST = withErrorHandler('PostTeacherAssignmentRelease', async (requ
   const assignmentAccess = await authorizeContextualAssignmentOwnerMutationRequest(resolveAssignmentId)
   const id = assignmentAccess.assignmentId
   const user = assignmentAccess.user
-  const body = assignmentReleaseRequestSchema.parse(request.body === null ? {} : await request.json().catch(() => null))
-  const releaseAt = body?.release_at as string | undefined
+  const text = await request.text()
+  let rawBody: unknown = {}
+  if (text.length > 0) {
+    try {
+      rawBody = JSON.parse(text)
+    } catch {
+      throw apiErrors.badRequest('Malformed JSON body')
+    }
+  }
+  const body = assignmentReleaseRequestSchema.parse(rawBody)
+  const releaseAt = body.release_at as string | undefined
   const expectedIntentId = body.expected_intent_id
   const supabase = getServiceRoleClient()
 

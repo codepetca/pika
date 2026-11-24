@@ -54573,3 +54573,8 @@ Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-t
 ## 2026-11-09 — Rebase scheduled cancellation and undo
 
 Carried the reviewed cancellation and undo changes onto main after the unpaid scheduled closeout merge. Preserved migration 325 and both continuity histories. The isolated reorder proof uses the shared migration 319 trigger witness at profile 325. The cancellation route now exposes its existing error wrapper directly on both exports while preserving no-store for successes and errors.
+
+<!-- pika-session-log-archive-batch:30f54dde8f8f1927dc55d5ada74a25276f8fa79c71d7bb2fa4cb809bae8b860d -->
+## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
+
+Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
