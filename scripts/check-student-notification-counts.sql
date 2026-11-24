@@ -105,6 +105,16 @@ begin
   end if;
   reset role;
 
+  insert into public.entries(classroom_id, student_id, date, text, on_time)
+    values (class_id, member_id, today, 'Own Daily entry', true);
+  set local role service_role;
+  result := public.read_student_notification_counts_v1(member_id, class_id);
+  if result -> 'hasTodayEntry' is distinct from 'true'::jsonb then
+    raise exception 'Own entry on the active class day did not clear the reminder';
+  end if;
+  reset role;
+  delete from public.entries where classroom_id = class_id and student_id = member_id and date = today;
+
   update public.class_days set is_class_day = false where classroom_id = class_id and date = today;
   update public.classrooms set feature_visibility = feature_visibility
     || '{"classwork":false,"tests":false,"announcements":false}'::jsonb where id = class_id;
