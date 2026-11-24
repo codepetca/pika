@@ -1,0 +1,84 @@
+name: Calendar CI pilot
+
+on:
+  pull_request:
+    branches: [main]
+    types: [ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  calendar-pilot:
+    name: Calendar appearance pilot
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/calendar-ci-timing-pilot'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SESSION_SECRET: calendar-pilot-loopback-session-secret-with-at-least-32-characters
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Record tested merge commit
+        run: git log -1 --format='%H %P'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Get pnpm store directory
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Restore Playwright browser cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Chromium and system dependencies
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Run focused Calendar unit checks
+        run: >-
+          pnpm exec vitest run --maxWorkers=1
+          tests/unit/semantic-token-contrast.test.ts
+          tests/ui/UiGallery.test.tsx
+          tests/components/LessonDayCell.test.tsx
+
+      - name: Run focused Calendar browser checks
+        run: >-
+          pnpm exec playwright test e2e/calendar-appearance-pilot.ui-pattern-lab.spec.ts
+          --project=pattern-lab-desktop-light --project=pattern-lab-desktop-dark
+          --project=pattern-lab-mobile-light --project=pattern-lab-mobile-dark
+
+      - name: Retain pilot screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: calendar-appearance-pilot-screenshots
+          path: test-results/**/*.png
+          if-no-files-found: warn
+          retention-days: 7
