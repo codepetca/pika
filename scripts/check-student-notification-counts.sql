@@ -84,12 +84,12 @@ begin
   insert into public.test_attempts(test_id, student_id, responses, closed_for_grading_at) values
     (locked_test, member_id, '{}', cutoff);
 
-  insert into public.announcements(id, classroom_id, content, created_by, is_draft, scheduled_for) values
-    (read_announcement, class_id, 'Read', owner_id, false, null),
-    (unread_announcement, class_id, 'Unread', owner_id, false, cutoff),
-    (gen_random_uuid(), class_id, 'Draft', owner_id, true, null),
-    (gen_random_uuid(), class_id, 'Scheduled', owner_id, false, cutoff + interval '1 day'),
-    (gen_random_uuid(), other_class_id, 'Other classroom', owner_id, false, null);
+  insert into public.announcements(id, classroom_id, content, created_by, is_draft, scheduled_for, published_at) values
+    (read_announcement, class_id, 'Read', owner_id, false, null, cutoff),
+    (unread_announcement, class_id, 'Unread', owner_id, false, cutoff, cutoff),
+    (gen_random_uuid(), class_id, 'Draft', owner_id, true, null, null),
+    (gen_random_uuid(), class_id, 'Scheduled', owner_id, false, cutoff + interval '1 day', cutoff + interval '1 day'),
+    (gen_random_uuid(), other_class_id, 'Other classroom', owner_id, false, null, cutoff);
   insert into public.announcement_reads(announcement_id, user_id) values
     (read_announcement, member_id), (unread_announcement, owner_id);
 
