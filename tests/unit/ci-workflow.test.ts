@@ -56,7 +56,7 @@ describe('CI workflow', () => {
     const primary = jobs['architecture-database-contracts'], secondary = jobs['architecture-database-contracts-lifecycle']
     const proofs = (job: typeof primary) => job.steps.slice(job.steps.findIndex(step => step.id === 'supabase-start') + 1,
       job.steps.findIndex(step => step.run === 'supabase stop --no-backup'))
-    expect(proofs(primary)).toHaveLength(64)
+    expect(proofs(primary)).toHaveLength(65)
     expect(proofs(secondary)).toHaveLength(87)
     expect(proofs(secondary).filter(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')).toHaveLength(1)
     expect(proofs(secondary).find(step => step.name === 'Verify contextual hot classroom lifecycle rollback contracts')?.run).toBe('bash scripts/check-contextual-classroom-hot-lifecycle-database.sh')
@@ -66,7 +66,7 @@ describe('CI workflow', () => {
     expect(proofs(secondary).filter(step => step.name === 'Verify student Test session-status projection')).toHaveLength(1)
     expect(proofs(primary).at(-1)?.name).toBe('Verify isolated contextual Test member-list SDK reads')
     expect(proofs(secondary)[0].name).toBe('Verify isolated contextual Test owner reorder transactions')
-    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(151)
+    expect(new Set([...proofs(primary), ...proofs(secondary)].map(step => step.name)).size).toBe(152)
     expect(proofs(primary).filter(step => step.name === 'Verify current-membership attendance allocation and retained delivery'))
       .toEqual([expect.objectContaining({ run: 'bash scripts/check-attendance-membership-adoption-database.sh' })])
     expect(proofs(primary).filter(step => step.name === 'Verify personal joined classroom home visibility and concurrency'))

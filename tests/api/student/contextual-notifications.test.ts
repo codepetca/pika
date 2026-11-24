@@ -4,9 +4,9 @@ import { GET } from '@/app/api/student/notifications/route'
 import { mockAuthenticationError, mockAuthorizationError } from '../setup'
 import { getTodayInToronto } from '@/lib/timezone'
 
-const f = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), from: vi.fn() }))
+const f = vi.hoisted(() => ({ auth: vi.fn(), role: vi.fn(), from: vi.fn(), rpc: vi.fn(), abortSignal: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ requireAuth: f.auth, requireRole: f.role }))
-vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: f.from }) }))
+vi.mock('@/lib/supabase', () => ({ getServiceRoleClient: () => ({ from: f.from, rpc: f.rpc }) }))
 const actor = '76000000-0000-4000-8000-000000000011'
 const owner = '76000000-0000-4000-8000-000000000012'
 const classroom = '76000000-0000-4000-8000-000000000021'
@@ -66,14 +66,51 @@ describe('contextual student notifications', () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actor] }))
     f.auth.mockResolvedValue({ id: actor, email: 'synthetic@example.test', role: 'teacher' })
     f.role.mockRejectedValue(mockAuthorizationError())
+    f.rpc.mockReturnValue({ abortSignal: f.abortSignal })
+    f.abortSignal.mockResolvedValue({
+      data: null,
+      error: { code: 'PGRST202', message: 'Could not find the function public.read_student_notification_counts_v1(p_actor_id, p_classroom_id) in the schema cache' },
+    })
   })
   afterEach(() => vi.unstubAllEnvs())
+  it('returns all four indicators from one scoped RPC for an admitted actor', async () => {
+    const counts = { hasTodayEntry: false, unviewedAssignmentsCount: 2, activeTestsCount: 1, unreadAnnouncementsCount: 3 }
+    f.abortSignal.mockResolvedValue({ data: { ok: true, ...counts }, error: null })
+    const response = await GET(request())
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual(counts)
+    expect(f.rpc).toHaveBeenCalledExactlyOnceWith('read_student_notification_counts_v1', {
+      p_actor_id: actor, p_classroom_id: classroom,
+    })
+    expect(f.from).not.toHaveBeenCalled()
+  })
+
+  it.each([403, 404, 503])('preserves RPC status %i without falling back', async status => {
+    f.abortSignal.mockResolvedValue({ data: { ok: false, status }, error: null })
+    const response = await GET(request())
+    expect(response.status).toBe(status)
+    expect(await response.json()).not.toHaveProperty('hasTodayEntry')
+    expect(f.from).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { data: { ok: true, hasTodayEntry: true }, error: null },
+    { data: null, error: { code: '42501', message: 'permission denied' } },
+    { data: null, error: { code: 'PGRST202', message: 'Could not find public.some_other_function()' } },
+  ])('fails closed on unexpected RPC result %#', async result => {
+    f.abortSignal.mockResolvedValue(result)
+    const response = await GET(request())
+    expect(response.status).toBe(503)
+    expect(f.from).not.toHaveBeenCalled()
+  })
+
   it('admits a teacher-valued current member through the actual route', async () => {
     const calls = mockDatabase()
     const response = await GET(request())
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ hasTodayEntry: true, unviewedAssignmentsCount: 0, activeTestsCount: 0, unreadAnnouncementsCount: 0 })
     expect(f.role).not.toHaveBeenCalled()
+    expect(f.rpc).toHaveBeenCalledTimes(1)
     expect(calls.length).toBeGreaterThan(1)
   })
   it('authenticates before malformed admission or query', async () => {
@@ -122,6 +159,7 @@ describe('contextual student notifications', () => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION',config)
     expect((await GET(request())).status).toBe(403)
     expect(f.role).toHaveBeenCalledWith('student')
+    expect(f.rpc).not.toHaveBeenCalled()
     expect(f.from).not.toHaveBeenCalled()
   })
   it.each([null, {membership:'bad'}, {feature_visibility:{tests:'yes'}}])('fails closed on malformed database envelope %#', async patch => {

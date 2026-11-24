@@ -50,9 +50,52 @@ export async function authorizeSharedNotificationsActor() {
     ? { mode: 'shared' as const, user } : { mode: 'existing' as const }
 }
 
+const countsSchema = z.object({
+  hasTodayEntry: z.boolean(),
+  unviewedAssignmentsCount: z.number().int().nonnegative(),
+  activeTestsCount: z.number().int().nonnegative(),
+  unreadAnnouncementsCount: z.number().int().nonnegative(),
+}).strict()
+
+const countsResponseSchema = z.union([
+  countsSchema.extend({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), status: z.union([z.literal(403), z.literal(404), z.literal(503)]) }).strict(),
+])
+
+export async function readContextualStudentNotifications(input: {
+  supabase: Client
+  actorId: string
+  classroomId: string
+}) {
+  const { supabase, actorId, classroomId } = input
+  const { data, error } = await supabase.rpc('read_student_notification_counts_v1', {
+    p_actor_id: uuid.parse(actorId),
+    p_classroom_id: uuid.parse(classroomId),
+  }).abortSignal(AbortSignal.timeout(DEADLINE_MS))
+
+  if (error?.code === 'PGRST202' && /\bpublic\.read_student_notification_counts_v1\s*\(/.test(error.message)) {
+    return readContextualStudentNotificationsBeforeMigration(input)
+  }
+  if (error) throw new ApiError(503, 'Unable to verify classroom notifications')
+
+  const parsed = countsResponseSchema.safeParse(data)
+  if (!parsed.success) throw new ApiError(503, 'Unable to verify classroom notifications')
+  if (!parsed.data.ok) {
+    const { status } = parsed.data
+    const message = {
+      403: 'Forbidden',
+      404: 'Classroom not found',
+      503: 'Unable to verify classroom notifications',
+    }[status]
+    throw new ApiError(status, message)
+  }
+  const { ok: _, ...counts } = parsed.data
+  return counts
+}
+
 /** Each page (including empty terminal pages) carries current relationship authority.
  * Revalidation catches observed drift; it does not create a transaction snapshot. */
-export async function readContextualStudentNotifications(input: { supabase: Client; actorId: string; classroomId: string }) {
+async function readContextualStudentNotificationsBeforeMigration(input: { supabase: Client; actorId: string; classroomId: string }) {
   const safeErrors = new Set<ApiError>()
   function apiError(status: number, message: string) {
     const error = new ApiError(status, message); safeErrors.add(error); return error

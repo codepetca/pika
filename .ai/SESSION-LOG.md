@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
-
-Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
-
 ## 2026-11-10 — Rebase the dormant billing recovery caller
 
 Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
@@ -199,3 +195,7 @@ Reproduced the Post failure with a zero-byte HTTP request through Next.js. The r
 ## 2026-11-24 — Verify synchronized production promotions
 
 The production classifier can reuse Test & Build and PR Gate for a canonical same-repository promotion after verifying both parent pairs, reconstructing the clean sync, and matching GitHub's test-merge tree. The only permitted differences from current main are the two regular continuity files. Missing or conflicting evidence still selects full CI. The chip release's actual GitHub test merge provides the historical replay.
+
+## 2026-11-24 — Reduce student sidebar notification queries
+
+Admitted classroom participants use a single service-role SQL snapshot for the four existing sidebar counts. Migration 331 preserves current enrollment, owner precedence, release timing, and feature visibility. Before the RPC is installed, its exact missing-function response selects the existing reader. API regressions and disposable SQL checks cover the new route and authorization.

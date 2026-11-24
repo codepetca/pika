@@ -29,8 +29,8 @@ source_version="$(docker exec "$source_container" psql -U postgres -d postgres -
 # Only reviewed source profiles may supply platform Auth/Storage definitions.
 # Source extensions 296–330 are sealed below and do not modify Auth/Storage.
 # No application ACLs or singleton data survive the full application replay.
-((10#$source_version >= 234 && 10#$source_version <= 330)) || exit 1
-pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329 or 330'); validateDisposableBillingReplayMigrations(migrations);"
+((10#$source_version >= 234 && 10#$source_version <= 331)) || exit 1
+pnpm --dir "$root" exec tsx -e "import assert from 'node:assert/strict'; import { loadAssignmentListReviewedMigrations } from './scripts/contextual-assignment-list-proof-platform'; import { validateDisposableBillingReplayMigrations } from './scripts/lifecycle-services-reviewed-migrations'; const migrations=loadAssignmentListReviewedMigrations(process.cwd()); assert([301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331].includes(migrations.length),'RepoLight access proof target must end at 301, 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330 or 331'); validateDisposableBillingReplayMigrations(migrations);"
 meta_image="$(resolve_repolight_access_meta_image)"
 
 scratch="$(mktemp -d /tmp/pika-repolight-analysis-access.XXXXXX)"
