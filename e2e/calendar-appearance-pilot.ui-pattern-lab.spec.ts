@@ -5,11 +5,6 @@ test.use({ storageState: { cookies: [], origins: [] }, timezoneId: 'America/Toro
 const classroomId = '30000000-0000-4000-8000-000000000011'
 const teacherId = '30000000-0000-4000-8000-000000000012'
 const stamp = '2026-10-05T16:00:00Z'
-const colors = {
-  light: { fill: 'rgb(255, 222, 209)', ink: 'rgb(141, 43, 19)', hover: 'rgb(255, 208, 189)' },
-  dark: { fill: 'rgb(82, 41, 31)', ink: 'rgb(255, 192, 166)', hover: 'rgb(102, 51, 38)' },
-}
-
 function announcement(id: string, title: string, schedule: string | null = null) {
   return {
     id, title, content: title, classroom_id: classroomId, is_draft: false,
@@ -23,7 +18,6 @@ for (const role of ['teacher', 'student'] as const) {
     test.setTimeout(120_000)
     const theme = testInfo.project.metadata.theme as 'light' | 'dark'
     const mobile = testInfo.project.metadata.viewport === 'mobile'
-    const { fill, ink, hover } = colors[theme]
     await page.addInitScript(value => localStorage.setItem('theme', value), theme)
     await page.clock.setFixedTime(new Date(stamp))
     await page.route('**/api/**', async route => {
@@ -51,7 +45,6 @@ for (const role of ['teacher', 'student'] as const) {
     await page.goto(`/pattern-lab?role=${role}`, { waitUntil: 'networkidle' })
     const example = page.getByTestId('calendar-identity-pattern')
     await expect(example).toBeVisible()
-    await expect(example.getByText('Due dates and tests share amber. Materials use slate, surveys use light green, and announcements use red-orange. Icons identify content type.', { exact: true })).toBeVisible()
     for (const mode of ['Week', 'Grid'] as const) {
       await example.getByRole('button', { name: mode, exact: true }).click()
       const chip = example.getByRole('button', { name: 'Bring headphones', exact: true })
@@ -67,6 +60,32 @@ for (const role of ['teacher', 'student'] as const) {
     await page.goto(`/e2e-fixtures/teacher-student-tables?role=${role}&tab=calendar&calendarTerm=true`)
     const workspace = page.getByRole('region', { name: 'Calendar workspace' })
     await expect(workspace).toBeVisible()
+    await expect.poll(() => page.locator('html').evaluate(element => element.classList.contains('dark')))
+      .toBe(theme === 'dark')
+    // Resolve each candidate token independently using the browser's color parser.
+    const { fill, ink, hover, rawPalette } = await page.evaluate(() => {
+      const probe = document.createElement('span')
+      document.body.appendChild(probe)
+      const rawPalette: string[] = []
+      const root = getComputedStyle(document.documentElement)
+      const resolve = (token: string) => {
+        const literal = root.getPropertyValue(token).trim()
+        if (!literal) throw new Error(`Missing appearance token ${token}`)
+        rawPalette.push(literal)
+        probe.style.color = `var(${token})`
+        return getComputedStyle(probe).color
+      }
+      const result = {
+        ink: resolve('--color-calendar-announcement'),
+        fill: resolve('--color-calendar-announcement-bg'),
+        hover: resolve('--color-calendar-announcement-hover'),
+        rawPalette,
+      }
+      probe.remove()
+      return result
+    })
+    const expectedPalette = process.env.PIKA_APPEARANCE_CALENDAR_COLORS
+    if (expectedPalette) expect(rawPalette).toEqual(JSON.parse(expectedPalette)[theme])
     for (const mode of ['List', 'Grid'] as const) {
       const modeButton = page.getByRole('button', { name: mode, exact: true })
       await modeButton.click()

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 — Rebase the dormant billing recovery caller
-
-Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
-
 ## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
 
 Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
@@ -199,3 +195,7 @@ The production classifier can reuse Test & Build and PR Gate for a canonical sam
 ## 2026-11-24 — Measure the Calendar appearance pilot alongside full CI
 
 The comparison branch runs a separate Calendar job on the same tested PR merge as full CI. The pilot uses synthetic role and API fixtures and records unit, browser and setup timing. The production Calendar and the required CI workflow are the benchmark baseline.
+
+## 2026-11-24 — Generalize the advisory appearance pilot
+
+Extended the comparison branch to select Calendar and public Join checks from literal palette and helper-copy diffs. The advisory job exercises two disposable changes and checks contrast, clipping, and broad fallback cases. Full CI and PR Gate remain the comparison baseline.

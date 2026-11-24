@@ -1,4 +1,4 @@
-name: Calendar CI pilot
+name: Appearance CI pilot
 
 on:
   pull_request:
@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  calendar-pilot:
-    name: Calendar appearance pilot
+  appearance-pilot:
+    name: Calendar and Join appearance pilot
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'codex/calendar-ci-timing-pilot'
@@ -19,7 +19,7 @@ jobs:
     env:
       E2E_BASE_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
-      SESSION_SECRET: calendar-pilot-loopback-session-secret-with-at-least-32-characters
+      SESSION_SECRET: appearance-pilot-loopback-session-secret-with-at-least-32-characters
 
     steps:
       - name: Checkout code
@@ -61,24 +61,27 @@ jobs:
       - name: Install Chromium and system dependencies
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Run focused Calendar unit checks
-        run: >-
-          pnpm exec vitest run --maxWorkers=1
-          tests/unit/semantic-token-contrast.test.ts
-          tests/ui/UiGallery.test.tsx
-          tests/components/LessonDayCell.test.tsx
+      - name: Verify advisory diff selection
+        run: pnpm exec vitest run --maxWorkers=1 tests/unit/appearance-ci-pilot-diff.test.ts
 
-      - name: Run focused Calendar browser checks
-        run: >-
-          pnpm exec playwright test e2e/calendar-appearance-pilot.ui-pattern-lab.spec.ts
-          --project=pattern-lab-desktop-light --project=pattern-lab-desktop-dark
-          --project=pattern-lab-mobile-light --project=pattern-lab-mobile-dark
+      - name: Verify broad fallbacks and contrast rejection
+        run: node scripts/appearance-ci-pilot-run.mjs fallbacks
+
+      - name: Check the first Calendar palette and Join copy
+        run: node scripts/appearance-ci-pilot-run.mjs first
+
+      - name: Check the second Calendar palette and Join copy
+        run: node scripts/appearance-ci-pilot-run.mjs second
+
+      - name: Verify the tracked checkout was restored
+        if: always()
+        run: git diff --exit-code HEAD
 
       - name: Retain pilot screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: calendar-appearance-pilot-screenshots
+          name: appearance-pilot-screenshots
           path: test-results/**/*.png
           if-no-files-found: warn
           retention-days: 7
