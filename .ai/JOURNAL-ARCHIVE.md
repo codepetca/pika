@@ -54568,3 +54568,8 @@ The scheduled Max-to-Pro renewal PR passed all required CI at 448956e9. Synced w
 ## 2026-11-09 — Rebase reviewed scheduled renewal closeout
 
 Carried the reviewed unpaid scheduled renewal closeout onto main after the Max-to-Pro settlement squash merge. Preserved both continuity histories and the exact migration 324 source. The isolated Test reorder fixture uses the shared migration 319 RepoLight trigger proof for the additional closed profile.
+
+<!-- pika-session-log-archive-batch:ed18a9b2a57202f4447e5c425ccdba1f7f059f0decea483a3196a8ce713f4f0c -->
+## 2026-11-09 — Rebase scheduled cancellation and undo
+
+Carried the reviewed cancellation and undo changes onto main after the unpaid scheduled closeout merge. Preserved migration 325 and both continuity histories. The isolated reorder proof uses the shared migration 319 trigger witness at profile 325. The cancellation route now exposes its existing error wrapper directly on both exports while preserving no-store for successes and errors.

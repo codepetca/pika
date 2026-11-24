@@ -135,8 +135,7 @@ cleanup-disabled procedure in `docs/guidance/classroom-lifecycle-archives.md`.
 - `DEEPSEEK_API_KEY` (required for the DeepSeek grading fallback or explicit DeepSeek selection)
 - `DEEPSEEK_GRADING_MODEL` (optional grading model override; defaults to `deepseek-flash`)
 - `OPENAI_API_KEY` (optional; required for default AI grading, nightly log summaries, developer feedback extraction, curriculum import, and Blueprint test/assignment drafting)
-- `OPENAI_SUMMARY_MODEL` / `OPENAI_DEVELOPER_FEEDBACK_MODEL` (optional model overrides)
-- `OPENAI_BLUEPRINT_DRAFT_MODEL` (optional Blueprint drafting model override; defaults to `gpt-5-mini`)
+- Daily-log summaries, developer-feedback extraction, curriculum imports, and guided Blueprint/Classroom drafts default to `gpt-6.1-sol` with low reasoning effort. Optional overrides are `OPENAI_SUMMARY_MODEL`, `OPENAI_DEVELOPER_FEEDBACK_MODEL`, `OPENAI_CURRICULUM_IMPORT_MODEL`, and `OPENAI_BLUEPRINT_DRAFT_MODEL`, respectively. Developer-feedback extraction also honors the summary override if its own override is unset.
 - `SUPABASE_ACCESS_TOKEN` (operator-only; required by the named production archive canary for
   read-only pre/post database-size evidence)
 

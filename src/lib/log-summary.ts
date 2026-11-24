@@ -10,7 +10,7 @@ import {
   type AiSanitizationContext,
 } from '@/lib/ai-sanitization'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'gpt-6.1-sol'
 export const LOG_SUMMARY_POLICY_VERSION = 'follow-ups-v3'
 const MAX_ACTION_ITEMS = 50
 const MAX_DETAIL_LENGTH = 240
@@ -154,7 +154,7 @@ export async function callOpenAIForSummary(
     throw new Error('OPENAI_API_KEY is not configured')
   }
 
-  const model = process.env.OPENAI_SUMMARY_MODEL?.trim() || DEFAULT_MODEL
+  const model = getSummaryModel()
 
   return withAIRequestDeadline(async (signal) => {
     assertAIOutboundEnabled()
@@ -169,6 +169,7 @@ export async function callOpenAIForSummary(
       body: JSON.stringify({
         model,
         store: false,
+        ...(model === DEFAULT_MODEL ? { reasoning: { effort: 'low' } } : {}),
         input: [
           {
             role: 'system',

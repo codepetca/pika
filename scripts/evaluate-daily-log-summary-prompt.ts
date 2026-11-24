@@ -18,7 +18,8 @@ type EvaluationCase = {
   expected: ExpectedItem[]
 }
 
-const EVALUATION_MODEL = 'gpt-5-nano-2025-08-07'
+// GPT-6.1 Sol is published without a separate dated snapshot identifier.
+const EVALUATION_MODEL = 'gpt-6.1-sol'
 
 const cases: EvaluationCase[] = [
   {
@@ -110,7 +111,7 @@ async function main() {
   for (const testCase of cases) {
     const { system, user, sourceMap } = buildSummaryPrompt('2026-08-27', testCase.logs)
     const response = await callOpenAIForSummary(system, user, sourceMap)
-    providerModels.add(response.provider_model || '<missing>')
+    providerModels.add(response.provider_model?.trim() || '<missing>')
     const actual = response.action_items.map((item) => ({
       source_ref: item.source_ref,
       category: item.category,

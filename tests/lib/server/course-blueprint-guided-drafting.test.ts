@@ -41,6 +41,7 @@ afterEach(() => {
 
 describe('guided Blueprint drafting', () => {
   it('passes approved course and unit assignment rules into the model request', async () => {
+    vi.stubEnv('OPENAI_BLUEPRINT_DRAFT_MODEL', undefined)
     const fetchMock = mockModel({
       title: 'Python practice',
       instructions_markdown: 'Write a program.\n\nSubmit the code and a sample run.',
@@ -53,6 +54,13 @@ describe('guided Blueprint drafting', () => {
       unitExceptionId: detail.authoring_guidance.unit_exceptions[0].id,
     })
     const request = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(request).toMatchObject({
+      model: 'gpt-6.1-sol',
+      store: false,
+      reasoning: { effort: 'low' },
+      max_output_tokens: 5000,
+      text: { format: { type: 'json_schema', strict: true } },
+    })
     const modelInput = request.input[1].content[0].text as string
     expect(modelInput).toContain('Use the taught vocabulary.')
     expect(modelInput).toContain('Give a concrete submission checklist.')
@@ -62,8 +70,9 @@ describe('guided Blueprint drafting', () => {
     expect(result.content).toContain('Python practice [DRAFT]')
   })
 
-  it('puts general coding directions in the first reference and parses the draft', async () => {
-    mockModel({
+  it('puts coding directions in the first reference and honors the model override', async () => {
+    vi.stubEnv('OPENAI_BLUEPRINT_DRAFT_MODEL', ' gpt-5-mini ')
+    const fetchMock = mockModel({
       title: 'Karel Unit 1',
       is_coding_test: true,
       reference_documents: [{
@@ -81,6 +90,9 @@ describe('guided Blueprint drafting', () => {
       }],
     })
     const result = await generateCourseBlueprintGuidedDraft({ detail, target: 'tests', prompt: '' })
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body as string)
+    expect(request.model).toBe('gpt-5-mini')
+    expect(request).not.toHaveProperty('reasoning')
     const parsed = markdownToCourseBlueprintAssessments(result.content, [], 'test')
     expect(parsed.errors).toEqual([])
     expect(parsed.assessments[0].documents.map((document) => document.title)).toEqual([
