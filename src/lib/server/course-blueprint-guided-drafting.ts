@@ -14,7 +14,7 @@ import { PORTABLE_TEST_QUESTION_IDENTITY_VERSION } from '@/lib/test-question-ide
 import type { CourseBlueprintAuthoringGuidance } from '@/lib/course-blueprint-authoring-guidance'
 import type { ClassroomAuthoringGuidance } from '@/lib/server/classroom-authoring-guidance'
 
-const DEFAULT_MODEL = 'gpt-5-mini'
+const DEFAULT_MODEL = 'gpt-6.1-sol'
 const TIMEOUT_MS = 45_000
 const MAX_MODEL_INPUT_BYTES = 100_000
 
@@ -211,6 +211,7 @@ async function requestGuidedDraft(args: {
     throw new Error('The Blueprint guidance is too long for one AI draft. Shorten the rules or select a unit with shorter rules.')
   }
 
+  const model = process.env.OPENAI_BLUEPRINT_DRAFT_MODEL?.trim() || DEFAULT_MODEL
   let response: Response
   assertAIOutboundEnabled()
   try {
@@ -223,8 +224,9 @@ async function requestGuidedDraft(args: {
       },
       signal: AbortSignal.timeout(TIMEOUT_MS),
       body: JSON.stringify({
-        model: process.env.OPENAI_BLUEPRINT_DRAFT_MODEL?.trim() || DEFAULT_MODEL,
+        model,
         store: false,
+        ...(model === DEFAULT_MODEL ? { reasoning: { effort: 'low' } } : {}),
         max_output_tokens: 5000,
         input: [
           { role: 'system', content: [{ type: 'input_text', text: system }] },

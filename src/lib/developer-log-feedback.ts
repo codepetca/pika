@@ -5,7 +5,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { redactDirectIdentifiers } from '@/lib/log-summary'
 import type { Database } from '@/types/database'
 
-const DEFAULT_MODEL = 'gpt-5-nano'
+const DEFAULT_MODEL = 'gpt-6.1-sol'
 const MIN_CONFIDENCE = 0.55
 
 export type DeveloperFeedbackAgent = 'codex' | 'claude' | 'either'
@@ -140,6 +140,7 @@ export async function callOpenAIForDeveloperFeedback(
       body: JSON.stringify({
         model,
         store: false,
+        ...(model === DEFAULT_MODEL ? { reasoning: { effort: 'low' } } : {}),
         input: [
           {
             role: 'system',

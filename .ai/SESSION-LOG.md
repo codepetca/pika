@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Rebase scheduled cancellation and undo
-
-Carried the reviewed cancellation and undo changes onto main after the unpaid scheduled closeout merge. Preserved migration 325 and both continuity histories. The isolated reorder proof uses the shared migration 319 trigger witness at profile 325. The cancellation route now exposes its existing error wrapper directly on both exports while preserving no-store for successes and errors.
-
 ## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
 
 Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
@@ -203,3 +199,7 @@ Added the attendance school location picker and Custom fallback, retaining room 
 ## 2026-11-23 — Calendar announcements use red-orange
 
 Applied the owner-approved red-orange palette to the shared Calendar announcement tokens in both themes. The existing megaphone inherits the title color, and scheduled grid announcements retain their outline. Updated Pattern Lab and the Calendar identity guidance. The existing semantic contrast contract covers default and hover colors.
+
+## 2026-11-23 — Align non-grading OpenAI model defaults
+
+Daily-log summaries, developer-feedback extraction, curriculum imports, and guided Blueprint/Classroom drafts now default to GPT-6.1 Sol with low reasoning effort. Existing overrides, privacy settings, request limits, and schemas remain in place. The synthetic daily-log evaluator requires the exact provider model identifier; historical evidence receipts remain unchanged.
