@@ -81,6 +81,24 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
   })
 
   describe('validation', () => {
+    it.each([
+      { body: '{"release_at":', error: 'Malformed JSON body' },
+      { body: 'null', error: 'Invalid input: expected object, received null' },
+    ])('should reject $body before accessing the assignment', async ({ body, error }) => {
+      const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/release', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
+
+      const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })
+
+      expect(response.status).toBe(400)
+      expect(await response.json()).toEqual({ error })
+      expect(mockSupabaseClient.from).not.toHaveBeenCalled()
+      expect(mockSupabaseClient.rpc).not.toHaveBeenCalled()
+    })
+
     it('should return 404 when assignment does not exist', async () => {
       const mockFrom = vi.fn((table: string) => {
         if (table === 'assignments') {
@@ -245,7 +263,11 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
   })
 
   describe('successful release', () => {
-    it('should release a draft assignment and return updated assignment', async () => {
+    it.each([
+      { description: 'no body', body: undefined },
+      { description: 'a zero-byte body', body: new Uint8Array() },
+      { description: 'an empty JSON object', body: '{}' },
+    ])('should release a draft assignment with $description', async ({ body }) => {
       const releasedAssignment = {
         id: 'assignment-1',
         title: 'Essay 1',
@@ -286,6 +308,7 @@ describe('POST /api/teacher/assignments/[id]/release', () => {
 
       const request = new NextRequest('http://localhost:3000/api/teacher/assignments/assignment-1/release', {
         method: 'POST',
+        body,
       })
 
       const response = await POST(request, { params: Promise.resolve({ id: 'assignment-1' }) })

@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
-
-Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
-
 ## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
 
 The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
@@ -203,3 +199,7 @@ Applied the owner-approved red-orange palette to the shared Calendar announcemen
 ## 2026-11-23 — Align non-grading OpenAI model defaults
 
 Daily-log summaries, developer-feedback extraction, curriculum imports, and guided Blueprint/Classroom drafts now default to GPT-6.1 Sol with low reasoning effort. Existing overrides, privacy settings, request limits, and schemas remain in place. The synthetic daily-log evaluator requires the exact provider model identifier; historical evidence receipts remain unchanged.
+
+## 2026-11-24 — Fix immediate assignment posting
+
+Reproduced the Post failure with a zero-byte HTTP request through Next.js. The release endpoint now accepts an empty body and keeps JSON validation for schedule requests. Regression tests cover absent and zero-byte bodies, an empty object, malformed JSON, and JSON null. The affected route and scheduling suites passed 97 tests.
