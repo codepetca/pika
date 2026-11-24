@@ -176,7 +176,7 @@ const databaseProofInventories = {
     [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
     [63, 'af0b5bfaf89b750d29ef409d9b1c4a053bdbf231dd514ab8627bf53d1b25f54c'],
     [64, 'd8e8fdbd037f7cb20440875c07f655e40e92a47da68ad1c137b8d9dae7eb88af'],
-    [65, '69c0927f5442224721fe5474fba60dee9ab010fcf02f6582980e9033e29dd06a'],
+    [65, 'e41654a88e63ea9377a6dc9cb0440c1abc0274865301c1de132ce7e4df0b20b1'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
