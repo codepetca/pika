@@ -200,6 +200,99 @@ describe('CI change classifier', () => {
     }
   })
 
+  it('requires matching parents, the tested tree, and a clean continuity-only production sync', () => {
+    const root = mkdtempSync(join(tmpdir(), 'pika-ci-promotion-'))
+    const classifier = resolve('scripts/classify-ci-changes.mjs')
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: 'pipe' }).trim()
+    const write = (path: string, content: string) => writeFileSync(join(root, path), content)
+    const treeOf = (sha: string) => git('rev-parse', `${sha}^{tree}`)
+    const commit = (tree: string, ...parents: string[]) =>
+      git('commit-tree', tree, ...parents.flatMap(parent => ['-p', parent]), '-m', 'fixture commit')
+    const checkout = (sha: string) => git('checkout', '--detach', '--force', sha)
+    const snapshot = (parent: string) => {
+      git('add', '.')
+      return commit(git('write-tree'), parent)
+    }
+
+    try {
+      git('init', '-q')
+      git('config', 'user.email', 'test@example.test')
+      git('config', 'user.name', 'Test')
+      mkdirSync(join(root, '.ai'))
+      write('.ai/SESSION-LOG.md', 'common log\n')
+      write('.ai/JOURNAL-ARCHIVE.md', 'common archive\n')
+      write('page.js', 'common app\n')
+      write('other-source.js', 'other app\n')
+      git('add', '.')
+      git('commit', '-qm', 'common ancestor')
+      const ancestor = git('rev-parse', 'HEAD')
+
+      write('page.js', 'reviewed main app\n')
+      const main = snapshot(ancestor)
+      checkout(ancestor)
+      write('.ai/SESSION-LOG.md', 'production log\n')
+      const base = snapshot(ancestor)
+      const syncedTree = git('merge-tree', '--write-tree', main, base)
+      const head = commit(syncedTree, main, base)
+      const tested = commit(syncedTree, base, head)
+      const testedWithOtherTree = commit(treeOf(main), base, head)
+
+      function classify(overrides: { head?: string; base?: string; main?: string; tested?: string; checkout?: string; repo?: string } = {}) {
+        checkout(overrides.checkout ?? tested)
+        return JSON.parse(execFileSync(process.execPath, [
+          classifier,
+          '--target', 'production',
+          '--head-branch', 'codex/merge-main-into-production-20261124',
+          '--head-repository', overrides.repo ?? 'codepetca/pika',
+          '--base-repository', 'codepetca/pika',
+          '--base', overrides.base ?? base,
+          '--head', overrides.head ?? head,
+          '--main-sha', overrides.main ?? main,
+          '--tested-sha', overrides.tested ?? tested,
+        ], { cwd: root, encoding: 'utf8' }))
+      }
+
+      expect(classify()).toMatchObject({
+        mode: 'production-promotion', runTestBuild: true, runBrowser: false, runDatabase: false,
+      })
+      for (const [name, overrides] of [
+        ['missing tested SHA', { tested: '' }],
+        ['unexpected checkout', { checkout: head }],
+        ['stale production base', { base: ancestor }],
+        ['stale main parent', { main: ancestor }],
+        ['different repository', { repo: 'fork/pika' }],
+        ['different tested tree', { tested: testedWithOtherTree, checkout: testedWithOtherTree }],
+      ] as const) {
+        expect(classify(overrides), name).toMatchObject({ mode: 'full', runBrowser: true, runDatabase: true })
+      }
+
+      function classifySync(candidateBase: string, candidateTree: string) {
+        const candidateHead = commit(candidateTree, main, candidateBase)
+        const candidateTestMerge = commit(candidateTree, candidateBase, candidateHead)
+        return classify({ base: candidateBase, head: candidateHead, tested: candidateTestMerge, checkout: candidateTestMerge })
+      }
+
+      // A hand-edited sync with eligible parents and only continuity changes still needs full CI.
+      expect(classifySync(base, treeOf(main)), 'does not preserve the production log').toMatchObject({ mode: 'full' })
+
+      checkout(base)
+      const existingBlob = git('rev-parse', 'HEAD:other-source.js')
+      git('update-index', '--cacheinfo', `100755,${existingBlob},other-source.js`)
+      const baseWithSourceMode = commit(git('write-tree'), base)
+      expect(classifySync(baseWithSourceMode, git('merge-tree', '--write-tree', main, baseWithSourceMode)),
+        'changes an application entry mode').toMatchObject({ mode: 'full' })
+
+      checkout(base)
+      const journalBlob = git('rev-parse', 'HEAD:.ai/JOURNAL-ARCHIVE.md')
+      git('update-index', '--cacheinfo', `120000,${journalBlob},.ai/JOURNAL-ARCHIVE.md`)
+      const baseWithSymlink = commit(git('write-tree'), base)
+      expect(classifySync(baseWithSymlink, git('merge-tree', '--write-tree', main, baseWithSymlink)),
+        'makes a continuity file a symlink').toMatchObject({ mode: 'full' })
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  }, 60_000)
+
   it('retains risky source paths when files are renamed into documentation', () => {
     const root = mkdtempSync(join(tmpdir(), 'pika-ci-renames-'))
     const classifier = resolve('scripts/classify-ci-changes.mjs')

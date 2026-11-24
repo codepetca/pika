@@ -75,13 +75,14 @@ jobs:
             node scripts/classify-ci-changes.mjs --full --github-output "$GITHUB_OUTPUT"
           else
             git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
-            MAIN_SHA="$(git rev-parse origin/main)"
+            MAIN_SHA="$(git show-ref --verify --hash refs/remotes/origin/main)"
             node scripts/classify-ci-changes.mjs \
               --base "$BASE_SHA" \
               --head "$HEAD_SHA" \
               --target "$TARGET_BRANCH" \
               --head-branch "$HEAD_BRANCH" \
               --main-sha "$MAIN_SHA" \
+              --tested-sha "$GITHUB_SHA" \
               --head-repository "$HEAD_REPOSITORY" \
               --base-repository "$BASE_REPOSITORY" \
               --github-output "$GITHUB_OUTPUT"

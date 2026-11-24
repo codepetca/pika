@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
-
-The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
-
 ## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
 
 Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
@@ -199,3 +195,7 @@ Daily-log summaries, developer-feedback extraction, curriculum imports, and guid
 ## 2026-11-24 — Fix immediate assignment posting
 
 Reproduced the Post failure with a zero-byte HTTP request through Next.js. The release endpoint now accepts an empty body and keeps JSON validation for schedule requests. Regression tests cover absent and zero-byte bodies, an empty object, malformed JSON, and JSON null. The affected route and scheduling suites passed 97 tests.
+
+## 2026-11-24 — Verify synchronized production promotions
+
+The production classifier can reuse Test & Build and PR Gate for a canonical same-repository promotion after verifying both parent pairs, reconstructing the clean sync, and matching GitHub's test-merge tree. The only permitted differences from current main are the two regular continuity files. Missing or conflicting evidence still selects full CI. The chip release's actual GitHub test merge provides the historical replay.
