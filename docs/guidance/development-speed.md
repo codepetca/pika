@@ -139,9 +139,12 @@ an isolated speedup. See the [execution plan](../plans/ci-proof-setup-optimizati
 - No database or browser lane selected by the classifier may be skipped by the
   aggregate gate, and unknown paths must select full CI.
 - Canonical production promotions reuse one draft batch PR and run Test & Build
-  when the same-repository head is exactly the current reviewed `main` commit;
-  any divergent, forked, or otherwise unproven production PR fails closed to
-  full CI.
+  when the same-repository head is the current `main` commit or a verified clean
+  merge of production into that commit. For synchronized heads, GitHub's tested
+  merge must match the reconstructed tree, which may differ from `main` only in
+  the two regular continuity Markdown files. Forked or unproven candidates run
+  full CI. Verify rollout using the required gate and the production ruleset's
+  recorded result for the merge.
 
 ## Branch-ruleset checkpoint
 

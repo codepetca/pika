@@ -54578,3 +54578,8 @@ Carried the reviewed cancellation and undo changes onto main after the unpaid sc
 ## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
 
 Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
+
+<!-- pika-session-log-archive-batch:44e6243e90725f7e11d2d3ae9f3034e789ad83ced4601e1f34d69fcc2978d03d -->
+## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
+
+The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.

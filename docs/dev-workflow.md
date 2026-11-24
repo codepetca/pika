@@ -295,10 +295,12 @@ CI classifies changes conservatively:
   matrix, while database/server-contract paths add ephemeral database contracts.
 - CI configuration, dependency/runtime configuration, manual dispatches, empty
   change evidence, and unknown paths fail closed to the full suite.
-- Same-repository production promotion PRs whose head exactly matches current
-  `main` validate with Test & Build; divergent or unproven promotion heads run
-  full CI. Risk-matched database and browser contracts already ran against the
-  exact `main` SHA.
+- Same-repository production promotion PRs validate with Test & Build when the
+  head matches current `main` or CI proves a clean branch sync with production.
+  For a sync, CI verifies both parent pairs and rebuilds the merge tree. The
+  tested tree must match current `main` except for the regular Markdown files
+  `.ai/SESSION-LOG.md` and `.ai/JOURNAL-ARCHIVE.md`. Both paths use protected
+  `main` as the release source. Unproven promotions run full CI.
 - `workflow_dispatch` remains the full-suite escape hatch.
 
 CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`.
@@ -426,10 +428,12 @@ git -C "$HUB" worktree add --detach "$PROMO_WT" origin/main
 test "$(git -C "$PROMO_WT" rev-parse HEAD)" = "$(git -C "$HUB" rev-parse origin/main)"
 ```
 
-GitHub combines this exact reviewed main SHA with production when the PR merges.
-The promotion branch therefore receives abbreviated CI regardless of the prior
-production merge strategy; divergent or otherwise unproven heads fail closed to
-full CI.
+GitHub combines this exact main SHA with production when the PR merges. If the
+production rules require the head to include the base, update the promotion
+branch while the PR is draft. Review the synchronized head before marking it
+ready. CI checks the sync against the current main commit, the event's production
+base, and GitHub's merge checkout. Merge through the required gate after CI
+completes.
 
 ### 3) Open PR to production
 

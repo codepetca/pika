@@ -84,6 +84,12 @@ function isKnownTestBuildPath(path) {
     || path === '.gitignore'
 }
 
+function isPromotionBranch({ headBranch, headRepository, baseRepository }) {
+  return headBranch.startsWith('codex/merge-main-into-production-')
+    && headRepository !== ''
+    && headRepository === baseRepository
+}
+
 export function classifyChangedPaths(inputPaths, options = {}) {
   const paths = normalizedPaths(inputPaths)
   const targetBranch = options.targetBranch ?? 'main'
@@ -121,12 +127,9 @@ export function classifyChangedPaths(inputPaths, options = {}) {
   }
 
   if (targetBranch === 'production') {
-    const trustedPromotion = headBranch.startsWith('codex/merge-main-into-production-')
-      && headRepository !== ''
-      && headRepository === baseRepository
-      && headSha !== ''
-      && headSha === mainSha
-    if (!trustedPromotion) {
+    const exactMain = headSha !== '' && headSha === mainSha
+    const verifiedSync = options.syncedPromotionVerified === true
+    if (!isPromotionBranch({ headBranch, headRepository, baseRepository }) || !(exactMain || verifiedSync)) {
       return {
         mode: 'full',
         reason: 'noncanonical production PR; fail closed',
@@ -140,7 +143,9 @@ export function classifyChangedPaths(inputPaths, options = {}) {
     }
     return {
       mode: 'production-promotion',
-      reason: 'same-repository promotion head exactly matches current main; main already ran risk-matched contracts',
+      reason: exactMain
+        ? 'same-repository promotion head exactly matches current main'
+        : 'synchronized promotion test merge matches current main outside the two continuity logs',
       paths,
       docsOnly: false,
       runTestBuild: true,
@@ -216,6 +221,7 @@ function parseArguments(argv) {
     targetBranch: 'main',
     headBranch: '',
     mainSha: '',
+    testedSha: '',
     headRepository: '',
     baseRepository: '',
     forceFull: false,
@@ -229,6 +235,7 @@ function parseArguments(argv) {
     else if (value === '--target') args.targetBranch = argv[++index]
     else if (value === '--head-branch') args.headBranch = argv[++index]
     else if (value === '--main-sha') args.mainSha = argv[++index]
+    else if (value === '--tested-sha') args.testedSha = argv[++index]
     else if (value === '--head-repository') args.headRepository = argv[++index]
     else if (value === '--base-repository') args.baseRepository = argv[++index]
     else if (value === '--full') args.forceFull = true
@@ -236,6 +243,56 @@ function parseArguments(argv) {
     else throw new Error(`Unknown argument: ${value}`)
   }
   return args
+}
+
+function gitOutput(...args) {
+  return execFileSync('git', ['--no-replace-objects', ...args], {
+    encoding: 'latin1',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+}
+
+function treeEntriesExcept(tree, exceptions) {
+  const entries = gitOutput('ls-tree', '-z', tree).split('\0').filter(Boolean)
+  const pathOf = (entry) => entry.slice(entry.indexOf('\t') + 1)
+  for (const [path, kind] of exceptions) {
+    const matches = entries.filter((entry) => pathOf(entry) === path)
+    if (matches.length !== 1 || !matches[0].startsWith(`${kind} `)) {
+      throw new Error('Unexpected promotion tree entry')
+    }
+  }
+  return entries.filter((entry) => !exceptions.has(pathOf(entry)))
+}
+
+function applicationTreeSignature(commit) {
+  // Compare object IDs, modes, and byte-preserving names at both tree levels.
+  // Everything other than the two regular continuity blobs is significant.
+  return JSON.stringify([
+    treeEntriesExcept(commit, new Map([['.ai', '040000 tree']])),
+    treeEntriesExcept(`${commit}:.ai`, new Map([
+      ['JOURNAL-ARCHIVE.md', '100644 blob'],
+      ['SESSION-LOG.md', '100644 blob'],
+    ])),
+  ])
+}
+
+function verifySyncedPromotion(args) {
+  const { base, head, mainSha, testedSha } = args
+  if (args.forceFull || args.targetBranch !== 'production' || head === mainSha || !isPromotionBranch(args)) return false
+  if (![base, head, mainSha, testedSha].every((sha) => /^[0-9a-f]{40}$/.test(sha ?? ''))) return false
+
+  try {
+    if (gitOutput('rev-parse', 'HEAD').trim() !== testedSha) return false
+    const commitShape = (sha) => gitOutput('show', '-s', '--format=%T %P', sha).trim()
+    const [headTree, ...parents] = commitShape(head).split(' ')
+    return parents.join(' ') === `${mainSha} ${base}`
+      && commitShape(testedSha) === `${headTree} ${base} ${head}`
+      && applicationTreeSignature(mainSha) === applicationTreeSignature(head)
+      && gitOutput('merge-tree', '--write-tree', mainSha, base).trim() === headTree
+  } catch {
+    // Missing Git evidence, unsupported Git, and merge conflicts require full CI.
+    return false
+  }
 }
 
 function readChangedPaths(args) {
@@ -274,6 +331,7 @@ if (invokedPath === import.meta.url) {
       headRepository: args.headRepository,
       baseRepository: args.baseRepository,
       forceFull: args.forceFull,
+      syncedPromotionVerified: verifySyncedPromotion(args),
     })
     console.log(JSON.stringify(result, null, 2))
     if (args.githubOutput) writeGitHubOutputs(args.githubOutput, result)
