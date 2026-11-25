@@ -88,7 +88,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
   validateLifecycleServicesReviewedMigrations(migrations.slice(0, 301))
   if (migrations.length <= 301) return
 
-  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330 or 331')
+  assert([303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332].includes(migrations.length), 'Expected a complete billing replay through migration 303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331 or 332')
   assert.equal(createHash('sha256').update(JSON.stringify(disposableBillingReplayTail)).digest('hex'),
     '34300b3689fb206fba1ec60296d184c32024cdf2466e690ad9c4b0fb2821b80d', 'Unreviewed billing replay seal')
   assert.equal(disposableBillingReplayTail.length, 6)
@@ -156,4 +156,11 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
   }
 
+  if (migrations.length === 332) {
+    const migration = migrations[331]
+    const sha256 = '75e74edf380dd1a7c308159ca3a12571731433ecd8fa924c2a549771cc01ed13'
+    assert.equal(migration.name, '332_allow_started_test_title_corrections.sql')
+    assert.equal(migration.sha256, sha256)
+    assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)
+  }
 }

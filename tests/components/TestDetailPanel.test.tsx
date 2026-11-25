@@ -8,6 +8,7 @@ import { TestDetailPanel } from '@/components/TestDetailPanel'
 import { TooltipProvider } from '@/ui'
 import { createMockTest, createMockTestQuestion } from '../helpers/mocks'
 import { testToMarkdown } from '@/lib/test-markdown'
+import { TEST_CORRECTIONS_MESSAGE } from '@/lib/test-editing-policy'
 import type { TestAssessmentWithStats, TestAssessmentQuestion, TestResultsAggregate } from '@/types'
 
 function Wrapper({ children }: { children: ReactNode }) {
@@ -330,7 +331,9 @@ describe('TestDetailPanel', () => {
       { wrapper: Wrapper },
     )
 
-    expect(await screen.findByText(/You can correct question wording, instructions, and one existing choice per question at a time/)).toBeInTheDocument()
+    expect(await within(await screen.findByTestId('test-editor-content-pane')).findByText(
+      'A student has started. Question structure and grading are locked.',
+    )).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Question 1 option A' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Mark option A correct' })).toBeDisabled()
     expect(screen.getByRole('button', { name: /Reorder option A/ })).toBeDisabled()
@@ -690,6 +693,57 @@ describe('TestDetailPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Undo markdown edits', exact: true }))
     fireEvent.click(screen.getByRole('button', { name: 'Write', exact: true }))
     expect(screen.getByRole('textbox', { name: 'Question 1 prompt' })).toBeInTheDocument()
+  })
+
+  it('shows rejected Markdown inside the editor and does not send it on close', async () => {
+    const question = { ...sampleQuestions[0], id: markdownQuestionId1 }
+    const fetchMock = mockFetchForTest([question], undefined, { structureLocked: true })
+    fetchMock.mockResolvedValue(jsonResponse({ test: { documents: [] } }))
+    const flushReady = vi.fn<(flush: ((mode?: 'close') => Promise<boolean>) | null) => void>()
+    const panel = render(
+      <TestDetailPanel test={makeTestWithStats({ status: 'closed' })} classroomId="classroom-1"
+        onTestUpdate={vi.fn()} testQuestionLayout="split" onDraftFlushReady={flushReady} />,
+    )
+    await screen.findByRole('textbox', { name: 'Question 1 prompt' })
+    fireEvent.click(screen.getByRole('button', { name: 'Markdown', exact: true }))
+    const editor = screen.getByRole('textbox', { name: 'Test markdown editor' })
+    fireEvent.change(editor, { target: { value: (editor as HTMLTextAreaElement).value.replace('Points: 1', 'Points: 9') } })
+    fireEvent.click(screen.getByRole('button', { name: 'Apply Markdown' }))
+
+    expect(within(screen.getByTestId('test-editor-content-pane')).getByRole('alert')).toHaveTextContent(TEST_CORRECTIONS_MESSAGE)
+    expect(editor).toHaveAccessibleDescription(TEST_CORRECTIONS_MESSAGE)
+    expect(screen.getAllByText(TEST_CORRECTIONS_MESSAGE)).toHaveLength(1)
+    await act(async () => {
+      const flush = flushReady.mock.lastCall?.[0]
+      expect(await flush?.('close')).toBe(false)
+    })
+    panel.unmount()
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(0)
+  })
+
+  it('restores the saved summary and does not retry a rejected draft on close', async () => {
+    const test = makeTestWithStats({ title: 'Saved title', status: 'closed' })
+    const fetchMock = mockFetchForTest([sampleQuestions[0]], undefined, { title: test.title, structureLocked: true })
+    fetchMock.mockImplementation((_url, init) => Promise.resolve(init?.method === 'PATCH'
+      ? { status: 409, ok: false, json: async () => ({ error: TEST_CORRECTIONS_MESSAGE }) } as Response
+      : jsonResponse({ test: { documents: [] } })))
+    const flushReady = vi.fn<(flush: ((mode?: 'close') => Promise<boolean>) | null) => void>()
+    const onDraftSummaryChange = vi.fn()
+    const panel = render(<TestDetailPanel test={test} classroomId="classroom-1" onTestUpdate={vi.fn()}
+      testQuestionLayout="split" onDraftFlushReady={flushReady} onDraftSummaryChange={onDraftSummaryChange} />)
+    await screen.findByRole('textbox', { name: 'Question 1 prompt' })
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Rejected title' } })
+    fireEvent.blur(title)
+    await within(screen.getByTestId('test-editor-content-pane')).findByRole('alert')
+
+    await act(async () => {
+      const flush = flushReady.mock.lastCall?.[0]
+      expect(await flush?.('close')).toBe(false)
+    })
+    panel.unmount()
+    expect(onDraftSummaryChange).toHaveBeenLastCalledWith(expect.objectContaining({ title: test.title }))
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')).toHaveLength(1)
   })
 
   it('ignores stale draft responses after selected assessment changes', async () => {

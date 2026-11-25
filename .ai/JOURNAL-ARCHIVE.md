@@ -54608,3 +54608,8 @@ Carried the reviewed reminder UI and opt-in status behavior onto main after the 
 ## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
 
 Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.
+
+<!-- pika-session-log-archive-batch:1f6519d78e3c34ab754b4c5a542808f8836ae79bcd72411414e6dad2c5cae45c -->
+## 2026-11-10 — Rebase exact Stripe Decimal handling after email notices
+
+Carried the independently reviewed amount and invoice quantity normalization onto main after the email notice merge. Preserved both continuity histories and the exact billing patch. The final PR adds no migration.

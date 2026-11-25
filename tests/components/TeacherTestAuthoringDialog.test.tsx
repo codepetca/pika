@@ -275,6 +275,17 @@ describe('TeacherTestAuthoringDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(1)
   })
 
+  it('closes after a rejected edit and avoids discarding the stored test', async () => {
+    draftFlush.mockClear().mockResolvedValueOnce(false)
+    const { onClose, onDiscardPristine } = renderDialog({ discardPristineOnClose: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close test editor' }))
+
+    await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+    expect(draftFlush).toHaveBeenCalledWith('close')
+    expect(onDiscardPristine).not.toHaveBeenCalled()
+  })
+
   it('discards a newly created pristine Test after flushing instead of keeping it', async () => {
     draftFlush.mockClear()
     draftPristineCheck.mockReturnValueOnce({
