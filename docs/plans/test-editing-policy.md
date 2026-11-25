@@ -18,7 +18,12 @@ Before first Start, existing versioned authoring is unchanged. After Start:
 | Other current/future authored fields | Frozen by database default |
 | AI reference cache and timestamps | Existing operational exception preserved |
 | Blueprint version provenance | Existing owner-only exact-column exception preserved |
-| Test title/documents/result visibility | Existing separate policies unchanged |
+| Test title | Editable after Start, including in the same save as a wording correction |
+| Test documents and result visibility | Existing separate policies apply |
+
+The split teacher editor shows the lock next to the question or Markdown editor.
+Rejected edits show inline. Closing discards rejected or invalid input and keeps
+saved changes. Publish and Unpublish still require a successful save.
 
 ## First-version MC choice corrections
 

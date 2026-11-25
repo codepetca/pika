@@ -62,36 +62,35 @@ export function TeacherTestAuthoringDialog({
   const scopeRef = useRef({ key: scopeKey })
   if (scopeRef.current.key !== scopeKey) scopeRef.current = { key: scopeKey }
   useEffect(() => {
+    setIsClosing(false)
     setIsPreparingPublish(false)
     const owner = scopeRef.current
     return () => { if (scopeRef.current === owner) scopeRef.current = { key: scopeKey } }
   }, [scopeKey])
-  const draftFlushRef = useRef<(() => Promise<boolean>) | null>(null)
+  const draftFlushRef = useRef<((mode?: 'close') => Promise<boolean>) | null>(null)
   const draftPristineCheckRef = useRef<(
     () => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }
   ) | null>(null)
 
   const handleClose = async () => {
     if (isClosing) return
+    const owner = scopeRef.current
     setIsClosing(true)
-    const saved = await (draftFlushRef.current?.() ?? Promise.resolve(true))
-    if (saved) {
+    try {
+      const saved = await (draftFlushRef.current?.('close') ?? true)
+      if (scopeRef.current !== owner) return
       const pristineState = draftPristineCheckRef.current?.()
-      if (discardPristineOnClose && pristineState?.isPristine && onDiscardPristine) {
-        const discarded = await onDiscardPristine(
+      if (saved && discardPristineOnClose && pristineState?.isPristine && onDiscardPristine) {
+        await onDiscardPristine(
           pristineState.draftVersion,
           pristineState.testUpdatedAt,
         )
-        if (discarded) {
-          setIsClosing(false)
-          return
-        }
-        setIsClosing(false)
         return
       }
       onClose()
+    } finally {
+      if (scopeRef.current === owner) setIsClosing(false)
     }
-    setIsClosing(false)
   }
 
   const handlePublish = async () => {

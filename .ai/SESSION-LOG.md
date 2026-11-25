@@ -227,3 +227,7 @@ The ordinary hosted UI path can require both light-mode shards under the same Br
 ## 2026-11-25 — Student Classwork and Tests posting order
 
 Student Classwork lists assignments, materials and surveys by newest posting or opening time. Student Tests follow newest publication day across statuses. Older undated records use creation dates, and ties keep their prior order. The student list tests cover mixed Classwork and Tests statuses. Teacher ordering, calendar placement and availability keep their existing contracts.
+
+## 2026-11-25 — Started Test title corrections and editor dismissal
+
+Restore atomic title editing after Start with migration 332. Preserve the existing question, grading, reference and results restrictions. The split teacher editor places feedback beside the affected controls. Close discards rejected input and keeps acknowledged saves. Playwright verified rename, invalid Markdown, close and reopen on desktop/mobile in light/dark. Rebased over the student notification counts migration 331 with identical title-fix SQL.

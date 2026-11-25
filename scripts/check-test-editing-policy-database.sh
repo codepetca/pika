@@ -455,6 +455,75 @@ begin
 end;
 $contract$;
 
+do $title_contract$
+declare
+  v_teacher constant uuid := '14200000-0000-4000-8000-000000000001';
+  v_classroom constant uuid := '14200000-0000-4000-8000-000000000100';
+  v_test constant uuid := '14200000-0000-4000-8000-000000000101';
+  v_question constant uuid := '14200000-0000-4000-8000-000000000102';
+  v_deadline timestamptz := clock_timestamp() + interval '20 seconds';
+  v_content jsonb;
+  v_result jsonb;
+  v_source jsonb;
+begin
+  insert into public.classrooms (id, teacher_id, title, class_code)
+  values (v_classroom, v_teacher, 'Title correction contract', 'TST332');
+
+  insert into public.tests (id, classroom_id, title, status, show_results, created_by)
+  values (v_test, v_classroom, 'Original Test', 'closed', false, v_teacher);
+
+  insert into public.test_questions (id, artifact_id, test_id, question_type, question_text,
+    options, correct_option, points, response_max_chars, response_monospace, position)
+  values (v_question, v_question, v_test, 'multiple_choice', 'Original prompt',
+    '["First","Second"]', 0, 2, 5000, false, 0);
+
+  v_content := jsonb_build_object(
+    'title', 'Corrected Test', 'show_results', false, 'question_identity_version', 1,
+    'questions', jsonb_build_array(jsonb_build_object(
+      'id', v_question, 'question_type', 'multiple_choice', 'question_text', 'Corrected prompt',
+      'options', '["First","Second"]'::jsonb, 'correct_option', 0, 'answer_key', null,
+      'sample_solution', null, 'points', 2, 'response_max_chars', 5000, 'response_monospace', false
+    ))
+  );
+  insert into public.assessment_drafts
+    (assessment_type, assessment_id, classroom_id, content, version, created_by, updated_by)
+  values ('test', v_test, v_classroom, jsonb_set(v_content, '{title}', '"Original Test"'), 1, v_teacher, v_teacher);
+
+  update public.tests set questions_locked_at = transaction_timestamp() where id = v_test;
+  v_source := public.snapshot_test_draft_save_for_owner_v1(v_teacher, v_test, v_deadline);
+  v_result := public.finish_test_draft_save_for_owner_v1(
+    v_teacher, v_test, v_classroom, v_source->>'source_sha256', 1, 'save', v_content, null, false, v_deadline
+  );
+
+  if v_result #>> '{test,title}' is distinct from 'Corrected Test'
+    or v_result #>> '{draft,content,title}' is distinct from 'Corrected Test'
+    or v_result #>> '{editingPolicy,structureLocked}' is distinct from 'true'
+    or (select question_text from public.test_questions where id = v_question) is distinct from 'Corrected prompt'
+  then
+    raise exception 'Started Test title and prompt correction did not save together';
+  end if;
+
+  v_source := public.snapshot_test_draft_save_for_owner_v1(v_teacher, v_test, v_deadline);
+  begin
+    perform public.finish_test_draft_save_for_owner_v1(
+      v_teacher, v_test, v_classroom, v_source->>'source_sha256', 2, 'save',
+      jsonb_set(v_content, '{questions,0,points}', '3'), null, false, v_deadline
+    );
+    raise exception 'Started Test draft save accepted a points change';
+  exception when sqlstate 'PT409' then null;
+  end;
+
+  begin
+    perform public.finish_test_draft_save_for_owner_v1(
+      v_teacher, v_test, v_classroom, v_source->>'source_sha256', 2, 'save',
+      jsonb_set(v_content, '{show_results}', 'true'), null, false, v_deadline
+    );
+    raise exception 'Started Test draft save accepted a results visibility change';
+  exception when sqlstate 'PT409' then null;
+  end;
+end;
+$title_contract$;
+
 rollback;
 SQL
 
