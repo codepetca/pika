@@ -147,6 +147,17 @@ describe('appearance CI trusted Git evidence', () => {
     expect(await classifyAppearance({ cwd, env })).toEqual(skip)
   })
 
+  it.each([
+    [pagePath, page, changedPage],
+    [cssPath, css, changedCss],
+  ])('does not discard a leading BOM changed alongside approved literals in %s', async (path, before, after) => {
+    for (const [oldText, newText] of [[before, `\uFEFF${after}`], [`\uFEFF${before}`, after]]) {
+      const { env } = fixture([{ path, text: newText }], [], [{ path, text: oldText }])
+      expect(preflightAppearance({ cwd, env }).candidate).toBe(true)
+      expect(await classifyAppearance({ cwd, env })).toEqual(skip)
+    }
+  })
+
   it('rejects empty PR/merge deltas and unavailable or shallow history', () => {
     const { env, ancestor } = fixture()
     expect(preflightAppearance({ cwd, env: { ...env, APPEARANCE_HEAD: ancestor } }).candidate).toBe(false)

@@ -306,7 +306,7 @@ CI classifies changes conservatively:
 - `workflow_dispatch` remains the full-suite escape hatch.
 
 For same-repository ready PRs to `main`, appearance-only eligibility is limited
-to literal values for the Calendar announcement palette and the plain helper
+to six-digit hex values for the Calendar announcement palette and the plain helper
 paragraph on `/join`. Keep the PR diff limited to those edits to qualify. The
 classifier loads from the current protected base, checks both the complete PR
 diff and the tested GitHub merge, and uses the ordinary risk-matched path
@@ -325,8 +325,9 @@ The repository Actions variable `PIKA_APPEARANCE_CI` controls rollout:
 Start by comparing a real eligible PR and a mixed PR in shadow mode. Use an
 exact-head canary to verify a passing edit and a failing appearance check
 through `PR Gate`. Enable the shared path after that evidence passes, or set
-the variable to `off` to roll it back. Manual full runs and production
-promotions use their existing selectors.
+the variable to `off` to roll it back. For open PRs with an earlier appearance-only
+pass, request a fresh gate before merging if rollback is necessary. Manual full
+runs and production promotions use their existing selectors.
 
 CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`.
 The seven Supabase jobs authenticate image downloads using their ephemeral

@@ -31,7 +31,7 @@ describe('appearance CI complete-diff eligibility', () => {
     for (const prose of ["Enter your teacher’s code (for example: ABC123), then choose ‘Join’!", 'Need help? Ask your teacher — they’ll have the code.', 'Saisissez le code de votre enseignant.']) {
       expect(assessAppearanceDiff([edit(joinPath, page, page.replace(copy, prose))])).toEqual({ mode: 'appearance', surfaces: ['join'] })
     }
-    for (const unsafe of ['https://example.com', 'Visit example.ca.', 'www.example.org', 'javascript:alert(1)', 'console.log(123)', 'DEBUG: missing code', 'undefined', 'Use &quot;Join&quot;', 'Enter `code`.', 'Join {code}', 'Join <b>now</b>', '\u0000']) {
+    for (const unsafe of ['https://example.com', 'Visit example.ca.', 'Visit classroom.school.edu.', 'Go to classroom.school.uk.', 'Go to example.xn--p1ai.', 'Visit 127.0.0.1.', 'www.example.org', 'javascript:alert(1)', 'console.log(123)', 'DEBUG: missing code', 'undefined', 'Use &quot;Join&quot;', 'Enter `code`.', 'Join {code}', 'Join <b>now</b>', '\u0000']) {
       expect(assessAppearanceDiff([edit(joinPath, page, page.replace(copy, unsafe))])).toEqual(broad)
       expect(assessAppearanceDiff([edit(joinPath, page.replace(copy, unsafe), helper.after)])).toEqual(broad)
     }
@@ -44,7 +44,9 @@ describe('appearance CI complete-diff eligibility', () => {
       color.after.replace('--color-primary: #1d4ed8', '--color-primary: #1d4ed9'),
       color.after.replace('--color-calendar-resource: #5c626e', '--color-calendar-resource: #5c626f'),
       css.replace('#8d2b13', 'var(--color-primary)'),
+      css.replace('#8d2b13', '#abc'),
       css.replace('#8d2b13', '#12345'),
+      css.replace('#8d2b13', '#12345678'),
       css.replace('#8d2b13', '#123456 !important'),
       color.after.replace('--color-calendar-announcement: ', '--color-calendar-announcement:  '),
     ]) expect(assessAppearanceDiff([edit(cssPath, css, after)])).toEqual(broad)

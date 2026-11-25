@@ -20,12 +20,11 @@ function calendar(source) {
   let invalid = false
   tree.walkDecls(decl => {
     if (!tokens.has(decl.prop)) return
-    // The advisory trial deliberately supports only literal hexadecimal colors.
+    // The contrast check supports six-digit hexadecimal colors.
     const start = decl.source.start.offset
     const raw = source.slice(start, decl.source.end.offset)
-    const match = raw.match(/^(--color-calendar-announcement(?:-bg|-hover)?\s*:\s*)(#[\da-f]{3,8})(\s*;?)$/i)
-    if (!scopes.includes(decl.parent) || decl.important || !match ||
-        ![3, 4, 6, 8].includes(match[2].length - 1)) { invalid = true; return }
+    const match = raw.match(/^(--color-calendar-announcement(?:-bg|-hover)?\s*:\s*)(#[\da-f]{6})(\s*;?)$/i)
+    if (!scopes.includes(decl.parent) || decl.important || !match) { invalid = true; return }
     spans.push([start + match[1].length, start + match[1].length + match[2].length])
   })
   if (invalid || spans.length !== 6 || scopes.some(scope =>
@@ -57,7 +56,7 @@ function join(source) {
 function plainHelperText(value) {
   return value.trim().length > 0 && value.length <= 2000 &&
     /^[\p{L}\p{M}\p{N}\p{Zs}\t\r\n.,!?;:'"‘’“”()\-–—…]+$/u.test(value) &&
-    !/\b(?:https?|ftp|file|javascript|data|mailto)\s*:|\bwww\.|\b[\p{L}\p{N}-]+\.(?:com|org|net|ca|io|dev)\b|\b(?:console|window|document|process)\s*\.|\b(?:debug(?:ger)?|trace|stacktrace|undefined|null|NaN)\b/iu.test(value)
+    !/\b(?:https?|ftp|file|javascript|data|mailto)\s*:|\bwww\.|[\p{L}\p{N}-]+\.(?:[\p{L}]{2,}|xn--[a-z0-9-]+)(?![\p{L}\p{M}\p{N}-])|\b(?:\d{1,3}\.){3}\d{1,3}\b|\b(?:console|window|document|process)\s*\.|\b(?:debug(?:ger)?|trace|stacktrace|undefined|null|NaN)\b/iu.test(value)
 }
 
 const surfaces = { 'src/styles/tokens.css': ['calendar', calendar], 'src/app/join/page.tsx': ['join', join] }

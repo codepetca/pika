@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 const shaPattern = /^[0-9a-f]{40}$/
 const ownedPaths = new Set(['src/styles/tokens.css', 'src/app/join/page.tsx'])
-const utf8 = new TextDecoder('utf-8', { fatal: true })
+const utf8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true })
 const skipped = () => ({ selection: 'skip', calendar: false, join: false })
 
 function git(cwd, args) {

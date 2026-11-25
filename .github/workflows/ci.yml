@@ -24,28 +24,91 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  classify-changes:
-    name: Classify Changes
+  appearance-classify:
+    name: Verify appearance eligibility
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.draft == false && github.event.action == 'ready_for_review')
-    runs-on: ubuntu-latest
+      github.event_name == 'pull_request' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.changed_files > 0 &&
+      github.event.pull_request.changed_files <= 2 &&
+      vars.PIKA_APPEARANCE_CI != '' &&
+      vars.PIKA_APPEARANCE_CI != 'off'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
-      heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
-      mode: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'appearance-only' || steps.classify.outputs.mode }}
-      docs_only: ${{ steps.classify.outputs.docs_only }}
-      run_test_build: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_test_build }}
-      run_database: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_database }}
-      run_browser: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_browser }}
-      appearance_selection: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection || 'skip' }}
-      appearance_calendar: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.calendar || 'false' }}
-      appearance_join: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.join || 'false' }}
-
+      selection: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection || 'skip' }}
+      calendar: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.calendar || 'false' }}
+      join: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.join || 'false' }}
     env:
       APPEARANCE_SWITCH: ${{ vars.PIKA_APPEARANCE_CI }}
       APPEARANCE_BASE: ${{ github.event.pull_request.base.sha }}
       APPEARANCE_HEAD: ${{ github.event.pull_request.head.sha }}
       APPEARANCE_TESTED: ${{ github.sha }}
+    steps:
+      - name: Checkout Git evidence
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Prepare appearance policy from main
+        id: appearance-preflight
+        continue-on-error: true
+        shell: bash
+        run: |
+          [[ "$APPEARANCE_BASE" =~ ^[0-9a-f]{40}$ ]] || exit 0
+          [[ "$APPEARANCE_BASE" == "$(git rev-parse refs/remotes/origin/main)" ]] || exit 0
+          policy_dir="$(mktemp -d "$RUNNER_TEMP/pika-appearance.XXXXXXXX")"
+          for policy in classify-appearance-ci.mjs appearance-ci-diff.mjs; do
+            git show "$APPEARANCE_BASE:scripts/$policy" > "$policy_dir/$policy"
+          done
+          printf 'APPEARANCE_POLICY_DIR=%s\n' "$policy_dir" >> "$GITHUB_ENV"
+          node "$policy_dir/classify-appearance-ci.mjs" preflight
+
+      - name: Set up pnpm for appearance classification
+        id: appearance-pnpm
+        if: steps.appearance-preflight.outcome == 'success' && steps.appearance-preflight.outputs.candidate == 'true'
+        continue-on-error: true
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Classify the complete appearance diff
+        id: appearance
+        if: steps.appearance-pnpm.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$APPEARANCE_POLICY_DIR/node_modules"
+          node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify
+
+  classify-changes:
+    name: Classify Changes
+    needs: appearance-classify
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.draft == false && github.event.action == 'ready_for_review'))
+    runs-on: ubuntu-latest
+    outputs:
+      heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
+      mode: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'appearance-only' || steps.classify.outputs.mode }}
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      run_test_build: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_test_build }}
+      run_database: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_database }}
+      run_browser: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_browser }}
+      appearance_selection: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection || 'skip' }}
+      appearance_calendar: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.calendar || 'false' }}
+      appearance_join: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.join || 'false' }}
 
     steps:
       - name: Checkout code with change history
@@ -97,50 +160,8 @@ jobs:
               --github-output "$GITHUB_OUTPUT"
           fi
 
-      - name: Prepare appearance policy from main
-        id: appearance-preflight
-        if: >-
-          github.event_name == 'pull_request' &&
-          github.event.action == 'ready_for_review' &&
-          github.event.pull_request.base.ref == 'main' &&
-          github.event.pull_request.head.repo.full_name == github.repository &&
-          steps.classify.outputs.mode == 'application-browser' &&
-          vars.PIKA_APPEARANCE_CI != '' &&
-          vars.PIKA_APPEARANCE_CI != 'off'
-        continue-on-error: true
-        shell: bash
-        run: |
-          [[ "$APPEARANCE_BASE" =~ ^[0-9a-f]{40}$ ]] || exit 0
-          [[ "$APPEARANCE_BASE" == "$(git rev-parse refs/remotes/origin/main)" ]] || exit 0
-          policy_dir="$(mktemp -d "$RUNNER_TEMP/pika-appearance.XXXXXXXX")"
-          for policy in classify-appearance-ci.mjs appearance-ci-diff.mjs; do
-            git show "$APPEARANCE_BASE:scripts/$policy" > "$policy_dir/$policy"
-          done
-          printf 'APPEARANCE_POLICY_DIR=%s\n' "$policy_dir" >> "$GITHUB_ENV"
-          node "$policy_dir/classify-appearance-ci.mjs" preflight
-
-      - name: Set up pnpm for appearance classification
-        id: appearance-pnpm
-        if: steps.appearance-preflight.outcome == 'success' && steps.appearance-preflight.outputs.candidate == 'true'
-        continue-on-error: true
-        uses: pnpm/action-setup@v6
-        with:
-          version: 10.25.0
-
-      - name: Classify the complete appearance diff
-        id: appearance
-        if: steps.appearance-pnpm.outcome == 'success'
-        continue-on-error: true
-        shell: bash
-        run: |
-          pnpm install --frozen-lockfile --ignore-scripts
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$APPEARANCE_POLICY_DIR/node_modules"
-          node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify
-
   appearance-checks:
     name: Appearance checks
-    permissions:
-      contents: read
     needs: classify-changes
     if: >-
       needs.classify-changes.outputs.appearance_selection == 'gate' ||
