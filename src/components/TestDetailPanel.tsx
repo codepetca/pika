@@ -77,7 +77,7 @@ interface Props {
   onRequestTestPreview?: (preview: { testId: string; title: string }) => void
   onPendingMarkdownImportChange?: (pending: boolean) => void
   onSaveStatusChange?: (status: 'saved' | 'saving' | 'unsaved') => void
-  onDraftFlushReady?: (flush: (() => Promise<boolean>) | null) => void
+  onDraftFlushReady?: (flush: ((mode?: 'close') => Promise<boolean>) | null) => void
   onDraftPristineCheckReady?: (
     check: (() => { isPristine: boolean; draftVersion: number; testUpdatedAt: string }) | null
   ) => void
@@ -250,6 +250,7 @@ export function TestDetailPanel({
   } | null>(null)
   const [expandedQuestionIds, setExpandedQuestionIds] = useState<string[]>([])
   const [error, setError] = useState('')
+  const [titleError, setTitleError] = useState('')
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | 'unsaved'>('saved')
   const [saveStatusAnnouncement, setSaveStatusAnnouncement] = useState('')
   const [draftShowResults, setDraftShowResults] = useState(testAssessment.show_results)
@@ -280,6 +281,7 @@ export function TestDetailPanel({
   const lastSavedDraftRef = useRef('')
   const draftMutationRevisionRef = useRef(0)
   const saveStatusRef = useRef<'saved' | 'saving' | 'unsaved'>('saved')
+  const rejectedSaveRevisionRef = useRef<number | null>(null)
   const pendingDraftRef = useRef<AssessmentEditorDraft | null>(null)
   const saveDraftRef = useRef<
     | ((
@@ -514,6 +516,7 @@ export function TestDetailPanel({
       }
 
       setEditTitle(nextTitle)
+      setTitleError('')
       setDraftShowResults(nextShowResults)
       setQuestions(nextQuestions)
       savedMarkdownRef.current = nextSourceMarkdown
@@ -549,6 +552,7 @@ export function TestDetailPanel({
     loadedDraftTestIdRef.current = null
     setStructureLocked(true)
     setEditTitle(testDefaults.title)
+    setTitleError('')
     setDraftShowResults(testDefaults.show_results)
     // Parent summaries omit documents. Only reset them when the editor owner changes;
     // detail loads and document mutations own updates within the selected test.
@@ -846,7 +850,7 @@ export function TestDetailPanel({
           const serverDraft = data?.draft as
             | { version: number; content: { title: string; show_results: boolean; questions: TestAssessmentQuestion[] } }
             | undefined
-          if (serverDraft) {
+          if (serverDraft && data?.error !== TEST_CORRECTIONS_MESSAGE) {
             setConflictDraft({
               version: serverDraft.version,
               content: {
@@ -856,6 +860,7 @@ export function TestDetailPanel({
               },
             })
           }
+          rejectedSaveRevisionRef.current = saveRevision
           updateSaveStatus('unsaved')
           setError(data?.error || 'Draft updated elsewhere')
           return false
@@ -909,6 +914,7 @@ export function TestDetailPanel({
       } catch (saveError: any) {
         console.error('Error saving draft:', saveError)
         if (shouldApplySaveLocally()) {
+          rejectedSaveRevisionRef.current = saveRevision
           updateSaveStatus('unsaved')
           setError(saveError?.message || 'Failed to save draft')
         }
@@ -966,9 +972,13 @@ export function TestDetailPanel({
     [persistDraft],
   )
 
-  const flushPendingDraft = useCallback(async (): Promise<boolean> => {
-    if (calendarDateFlushRef.current && !await calendarDateFlushRef.current()) return false
-    if (splitEditorFlushRef.current && !splitEditorFlushRef.current()) return false
+  const flushPendingDraft = useCallback(async (mode?: 'close'): Promise<boolean> => {
+    const closing = mode === 'close'
+    const scope = currentLoadScopeRef.current
+    const dateValid = await (calendarDateFlushRef.current?.() ?? true)
+    if (!isCurrentAssessmentScope(scope) || (!closing && !dateValid)) return false
+    const editorValid = splitEditorFlushRef.current?.() ?? true
+    if (!closing && !editorValid) return false
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
       saveTimeoutRef.current = null
@@ -977,12 +987,27 @@ export function TestDetailPanel({
       clearTimeout(throttledSaveTimeoutRef.current)
       throttledSaveTimeoutRef.current = null
     }
-    if (conflictDraft) return false
-
+    if (closing) {
+      await saveRequestPromiseRef.current
+      if (!isCurrentAssessmentScope(scope)) return false
+    }
     const pendingDraft = pendingDraftRef.current
-    if (!pendingDraft) return true
-    return saveDraft(pendingDraft, { forceFull: true, documents })
-  }, [conflictDraft, documents, saveDraft])
+    const rejected = rejectedSaveRevisionRef.current === draftMutationRevisionRef.current
+    const saved = !conflictDraft && (!closing || !rejected) && (
+      !pendingDraft || (closing && saveStatusRef.current === 'saved')
+      || await saveDraft(pendingDraft, { forceFull: true, documents })
+    )
+    if (closing && isCurrentAssessmentScope(scope) && (!saved || !dateValid || !editorValid)) {
+      // Unmount normally flushes unsaved edits. Clear the discarded payload and
+      // restore the parent summary to the last acknowledged draft before closing.
+      pendingDraftRef.current = null
+      const savedContent = conflictDraft?.content ?? (
+        lastSavedDraftRef.current ? JSON.parse(lastSavedDraftRef.current) as AssessmentEditorDraft : null
+      )
+      if (savedContent) emitDraftSummaryChange(savedContent)
+    }
+    return saved && dateValid && editorValid
+  }, [conflictDraft, documents, emitDraftSummaryChange, isCurrentAssessmentScope, saveDraft])
 
   useEffect(() => {
     onDraftFlushReady?.(flushPendingDraft)
@@ -1309,6 +1334,7 @@ export function TestDetailPanel({
   }
 
   function handleTitleDraftChange(nextTitle: string) {
+    setTitleError('')
     setEditTitle(nextTitle)
     emitDraftSummaryChange({
       title: nextTitle,
@@ -1515,7 +1541,7 @@ export function TestDetailPanel({
     if (!applySplitPoints()) return false
     const title = editTitle.trim()
     if (!title) {
-      setError('Title is required')
+      setTitleError('Title is required')
       return false
     }
     if (pendingDraftRef.current && title !== pendingDraftRef.current.title) {
@@ -1918,6 +1944,21 @@ export function TestDetailPanel({
     void handleOpenTestPreview()
   }, [handleOpenTestPreview, previewRequestToken])
 
+  const draftSaveFeedback = error || conflictDraft ? (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+      <p role="alert" className="text-danger">{error || 'Draft updated elsewhere'}</p>
+      {conflictDraft ? (
+        <Button size="sm" variant="secondary" onClick={handleConflictReload}>
+          Load Latest
+        </Button>
+      ) : null}
+    </div>
+  ) : null
+  const questionLockHint = structureLocked && !loading && error !== TEST_CORRECTIONS_MESSAGE
+    && markdownError !== TEST_CORRECTIONS_MESSAGE && (
+    <p className="text-xs text-text-muted">A student has started. Question structure and grading are locked.</p>
+  )
+
   const testsMarkdownPanel = (
     <div className="flex h-full min-h-0 flex-col gap-3">
       <div className="modal-controls-row flex flex-wrap items-center justify-between gap-2">
@@ -1974,14 +2015,17 @@ export function TestDetailPanel({
           {markdownInfo}
         </div>
       )}
+      {usesSplitQuestions ? questionLockHint : null}
+      {usesSplitQuestions ? draftSaveFeedback : null}
       {markdownError && (
-        <div className="rounded-md border border-danger bg-danger-bg px-3 py-2 text-sm text-danger whitespace-pre-wrap">
+        <p id="test-markdown-error" role="alert" className="whitespace-pre-wrap text-sm text-danger">
           {markdownError}
-        </div>
+        </p>
       )}
       <textarea
         data-testid="test-markdown-editor"
         aria-label="Test markdown editor"
+        aria-describedby={markdownError ? 'test-markdown-error' : undefined}
         value={markdownContent}
         readOnly={!isMarkdownEditable}
         onChange={(event) => handleMarkdownChange(event.target.value)}
@@ -2310,6 +2354,7 @@ export function TestDetailPanel({
         <div className="flex min-h-0 flex-1 flex-col gap-3 p-3 sm:p-4 lg:overflow-y-auto">
           <CreationModalContextLabel itemType="Test" classroomName={classroomName} />
           <CreationModalTitleField
+            error={titleError}
             actions={
               <TeacherWorkSurfaceIconMenuButton
                 icon={<Plus className="h-7 w-7" aria-hidden="true" />}
@@ -2492,8 +2537,10 @@ export function TestDetailPanel({
           <div className="min-h-0 flex-1 p-3 sm:p-4">{testsMarkdownPanel}</div>
         ) : (
           <>
-            {pointsError ? <p id="test-split-points-error" role="alert" className="text-sm text-danger">{pointsError}</p> : null}
             <div className="min-h-0 flex-1 space-y-3 p-3 sm:p-4 lg:overflow-y-auto">
+              {questionLockHint}
+              {draftSaveFeedback}
+              {pointsError ? <p id="test-split-points-error" role="alert" className="text-sm text-danger">{pointsError}</p> : null}
               {selectedQuestion ? (
                 <TestQuestionEditor
                   ref={splitQuestionEditorRef}
@@ -2539,7 +2586,7 @@ export function TestDetailPanel({
         {saveStatusAnnouncement}
       </span>
       {titlePortal}
-      {structureLocked && !loading && (
+      {!usesSplitQuestions && structureLocked && !loading && (
         <p role="status" className="shrink-0 border-b border-border bg-warning-bg px-3 py-2 text-sm text-warning">
           {TEST_CORRECTIONS_MESSAGE}
         </p>
@@ -2614,10 +2661,10 @@ export function TestDetailPanel({
             : 'overflow-y-auto p-4',
         ].join(' ')}
       >
-        {error && (
+        {!usesSplitQuestions && error && (
           <div className="p-2 bg-danger-bg text-danger text-sm rounded mb-4">{error}</div>
         )}
-        {conflictDraft && (
+        {!usesSplitQuestions && conflictDraft && (
           <div className="p-2 border border-warning rounded bg-warning-bg text-warning text-sm mb-4 flex items-center justify-between gap-2">
             <span>Draft conflict detected. Load the latest saved draft before continuing.</span>
             <Button size="sm" variant="secondary" onClick={handleConflictReload}>
