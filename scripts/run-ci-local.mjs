@@ -330,6 +330,13 @@ function validateDatabaseInventory(jobs) {
 export function extractWorkflow(source) {
   const boundedEvidence = source.includes('ci-diagnostics.mjs')
   const lines = source.split(/\r?\n/)
+  const optionalAppearanceProof = lines.includes('  appearance-classify:')
+  const jobSelector = name => {
+    const check = `needs.classify-changes.outputs.run_${name} == 'true'`
+    return optionalAppearanceProof
+      ? `    if: \${{ !cancelled() && needs.classify-changes.result == 'success' && ${check} }}`
+      : `    if: ${check}`
+  }
   const environmentHeaders = lines.map((line, index) => /^env:/.test(line) ? index : -1).filter(index => index !== -1)
   let workflowEnv = {}
   if (environmentHeaders.length) {
@@ -390,13 +397,13 @@ export function extractWorkflow(source) {
     }
     if (databaseSplit && ['database', 'database-lifecycle'].includes(lane)) {
       const header = body.slice(0, stepsIndex)
-      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_database == 'true'", '    timeout-minutes: 90',
+      const required = ['    needs: classify-changes', jobSelector('database'), '    timeout-minutes: 90',
         lane === 'database-lifecycle' && !boundedEvidence ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
       if (required.some(line => header.filter(value => value === line).length !== 1) || header.includes('    env:')) throw new Error(`Canonical ${lane} database job topology changed.`)
     }
     if (isBrowserLane(lane)) {
       const header = body.slice(0, stepsIndex)
-      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_browser == 'true'", '    timeout-minutes: 90',
+      const required = ['    needs: classify-changes', jobSelector('browser'), '    timeout-minutes: 90',
         lane === 'browser' || boundedEvidence ? '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}' : '    runs-on: ubuntu-latest']
       if (required.some(line => header.filter(value => value === line).length !== 1)) throw new Error(`Canonical ${lane} browser job topology changed.`)
     }

@@ -101,14 +101,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
-      mode: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'appearance-only' || steps.classify.outputs.mode }}
+      mode: ${{ steps.appearance-route.outputs.selection == 'gate' && 'appearance-only' || steps.classify.outputs.mode }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
-      run_test_build: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_test_build }}
-      run_database: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_database }}
-      run_browser: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_browser }}
-      appearance_selection: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.selection || 'skip' }}
-      appearance_calendar: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.calendar || 'false' }}
-      appearance_join: ${{ needs.appearance-classify.result == 'success' && needs.appearance-classify.outputs.join || 'false' }}
+      run_test_build: ${{ steps.appearance-route.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_test_build }}
+      run_database: ${{ steps.appearance-route.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_database }}
+      run_browser: ${{ steps.appearance-route.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_browser }}
+      appearance_selection: ${{ steps.appearance-route.outputs.selection || 'skip' }}
+      appearance_calendar: ${{ steps.appearance-route.outputs.calendar || 'false' }}
+      appearance_join: ${{ steps.appearance-route.outputs.join || 'false' }}
 
     steps:
       - name: Checkout code with change history
@@ -160,12 +160,26 @@ jobs:
               --github-output "$GITHUB_OUTPUT"
           fi
 
+      - name: Combine ordinary and verified appearance selectors
+        id: appearance-route
+        if: >-
+          needs.appearance-classify.result == 'success' &&
+          steps.classify.outputs.mode == 'application-browser'
+        env:
+          APPEARANCE_SELECTION: ${{ needs.appearance-classify.outputs.selection }}
+          APPEARANCE_CALENDAR: ${{ needs.appearance-classify.outputs.calendar }}
+          APPEARANCE_JOIN: ${{ needs.appearance-classify.outputs.join }}
+        run: |
+          printf 'selection=%s\ncalendar=%s\njoin=%s\n' \
+            "$APPEARANCE_SELECTION" "$APPEARANCE_CALENDAR" "$APPEARANCE_JOIN" >> "$GITHUB_OUTPUT"
+
   appearance-checks:
     name: Appearance checks
     needs: classify-changes
     if: >-
-      needs.classify-changes.outputs.appearance_selection == 'gate' ||
-      needs.classify-changes.outputs.appearance_selection == 'shadow'
+      !cancelled() && needs.classify-changes.result == 'success' &&
+      (needs.classify-changes.outputs.appearance_selection == 'gate' ||
+       needs.classify-changes.outputs.appearance_selection == 'shadow')
     uses: ./.github/workflows/appearance-checks.yml
     with:
       calendar: ${{ needs.classify-changes.outputs.appearance_calendar == 'true' }}
@@ -177,7 +191,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -598,7 +612,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1267,7 +1281,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1427,7 +1441,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1561,7 +1575,7 @@ jobs:
   test-and-build:
     name: Test & Build
     needs: classify-changes
-    if: needs.classify-changes.result == 'success'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1686,7 +1700,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_browser == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
@@ -1821,7 +1835,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_browser == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
@@ -1955,7 +1969,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_browser == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
