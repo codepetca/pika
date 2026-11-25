@@ -7,7 +7,8 @@ import { collectCiDiagnostics } from '../../scripts/ci-diagnostics.mjs'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutHomeVisibilityProof = (source: string) => source.replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutNotificationProof = (source: string) => source.replace(/^      - name: Verify student notification counts and execution privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutHomeVisibilityProof = (source: string) => withoutNotificationProof(source).replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutMembershipAdoptionProof = (source: string) => withoutHomeVisibilityProof(source).replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutDataApiProof = (source: string) => withoutMembershipAdoptionProof(source).replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
 const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
@@ -100,7 +101,7 @@ describe('attendance membership proof inventory', () => {
 
 describe('personal joined-home visibility proof inventory', () => {
   it('adds the isolated visibility proof while preserving the historical inventory', () => {
-    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const current = selectPlan(extractWorkflow(withoutNotificationProof(workflow())), 'database')[0]
     const historical = selectPlan(extractWorkflow(withoutHomeVisibilityProof(workflow())), 'database')[0]
     const command = 'bash scripts/check-classroom-home-visibility-database.sh'
     expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
@@ -114,6 +115,28 @@ describe('personal joined-home visibility proof inventory', () => {
       : defect === 'renamed' ? block.replace('visibility and concurrency', 'renamed proof')
       : block.replace('visibility-database.sh', 'visibility-database.sh --skip')
     expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
+
+describe('student notification proof inventory', () => {
+  it('adds the exact proof to the previous complete inventory', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const previous = selectPlan(extractWorkflow(withoutNotificationProof(workflow())), 'database')[0]
+    const name = 'Verify student notification counts and execution privileges'
+    expect(current.steps.filter(step => step.name === name)).toHaveLength(1)
+    expect(current.steps.filter(step => step.name !== name)).toEqual(previous.steps)
+  })
+  it.each(['changed-command', 'conditional', 'duplicate', 'renamed', 'wrong-lane'])('rejects %s notification proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify student notification counts and execution privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : defect === 'renamed' ? block.replace('counts and execution privileges', 'renamed proof')
+      : defect === 'wrong-lane' ? '' : block.replace('-v ON_ERROR_STOP=1', '-v ON_ERROR_STOP=0')
+    const changed = source.replace(block, replacement)
+    expect(() => extractWorkflow(defect === 'wrong-lane'
+      ? changed.replace(/(  architecture-database-contracts-lifecycle:\n[\s\S]*?)(      - name: Stop ephemeral database\n)/, `$1${block}$2`)
+      : changed)).toThrow()
   })
 })
 

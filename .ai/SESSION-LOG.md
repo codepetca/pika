@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 — Rebase the dormant billing recovery caller
-
-Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
-
-## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
-
-Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
-
 ## 2026-11-10 — Rebase the teacher billing access reminders
 
 Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
@@ -196,6 +188,14 @@ Reproduced the Post failure with a zero-byte HTTP request through Next.js. The r
 
 The production classifier can reuse Test & Build and PR Gate for a canonical same-repository promotion after verifying both parent pairs, reconstructing the clean sync, and matching GitHub's test-merge tree. The only permitted differences from current main are the two regular continuity files. Missing or conflicting evidence still selects full CI. The chip release's actual GitHub test merge provides the historical replay.
 
+## 2026-11-24 — Reduce student sidebar notification queries
+
+Admitted classroom participants use a single service-role SQL snapshot for the four existing sidebar counts. Migration 331 preserves current enrollment, owner precedence, release timing, and feature visibility. Before the RPC is installed, its exact missing-function response selects the existing reader. API regressions and disposable SQL checks cover the new route and authorization.
+
 ## 2026-11-24 — Appearance-only PR Gate path
 
 Added a switch-controlled CI path for exact Calendar announcement palette edits and plain Join helper copy. The current main policy verifies the complete PR diff and the tested merge. Workflow contracts remain required, and the focused job checks the selected surfaces against the actual merge. Shadow mode keeps the normal checks and records focused evidence alongside them. Exact-head rollout, rollback, and hosted evidence are tracked in the rollout PR.
+
+## 2026-11-25 — Bound student notification fallback time
+
+Merged main into the notification query branch, shared the RPC deadline with its compatibility fallback, and separated the test-override database assertions. Focused notification API tests passed; migration 331 is unchanged.

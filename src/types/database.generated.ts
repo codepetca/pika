@@ -13705,6 +13705,10 @@ export type Database = {
         Args: { p_actor_id: string; p_operation_id: string }
         Returns: Json
       }
+      read_student_notification_counts_v1: {
+        Args: { p_actor_id: string; p_classroom_id: string }
+        Returns: Json
+      }
       read_verified_classroom_auto_admission_eligibility_v1: {
         Args: { p_actor_id: string; p_bootstrap_manifest_sha256: string }
         Returns: Json
