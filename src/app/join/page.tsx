@@ -25,11 +25,11 @@ function JoinCodeForm() {
       <div className="max-w-md w-full bg-surface rounded-lg shadow-sm p-8">
         <h1 className="text-2xl font-bold text-text-default">Join a classroom</h1>
         <p className="text-text-muted mt-2">
-          Enter the join code your teacher gave you.
+          Use the join code your teacher shared.
         </p>
 
         <form className="mt-6 space-y-3" onSubmit={submit}>
-          <FormField label="Join code">
+          <FormField label="Class join code">
             <Input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
