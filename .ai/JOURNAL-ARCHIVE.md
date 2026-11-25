@@ -54603,3 +54603,8 @@ Preserved the reviewed exclusive-tax and readiness changes and migration 326. Th
 ## 2026-11-10 — Rebase the teacher billing access reminders
 
 Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
+
+<!-- pika-session-log-archive-batch:04408b86148790f3edc4335eb35f3377ffaf24c870be4780a0e0484e0ab61fa1 -->
+## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
+
+Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.

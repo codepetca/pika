@@ -29,6 +29,7 @@ type AssignmentLike = {
   title: string
   position?: number | null
   created_at?: string | null
+  released_at?: string | null
   is_draft?: boolean
 }
 
@@ -37,6 +38,7 @@ type MaterialLike = {
   title: string
   position?: number | null
   created_at?: string | null
+  released_at?: string | null
   is_draft?: boolean
 }
 
@@ -45,6 +47,7 @@ type SurveyLike = {
   title: string
   position?: number | null
   created_at?: string | null
+  opens_at?: string | null
   status?: string
 }
 
@@ -125,4 +128,22 @@ export function buildOrderedClassworkItems<
 
     return left.id.localeCompare(right.id)
   })
+}
+
+export function buildStudentClassworkItems<
+  TAssignment extends AssignmentLike,
+  TMaterial extends MaterialLike,
+  TSurvey extends SurveyLike,
+>(assignments: TAssignment[], materials: TMaterial[], surveys: TSurvey[]) {
+  return buildOrderedClassworkItems(assignments, materials, surveys)
+    .map((item) => {
+      const postedAt = item.type === 'survey'
+        ? item.survey.opens_at
+        : (item.type === 'assignment' ? item.assignment : item.material).released_at
+      const timestamp = Date.parse(postedAt || item.createdAt)
+      return { item, timestamp: Number.isFinite(timestamp) ? timestamp : Number.MIN_SAFE_INTEGER }
+    })
+    // Keep the shared Classwork order when the posting timestamps match.
+    .sort((left, right) => right.timestamp - left.timestamp)
+    .map(({ item }) => item)
 }
