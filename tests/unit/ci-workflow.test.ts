@@ -9,6 +9,9 @@ import { extractWorkflow } from '../../scripts/run-ci-local.mjs'
 
 const workflowPath = resolve(process.cwd(), '.github/workflows/ci.yml')
 const retiredUiWorkflowPath = resolve(process.cwd(), '.github/workflows/ui-policy.yml')
+const jobStatus = "!cancelled() && needs.classify-changes.result == 'success'"
+const databaseSelector = `if: \${{ ${jobStatus} && needs.classify-changes.outputs.run_database == 'true' }}`
+const browserSelector = `if: \${{ ${jobStatus} && needs.classify-changes.outputs.run_browser == 'true' }}`
 
 const ownerProfiles = [
   ['detail', 'Verify isolated contextual Test owner-detail SDK reads'],
@@ -31,6 +34,7 @@ function runGate(overrides: Record<string, string | undefined> = {}) {
     encoding: 'utf8',
     env: { PATH: process.env.PATH, CI_EVENT_ELIGIBLE: 'true', CLASSIFY_RESULT: 'success',
       TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
+      APPEARANCE_SELECTION: 'skip', APPEARANCE_CALENDAR: 'false', APPEARANCE_JOIN: 'false', APPEARANCE_RESULT: 'skipped',
       DATABASE_RESULT: 'success', DATABASE_LIFECYCLE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
       BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', BROWSER_PATTERN_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
   })
@@ -81,7 +85,7 @@ describe('CI workflow', () => {
       expect(job.steps.find(step => step.id === 'ci-isolation')?.run).toBe(`node scripts/ci-runner-preflight.mjs --lane ${job.lane}`)
     }
     expect(jobSource(source, secondary.id)).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
-    expect(jobSource(source, secondary.id)).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
+    expect(jobSource(source, secondary.id)).toContain(databaseSelector)
     expect(jobSource(source, secondary.id)).toContain('needs: classify-changes')
     expect(jobSource(source, 'pr-gate')).toContain('DATABASE_LIFECYCLE_RESULT: ${{ needs.architecture-database-contracts-lifecycle.result }}')
   })
@@ -112,7 +116,7 @@ describe('CI workflow', () => {
     for (const job of [shard, lifecycle]) {
       const body = jobSource(workflow, job.id)
       expect(body).toContain('needs: classify-changes\n')
-      expect(body).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
+      expect(body).toContain(databaseSelector)
       expect(body).toContain('runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}')
       expect(job.steps.filter(step => step.run?.includes('--reviewed-head')).map(step => step.name))
         .toEqual(ownerProfiles.filter(([profile]) => primaryProfiles.has(profile) === (job === shard)).map(([, name]) => name))
@@ -298,6 +302,91 @@ done
       expect(gate.status).toBe(1)
     },
   )
+
+  it('selects the appearance job from the trusted base for a ready same-repository main PR', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const classify = jobSource(workflow, 'classify-changes')
+    const eligibility = jobSource(workflow, 'appearance-classify')
+    const appearance = jobSource(workflow, 'appearance-checks')
+    const gate = jobSource(workflow, 'pr-gate')
+
+    expect(eligibility).toContain("github.event.action == 'ready_for_review'")
+    expect(eligibility).toContain("github.event.pull_request.base.ref == 'main'")
+    expect(eligibility).toContain('github.event.pull_request.head.repo.full_name == github.repository')
+    expect(eligibility).toContain('git show "$APPEARANCE_BASE:scripts/$policy"')
+    expect(eligibility).toContain('git rev-parse refs/remotes/origin/main')
+    expect(eligibility).toContain('persist-credentials: false')
+    expect(eligibility).toContain('pnpm install --frozen-lockfile --ignore-scripts')
+    expect(eligibility).toContain('node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify')
+    expect(eligibility).not.toContain('run: node scripts/')
+    expect(classify).toContain('needs: appearance-classify')
+    const guardedOutputs = ['mode', 'run_test_build', 'run_database', 'run_browser',
+      'appearance_selection', 'appearance_calendar', 'appearance_join']
+    for (const output of guardedOutputs) {
+      const expression = classify.split(`      ${output}: >-\n`)[1]?.split(/\n {0,6}\S/)[0] ?? ''
+      expect(expression).toContain("needs.appearance-classify.result == 'success'")
+      expect(expression).toContain("steps.classify.outputs.mode == 'application-browser'")
+      expect(expression).toContain('needs.appearance-classify.outputs.')
+    }
+    expect(classify).not.toContain('APPEARANCE_SELECTION:')
+    expect(appearance).toContain(jobStatus)
+    expect(classify).not.toContain('APPEARANCE_POLICY_DIR')
+    expect(appearance).toContain('uses: ./.github/workflows/appearance-checks.yml')
+    expect(appearance).not.toContain('secrets:')
+    expect(gate).toContain('- appearance-checks')
+    expect(gate).toContain('APPEARANCE_RESULT: ${{ needs.appearance-checks.result }}')
+  })
+
+  it('preserves each selected downstream lane if optional appearance classification is skipped or fails', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    expect(jobSource(workflow, 'classify-changes')).toContain("!cancelled() &&")
+    expect(jobSource(workflow, 'test-and-build')).toContain(`if: \${{ ${jobStatus} }}`)
+    for (const id of ['architecture-database-contracts', 'architecture-database-contracts-lifecycle',
+      'contextual-test-owner-sdk', 'contextual-test-owner-sdk-lifecycle']) {
+      expect(jobSource(workflow, id)).toContain(databaseSelector)
+    }
+    for (const id of ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
+      expect(jobSource(workflow, id)).toContain(browserSelector)
+    }
+    expect(jobSource(workflow, 'appearance-checks')).toContain(jobStatus)
+  })
+
+  const appearanceGate = {
+    CI_MODE: 'appearance-only', TEST_BUILD_REQUIRED: 'false', DATABASE_REQUIRED: 'false',
+    APPEARANCE_SELECTION: 'gate', APPEARANCE_CALENDAR: 'true', APPEARANCE_RESULT: 'success',
+  }
+
+  it.each([['true', 'false'], ['false', 'true'], ['true', 'true']])(
+    'accepts required appearance evidence with Calendar=%s and Join=%s', (calendar, join) => {
+      expect(runGate({ ...appearanceGate, APPEARANCE_CALENDAR: calendar, APPEARANCE_JOIN: join }).status).toBe(0)
+    },
+  )
+
+  it.each(['failure', 'cancelled', 'skipped', '', undefined])(
+    'blocks the required gate for appearance result %s', result => {
+      expect(runGate({ ...appearanceGate, APPEARANCE_RESULT: result }).status).toBe(1)
+    },
+  )
+
+  it('rejects inconsistent appearance eligibility and still requires the workflow contracts', () => {
+    for (const invalid of [
+      { APPEARANCE_CALENDAR: 'false' }, { APPEARANCE_SELECTION: 'skip' },
+      { APPEARANCE_SELECTION: 'shadow' }, { APPEARANCE_JOIN: '' },
+      { TEST_BUILD_REQUIRED: 'true' }, { TEST_BUILD_RESULT: 'skipped' },
+      { DATABASE_REQUIRED: 'true' }, { BROWSER_REQUIRED: 'true' },
+    ]) expect(runGate({ ...appearanceGate, ...invalid }).status).toBe(1)
+  })
+
+  it('keeps shadow failure advisory and requires the broad browser evidence', () => {
+    const shadow = {
+      CI_MODE: 'application-browser', DATABASE_REQUIRED: 'false', BROWSER_REQUIRED: 'true',
+      BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success',
+      APPEARANCE_SELECTION: 'shadow', APPEARANCE_JOIN: 'true', APPEARANCE_RESULT: 'failure',
+    }
+    expect(runGate(shadow).status).toBe(0)
+    expect(runGate({ ...shadow, BROWSER_RESULT: 'skipped' }).status).toBe(1)
+    expect(runGate({ ...shadow, APPEARANCE_SELECTION: 'gate' }).status).toBe(1)
+  })
 
   it('keeps all fresh Test pilot modes and failure receipts while collecting only sanitized timings', () => {
     const workflow = readFileSync(workflowPath, 'utf8')
@@ -598,9 +687,9 @@ done
     expect(workflow).toContain('--tested-sha "$GITHUB_SHA"')
     expect(workflow).toContain('--head-repository "$HEAD_REPOSITORY"')
     expect(workflow).toContain('--base-repository "$BASE_REPOSITORY"')
-    expect(workflow).toContain("if: needs.classify-changes.outputs.run_database == 'true'")
-    expect(workflow).toContain("if: needs.classify-changes.outputs.run_browser == 'true'")
-    expect(workflow).toContain("if: needs.classify-changes.result == 'success'")
+    expect(workflow).toContain(databaseSelector)
+    expect(workflow).toContain(browserSelector)
+    expect(workflow).toContain(`if: \${{ ${jobStatus} }}`)
     expect(workflow).toContain('run: pnpm run check:workflow')
     expect(workflow).toContain('Verify every selected check passed')
     expect(workflow).toContain('CI_EVENT_ELIGIBLE: ${{ github.event_name == \'workflow_dispatch\' || github.event.action == \'ready_for_review\' }}')
@@ -623,7 +712,7 @@ done
     expect(workflow.match(/run: pnpm e2e:ci --project=/g)).toHaveLength(1)
     for (const id of ['browser-experience-matrix', 'browser-experience-dark', 'browser-pattern-lab-dark']) {
       const body = jobSource(workflow, id)
-      expect(body).toContain("if: needs.classify-changes.outputs.run_browser == 'true'")
+      expect(body).toContain(browserSelector)
       expect(body).toContain('timeout-minutes: 90')
       expect(body).toContain('run: pnpm seed')
       expect(body).toContain('pnpm exec playwright install --with-deps chromium')

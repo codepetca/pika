@@ -105,6 +105,22 @@ begin
   end if;
   reset role;
 
+  -- Observe each override independently so opposite counting mistakes cannot cancel.
+  delete from public.test_student_availability where test_id = reopened_test and student_id = member_id;
+  result := public.read_student_notification_counts_v1(member_id, class_id);
+  if result -> 'activeTestsCount' is distinct from '1'::jsonb then
+    raise exception 'Reopened test override was not counted independently: %', result;
+  end if;
+  insert into public.test_student_availability(test_id, student_id, state, updated_by)
+    values (reopened_test, member_id, 'open', owner_id);
+  delete from public.test_student_availability where test_id = disabled_test and student_id = member_id;
+  result := public.read_student_notification_counts_v1(member_id, class_id);
+  if result -> 'activeTestsCount' is distinct from '3'::jsonb then
+    raise exception 'Individually closed test override was not counted independently: %', result;
+  end if;
+  insert into public.test_student_availability(test_id, student_id, state, updated_by)
+    values (disabled_test, member_id, 'closed', owner_id);
+
   insert into public.entries(classroom_id, student_id, date, text, on_time)
     values (class_id, member_id, today, 'Own Daily entry', true);
   set local role service_role;

@@ -54585,6 +54585,16 @@ Hosted CI requires the scheduled cancellation and offers exports to call withErr
 The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
 
 <!-- pika-session-log-archive-batch:b3b6771b6764789bf238f283ca68a6733fde37ef5b03a56c54c7e5642f9b6ef6 -->
+<!-- pika-session-log-archive-batch:2cca5a33fd6653a15845daea0d7e10071d2b4bc4eafe2da3e8a9bb90a7d1dde8 -->
 ## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
 
 Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+
+<!-- pika-session-log-archive-batch:f367f5857ae9eb7ac3b4c0da8fe0623c29c265747d22fc27e9b772b834509d74 -->
+## 2026-11-10 — Rebase the dormant billing recovery caller
+
+Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
+
+## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
+
+Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.

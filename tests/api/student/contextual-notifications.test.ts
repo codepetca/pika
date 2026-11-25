@@ -104,6 +104,32 @@ describe('contextual student notifications', () => {
     expect(f.from).not.toHaveBeenCalled()
   })
 
+  it('shares the deadline with a fallback after a late missing RPC', async () => {
+    vi.useFakeTimers()
+    try {
+      f.abortSignal.mockImplementation(() => new Promise(resolve => setTimeout(() => resolve({
+        data: null,
+        error: { code: 'PGRST202', message: 'Could not find the function public.read_student_notification_counts_v1(p_actor_id, p_classroom_id) in the schema cache' },
+      }), 19000)))
+      const query: Record<string, unknown> = {}
+      for (const name of ['select', 'eq', 'abortSignal']) query[name] = vi.fn(() => query)
+      query.maybeSingle = vi.fn(() => new Promise(() => {}))
+      f.from.mockReturnValue(query)
+      const response = GET(request())
+      await vi.advanceTimersByTimeAsync(19000)
+      expect(f.from).toHaveBeenCalledOnce()
+      await vi.advanceTimersByTimeAsync(999)
+      let settled = false
+      void response.then(() => { settled = true })
+      await Promise.resolve()
+      expect(settled).toBe(false)
+      await vi.advanceTimersByTimeAsync(1)
+      expect((await response).status).toBe(503)
+      expect(settled).toBe(true)
+      expect(vi.getTimerCount()).toBe(0)
+    } finally { vi.useRealTimers() }
+  })
+
   it('admits a teacher-valued current member through the actual route', async () => {
     const calls = mockDatabase()
     const response = await GET(request())
