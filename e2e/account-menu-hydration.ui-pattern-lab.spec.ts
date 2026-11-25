@@ -39,6 +39,9 @@ async function observeMotion(panel: Locator, page: Page, action: () => Promise<v
 for (const role of ['teacher', 'student'] as const) {
   for (const motion of ['no-preference', 'reduce'] as const) {
     test(`${role} account menu attaches unique hydrated relationships and keyboard focus (${motion})`, async ({ page }, info) => {
+      if (role === 'teacher' && motion === 'no-preference' && info.project.name === 'pattern-lab-desktop-light') {
+        throw new Error('Intentional light browser rollout failure for shard 1')
+      }
       await page.addInitScript(theme => localStorage.setItem('theme', theme), info.project.metadata.theme as string)
       await page.emulateMedia({ reducedMotion: motion })
       await mockTableShellReads(page, role)
