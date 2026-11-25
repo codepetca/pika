@@ -21,7 +21,7 @@ import { Button, Card, ConfirmDialog, PageContent, PageHeading, PageLayout, Page
 import { StudentTestListItem } from '@/components/StudentTestListItem'
 import { getStudentTestPresentation } from '@/lib/student-test-presentation'
 import { readTestFromPayload, readTestsFromPayload } from '@/lib/test-api-contract'
-import { isTestScheduledForFuture } from '@/lib/test-scheduling'
+import { isTestScheduledForFuture, listVisibleStudentTests } from '@/lib/test-scheduling'
 import { getTodayInToronto, toTorontoStartOfDayIso } from '@/lib/timezone'
 import { addDaysToDateString } from '@/lib/date-string'
 import {
@@ -342,7 +342,10 @@ export function StudentTestsTab({ classroom, isActive = true, selectedTestId: re
   const hasCurrentTestsSnapshot = loadedTestsScope === currentTestsScope
   const [today, setToday] = useState(getTodayInToronto)
   const [scheduledSelectionId, setScheduledSelectionId] = useState<string | null>(null)
-  const visibleTests = hasCurrentTestsSnapshot ? tests.filter(test => !isTestScheduledForFuture(test, today)) : []
+  const visibleTests = useMemo(
+    () => hasCurrentTestsSnapshot ? listVisibleStudentTests(tests, today) : [],
+    [hasCurrentTestsSnapshot, tests, today],
+  )
   const scheduledSelection = hasCurrentTestsSnapshot
     ? tests.find(test => test.id === scheduledSelectionId && isTestScheduledForFuture(test, today))
     : undefined

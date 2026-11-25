@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,11 +8,16 @@ import { join } from 'node:path'
 // Keep each top-level describe together, including any serial or beforeAll hooks.
 // Each Playwright invocation owns a fresh server and repeats project setup.
 const projects = ['chromium-desktop', 'chromium-mobile-light', 'pattern-lab-desktop-light', 'pattern-lab-mobile-light']
+const shardPartitionIds = [[1, 3, 5], [2, 4, 6, 7]]
+let verifyOnly = false, shard = null
+for (const arg of process.argv.slice(2)) {
+  if (arg === '--verify-only' && !verifyOnly) verifyOnly = true
+  else if (/^--shard=[12]$/.test(arg) && shard === null) shard = Number(arg.at(-1))
+  else throw new Error('Unexpected arguments: use --verify-only and/or one --shard=1 or --shard=2')
+}
 const flags = projects.map(project => `--project=${project}`)
 const script = JSON.parse(readFileSync('package.json', 'utf8')).scripts['e2e:ci'].split(/\s+/)
 const temp = mkdtempSync(join(tmpdir(), 'pika-browser-light-'))
-const verifyOnly = process.argv.slice(2).join(' ') === '--verify-only'
-if (process.argv.length > 2 && !verifyOnly) throw new Error('Unexpected arguments')
 
 function list(extra = [], selectedFlags = flags) {
   const result = spawnSync('pnpm', ['exec', ...script, ...selectedFlags, '--list', '--reporter=json', ...extra],
@@ -84,6 +90,9 @@ try {
     ...balance(grouped.slice(lifecycleEnd), 2),
   ]
   if (partitions.some(part => !part.length)) throw new Error('Empty light partition')
+  const allPartitionIds = partitions.map((_, i) => i + 1)
+  if (partitions.length !== 7 || !same(shardPartitionIds.flat(), allPartitionIds)) throw new Error('Light shard partition union mismatch')
+  const selectedPartitionIds = shard === null ? allPartitionIds : shardPartitionIds[shard - 1]
   const seen = []
   const paths = partitions.map((partition, i) => {
     const path = join(temp, `part-${i + 1}.txt`)
@@ -96,7 +105,17 @@ try {
   })
   if (!same(seen, tests.map(row => row.identity))) throw new Error('Light partition union mismatch')
   console.log(`Verified ${tests.length} light project tests in partitions of ${partitions.map(part => part.length).join(', ')}; required setup repeats for each partition; lifecycle runs alone.`)
+  // Sorted canonical identities include setup; selected test counts exclude its repetitions.
+  console.log(`BROWSER_LIGHT_INVENTORY ${JSON.stringify({
+    version: 1,
+    inventorySha256: createHash('sha256').update(JSON.stringify(full.map(row => row.identity).sort())).digest('hex'),
+    totalTestCount: tests.length,
+    selectedTestCount: selectedPartitionIds.reduce((sum, id) => sum + partitions[id - 1].length, 0),
+    partitionIds: selectedPartitionIds,
+    partitionTestCounts: selectedPartitionIds.map(id => partitions[id - 1].length),
+  })}`)
   if (!verifyOnly) for (const [index, path] of paths.entries()) {
+    if (!selectedPartitionIds.includes(index + 1)) continue
     console.log(`Running light partition ${index + 1}/${paths.length}`)
     const result = spawnSync('pnpm', ['exec', ...script, ...flags, `--test-list=${path}`], { stdio: 'inherit' })
     if (result.status !== 0) throw new Error(`Light partition ${index + 1} failed${result.signal ? ` (${result.signal})` : ''}`)

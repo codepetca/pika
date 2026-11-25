@@ -24,19 +24,124 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  appearance-classify:
+    name: Verify appearance eligibility
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.action == 'ready_for_review' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.changed_files > 0 &&
+      github.event.pull_request.changed_files <= 2 &&
+      vars.PIKA_APPEARANCE_CI != '' &&
+      vars.PIKA_APPEARANCE_CI != 'off'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      selection: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection || 'skip' }}
+      calendar: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.calendar || 'false' }}
+      join: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.join || 'false' }}
+    env:
+      APPEARANCE_SWITCH: ${{ vars.PIKA_APPEARANCE_CI }}
+      APPEARANCE_BASE: ${{ github.event.pull_request.base.sha }}
+      APPEARANCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      APPEARANCE_TESTED: ${{ github.sha }}
+    steps:
+      - name: Checkout Git evidence
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Prepare appearance policy from main
+        id: appearance-preflight
+        continue-on-error: true
+        shell: bash
+        run: |
+          [[ "$APPEARANCE_BASE" =~ ^[0-9a-f]{40}$ ]] || exit 0
+          [[ "$APPEARANCE_BASE" == "$(git rev-parse refs/remotes/origin/main)" ]] || exit 0
+          policy_dir="$(mktemp -d "$RUNNER_TEMP/pika-appearance.XXXXXXXX")"
+          for policy in classify-appearance-ci.mjs appearance-ci-diff.mjs; do
+            git show "$APPEARANCE_BASE:scripts/$policy" > "$policy_dir/$policy"
+          done
+          printf 'APPEARANCE_POLICY_DIR=%s\n' "$policy_dir" >> "$GITHUB_ENV"
+          node "$policy_dir/classify-appearance-ci.mjs" preflight
+
+      - name: Set up pnpm for appearance classification
+        id: appearance-pnpm
+        if: steps.appearance-preflight.outcome == 'success' && steps.appearance-preflight.outputs.candidate == 'true'
+        continue-on-error: true
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Classify the complete appearance diff
+        id: appearance
+        if: steps.appearance-pnpm.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$APPEARANCE_POLICY_DIR/node_modules"
+          node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify
+
   classify-changes:
     name: Classify Changes
+    needs: appearance-classify
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.draft == false && github.event.action == 'ready_for_review')
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.pull_request.draft == false && github.event.action == 'ready_for_review'))
     runs-on: ubuntu-latest
     outputs:
       heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
-      mode: ${{ steps.classify.outputs.mode }}
+      mode: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.selection == 'gate' && 'appearance-only' || steps.classify.outputs.mode }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
-      run_test_build: ${{ steps.classify.outputs.run_test_build }}
-      run_database: ${{ steps.classify.outputs.run_database }}
-      run_browser: ${{ steps.classify.outputs.run_browser }}
+      run_test_build: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_test_build }}
+      run_database: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_database }}
+      run_browser: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_browser }}
+      appearance_selection: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.selection || 'skip' }}
+      appearance_calendar: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.calendar || 'false' }}
+      appearance_join: >-
+        ${{ needs.appearance-classify.result == 'success' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           needs.appearance-classify.outputs.join || 'false' }}
+
+      light_browser_mode: >-
+        ${{ github.event_name == 'pull_request' &&
+           github.event.action == 'ready_for_review' &&
+           github.event.pull_request.base.ref == 'main' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           github.event.pull_request.head.sha != '' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           (needs.appearance-classify.result != 'success' || needs.appearance-classify.outputs.selection != 'gate') &&
+           steps.runner.outputs.heavy_runner == '["ubuntu-24.04"]' &&
+           ((vars.PIKA_LIGHT_BROWSER_CI == 'enabled' || vars.PIKA_LIGHT_BROWSER_CI == github.event.pull_request.head.sha) && 'parallel' ||
+            vars.PIKA_LIGHT_BROWSER_CI == format('shadow:{0}', github.event.pull_request.head.sha) && 'shadow') || 'serial' }}
 
     steps:
       - name: Checkout code with change history
@@ -75,17 +180,30 @@ jobs:
             node scripts/classify-ci-changes.mjs --full --github-output "$GITHUB_OUTPUT"
           else
             git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
-            MAIN_SHA="$(git rev-parse origin/main)"
+            MAIN_SHA="$(git show-ref --verify --hash refs/remotes/origin/main)"
             node scripts/classify-ci-changes.mjs \
               --base "$BASE_SHA" \
               --head "$HEAD_SHA" \
               --target "$TARGET_BRANCH" \
               --head-branch "$HEAD_BRANCH" \
               --main-sha "$MAIN_SHA" \
+              --tested-sha "$GITHUB_SHA" \
               --head-repository "$HEAD_REPOSITORY" \
               --base-repository "$BASE_REPOSITORY" \
               --github-output "$GITHUB_OUTPUT"
           fi
+
+  appearance-checks:
+    name: Appearance checks
+    needs: classify-changes
+    if: >-
+      !cancelled() && needs.classify-changes.result == 'success' &&
+      (needs.classify-changes.outputs.appearance_selection == 'gate' ||
+       needs.classify-changes.outputs.appearance_selection == 'shadow')
+    uses: ./.github/workflows/appearance-checks.yml
+    with:
+      calendar: ${{ needs.classify-changes.outputs.appearance_calendar == 'true' }}
+      join: ${{ needs.classify-changes.outputs.appearance_join == 'true' }}
 
   architecture-database-contracts:
     name: Architecture Database Contracts
@@ -93,7 +211,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -171,6 +289,13 @@ jobs:
 
       - name: Verify explicit server-only Data API grants without automatic defaults
         run: bash scripts/check-data-api-grants-database.sh
+
+      - name: Verify student notification counts and execution privileges
+        shell: bash
+        run: |
+          [[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
+          docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
+          docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-student-notification-counts.sql
 
       - name: Check generated database types
         run: pnpm run db:types:check
@@ -514,7 +639,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1183,7 +1308,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1343,7 +1468,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_database == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_database == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1477,7 +1602,7 @@ jobs:
   test-and-build:
     name: Test & Build
     needs: classify-changes
-    if: needs.classify-changes.result == 'success'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
 
@@ -1597,14 +1722,37 @@ jobs:
           if-no-files-found: ignore
 
   browser-experience-matrix:
-    name: Browser Experience Matrix
+    name: ${{ matrix.shard == 0 && 'Browser Experience Matrix' || format('Browser Experience Matrix (light shard {0})', matrix.shard) }}
     permissions:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_browser == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
+    continue-on-error: ${{ matrix.advisory }}
+    strategy:
+      fail-fast: false
+      matrix: >-
+        ${{ fromJSON(
+          needs.classify-changes.outputs.light_browser_mode == 'parallel' &&
+          '{"include":[{"shard":1,"advisory":false},{"shard":2,"advisory":false}]}' ||
+          needs.classify-changes.outputs.light_browser_mode == 'shadow' &&
+          '{"include":[{"shard":0,"advisory":false},{"shard":1,"advisory":true},{"shard":2,"advisory":true}]}' ||
+          '{"include":[{"shard":0,"advisory":false}]}') }}
+    outputs:
+      serial_receipt: >-
+        ${{ matrix.shard == 0 && steps.browser-contracts.outcome == 'success' &&
+           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&
+           format('{0}:{1}:{2}:0', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}
+      shard_one_receipt: >-
+        ${{ matrix.shard == 1 && steps.browser-contracts.outcome == 'success' &&
+           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&
+           format('{0}:{1}:{2}:1', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}
+      shard_two_receipt: >-
+        ${{ matrix.shard == 2 && steps.browser-contracts.outcome == 'success' &&
+           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&
+           format('{0}:{1}:{2}:2', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}
     env:
       E2E_BASE_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -1705,8 +1853,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
+        id: browser-contracts
         # Light inventory is validated before any partition executes.
-        run: node scripts/ci-browser-light-partitions.mjs
+        run: node scripts/ci-browser-light-partitions.mjs ${{ matrix.shard != 0 && format('--shard={0}', matrix.shard) || '' }}
 
       - name: Prepare bounded failure diagnostics
         id: failure-diagnostics
@@ -1717,12 +1866,13 @@ jobs:
         if: failure() && steps.failure-diagnostics.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: browser-experience-matrix-failure
+          name: ${{ matrix.shard == 0 && 'browser-experience-matrix-failure' || format('browser-experience-matrix-shard-{0}-failure', matrix.shard) }}
           path: ci-failure-diagnostics/
           retention-days: 1
           if-no-files-found: ignore
 
       - name: Stop ephemeral database
+        id: browser-stop-db
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
@@ -1737,7 +1887,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_browser == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
@@ -1871,7 +2021,7 @@ jobs:
       contents: read
       packages: read
     needs: classify-changes
-    if: needs.classify-changes.outputs.run_browser == 'true'
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
     env:
@@ -2006,6 +2156,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
     needs:
       - classify-changes
+      - appearance-checks
       - architecture-database-contracts
       - architecture-database-contracts-lifecycle
       - contextual-test-owner-sdk
@@ -2031,9 +2182,17 @@ jobs:
           TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}
           BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
           BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}
+          LIGHT_BROWSER_MODE: ${{ needs.classify-changes.outputs.light_browser_mode }}
+          LIGHT_BROWSER_SERIAL_RECEIPT: ${{ needs.browser-experience-matrix.outputs.serial_receipt }}
+          LIGHT_BROWSER_SHARD_ONE_RECEIPT: ${{ needs.browser-experience-matrix.outputs.shard_one_receipt }}
+          LIGHT_BROWSER_SHARD_TWO_RECEIPT: ${{ needs.browser-experience-matrix.outputs.shard_two_receipt }}
           BROWSER_DARK_RESULT: ${{ needs.browser-experience-dark.result }}
           BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}
           CI_MODE: ${{ needs.classify-changes.outputs.mode }}
+          APPEARANCE_SELECTION: ${{ needs.classify-changes.outputs.appearance_selection }}
+          APPEARANCE_CALENDAR: ${{ needs.classify-changes.outputs.appearance_calendar }}
+          APPEARANCE_JOIN: ${{ needs.classify-changes.outputs.appearance_join }}
+          APPEARANCE_RESULT: ${{ needs.appearance-checks.result }}
         run: |
           [[ "$CI_EVENT_ELIGIBLE" == "true" ]] || {
             echo "Ready pull request changed after its stable-SHA request. Convert it to draft before pushing, then mark the reviewed SHA ready again."
@@ -2051,6 +2210,7 @@ jobs:
           case "$CI_MODE:$TEST_BUILD_REQUIRED:$DATABASE_REQUIRED:$BROWSER_REQUIRED" in
             full:true:true:true | \
             docs-only:false:false:false | \
+            appearance-only:false:false:false | \
             production-promotion:true:false:false | \
             application-database:true:true:false | \
             application-browser:true:false:true | \
@@ -2059,6 +2219,27 @@ jobs:
               ;;
             *)
               echo "Invalid or inconsistent CI selectors: mode=$CI_MODE test_build=$TEST_BUILD_REQUIRED database=$DATABASE_REQUIRED browser=$BROWSER_REQUIRED"
+              exit 1
+              ;;
+          esac
+          case "$CI_MODE:$APPEARANCE_SELECTION:$APPEARANCE_CALENDAR:$APPEARANCE_JOIN" in
+            appearance-only:gate:true:true | appearance-only:gate:true:false | appearance-only:gate:false:true)
+              [[ "$APPEARANCE_RESULT" == "success" ]] || {
+                echo "Appearance checks were required but ended: $APPEARANCE_RESULT"
+                exit 1
+              }
+              ;;
+            application-browser:shadow:true:true | application-browser:shadow:true:false | application-browser:shadow:false:true)
+              printf 'Advisory appearance checks ended: %s\n' "$APPEARANCE_RESULT"
+              ;;
+            appearance-only:*)
+              echo "Appearance-only mode requires an eligible surface"
+              exit 1
+              ;;
+            *:skip:false:false)
+              ;;
+            *)
+              echo "Invalid or inconsistent appearance selectors"
               exit 1
               ;;
           esac
@@ -2081,6 +2262,36 @@ jobs:
           if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_RESULT" != "success" ]]; then
             echo "Browser Experience Matrix was required but ended: $BROWSER_RESULT"
             exit 1
+          fi
+          if [[ "$BROWSER_REQUIRED" == "true" ]]; then
+            echo "Light browser mode: $LIGHT_BROWSER_MODE"
+            [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "Missing workflow identity for the light browser receipts"
+              exit 1
+            }
+            light_browser_receipt="$GITHUB_RUN_ID:$GITHUB_SHA:$LIGHT_BROWSER_MODE"
+            case "$CI_MODE:$LIGHT_BROWSER_MODE" in
+              application-browser:parallel)
+                [[ "$LIGHT_BROWSER_SHARD_ONE_RECEIPT" == "$light_browser_receipt:1" ]] || {
+                  echo "Missing completion evidence for light browser shard 1"
+                  exit 1
+                }
+                [[ "$LIGHT_BROWSER_SHARD_TWO_RECEIPT" == "$light_browser_receipt:2" ]] || {
+                  echo "Missing completion evidence for light browser shard 2"
+                  exit 1
+                }
+                ;;
+              *:serial | application-browser:shadow)
+                [[ "$LIGHT_BROWSER_SERIAL_RECEIPT" == "$light_browser_receipt:0" ]] || {
+                  echo "Missing completion evidence for the serial light browser job"
+                  exit 1
+                }
+                ;;
+              *)
+                echo "Invalid light browser mode for $CI_MODE"
+                exit 1
+                ;;
+            esac
           fi
           if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_DARK_RESULT" != "success" ]]; then
             echo "Browser Experience Matrix Dark was required but ended: $BROWSER_DARK_RESULT"

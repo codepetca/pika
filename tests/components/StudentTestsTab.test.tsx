@@ -2617,7 +2617,7 @@ describe('StudentTestsTab exam mode', () => {
     expect(screen.queryByText('View Results')).not.toBeInTheDocument()
   })
 
-  it('renders active tests before returned tests and preserves newest-first order within each bucket', async () => {
+  it('renders tests newest-posted first across statuses, using the Toronto creation day for undated tests', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -2629,6 +2629,7 @@ describe('StudentTestsTab exam mode', () => {
             status: 'active',
             show_results: false,
             position: 4,
+            test_date: '2025-05-04',
             student_status: 'not_started',
           },
           {
@@ -2638,6 +2639,8 @@ describe('StudentTestsTab exam mode', () => {
             status: 'active',
             show_results: false,
             position: 2,
+            test_date: null,
+            created_at: '2025-05-04T02:00:00Z',
             student_status: 'responded',
           },
           {
@@ -2646,7 +2649,9 @@ describe('StudentTestsTab exam mode', () => {
             assessment_type: 'test',
             status: 'closed',
             show_results: false,
-            position: 5,
+            position: 1,
+            test_date: '2025-05-05',
+            created_at: '2025-01-01T00:00:00Z',
             student_status: 'can_view_results',
           },
         ],
@@ -2660,9 +2665,9 @@ describe('StudentTestsTab exam mode', () => {
     })
 
     expect(screen.getAllByRole('heading', { level: 3 }).map((heading) => heading.textContent)).toEqual([
+      'Newest Returned Test',
       'Newest Active Test',
       'Older Active Test',
-      'Newest Returned Test',
     ])
   })
 

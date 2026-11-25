@@ -22,6 +22,36 @@ const browserCommands = {
   'browser-dark': 'node scripts/ci-browser-dark-partitions.mjs',
   'browser-pattern-dark': 'pnpm e2e:ci --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark',
 }
+// Hosted sharding is an exact reviewed profile, never an expression evaluator.
+// Local browser coverage always uses the complete serial partition wrapper.
+const hostedLightName = "    name: ${{ matrix.shard == 0 && 'Browser Experience Matrix' || format('Browser Experience Matrix (light shard {0})', matrix.shard) }}"
+const hostedLightMetadata = [
+  "    continue-on-error: ${{ matrix.advisory }}",
+  "    strategy:",
+  "      fail-fast: false",
+  "      matrix: >-",
+  "        ${{ fromJSON(",
+  "          needs.classify-changes.outputs.light_browser_mode == 'parallel' &&",
+  "          '{\"include\":[{\"shard\":1,\"advisory\":false},{\"shard\":2,\"advisory\":false}]}' ||",
+  "          needs.classify-changes.outputs.light_browser_mode == 'shadow' &&",
+  "          '{\"include\":[{\"shard\":0,\"advisory\":false},{\"shard\":1,\"advisory\":true},{\"shard\":2,\"advisory\":true}]}' ||",
+  "          '{\"include\":[{\"shard\":0,\"advisory\":false}]}') }}",
+  "    outputs:",
+  "      serial_receipt: >-",
+  "        ${{ matrix.shard == 0 && steps.browser-contracts.outcome == 'success' &&",
+  "           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&",
+  "           format('{0}:{1}:{2}:0', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}",
+  "      shard_one_receipt: >-",
+  "        ${{ matrix.shard == 1 && steps.browser-contracts.outcome == 'success' &&",
+  "           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&",
+  "           format('{0}:{1}:{2}:1', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}",
+  "      shard_two_receipt: >-",
+  "        ${{ matrix.shard == 2 && steps.browser-contracts.outcome == 'success' &&",
+  "           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&",
+  "           format('{0}:{1}:{2}:2', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}"
+]
+const hostedLightCommand = "node scripts/ci-browser-light-partitions.mjs ${{ matrix.shard != 0 && format('--shard={0}', matrix.shard) || '' }}"
+const hostedLightUpload = "${{ matrix.shard == 0 && 'browser-experience-matrix-failure' || format('browser-experience-matrix-shard-{0}-failure', matrix.shard) }}"
 const historicalLightCommand = 'pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light'
 const historicalDarkCommand = 'pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark'
 const isBrowserLane = lane => ['browser', 'browser-dark', 'browser-pattern-dark'].includes(lane)
@@ -94,7 +124,7 @@ function literalEnvironment(lines, indent) {
   return env
 }
 
-function parseStep(lines) {
+function parseStep(lines, hostedLight = false) {
   const first = lines[0].match(/^      - name: (.+)$/)
   if (!first) throw new Error('Every local CI step must have a name.')
   const step = { name: scalar(first[1]), env: {}, with: {} }
@@ -149,6 +179,12 @@ function parseStep(lines) {
   if (step.uses === 'actions/setup-node@v6' && scalar(step.with['node-version']) !== '24') throw new Error('Local CI supports only the pinned Node 24 setup.')
   if (step.uses === 'pnpm/action-setup@v6' && scalar(step.with.version) !== '10.25.0') throw new Error('Local CI supports only pnpm 10.25.0.')
   if (step.uses === 'supabase/setup-cli@v1' && scalar(step.with.version) !== '2.103.0') throw new Error('Local CI supports only Supabase 2.103.0.')
+  if (hostedLight && step.name === 'Run combined browser contracts' && step.run === hostedLightCommand) {
+    step.run = browserCommands.browser
+    step.localOverride = 'Hosted light shards run locally as the complete serial browser partition inventory.'
+  }
+  if (hostedLight && step.name === 'Upload bounded failure diagnostics' && step.uses === 'actions/upload-artifact@v7'
+    && step.with.name === hostedLightUpload) step.with.name = 'browser-experience-matrix-failure'
   if (step.run?.includes('${{')) {
     if (!summaryNames.has(step.name) || step.run.replace(/\$\{\{ steps\.[a-z-]+\.outputs\.cache-hit \}\}/g, '').includes('${{')) throw new Error(`Unsupported run interpolation in ${step.name}.`)
     step.localOverride = 'Cache setup summary is emitted locally without GitHub cache evidence.'
@@ -176,6 +212,7 @@ const databaseProofInventories = {
     [62, '05547e347dc1c22da6ea8013e361f236b1617f3eca4e64fb6b9b0c783f685d8f'],
     [63, 'af0b5bfaf89b750d29ef409d9b1c4a053bdbf231dd514ab8627bf53d1b25f54c'],
     [64, 'd8e8fdbd037f7cb20440875c07f655e40e92a47da68ad1c137b8d9dae7eb88af'],
+    [65, 'e41654a88e63ea9377a6dc9cb0440c1abc0274865301c1de132ce7e4df0b20b1'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -197,6 +234,18 @@ function validateDatabaseInventory(jobs) {
     || grantsSteps.filter(({ step }) => step.run === grantsPolicy).length !== 1
     || grantsSteps.filter(({ step }) => step.name === grantsName && step.run === grantsCommand && databaseProofs(primary).includes(step)).length !== 1)) {
     throw new Error('Canonical explicit Data API grant proofs are missing, duplicated or changed.')
+  }
+  const notificationName = 'Verify student notification counts and execution privileges'
+  const notificationScript = 'scripts/check-student-notification-counts.sql'
+  const notificationCommand = `[[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
+docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
+docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-student-notification-counts.sql`
+  const notifications = Object.values(jobs).flatMap(job => job.steps
+    .filter(step => step.name === notificationName || step.run?.includes(notificationScript)).map(step => ({ job, step })))
+  if (notifications.length && (notifications.length !== 1 || notifications.some(({ job, step }) =>
+    job !== primary || step.if || step.name !== notificationName || step.run !== notificationCommand
+    || !databaseProofs(primary).includes(step)))) {
+    throw new Error('Canonical student notification database proof is duplicated or changed.')
   }
   const membershipName = 'Verify current-membership attendance allocation and retained delivery'
   const membershipCommand = 'bash scripts/check-attendance-membership-adoption-database.sh'
@@ -330,6 +379,13 @@ function validateDatabaseInventory(jobs) {
 export function extractWorkflow(source) {
   const boundedEvidence = source.includes('ci-diagnostics.mjs')
   const lines = source.split(/\r?\n/)
+  const optionalAppearanceProof = lines.includes('  appearance-classify:')
+  const jobSelector = name => {
+    const check = `needs.classify-changes.outputs.run_${name} == 'true'`
+    return optionalAppearanceProof
+      ? `    if: \${{ !cancelled() && needs.classify-changes.result == 'success' && ${check} }}`
+      : `    if: ${check}`
+  }
   const environmentHeaders = lines.map((line, index) => /^env:/.test(line) ? index : -1).filter(index => index !== -1)
   let workflowEnv = {}
   if (environmentHeaders.length) {
@@ -373,6 +429,18 @@ export function extractWorkflow(source) {
     const stepsIndex = body.findIndex(line => line === '    steps:')
     if (stepsIndex === -1) throw new Error(`Missing steps in ${id}.`)
     const header = body.slice(0, stepsIndex)
+    const hostedLight = lane === 'browser' && header.includes(hostedLightName)
+    const hostedMetadataIndexes = new Set()
+    if (hostedLight) {
+      const metadataStart = header.indexOf(hostedLightMetadata[0])
+      if (header.filter(line => line.startsWith('    name:')).length !== 1 || metadataStart < 0
+        || hostedLightMetadata.some((line, index) => header[metadataStart + index] !== line)
+        || body.filter(line => line === `        run: ${hostedLightCommand}`).length !== 1
+        || body.filter(line => line === `          name: ${hostedLightUpload}`).length !== 1) {
+        throw new Error('Canonical hosted light browser shard profile changed.')
+      }
+      for (let index = 0; index < hostedLightMetadata.length; index += 1) hostedMetadataIndexes.add(metadataStart + index)
+    }
     const permissionHeaders = header.map((line, index) => line === '    permissions:' ? index : -1).filter(index => index !== -1)
     const permissions = {}
     if (permissionHeaders.length) {
@@ -383,6 +451,8 @@ export function extractWorkflow(source) {
       Object.assign(permissions, { contents: 'read', packages: 'read' })
     }
     for (const [index, line] of header.entries()) {
+      if (hostedMetadataIndexes.has(index) || (hostedLight && line === hostedLightName)) continue
+      if (line.startsWith('    name:') && line.includes('${{')) throw new Error('Unsupported canonical job name interpolation.')
       if (permissionHeaders.length && index > permissionHeaders[0] && index <= permissionHeaders[0] + 2) continue
       if (!line.trim() || line.trimStart().startsWith('#') || /^ {6}[A-Z][A-Z0-9_]*:/.test(line)) continue
       if (line.startsWith('    permissions:') && line !== '    permissions:') throw new Error('Unsupported inline CI permissions.')
@@ -390,13 +460,13 @@ export function extractWorkflow(source) {
     }
     if (databaseSplit && ['database', 'database-lifecycle'].includes(lane)) {
       const header = body.slice(0, stepsIndex)
-      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_database == 'true'", '    timeout-minutes: 90',
+      const required = ['    needs: classify-changes', jobSelector('database'), '    timeout-minutes: 90',
         lane === 'database-lifecycle' && !boundedEvidence ? '    runs-on: ubuntu-latest' : '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}']
       if (required.some(line => header.filter(value => value === line).length !== 1) || header.includes('    env:')) throw new Error(`Canonical ${lane} database job topology changed.`)
     }
     if (isBrowserLane(lane)) {
       const header = body.slice(0, stepsIndex)
-      const required = ['    needs: classify-changes', "    if: needs.classify-changes.outputs.run_browser == 'true'", '    timeout-minutes: 90',
+      const required = ['    needs: classify-changes', jobSelector('browser'), '    timeout-minutes: 90',
         lane === 'browser' || boundedEvidence ? '    runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}' : '    runs-on: ubuntu-latest']
       if (required.some(line => header.filter(value => value === line).length !== 1)) throw new Error(`Canonical ${lane} browser job topology changed.`)
     }
@@ -409,15 +479,24 @@ export function extractWorkflow(source) {
     let chunk = []
     for (const line of body.slice(stepsIndex + 1)) {
       if (/^      - /.test(line)) {
-        if (chunk.length) steps.push(parseStep(chunk))
+        if (chunk.length) steps.push(parseStep(chunk, hostedLight))
         chunk = [line]
       } else if (chunk.length) chunk.push(line)
       else if (line.trim() && !line.trimStart().startsWith('#')) throw new Error(`Unsupported steps syntax in ${id}.`)
     }
-    if (chunk.length) steps.push(parseStep(chunk))
+    if (chunk.length) steps.push(parseStep(chunk, hostedLight))
     if (!steps.length) throw new Error(`No steps in ${id}.`)
     if (steps.some(step => Object.hasOwn(step.env, 'SUPABASE_INTERNAL_IMAGE_REGISTRY'))) throw new Error('Step cannot override the shared Supabase image registry.')
     jobs[id] = { id, lane, env, permissions, steps }
+    if (hostedLight) {
+      for (const [name, receiptId] of [['Run combined browser contracts', 'browser-contracts'],
+        ['Stop ephemeral database', 'browser-stop-db'], [registryCleanupName, 'supabase-registry-cleanup']]) {
+        const matches = steps.filter(step => step.name === name || step.id === receiptId)
+        if (matches.length !== 1 || matches[0].name !== name || matches[0].id !== receiptId) {
+          throw new Error('Canonical hosted light browser receipt step binding changed.')
+        }
+      }
+    }
     if (boundedEvidence) validateDiagnosticPolicy(jobs[id], true)
     validateLaneSafety(jobs[id])
   }
@@ -475,6 +554,19 @@ export function extractWorkflow(source) {
   for (const line of ['    name: PR Gate', '    if: >-', '      always() &&',
     "      (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)", boundedEvidence ? `    runs-on: \${{ fromJSON(needs.classify-changes.result == 'success' && needs.classify-changes.outputs.heavy_runner || '["ubuntu-latest"]') }}` : '    runs-on: ubuntu-latest']) {
     if (gate.split('\n').filter(value => value === line).length !== 1) throw new Error('Canonical browser PR gate routing changed.')
+  }
+  if (lines.includes(hostedLightName)) {
+    for (const [name, expression] of [
+      ['LIGHT_BROWSER_MODE', 'needs.classify-changes.outputs.light_browser_mode'],
+      ['LIGHT_BROWSER_SERIAL_RECEIPT', 'needs.browser-experience-matrix.outputs.serial_receipt'],
+      ['LIGHT_BROWSER_SHARD_ONE_RECEIPT', 'needs.browser-experience-matrix.outputs.shard_one_receipt'],
+      ['LIGHT_BROWSER_SHARD_TWO_RECEIPT', 'needs.browser-experience-matrix.outputs.shard_two_receipt'],
+    ]) {
+      const entries = gate.split('\n').filter(line => line.startsWith(`          ${name}:`))
+      if (entries.length !== 1 || entries[0] !== `          ${name}: \${{ ${expression} }}`) {
+        throw new Error('Canonical hosted light browser gate receipt binding changed.')
+      }
+    }
   }
   for (const lane of browserLanes) {
     const id = jobsByLane[lane]

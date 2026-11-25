@@ -55319,3 +55319,33 @@ Carried the reviewed cancellation and undo changes onto main after the unpaid sc
 ## 2026-11-09 — Keep scheduled billing exports on the standard error wrapper
 
 Hosted CI requires the scheduled cancellation and offers exports to call withErrorHandler directly. Added an optional cache-control setting to that handler and used it for the three exports. Existing status codes, error mapping, and private no-store behavior are preserved.
+
+<!-- pika-session-log-archive-batch:44e6243e90725f7e11d2d3ae9f3034e789ad83ced4601e1f34d69fcc2978d03d -->
+## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
+
+The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
+
+<!-- pika-session-log-archive-batch:b3b6771b6764789bf238f283ca68a6733fde37ef5b03a56c54c7e5642f9b6ef6 -->
+<!-- pika-session-log-archive-batch:2cca5a33fd6653a15845daea0d7e10071d2b4bc4eafe2da3e8a9bb90a7d1dde8 -->
+## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
+
+Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+
+<!-- pika-session-log-archive-batch:f367f5857ae9eb7ac3b4c0da8fe0623c29c265747d22fc27e9b772b834509d74 -->
+## 2026-11-10 — Rebase the dormant billing recovery caller
+
+Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
+
+## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
+
+Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
+
+<!-- pika-session-log-archive-batch:b3ffa8966852a10dbc713edf9dd5a65812225da571a4be3f061cc2ae643b1d42 -->
+## 2026-11-10 — Rebase the teacher billing access reminders
+
+Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
+
+<!-- pika-session-log-archive-batch:04408b86148790f3edc4335eb35f3377ffaf24c870be4780a0e0484e0ab61fa1 -->
+## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
+
+Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.

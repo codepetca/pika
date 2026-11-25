@@ -5,9 +5,11 @@ import { resolve } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { collectCiDiagnostics } from '../../scripts/ci-diagnostics.mjs'
 import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment, localEnvironment, parseArguments, runLane, selectPlan, shouldRun } from '../../scripts/run-ci-local.mjs'
+import { serialLightWorkflow } from '../helpers/ci-workflow-fixtures'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutHomeVisibilityProof = (source: string) => source.replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutNotificationProof = (source: string) => source.replace(/^      - name: Verify student notification counts and execution privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const withoutHomeVisibilityProof = (source: string) => withoutNotificationProof(source).replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutMembershipAdoptionProof = (source: string) => withoutHomeVisibilityProof(source).replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutDataApiProof = (source: string) => withoutMembershipAdoptionProof(source).replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
 const withoutGuidanceAdoptionProof = (source: string) => withoutDataApiProof(source).replace(/^      - name: Verify contextual atomic classroom guidance adoption and privileges\n[\s\S]*?(?=^      - name:)/m, '')
@@ -100,7 +102,7 @@ describe('attendance membership proof inventory', () => {
 
 describe('personal joined-home visibility proof inventory', () => {
   it('adds the isolated visibility proof while preserving the historical inventory', () => {
-    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const current = selectPlan(extractWorkflow(withoutNotificationProof(workflow())), 'database')[0]
     const historical = selectPlan(extractWorkflow(withoutHomeVisibilityProof(workflow())), 'database')[0]
     const command = 'bash scripts/check-classroom-home-visibility-database.sh'
     expect(current.steps.filter(step => step.run === command)).toHaveLength(1)
@@ -114,6 +116,28 @@ describe('personal joined-home visibility proof inventory', () => {
       : defect === 'renamed' ? block.replace('visibility and concurrency', 'renamed proof')
       : block.replace('visibility-database.sh', 'visibility-database.sh --skip')
     expect(() => extractWorkflow(source.replace(block, replacement))).toThrow()
+  })
+})
+
+describe('student notification proof inventory', () => {
+  it('adds the exact proof to the previous complete inventory', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const previous = selectPlan(extractWorkflow(withoutNotificationProof(workflow())), 'database')[0]
+    const name = 'Verify student notification counts and execution privileges'
+    expect(current.steps.filter(step => step.name === name)).toHaveLength(1)
+    expect(current.steps.filter(step => step.name !== name)).toEqual(previous.steps)
+  })
+  it.each(['changed-command', 'conditional', 'duplicate', 'renamed', 'wrong-lane'])('rejects %s notification proof', defect => {
+    const source = workflow()
+    const block = source.match(/^      - name: Verify student notification counts and execution privileges\n[\s\S]*?(?=^      - name:)/m)![0]
+    const replacement = defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        run:', '\n        if: success()\n        run:')
+      : defect === 'renamed' ? block.replace('counts and execution privileges', 'renamed proof')
+      : defect === 'wrong-lane' ? '' : block.replace('-v ON_ERROR_STOP=1', '-v ON_ERROR_STOP=0')
+    const changed = source.replace(block, replacement)
+    expect(() => extractWorkflow(defect === 'wrong-lane'
+      ? changed.replace(/(  architecture-database-contracts-lifecycle:\n[\s\S]*?)(      - name: Stop ephemeral database\n)/, `$1${block}$2`)
+      : changed)).toThrow()
   })
 })
 
@@ -140,7 +164,7 @@ function combinedDatabaseWorkflow(source = workflow()) {
 
 // Preserve the reviewed two-job browser generation separately from the family split.
 function combinedDarkWorkflow(source = workflow()) {
-  source = source.replace('        # Light inventory is validated before any partition executes.\n        run: node scripts/ci-browser-light-partitions.mjs', '        run: pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light')
+  source = serialLightWorkflow(source).replace('        # Light inventory is validated before any partition executes.\n        run: node scripts/ci-browser-light-partitions.mjs', '        run: pnpm e2e:ci --project=chromium-desktop --project=chromium-mobile-light --project=pattern-lab-desktop-light --project=pattern-lab-mobile-light')
   return source.replace(/^  browser-pattern-lab-dark:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, '')
     .replace('run: node scripts/ci-browser-dark-partitions.mjs\n',
       'run: pnpm e2e:ci --project=chromium-desktop-dark --project=chromium-mobile-dark --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-dark\n')
@@ -291,6 +315,73 @@ describe('local canonical CI', () => {
     ['startup drift', (s: string) => s.replace('supabase start -x analytics,', 'supabase start -x ')],
     ['erased markers prefix only', (s: string) => s.replace(/^  architecture-database-contracts-lifecycle:\n[\s\S]*?(?=^  [a-z][a-z-]*:\n)/m, '').replaceAll('architecture-database-contracts-lifecycle', 'erased').replaceAll('DATABASE_LIFECYCLE_RESULT', 'ERASED')],
   ])('refuses damaged database partition %s', (_, mutate) => {
+    expect(() => extractWorkflow(mutate(workflow()))).toThrow()
+  })
+
+  it('runs the parsed hosted browser profile locally once with complete serial light coverage', async () => {
+    const source = workflow()
+    const jobs = selectPlan(extractWorkflow(source), 'browser')
+    const serial = selectPlan(extractWorkflow(serialLightWorkflow(source)), 'browser')
+    expect(jobs.map(job => job.id)).toEqual(serial.map(job => job.id))
+    expect(jobs.map(job => ({ ...job, steps: job.steps.map(({ localOverride: _override, ...step }) => step) })))
+      .toEqual(serial.map(job => ({ ...job, steps: job.steps.map(({ localOverride: _override, ...step }) => step) })))
+    const directory = mkdtempSync(join(tmpdir(), 'pika-ci-local-light-test-'))
+    const calls: string[] = []
+    let active = false
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+    try {
+      for (const job of jobs) {
+        expect(await runLane(job, directory, directory, {}, {
+          execute: async (script: string, _cwd: string, env: Record<string, string>, _child: unknown, path: string) => {
+            calls.push(script)
+            expect(script).not.toContain('${{')
+            expect(script).not.toContain('--shard=')
+            writeFileSync(path, 'fake executor receipt\n')
+            if (script.startsWith('supabase start ')) { expect(active).toBe(false); active = true }
+            if (script === 'supabase stop --no-backup') { expect(active).toBe(true); active = false }
+            if (env.GITHUB_ENV) writeFileSync(env.GITHUB_ENV, '')
+            return 0
+          },
+        })).toBe(false)
+        expect(active).toBe(false)
+      }
+      expect(calls.filter(script => script === 'node scripts/ci-browser-light-partitions.mjs')).toHaveLength(1)
+      expect(calls.filter(script => script === 'pnpm seed')).toHaveLength(3)
+      expect(calls.filter(script => script === 'supabase stop --no-backup')).toHaveLength(3)
+      expect(jobs[0].steps.find(step => step.uses === 'actions/upload-artifact@v7')?.with.name)
+        .toBe('browser-experience-matrix-failure')
+    } finally { log.mockRestore(); rmSync(directory, { recursive: true, force: true }) }
+  })
+
+  it.each([
+    ['advisory override', (s: string) => s.replace('continue-on-error: ${{ matrix.advisory }}', 'continue-on-error: true')],
+    ['fail-fast override', (s: string) => s.replace('fail-fast: false', 'fail-fast: true')],
+    ['matrix expression', (s: string) => s.replace("outputs.light_browser_mode == 'parallel'", "outputs.light_browser_mode == 'unreviewed'")],
+    ['missing receipt output', (s: string) => s.replace(/^      shard_two_receipt: >-\n[\s\S]*?(?=^    env:)/m, '')],
+    ['receipt shard mismatch', (s: string) => s.replace("format('{0}:{1}:{2}:2',", "format('{0}:{1}:{2}:1',")],
+    ['receipt workflow identity drift', (s: string) => s.replace('github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode', 'github.run_id, github.head_ref, needs.classify-changes.outputs.light_browser_mode')],
+    ['receipt cleanup outcome omission', (s: string) => s.replace(" && steps.supabase-registry-cleanup.outcome == 'success'", '')],
+    ['receipt test outcome drift', (s: string) => s.replace("steps.browser-contracts.outcome == 'success'", "steps.browser-contracts.conclusion == 'success'")],
+    ['receipt test step binding', (s: string) => s.replace('        id: browser-contracts\n', '        id: renamed-browser-contracts\n')],
+    ['receipt cleanup step binding', (s: string) => s.replace('        id: browser-stop-db\n', '        id: renamed-browser-stop-db\n')],
+    ['gate receipt owner drift', (s: string) => s.replace('LIGHT_BROWSER_SHARD_ONE_RECEIPT: ${{ needs.browser-experience-matrix.outputs.shard_one_receipt }}', 'LIGHT_BROWSER_SHARD_ONE_RECEIPT: ${{ needs.browser-experience-dark.outputs.shard_one_receipt }}')],
+    ['gate receipt omission', (s: string) => s.replace('          LIGHT_BROWSER_SERIAL_RECEIPT: ${{ needs.browser-experience-matrix.outputs.serial_receipt }}\n', '')],
+    ['gate mode owner drift', (s: string) => s.replace('LIGHT_BROWSER_MODE: ${{ needs.classify-changes.outputs.light_browser_mode }}', 'LIGHT_BROWSER_MODE: serial')],
+    ['gate duplicate receipt', (s: string) => s.replace('          LIGHT_BROWSER_SHARD_TWO_RECEIPT:', '          LIGHT_BROWSER_SHARD_TWO_RECEIPT: duplicate\n          LIGHT_BROWSER_SHARD_TWO_RECEIPT:')],
+    ['matrix partition drift', (s: string) => s.replace('{"shard":2,"advisory":false}', '{"shard":3,"advisory":false}')],
+    ['duplicate job name', (s: string) => s.replace('  browser-experience-matrix:\n', '  browser-experience-matrix:\n    name: Unreviewed duplicate\n')],
+    ['matrix metadata omission', (s: string) => s.replace('    continue-on-error: ${{ matrix.advisory }}\n', '')],
+    ['matrix name omission', (s: string) => s.replace(/^    name: \$\{\{ matrix\.shard[^\n]+\n/m, '    name: Browser Experience Matrix\n')],
+    ['matrix command omission', (s: string) => s.replace(/(run: node scripts\/ci-browser-light-partitions\.mjs) \$\{\{[^\n]+/, '$1')],
+    ['arbitrary run expression', (s: string) => s.replace("format('--shard={0}', matrix.shard)", 'inputs.command')],
+    ['wrong command owner', (s: string) => s.replace('      - name: Run combined browser contracts\n', '      - name: Renamed browser contracts\n')],
+    ['upload expression drift', (s: string) => s.replace("format('browser-experience-matrix-shard-{0}-failure', matrix.shard)", 'inputs.artifact')],
+    ['upload expression omission', (s: string) => s.replace(/^          name: \$\{\{ matrix\.shard[^\n]+/m, '          name: browser-experience-matrix-failure')],
+    ['metadata in another job', (s: string) => s.replace('  browser-experience-dark:\n', '  browser-experience-dark:\n    continue-on-error: ${{ matrix.advisory }}\n')],
+    ['expression name in another job', (s: string) => s.replace('    name: Browser Experience Matrix Dark', '    name: ${{ matrix.shard }}')],
+    ['expression command without metadata', (s: string) => serialLightWorkflow(s).replace('run: node scripts/ci-browser-light-partitions.mjs', 'run: node scripts/ci-browser-light-partitions.mjs ${{ matrix.shard }}')],
+    ['expression command in another job', (s: string) => s.replace('run: node scripts/ci-browser-dark-partitions.mjs', "run: node scripts/ci-browser-light-partitions.mjs ${{ matrix.shard != 0 && format('--shard={0}', matrix.shard) || '' }}")],
+  ])('rejects unsupported hosted light shard %s', (_, mutate) => {
     expect(() => extractWorkflow(mutate(workflow()))).toThrow()
   })
 

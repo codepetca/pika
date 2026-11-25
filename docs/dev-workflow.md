@@ -291,15 +291,68 @@ CI classifies changes conservatively:
 
 - Documentation and AI-guidance-only diffs run fast workflow contracts in the
   transition-safe `Test & Build` job.
-- Application diffs always run Test & Build; rendered UI paths add the browser
+- Application diffs run Test & Build; rendered UI paths add the browser
   matrix, while database/server-contract paths add ephemeral database contracts.
+  The appearance-only path below keeps the workflow contracts in Test & Build
+  and runs focused lint, type, unit, and browser checks for the selected surfaces.
 - CI configuration, dependency/runtime configuration, manual dispatches, empty
   change evidence, and unknown paths fail closed to the full suite.
-- Same-repository production promotion PRs whose head exactly matches current
-  `main` validate with Test & Build; divergent or unproven promotion heads run
-  full CI. Risk-matched database and browser contracts already ran against the
-  exact `main` SHA.
+- Same-repository production promotion PRs validate with Test & Build when the
+  head matches current `main` or CI proves a clean branch sync with production.
+  For a sync, CI verifies both parent pairs and rebuilds the merge tree. The
+  tested tree must match current `main` except for the regular Markdown files
+  `.ai/SESSION-LOG.md` and `.ai/JOURNAL-ARCHIVE.md`. Both paths use protected
+  `main` as the release source. Unproven promotions run full CI.
 - `workflow_dispatch` remains the full-suite escape hatch.
+
+For same-repository ready PRs to `main`, appearance-only eligibility is limited
+to six-digit hex values for the Calendar announcement palette and the plain helper
+paragraph on `/join`. Keep the PR diff limited to those edits to qualify. The
+classifier loads from the current protected base, checks both the complete PR
+diff and the tested GitHub merge, and uses the ordinary risk-matched path
+whenever the evidence is missing or mixed. The checks run against the actual
+merge candidate. `PR Gate` remains the required check.
+
+The repository Actions variable `PIKA_APPEARANCE_CI` controls rollout:
+
+| Value | Effect |
+| --- | --- |
+| Unset or `off` | Use the ordinary CI path. |
+| `shadow` | Run eligible appearance checks alongside ordinary CI for timing and comparison. |
+| A reviewed PR head SHA | Require the appearance path only for that eligible head. |
+| `enabled` | Require the appearance path for every eligible PR to `main`. |
+
+Start by comparing a real eligible PR and a mixed PR in shadow mode. Use an
+exact-head canary to verify a passing edit and a failing appearance check
+through `PR Gate`. Enable the shared path after that evidence passes, or set
+the variable to `off` to roll it back. For open PRs with an earlier appearance-only
+pass, request a fresh gate before merging if rollback is necessary. Manual full
+runs and production promotions use their existing selectors.
+
+### Light browser matrix
+
+On GitHub-hosted runners, same-repository ready PRs to `main` that select
+`application-browser` can run the existing light-mode Playwright inventory on
+two runners. One runs partitions 1, 3, and 5, and the other runs partitions 2,
+4, 6, and 7. Each uses an isolated browser stack and validates the full
+inventory before running its assigned partitions. `PR Gate` takes the
+aggregate result of the browser matrix and checks distinct completion receipts for
+its required jobs. Receipts identify the tested merge, the workflow run, and
+the selected mode. A missing receipt blocks the gate.
+
+The repository Actions variable `PIKA_LIGHT_BROWSER_CI` controls the rollout:
+
+| Value | Effect |
+| --- | --- |
+| Unset or `off` | Use the serial light browser job. |
+| `shadow:<reviewed-head-sha>` | On that head, run both advisory shards alongside the required serial job. |
+| A reviewed PR head SHA | On that head, require both shards for the light browser result. |
+| `enabled` | Require both shards on every eligible PR. |
+
+Manual full runs, database and browser changes, fork PRs, and self-hosted jobs
+use the serial light browser job. Local CI runs all seven partitions serially.
+For a rollback, set the variable to `off` and request a fresh gate for any
+open PR whose earlier result needs to be replaced.
 
 CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`.
 The seven Supabase jobs authenticate image downloads using their ephemeral
@@ -426,10 +479,12 @@ git -C "$HUB" worktree add --detach "$PROMO_WT" origin/main
 test "$(git -C "$PROMO_WT" rev-parse HEAD)" = "$(git -C "$HUB" rev-parse origin/main)"
 ```
 
-GitHub combines this exact reviewed main SHA with production when the PR merges.
-The promotion branch therefore receives abbreviated CI regardless of the prior
-production merge strategy; divergent or otherwise unproven heads fail closed to
-full CI.
+GitHub combines this exact main SHA with production when the PR merges. If the
+production rules require the head to include the base, update the promotion
+branch while the PR is draft. Review the synchronized head before marking it
+ready. CI checks the sync against the current main commit, the event's production
+base, and GitHub's merge checkout. Merge through the required gate after CI
+completes.
 
 ### 3) Open PR to production
 

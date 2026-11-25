@@ -203,3 +203,27 @@ Daily-log summaries, developer-feedback extraction, curriculum imports, and guid
 ## 2026-11-24 — Fix immediate assignment posting
 
 Reproduced the Post failure with a zero-byte HTTP request through Next.js. The release endpoint now accepts an empty body and keeps JSON validation for schedule requests. Regression tests cover absent and zero-byte bodies, an empty object, malformed JSON, and JSON null. The affected route and scheduling suites passed 97 tests.
+
+## 2026-11-24 — Verify synchronized production promotions
+
+The production classifier can reuse Test & Build and PR Gate for a canonical same-repository promotion after verifying both parent pairs, reconstructing the clean sync, and matching GitHub's test-merge tree. The only permitted differences from current main are the two regular continuity files. Missing or conflicting evidence still selects full CI. The chip release's actual GitHub test merge provides the historical replay.
+
+## 2026-11-24 — Reduce student sidebar notification queries
+
+Admitted classroom participants use a single service-role SQL snapshot for the four existing sidebar counts. Migration 331 preserves current enrollment, owner precedence, release timing, and feature visibility. Before the RPC is installed, its exact missing-function response selects the existing reader. API regressions and disposable SQL checks cover the new route and authorization.
+
+## 2026-11-24 — Appearance-only PR Gate path
+
+Added a switch-controlled CI path for exact Calendar announcement palette edits and plain Join helper copy. The current main policy verifies the complete PR diff and the tested merge. Workflow contracts remain required, and the focused job checks the selected surfaces against the actual merge. Shadow mode keeps the normal checks and records focused evidence alongside them. Exact-head rollout, rollback, and hosted evidence are tracked in the rollout PR.
+
+## 2026-11-25 — Bound student notification fallback time
+
+Merged main into the notification query branch, shared the RPC deadline with its compatibility fallback, and separated the test-override database assertions. Focused notification API tests passed; migration 331 is unchanged.
+
+## 2026-11-25 — Roll out parallel light browser checks
+
+The ordinary hosted UI path can require both light-mode shards under the same Browser Experience Matrix job and PR Gate. Each required job contributes a completion receipt tied to the tested merge, run, and mode. The rollout switch starts off, can select a single reviewed head for shadow or required checks, and supports rollback to serial. Local CI retains serial coverage. The rollout PR records the hosted comparison and failure controls.
+
+## 2026-11-25 — Student Classwork and Tests posting order
+
+Student Classwork lists assignments, materials and surveys by newest posting or opening time. Student Tests follow newest publication day across statuses. Older undated records use creation dates, and ties keep their prior order. The student list tests cover mixed Classwork and Tests statuses. Teacher ordering, calendar placement and availability keep their existing contracts.

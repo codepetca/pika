@@ -3,12 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { extractWorkflow, runLane, selectPlan } from '../../scripts/run-ci-local.mjs'
+import { serialLightWorkflow } from '../helpers/ci-workflow-fixtures'
 
 const workflow = () => readFileSync('.github/workflows/ci.yml', 'utf8')
 const login = 'Authenticate Supabase image pulls'
 const cleanup = 'Remove Supabase registry credentials'
 const block = (source: string, name: string) => source.match(new RegExp(`^      - name: ${name}\\n[\\s\\S]*?(?=^      - name:|^  [a-z][a-z-]*:|$(?![\\s\\S]))`, 'm'))![0]
-const historical = (source: string, registry = true) => source
+const historical = (source: string, registry = true) => serialLightWorkflow(source)
   .replace(new RegExp(`^      - name: (?:${login}|${cleanup})\\n[\\s\\S]*?(?=^      - name:|^  [a-z][a-z-]*:|$(?![\\s\\S]))`, 'gm'), '')
   .replaceAll('    permissions:\n      contents: read\n      packages: read\n', '')
   .replace('  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io', '  SUPABASE_INTERNAL_IMAGE_REGISTRY: public.ecr.aws')

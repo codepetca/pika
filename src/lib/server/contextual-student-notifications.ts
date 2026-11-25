@@ -50,9 +50,62 @@ export async function authorizeSharedNotificationsActor() {
     ? { mode: 'shared' as const, user } : { mode: 'existing' as const }
 }
 
+const countsSchema = z.object({
+  hasTodayEntry: z.boolean(),
+  unviewedAssignmentsCount: z.number().int().nonnegative(),
+  activeTestsCount: z.number().int().nonnegative(),
+  unreadAnnouncementsCount: z.number().int().nonnegative(),
+}).strict()
+
+const countsResponseSchema = z.union([
+  countsSchema.extend({ ok: z.literal(true) }),
+  z.object({ ok: z.literal(false), status: z.union([z.literal(403), z.literal(404), z.literal(503)]) }).strict(),
+])
+
+export async function readContextualStudentNotifications(input: {
+  supabase: Client
+  actorId: string
+  classroomId: string
+}) {
+  const { supabase, actorId, classroomId } = input
+  const controller = new AbortController(), deadline = Date.now() + DEADLINE_MS
+  const timer = setTimeout(() => controller.abort(), DEADLINE_MS)
+  try {
+    const rpc = supabase.rpc('read_student_notification_counts_v1', {
+      p_actor_id: uuid.parse(actorId),
+      p_classroom_id: uuid.parse(classroomId),
+    }).abortSignal(controller.signal)
+    const { data, error } = await new Promise<Awaited<typeof rpc>>((resolve, reject) => {
+      const abort = () => reject(new ApiError(503, 'Unable to verify classroom notifications'))
+      controller.signal.addEventListener('abort', abort, { once: true })
+      Promise.resolve(rpc).then(resolve, reject).finally(() => controller.signal.removeEventListener('abort', abort))
+    })
+    if (controller.signal.aborted || Date.now() >= deadline) throw new ApiError(503, 'Unable to verify classroom notifications')
+
+    if (error?.code === 'PGRST202' && /\bpublic\.read_student_notification_counts_v1\s*\(/.test(error.message)) {
+      return await readContextualStudentNotificationsBeforeMigration(input, controller, deadline)
+    }
+    if (error) throw new ApiError(503, 'Unable to verify classroom notifications')
+
+    const parsed = countsResponseSchema.safeParse(data)
+    if (!parsed.success) throw new ApiError(503, 'Unable to verify classroom notifications')
+    if (!parsed.data.ok) {
+      const { status } = parsed.data
+      const message = {
+        403: 'Forbidden',
+        404: 'Classroom not found',
+        503: 'Unable to verify classroom notifications',
+      }[status]
+      throw new ApiError(status, message)
+    }
+    const { ok: _, ...counts } = parsed.data
+    return counts
+  } finally { clearTimeout(timer); controller.abort() }
+}
+
 /** Each page (including empty terminal pages) carries current relationship authority.
  * Revalidation catches observed drift; it does not create a transaction snapshot. */
-export async function readContextualStudentNotifications(input: { supabase: Client; actorId: string; classroomId: string }) {
+async function readContextualStudentNotificationsBeforeMigration(input: { supabase: Client; actorId: string; classroomId: string }, controller: AbortController, deadline: number) {
   const safeErrors = new Set<ApiError>()
   function apiError(status: number, message: string) {
     const error = new ApiError(status, message); safeErrors.add(error); return error
@@ -60,8 +113,6 @@ export async function readContextualStudentNotifications(input: { supabase: Clie
   const unavailable = () => apiError(503, 'Unable to verify classroom notifications')
   const actorId = uuid.parse(input.actorId), classroomId = uuid.parse(input.classroomId)
   const now = new Date(), cutoff = now.toISOString(), today = getTodayInToronto()
-  const controller = new AbortController(), deadline = Date.now() + DEADLINE_MS
-  const timer = setTimeout(() => controller.abort(), DEADLINE_MS)
   let statements = 0, bytes = 0, rowCount = 0
   const check = () => { if (controller.signal.aborted || Date.now() >= deadline) throw unavailable() }
   async function execute(query: PromiseLike<unknown>) {
@@ -219,5 +270,5 @@ export async function readContextualStudentNotifications(input: { supabase: Clie
   } catch (error) {
     if (error instanceof ApiError && safeErrors.has(error)) throw error
     throw unavailable()
-  } finally { clearTimeout(timer); controller.abort() }
+  }
 }
