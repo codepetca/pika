@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 — Rebase the teacher billing access reminders
-
-Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.
-
 ## 2026-11-10 — Rebase billing email notices and seal the outbox catalog
 
 Preserved the reviewed email delivery patch and migration 327 after the in-app notices merge. The isolated reorder and member-list proof catalogs now include the exact private email outbox at 327, while the prior cancellation-only catalog remains admitted.
@@ -199,3 +195,7 @@ Added a switch-controlled CI path for exact Calendar announcement palette edits 
 ## 2026-11-25 — Bound student notification fallback time
 
 Merged main into the notification query branch, shared the RPC deadline with its compatibility fallback, and separated the test-override database assertions. Focused notification API tests passed; migration 331 is unchanged.
+
+## 2026-11-25 — Roll out parallel light browser checks
+
+The ordinary hosted UI path can require both light-mode shards under the same Browser Experience Matrix job and PR Gate. Each required job contributes a completion receipt tied to the tested merge, run, and mode. The rollout switch starts off, can select a single reviewed head for shadow or required checks, and supports rollback to serial. Local CI retains serial coverage. The rollout PR records the hosted comparison and failure controls.

@@ -36,9 +36,118 @@ function runGate(overrides: Record<string, string | undefined> = {}) {
       TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
       APPEARANCE_SELECTION: 'skip', APPEARANCE_CALENDAR: 'false', APPEARANCE_JOIN: 'false', APPEARANCE_RESULT: 'skipped',
       DATABASE_RESULT: 'success', DATABASE_LIFECYCLE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
+      GITHUB_RUN_ID: '12345', GITHUB_SHA: 'a'.repeat(40), LIGHT_BROWSER_MODE: 'serial',
+      LIGHT_BROWSER_SERIAL_RECEIPT: `12345:${'a'.repeat(40)}:serial:0`, LIGHT_BROWSER_SHARD_ONE_RECEIPT: '', LIGHT_BROWSER_SHARD_TWO_RECEIPT: '',
       BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', BROWSER_PATTERN_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
   })
 }
+
+describe('light browser rollout', () => {
+  it('selects only the intended required and advisory matrix rows', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const job = jobSource(workflow, 'browser-experience-matrix')
+    expect(workflow.match(/^  browser-experience-matrix:$/gm)).toHaveLength(1)
+    expect(job).toContain('continue-on-error: ${{ matrix.advisory }}')
+    expect(job).toContain('fail-fast: false')
+    expect(job).toContain("run: node scripts/ci-browser-light-partitions.mjs ${{ matrix.shard != 0 && format('--shard={0}', matrix.shard) || '' }}")
+    const expression = job.match(/matrix: >-\n\s*\$\{\{ fromJSON\(([\s\S]*?)\) \}\}/)?.[1]
+    const classifier = jobSource(workflow, 'classify-changes')
+    const modeExpression = classifier.match(/light_browser_mode: >-\n\s*\$\{\{ ([\s\S]*?) \}\}/)?.[1]
+    expect(expression).toBeDefined()
+    expect(modeExpression).toBeDefined()
+    const select = (overrides: Record<string, string> = {}) => {
+      const values: Record<string, string> = {
+        'github.event_name': 'pull_request', 'github.event.action': 'ready_for_review',
+        'github.event.pull_request.base.ref': 'main', 'github.event.pull_request.head.repo.full_name': 'owner/pika',
+        'github.repository': 'owner/pika', 'github.event.pull_request.head.sha': 'a'.repeat(40),
+        'steps.classify.outputs.mode': 'application-browser',
+        'needs.appearance-classify.result': 'success', 'needs.appearance-classify.outputs.selection': 'skip',
+        'steps.runner.outputs.heavy_runner': '["ubuntu-24.04"]', 'vars.PIKA_LIGHT_BROWSER_CI': '', ...overrides,
+      }
+      const js = modeExpression!.replace(/github\.[\w.-]+|needs\.[\w.-]+|vars\.[\w.-]+|steps\.[\w.-]+/g, key => {
+        expect(Object.hasOwn(values, key)).toBe(true)
+        return JSON.stringify(values[key])
+      }).replace(/format\('shadow:\{0\}',\s*([^)]*)\)/g, "('shadow:' + $1)")
+      const mode = Function(`return (${js})`)()
+      const matrix = expression!.replaceAll('needs.classify-changes.outputs.light_browser_mode', JSON.stringify(mode))
+      return JSON.parse(Function(`return (${matrix})`)()).include
+    }
+    const serial = [{ shard: 0, advisory: false }]
+    const required = [{ shard: 1, advisory: false }, { shard: 2, advisory: false }]
+    expect(select()).toEqual(serial)
+    expect(select({ 'vars.PIKA_LIGHT_BROWSER_CI': 'enabled' })).toEqual(required)
+    expect(select({ 'vars.PIKA_LIGHT_BROWSER_CI': 'a'.repeat(40) })).toEqual(required)
+    expect(select({ 'vars.PIKA_LIGHT_BROWSER_CI': `shadow:${'a'.repeat(40)}` })).toEqual([
+      ...serial, { shard: 1, advisory: true }, { shard: 2, advisory: true },
+    ])
+    for (const override of [
+      { 'github.event_name': 'workflow_dispatch' }, { 'github.event.action': 'synchronize' },
+      { 'github.event.pull_request.base.ref': 'production' }, { 'github.event.pull_request.head.repo.full_name': 'fork/pika' },
+      { 'github.event.pull_request.head.sha': '' }, { 'steps.classify.outputs.mode': 'full' },
+      { 'steps.runner.outputs.heavy_runner': '["ubuntu-latest"]' },
+      { 'needs.appearance-classify.outputs.selection': 'gate' },
+    ]) expect(select({ 'vars.PIKA_LIGHT_BROWSER_CI': 'enabled', ...override })).toEqual(serial)
+    expect(select({ 'vars.PIKA_LIGHT_BROWSER_CI': 'b'.repeat(40) })).toEqual(serial)
+    expect(select({ 'vars.PIKA_LIGHT_BROWSER_CI': `shadow:${'b'.repeat(40)}` })).toEqual(serial)
+  })
+
+  it('emits each uniquely qualified receipt only after the browser and both cleanup steps succeed', () => {
+    const job = jobSource(readFileSync(workflowPath, 'utf8'), 'browser-experience-matrix')
+    const receipts = ['serial_receipt', 'shard_one_receipt', 'shard_two_receipt']
+    for (const [index, name] of receipts.entries()) {
+      const expression = job.match(new RegExp(`${name}: >-\\n\\s*\\$\\{\\{ ([\\s\\S]*?) \\}\\}`))?.[1]
+      expect(expression).toBeDefined()
+      const evaluate = (shard: number, failed = '') => {
+        const values: Record<string, string | number> = {
+          'matrix.shard': shard, 'steps.browser-contracts.outcome': 'success',
+          'steps.browser-stop-db.outcome': 'success', 'steps.supabase-registry-cleanup.outcome': 'success',
+          'github.run_id': '12345', 'github.sha': 'a'.repeat(40), 'needs.classify-changes.outputs.light_browser_mode': 'parallel',
+        }
+        if (failed) values[failed] = 'failure'
+        const js = expression!.replace(/matrix\.[\w.-]+|steps\.[\w.-]+|github\.[\w.-]+|needs\.[\w.-]+/g, key => {
+          expect(Object.hasOwn(values, key)).toBe(true)
+          return JSON.stringify(values[key])
+        }).replace(/format\('\{0\}:\{1\}:\{2\}:([012])',\s*([^,]+),\s*([^,]+),\s*([^)]*)\)/g,
+          "([$2, $3, $4, '$1'].join(':'))")
+        return Function(`return (${js})`)()
+      }
+      expect(evaluate(index)).toBe(`12345:${'a'.repeat(40)}:parallel:${index}`)
+      expect(evaluate((index + 1) % 3)).toBe('')
+      for (const step of ['steps.browser-contracts.outcome', 'steps.browser-stop-db.outcome', 'steps.supabase-registry-cleanup.outcome'])
+        expect(evaluate(index, step)).toBe('')
+    }
+  })
+
+  it('requires fresh, correctly attributed receipts for both parallel shards and the shadow serial row', () => {
+    const prefix = `12345:${'a'.repeat(40)}`
+    const baseline = { CI_MODE: 'application-browser', DATABASE_REQUIRED: 'false', BROWSER_REQUIRED: 'true',
+      BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success',
+      LIGHT_BROWSER_MODE: 'parallel', LIGHT_BROWSER_SHARD_ONE_RECEIPT: `${prefix}:parallel:1`, LIGHT_BROWSER_SHARD_TWO_RECEIPT: `${prefix}:parallel:2` }
+    expect(runGate(baseline).status).toBe(0)
+    for (const key of ['LIGHT_BROWSER_SHARD_ONE_RECEIPT', 'LIGHT_BROWSER_SHARD_TWO_RECEIPT']) {
+      const role = key.includes('ONE') ? 1 : 2
+      for (const receipt of ['', `12344:${'a'.repeat(40)}:parallel:${role}`, `12345:${'b'.repeat(40)}:parallel:${role}`,
+        `${prefix}:shadow:${role}`, `${prefix}:parallel:${role === 1 ? 2 : 1}`])
+        expect(runGate({ ...baseline, [key]: receipt }).status).toBe(1)
+    }
+    const shadow = { ...baseline, LIGHT_BROWSER_MODE: 'shadow', LIGHT_BROWSER_SERIAL_RECEIPT: `${prefix}:shadow:0` }
+    expect(runGate(shadow).status).toBe(0)
+    expect(runGate({ ...shadow, LIGHT_BROWSER_SERIAL_RECEIPT: '' }).status).toBe(1)
+    expect(runGate({ ...shadow, LIGHT_BROWSER_SERIAL_RECEIPT: `${prefix}:parallel:0` }).status).toBe(1)
+  })
+
+  it('wires the matrix aggregate directly into the original Bash gate', () => {
+    const gate = jobSource(readFileSync(workflowPath, 'utf8'), 'pr-gate')
+    expect(gate).toContain('BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}')
+    expect(runGate({ CI_MODE: 'application-browser', DATABASE_REQUIRED: 'false', BROWSER_REQUIRED: 'true',
+      BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success' }).status).toBe(0)
+  })
+
+  it.each(['failure', 'cancelled', 'skipped', ''])('blocks the actual PR Gate when aggregate browser result is %s', result => {
+    expect(runGate({ CI_MODE: 'application-browser', DATABASE_REQUIRED: 'false', BROWSER_REQUIRED: 'true',
+      BROWSER_RESULT: result, BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success' }).status).toBe(1)
+  })
+})
 
 describe('CI workflow', () => {
   it('runs scheduled billing and tax rollback proofs in migration order after database replay', () => {
@@ -242,7 +351,24 @@ describe('CI workflow', () => {
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 180_000)
 
-  it('runs lifecycle tests in their own fresh light browser invocation', () => {
+  it.each([
+    ['--shard=0'], ['--shard=3'], ['--shard=01'], ['--shard=1/2'], ['--shard'], ['--shard', '1'],
+    ['--shard=1', '--shard=1'], ['--shard=1', '--shard=2'], ['--verify-only', '--verify-only'],
+    ['--verify-only', '--unknown'], ['--shard=2', '--unknown'], [''],
+  ])('rejects invalid light partition arguments %j before listing or executing tests', (...args) => {
+    const dir = mkdtempSync(join(tmpdir(), 'pika-light-arguments-test-'))
+    try {
+      writeFileSync(join(dir, 'pnpm'), '#!/bin/sh\necho UNEXPECTED_PNPM_CALL\nexit 99\n', { mode: 0o755 })
+      const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs', ...args], {
+        encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+      })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('Unexpected arguments')
+      expect(result.stdout).toBe('')
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+
+  it('preserves all seven light invocations and splits them into complete disjoint opt-in shards', () => {
     const dir = mkdtempSync(join(tmpdir(), 'pika-light-isolation-test-'))
     try {
       const pnpm = spawnSync('which', ['pnpm'], { encoding: 'utf8' }).stdout.trim()
@@ -253,17 +379,40 @@ for arg in "$@"; do
   case "$arg" in --test-list=*) path="\${arg#--test-list=}"; cp "$path" "$CAPTURE_DIR/$(basename "$path")" ;; esac
 done
 `, { mode: 0o755 })
-      const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs'], {
-        encoding: 'utf8', timeout: 90_000, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, REAL_PNPM: pnpm, CAPTURE_DIR: dir },
-      })
-      expect(result.status, result.stderr).toBe(0)
-      const partitions = readdirSync(dir).filter(name => /^part-\d+\.txt$/.test(name)).sort().map(name => readFileSync(join(dir, name), 'utf8').trim().split('\n'))
+      const run = (args: string[], ids: number[]) => {
+        const capture = mkdtempSync(join(dir, 'capture-'))
+        const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs', ...args], {
+          encoding: 'utf8', timeout: 90_000, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, REAL_PNPM: pnpm, CAPTURE_DIR: capture },
+        })
+        expect(result.status, result.stderr).toBe(0)
+        expect(result.stdout.match(/^Running light partition (\d+)\/7$/gm)?.map(line => Number(line.match(/partition (\d+)/)![1]))).toEqual(ids)
+        const names = readdirSync(capture).sort()
+        expect(names).toEqual(ids.map(id => `part-${id}.txt`))
+        const partitions = names.map(name => readFileSync(join(capture, name), 'utf8').trim().split('\n'))
+        const records = result.stdout.split('\n').filter(line => line.startsWith('BROWSER_LIGHT_INVENTORY '))
+        expect(records).toHaveLength(1)
+        const record = JSON.parse(records[0].slice('BROWSER_LIGHT_INVENTORY '.length))
+        expect(record).toEqual({ version: 1, inventorySha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+          totalTestCount: expect.any(Number), selectedTestCount: partitions.flat().length,
+          partitionIds: ids, partitionTestCounts: partitions.map(part => part.length) })
+        return { partitions, record }
+      }
+      const { partitions, record } = run([], [1, 2, 3, 4, 5, 6, 7])
       expect(partitions).toHaveLength(7)
       expect(partitions[4]).toHaveLength(3)
       expect(partitions[4].every(row => row.includes('test-lifecycle-ci.spec.ts'))).toBe(true)
       expect(partitions.filter((_, index) => index !== 4).flat().some(row => row.includes('test-lifecycle-ci.spec.ts'))).toBe(false)
+      const first = run(['--shard=1'], [1, 3, 5])
+      const second = run(['--shard=2'], [2, 4, 6, 7])
+      expect(first.partitions).toEqual([partitions[0], partitions[2], partitions[4]])
+      expect(second.partitions).toEqual([partitions[1], partitions[3], partitions[5], partitions[6]])
+      expect(first.record.inventorySha256).toBe(record.inventorySha256)
+      expect(second.record.inventorySha256).toBe(record.inventorySha256)
+      expect(first.record.totalTestCount).toBe(record.totalTestCount)
+      expect(second.record.totalTestCount).toBe(record.totalTestCount)
+      expect(first.record.selectedTestCount + second.record.selectedTestCount).toBe(record.totalTestCount)
     } finally { rmSync(dir, { recursive: true, force: true }) }
-  }, 100_000)
+  }, 240_000)
 
   it.each(['dark', 'light'])('fails before %s browser execution when a partition selects the wrong inventory', mode => {
     const dir = mkdtempSync(join(tmpdir(), 'pika-dark-inventory-test-'))
@@ -669,7 +818,7 @@ done
     expect(workflow).toContain('name: Classify Changes')
     expect(workflow).toContain('name: Architecture Database Contracts')
     expect(workflow).toContain('name: Test & Build')
-    expect(workflow).toContain('name: Browser Experience Matrix')
+    expect(workflow).toContain("'Browser Experience Matrix'")
     expect(workflow).toContain('name: PR Gate')
     expect(workflow).toContain(
       'supabase db lint --local --level error --fail-on error',
@@ -716,7 +865,9 @@ done
       expect(body).toContain('timeout-minutes: 90')
       expect(body).toContain('run: pnpm seed')
       expect(body).toContain('pnpm exec playwright install --with-deps chromium')
-      expect(body).toContain('name: ' + id)
+      expect(body).toContain(id === 'browser-experience-matrix'
+        ? "'browser-experience-matrix-failure'"
+        : `name: ${id}-failure`)
       expect(body).toContain('path: ci-failure-diagnostics/')
       expect(body).not.toContain('path: |\n            playwright-report/')
     }
