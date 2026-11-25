@@ -320,8 +320,15 @@ done
     expect(eligibility).toContain('node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify')
     expect(eligibility).not.toContain('run: node scripts/')
     expect(classify).toContain('needs: appearance-classify')
-    expect(classify).toContain("needs.appearance-classify.result == 'success' &&\n          steps.classify.outputs.mode == 'application-browser'")
-    expect(classify).toContain("steps.appearance-route.outputs.selection == 'gate'")
+    const guardedOutputs = ['mode', 'run_test_build', 'run_database', 'run_browser',
+      'appearance_selection', 'appearance_calendar', 'appearance_join']
+    for (const output of guardedOutputs) {
+      const expression = classify.split(`      ${output}: >-\n`)[1]?.split(/\n {0,6}\S/)[0] ?? ''
+      expect(expression).toContain("needs.appearance-classify.result == 'success'")
+      expect(expression).toContain("steps.classify.outputs.mode == 'application-browser'")
+      expect(expression).toContain('needs.appearance-classify.outputs.')
+    }
+    expect(classify).not.toContain('APPEARANCE_SELECTION:')
     expect(appearance).toContain(jobStatus)
     expect(classify).not.toContain('APPEARANCE_POLICY_DIR')
     expect(appearance).toContain('uses: ./.github/workflows/appearance-checks.yml')
