@@ -25,7 +25,7 @@ function JoinCodeForm() {
       <div className="max-w-md w-full bg-surface rounded-lg shadow-sm p-8">
         <h1 className="text-2xl font-bold text-text-default">Join a classroom</h1>
         <p className="text-text-muted mt-2">
-          Enter the join code your teacher gave you.
+          Enter the join code from your teacher.
         </p>
 
         <form className="mt-6 space-y-3" onSubmit={submit}>
