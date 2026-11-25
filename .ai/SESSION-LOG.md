@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 — Rebase the dormant billing recovery caller
-
-Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.
-
 ## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
 
 Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
@@ -199,3 +195,7 @@ The production classifier can reuse Test & Build and PR Gate for a canonical sam
 ## 2026-11-24 — Appearance-only PR Gate path
 
 Added a switch-controlled CI path for exact Calendar announcement palette edits and plain Join helper copy. The current main policy verifies the complete PR diff and the tested merge. Workflow contracts remain required, and the focused job checks the selected surfaces against the actual merge. Shadow mode keeps the normal checks and records focused evidence alongside them. Exact-head rollout, rollback, and hosted evidence are tracked in the rollout PR.
+
+## 2026-11-25 — Compare two hosted light browser runners
+
+Prepared a GitHub trial that assigns the existing seven light-mode Playwright partitions to two isolated hosted runners. The serial job and both shards run on the same PR merge. Each validates its test inventory, and the trial compares coverage, finish time, runner minutes, and retries. The comparison PR is disposable.

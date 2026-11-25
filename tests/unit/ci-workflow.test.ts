@@ -242,7 +242,24 @@ describe('CI workflow', () => {
     expect(commands.flat().every(flag => /^--project=[a-z-]+$/.test(flag))).toBe(true)
   }, 180_000)
 
-  it('runs lifecycle tests in their own fresh light browser invocation', () => {
+  it.each([
+    ['--shard=0'], ['--shard=3'], ['--shard=01'], ['--shard=1/2'], ['--shard'], ['--shard', '1'],
+    ['--shard=1', '--shard=1'], ['--shard=1', '--shard=2'], ['--verify-only', '--verify-only'],
+    ['--verify-only', '--unknown'], ['--shard=2', '--unknown'], [''],
+  ])('rejects invalid light partition arguments %j before listing or executing tests', (...args) => {
+    const dir = mkdtempSync(join(tmpdir(), 'pika-light-arguments-test-'))
+    try {
+      writeFileSync(join(dir, 'pnpm'), '#!/bin/sh\necho UNEXPECTED_PNPM_CALL\nexit 99\n', { mode: 0o755 })
+      const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs', ...args], {
+        encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}` },
+      })
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('Unexpected arguments')
+      expect(result.stdout).toBe('')
+    } finally { rmSync(dir, { recursive: true, force: true }) }
+  })
+
+  it('preserves all seven light invocations and splits them into complete disjoint opt-in shards', () => {
     const dir = mkdtempSync(join(tmpdir(), 'pika-light-isolation-test-'))
     try {
       const pnpm = spawnSync('which', ['pnpm'], { encoding: 'utf8' }).stdout.trim()
@@ -253,17 +270,40 @@ for arg in "$@"; do
   case "$arg" in --test-list=*) path="\${arg#--test-list=}"; cp "$path" "$CAPTURE_DIR/$(basename "$path")" ;; esac
 done
 `, { mode: 0o755 })
-      const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs'], {
-        encoding: 'utf8', timeout: 90_000, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, REAL_PNPM: pnpm, CAPTURE_DIR: dir },
-      })
-      expect(result.status, result.stderr).toBe(0)
-      const partitions = readdirSync(dir).filter(name => /^part-\d+\.txt$/.test(name)).sort().map(name => readFileSync(join(dir, name), 'utf8').trim().split('\n'))
+      const run = (args: string[], ids: number[]) => {
+        const capture = mkdtempSync(join(dir, 'capture-'))
+        const result = spawnSync('node', ['scripts/ci-browser-light-partitions.mjs', ...args], {
+          encoding: 'utf8', timeout: 90_000, env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, REAL_PNPM: pnpm, CAPTURE_DIR: capture },
+        })
+        expect(result.status, result.stderr).toBe(0)
+        expect(result.stdout.match(/^Running light partition (\d+)\/7$/gm)?.map(line => Number(line.match(/partition (\d+)/)![1]))).toEqual(ids)
+        const names = readdirSync(capture).sort()
+        expect(names).toEqual(ids.map(id => `part-${id}.txt`))
+        const partitions = names.map(name => readFileSync(join(capture, name), 'utf8').trim().split('\n'))
+        const records = result.stdout.split('\n').filter(line => line.startsWith('BROWSER_LIGHT_INVENTORY '))
+        expect(records).toHaveLength(1)
+        const record = JSON.parse(records[0].slice('BROWSER_LIGHT_INVENTORY '.length))
+        expect(record).toEqual({ version: 1, inventorySha256: expect.stringMatching(/^[a-f0-9]{64}$/),
+          totalTestCount: expect.any(Number), selectedTestCount: partitions.flat().length,
+          partitionIds: ids, partitionTestCounts: partitions.map(part => part.length) })
+        return { partitions, record }
+      }
+      const { partitions, record } = run([], [1, 2, 3, 4, 5, 6, 7])
       expect(partitions).toHaveLength(7)
       expect(partitions[4]).toHaveLength(3)
       expect(partitions[4].every(row => row.includes('test-lifecycle-ci.spec.ts'))).toBe(true)
       expect(partitions.filter((_, index) => index !== 4).flat().some(row => row.includes('test-lifecycle-ci.spec.ts'))).toBe(false)
+      const first = run(['--shard=1'], [1, 3, 5])
+      const second = run(['--shard=2'], [2, 4, 6, 7])
+      expect(first.partitions).toEqual([partitions[0], partitions[2], partitions[4]])
+      expect(second.partitions).toEqual([partitions[1], partitions[3], partitions[5], partitions[6]])
+      expect(first.record.inventorySha256).toBe(record.inventorySha256)
+      expect(second.record.inventorySha256).toBe(record.inventorySha256)
+      expect(first.record.totalTestCount).toBe(record.totalTestCount)
+      expect(second.record.totalTestCount).toBe(record.totalTestCount)
+      expect(first.record.selectedTestCount + second.record.selectedTestCount).toBe(record.totalTestCount)
     } finally { rmSync(dir, { recursive: true, force: true }) }
-  }, 100_000)
+  }, 240_000)
 
   it.each(['dark', 'light'])('fails before %s browser execution when a partition selects the wrong inventory', mode => {
     const dir = mkdtempSync(join(tmpdir(), 'pika-dark-inventory-test-'))

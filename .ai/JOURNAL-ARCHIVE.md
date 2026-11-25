@@ -54588,3 +54588,8 @@ The hosted member-list proof rejected the canonical schema because migration 325
 ## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
 
 Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
+
+<!-- pika-session-log-archive-batch:6a20aa447bbb5f87fc83588f0a01c7d9994d53fff99ab5e7e1b024808894159d -->
+## 2026-11-10 — Rebase the dormant billing recovery caller
+
+Carried the reviewed worker, configuration, tests and CI fixture wiring onto main after scheduled cancellation merged. Preserved both continuity histories. The Worker and recovery route contracts match the reviewed patch.

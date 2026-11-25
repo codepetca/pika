@@ -1,0 +1,159 @@
+name: Browser light parallel pilot
+
+on:
+  pull_request:
+    branches: [main]
+    types: [ready_for_review]
+
+permissions:
+  contents: read
+
+env:
+  SUPABASE_INTERNAL_IMAGE_REGISTRY: ghcr.io
+
+jobs:
+  browser-light-pilot:
+    name: Light browser shard ${{ matrix.shard }}
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'codex/browser-light-parallel-pilot'
+    permissions:
+      contents: read
+      packages: read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      SESSION_SECRET: ci-browser-session-secret-with-at-least-32-characters
+      ENABLE_MOCK_EMAIL: "true"
+      PIKA_E2E_LIFECYCLE_FIXTURES: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Record tested merge commit
+        run: git log -1 --format='%H %P'
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.103.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+
+      - name: Restore pnpm store cache
+        id: browser-pnpm-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        id: browser-install
+        shell: bash
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify isolated CI runner
+        id: ci-isolation
+        run: node scripts/ci-runner-preflight.mjs --lane browser
+
+      - name: Authenticate Supabase image pulls
+        id: supabase-registry-auth
+        env:
+          SUPABASE_CI_GHCR_TOKEN: ${{ github.token }}
+        run: node scripts/ci-supabase-registry-auth.mjs login
+
+      - name: Start ephemeral Supabase and replay migrations
+        id: supabase-start
+        run: supabase start -x analytics,edge-runtime,functions,imgproxy,inbucket,mailpit,meta,realtime,studio,vector
+
+      - name: Export local Supabase environment
+        shell: bash
+        run: |
+          eval "$(supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.anon_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            --override-name auth.service_role_key=SUPABASE_SECRET_KEY)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
+            echo "SUPABASE_SECRET_KEY=$SUPABASE_SECRET_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Seed browser fixtures
+        run: pnpm seed
+
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      - name: Install Chromium and system dependencies
+        id: browser-install-chromium
+        shell: bash
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Summarize browser setup evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Browser lane setup evidence'
+            echo "- pnpm store exact-key hit: ${{ steps.browser-pnpm-cache.outputs.cache-hit }} (false means prefix restore or miss)"
+            echo "- Playwright browser exact-key hit: ${{ steps.playwright-cache.outputs.cache-hit }}"
+            echo '- Chromium and its system dependencies are verified on every run.'
+            echo '- Supabase remains a fresh ephemeral start and migration replay.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run combined browser contracts
+        # Light inventory is validated before any partition executes.
+        env:
+          LIGHT_BROWSER_SHARD: ${{ matrix.shard }}
+        run: node scripts/ci-browser-light-partitions.mjs "--shard=$LIGHT_BROWSER_SHARD"
+
+      - name: Prepare bounded failure diagnostics
+        id: failure-diagnostics
+        if: failure()
+        run: node scripts/ci-diagnostics.mjs collect
+
+      - name: Upload bounded failure diagnostics
+        if: failure() && steps.failure-diagnostics.outcome == 'success'
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-light-pilot-shard-${{ matrix.shard }}-failure
+          path: ci-failure-diagnostics/
+          retention-days: 1
+          if-no-files-found: ignore
+
+      - name: Stop ephemeral database
+        if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
+        run: supabase stop --no-backup
+
+      - name: Remove Supabase registry credentials
+        id: supabase-registry-cleanup
+        if: always()
+        run: node scripts/ci-supabase-registry-auth.mjs cleanup
