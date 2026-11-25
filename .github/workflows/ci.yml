@@ -131,6 +131,18 @@ jobs:
            steps.classify.outputs.mode == 'application-browser' &&
            needs.appearance-classify.outputs.join || 'false' }}
 
+      light_browser_mode: >-
+        ${{ github.event_name == 'pull_request' &&
+           github.event.action == 'ready_for_review' &&
+           github.event.pull_request.base.ref == 'main' &&
+           github.event.pull_request.head.repo.full_name == github.repository &&
+           github.event.pull_request.head.sha != '' &&
+           steps.classify.outputs.mode == 'application-browser' &&
+           (needs.appearance-classify.result != 'success' || needs.appearance-classify.outputs.selection != 'gate') &&
+           steps.runner.outputs.heavy_runner == '["ubuntu-24.04"]' &&
+           ((vars.PIKA_LIGHT_BROWSER_CI == 'enabled' || vars.PIKA_LIGHT_BROWSER_CI == github.event.pull_request.head.sha) && 'parallel' ||
+            vars.PIKA_LIGHT_BROWSER_CI == format('shadow:{0}', github.event.pull_request.head.sha) && 'shadow') || 'serial' }}
+
     steps:
       - name: Checkout code with change history
         uses: actions/checkout@v7
@@ -1710,7 +1722,7 @@ jobs:
           if-no-files-found: ignore
 
   browser-experience-matrix:
-    name: Browser Experience Matrix
+    name: ${{ matrix.shard == 0 && 'Browser Experience Matrix' || format('Browser Experience Matrix (light shard {0})', matrix.shard) }}
     permissions:
       contents: read
       packages: read
@@ -1718,6 +1730,29 @@ jobs:
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.classify-changes.outputs.run_browser == 'true' }}
     runs-on: ${{ fromJSON(needs.classify-changes.outputs.heavy_runner) }}
     timeout-minutes: 90
+    continue-on-error: ${{ matrix.advisory }}
+    strategy:
+      fail-fast: false
+      matrix: >-
+        ${{ fromJSON(
+          needs.classify-changes.outputs.light_browser_mode == 'parallel' &&
+          '{"include":[{"shard":1,"advisory":false},{"shard":2,"advisory":false}]}' ||
+          needs.classify-changes.outputs.light_browser_mode == 'shadow' &&
+          '{"include":[{"shard":0,"advisory":false},{"shard":1,"advisory":true},{"shard":2,"advisory":true}]}' ||
+          '{"include":[{"shard":0,"advisory":false}]}') }}
+    outputs:
+      serial_receipt: >-
+        ${{ matrix.shard == 0 && steps.browser-contracts.outcome == 'success' &&
+           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&
+           format('{0}:{1}:{2}:0', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}
+      shard_one_receipt: >-
+        ${{ matrix.shard == 1 && steps.browser-contracts.outcome == 'success' &&
+           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&
+           format('{0}:{1}:{2}:1', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}
+      shard_two_receipt: >-
+        ${{ matrix.shard == 2 && steps.browser-contracts.outcome == 'success' &&
+           steps.browser-stop-db.outcome == 'success' && steps.supabase-registry-cleanup.outcome == 'success' &&
+           format('{0}:{1}:{2}:2', github.run_id, github.sha, needs.classify-changes.outputs.light_browser_mode) || '' }}
     env:
       E2E_BASE_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
@@ -1818,8 +1853,9 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run combined browser contracts
+        id: browser-contracts
         # Light inventory is validated before any partition executes.
-        run: node scripts/ci-browser-light-partitions.mjs
+        run: node scripts/ci-browser-light-partitions.mjs ${{ matrix.shard != 0 && format('--shard={0}', matrix.shard) || '' }}
 
       - name: Prepare bounded failure diagnostics
         id: failure-diagnostics
@@ -1830,12 +1866,13 @@ jobs:
         if: failure() && steps.failure-diagnostics.outcome == 'success'
         uses: actions/upload-artifact@v7
         with:
-          name: browser-experience-matrix-failure
+          name: ${{ matrix.shard == 0 && 'browser-experience-matrix-failure' || format('browser-experience-matrix-shard-{0}-failure', matrix.shard) }}
           path: ci-failure-diagnostics/
           retention-days: 1
           if-no-files-found: ignore
 
       - name: Stop ephemeral database
+        id: browser-stop-db
         if: always() && steps.ci-isolation.outcome == 'success' && steps.supabase-start.outcome != 'skipped'
         run: supabase stop --no-backup
 
@@ -2145,6 +2182,10 @@ jobs:
           TEST_OWNER_SDK_LIFECYCLE_RESULT: ${{ needs.contextual-test-owner-sdk-lifecycle.result }}
           BROWSER_REQUIRED: ${{ needs.classify-changes.outputs.run_browser }}
           BROWSER_RESULT: ${{ needs.browser-experience-matrix.result }}
+          LIGHT_BROWSER_MODE: ${{ needs.classify-changes.outputs.light_browser_mode }}
+          LIGHT_BROWSER_SERIAL_RECEIPT: ${{ needs.browser-experience-matrix.outputs.serial_receipt }}
+          LIGHT_BROWSER_SHARD_ONE_RECEIPT: ${{ needs.browser-experience-matrix.outputs.shard_one_receipt }}
+          LIGHT_BROWSER_SHARD_TWO_RECEIPT: ${{ needs.browser-experience-matrix.outputs.shard_two_receipt }}
           BROWSER_DARK_RESULT: ${{ needs.browser-experience-dark.result }}
           BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}
           CI_MODE: ${{ needs.classify-changes.outputs.mode }}
@@ -2221,6 +2262,36 @@ jobs:
           if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_RESULT" != "success" ]]; then
             echo "Browser Experience Matrix was required but ended: $BROWSER_RESULT"
             exit 1
+          fi
+          if [[ "$BROWSER_REQUIRED" == "true" ]]; then
+            echo "Light browser mode: $LIGHT_BROWSER_MODE"
+            [[ "$GITHUB_RUN_ID" =~ ^[0-9]+$ && "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+              echo "Missing workflow identity for the light browser receipts"
+              exit 1
+            }
+            light_browser_receipt="$GITHUB_RUN_ID:$GITHUB_SHA:$LIGHT_BROWSER_MODE"
+            case "$CI_MODE:$LIGHT_BROWSER_MODE" in
+              application-browser:parallel)
+                [[ "$LIGHT_BROWSER_SHARD_ONE_RECEIPT" == "$light_browser_receipt:1" ]] || {
+                  echo "Missing completion evidence for light browser shard 1"
+                  exit 1
+                }
+                [[ "$LIGHT_BROWSER_SHARD_TWO_RECEIPT" == "$light_browser_receipt:2" ]] || {
+                  echo "Missing completion evidence for light browser shard 2"
+                  exit 1
+                }
+                ;;
+              *:serial | application-browser:shadow)
+                [[ "$LIGHT_BROWSER_SERIAL_RECEIPT" == "$light_browser_receipt:0" ]] || {
+                  echo "Missing completion evidence for the serial light browser job"
+                  exit 1
+                }
+                ;;
+              *)
+                echo "Invalid light browser mode for $CI_MODE"
+                exit 1
+                ;;
+            esac
           fi
           if [[ "$BROWSER_REQUIRED" == "true" && "$BROWSER_DARK_RESULT" != "success" ]]; then
             echo "Browser Experience Matrix Dark was required but ended: $BROWSER_DARK_RESULT"

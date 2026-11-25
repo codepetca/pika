@@ -54598,3 +54598,8 @@ Carried the reviewed worker, configuration, tests and CI fixture wiring onto mai
 ## 2026-11-10 — Rebase exclusive Stripe Tax after worker cadence
 
 Preserved the reviewed exclusive-tax and readiness changes and migration 326. The reorder fixture retains the shared migration 319 billing trigger witness at profile 326. The tax-scoped offers remain behind the standard API error wrapper and private no-store.
+
+<!-- pika-session-log-archive-batch:b3ffa8966852a10dbc713edf9dd5a65812225da571a4be3f061cc2ae643b1d42 -->
+## 2026-11-10 — Rebase the teacher billing access reminders
+
+Carried the reviewed reminder UI and opt-in status behavior onto main after the Stripe Tax merge. Preserved both continuity histories. The product and test patches match the reviewed version, including the verified keyboard and notice semantics.

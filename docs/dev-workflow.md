@@ -329,6 +329,31 @@ the variable to `off` to roll it back. For open PRs with an earlier appearance-o
 pass, request a fresh gate before merging if rollback is necessary. Manual full
 runs and production promotions use their existing selectors.
 
+### Light browser matrix
+
+On GitHub-hosted runners, same-repository ready PRs to `main` that select
+`application-browser` can run the existing light-mode Playwright inventory on
+two runners. One runs partitions 1, 3, and 5, and the other runs partitions 2,
+4, 6, and 7. Each uses an isolated browser stack and validates the full
+inventory before running its assigned partitions. `PR Gate` takes the
+aggregate result of the browser matrix and checks distinct completion receipts for
+its required jobs. Receipts identify the tested merge, the workflow run, and
+the selected mode. A missing receipt blocks the gate.
+
+The repository Actions variable `PIKA_LIGHT_BROWSER_CI` controls the rollout:
+
+| Value | Effect |
+| --- | --- |
+| Unset or `off` | Use the serial light browser job. |
+| `shadow:<reviewed-head-sha>` | On that head, run both advisory shards alongside the required serial job. |
+| A reviewed PR head SHA | On that head, require both shards for the light browser result. |
+| `enabled` | Require both shards on every eligible PR. |
+
+Manual full runs, database and browser changes, fork PRs, and self-hosted jobs
+use the serial light browser job. Local CI runs all seven partitions serially.
+For a rollback, set the variable to `off` and request a fresh gate for any
+open PR whose earlier result needs to be replaced.
+
 CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`.
 The seven Supabase jobs authenticate image downloads using their ephemeral
 workflow token with job-scoped `packages: read`; CLI/image versions, commands,
