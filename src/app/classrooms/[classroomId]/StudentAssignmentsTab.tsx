@@ -23,7 +23,7 @@ import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { StudentSurveyPanel } from '@/components/surveys/StudentSurveyPanel'
 import { StudentReturnedMarks } from '@/components/gradebook/StudentReturnedMarks'
 import { fetchCachedJSON, invalidateCachedJSON } from '@/lib/request-cache'
-import { buildOrderedClassworkItems } from '@/lib/classwork-order'
+import { buildStudentClassworkItems } from '@/lib/classwork-order'
 import { getStudentSurveyStatus, getSurveyStatusBadgeClass, getSurveyStatusLabel } from '@/lib/surveys'
 
 interface Props {
@@ -190,7 +190,7 @@ export function StudentAssignmentsTab({
   }, [currentSurveys, selectedSurveyId])
 
   const classworkItems = useMemo(
-    () => buildOrderedClassworkItems(currentAssignments, currentMaterials, currentSurveys),
+    () => buildStudentClassworkItems(currentAssignments, currentMaterials, currentSurveys),
     [currentAssignments, currentMaterials, currentSurveys],
   )
 

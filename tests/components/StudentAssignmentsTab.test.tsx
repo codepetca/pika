@@ -127,7 +127,7 @@ function makeSurvey(overrides: Partial<StudentSurveyView> = {}): StudentSurveyVi
   }
 }
 
-function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: ClassworkMaterial[] = []) {
+function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: ClassworkMaterial[] = [], surveys: StudentSurveyView[] = []) {
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({
       ok: true,
@@ -139,7 +139,7 @@ function mockFetchClasswork(assignments: AssignmentWithStatus[], materials: Clas
     })
     .mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ surveys: [] }),
+      json: async () => ({ surveys }),
     })
 }
 
@@ -625,11 +625,15 @@ describe('StudentAssignmentsTab', () => {
     expect(screen.queryByRole('button', { name: 'Submit' })).not.toBeInTheDocument()
   })
 
-  it('renders materials and assignments in shared classwork order', async () => {
+  it('renders assignments, materials and surveys newest-posted first', async () => {
     const mixedClassroom = { ...classroom, id: 'cls-mixed' }
     mockFetchClasswork(
-      [makeAssignment({ id: 'asgn-1', classroom_id: mixedClassroom.id, title: 'Essay Assignment', position: 2 })],
-      [makeMaterial({ id: 'mat-1', classroom_id: mixedClassroom.id, title: 'Opening Reading', position: 1 })],
+      [
+        makeAssignment({ classroom_id: mixedClassroom.id, title: 'Essay Assignment', position: 1, released_at: '2025-05-03T12:00:00Z' }),
+        makeAssignment({ id: 'asgn-legacy', classroom_id: mixedClassroom.id, title: 'Legacy Assignment', position: 0, released_at: null, created_at: '2025-05-02T12:00:00Z' }),
+      ],
+      [makeMaterial({ classroom_id: mixedClassroom.id, title: 'Opening Reading', position: 3, released_at: '2025-05-01T12:00:00Z' })],
+      [makeSurvey({ classroom_id: mixedClassroom.id, title: 'Class Survey', position: 2, opens_at: '2025-05-04T12:00:00Z' })],
     )
 
     render(<StudentAssignmentsTab classroom={mixedClassroom} />)
@@ -638,19 +642,15 @@ describe('StudentAssignmentsTab', () => {
       expect(screen.getByText('Opening Reading')).toBeInTheDocument()
     })
 
-    const cards = [
-      ...screen.getAllByTestId('material-card'),
-      ...screen.getAllByTestId('assignment-card'),
-    ].sort((left, right) => {
-      const position = left.compareDocumentPosition(right)
-      return position & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
-    })
+    const cards = screen.getAllByTestId(/^(assignment|material|survey)-card$/)
 
-    expect(cards[0]).toHaveTextContent('Opening Reading')
+    expect(cards[0]).toHaveTextContent('Class Survey')
     expect(cards[1]).toHaveTextContent('Essay Assignment')
-    expect(cards[0]).toHaveClass('border-0')
-    expect(cards[0]).not.toHaveClass('border-primary/40')
-    expect(cards[0].querySelector('.border-l-2')).not.toBeInTheDocument()
+    expect(cards[2]).toHaveTextContent('Legacy Assignment')
+    expect(cards[3]).toHaveTextContent('Opening Reading')
+    expect(cards[3]).toHaveClass('border-0')
+    expect(cards[3]).not.toHaveClass('border-primary/40')
+    expect(cards[3].querySelector('.border-l-2')).not.toBeInTheDocument()
   })
 
   it('reloads active classwork on classroom change without showing stale classwork', async () => {
