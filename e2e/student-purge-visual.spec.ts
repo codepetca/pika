@@ -178,6 +178,9 @@ for (const entry of matrix) {
   })
 
   test(`blocks re-adding a removed student (${entry.name})`, async ({ browser, baseURL }, testInfo) => {
+    if (entry.name === 'desktop-light' && testInfo.project.name === 'chromium-desktop') {
+      throw new Error('Intentional light browser rollout failure for shard 2')
+    }
     const classroomId = await discoverClassroom(browser, baseURL)
     const { context, page } = await newRolePage(
       () => browser.newContext({ baseURL, storageState: '.auth/teacher.json', viewport: entry.viewport }),
