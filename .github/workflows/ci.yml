@@ -32,11 +32,20 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       heavy_runner: ${{ steps.runner.outputs.heavy_runner }}
-      mode: ${{ steps.classify.outputs.mode }}
+      mode: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'appearance-only' || steps.classify.outputs.mode }}
       docs_only: ${{ steps.classify.outputs.docs_only }}
-      run_test_build: ${{ steps.classify.outputs.run_test_build }}
-      run_database: ${{ steps.classify.outputs.run_database }}
-      run_browser: ${{ steps.classify.outputs.run_browser }}
+      run_test_build: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_test_build }}
+      run_database: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_database }}
+      run_browser: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection == 'gate' && 'false' || steps.classify.outputs.run_browser }}
+      appearance_selection: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.selection || 'skip' }}
+      appearance_calendar: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.calendar || 'false' }}
+      appearance_join: ${{ steps.appearance.outcome == 'success' && steps.appearance.outputs.join || 'false' }}
+
+    env:
+      APPEARANCE_SWITCH: ${{ vars.PIKA_APPEARANCE_CI }}
+      APPEARANCE_BASE: ${{ github.event.pull_request.base.sha }}
+      APPEARANCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      APPEARANCE_TESTED: ${{ github.sha }}
 
     steps:
       - name: Checkout code with change history
@@ -87,6 +96,59 @@ jobs:
               --base-repository "$BASE_REPOSITORY" \
               --github-output "$GITHUB_OUTPUT"
           fi
+
+      - name: Prepare appearance policy from main
+        id: appearance-preflight
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.action == 'ready_for_review' &&
+          github.event.pull_request.base.ref == 'main' &&
+          github.event.pull_request.head.repo.full_name == github.repository &&
+          steps.classify.outputs.mode == 'application-browser' &&
+          vars.PIKA_APPEARANCE_CI != '' &&
+          vars.PIKA_APPEARANCE_CI != 'off'
+        continue-on-error: true
+        shell: bash
+        run: |
+          [[ "$APPEARANCE_BASE" =~ ^[0-9a-f]{40}$ ]] || exit 0
+          [[ "$APPEARANCE_BASE" == "$(git rev-parse refs/remotes/origin/main)" ]] || exit 0
+          policy_dir="$(mktemp -d "$RUNNER_TEMP/pika-appearance.XXXXXXXX")"
+          for policy in classify-appearance-ci.mjs appearance-ci-diff.mjs; do
+            git show "$APPEARANCE_BASE:scripts/$policy" > "$policy_dir/$policy"
+          done
+          printf 'APPEARANCE_POLICY_DIR=%s\n' "$policy_dir" >> "$GITHUB_ENV"
+          node "$policy_dir/classify-appearance-ci.mjs" preflight
+
+      - name: Set up pnpm for appearance classification
+        id: appearance-pnpm
+        if: steps.appearance-preflight.outcome == 'success' && steps.appearance-preflight.outputs.candidate == 'true'
+        continue-on-error: true
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+
+      - name: Classify the complete appearance diff
+        id: appearance
+        if: steps.appearance-pnpm.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$APPEARANCE_POLICY_DIR/node_modules"
+          node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify
+
+  appearance-checks:
+    name: Appearance checks
+    permissions:
+      contents: read
+    needs: classify-changes
+    if: >-
+      needs.classify-changes.outputs.appearance_selection == 'gate' ||
+      needs.classify-changes.outputs.appearance_selection == 'shadow'
+    uses: ./.github/workflows/appearance-checks.yml
+    with:
+      calendar: ${{ needs.classify-changes.outputs.appearance_calendar == 'true' }}
+      join: ${{ needs.classify-changes.outputs.appearance_join == 'true' }}
 
   architecture-database-contracts:
     name: Architecture Database Contracts
@@ -2007,6 +2069,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' || github.event.pull_request.draft == false)
     needs:
       - classify-changes
+      - appearance-checks
       - architecture-database-contracts
       - architecture-database-contracts-lifecycle
       - contextual-test-owner-sdk
@@ -2035,6 +2098,10 @@ jobs:
           BROWSER_DARK_RESULT: ${{ needs.browser-experience-dark.result }}
           BROWSER_PATTERN_DARK_RESULT: ${{ needs.browser-pattern-lab-dark.result }}
           CI_MODE: ${{ needs.classify-changes.outputs.mode }}
+          APPEARANCE_SELECTION: ${{ needs.classify-changes.outputs.appearance_selection }}
+          APPEARANCE_CALENDAR: ${{ needs.classify-changes.outputs.appearance_calendar }}
+          APPEARANCE_JOIN: ${{ needs.classify-changes.outputs.appearance_join }}
+          APPEARANCE_RESULT: ${{ needs.appearance-checks.result }}
         run: |
           [[ "$CI_EVENT_ELIGIBLE" == "true" ]] || {
             echo "Ready pull request changed after its stable-SHA request. Convert it to draft before pushing, then mark the reviewed SHA ready again."
@@ -2052,6 +2119,7 @@ jobs:
           case "$CI_MODE:$TEST_BUILD_REQUIRED:$DATABASE_REQUIRED:$BROWSER_REQUIRED" in
             full:true:true:true | \
             docs-only:false:false:false | \
+            appearance-only:false:false:false | \
             production-promotion:true:false:false | \
             application-database:true:true:false | \
             application-browser:true:false:true | \
@@ -2060,6 +2128,27 @@ jobs:
               ;;
             *)
               echo "Invalid or inconsistent CI selectors: mode=$CI_MODE test_build=$TEST_BUILD_REQUIRED database=$DATABASE_REQUIRED browser=$BROWSER_REQUIRED"
+              exit 1
+              ;;
+          esac
+          case "$CI_MODE:$APPEARANCE_SELECTION:$APPEARANCE_CALENDAR:$APPEARANCE_JOIN" in
+            appearance-only:gate:true:true | appearance-only:gate:true:false | appearance-only:gate:false:true)
+              [[ "$APPEARANCE_RESULT" == "success" ]] || {
+                echo "Appearance checks were required but ended: $APPEARANCE_RESULT"
+                exit 1
+              }
+              ;;
+            application-browser:shadow:true:true | application-browser:shadow:true:false | application-browser:shadow:false:true)
+              printf 'Advisory appearance checks ended: %s\n' "$APPEARANCE_RESULT"
+              ;;
+            appearance-only:*)
+              echo "Appearance-only mode requires an eligible surface"
+              exit 1
+              ;;
+            *:skip:false:false)
+              ;;
+            *)
+              echo "Invalid or inconsistent appearance selectors"
               exit 1
               ;;
           esac

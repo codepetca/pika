@@ -1,0 +1,83 @@
+name: Appearance checks
+
+on:
+  workflow_call:
+    inputs:
+      calendar:
+        type: boolean
+        required: true
+      join:
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  appearance:
+    name: Selected appearance checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      E2E_BASE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: synthetic-publishable-key
+      SUPABASE_SECRET_KEY: synthetic-secret-key
+      SESSION_SECRET: appearance-loopback-session-secret-with-at-least-32-characters
+      CHECK_CALENDAR: ${{ inputs.calendar }}
+      CHECK_JOIN: ${{ inputs.join }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Record tested commit
+        run: git log -1 --format='%H %P'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.25.0
+      - name: Get pnpm store directory
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> "$GITHUB_ENV"
+      - uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: ${{ runner.os }}-pnpm-store-
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache/restore@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install --with-deps chromium
+      - name: Check policies and types
+        run: |
+          pnpm run check:ui-policy
+          pnpm run check:design-policy
+          pnpm exec tsc --noEmit
+      - name: Check selected source and unit contracts
+        run: |
+          if [ "$CHECK_CALENDAR" = true ]; then
+            pnpm exec vitest run --maxWorkers=1 tests/unit/semantic-token-contrast.test.ts tests/ui/UiGallery.test.tsx tests/components/LessonDayCell.test.tsx
+          fi
+          if [ "$CHECK_JOIN" = true ]; then
+            pnpm exec next lint --file src/app/join/page.tsx
+          fi
+      - name: Exercise selected surfaces
+        run: |
+          specs=()
+          if [ "$CHECK_CALENDAR" = true ]; then specs+=(e2e/calendar-appearance.ui-pattern-lab.spec.ts); fi
+          if [ "$CHECK_JOIN" = true ]; then specs+=(e2e/join-appearance.ui-pattern-lab.spec.ts e2e/join-code-controls.ui-pattern-lab.spec.ts); fi
+          if [ ${#specs[@]} -eq 0 ]; then echo 'No appearance surface selected' >&2; exit 1; fi
+          pnpm exec playwright test "${specs[@]}" --project=pattern-lab-desktop-light --project=pattern-lab-desktop-dark --project=pattern-lab-mobile-light --project=pattern-lab-mobile-dark
+      - name: Verify checkout was not modified
+        if: always()
+        run: git diff --exit-code HEAD
+      - name: Retain screenshots and traces
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: appearance-check-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7

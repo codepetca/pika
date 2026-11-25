@@ -291,8 +291,10 @@ CI classifies changes conservatively:
 
 - Documentation and AI-guidance-only diffs run fast workflow contracts in the
   transition-safe `Test & Build` job.
-- Application diffs always run Test & Build; rendered UI paths add the browser
+- Application diffs run Test & Build; rendered UI paths add the browser
   matrix, while database/server-contract paths add ephemeral database contracts.
+  The appearance-only path below keeps the workflow contracts in Test & Build
+  and runs focused lint, type, unit, and browser checks for the selected surfaces.
 - CI configuration, dependency/runtime configuration, manual dispatches, empty
   change evidence, and unknown paths fail closed to the full suite.
 - Same-repository production promotion PRs validate with Test & Build when the
@@ -302,6 +304,29 @@ CI classifies changes conservatively:
   `.ai/SESSION-LOG.md` and `.ai/JOURNAL-ARCHIVE.md`. Both paths use protected
   `main` as the release source. Unproven promotions run full CI.
 - `workflow_dispatch` remains the full-suite escape hatch.
+
+For same-repository ready PRs to `main`, appearance-only eligibility is limited
+to literal values for the Calendar announcement palette and the plain helper
+paragraph on `/join`. Keep the PR diff limited to those edits to qualify. The
+classifier loads from the current protected base, checks both the complete PR
+diff and the tested GitHub merge, and uses the ordinary risk-matched path
+whenever the evidence is missing or mixed. The checks run against the actual
+merge candidate. `PR Gate` remains the required check.
+
+The repository Actions variable `PIKA_APPEARANCE_CI` controls rollout:
+
+| Value | Effect |
+| --- | --- |
+| Unset or `off` | Use the ordinary CI path. |
+| `shadow` | Run eligible appearance checks alongside ordinary CI for timing and comparison. |
+| A reviewed PR head SHA | Require the appearance path only for that eligible head. |
+| `enabled` | Require the appearance path for every eligible PR to `main`. |
+
+Start by comparing a real eligible PR and a mixed PR in shadow mode. Use an
+exact-head canary to verify a passing edit and a failing appearance check
+through `PR Gate`. Enable the shared path after that evidence passes, or set
+the variable to `off` to roll it back. Manual full runs and production
+promotions use their existing selectors.
 
 CI sets `SUPABASE_INTERNAL_IMAGE_REGISTRY=ghcr.io` before `setup-cli`.
 The seven Supabase jobs authenticate image downloads using their ephemeral

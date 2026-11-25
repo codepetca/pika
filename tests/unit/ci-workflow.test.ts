@@ -31,6 +31,7 @@ function runGate(overrides: Record<string, string | undefined> = {}) {
     encoding: 'utf8',
     env: { PATH: process.env.PATH, CI_EVENT_ELIGIBLE: 'true', CLASSIFY_RESULT: 'success',
       TEST_BUILD_RESULT: 'success', TEST_BUILD_REQUIRED: 'true', DATABASE_REQUIRED: 'true',
+      APPEARANCE_SELECTION: 'skip', APPEARANCE_CALENDAR: 'false', APPEARANCE_JOIN: 'false', APPEARANCE_RESULT: 'skipped',
       DATABASE_RESULT: 'success', DATABASE_LIFECYCLE_RESULT: 'success', TEST_OWNER_SDK_RESULT: 'success', TEST_OWNER_SDK_LIFECYCLE_RESULT: 'success', BROWSER_REQUIRED: 'false',
       BROWSER_RESULT: 'skipped', BROWSER_DARK_RESULT: 'skipped', BROWSER_PATTERN_DARK_RESULT: 'skipped', CI_MODE: 'application-database', ...overrides },
   })
@@ -298,6 +299,63 @@ done
       expect(gate.status).toBe(1)
     },
   )
+
+  it('selects the appearance job from the trusted base for a ready same-repository main PR', () => {
+    const workflow = readFileSync(workflowPath, 'utf8')
+    const classify = jobSource(workflow, 'classify-changes')
+    const appearance = jobSource(workflow, 'appearance-checks')
+    const gate = jobSource(workflow, 'pr-gate')
+
+    expect(classify).toContain("github.event.action == 'ready_for_review'")
+    expect(classify).toContain("github.event.pull_request.base.ref == 'main'")
+    expect(classify).toContain('github.event.pull_request.head.repo.full_name == github.repository')
+    expect(classify).toContain("steps.classify.outputs.mode == 'application-browser'")
+    expect(classify).toContain('git show "$APPEARANCE_BASE:scripts/$policy"')
+    expect(classify).toContain('git rev-parse refs/remotes/origin/main')
+    expect(classify).toContain('pnpm install --frozen-lockfile --ignore-scripts')
+    expect(classify).toContain('node "$APPEARANCE_POLICY_DIR/classify-appearance-ci.mjs" classify')
+    expect(appearance).toContain('uses: ./.github/workflows/appearance-checks.yml')
+    expect(appearance).not.toContain('secrets:')
+    expect(gate).toContain('- appearance-checks')
+    expect(gate).toContain('APPEARANCE_RESULT: ${{ needs.appearance-checks.result }}')
+  })
+
+  const appearanceGate = {
+    CI_MODE: 'appearance-only', TEST_BUILD_REQUIRED: 'false', DATABASE_REQUIRED: 'false',
+    APPEARANCE_SELECTION: 'gate', APPEARANCE_CALENDAR: 'true', APPEARANCE_RESULT: 'success',
+  }
+
+  it.each([['true', 'false'], ['false', 'true'], ['true', 'true']])(
+    'accepts required appearance evidence with Calendar=%s and Join=%s', (calendar, join) => {
+      expect(runGate({ ...appearanceGate, APPEARANCE_CALENDAR: calendar, APPEARANCE_JOIN: join }).status).toBe(0)
+    },
+  )
+
+  it.each(['failure', 'cancelled', 'skipped', '', undefined])(
+    'blocks the required gate for appearance result %s', result => {
+      expect(runGate({ ...appearanceGate, APPEARANCE_RESULT: result }).status).toBe(1)
+    },
+  )
+
+  it('rejects inconsistent appearance eligibility and still requires the workflow contracts', () => {
+    for (const invalid of [
+      { APPEARANCE_CALENDAR: 'false' }, { APPEARANCE_SELECTION: 'skip' },
+      { APPEARANCE_SELECTION: 'shadow' }, { APPEARANCE_JOIN: '' },
+      { TEST_BUILD_REQUIRED: 'true' }, { TEST_BUILD_RESULT: 'skipped' },
+      { DATABASE_REQUIRED: 'true' }, { BROWSER_REQUIRED: 'true' },
+    ]) expect(runGate({ ...appearanceGate, ...invalid }).status).toBe(1)
+  })
+
+  it('keeps shadow failure advisory and requires the broad browser evidence', () => {
+    const shadow = {
+      CI_MODE: 'application-browser', DATABASE_REQUIRED: 'false', BROWSER_REQUIRED: 'true',
+      BROWSER_RESULT: 'success', BROWSER_DARK_RESULT: 'success', BROWSER_PATTERN_DARK_RESULT: 'success',
+      APPEARANCE_SELECTION: 'shadow', APPEARANCE_JOIN: 'true', APPEARANCE_RESULT: 'failure',
+    }
+    expect(runGate(shadow).status).toBe(0)
+    expect(runGate({ ...shadow, BROWSER_RESULT: 'skipped' }).status).toBe(1)
+    expect(runGate({ ...shadow, APPEARANCE_SELECTION: 'gate' }).status).toBe(1)
+  })
 
   it('keeps all fresh Test pilot modes and failure receipts while collecting only sanitized timings', () => {
     const workflow = readFileSync(workflowPath, 'utf8')

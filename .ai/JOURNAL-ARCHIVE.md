@@ -54583,3 +54583,8 @@ Hosted CI requires the scheduled cancellation and offers exports to call withErr
 ## 2026-11-09 — Include scheduled cancellations in the sealed fixture catalog
 
 The hosted member-list proof rejected the canonical schema because migration 325 adds the private cancellation table. The disposable catalog now fingerprints that table after sealing the exact 325 profile. The proof also preserves the distinct reviewed pre-cancellation catalogs.
+
+<!-- pika-session-log-archive-batch:2cca5a33fd6653a15845daea0d7e10071d2b4bc4eafe2da3e8a9bb90a7d1dde8 -->
+## 2026-11-09 — Accept exact Stripe SDK quantities in upgrade invoice evidence
+
+Independent review confirmed Stripe 22.6.2 decodes invoice and preview quantity_decimal into Decimal objects. Shared conversion now feeds the existing exact-one quantity rule for paid invoice, preview and frozen invoice evidence. SDK-shaped quantity regressions cover quote and recovery, and the focused adapter suites passed.
