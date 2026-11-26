@@ -11,14 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 Closed Stripe setup and refund PR sync
-
-Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.
-
-## 2026-11-10 Sol assignment and test default
-
-Set the classroom grading default to GPT-6.1 Sol after the owner's model comparison. Assignment and test requests fall back to DeepSeek Flash on OpenAI's exact exhausted-credit code as well as the existing hard spend-limit codes. Repository review routing retains its previous default and fallback scope. Explicit provider/model overrides still apply. Regression coverage includes assignment and test/reference provenance, bounded error classification, and repository compatibility.
-
 ## 2026-11-10 Pika recovery alerts Worker
 
 Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
@@ -152,6 +144,10 @@ The shared catalog may expose a legacy previous location that cannot be selected
 
 Implemented bounded grading-history reads/failure retry, legacy Daily Log CAS, transactional assignment bulk reuse and named API schemas, legacy private-image membership/visibility parity, roster validation/dialog behavior, accessible date/card metadata and 44px controls/reduced motion. Extracted owner-scoped repository/test grading-start controllers and validated/scoped Blueprint copilot responses. Reconciled audit and architecture guidance; the existing product-experience epic remains open. Risk profiles: async-grading, workspace-state. Final focused checks pass (664 files, 14,750 tests, eight skips, TypeScript, lint, architecture/UI/design policies), precommit audit passes, and changed-UI teacher/student desktop/mobile light/dark matrix passes. PR #1833 is draft. Two initial reviews found seven gaps; two correction batches add intermediate patch bounds, absent-row revision conflicts, real roster refresh recovery/delimited-cell integrity, committed proposal reconciliation and newer grading-selection preservation. Historical oversized Daily repair and Blueprint tab/preview intent also have regressions and browser evidence. Targeted browser matrices and focused regressions pass; targeted/final fixed-SHA review and CI remain in progress. Test-history transaction work is isolated; its source preflight found native harness/compatibility corrections. In the isolated A5 follow-up, approved331 applied to a network-none disposable container; its first fixture rolled back and corrected verification awaits fresh approval. No existing database, production, merge or deployment changes.
 
+## 2026-11-18 — Repair Classwork autosave CI
+
+Synced PR #1782 with current main and moved its unapplied Classwork snapshot migration to 331. Updated image-reference proof catalogs for the exact installed snapshot schema, refreshed survey and scheduled-material browser fixtures, and projected current assignment release intents through authoring responses. Verification and independent review are tracked on the PR before requesting CI.
+
 ## 2026-11-19 School location picker
 
 Added the attendance school location picker and Custom fallback, retaining room poster and undo behavior. Integration contract coordinated with Bara; verification recorded in the task handoff.
@@ -201,3 +197,9 @@ Restore atomic title editing after Start with migration 332. Preserve the existi
 Rebased PR #1833 onto main b1ac2ed34. Preserved current main's continuity records and restored the November audit entries. The cumulative audit patch retains the shipped newest-first Student Classwork behavior alongside its reduced-motion changes. Risk profiles: async-grading and workspace-state. Rebased validation, independent review and PR Gate are tracked on #1833.
 
 Independent review found a competing first-save overwrite in legacy Pal writes. Legacy Pal POST and first-save PATCH now use the existing guarded member transaction. With Pal disabled, a competing first-save PATCH now returns the caller’s current entry with 409. All 107 affected API tests passed. The local database fixture confirmed one create succeeds and the competing create returns 409 with the winning entry intact. Teacher and student Classwork captures passed desktop and mobile in both themes.
+
+## 2026-11-26 — Rebase Classwork autosave and resequence its migration
+
+Rebased #1782 after the audit fixes landed at 722223f3. Preserved the full previously reviewed patch, including the earlier sync merge's fixes. Renamed the byte-identical Classwork migration to 333 and retained separately pinned notification and started-Test migrations 331 and 332. The isolated proofs admit only the exact reviewed tail and keep the Classwork private table absent from earlier catalogs. Risk profiles: workspace-state and runtime-platform.
+
+Review restored same-tab Material recovery, preserving stale local copies alongside later edits, and let corrected input save after validation rejects an autosave. Publication now timestamps the survey for Student Classwork ordering. Apply, Publish and Discard keep distinct receipts for retries of the same draft revision. The database contract lane runs the rollback proof on its ephemeral replay of migration 333.

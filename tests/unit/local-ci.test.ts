@@ -8,7 +8,9 @@ import { CiProcessGroupError, executeStep, extractWorkflow, importedEnvironment,
 import { serialLightWorkflow } from '../helpers/ci-workflow-fixtures'
 
 const workflow = () => readFileSync(resolve('.github/workflows/ci.yml'), 'utf8')
-const withoutNotificationProof = (source: string) => source.replace(/^      - name: Verify student notification counts and execution privileges\n[\s\S]*?(?=^      - name:)/m, '')
+const classworkProof = /^      - name: Verify Classwork authoring drafts and publication contracts\n[\s\S]*?(?=^      - name:)/m
+const withoutClassworkProof = (source: string) => source.replace(classworkProof, '')
+const withoutNotificationProof = (source: string) => withoutClassworkProof(source).replace(/^      - name: Verify student notification counts and execution privileges\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutHomeVisibilityProof = (source: string) => withoutNotificationProof(source).replace(/^      - name: Verify personal joined classroom home visibility and concurrency\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutMembershipAdoptionProof = (source: string) => withoutHomeVisibilityProof(source).replace(/^      - name: Verify current-membership attendance allocation and retained delivery\n[\s\S]*?(?=^      - name:)/m, '')
 const withoutDataApiProof = (source: string) => withoutMembershipAdoptionProof(source).replace(/^      - name: Verify explicit (?:Data API migration policy|server-only Data API grants without automatic defaults)\n[\s\S]*?(?=^      - name:)/gm, '')
@@ -121,7 +123,7 @@ describe('personal joined-home visibility proof inventory', () => {
 
 describe('student notification proof inventory', () => {
   it('adds the exact proof to the previous complete inventory', () => {
-    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const current = selectPlan(extractWorkflow(withoutClassworkProof(workflow())), 'database')[0]
     const previous = selectPlan(extractWorkflow(withoutNotificationProof(workflow())), 'database')[0]
     const name = 'Verify student notification counts and execution privileges'
     expect(current.steps.filter(step => step.name === name)).toHaveLength(1)
@@ -138,6 +140,29 @@ describe('student notification proof inventory', () => {
     expect(() => extractWorkflow(defect === 'wrong-lane'
       ? changed.replace(/(  architecture-database-contracts-lifecycle:\n[\s\S]*?)(      - name: Stop ephemeral database\n)/, `$1${block}$2`)
       : changed)).toThrow()
+  })
+})
+
+describe('Classwork authoring database proof inventory', () => {
+  it('adds the rollback proof while preserving the previous complete inventory', () => {
+    const current = selectPlan(extractWorkflow(workflow()), 'database')[0]
+    const previous = selectPlan(extractWorkflow(withoutClassworkProof(workflow())), 'database')[0]
+    const name = 'Verify Classwork authoring drafts and publication contracts'
+    expect(current.steps.filter(step => step.name === name)).toHaveLength(1)
+    expect(current.steps.filter(step => step.name !== name)).toEqual(previous.steps)
+  })
+
+  it.each(['changed-command', 'conditional', 'duplicate', 'wrong-lane'])('rejects %s Classwork proof', defect => {
+    const source = workflow()
+    const block = source.match(classworkProof)![0]
+    const replacement = defect === 'duplicate' ? block + block
+      : defect === 'conditional' ? block.replace('\n        shell:', '\n        if: success()\n        shell:')
+      : defect === 'wrong-lane' ? '' : block.replace('-v ON_ERROR_STOP=1', '-v ON_ERROR_STOP=0')
+    const changed = source.replace(block, () => replacement)
+    expect(() => extractWorkflow(defect === 'wrong-lane'
+      ? changed.replace(/(  architecture-database-contracts-lifecycle:\n[\s\S]*?)(      - name: Stop ephemeral database\n)/,
+        (_match, opening, cleanup) => opening + block + cleanup)
+      : changed)).toThrow('Canonical rollback proof is duplicated or changed')
   })
 })
 

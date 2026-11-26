@@ -18,6 +18,8 @@ export const TEACHER_AUTHORING_IMAGE_ROUTINE_MD5 = Object.freeze({
 })
 const q = (value: string) => `'${value.replaceAll("'", "''")}'`
 const ledger = "pg_catalog.to_regclass('public.teacher_authoring_image_references')"
+const classworkDrafts = "pg_catalog.to_regclass('private.classwork_authoring_drafts')"
+export const CLASSWORK_AUTHORING_IMAGE_SYNC_MD5 = 'dbf35615a2b97d82bacd3d5dcfa7cda8'
 
 /** Exact UNION rows, never a filter that hides an unexpected installed trigger. */
 export function teacherAuthoringImageTriggerRowsSql(tables: readonly string[], includeTable: boolean) {
@@ -31,7 +33,8 @@ export function teacherAuthoringImagesCatalogSql() {
   const pairs = TEACHER_AUTHORING_IMAGE_TRIGGER_PAIRS.map(([table, trigger]) => `(${q(table)},${q(trigger)})`).join(',')
   return `declare authoring_proc pg_catalog.pg_proc;authoring_table pg_catalog.pg_class;begin
  if ${ledger} is null then
-   if pg_catalog.to_regprocedure('public.sync_teacher_authoring_image_references()') is not null
+   if ${classworkDrafts} is not null
+     or pg_catalog.to_regprocedure('public.sync_teacher_authoring_image_references()') is not null
      or pg_catalog.to_regprocedure('public.queue_removed_teacher_authoring_image()') is not null
      or exists(select 1 from pg_catalog.pg_trigger t where t.tgname in (${TEACHER_AUTHORING_IMAGE_TRIGGER_PAIRS.map(([, trigger]) => q(trigger)).join(',')},'removed_teacher_authoring_image_cleanup'))
    then raise exception 'Partial authoring291 catalog differs';end if;
@@ -51,7 +54,9 @@ export function teacherAuthoringImagesCatalogSql() {
    or not exists(select 1 from pg_catalog.pg_constraint c where c.conrelid=authoring_table.oid and c.contype='c'
      and c.conname='teacher_authoring_image_references_owner_table_check' and c.convalidated and not c.connoinherit
      and pg_catalog.regexp_replace(pg_catalog.replace(pg_catalog.pg_get_expr(c.conbin,c.conrelid),'::text',''),'[()[:space:]]','','g')
-       = 'owner_table=ANYARRAY[''assignments'',''classwork_materials'',''tests'',''test_questions'',''survey_questions'',''assessment_drafts'',''test_ai_grading_run_items'']')
+       = case when ${classworkDrafts} is null then
+         'owner_table=ANYARRAY[''assignments'',''classwork_materials'',''tests'',''test_questions'',''survey_questions'',''assessment_drafts'',''test_ai_grading_run_items'']'
+       else 'owner_table=ANYARRAY[''assignments'',''classwork_materials'',''tests'',''test_questions'',''survey_questions'',''assessment_drafts'',''test_ai_grading_run_items'',''classwork_authoring_drafts'']' end)
    or (select count(*) from pg_catalog.pg_constraint c where c.conrelid=authoring_table.oid and c.contype<>'t')<>4
    or not exists(select 1 from pg_catalog.pg_constraint c where c.conrelid=authoring_table.oid and c.contype='p'
      and pg_catalog.pg_get_constraintdef(c.oid)='PRIMARY KEY (owner_table, owner_id, managed_object_id)' and c.convalidated and not c.condeferrable)
@@ -73,7 +78,7 @@ export function teacherAuthoringImagesCatalogSql() {
    or authoring_proc.provolatile<>'v' or authoring_proc.prolang<>(select oid from pg_catalog.pg_language where lanname='plpgsql')
    or pg_catalog.pg_get_userbyid(authoring_proc.proowner)<>'postgres'
    or authoring_proc.proconfig is distinct from array['search_path=""']::text[]
-   or pg_catalog.md5(authoring_proc.prosrc)<>${q(TEACHER_AUTHORING_IMAGE_ROUTINE_MD5[name])}
+   or pg_catalog.md5(authoring_proc.prosrc)<>${name === 'sync_teacher_authoring_image_references' ? `(case when ${classworkDrafts} is null then ${q(TEACHER_AUTHORING_IMAGE_ROUTINE_MD5[name])} else ${q(CLASSWORK_AUTHORING_IMAGE_SYNC_MD5)} end)` : q(TEACHER_AUTHORING_IMAGE_ROUTINE_MD5[name])}
    or exists(select 1 from pg_catalog.aclexplode(coalesce(authoring_proc.proacl,pg_catalog.acldefault('f',authoring_proc.proowner))) a where a.grantee<>authoring_proc.proowner)
  then raise exception 'Authoring291 trigger routine capability differs';end if;`).join('')}
  select authoring_catalog_proc.* into strict authoring_proc from pg_catalog.pg_proc authoring_catalog_proc where authoring_catalog_proc.oid='public.managed_storage_object_is_referenced(uuid)'::regprocedure;
@@ -83,6 +88,22 @@ export function teacherAuthoringImagesCatalogSql() {
    or authoring_proc.proconfig is distinct from array['search_path=""']::text[]
    or pg_catalog.md5(authoring_proc.prosrc)<>${q(TEACHER_AUTHORING_IMAGE_ROUTINE_MD5.managed_storage_object_is_referenced)}
  then raise exception 'Authoring291 liveness routine differs';end if;
+ if ${classworkDrafts} is null then
+   if exists(select 1 from pg_catalog.pg_trigger where tgname='classwork_authoring_drafts_image_references' and not tgisinternal)
+   then raise exception 'Partial Classwork authoring image catalog differs';end if;
+ else
+   if not exists(select 1 from pg_catalog.pg_class c where c.oid=${classworkDrafts} and c.relkind='r'
+     and c.relrowsecurity and not c.relforcerowsecurity and pg_catalog.pg_get_userbyid(c.relowner)='postgres'
+     and not exists(select 1 from pg_catalog.aclexplode(coalesce(c.relacl,pg_catalog.acldefault('r',c.relowner))) a where a.grantee<>c.relowner)
+     and not exists(select 1 from pg_catalog.pg_attribute a cross join lateral pg_catalog.aclexplode(a.attacl) acl where a.attrelid=c.oid and acl.grantee<>c.relowner)
+     and not exists(select 1 from pg_catalog.pg_policy authoring_policy where authoring_policy.polrelid=c.oid))
+   or (select count(*) from pg_catalog.pg_trigger t where t.tgname='classwork_authoring_drafts_image_references' and not t.tgisinternal)<>1
+   or not exists(select 1 from pg_catalog.pg_trigger t where t.tgrelid=${classworkDrafts}
+     and t.tgname='classwork_authoring_drafts_image_references' and t.tgfoid='public.sync_teacher_authoring_image_references()'::regprocedure
+     and not t.tgisinternal and t.tgtype=29 and t.tgenabled='O' and not t.tgdeferrable and not t.tginitdeferred
+     and t.tgconstraint=0 and t.tgattr::text='' and t.tgqual is null and t.tgnargs=0 and pg_catalog.octet_length(t.tgargs)=0)
+   then raise exception 'Classwork authoring image capability differs';end if;
+ end if;
  if exists(select 1 from (values ${pairs}) e(table_name,trigger_name)
    left join pg_catalog.pg_class c on c.relname=e.table_name and c.relnamespace='public'::regnamespace
    left join pg_catalog.pg_trigger t on t.tgrelid=c.oid and t.tgname=e.trigger_name

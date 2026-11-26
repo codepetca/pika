@@ -213,6 +213,7 @@ const databaseProofInventories = {
     [63, 'af0b5bfaf89b750d29ef409d9b1c4a053bdbf231dd514ab8627bf53d1b25f54c'],
     [64, 'd8e8fdbd037f7cb20440875c07f655e40e92a47da68ad1c137b8d9dae7eb88af'],
     [65, 'e41654a88e63ea9377a6dc9cb0440c1abc0274865301c1de132ce7e4df0b20b1'],
+    [66, 'a9ce139fe8db27b9d20a5dc0bddc90d17414cd1c61238e365a90ca71025c04f5'],
   ],
   'database-lifecycle': [[87, 'dab18713ccb8d6d6a4d57df1cad467c19d8baa31d6eda88d98a8d410aa97bb18']],
 }
@@ -235,17 +236,21 @@ function validateDatabaseInventory(jobs) {
     || grantsSteps.filter(({ step }) => step.name === grantsName && step.run === grantsCommand && databaseProofs(primary).includes(step)).length !== 1)) {
     throw new Error('Canonical explicit Data API grant proofs are missing, duplicated or changed.')
   }
-  const notificationName = 'Verify student notification counts and execution privileges'
-  const notificationScript = 'scripts/check-student-notification-counts.sql'
-  const notificationCommand = `[[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
+  const rollbackProofs = [
+    ['Verify student notification counts and execution privileges', 'scripts/check-student-notification-counts.sql'],
+    ['Verify Classwork authoring drafts and publication contracts', 'scripts/check-classwork-authoring-drafts-database.sql'],
+  ]
+  for (const [name, script] of rollbackProofs) {
+    const command = `[[ "$(docker inspect supabase_db_pika --format '{{ index .Config.Labels "com.supabase.cli.project" }}')" == 'pika' ]]
 docker port supabase_db_pika 5432/tcp | grep -Eq ':54322[[:space:]]*$'
-docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < scripts/check-student-notification-counts.sql`
-  const notifications = Object.values(jobs).flatMap(job => job.steps
-    .filter(step => step.name === notificationName || step.run?.includes(notificationScript)).map(step => ({ job, step })))
-  if (notifications.length && (notifications.length !== 1 || notifications.some(({ job, step }) =>
-    job !== primary || step.if || step.name !== notificationName || step.run !== notificationCommand
-    || !databaseProofs(primary).includes(step)))) {
-    throw new Error('Canonical student notification database proof is duplicated or changed.')
+docker exec -i supabase_db_pika psql -U postgres -d postgres -XqAt -v ON_ERROR_STOP=1 < ${script}`
+    const matches = Object.values(jobs).flatMap(job => job.steps
+      .filter(step => step.name === name || step.run?.includes(script)).map(step => ({ job, step })))
+    if (matches.length && (matches.length !== 1 || matches.some(({ job, step }) =>
+      job !== primary || step.if || step.name !== name || step.run !== command
+      || !databaseProofs(primary).includes(step)))) {
+      throw new Error(`Canonical rollback proof is duplicated or changed: ${name}`)
+    }
   }
   const membershipName = 'Verify current-membership attendance allocation and retained delivery'
   const membershipCommand = 'bash scripts/check-attendance-membership-adoption-database.sh'
