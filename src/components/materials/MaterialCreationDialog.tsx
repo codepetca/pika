@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Eye } from 'lucide-react'
 import { formatInTimeZone } from 'date-fns-tz'
-import { Button, ContentDialog, DialogPanel, FormField, Input, SaveStatus, SplitButton } from '@/ui'
+import { Button, ContentDialog, DialogPanel, FormField, Input, SaveStatus, SplitButton, type SaveStatusState } from '@/ui'
 import { AuthoringModeControl } from '@/components/creation/AuthoringModeControl'
 import { CreationModalContextLabel, CreationModalShell } from '@/components/creation/CreationModalShell'
 import { MarkdownAuthoringEditor, RichTextViewer } from '@/components/editor'
@@ -29,6 +29,7 @@ interface MaterialCreationDialogProps {
   readOnly?: boolean
   saving?: boolean
   error?: string | null
+  notice?: string | null
   title: string
   content: TiptapContent
   onTitleChange: (title: string) => void
@@ -36,6 +37,11 @@ interface MaterialCreationDialogProps {
   onSave: (asDraft: boolean, scheduledFor?: string | null, postedOn?: string) => void
   onClose: () => void
   onDelete?: () => void
+  autosave?: boolean
+  saveStatus?: SaveStatusState
+  onPostDateChange?: (date: string) => void
+  onRetry?: () => void
+  onDiscardSavedEdits?: () => void
 }
 
 /** Material-owned presentation; callers retain persistence and permission checks. */
@@ -45,7 +51,7 @@ export function MaterialCreationDialog(props: MaterialCreationDialogProps) {
 
 function MaterialEditor({
   isOpen, isExisting = false, isDraft = true, releasedAt, createdAt, postedOn, readOnly = false, saving = false,
-  classroomId, classroomName, materialKey, recoveryVersion, error, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete,
+  classroomId, classroomName, materialKey, recoveryVersion, error, notice, title, content, onTitleChange, onContentChange, onSave, onClose, onDelete, autosave = false, saveStatus, onPostDateChange, onRetry, onDiscardSavedEdits,
 }: MaterialCreationDialogProps) {
   const [mode, setMode] = useState<'visual' | 'markdown'>('visual')
   const [markdown, setMarkdown] = useState(() => getMaterialMarkdownDraft(content).markdown)
@@ -83,6 +89,7 @@ function MaterialEditor({
     ? formatInTimeZone(originalPostTimestamp, 'America/Toronto', 'yyyy-MM-dd')
     : getTodayInSchedulingTimezone())
   const [postDate, setPostDate] = useState(initialPostDate)
+  useEffect(() => { if (autosave && postedOn) setPostDate(postedOn) }, [autosave, postedOn])
   const validPostDate = postDateInputSchema.safeParse(postDate).success
   const [action, setAction] = useState<'post' | 'draft' | 'schedule' | 'preserve'>(isScheduled ? 'preserve' : 'post')
   const [scheduleOpen, setScheduleOpen] = useState(false)
@@ -157,13 +164,14 @@ function MaterialEditor({
   }
 
   function requestClose() {
-    if (dirty && !readOnly) setCloseOpen(true)
+    if (autosave) onClose()
+    else if (dirty && !readOnly) setCloseOpen(true)
     else onClose()
   }
   const disabled = saving || readOnly
   const saveDisabled = disabled || !validPostDate
-  const publishLabel = isScheduled ? 'Post now' : isDraft ? 'Post' : 'Save'
-  const primaryLabel = action === 'preserve' ? 'Save' : action === 'draft' ? 'Save draft' : action === 'schedule' ? isScheduled ? 'Save schedule' : 'Schedule' : publishLabel
+  const publishLabel = isScheduled ? 'Post now' : isDraft ? 'Post' : autosave ? 'Apply changes' : 'Save'
+  const primaryLabel = action === 'preserve' ? autosave ? 'Apply changes' : 'Save' : action === 'draft' ? 'Save draft' : action === 'schedule' ? isScheduled ? 'Save schedule' : 'Schedule' : publishLabel
 
   function save() {
     if (saveDisabled) return
@@ -201,10 +209,12 @@ function MaterialEditor({
               : isExisting ? isDraft ? 'Draft' : 'Posted' : 'Not posted'}</p>
             <FormField label="Calendar date (Toronto)" error={!validPostDate ? 'Choose a valid date.' : undefined}>
               <Input type="date" value={postDate} min="0001-01-01"
-                disabled={disabled} onChange={(event) => { persistChange({ postDate: event.target.value }); setPostDate(event.target.value) }} />
+                disabled={disabled} onChange={(event) => { persistChange({ postDate: event.target.value }); setPostDate(event.target.value); onPostDateChange?.(event.target.value) }} />
             </FormField>
             {recoveryProblem && <p role="status" className="text-sm text-warning">{recoveryProblem} {staleRecovery && <Button variant="secondary" size="sm" onClick={() => { discardRecovery(); setStaleRecovery(false); setRecoveryProblem(null) }}>Discard previous local edit</Button>}</p>}
-            {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+            {notice && <p role="status" className="text-sm text-warning">{notice}</p>}
+            {onDiscardSavedEdits && <div role="status" className="text-sm text-warning">The posted material changed since these edits were saved. You can review the saved edits or discard them to return to the current material. <Button variant="secondary" size="sm" disabled={saving} onClick={onDiscardSavedEdits}>Discard saved edits</Button></div>}
+            {error && <div role="alert" className="text-sm text-danger">{error} {onRetry && <Button variant="secondary" size="sm" onClick={onRetry}>Retry</Button>}</div>}
             <div className="shrink-0 lg:mt-auto">
               <SplitButton
                 label={saving ? 'Saving…' : primaryLabel}
@@ -219,8 +229,9 @@ function MaterialEditor({
                 primaryButtonProps={{ className: 'flex-1 justify-center font-semibold', disabled: saveDisabled }}
                 onPrimaryClick={save}
                 options={[
+                  ...(autosave && isScheduled && action !== 'preserve' ? [{ id: 'preserve', label: 'Apply changes', onSelect: () => setAction('preserve') }] : []),
                   ...(action !== 'post' ? [{ id: 'post', label: publishLabel, onSelect: () => { persistChange({ action: 'post' }); setAction('post') } }] : []),
-                  ...(action !== 'draft' ? [{ id: 'draft', label: 'Save draft', onSelect: () => { persistChange({ action: 'draft' }); setAction('draft') } }] : []),
+                  ...(!autosave && action !== 'draft' ? [{ id: 'draft', label: 'Save draft', onSelect: () => { persistChange({ action: 'draft' }); setAction('draft') } }] : []),
                   ...(action !== 'schedule' ? [{ id: 'schedule', label: isScheduled ? 'Edit schedule' : 'Schedule', onSelect: () => { persistChange({ action: 'schedule' }); setAction('schedule') } }] : []),
                   ...(onDelete && !readOnly ? [{ id: 'delete', label: 'Delete material', destructive: true, onSelect: onDelete }] : []),
                 ]}
@@ -249,7 +260,7 @@ function MaterialEditor({
               interactionActive={!previewOpen && !scheduleOpen}
               placeholder="Add links, notes, readings, or instructions…"
               fillHeight
-              statusContent={<SaveStatus presentation="indicator" status={saving ? 'saving' : 'unsaved'} />}
+              statusContent={<SaveStatus presentation="indicator" status={saveStatus ?? (saving ? 'saving' : 'unsaved')} />}
               imageUpload={classroomId ? (file, signal) => uploadMarkdownImage(classroomId, file, signal) : undefined}
               className="rounded-control border border-border-strong"
             />

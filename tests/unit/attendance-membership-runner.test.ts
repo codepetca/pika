@@ -36,7 +36,7 @@ function sealedReplayPreflight(path: string, repository = process.cwd()) {
 describe('isolated attendance membership database proof', () => {
   it.each([
     ['233', false], ['234', true], ['243', true], ['285', true], ['286', true],
-    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', true], ['325', true], ['326', true], ['327', true], ['328', true], ['329', true], ['330', true], ['331', true], ['332', true], ['333', false], ['0286', false], ['286+0', false],
+    ['287', true], ['288', true], ['289', true], ['290', true], ['291', true], ['292', true], ['293', true], ['294', true], ['295', true], ['296', true], ['297', true], ['298', true], ['299', true], ['300', true], ['301', true], ['302', true], ['303', true], ['304', true], ['305', true], ['306', true], ['307', true], ['308', true], ['309', true], ['310', true], ['311', true], ['312', true], ['313', true], ['314', true], ['315', true], ['316', true], ['317', true], ['318', true], ['319', true], ['320', true], ['321', true], ['322', true], ['323', true], ['324', true], ['325', true], ['326', true], ['327', true], ['328', true], ['329', true], ['330', true], ['331', true], ['332', true], ['333', true], ['334', false], ['0286', false], ['286+0', false],
   ] as const)('admits only reviewed source profiles, including the actual CI target: %s', (version, accepted) => {
     for (const path of ['scripts/check-attendance-membership-adoption-database.sh', 'scripts/check-material-post-date-database.sh']) {
       const source = runner(path)
@@ -101,7 +101,7 @@ describe('isolated attendance membership database proof', () => {
     } finally { rmSync(repository, { recursive: true, force: true }) }
   }, 60_000)
 
-  it.each(['tampered298', 'tampered299', 'tampered300', 'tampered301', 'renamed301', 'renamed299', 'missing300', 'partial298', 'partial299', 'tampered302', 'tampered303', 'tampered304', 'renamed302', 'renamed303', 'renamed304', 'partial302', 'missing302', 'tampered305', 'tampered306', 'tampered307', 'renamed305', 'renamed306', 'renamed307', 'partial305', 'partial306', 'unknown308'] as const)(
+  it.each(['tampered298', 'tampered299', 'tampered300', 'tampered301', 'renamed301', 'renamed299', 'missing300', 'partial298', 'partial299', 'tampered302', 'tampered303', 'tampered304', 'renamed302', 'renamed303', 'renamed304', 'partial302', 'missing302', 'tampered305', 'tampered306', 'tampered307', 'renamed305', 'renamed306', 'renamed307', 'partial305', 'partial306', 'unknown308', 'tampered331', 'renamed331', 'tampered333', 'renamed333'] as const)(
     'rejects %s from the attendance replay preflight', defect => {
       const repository = mkdtempSync(join(tmpdir(), 'pika-attendance-replay-profile-'))
       try {
@@ -121,7 +121,7 @@ describe('isolated attendance membership database proof', () => {
     }, 60_000,
   )
   it('binds its platform-source extension to application-only migration bytes', () => {
-    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-9]|31[0123])_/.test(name))) {
+    for (const file of readdirSync('supabase/migrations').filter(name => /^(298|299|30[0-9]|31[0123]|33[1-3])_/.test(name))) {
       const sql=readFileSync(join('supabase/migrations',file),'utf8')
       expect(sql).not.toMatch(/\b(?:auth|storage)\s*\.|\b(?:create|alter|drop)\s+schema\b/i)
     }
@@ -192,7 +192,7 @@ describe('isolated attendance membership database proof', () => {
     expect(source).toContain('cleanup unresolved')
     expect(source).toContain('docker info --format')
     expect(source).toContain('validateDisposableBillingReplayMigrations')
-    expect(source).toContain("assert([297,300,301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332].includes(migrations.length)")
+    expect(source).toContain("assert([297,300,301,303,304,307,310,311,312,313,314,315,316,317,318,319,320,321,322,323,324,325,326,327,328,329,330,331,332,333].includes(migrations.length)")
     expect(source).not.toMatch(/supabase (?:db push|db reset)|--linked|--publish|--privileged/)
   })
   it('requires both membership behavior and real metadata generation before accepting output', () => {

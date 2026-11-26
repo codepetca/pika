@@ -587,7 +587,7 @@ test('prototypes survey editing with accessible split panes and local authoring 
   expect(pageErrors).toEqual([])
 
   await mockTableShellReads(page, 'teacher')
-  let surveyRecord = {
+  const surveyRecord = {
     id: 'survey-preview-source', classroom_id: TABLE_CLASSROOM_ID, title: 'Preview saving feedback',
     status: 'draft', opens_at: null, show_results: true, dynamic_responses: true, position: 0,
     created_by: '30000000-0000-4000-8000-000000000012',
@@ -599,19 +599,25 @@ test('prototypes survey editing with accessible split panes and local authoring 
     position: 0, created_at: '2026-10-01T00:00:00Z', updated_at: '2026-10-01T00:00:00Z' }]
   let releasePreviewSave!: () => void
   let previewSaveStarted = false
+  let savedPreviewTitle = ''
   const previewSaveGate = new Promise<void>(resolve => { releasePreviewSave = resolve })
   await page.route('**/api/teacher/surveys**', async route => {
     const path = new URL(route.request().url()).pathname
-    if (route.request().method() === 'PATCH' && path === `/api/teacher/surveys/${surveyRecord.id}`) {
-      previewSaveStarted = true
-      await previewSaveGate
-      surveyRecord = { ...surveyRecord, ...route.request().postDataJSON() }
-      return route.fulfill({ json: { survey: surveyRecord } })
-    }
     if (route.request().method() !== 'GET') return route.abort()
     return route.fulfill({ json: path === '/api/teacher/surveys' ? { surveys: [surveyRecord] }
       : path.endsWith('/results') ? { results: [], stats: surveyRecord.stats }
       : { survey: surveyRecord, questions: previewQuestions } })
+  })
+  const surveyAuthoringPath = `/api/teacher/classrooms/${TABLE_CLASSROOM_ID}/classwork-authoring/survey/${surveyRecord.id}`
+  await page.route(`**${surveyAuthoringPath}`, async route => {
+    if (route.request().method() === 'PUT') {
+      previewSaveStarted = true
+      savedPreviewTitle = route.request().postDataJSON().content.title
+      await previewSaveGate
+      return route.fulfill({ json: { draft: { revision: 'draft-revision-1' }, sourceRevision: 'a'.repeat(64) } })
+    }
+    if (route.request().method() !== 'GET') return route.abort()
+    return route.fulfill({ json: { item: { ...surveyRecord, questions: previewQuestions }, draft: null, sourceRevision: 'a'.repeat(64) } })
   })
   await page.goto(`/e2e-fixtures/teacher-student-tables?role=teacher&tab=assignments&surveyId=${surveyRecord.id}`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('button', { name: 'More survey actions', exact: true }).click()
@@ -631,7 +637,8 @@ test('prototypes survey editing with accessible split panes and local authoring 
   } finally { releasePreviewSave() }
   await expect(previewSave).toHaveText('Saved')
   await expect(workspace.getByRole('heading', { name: 'Updated preview title', exact: true })).toBeVisible()
-  expect(writes.map(url => new URL(url).pathname)).toEqual([`/api/teacher/surveys/${surveyRecord.id}`])
+  expect(savedPreviewTitle).toBe('Updated preview title')
+  expect(writes.map(url => new URL(url).pathname)).toEqual([surveyAuthoringPath])
   expect(pageErrors).toEqual([])
 })
 for (const role of ['teacher', 'student'] as const) {
@@ -1890,10 +1897,11 @@ test.describe('teacher Pattern Lab', () => {
       released_at: '2099-07-10T11:00:00Z', posted_on: '2099-07-12', position: 0,
       created_by: 'teacher', created_at: '2026-01-22T17:00:00Z', updated_at: '2026-01-22T17:00:00Z' }
     await page.route('**/api/teacher/classrooms/*/materials', route => route.fulfill({ json: { materials: [scheduledMaterial] } }))
+    await page.route(`**/api/teacher/classrooms/${TABLE_CLASSROOM_ID}/classwork-authoring/material/${scheduledMaterial.id}`, route => route.fulfill({ json: { item: scheduledMaterial, draft: null, sourceRevision: 'a'.repeat(64) } }))
     await page.goto(`/e2e-fixtures/teacher-student-tables?role=teacher&tab=assignments&materialId=${scheduledMaterial.id}`)
     await expect(dialog.getByLabel('Calendar date (Toronto)')).toHaveValue('2099-07-12')
     await expect(dialog.getByText(/Scheduled for/)).toBeVisible()
-    await expect(dialog.getByRole('button', { name: 'Save', exact: true })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Apply changes', exact: true })).toBeVisible()
     await dialog.screenshot({ path: testInfo.outputPath('material-scheduled-calendar-date.png'), animations: 'disabled' })
   })
 

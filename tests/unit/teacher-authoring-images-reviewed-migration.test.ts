@@ -5,7 +5,7 @@ import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-a
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
 import { TEACHER_AUTHORING_IMAGES_REVIEWED_MIGRATION, validateTeacherAuthoringImagesReviewedMigration } from '../../scripts/teacher-authoring-images-reviewed-migration'
 import { teacherAuthoringImageTriggerRowsSql, teacherAuthoringImagesCatalogSql, TEACHER_AUTHORING_IMAGE_TRIGGER_PAIRS,
-  TEACHER_AUTHORING_IMAGE_ROUTINE_MD5 } from '../../scripts/teacher-authoring-images-proof-catalog'
+  TEACHER_AUTHORING_IMAGE_ROUTINE_MD5, CLASSWORK_AUTHORING_IMAGE_SYNC_MD5 } from '../../scripts/teacher-authoring-images-proof-catalog'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
 
 const sql = readFileSync(`supabase/migrations/${TEACHER_AUTHORING_IMAGES_REVIEWED_MIGRATION.name}`, 'utf8')
@@ -21,6 +21,24 @@ describe('additive291 source and exact catalog admission', () => {
       expect(body).toBeDefined()
       expect(createHash('md5').update(body!).digest('hex')).toBe(digest)
     }
+  })
+
+  it('binds the Classwork extension to the exact replacement source and a complete catalog', () => {
+    const extension = readFileSync('supabase/migrations/333_classwork_authoring_drafts.sql', 'utf8')
+    const body = extension.match(/create or replace function public\.sync_teacher_authoring_image_references\(\)[\s\S]*?as \$\$([\s\S]*?)\$\$;/)?.[1]
+    expect(body).toBeDefined()
+    expect(createHash('md5').update(body!).digest('hex')).toBe(CLASSWORK_AUTHORING_IMAGE_SYNC_MD5)
+    expect(createHash('md5').update(body! + ' ').digest('hex')).not.toBe(CLASSWORK_AUTHORING_IMAGE_SYNC_MD5)
+    const guards = teacherAuthoringImagesCatalogSql()
+    expect(guards).toContain("case when pg_catalog.to_regclass('private.classwork_authoring_drafts') is null then")
+    expect(guards).toContain(TEACHER_AUTHORING_IMAGE_ROUTINE_MD5.sync_teacher_authoring_image_references)
+    expect(guards).toContain(CLASSWORK_AUTHORING_IMAGE_SYNC_MD5)
+    expect(guards).toContain("''test_ai_grading_run_items'',''classwork_authoring_drafts'']'")
+    expect(guards).toContain('Partial Classwork authoring image catalog differs')
+    expect(guards).toContain('Classwork authoring image capability differs')
+    expect(guards).toContain("t.tgname='classwork_authoring_drafts_image_references'")
+    expect(guards).toContain("t.tgtype=29 and t.tgenabled='O' and not t.tgdeferrable")
+    expect(guards).toContain("a.grantee<>c.relowner")
   })
 
   it('keeps historical source prefixes and rejects unknown297 and unknown298 tails', () => {

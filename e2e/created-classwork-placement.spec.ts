@@ -27,10 +27,12 @@ for (const mobile of [false, true]) {
         let body: unknown = {}
         if (path === '/api/teacher/assignments') body = { assignments }
         else if (path.endsWith('/materials')) body = { materials }
-        else if (path === '/api/teacher/surveys') {
-          if (request.method() === 'POST') { created = true; body = { survey } }
-          else body = { surveys: created ? [survey] : [] }
-        } else if (path === `/api/teacher/surveys/${survey.id}`) body = { survey, questions: [] }
+        else if (path.endsWith('/classwork-authoring/survey/new')) {
+          const input = request.postDataJSON()
+          created = true
+          body = { item: survey, sourceRevision: 'a'.repeat(64), draft: { revision: input.requestId, content: input.content } }
+        } else if (path === '/api/teacher/surveys') body = { surveys: created ? [survey] : [] }
+        else if (path === `/api/teacher/surveys/${survey.id}`) body = { survey, questions: [] }
         else if (path.endsWith('/classwork/reorder')) {
           const payload = request.postDataJSON()
           reorderBodies.push(payload)
@@ -51,6 +53,10 @@ for (const mobile of [false, true]) {
       await expect(page.getByRole('button', { name: 'Existing draft', exact: true })).toBeVisible()
       await page.getByRole('button', { name: 'New classwork', exact: true }).click()
       await page.getByRole('menuitem', { name: 'Survey', exact: true }).click()
+      const title = page.getByPlaceholder('Title', { exact: true })
+      await expect(title).toBeVisible()
+      expect(created).toBe(false)
+      await title.fill(survey.title)
       await expect.poll(() => reorderBodies.length).toBe(1)
       expect(reorderBodies[0]).toEqual({ items: [
         { type: 'assignment', id: 'released' }, { type: 'material', id: 'material' },
