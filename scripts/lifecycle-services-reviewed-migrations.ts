@@ -166,7 +166,7 @@ export function validateDisposableBillingReplayMigrations(migrations: Parameters
 
   if (migrations.length === 333) {
     const migration = migrations[332]
-    const sha256 = '60f9bde20e8f52dfd3037e69f8f1b69ebf89fa974cc1009b57bba16cf7ec97bf'
+    const sha256 = '7d6972d256025a6ab922d96efe57ed9d1c0ecb3339421e28327e8e6a2424abfa'
     assert.equal(migration.name, '333_classwork_authoring_drafts.sql')
     assert.equal(migration.sha256, sha256)
     assert.equal(createHash('sha256').update(migration.sql).digest('hex'), sha256)

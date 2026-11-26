@@ -1355,7 +1355,10 @@ export function SurveySnapshotWorkspace({
               ),
             })
             const data = await response.json().catch(() => ({}))
-            if (!response.ok) throw new Error(data.error || 'Failed to save survey draft')
+            if (!response.ok) {
+              if (response.status === 400 || response.status === 413) requestRef.current = null
+              throw new Error(data.error || 'Failed to save survey draft')
+            }
             revisionRef.current = data.draft.revision
             if (data.sourceRevision) sourceRevisionRef.current = data.sourceRevision
             requestRef.current = null

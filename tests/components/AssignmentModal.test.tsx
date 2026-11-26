@@ -100,6 +100,31 @@ describe('AssignmentModal', () => {
       expect(screen.getByLabelText(/Title/)).toHaveValue(second.title)
     })
 
+    it.each([false, true])('saves corrected content after a definitive rejection (existing=%s)', async (existing) => {
+      const onClose = vi.fn()
+      const fetchMock = vi.mocked(fetch)
+      const saved = { ...baseAssignment, title: 'Corrected title' }
+      if (existing) fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({
+        item: baseAssignment, draft: null, sourceRevision: 'a'.repeat(64),
+      }) } as Response)
+      fetchMock.mockResolvedValueOnce({ ok: false, status: 413, json: async () => ({ error: 'Too large' }) } as Response)
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => ({ item: saved, draft: null, sourceRevision: 'b'.repeat(64) }) } as Response)
+      render(<AssignmentModal classworkAuthoring isOpen classroomId="classroom-1" assignment={existing ? baseAssignment : undefined} onClose={onClose} onSuccess={vi.fn()} />)
+      const title = screen.getByLabelText(/Title/)
+      const close = screen.getByRole('button', { name: 'Close assignment modal' })
+      await waitFor(() => expect(title).toBeEnabled())
+      fireEvent.change(title, { target: { value: 'Rejected input' } })
+      fireEvent.click(close)
+      await screen.findByText('Too large')
+      expect(onClose).not.toHaveBeenCalled()
+      fireEvent.change(title, { target: { value: saved.title } })
+      fireEvent.click(close)
+      await waitFor(() => expect(onClose).toHaveBeenCalledOnce())
+      const bodies = fetchMock.mock.calls.filter(([, init]) => init?.body).map(([, init]) => JSON.parse(String(init?.body)))
+      expect(bodies.map((body) => body.content.title)).toEqual(['Rejected input', saved.title])
+      expect(bodies[0].requestId).not.toBe(bodies[1].requestId)
+    })
+
     it('leaves stale saved edits readable until the teacher confirms discarding them', async () => {
       const source = { ...baseAssignment, is_draft: false }
       const revision = '30200000-0000-4000-8000-000000000001'

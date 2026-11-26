@@ -11,6 +11,7 @@ import { LimitedMarkdown } from '@/components/LimitedMarkdown'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import type { AssignmentSubmissionRequirementDraft } from '@/lib/assignment-submission-requirements'
 import { fetchJSON } from '@/lib/request-cache'
+import { ApiError } from '@/lib/api-error'
 import { getRelativeDueDate } from '@/lib/assignment-relative-date'
 import { Button, ConfirmDialog, ContentDialog, DialogPanel, SaveStatus, SplitButton } from '@/ui'
 import { ClassroomBlueprintDraftSource } from '@/components/ClassroomBlueprintDraftSource'
@@ -574,7 +575,12 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
 
       return data.assignment
     } catch (err: any) {
-      if (ownsSession(session)) setError(err.message || 'Failed to create assignment')
+      if (ownsSession(session)) {
+        if (err instanceof ApiError && (err.statusCode === 400 || err.statusCode === 413)) {
+          creationAttempt.current = null
+        }
+        setError(err.message || 'Failed to create assignment')
+      }
       return null
     }
   }, [authoringUrl, classroomId, classworkAuthoring, ownsSession, setError])
@@ -822,6 +828,9 @@ export function AssignmentModal({ isOpen, classroomId, classroomName, assignment
       return savedAssignment
     } catch (err: any) {
       if (ownsSession(session)) {
+        if (err instanceof ApiError && (err.statusCode === 400 || err.statusCode === 413)) {
+          editAttempt.current = null
+        }
         setError(err.message || 'Failed to save assignment')
         setSaveStatus('unsaved')
       }

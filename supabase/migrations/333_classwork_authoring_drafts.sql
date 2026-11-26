@@ -17,8 +17,10 @@ create table private.classwork_authoring_drafts (
   revision uuid,
   base_fingerprint text,
   content jsonb,
+  completed_action text check (completed_action in ('apply', 'discard', 'publish')),
   unique (kind, item_id),
   unique (classroom_id, kind, creation_request_id),
+  check (completed_action is null or (content is null and revision is not null)),
   check (content is null or (
     jsonb_typeof(content) = 'object' and octet_length(content::text) <= 2000000
     and revision is not null and base_fingerprint is not null
@@ -341,6 +343,9 @@ begin
   v_edit_fingerprint := private.classwork_authoring_edit_fingerprint(v_item);
   select * into v_draft from private.classwork_authoring_drafts
     where kind = p_kind and item_id = p_item_id and classroom_id = p_classroom_id for update;
+  if v_draft.revision = p_request_id and v_draft.completed_action is not null then
+    raise exception using errcode = 'PT409', message = 'This draft was resolved in another editor. Reopen it before saving.';
+  end if;
   if p_save_as_draft and p_kind in ('assignment', 'material') then
     if (v_item->>'is_draft')::boolean is distinct from true then
       raise exception using errcode = 'PT409', message = 'This item was posted in another editor. Reopen it to save privately.';
@@ -361,7 +366,7 @@ begin
     end if;
     insert into private.classwork_authoring_drafts (classroom_id, kind, item_id, revision)
       values (p_classroom_id, p_kind, p_item_id, p_request_id)
-    on conflict (kind, item_id) do update set revision = excluded.revision;
+    on conflict (kind, item_id) do update set revision = excluded.revision, completed_action = null;
     v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, p_item_id);
     return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item), 'draft', null);
   end if;
@@ -387,7 +392,8 @@ begin
   insert into private.classwork_authoring_drafts (classroom_id, kind, item_id, revision, content, base_fingerprint)
     values (p_classroom_id, p_kind, p_item_id, p_request_id, p_content, v_edit_fingerprint)
   on conflict (kind, item_id) do update set
-    revision = excluded.revision, content = excluded.content, base_fingerprint = excluded.base_fingerprint
+    revision = excluded.revision, content = excluded.content, base_fingerprint = excluded.base_fingerprint,
+    completed_action = null
   returning * into v_draft;
   return jsonb_build_object('item', v_item, 'sourceRevision', v_fingerprint,
     'draft', private.classwork_authoring_snapshot(v_draft));
@@ -470,7 +476,8 @@ begin
     title = p_content->>'title',
     show_results = (p_content->>'show_results')::boolean,
     dynamic_responses = (p_content->>'dynamic_responses')::boolean,
-    status = case when p_publish then 'active' else status end
+    status = case when p_publish then 'active' else status end,
+    opens_at = case when p_publish then clock_timestamp() else opens_at end
   where id = p_survey_id returning * into v_survey;
   return to_jsonb(v_survey);
 end;
@@ -487,6 +494,7 @@ declare
   v_draft private.classwork_authoring_drafts;
   v_result jsonb;
   v_values jsonb := p_projection->'values';
+  v_action text := case when p_discard then 'discard' when p_publish then 'publish' else 'apply' end;
 begin
   v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, p_item_id);
   select * into v_draft from private.classwork_authoring_drafts
@@ -494,10 +502,15 @@ begin
   if p_revision is null or v_draft.revision is distinct from p_revision then
     raise exception using errcode = 'PT409', message = 'This draft changed in another editor. Reopen it before applying.';
   end if;
-  if p_discard then
-    update private.classwork_authoring_drafts set content = null, base_fingerprint = null where id = v_draft.id;
+  if v_draft.content is null then
+    if v_draft.completed_action is distinct from v_action then
+      raise exception using errcode = 'PT409', message = 'This draft was resolved in another editor. Reopen it before applying.';
+    end if;
+    return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item));
   end if;
-  if v_draft.content is null or p_discard then
+  if p_discard then
+    update private.classwork_authoring_drafts
+      set content = null, base_fingerprint = null, completed_action = v_action where id = v_draft.id;
     return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item));
   end if;
   if v_draft.content is distinct from p_projection->'source' then
@@ -521,9 +534,10 @@ begin
   if v_item is null or (v_item->>'id')::uuid is distinct from p_item_id then
     raise exception using errcode = 'PT503', message = 'Unable to apply Classwork changes';
   end if;
-  -- Keep the revision as an apply receipt so an interrupted response can retry.
+  -- Keep the revision and action as a receipt so an interrupted response can retry.
   -- The student-facing writes and removal of the private content commit together.
-  update private.classwork_authoring_drafts set content = null, base_fingerprint = null where id = v_draft.id;
+  update private.classwork_authoring_drafts
+    set content = null, base_fingerprint = null, completed_action = v_action where id = v_draft.id;
   v_item := private.lock_classwork_authoring_item(p_actor_id, p_classroom_id, p_kind, p_item_id);
   return jsonb_build_object('item', v_item, 'sourceRevision', private.classwork_authoring_fingerprint(v_item));
 end;

@@ -1080,6 +1080,28 @@ describe('SurveySnapshotWorkspace', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('Save failed')
   })
 
+  it('uses a new request for a corrected survey after validation rejects the first snapshot', async () => {
+    let close: (() => Promise<void>) | null = null
+    const onBack = vi.fn()
+    const fetchMock = vi.fn(async (_url: string, init: RequestInit) => {
+      const body = JSON.parse(String(init.body))
+      return jsonResponse({ item: makeSurvey({ title: body.content.title }), draft: { revision: body.requestId, content: body.content }, sourceRevision: 'a'.repeat(64) })
+    }).mockResolvedValueOnce({ ok: false, status: 400, json: async () => ({ error: 'Invalid title' }) } as ReturnType<typeof jsonResponse>)
+    vi.stubGlobal('fetch', fetchMock)
+    render(<SurveySnapshotWorkspace classroomId="classroom-1" surveyId={null} onBack={onBack} onCloseReady={value => { close = value }} onCloseDisabledChange={() => {}} onSurveyCreated={() => {}} onSurveyUpdated={() => {}} onSurveyDeleted={() => {}} />)
+    const title = screen.getByRole('textbox', { name: 'Title' })
+    fireEvent.change(title, { target: { value: 'Rejected' } })
+    await act(async () => { await close?.() })
+    expect(onBack).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Invalid title')
+    fireEvent.change(title, { target: { value: 'Corrected' } })
+    await act(async () => { await close?.() })
+    expect(onBack).toHaveBeenCalledOnce()
+    const [first, corrected] = fetchMock.mock.calls.map(([, init]) => JSON.parse(String(init.body)))
+    expect(corrected.content.title).toBe('Corrected')
+    expect(corrected.requestId).not.toBe(first.requestId)
+  })
+
   it('restores an active survey snapshot and applies it without changing live content first', async () => {
     const onSurveyUpdated = vi.fn()
     const live = makeSurvey({ status: 'active', title: 'Published title' })

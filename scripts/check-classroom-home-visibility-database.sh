@@ -192,7 +192,7 @@ if (paths.length >= 332) {
 if (paths.length === 333) {
   const name = '333_classwork_authoring_drafts.sql'
   assert.equal(paths[332], name, 'Unreviewed migration 333 filename')
-  assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), '60f9bde20e8f52dfd3037e69f8f1b69ebf89fa974cc1009b57bba16cf7ec97bf', 'Unreviewed migration 333 source')
+  assert.equal(createHash('sha256').update(readFileSync(join(root, 'supabase/migrations', name))).digest('hex'), '7d6972d256025a6ab922d96efe57ed9d1c0ecb3339421e28327e8e6a2424abfa', 'Unreviewed migration 333 source')
 }
 for (const path of [...paths.map(name => `supabase/migrations/${name}`), billingTailPath, cutoffTailPath, releaseTailPath, trialTailPath, ...(paths.length >= 314 ? [paymentTailPath] : []), 'scripts/check-classroom-home-visibility-database.sql', 'scripts/check-classroom-home-recovery-database.sql', 'scripts/check-classroom-home-visibility-contention.mjs', 'scripts/check-classroom-admission-registry-database.sql', 'scripts/check-classroom-admission-registry-contention.mjs', 'scripts/check-classroom-public-auto-admission.sql', 'scripts/check-classroom-public-auto-admission-native-catalog.sql', ...(paths.length >= 330 ? ['scripts/check-classroom-admission-account-deletion.sql'] : []), 'scripts/check-classroom-home-visibility-database.sh', 'src/lib/server/classroom-admission-manifest.ts']) {
   console.log(`${createHash('sha256').update(readFileSync(join(root, path))).digest('hex')}  ${path}`)

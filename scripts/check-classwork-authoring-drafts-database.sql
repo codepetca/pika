@@ -41,6 +41,18 @@ begin
  if r->>'sourceRevision' is null or r->>'sourceRevision' <> public.read_classwork_authoring_draft(a,c,k,i)->>'sourceRevision' then raise exception 'apply source revision mismatch %', k; end if;
  if r->'item'->>'title' <> 'Applied' then raise exception 'apply failed %: %',k,r; end if;
  if public.read_classwork_authoring_draft(a,c,k,i)->'draft' <> 'null'::jsonb then raise exception 'draft not cleared %',k; end if;
+ rr := public.apply_classwork_authoring_draft(a,c,k,i,rev,k='survey','{}');
+ if rr is distinct from r then raise exception 'same-action retry changed result %',k; end if;
+ begin
+   perform public.apply_classwork_authoring_draft(a,c,k,i,rev,false,'{}',true);
+   raise exception 'discard reported success after publication or apply %',k;
+ exception when sqlstate 'PT409' then null; end;
+ if k='survey' then
+   begin
+     perform public.apply_classwork_authoring_draft(a,c,k,i,rev,false,'{}');
+     raise exception 'apply reported success after publish';
+   exception when sqlstate 'PT409' then null; end;
+ end if;
  if k='survey' then
  insert into public.survey_responses(survey_id,question_id,student_id,response_text) values(i,q,'c2890000-0000-4000-8000-000000000003','answer');
  rev:=gen_random_uuid(); perform public.save_classwork_authoring_draft(a,c,k,i,rev,content,public.read_classwork_authoring_draft(a,c,k,i)->>'sourceRevision',null);
@@ -101,7 +113,9 @@ declare
  a uuid := 'c2890000-0000-4000-8000-000000000001'; c uuid := 'c2890000-0000-4000-8000-000000000010';
  student uuid := 'c2890000-0000-4000-8000-000000000003';
  survey uuid; material uuid; question uuid := gen_random_uuid(); rev uuid; source text;
- r jsonb; projection jsonb; content jsonb := '{"show_results":true,"dynamic_responses":false}'::jsonb;
+ r jsonb; projection jsonb; opened_at timestamptz;
+ publish_started_at timestamptz;
+ content jsonb := '{"show_results":true,"dynamic_responses":false}'::jsonb;
 begin
  projection := jsonb_build_object('title','Poll','show_results',true,'dynamic_responses',false,'questions',
    jsonb_build_array(jsonb_build_object('id',question,'question_type','short_text','question_text','Question','options','[]'::jsonb,'response_max_chars',500)));
@@ -113,7 +127,13 @@ begin
  r := public.save_classwork_authoring_draft(a,c,'survey',survey,gen_random_uuid(),content,source,rev,false,projection);
  rev := (r->'draft'->>'revision')::uuid;
  if r->'item'->'questions'->0->>'question_text' <> 'Saved while draft' then raise exception 'unpublished survey save not canonical'; end if;
+ if r->'item'->>'opens_at' is not null then raise exception 'draft autosave opened the survey'; end if;
+ publish_started_at := clock_timestamp();
  r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,true,jsonb_build_object('source',content,'values',projection));
+ opened_at := (r->'item'->>'opens_at')::timestamptz;
+ if opened_at is null or opened_at < publish_started_at or opened_at > clock_timestamp() then
+   raise exception 'published survey did not record its publication time';
+ end if;
  source := r->>'sourceRevision'; rev := gen_random_uuid();
  projection := jsonb_set(projection,'{title}','"Edited privately"');
  r := public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
@@ -123,6 +143,7 @@ begin
  if (r->'draft'->>'stale')::boolean then raise exception 'status-only change marked draft stale'; end if;
  r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,jsonb_build_object('source',content,'values',projection));
  if r->'item'->>'title' <> 'Edited privately' or r->'item'->>'status' <> 'closed' then raise exception 'status-only change prevented apply'; end if;
+ if (r->'item'->>'opens_at')::timestamptz is distinct from opened_at then raise exception 'apply changed survey publication time'; end if;
  source := r->>'sourceRevision'; rev := gen_random_uuid();
  r := public.save_classwork_authoring_draft(a,c,'survey',survey,rev,content,source,null,false,projection);
  update public.surveys set title='Concurrent edit' where id=survey;
@@ -131,6 +152,12 @@ begin
  begin perform public.apply_classwork_authoring_draft(a,c,'survey',survey,gen_random_uuid(),false,'{}',true); raise exception 'wrong revision discard accepted'; exception when sqlstate 'PT409' then null; end;
  perform public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,'{}',true);
  if public.read_classwork_authoring_draft(a,c,'survey',survey)->'draft' <> 'null'::jsonb then raise exception 'discard did not clear draft'; end if;
+ r := public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,'{}',true);
+ if r->'item'->>'title' <> 'Concurrent edit' then raise exception 'discard retry changed the survey'; end if;
+ begin
+   perform public.apply_classwork_authoring_draft(a,c,'survey',survey,rev,false,'{}');
+   raise exception 'apply reported success after discard';
+ exception when sqlstate 'PT409' then null; end;
  -- A posted unanswered question changing type/options must receive a fresh ID.
  update public.survey_questions set
    artifact_id='c2890000-0000-4000-8000-000000000022',
@@ -186,15 +213,22 @@ declare
   v_student_id uuid := 'c2890000-0000-4000-8000-000000000003';
   first_id uuid := gen_random_uuid(); second_id uuid := gen_random_uuid();
   v_survey_id uuid; revision uuid := gen_random_uuid(); source text;
+  intervening_post timestamptz := clock_timestamp() - interval '1 day';
   content jsonb := '{"show_results":true,"dynamic_responses":false}'::jsonb;
   projection jsonb; result jsonb; old_questions jsonb; current_questions jsonb; answers jsonb;
 begin
   insert into public.classroom_enrollments(classroom_id,student_id) values(v_classroom_id,v_student_id);
   projection := jsonb_build_object('title','Snapshot poll','show_results',true,'dynamic_responses',false,'questions',
     jsonb_build_array(jsonb_build_object('id',first_id,'question_type','short_text','question_text','First','options','[]'::jsonb,'response_max_chars',500)));
-  result := public.create_classwork_authoring_draft(owner_id,v_classroom_id,'survey',revision,content,projection);
-  v_survey_id := (result->'item'->>'id')::uuid;
-  perform public.apply_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id,revision,true,jsonb_build_object('source',content,'values',projection));
+  result := public.create_survey_for_owner_v1(owner_id,v_classroom_id,'Snapshot poll',true,false);
+  v_survey_id := (result->'survey'->>'id')::uuid;
+  update public.surveys set created_at = intervening_post - interval '6 days' where id=v_survey_id;
+  source := public.read_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id)->>'sourceRevision';
+  perform public.save_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id,revision,content,source,null,false,projection);
+  result := public.apply_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id,revision,true,jsonb_build_object('source',content,'values',projection));
+  if coalesce((result->'item'->>'opens_at')::timestamptz, (result->'item'->>'created_at')::timestamptz) <= intervening_post then
+    raise exception 'an old survey draft did not sort above intervening Classwork after publication';
+  end if;
   old_questions := public.get_survey_for_member_v1(v_student_id,v_survey_id)->'questions';
   source := public.read_classwork_authoring_draft(owner_id,v_classroom_id,'survey',v_survey_id)->>'sourceRevision';
   revision := gen_random_uuid();

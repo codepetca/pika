@@ -2261,7 +2261,7 @@ describe('TeacherClassroomView', () => {
     await waitFor(() => expect(screen.getByPlaceholderText('Title')).toHaveValue('Recovered'))
     fireEvent.click(screen.getByRole('button', { name: 'Close material modal' }))
     await waitFor(() => expect(fetch).toHaveBeenCalledWith(expect.stringContaining('/classwork-authoring/material/new'), expect.anything()))
-    expect(sessionStorage.getItem(key)).toBe(raw)
+    expect(JSON.parse(sessionStorage.getItem(key)!)).toEqual(expect.objectContaining({ title: 'Recovered' }))
     const replacement = JSON.stringify({ ...JSON.parse(raw), title: 'Replacement edit' })
     if (replaceLocal) sessionStorage.setItem(key, replacement)
     await act(async () => response.resolve({ ok: true, json: async () => ({ item: makeMaterialSummary('recovered', 'Recovered', { is_draft: true }), sourceRevision: 'a'.repeat(64) }) }))
@@ -2269,19 +2269,76 @@ describe('TeacherClassroomView', () => {
     sessionStorage.removeItem(key)
   })
 
-  it('preserves an old local material edit when a private server draft exists', async () => {
+  it.each([false, true])('restores a failed new material in the same tab (rejected=%s)', async (rejected) => {
+    const user = `teacher-offline-material-${rejected}`
+    const key = `pika:material-recovery:${user}:${classroom.id}:new`
+    const fetchMock = vi.mocked(fetch)
+    const error = rejected ? 'Title is too long' : 'Offline'
+    fetchMock.mockImplementation(async (input) => {
+      if (!String(input).endsWith('/classwork-authoring/material/new')) return { ok: true, json: async () => ({}) } as Response
+      if (!rejected) throw new Error(error)
+      return { ok: false, status: 400, json: async () => ({ error }) } as Response
+    })
+    const ui = <TeacherClassroomView classroom={classroom} recoveryUserId={user} />
+    const view = render(ui, { wrapper: TooltipProvider })
+    async function openEditor() {
+      await screen.findByRole('button', { name: 'Assignment One' })
+      openAddClassworkMenu()
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Material' }))
+      return screen.getByRole('dialog', { name: 'New Material' })
+    }
+    const first = await openEditor()
+    fireEvent.change(within(first).getByPlaceholderText('Title'), { target: { value: 'Offline material' } })
+    fireEvent.change(within(first).getByLabelText('Calendar date (Toronto)'), { target: { value: '2026-11-08' } })
+    expect(JSON.parse(sessionStorage.getItem(key)!)).toMatchObject({ title: 'Offline material', postDate: '2026-11-08' })
+    fireEvent.click(within(first).getByRole('button', { name: 'Close material modal' }))
+    await within(first).findByText(error)
+    const creation = JSON.parse(sessionStorage.getItem(key)!).creation
+    expect(creation === null).toBe(rejected)
+    view.unmount()
+
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ item: makeMaterialSummary('recovered-offline', 'Offline material', { is_draft: true }), sourceRevision: 'a'.repeat(64) }) } as Response)
+    render(ui, { wrapper: TooltipProvider })
+    const restored = await openEditor()
+    expect(within(restored).getByPlaceholderText('Title')).toHaveValue('Offline material')
+    expect(within(restored).getByLabelText('Calendar date (Toronto)')).toHaveValue('2026-11-08')
+    if (rejected) fireEvent.change(within(restored).getByPlaceholderText('Title'), { target: { value: 'Corrected title' } })
+    fireEvent.click(within(restored).getByRole('button', { name: 'Close material modal' }))
+    await waitFor(() => expect(restored).not.toBeInTheDocument())
+    const bodies = fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/classwork-authoring/material/new'))
+      .map(([, init]) => JSON.parse(String(init?.body)))
+    expect(bodies).toHaveLength(2)
+    if (rejected) {
+      expect(bodies[1].requestId).not.toBe(bodies[0].requestId)
+      expect(bodies[1].content.title).toBe('Corrected title')
+    } else {
+      expect(bodies[1]).toEqual(bodies[0])
+      expect(bodies[1].requestId).toBe(creation.requestId)
+    }
+    expect(sessionStorage.getItem(key)).toBeNull()
+  })
+
+  it.each(['legacy', 'earlier-revision', 'saved-revision'])('restores current local material edits only for a matching server draft (%s)', async (localRevision) => {
     const material = makeMaterialSummary('recovery-conflict', 'Published')
     const key = `pika:material-recovery:teacher-recovery:${classroom.id}:${material.id}`
-    const raw = JSON.stringify({ version: material.updated_at, title: 'Local edit', content: material.content, postDate: '2026-04-10', action: 'post' })
+    const raw = JSON.stringify({
+      version: material.updated_at,
+      ...(localRevision === 'legacy' ? {} : { sourceRevision: 'a'.repeat(64), draftRevision: localRevision }),
+      title: 'Local edit', content: material.content, postDate: '2026-04-10',
+    })
     sessionStorage.setItem(key, raw)
     mockFetchJSONWithCache.mockImplementation((cacheKey: string) => Promise.resolve(
       cacheKey.includes('materials') ? { materials: [material] } : cacheKey.includes('surveys') ? { surveys: [] } : { assignments: [] }
     ))
     vi.mocked(fetch).mockResolvedValue({ ok: true, json: async () => ({ item: material, sourceRevision: 'a'.repeat(64), draft: { revision: 'saved-revision', content: { title: 'Server edit', content: material.content, posted_on: '2026-04-10' } } }) } as Response)
     render(<TeacherClassroomView classroom={classroom} recoveryUserId="teacher-recovery" selectedMaterialId={material.id} />, { wrapper: TooltipProvider })
-    await waitFor(() => expect(screen.getByPlaceholderText('Title')).toHaveValue('Server edit'))
-    expect(screen.getByText(/previous local edit could not be restored/)).toBeVisible()
-    expect(sessionStorage.getItem(key)).toBe(raw)
+    const matching = localRevision === 'saved-revision'
+    await waitFor(() => expect(screen.getByPlaceholderText('Title')).toHaveValue(matching ? 'Local edit' : 'Server edit'))
+    if (matching) expect(screen.getByText(/recovered an earlier edit/i)).toBeVisible()
+    else {
+      expect(screen.getByText(/previous local edit could not be restored/)).toBeVisible()
+      expect(sessionStorage.getItem(key)).toBe(raw)
+    }
     expect(vi.mocked(fetch).mock.calls.some(([, init]) => init?.method === 'PUT' || init?.method === 'POST')).toBe(false)
     sessionStorage.removeItem(key)
   })

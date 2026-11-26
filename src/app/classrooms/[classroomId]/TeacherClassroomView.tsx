@@ -367,7 +367,7 @@ function TeacherMaterialDialog({
   onSaved: (material: ClassworkMaterial) => void
   onRequestDelete: (material: ClassworkMaterial) => void
 }) {
-  return isOpen ? <TeacherMaterialEditor key={`${classroom.id}:${material?.id ?? 'new'}`} classroom={classroom} recoveryUserId={recoveryUserId} material={material} onClose={onClose} onSaved={onSaved} onRequestDelete={onRequestDelete} /> : null
+  return isOpen ? <TeacherMaterialEditor key={`${recoveryUserId ?? ''}:${classroom.id}:${material?.id ?? 'new'}`} classroom={classroom} recoveryUserId={recoveryUserId} material={material} onClose={onClose} onSaved={onSaved} onRequestDelete={onRequestDelete} /> : null
 }
 
 function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, onSaved, onRequestDelete }: {
@@ -378,6 +378,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
   onSaved: (material: ClassworkMaterial) => void
   onRequestDelete: (material: ClassworkMaterial) => void
 }) {
+  const materialId = material?.id
   const initialDate = material?.posted_on ?? (material && !material.is_draft && (material.released_at || material.created_at)
     ? formatInTimeZone(material.released_at || material.created_at, 'America/Toronto', 'yyyy-MM-dd')
     : formatInTimeZone(new Date(), 'America/Toronto', 'yyyy-MM-dd'))
@@ -406,23 +407,63 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
   const pending = useRef<{ snapshot: string; requestId: string } | null>(null)
   const mounted = useRef(true)
   const recoveryChecked = useRef(false)
-  const recoveredBytes = useRef<string | null>(null)
-  const recoveryKey = recoveryUserId ? `pika:material-recovery:${recoveryUserId}:${classroom.id}:${material?.id ?? 'new'}` : null
+  const recoveryRecord = useRef<{ key: string; bytes: string } | null>(null)
+  const [recoveryOwner] = useState(() => crypto.randomUUID())
+  const recoveryPrefix = recoveryUserId ? `pika:material-recovery:${recoveryUserId}:${classroom.id}:` : null
   const isReadOnly = !!classroom.archived_at
   const base = `/api/teacher/classrooms/${classroom.id}/classwork-authoring/material`
 
-  function restoreRecovery(authoritative: ClassworkMaterial | null, hasServerDraft: boolean) {
-    if (isReadOnly || !recoveryKey) return
+  function updateRecovery() {
+    if (isReadOnly || !recoveryPrefix || !recoveryChecked.current) return
+    const previous = recoveryRecord.current
+    try {
+      // A response from an old editor must leave a replacement entry intact.
+      if (previous && sessionStorage.getItem(previous.key) !== previous.bytes) return
+      if (!pending.current && JSON.stringify(latest.current) === saved.current) {
+        if (previous) {
+          sessionStorage.removeItem(previous.key)
+          recoveryRecord.current = null
+          if (mounted.current) setRecoveryNotice(null)
+        }
+        return
+      }
+      const key = recoveryPrefix + (itemRef.current?.id ?? 'new')
+      if (key !== previous?.key && sessionStorage.getItem(key) !== null) return
+      const bytes = JSON.stringify({
+        owner: recoveryOwner,
+        version: itemRef.current?.updated_at ?? 'new',
+        sourceRevision: sourceRevision.current,
+        draftRevision: revision.current,
+        title: latest.current.title,
+        content: latest.current.content,
+        postDate: latest.current.posted_on,
+        // If creation committed but its response was lost, retry with the same ID.
+        creation: itemRef.current ? null : pending.current,
+      })
+      sessionStorage.setItem(key, bytes)
+      if (previous && previous.key !== key) sessionStorage.removeItem(previous.key)
+      recoveryRecord.current = { key, bytes }
+    } catch {
+      if (mounted.current) setRecoveryNotice('Local recovery is unavailable. Save your changes before closing.')
+    }
+  }
+
+  function restoreRecovery(stale: boolean) {
+    if (isReadOnly || !recoveryPrefix) return
     if (recoveryChecked.current) {
-      if (recoveredBytes.current && !timer.current && JSON.stringify(latest.current) !== saved.current) changed({})
+      if (recoveryRecord.current && !timer.current && (pending.current || JSON.stringify(latest.current) !== saved.current)) changed({})
       return
     }
     recoveryChecked.current = true
+    const key = recoveryPrefix + (itemRef.current?.id ?? 'new')
     try {
-      const raw = sessionStorage.getItem(recoveryKey)
+      const raw = sessionStorage.getItem(key)
       if (!raw) return
       const local = JSON.parse(raw)
-      if (hasServerDraft || local.version !== (authoritative?.updated_at ?? 'new')) {
+      const matchesBaseline = 'sourceRevision' in local
+        ? local.sourceRevision === sourceRevision.current && local.draftRevision === revision.current
+        : revision.current === null && local.version === (itemRef.current?.updated_at ?? 'new')
+      if (stale || !matchesBaseline) {
         setRecoveryNotice('A previous local edit could not be restored because this material has changed. It remains in this browser tab.')
         return
       }
@@ -431,7 +472,10 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
         return
       }
       const restored: Snapshot = { title: local.title, content: local.content, posted_on: local.postDate }
-      recoveredBytes.current = raw
+      if (!itemRef.current && typeof local.creation?.requestId === 'string' && typeof local.creation.snapshot === 'string') {
+        pending.current = { requestId: local.creation.requestId, snapshot: local.creation.snapshot }
+      }
+      recoveryRecord.current = { key, bytes: raw }
       setTitle(restored.title); setContent(restored.content); setPostDate(restored.posted_on)
       setRecoveryNotice('Recovered an earlier edit from this browser tab. It will be saved as a draft.')
       changed(restored)
@@ -442,18 +486,22 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
 
   useEffect(() => {
     mounted.current = true
-    return () => { mounted.current = false; if (timer.current) clearTimeout(timer.current) }
+    return () => {
+      mounted.current = false
+      if (timer.current) clearTimeout(timer.current)
+      timer.current = null
+    }
   }, [])
 
   useEffect(() => {
-    if (!material || isReadOnly) {
+    if (!materialId || isReadOnly) {
       setLoading(false)
-      restoreRecovery(material, false)
+      restoreRecovery(false)
       return
     }
     let cancelled = false
     void fetchJSON<{ item: ClassworkMaterial; draft: { content: Snapshot; revision: string; stale?: boolean } | null; sourceRevision: string }>(
-      `${base}/${material.id}`, { init: { cache: 'no-store' }, errorMessage: 'Failed to load material draft' },
+      `${base}/${materialId}`, { init: { cache: 'no-store' }, errorMessage: 'Failed to load material draft' },
     ).then((data) => {
       if (cancelled) return
       if (!data.item || !/^[a-f0-9]{64}$/.test(data.sourceRevision)) throw new Error('Could not verify material draft')
@@ -469,13 +517,13 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       saved.current = JSON.stringify(draft)
       setItem(authoritative); setTitle(draft.title); setContent(draft.content); setPostDate(draft.posted_on)
       setLoadFailed(false); setError(null)
-      restoreRecovery(authoritative, !!data.draft)
+      restoreRecovery(data.draft?.stale === true)
     }).catch((err) => { if (!cancelled) { setLoadFailed(true); setError(err instanceof Error ? err.message : 'Failed to load material draft') } })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
     // Restore only once per mounted material after its authoritative read.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, isReadOnly, material, loadAttempt])
+  }, [base, isReadOnly, materialId, loadAttempt])
 
   async function flush(): Promise<void> {
     if (timer.current) { clearTimeout(timer.current); timer.current = null }
@@ -487,6 +535,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       && latest.current.posted_on === initial.posted_on) return
     if (!pending.current) pending.current = { snapshot: JSON.stringify(latest.current), requestId: crypto.randomUUID() }
     const { snapshot, requestId } = pending.current
+    if (!itemRef.current) updateRecovery()
     const work = (async () => {
       if (mounted.current) { setStatus('saving'); setError(null) }
       const currentItem = itemRef.current
@@ -503,19 +552,19 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       }
       const response = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await response.json().catch(() => ({}))
-      if (!response.ok) throw new Error(data.error || 'Failed to save material')
+      if (!response.ok) {
+        if (response.status === 400 || response.status === 413) {
+          pending.current = null
+          updateRecovery()
+        }
+        throw new Error(data.error || 'Failed to save material')
+      }
       if (!currentItem) { itemRef.current = data.item; sourceRevision.current = data.sourceRevision; if (mounted.current) setItem(data.item) }
       else if (!currentItem.is_draft) revision.current = data.draft.revision
       else { itemRef.current = data.item; sourceRevision.current = data.sourceRevision; if (mounted.current) setItem(data.item) }
       saved.current = snapshot
       pending.current = null
-      if (recoveredBytes.current && recoveryKey) {
-        try {
-          if (sessionStorage.getItem(recoveryKey) === recoveredBytes.current) sessionStorage.removeItem(recoveryKey)
-          recoveredBytes.current = null
-          if (mounted.current) setRecoveryNotice(null)
-        } catch { /* Server persistence succeeded; retain any unreadable local copy. */ }
-      }
+      updateRecovery()
     })()
     inFlight.current = work
     try { await work } finally { inFlight.current = null }
@@ -525,6 +574,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
 
   function changed(patch: Partial<Snapshot>) {
     latest.current = { ...latest.current, ...patch }
+    updateRecovery()
     setStatus('unsaved')
     if (timer.current) clearTimeout(timer.current)
     timer.current = setTimeout(() => { void flush().catch((err) => {
@@ -548,7 +598,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
     if (!latest.current.title.trim()) { setError('Title is required'); return }
     setBusy(true)
     try {
-      if (postedOn !== undefined) latest.current = { ...latest.current, posted_on: postedOn }
+      if (postedOn !== undefined && postedOn !== latest.current.posted_on) changed({ posted_on: postedOn })
       await flush()
       const currentItem = itemRef.current
       if (!currentItem) return
