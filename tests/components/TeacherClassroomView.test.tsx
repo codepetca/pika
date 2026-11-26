@@ -2343,6 +2343,40 @@ describe('TeacherClassroomView', () => {
     sessionStorage.removeItem(key)
   })
 
+  it.each([false, true])('recovers fresh material edits with a previous local conflict (unreadable=%s)', async (unreadable) => {
+    const material = makeMaterialSummary('recovered-after-conflict', 'Server material')
+    const user = `teacher-recovery-conflict-${unreadable}`
+    const key = `pika:material-recovery:${user}:${classroom.id}:${material.id}`
+    const previous = unreadable ? '' : JSON.stringify({
+      version: 'earlier-version', title: 'Previous local edit', content: material.content, postDate: '2026-04-10',
+    })
+    sessionStorage.setItem(key, previous)
+    mockFetchJSONWithCache.mockImplementation((cacheKey: string) => Promise.resolve(
+      cacheKey.includes('materials') ? { materials: [material] } : cacheKey.includes('surveys') ? { surveys: [] } : { assignments: [] }
+    ))
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      if (init?.method === 'PUT') throw new Error('Offline')
+      return { ok: true, json: async () => ({ item: material, sourceRevision: 'a'.repeat(64), draft: null }) } as Response
+    })
+    const ui = <TeacherClassroomView classroom={classroom} recoveryUserId={user} selectedMaterialId={material.id} />
+    const view = render(ui, { wrapper: TooltipProvider })
+    const title = await screen.findByDisplayValue('Server material')
+    await waitFor(() => expect(title).toBeEnabled())
+    expect(sessionStorage.getItem(key)).toBe(previous)
+    fireEvent.change(title, { target: { value: 'Fresh local edit' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Close material modal' }))
+    await screen.findByText('Offline')
+    view.unmount()
+
+    const preserved = Object.keys(sessionStorage).filter((name) => name.startsWith(`${key}:previous:`))
+    expect(preserved).toHaveLength(1)
+    expect(sessionStorage.getItem(preserved[0])).toBe(previous)
+    render(ui, { wrapper: TooltipProvider })
+    expect(await screen.findByDisplayValue('Fresh local edit')).toBeEnabled()
+    sessionStorage.removeItem(key)
+    sessionStorage.removeItem(preserved[0])
+  })
+
   it('does not create a new material for whitespace-only input', async () => {
     render(<TeacherClassroomView classroom={classroom} />, { wrapper: TooltipProvider })
     await screen.findByRole('button', { name: 'Assignment One' })

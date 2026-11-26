@@ -408,6 +408,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
   const mounted = useRef(true)
   const recoveryChecked = useRef(false)
   const recoveryRecord = useRef<{ key: string; bytes: string } | null>(null)
+  const recoveryConflict = useRef<{ key: string; bytes: string } | null>(null)
   const [recoveryOwner] = useState(() => crypto.randomUUID())
   const recoveryPrefix = recoveryUserId ? `pika:material-recovery:${recoveryUserId}:${classroom.id}:` : null
   const isReadOnly = !!classroom.archived_at
@@ -428,7 +429,16 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
         return
       }
       const key = recoveryPrefix + (itemRef.current?.id ?? 'new')
-      if (key !== previous?.key && sessionStorage.getItem(key) !== null) return
+      if (key !== previous?.key) {
+        const occupied = sessionStorage.getItem(key)
+        if (occupied !== null) {
+          const conflict = recoveryConflict.current
+          if (conflict?.key !== key || conflict.bytes !== occupied) return
+          // Leave the conflicted copy available while reopening the current slot
+          // for fresh edits based on the verified source.
+          sessionStorage.setItem(`${key}:previous:${recoveryOwner}`, occupied)
+        }
+      }
       const bytes = JSON.stringify({
         owner: recoveryOwner,
         version: itemRef.current?.updated_at ?? 'new',
@@ -443,6 +453,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
       sessionStorage.setItem(key, bytes)
       if (previous && previous.key !== key) sessionStorage.removeItem(previous.key)
       recoveryRecord.current = { key, bytes }
+      recoveryConflict.current = null
     } catch {
       if (mounted.current) setRecoveryNotice('Local recovery is unavailable. Save your changes before closing.')
     }
@@ -458,7 +469,8 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
     const key = recoveryPrefix + (itemRef.current?.id ?? 'new')
     try {
       const raw = sessionStorage.getItem(key)
-      if (!raw) return
+      if (raw === null) return
+      recoveryConflict.current = { key, bytes: raw }
       const local = JSON.parse(raw)
       const matchesBaseline = 'sourceRevision' in local
         ? local.sourceRevision === sourceRevision.current && local.draftRevision === revision.current
@@ -476,6 +488,7 @@ function TeacherMaterialEditor({ classroom, recoveryUserId, material, onClose, o
         pending.current = { requestId: local.creation.requestId, snapshot: local.creation.snapshot }
       }
       recoveryRecord.current = { key, bytes: raw }
+      recoveryConflict.current = null
       setTitle(restored.title); setContent(restored.content); setPostDate(restored.posted_on)
       setRecoveryNotice('Recovered an earlier edit from this browser tab. It will be saved as a draft.')
       changed(restored)
