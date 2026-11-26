@@ -1571,7 +1571,11 @@ describe('Daily Log write boundary and legacy POST concurrency', () => {
     expect(read).toHaveBeenCalledTimes(1)
   })
 
-  it.each(['update', 'create'] as const)('returns the competing entry after a legacy POST %s race', async mode => {
+  it.each([
+    ['POST', 'update'],
+    ['POST', 'create'],
+    ['PATCH', 'create'],
+  ] as const)('returns the competing entry after a legacy %s %s race', async (method, mode) => {
     const latest = { id: entryId, version: 3, text: 'Other tab', rich_content: { type: 'doc', content: [] } }
     const versionFilter = vi.fn().mockReturnThis()
     const update = vi.fn(() => ({ eq: versionFilter, select: vi.fn(() => ({ maybeSingle: vi.fn(async () => ({ data: null, error: null })), single: vi.fn(async () => ({ data: null, error: null })) })) }))
@@ -1585,7 +1589,9 @@ describe('Daily Log write boundary and legacy POST concurrency', () => {
       }
       throw new Error(`Unexpected table ${table}`)
     })
-    const response = await POST(new NextRequest('http://localhost/api/student/entries', { method: 'POST', body: JSON.stringify(body) }))
+    const handler = method === 'POST' ? POST : PATCH
+    const payload = method === 'POST' ? body : { classroom_id: classroomId, date: body.date, version: 1, rich_content: { type: 'doc', content: [] } }
+    const response = await handler(new NextRequest('http://localhost/api/student/entries', { method, body: JSON.stringify(payload) }))
     expect(response.status).toBe(409)
     expect((await response.json()).entry).toEqual(latest)
     if (mode === 'update') expect(versionFilter).toHaveBeenCalledWith('version', 2)

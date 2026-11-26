@@ -84,6 +84,20 @@ function validateContentPayload(content: TiptapContent) {
   return { ok: true as const }
 }
 
+async function legacyDailyLogConflict(
+  supabase: ReturnType<typeof getServiceRoleClient>,
+  studentId: string,
+  classroomId: string,
+  date: string,
+) {
+  // A concurrent insert or replacement can have a different entry ID.
+  const { data: latest, error } = await supabase.from('entries')
+    .select('id, version, text, rich_content, minutes_reported, mood')
+    .eq('student_id', studentId).eq('classroom_id', classroomId).eq('date', date).maybeSingle()
+  if (error) return NextResponse.json({ error: 'Failed to fetch entry' }, { status: 500 })
+  return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: latest }, { status: 409 })
+}
+
 /**
  * GET /api/student/entries?classroom_id=xxx&limit=<n>
  * Fetches entries for the current student (most recent first).
@@ -275,15 +289,6 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
     return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: existing ?? null }, { status: 409 })
   }
 
-  // Re-read by the caller's exact subject/classroom/date when a competing write wins.
-  const entryConflict = async () => {
-    const { data: latest, error } = await supabase.from('entries')
-      .select('id, version, text, rich_content, minutes_reported, mood')
-      .eq('student_id', user.id).eq('classroom_id', classroom_id).eq('date', date).maybeSingle()
-    if (error) return NextResponse.json({ error: 'Failed to fetch entry' }, { status: 500 })
-    return NextResponse.json({ error: 'Entry has been updated elsewhere', entry: latest }, { status: 409 })
-  }
-
   let entry
   let palDelivery: PalImmediateDeliveryStatus | undefined
 
@@ -344,7 +349,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       )
     }
 
-    if (!data) return entryConflict()
+    if (!data) return legacyDailyLogConflict(supabase, user.id, classroom_id, date)
     entry = data
   } else {
     const { data, error } = await supabase
@@ -363,7 +368,7 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
       .single()
 
     if (error) {
-      if (error.code === '23505') return entryConflict()
+      if (error.code === '23505') return legacyDailyLogConflict(supabase, user.id, classroom_id, date)
       console.error('Error creating entry:', error)
       return NextResponse.json(
         { error: 'Failed to create entry' },
@@ -593,6 +598,7 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
       .single()
 
     if (error) {
+      if (error.code === '23505') return legacyDailyLogConflict(supabase, user.id, classroom_id, date)
       console.error('Error creating entry:', error)
       return NextResponse.json(
         { error: 'Failed to create entry' },
