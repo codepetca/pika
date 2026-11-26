@@ -15,6 +15,8 @@ import {
   readContextualAssignmentInlineImage,
 } from '@/lib/server/contextual-assignment-inline-images'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { isAssignmentVisibleToStudents } from '@/lib/assignments'
+import { assertStudentCanAccessClassroom } from '@/lib/server/classrooms'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -79,7 +81,7 @@ export const GET = withErrorHandler('GetManagedSubmissionImage', async (request)
 
   const { data: assignment, error: assignmentError } = await supabase
     .from('assignments')
-    .select('classroom_id')
+    .select('classroom_id,is_draft,released_at')
     .eq('id', assignmentDoc.assignment_id)
     .maybeSingle()
   if (assignmentError || !assignment || assignment.classroom_id !== object.classroom_id) {
@@ -101,6 +103,13 @@ export const GET = withErrorHandler('GetManagedSubmissionImage', async (request)
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
     if (object.status === 'verified' && object.created_by_user_id !== user.id) {
+      return NextResponse.json({ error: 'Image not found' }, { status: 404 })
+    }
+    if (!isAssignmentVisibleToStudents(assignment)) {
+      return NextResponse.json({ error: 'Image not found' }, { status: 404 })
+    }
+    const classroomAccess = await assertStudentCanAccessClassroom(user.id, assignment.classroom_id)
+    if (!classroomAccess.ok) {
       return NextResponse.json({ error: 'Image not found' }, { status: 404 })
     }
   } else if (user.role === 'teacher') {

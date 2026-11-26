@@ -77,6 +77,34 @@ function renderCard({
 }
 
 describe('SortableAssignmentCard', () => {
+  it('describes due date and submission count while retaining the title as the name', () => {
+    renderCard({ editMode: false })
+    expect(screen.getByRole('button', { name: 'Assignment One' })).toHaveAccessibleDescription(/Due:.*1\/2/)
+  })
+
+  it('describes scheduled release and draft state without reporting a submission count', () => {
+    render(<TooltipProvider><SortableAssignmentCard
+      assignment={{ ...assignment, released_at: '2099-04-10T12:00:00Z' }} isReadOnly={false} editMode={false}
+      onOpen={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: 'Assignment One' })).toHaveAccessibleDescription(/Scheduled.*Apr 10.*Due:/)
+  })
+
+  it('describes survey status and responses separately from its name', () => {
+    render(<TooltipProvider><SortableSurveyCard survey={{ ...assignment, status: 'active',
+      stats: { responded: 1, total_students: 2, questions_count: 1 } } as any}
+      isReadOnly={false} editMode={false} onOpen={vi.fn()} onDelete={vi.fn()} /></TooltipProvider>)
+    expect(screen.getByRole('button', { name: 'Assignment One' })).toHaveAccessibleDescription(/Open.*1\/2/)
+  })
+
+  it('gives assignment and survey reorder controls full touch targets', () => {
+    renderCard({ editMode: true })
+    render(<TooltipProvider><SortableSurveyCard survey={{ ...assignment, id: 'survey', status: 'draft' } as any}
+      isReadOnly={false} editMode onOpen={vi.fn()} onDelete={vi.fn()} /></TooltipProvider>)
+    for (const button of [screen.getByRole('button', { name: 'Drag to reorder' }), screen.getByRole('button', { name: 'Drag to reorder survey' })]) {
+      expect(button).toHaveClass('h-11', 'w-11')
+    }
+  })
+
   it('keeps past-due queued work distinct from a missed release and opens the owner editor', async () => {
     const user = userEvent.setup()
     render(<TooltipProvider><AssignmentControllerPattern /></TooltipProvider>)
@@ -107,7 +135,7 @@ describe('SortableAssignmentCard', () => {
       onOpen={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()}
     /></TooltipProvider>)
 
-    const release = screen.getByText(/Fri Apr 10/)
+    const release = screen.getAllByText(/Fri Apr 10/).find((element) => !element.classList.contains('sr-only'))!
     const due = screen.getByText(/^Due:/)
     expect(release.compareDocumentPosition(due) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByText('Scheduled')).toBeInTheDocument()

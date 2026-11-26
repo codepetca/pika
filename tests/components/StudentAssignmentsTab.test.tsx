@@ -362,6 +362,9 @@ describe('StudentAssignmentsTab', () => {
     const material = screen.getByTestId('material-card')
     const survey = screen.getByTestId('survey-card')
     for (const card of [assignment, material, survey]) {
+      expect(card).toHaveClass('motion-reduce:transition-none', 'motion-reduce:hover:translate-y-0')
+    }
+    for (const card of [assignment, material, survey]) {
       expect(card.querySelector('svg')).toHaveAttribute('aria-hidden', 'true')
     }
     shouldFail = true

@@ -11,6 +11,7 @@ import { getStudentEntryHistoryCacheKey } from '@/lib/student-entry-history'
 import { invalidateCachedJSONMatching } from '@/lib/request-cache'
 import type { Classroom, Entry } from '@/types'
 
+const editorOverride = vi.hoisted(() => ({ next: null as any }))
 const getTodayInTorontoMock = vi.hoisted(() => vi.fn(() => '2025-12-16'))
 const invalidateStudentEntriesForClassroomMock = vi.hoisted(() => vi.fn())
 const redirectToLoginForReauthMock = vi.hoisted(() => vi.fn())
@@ -92,7 +93,7 @@ vi.mock('@/components/editor', async () => {
         'data-toolbar-preset': toolbarPreset,
         onBlur,
         onChange: (event: React.ChangeEvent<HTMLTextAreaElement>) =>
-          onChange(toContent(event.currentTarget.value)),
+          onChange(editorOverride.next ?? toContent(event.currentTarget.value)),
         placeholder,
         value: toText(content),
       }),
@@ -1703,6 +1704,43 @@ describe('StudentTodayTab history section', () => {
 
     expect(invalidateStudentEntriesForClassroomMock).toHaveBeenCalledWith(classroom.id)
     expect(window.sessionStorage.getItem(cacheKey)).toBeNull()
+  })
+
+  it('saves and retries a bounded edit when the historical saved document exceeds the wire limit', async () => {
+    const originalText = 'A'.repeat(605)
+    const editedText = originalText
+    const historical = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: originalText, marks: [{ type: 'link', attrs: { href: `https://example.test/${'x'.repeat(61000)}` } }] }] }] }
+    const saved = { ...entries[0], rich_content: historical, text: originalText, version: 7 }
+    const requests: any[] = []
+    const fetchMock = vi.fn((input: RequestInfo, init?: RequestInit) => {
+      const url = String(input)
+      if (url.startsWith(`/api/student/entries?classroom_id=${classroom.id}`)) return mockJson({ entries: [saved] })
+      if (url.includes('/lesson-plans')) return mockJson({ lesson_plans: [] })
+      if (url === '/api/student/entries' && init?.method === 'PATCH') {
+        const body = JSON.parse(String(init.body))
+        requests.push(body)
+        if (requests.length === 1) return Promise.resolve({ ok: false, status: 503, json: async () => ({ error: 'Temporarily unavailable' }) })
+        return mockJson({ entry: { ...saved, rich_content: body.rich_content, text: editedText, version: 8 } })
+      }
+      throw new Error(`Unhandled fetch: ${url}`)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<StudentTodayTab classroom={classroom} />)
+    const editor = await screen.findByLabelText('Daily Log')
+    await waitFor(() => expect(editor).toHaveValue(originalText))
+    editorOverride.next = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: editedText }] }] }
+    fireEvent.change(editor, { target: { value: `${editedText}B` } })
+    editorOverride.next = null
+    fireEvent.blur(editor)
+    await screen.findByText('Temporarily unavailable')
+    expect(requests[0]).toMatchObject({ classroom_id: 'c1', date: '2025-12-16', entry_id: 'e1', version: 7, rich_content: { type: 'doc' } })
+    expect(requests[0]).not.toHaveProperty('patch')
+    fireEvent.click(screen.getByRole('button', { name: 'Retry save' }))
+    await waitFor(() => expect(requests).toHaveLength(2))
+    expect(requests[1]).toEqual(requests[0])
+    expect(new TextEncoder().encode(JSON.stringify(requests[1])).byteLength).toBeLessThan(60000)
+    await waitFor(() => expect(screen.getByText('Saved')).toBeInTheDocument())
+    expect(editor).toHaveValue(editedText)
   })
 
   it('does not report saved when an older save finishes after a newer edit', async () => {

@@ -54,7 +54,9 @@ function tokenizeLine(line: string): string[] {
     tokens = line.split(/\s+/).filter(t => t.length > 0)
   } else {
     // For tab or comma, split and trim each token
-    tokens = line.split(separator).map(t => t.trim()).filter(t => t.length > 0)
+    // Delimited fields are positional: blank optional cells must not shift a
+    // guardian email into the student-number column.
+    tokens = line.split(separator).map(t => t.trim())
   }
 
   return tokens
@@ -107,7 +109,7 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
   }
 
   // Need at least 3 tokens: firstName, lastName, email
-  if (tokens.length < 3) {
+  if (tokens.length < 3 || !tokens[0] || !tokens[1]) {
     return {
       student: null,
       error: {
@@ -123,9 +125,17 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
   const lastName = tokens[1]
   const emailCandidate = tokens[2]
   const fourthToken = tokens[3]
-  const hasStudentNumber = fourthToken && !EMAIL_REGEX.test(fourthToken)
+  // An email-like fourth field is the secondary address even when malformed;
+  // otherwise it is the optional student number.
+  const hasStudentNumber = fourthToken && !fourthToken.includes('@')
   const studentNumber = hasStudentNumber ? fourthToken : undefined
-  const counselorEmailCandidate = hasStudentNumber ? tokens[4] : fourthToken
+  if (fourthToken?.includes('@') && tokens[4]) {
+    return {
+      student: null,
+      error: { line: lineNumber, error: 'Only one guardian email is allowed', raw: line },
+    }
+  }
+  const counselorEmailCandidate = hasStudentNumber || !fourthToken ? tokens[4] : fourthToken
 
   // Validate email format
   if (!EMAIL_REGEX.test(emailCandidate)) {
@@ -153,10 +163,13 @@ function parseLine(line: string, lineNumber: number): { student: ParsedStudent |
 
   // Validate the secondary email if provided.
   if (counselorEmailCandidate) {
-    if (EMAIL_REGEX.test(counselorEmailCandidate)) {
-      student.counselorEmail = counselorEmailCandidate.toLowerCase()
+    if (!EMAIL_REGEX.test(counselorEmailCandidate)) {
+      return {
+        student: null,
+        error: { line: lineNumber, error: 'Invalid guardian email format', raw: line },
+      }
     }
-    // If invalid, we silently ignore it (don't fail the whole line)
+    student.counselorEmail = counselorEmailCandidate.toLowerCase()
   }
 
   return { student, error: null }
@@ -172,13 +185,10 @@ export function parseRosterInput(input: string): ParseResult {
   const students: ParsedStudent[] = []
   const errors: ParseError[] = []
 
-  // Split by newlines and filter empty lines
-  const lines = input
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-
-  lines.forEach((line, index) => {
+  // Keep physical line numbers so reported errors match the textarea.
+  input.split('\n').forEach((rawLine, index) => {
+    const line = rawLine.replace(/\r$/, '')
+    if (!line.trim()) return
     const lineNumber = index + 1
     const { student, error } = parseLine(line, lineNumber)
 

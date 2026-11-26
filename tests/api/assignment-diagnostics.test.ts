@@ -285,27 +285,17 @@ describe('assignment route diagnostic privacy', () => {
     await expectFailure(await release(request('POST', {}), context), 'Failed to release assignment', 'assignment.release')
   })
 
-  it('keeps existing bulk lookup failures content-free', async () => {
-    queue('assignments', failed())
-    await expectFailure(await bulk(request('POST', { classroom_id: 'classroom-1', assignments: [{ ...bulkItem, id: 'assignment-1' }] })), 'Failed to fetch existing assignments', 'assignment.bulk_existing')
-  })
-
-  it.each([
-    ['classwork_materials', 'assignment.bulk_material_positions'],
-    ['surveys', 'assignment.bulk_survey_positions'],
-  ])('keeps bulk position failures content-free: %s', async (table, event) => {
-    queue(table, failed())
-    await expectFailure(await bulk(request('POST', { classroom_id: 'classroom-1', assignments: [bulkItem] })), 'Failed to save assignments', event)
-  })
-
-  it('keeps bulk creation failures content-free', async () => {
-    queue('assignments', failed())
-    await expectFailure(await bulk(request('POST', { classroom_id: 'classroom-1', assignments: [bulkItem] })), 'Failed to create assignments', 'assignment.bulk_create')
-  })
-
-  it('keeps bulk update failures content-free', async () => {
-    queue('assignments', ok([{ ...assignment(), is_draft: true }]), failed())
-    await expectFailure(await bulk(request('POST', { classroom_id: 'classroom-1', assignments: [{ ...bulkItem, id: 'assignment-1' }] })), 'Failed to update assignments', 'assignment.bulk_update')
+  it.each(['create', 'update', 'mixed'] as const)('keeps atomic bulk %s failures content-free', async mode => {
+    currentTeacherId = '11111111-1111-4111-8111-111111111111'
+    const classroomId = '22222222-2222-4222-8222-222222222222'
+    const existing = { ...bulkItem, id: '33333333-3333-4333-8333-333333333333' }
+    const assignments = mode === 'create' ? [bulkItem] : mode === 'update' ? [existing] : [bulkItem, existing]
+    const response = await bulk(request('POST', { classroom_id: classroomId, assignments }))
+    expect(response.status).toBe(503)
+    expect(await response.json()).toEqual({ error: 'Unable to save assignments' })
+    expectContentFreeDiagnostic(vi.mocked(console.error).mock.calls, 'assignment.bulk_save')
+    expect(client.rpc).toHaveBeenCalledExactlyOnceWith('save_legacy_assignments_bulk_for_owner_v1', expect.objectContaining({ p_actor_id: currentTeacherId, p_classroom_id: classroomId }))
+    expect(client.from).not.toHaveBeenCalled()
   })
 
   it('keeps document read failures content-free', async () => {

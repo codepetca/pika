@@ -11,18 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 Production billing schema through 327
-
-Production Supabase applied migrations 322–327 from main `e40f58d6e` in [run 42805516214](https://github.com/codepetca/pika/actions/runs/42805516214). Read-only checks confirmed complete history, three replacement schedule checks and the retained paid-invoice check, row-level security on both new private tables, 14 service-role-only RPCs, both notice triggers, empty new queues, and all 12 billing controls off. The isolated Stripe sandbox verified taxed checkout, paid and failed renewal, recovery, scheduled cancellation and undo, and a full tax-inclusive refund. [Promotion PR 1791](https://github.com/codepetca/pika/pull/1791) records the review and rollout receipts.
-
-## 2026-11-10 Confirmed full-refund access transition
-
-The operator policy retains seven days for first-purchase refund requests and leaves disputes to manual review. The Stripe proof checks the exact canceled subscription, settled invoice, captured gross and successful refund records. Migration 328 adds an idempotent operator transition for the currently bound term, using the existing Free and classroom restriction writers while retaining the original receipt and student work. The owned replay verified the cutoff, a stale paid claim, replay, retained submissions and started Tests, and scheduled cancellation retirement. Hosted preflight found the production Stripe target unpinned and billing controls off. The dormant Cloudflare package passed dry run.
-
-## 2026-11-10 Terra grading default
-
-Set OpenAI GPT-6.1 Terra as the shared grading default for assignments, open responses, and repository reviews. DeepSeek Flash remains the fallback for verified OpenAI hard spend-limit errors. The test reference cache uses the same fallback selection as the router. Existing explicit provider/model settings still take precedence, and archived test calibration retains its prior DeepSeek default. The production AI outbound gate remains independently controlled.
-
 ## 2026-11-10 Closed Stripe setup and refund PR sync
 
 Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.
@@ -134,6 +122,10 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
+## 2026-11-17 — Audit Pika product consistency and architecture
+
+Audited b61ab87d6 in an isolated worktree with three bounded reviewers and coordinator verification. Recorded 22 findings/opportunities, 14 accepted local teacher/student captures and the proposed sequence within the existing product-experience epic; no application code, migrations or hosted systems changed. Architecture/UI/design policy checks and 13 focused files/240 tests passed. History-error scoring and silent guardian-email loss reproduced locally; image-access finding narrowed to policy parity. See docs/guidance/ui/product-experience-audit-2026-11-17.md. Implementation and full Phase 6 verification remain outstanding.
+
 ## 2026-11-18 — Consolidate attendance rooms in schedules
 
 Moved the existing room controls into Daily's Attendance schedules flow and removed the separate overflow entry. Reused room/poster owners; kept default and meeting room mutations separate, preserved Undo and unsaved selection through poster preview, and guarded stale responses across date/classroom/open lifetimes. Worktree `/workspace/worktrees/pika-attendance-schedules`, branch `codex/attendance-schedules-rooms`, stacked on open PR1831 at3199cb2. Component and browser verification includes the normal Daily action and desktop/mobile light/dark evidence; detailed final receipts and cloud service limitations are recorded in the PR and `/workspace/README-Bara-Pika.md`. No hosted configuration, migration, deployment, merge or promotion.
@@ -155,6 +147,10 @@ Production release CI exposed a stale Playwright action that waited for a delibe
 ## 2026-11-18 — Preserve usable location after legacy room migration
 
 The shared catalog may expose a legacy previous location that cannot be selected again. A successful move from that location now omits an impossible whole-location Undo and explains why; normal reversible moves and uncertain-response recovery remain available. Covered current and absent meetings, a rejected legacy rollback, later valid changes and failed refresh. No backend, auth, schema or dependency changes.
+
+## 2026-11-18 — Implement audited consistency and integrity fixes
+
+Implemented bounded grading-history reads/failure retry, legacy Daily Log CAS, transactional assignment bulk reuse and named API schemas, legacy private-image membership/visibility parity, roster validation/dialog behavior, accessible date/card metadata and 44px controls/reduced motion. Extracted owner-scoped repository/test grading-start controllers and validated/scoped Blueprint copilot responses. Reconciled audit and architecture guidance; the existing product-experience epic remains open. Risk profiles: async-grading, workspace-state. Final focused checks pass (664 files, 14,750 tests, eight skips, TypeScript, lint, architecture/UI/design policies), precommit audit passes, and changed-UI teacher/student desktop/mobile light/dark matrix passes. PR #1833 is draft. Two initial reviews found seven gaps; two correction batches add intermediate patch bounds, absent-row revision conflicts, real roster refresh recovery/delimited-cell integrity, committed proposal reconciliation and newer grading-selection preservation. Historical oversized Daily repair and Blueprint tab/preview intent also have regressions and browser evidence. Targeted browser matrices and focused regressions pass; targeted/final fixed-SHA review and CI remain in progress. Test-history transaction work is isolated; its source preflight found native harness/compatibility corrections. In the isolated A5 follow-up, approved331 applied to a network-none disposable container; its first fixture rolled back and corrected verification awaits fresh approval. No existing database, production, merge or deployment changes.
 
 ## 2026-11-19 School location picker
 
@@ -199,3 +195,9 @@ Student Classwork lists assignments, materials and surveys by newest posting or 
 ## 2026-11-25 — Started Test title corrections and editor dismissal
 
 Restore atomic title editing after Start with migration 332. Preserve the existing question, grading, reference and results restrictions. The split teacher editor places feedback beside the affected controls. Close discards rejected input and keeps acknowledged saves. Playwright verified rename, invalid Markdown, close and reopen on desktop/mobile in light/dark. Rebased over the student notification counts migration 331 with identical title-fix SQL.
+
+## 2026-11-26 — Rebase the reviewed Pika audit fixes
+
+Rebased PR #1833 onto main b1ac2ed34. Preserved current main's continuity records and restored the November audit entries. The cumulative audit patch retains the shipped newest-first Student Classwork behavior alongside its reduced-motion changes. Risk profiles: async-grading and workspace-state. Rebased validation, independent review and PR Gate are tracked on #1833.
+
+Independent review found a competing first-save overwrite in legacy Pal writes. Legacy Pal POST and first-save PATCH now use the existing guarded member transaction. With Pal disabled, a competing first-save PATCH now returns the caller’s current entry with 409. All 107 affected API tests passed. The local database fixture confirmed one create succeeds and the competing create returns 409 with the winning entry intact. Teacher and student Classwork captures passed desktop and mobile in both themes.

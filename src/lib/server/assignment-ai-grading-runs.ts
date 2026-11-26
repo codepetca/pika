@@ -13,7 +13,6 @@ import {
   buildProcessReminders,
   scoreWorkflow,
   summarizeWorkProcess,
-  type WorkProcessHistoryEntry,
 } from '@/lib/assignment-workflow-process'
 import { getAssignmentInstructionsMarkdown } from '@/lib/assignment-instructions'
 import { submissionArtifactsToAssignmentArtifacts } from '@/lib/assignment-submission-requirements'
@@ -42,6 +41,8 @@ import {
   submitOrPollGradexAssignmentRun,
 } from '@/lib/server/gradex-assignment-grading'
 import { getServiceRoleClient } from '@/lib/supabase'
+import { loadPagedRows } from '@/lib/server/query-chunks'
+import type { TableRow } from '@/types/database'
 import {
   assertAssignmentAiGradingUsageContract,
   failAssignmentAiGradingItemUsage,
@@ -370,44 +371,59 @@ async function fetchLatestActiveRun(
   return ((data as AssignmentAiGradingRun[] | null) ?? [])[0] ?? null
 }
 
-// Counts and timestamps only: history rows also hold student text.
-async function loadWorkProcess(
-  supabase: ServiceRoleSupabase,
-  assignmentDoc: { id: string; is_submitted?: boolean | null; submitted_at?: string | null },
-  dueAt: string,
-) {
-  const { data } = await supabase
-    .from('assignment_doc_history')
-    .select('word_count, paste_word_count, trigger, created_at')
-    .eq('assignment_doc_id', assignmentDoc.id)
-    .order('created_at', { ascending: true })
+type AssignmentGradingHistoryMetric = Pick<
+  TableRow<'assignment_doc_history'>,
+  'id' | 'word_count' | 'paste_word_count' | 'created_at'
+> & Pick<AssignmentDocHistoryEntry, 'trigger'>
 
-  if (!data || data.length === 0) return null
-  return summarizeWorkProcess(data as WorkProcessHistoryEntry[], {
-    dueAt,
-    isSubmitted: assignmentDoc.is_submitted ?? false,
-    submittedAt: assignmentDoc.submitted_at ?? null,
-  })
+const gradingHistoryMetricsSchema: z.ZodType<AssignmentGradingHistoryMetric[]> = z.array(z.object({
+  id: z.string().min(1),
+  word_count: z.number().int(),
+  paste_word_count: z.number().int().nullable(),
+  trigger: z.enum(['autosave', 'blur', 'submit', 'baseline', 'restore']),
+  created_at: gradingTimestampSchema,
+}))
+
+class AssignmentGradingHistoryUnavailableError extends Error {
+  readonly kind = 'history_unavailable'
+
+  constructor() {
+    // Never retain database messages or student history in the run error.
+    super('Assignment grading history is temporarily unavailable')
+    this.name = 'AssignmentGradingHistoryUnavailableError'
+  }
+}
+
+// Read the complete metric collection once, before usage reservation/provider work.
+// The ID tie-break keeps equal-timestamp rows on deterministic page boundaries.
+async function loadGradingHistoryMetrics(
+  supabase: ServiceRoleSupabase,
+  assignmentDocId: string,
+): Promise<AssignmentGradingHistoryMetric[]> {
+  try {
+    const result = await loadPagedRows<AssignmentGradingHistoryMetric>(() => supabase
+      .from('assignment_doc_history')
+      .select('id, word_count, paste_word_count, trigger, created_at')
+      .eq('assignment_doc_id', assignmentDocId)
+      .order('created_at', { ascending: true }), 1000, 'id', true)
+    if (result.error) throw new AssignmentGradingHistoryUnavailableError()
+    return gradingHistoryMetricsSchema.parse(result.rows)
+  } catch {
+    // A successful empty array is legitimate missing history; an unavailable
+    // page must never become the generous missing-history scoring fallback.
+    throw new AssignmentGradingHistoryUnavailableError()
+  }
 }
 
 async function maybeScoreAuthenticity(
   supabase: ServiceRoleSupabase,
   assignmentDocId: string,
+  historyEntries: AssignmentGradingHistoryMetric[],
 ): Promise<void> {
-  const { data: historyEntries } = await supabase
-    .from('assignment_doc_history')
-    .select('id, assignment_doc_id, patch, snapshot, word_count, char_count, paste_word_count, keystroke_count, trigger, created_at')
-    .eq('assignment_doc_id', assignmentDocId)
-    .order('created_at', { ascending: true })
-
-  if (!historyEntries || historyEntries.length <= 1) {
-    return
-  }
+  if (historyEntries.length <= 1) return
 
   const authResult = analyzeAuthenticity(historyEntries as AssignmentDocHistoryEntry[])
-  if (authResult.score === null) {
-    return
-  }
+  if (authResult.score === null) return
 
   await supabase
     .from('assignment_docs')
@@ -507,7 +523,12 @@ export async function gradeAssignmentDocWithAi({
     sanitizationContext ??
     await loadClassroomAiSanitizationContext(supabase, assignment.classroom_id)
 
-  const workProcess = await loadWorkProcess(supabase, assignmentDoc, assignment.due_at)
+  const historyMetrics = await loadGradingHistoryMetrics(supabase, assignmentDoc.id)
+  const workProcess = historyMetrics.length === 0 ? null : summarizeWorkProcess(historyMetrics, {
+    dueAt: assignment.due_at,
+    isSubmitted: assignmentDoc.is_submitted ?? false,
+    submittedAt: assignmentDoc.submitted_at ?? null,
+  })
 
   if (runItem?.leaseFencingEnabled) {
     await reserveAssignmentAiGradingItemUsage({ supabase, itemId: runItem.id,
@@ -583,7 +604,7 @@ export async function gradeAssignmentDocWithAi({
 
   if (assignmentDoc.authenticity_score == null) {
     try {
-      await maybeScoreAuthenticity(supabase, assignmentDoc.id)
+      await maybeScoreAuthenticity(supabase, assignmentDoc.id, historyMetrics)
     } catch {
       // Non-fatal: authenticity scoring failure should not block grade persistence.
     }
@@ -890,7 +911,7 @@ async function processAssignmentAiRunItem(opts: {
       : error instanceof Error ? error.message : 'AI grading failed'
 
     if (
-      isRetryableAssignmentAiGradingError(error) &&
+      (isRetryableAssignmentAiGradingError(error) || error instanceof AssignmentGradingHistoryUnavailableError) &&
       attemptCount < ASSIGNMENT_AI_GRADING_MAX_ATTEMPTS
     ) {
       await updateRunItem(supabase, item.id, leaseToken, leaseFencingEnabled, {

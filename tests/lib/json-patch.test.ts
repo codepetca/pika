@@ -141,4 +141,23 @@ describe('json-patch utilities', () => {
       warning.mockRestore()
     }
   })
+  it('stops intermediate expansion even when later operations would shrink the result', () => {
+    const base = { type: 'doc', content: [], attrs: { x: 'x'.repeat(59_000) } }
+    const patch: JsonPatchOperation[] = [
+      { op: 'copy', from: '', path: '/expanded' },
+      { op: 'remove', path: '/expanded' },
+    ]
+    expect(tryApplyJsonPatch(base, patch).success).toBe(true)
+    const result = tryApplyJsonPatch(base, patch, { maxContentBytes: 60_000 })
+    expect(result.success).toBe(false)
+    expect(result.content).toEqual(base)
+    expect(base).not.toHaveProperty('expanded')
+  })
+
+  it('uses UTF-8 bytes for bounded patches and accepts a result within the limit', () => {
+    const base = { type: 'doc', content: [] }
+    expect(tryApplyJsonPatch(base, [{ op: 'add', path: '/attrs', value: { x: '😀'.repeat(30) } }], { maxContentBytes: 100 }).success).toBe(false)
+    expect(tryApplyJsonPatch(base, [{ op: 'add', path: '/attrs', value: { x: 'small' } }], { maxContentBytes: 100 }).success).toBe(true)
+  })
+
 })

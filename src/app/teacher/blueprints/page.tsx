@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Plus, RotateCw } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button, ConfirmDialog, FormField, IconButton, Input, PageHeading, PageState, SaveStatus, Select, TabPanel, Tabs } from '@/ui'
@@ -60,6 +60,7 @@ import {
   type CourseBlueprintAuthoringGuidance,
 } from '@/lib/course-blueprint-authoring-guidance'
 import type { CourseBlueprintGuidanceRevision } from '@/lib/course-blueprint-guidance-history'
+import { parseCourseBlueprintCopilotResponse, type BlueprintCopilotAnalysis, type BlueprintCopilotTarget } from '@/lib/validations/course-blueprint-copilot-response'
 
 type EditorTab =
   | 'overview'
@@ -82,7 +83,7 @@ function isEditorTab(value: string | null): value is EditorTab {
   return value !== null && Object.prototype.hasOwnProperty.call(TAB_LABELS, value)
 }
 
-type CopilotTarget = Exclude<EditorTab, 'copilot' | 'publish' | 'sync' | 'proposals'>
+type CopilotTarget = Exclude<BlueprintCopilotTarget, 'analyze'>
 
 const TAB_LABELS: Record<EditorTab, string> = {
   overview: 'Overview',
@@ -222,6 +223,13 @@ export default function TeacherBlueprintsPage() {
     const section = searchParams.get('section')
     return isEditorTab(section) ? section : 'overview'
   })
+  const copilotNavigationIntentRef = useRef({ tab: activeTab, generation: 0 })
+  const copilotPreviewEditRef = useRef(0)
+  useLayoutEffect(() => {
+    if (copilotNavigationIntentRef.current.tab !== activeTab) {
+      copilotNavigationIntentRef.current = { tab: activeTab, generation: copilotNavigationIntentRef.current.generation + 1 }
+    }
+  }, [activeTab])
   const [drafts, setDrafts] = useState(emptyCourseBlueprintDraftState)
   const [meta, setMeta] = useState({
     title: '',
@@ -277,7 +285,7 @@ export default function TeacherBlueprintsPage() {
       trial: boolean
     }
   } | null>(null)
-  const [aiAnalysis, setAiAnalysis] = useState<any>(null)
+  const [aiAnalysis, setAiAnalysis] = useState<BlueprintCopilotAnalysis | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
   const [mergeClassroomId, setMergeClassroomId] = useState('')
   const [mergeSuggestions, setMergeSuggestions] = useState<BlueprintMergeSuggestionSet | null>(null)
@@ -294,6 +302,7 @@ export default function TeacherBlueprintsPage() {
   const proposalsRequestIdRef = useRef(0)
   const guidanceHistoryRequestIdRef = useRef(0)
   const mergeSuggestionsRequestIdRef = useRef(0)
+  const copilotRequestIdRef = useRef(0)
   const selectedBlueprintIdRef = useRef<string | null>(null)
   selectedBlueprintIdRef.current = selectedBlueprintId
   const preferredBlueprintId = searchParams.get('blueprint')
@@ -450,6 +459,13 @@ export default function TeacherBlueprintsPage() {
     proposalsRequestIdRef.current += 1
     guidanceHistoryRequestIdRef.current += 1
     mergeSuggestionsRequestIdRef.current += 1
+    copilotRequestIdRef.current += 1
+    setAiPreview(null)
+    setAiAnalysis(null)
+    setAiBusy(false)
+    setAiPrompt('')
+    setAiTarget('overview')
+    setAiUnitExceptionId('')
     selectedBlueprintIdRef.current = blueprintId
     setDeleteTarget(null)
     setDetail(null)
@@ -1117,11 +1133,14 @@ export default function TeacherBlueprintsPage() {
     unitExceptionId = aiUnitExceptionId,
   ) {
     if (!selectedBlueprintId) return
+    const blueprintId = selectedBlueprintId
+    const requestId = ++copilotRequestIdRef.current
+    const isCurrent = () => selectedBlueprintIdRef.current === blueprintId && copilotRequestIdRef.current === requestId
     setAiBusy(true)
     setError('')
     setAiPreview(null)
     try {
-      const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/ai/suggest`, {
+      const response = await fetch(`/api/teacher/course-blueprints/${blueprintId}/ai/suggest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1134,32 +1153,45 @@ export default function TeacherBlueprintsPage() {
         }),
       })
       const data = await response.json().catch(() => ({}))
+      if (!isCurrent()) return
       if (!response.ok) {
         throw new Error(data.error || 'Failed to generate copilot suggestion')
       }
-      setAiAnalysis(data.suggestion.analysis || null)
+      const suggestion = parseCourseBlueprintCopilotResponse(data, target)
+      setAiAnalysis(suggestion.analysis ?? null)
       if (target !== 'analyze') {
         setAiPreview({
           target,
-          content: data.suggestion.content || '',
-          originalContentSha256: data.suggestion.original_content_sha256,
-          draftProvenanceToken: data.suggestion.draft_provenance_token,
-          guidance: data.suggestion.guidance,
+          content: suggestion.content,
+          originalContentSha256: suggestion.original_content_sha256,
+          draftProvenanceToken: suggestion.draft_provenance_token,
+          guidance: suggestion.guidance,
         })
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to generate copilot suggestion')
+      if (isCurrent()) setError(err.message || 'Failed to generate copilot suggestion')
     } finally {
-      setAiBusy(false)
+      if (isCurrent()) setAiBusy(false)
     }
+  }
+
+  function invalidateCopilotPreview() {
+    copilotRequestIdRef.current += 1
+    setAiBusy(false)
+    setAiPreview(null)
   }
 
   async function applyCopilotPreview() {
     if (!selectedBlueprintId || !aiPreview) return
+    const blueprintId = selectedBlueprintId
+    const requestId = ++copilotRequestIdRef.current
+    const navigationIntent = copilotNavigationIntentRef.current.generation
+    const previewEdit = copilotPreviewEditRef.current
+    const isCurrent = () => selectedBlueprintIdRef.current === blueprintId && copilotRequestIdRef.current === requestId
     setAiBusy(true)
     setError('')
     try {
-      const response = await fetch(`/api/teacher/course-blueprints/${selectedBlueprintId}/ai/apply`, {
+      const response = await fetch(`/api/teacher/course-blueprints/${blueprintId}/ai/apply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1172,16 +1204,25 @@ export default function TeacherBlueprintsPage() {
         }),
       })
       const data = await response.json().catch(() => ({}))
+      if (selectedBlueprintIdRef.current !== blueprintId) return
       if (!response.ok) {
+        if (!isCurrent()) return
         throw new Error(data.errors?.join('\n') || data.error || 'Failed to apply copilot preview')
       }
-      setAiPreview(null)
-      setActiveTab('proposals')
-      await loadProposals(selectedBlueprintId)
+      if (isCurrent() && copilotPreviewEditRef.current === previewEdit) {
+        setAiPreview(null)
+        if (copilotNavigationIntentRef.current.generation === navigationIntent && copilotNavigationIntentRef.current.tab === 'copilot') {
+          setActiveTab('proposals')
+        }
+      }
+      // A committed proposal belongs to the Blueprint even if the teacher
+      // changed draft section/unit while it was saving. Reconcile the list
+      // without replacing that newer preview or navigation intent.
+      await loadProposals(blueprintId)
     } catch (err: any) {
-      setError(err.message || 'Failed to apply copilot preview')
+      if (isCurrent()) setError(err.message || 'Failed to apply copilot preview')
     } finally {
-      setAiBusy(false)
+      if (isCurrent()) setAiBusy(false)
     }
   }
 
@@ -1878,7 +1919,7 @@ export default function TeacherBlueprintsPage() {
                           value={aiTarget}
                           onChange={(e) => {
                             setAiTarget(e.target.value as CopilotTarget)
-                            setAiPreview(null)
+                            invalidateCopilotPreview()
                           }}
                           className="w-full rounded-md border border-border bg-surface px-3 py-2 text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                         >
@@ -1894,7 +1935,7 @@ export default function TeacherBlueprintsPage() {
                         </select>
                       </FormField>
                       <FormField label="Direction">
-                        <Input value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} placeholder="Focus on a coding-heavy semester with weekly checkpoints." />
+                        <Input value={aiPrompt} onChange={(e) => { copilotNavigationIntentRef.current.generation += 1; setAiPrompt(e.target.value) }} placeholder="Focus on a coding-heavy semester with weekly checkpoints." />
                       </FormField>
                     </div>
 
@@ -1908,7 +1949,7 @@ export default function TeacherBlueprintsPage() {
                             value={aiUnitExceptionId}
                             onChange={(event) => {
                               setAiUnitExceptionId(event.target.value)
-                              setAiPreview(null)
+                              invalidateCopilotPreview()
                             }}
                             className="max-w-sm"
                             options={[
@@ -1944,7 +1985,7 @@ export default function TeacherBlueprintsPage() {
                           Missing: {aiAnalysis.missing?.length ? aiAnalysis.missing.join(', ') : 'nothing obvious'}
                         </div>
                         <div className="mt-2 space-y-1 text-sm text-text-muted">
-                          {(aiAnalysis.suggestions || []).map((suggestion: string) => (
+                          {aiAnalysis.suggestions.map((suggestion) => (
                             <div key={suggestion}>- {suggestion}</div>
                           ))}
                         </div>
@@ -1969,7 +2010,7 @@ export default function TeacherBlueprintsPage() {
                         <textarea
                           aria-label="Draft preview Markdown"
                           value={aiPreview.content}
-                          onChange={(e) => setAiPreview((current) => (current ? { ...current, content: e.target.value } : current))}
+                          onChange={(e) => { copilotPreviewEditRef.current += 1; setAiPreview((current) => (current ? { ...current, content: e.target.value } : current)) }}
                           className="min-h-[420px] w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-sm text-text-default focus:outline-none focus:ring-2 focus:ring-primary"
                         />
                       </div>

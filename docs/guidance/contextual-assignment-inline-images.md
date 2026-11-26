@@ -13,6 +13,12 @@ foundations. They are controlled by their own exact user/Classroom pair gate:
 
 The gate is off by default. With the gate off, and for enabled-but-unmatched
 requests, the existing upload and delivery paths retain their legacy behavior.
+The audit-fix source keeps that dispatch boundary while requiring legacy learners
+to retain current Classroom access and a student-visible Assignment before a
+new private managed-image URL is signed. Removal or archive does not erase the
+image, but prevents a fresh signed read through the learner route. Existing
+60-second URLs can remain usable until their expiry. Teacher archive reads and
+the explicitly public unregistered-image compatibility path are unchanged.
 An enabled malformed/missing cohort configuration fails closed with 503,
 including the public-bucket compatibility delivery branch. The gate is not a
 subscription entitlement and must not be enabled until the complete reachable

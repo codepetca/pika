@@ -16,6 +16,7 @@ const tag = `dl_${randomUUID().slice(0, 8)}`
 const sessions = []
 let fixturesCreated = false
 const today = "(clock_timestamp() at time zone 'America/Toronto')::date"
+const yesterday = `(${today} - 1)`
 
 class Session {
   constructor(name) {
@@ -109,7 +110,8 @@ try {
     INSERT INTO public.classrooms(id,teacher_id,title,class_code)
       VALUES('${classroom}','${owner}','Daily save race','${tag}');
     INSERT INTO public.classroom_enrollments(classroom_id,student_id) VALUES('${classroom}','${actor}');
-    INSERT INTO public.class_days(classroom_id,date,is_class_day) VALUES('${classroom}',${today},true);
+    INSERT INTO public.class_days(classroom_id,date,is_class_day)
+      VALUES('${classroom}',${today},true), ('${classroom}',${yesterday},true);
     INSERT INTO public.entries(id,classroom_id,student_id,date,text,rich_content,on_time)
       VALUES('${entry}','${classroom}','${actor}',${today},'Original','{"type":"doc","content":[]}',true);
     COMMIT;`)
@@ -166,6 +168,28 @@ try {
   await first.close()
   await second.close()
   console.log('Passed: simultaneous_save_preserves_revision_conflict')
+
+  const creator = await session('first_create')
+  const contender = await session('stale_create')
+  const firstCreate = JSON.parse(await creator.run(`BEGIN; SET LOCAL ROLE service_role;
+    SELECT public.save_daily_log_for_member_v1('${actor}', '${classroom}', ${yesterday},
+      'First save', '{"type":"doc","content":[]}', true);`))
+  assert.equal(firstCreate.created, true)
+  const createPending = contender.run(`BEGIN; SET LOCAL ROLE service_role;
+    SELECT public.save_daily_log_for_member_v1('${actor}', '${classroom}', ${yesterday},
+      'Second save', '{"type":"doc","content":[]}', true);`)
+  await blocked(contender, creator)
+  await creator.run('COMMIT;')
+  const conflict = JSON.parse(await createPending)
+  assert.equal(conflict.status, 409)
+  assert.equal(conflict.entry.id, firstCreate.entry.id)
+  assert.equal(conflict.entry.version, 1)
+  assert.equal(conflict.entry.text, 'First save')
+  await contender.run('COMMIT;')
+  assert.equal(await admin.run(`SELECT text FROM public.entries WHERE id='${firstCreate.entry.id}';`), 'First save')
+  await creator.close()
+  await contender.close()
+  console.log('Passed: simultaneous_creates_preserve_winning_entry')
 } finally {
   const cleanup = admin.closed ? new Session('cleanup') : admin
   try {

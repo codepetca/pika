@@ -1,382 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { logServerError } from '@/lib/server/diagnostics'
+import { NextResponse } from 'next/server'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { assertTeacherCanMutateClassroom } from '@/lib/server/classrooms'
 import { buildAssignmentInstructionFields } from '@/lib/assignment-instructions'
 import { withErrorHandler } from '@/lib/api-handler'
-import { isMissingSurveysTableError } from '@/lib/server/surveys'
 import { authorizeContextualAssignmentBulkRequest } from '@/lib/server/contextual-assignment-bulk-access'
 import { saveAssignmentsBulkForOwner } from '@/lib/server/contextual-assignment-bulk'
+import { assignmentBulkSchema } from '@/lib/validations/assignment-bulk'
 import type { Json } from '@/types/database.generated'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-interface BulkAssignmentInput {
-  id?: string
-  title: string
-  due_at: string
-  instructions: string
-  is_draft: boolean
-  position: number
-}
+// Every batch, including legacy draft-only sync, uses the owner transaction.
+export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async request => {
+  let bodyPromise: Promise<ReturnType<typeof assignmentBulkSchema.parse>> | undefined
+  const readBody = () => bodyPromise ??= (async () => assignmentBulkSchema.parse(await request.json()))()
+  const access = await authorizeContextualAssignmentBulkRequest(async () => (await readBody()).classroom_id)
+  const body = await readBody()
 
-const MAX_ASSIGNMENTS = 50
-
-function isMissingClassworkMaterialPositionError(error: any) {
-  const message = String(error?.message || '')
-  return (
-    error?.code === 'PGRST205' ||
-    error?.code === 'PGRST204' ||
-    message.includes('classwork_materials') ||
-    (message.includes('position') && message.includes('schema cache'))
-  )
-}
-
-function isLiveAssignment(
-  assignment: { is_draft: boolean; released_at: string | null },
-  now: Date = new Date()
-): boolean {
-  if (assignment.is_draft) {
-    return false
+  if (access.mode === 'legacy') {
+    const ownership = await assertTeacherCanMutateClassroom(access.user.id, body.classroom_id)
+    if (!ownership.ok) return NextResponse.json({ error: ownership.error }, { status: ownership.status })
   }
 
-  if (!assignment.released_at) {
-    return true
-  }
-
-  const releaseDate = new Date(assignment.released_at)
-  if (isNaN(releaseDate.getTime())) {
-    return true
-  }
-
-  return releaseDate <= now
-}
-
-function buildAssignmentPositions(
-  inputAssignments: BulkAssignmentInput[],
-  reservedClassworkPositions: number[],
-) {
-  const reserved = new Set(reservedClassworkPositions)
-  const positions = new Map<BulkAssignmentInput, number>()
-  let nextPosition = 0
-
-  for (const assignment of inputAssignments) {
-    while (reserved.has(nextPosition)) {
-      nextPosition++
-    }
-    positions.set(assignment, nextPosition)
-    nextPosition++
-  }
-
-  return positions
-}
-
-/**
- * POST /api/teacher/assignments/bulk - Bulk create/update assignments
- *
- * Used by the markdown editor to sync assignments from markdown content.
- * - Creates new assignments (entries without ID) as drafts
- * - Updates existing assignments (entries with ID)
- * - Allows draft→released and scheduled→draft
- * - Blocks live released→draft
- * - Updates positions based on order in array
- */
-export const POST = withErrorHandler('PostTeacherAssignmentsBulk', async (request, context) => {
-  let bodyPromise: Promise<unknown> | null = null
-  const readBody = () => {
-    bodyPromise ??= request.json()
-    return bodyPromise
-  }
-  const access = await authorizeContextualAssignmentBulkRequest(async () => {
-    const candidate = await readBody()
-    return typeof candidate === 'object' && candidate !== null
-      && typeof (candidate as { classroom_id?: unknown }).classroom_id === 'string'
-      ? (candidate as { classroom_id: string }).classroom_id
-      : ''
-  })
-  const body = await readBody() as {
-    classroom_id?: string
-    assignments?: BulkAssignmentInput[]
-  }
-  const { classroom_id, assignments } = body
-
-  // Validate required fields
-  if (!classroom_id) {
-    return NextResponse.json(
-      { error: 'classroom_id is required' },
-      { status: 400 }
-    )
-  }
-
-  if (!assignments || !Array.isArray(assignments)) {
-    return NextResponse.json(
-      { error: 'assignments array is required' },
-      { status: 400 }
-    )
-  }
-
-  if (assignments.length > MAX_ASSIGNMENTS) {
-    return NextResponse.json(
-      { error: `Too many assignments. Maximum is ${MAX_ASSIGNMENTS}` },
-      { status: 400 }
-    )
-  }
-
-  // Validate teacher owns classroom and can mutate
-  const ownership = access.mode === 'legacy'
-    ? await assertTeacherCanMutateClassroom(access.user.id, classroom_id)
-    : null
-  if (ownership && !ownership.ok) {
-    return NextResponse.json(
-      { error: ownership.error },
-      { status: ownership.status }
-    )
-  }
-
-  const supabase = getServiceRoleClient()
-
-  // Validate all assignments first
-  const errors: string[] = []
-  const inputAssignments = assignments as BulkAssignmentInput[]
-
-  for (let i = 0; i < inputAssignments.length; i++) {
-    const a = inputAssignments[i]
-    if (!a.title?.trim()) {
-      errors.push(`Assignment at position ${i} has no title`)
-    }
-    if (!a.due_at) {
-      errors.push(`Assignment "${a.title || `at position ${i}`}" has no due date`)
-    }
-    if (a.id && typeof a.is_draft !== 'boolean') {
-      errors.push(`Assignment at position ${i} needs a draft status`)
-    }
-  }
-
-  if (errors.length > 0) {
-    return NextResponse.json({ errors }, { status: 400 })
-  }
-
-  // Publish-capable batches must roll back every write if publication fails.
-  if (access.mode === 'contextual' || inputAssignments.some((assignment) => assignment.id && !assignment.is_draft)) {
-    const result = await saveAssignmentsBulkForOwner({
-      supabase,
-      actorId: access.user.id,
-      classroomId: access.classroomId,
-      preserveLegacyHistory: access.mode === 'legacy',
-      assignments: inputAssignments.map((assignment) => {
-        const instructionFields = buildAssignmentInstructionFields(assignment.instructions)
-        return {
-          ...(assignment.id ? { id: assignment.id } : {}),
-          title: assignment.title.trim(),
-          dueAt: assignment.due_at,
-          instructionsMarkdown: instructionFields.instructions_markdown,
-          description: instructionFields.description,
-          richInstructions: instructionFields.rich_instructions as unknown as Json,
-          isDraft: access.mode === 'legacy' && !assignment.id ? true : assignment.is_draft,
-        }
-      }),
-    })
-    if (!result.ok) {
-      return NextResponse.json({ errors: result.errors }, { status: 400 })
-    }
-    return NextResponse.json({
-      created: result.created,
-      updated: result.updated,
-      assignments: result.assignments,
-    })
-  }
-
-  // Get IDs of assignments to update
-  const idsToUpdate = inputAssignments
-    .filter((a) => a.id)
-    .map((a) => a.id!)
-
-  // Fetch existing assignments if there are IDs
-  let existingAssignments: Array<{
-    id: string
-    is_draft: boolean
-    released_at: string | null
-    title: string
-  }> = []
-
-  if (idsToUpdate.length > 0) {
-    const { data, error } = await supabase
-      .from('assignments')
-      .select('id, is_draft, released_at, title')
-      .eq('classroom_id', classroom_id)
-      .in('id', idsToUpdate)
-
-    if (error) {
-      logServerError('assignment.bulk_existing', error)
-      return NextResponse.json(
-        { error: 'Failed to fetch existing assignments' },
-        { status: 500 }
-      )
-    }
-
-    existingAssignments = data || []
-  }
-
-  const existingById = new Map(existingAssignments.map((a) => [a.id, a]))
-
-  // Validate ID references and draft status changes
-  const now = new Date()
-  for (const a of inputAssignments) {
-    if (a.id) {
-      const existing = existingById.get(a.id)
-      if (!existing) {
-        errors.push(`Assignment ID not found: ${a.id}`)
-        continue
-      }
-
-      // Allow scheduled assignments to be moved back to draft before release.
-      if (isLiveAssignment(existing, now) && a.is_draft) {
-        errors.push(`Cannot un-release assignment: ${a.title}`)
-      }
-    }
-  }
-
-  if (errors.length > 0) {
-    return NextResponse.json({ errors }, { status: 400 })
-  }
-
-  const [materialPositionsResult, surveyPositionsResult] = await Promise.all([
-    supabase
-      .from('classwork_materials')
-      .select('position')
-      .eq('classroom_id', classroom_id),
-    supabase
-      .from('surveys')
-      .select('position')
-      .eq('classroom_id', classroom_id),
-  ])
-
-  if (
-    materialPositionsResult.error &&
-    !isMissingClassworkMaterialPositionError(materialPositionsResult.error)
-  ) {
-    logServerError('assignment.bulk_material_positions', materialPositionsResult.error)
-    return NextResponse.json(
-      { error: 'Failed to save assignments' },
-      { status: 500 }
-    )
-  }
-
-  if (
-    surveyPositionsResult.error &&
-    !isMissingSurveysTableError(surveyPositionsResult.error)
-  ) {
-    logServerError('assignment.bulk_survey_positions', surveyPositionsResult.error)
-    return NextResponse.json(
-      { error: 'Failed to save assignments' },
-      { status: 500 }
-    )
-  }
-
-  const materialPositions = (materialPositionsResult.data || [])
-    .map((material: { position?: number | null }) => material.position)
-    .filter((position: unknown): position is number => typeof position === 'number' && Number.isFinite(position))
-  const surveyPositions = (surveyPositionsResult.data || [])
-    .map((survey: { position?: number | null }) => survey.position)
-    .filter((position: unknown): position is number => typeof position === 'number' && Number.isFinite(position))
-  const assignmentPositions = buildAssignmentPositions(inputAssignments, [
-    ...materialPositions,
-    ...surveyPositions,
-  ])
-
-  // Process assignments: separate creates and updates
-  const toCreate: BulkAssignmentInput[] = []
-  const toUpdate: BulkAssignmentInput[] = []
-
-  for (const a of inputAssignments) {
-    if (a.id) {
-      toUpdate.push(a)
-    } else {
-      toCreate.push(a)
-    }
-  }
-
-  let createdCount = 0
-  let updatedCount = 0
-  const resultAssignments: any[] = []
-
-  // Create new assignments
-  if (toCreate.length > 0) {
-    const insertData = toCreate.map((a) => {
-      const instructionFields = buildAssignmentInstructionFields(a.instructions)
+  const result = await saveAssignmentsBulkForOwner({
+    supabase: getServiceRoleClient(),
+    actorId: access.user.id,
+    classroomId: access.classroomId,
+    preserveLegacyHistory: access.mode === 'legacy',
+    assignments: body.assignments.map(assignment => {
+      const fields = buildAssignmentInstructionFields(assignment.instructions)
       return {
-        classroom_id,
-        title: a.title.trim(),
-        instructions_markdown: instructionFields.instructions_markdown,
-        description: instructionFields.description,
-        rich_instructions: instructionFields.rich_instructions,
-        due_at: a.due_at,
-        position: assignmentPositions.get(a) ?? a.position,
-        is_draft: true, // New assignments are always drafts
-        created_by: access.user.id,
+        ...(assignment.id ? { id: assignment.id } : {}),
+        title: assignment.title,
+        dueAt: assignment.due_at,
+        instructionsMarkdown: fields.instructions_markdown,
+        description: fields.description,
+        richInstructions: fields.rich_instructions as unknown as Json,
+        isDraft: access.mode === 'legacy' && !assignment.id ? true : assignment.is_draft ?? true,
       }
-    })
-
-    const { data, error } = await supabase
-      .from('assignments')
-      .insert(insertData)
-      .select()
-
-    if (error) {
-      logServerError('assignment.bulk_create', error)
-      return NextResponse.json(
-        { error: 'Failed to create assignments' },
-        { status: 500 }
-      )
-    }
-
-    createdCount = data?.length || 0
-    if (data) resultAssignments.push(...data)
-  }
-
-  // Update existing assignments
-  for (const a of toUpdate) {
-    const existing = existingById.get(a.id!)
-    if (!existing) continue
-
-    const instructionFields = buildAssignmentInstructionFields(a.instructions)
-
-    const updateData: Record<string, any> = {
-      title: a.title.trim(),
-      instructions_markdown: instructionFields.instructions_markdown,
-      description: instructionFields.description,
-      rich_instructions: instructionFields.rich_instructions,
-      due_at: a.due_at,
-      position: assignmentPositions.get(a) ?? a.position,
-      is_draft: a.is_draft,
-    }
-
-    if (a.is_draft) {
-      updateData.released_at = null
-    }
-
-    const { data, error } = await supabase
-      .from('assignments')
-      .update(updateData)
-      .eq('id', a.id!)
-      .select()
-
-    if (error) {
-      logServerError('assignment.bulk_update', error)
-      return NextResponse.json(
-        { error: 'Failed to update assignments' },
-        { status: 500 }
-      )
-    }
-
-    updatedCount++
-    if (data) resultAssignments.push(...data)
-  }
-
-  return NextResponse.json({
-    created: createdCount,
-    updated: updatedCount,
-    assignments: resultAssignments,
+    }),
   })
+  if (!result.ok) return NextResponse.json({ errors: result.errors }, { status: 400 })
+  return NextResponse.json({ created: result.created, updated: result.updated, assignments: result.assignments })
 })
