@@ -199,3 +199,5 @@ Restore atomic title editing after Start with migration 332. Preserve the existi
 ## 2026-11-26 — Rebase the reviewed Pika audit fixes
 
 Rebased PR #1833 onto main b1ac2ed34. Preserved current main's continuity records and restored the November audit entries. The cumulative audit patch retains the shipped newest-first Student Classwork behavior alongside its reduced-motion changes. Risk profiles: async-grading and workspace-state. Rebased validation, independent review and PR Gate are tracked on #1833.
+
+Independent review found a competing first-save overwrite in legacy Pal writes. Legacy Pal POST and first-save PATCH now use the existing guarded member transaction. All 106 affected API tests passed. The local database fixture confirmed one create succeeds and the competing create returns 409 with the winning entry intact. Teacher and student Classwork captures passed desktop and mobile in both themes.

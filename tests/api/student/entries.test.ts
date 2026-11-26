@@ -48,6 +48,21 @@ vi.mock('@/lib/server/pal-outbox', () => ({
 }))
 
 const mockSupabaseClient = { from: vi.fn() }
+const guardedPalEntry = {
+  student_id: '11111111-1111-4111-8111-111111111111',
+  classroom_id: '22222222-2222-4222-8222-222222222222',
+  date: '2024-10-15',
+  on_time: true,
+  minutes_reported: null,
+  mood: null,
+  created_at: '2024-10-15T12:00:00Z',
+  updated_at: '2024-10-15T12:00:00Z',
+}
+
+async function authenticateGuardedPalStudent() {
+  const { requireRole } = await import('@/lib/auth')
+  vi.mocked(requireRole).mockResolvedValueOnce({ id: guardedPalEntry.student_id, email: 'test@student.com', role: 'student' })
+}
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -904,6 +919,7 @@ describe('POST /api/student/entries', () => {
     })
 
     it('preserves omitted mood and minutes on a Pal-enabled POST update', async () => {
+      await authenticateGuardedPalStudent()
       vi.stubEnv('PAL_ENABLED', 'true')
       vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
       vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
@@ -914,9 +930,11 @@ describe('POST /api/student/entries', () => {
           ok: true,
           created: false,
           entry: {
+            ...guardedPalEntry,
             id: '33333333-3333-4333-8333-333333333333',
             version: 2,
             text: 'Updated reflection',
+            rich_content: null,
             minutes_reported: 30,
             mood: '😊',
           },
@@ -968,8 +986,10 @@ describe('POST /api/student/entries', () => {
 
       expect(response.status).toBe(200)
       expect(mockRpc).toHaveBeenCalledWith(
-        'upsert_student_entry_with_pal_event_atomic',
+        'save_daily_log_for_member_v1',
         expect.objectContaining({
+          p_expected_entry_id: '33333333-3333-4333-8333-333333333333',
+          p_expected_version: 1,
           p_minutes_reported: 30,
           p_mood: '😊',
           p_pal_event: expect.objectContaining({
@@ -1044,6 +1064,7 @@ describe('PATCH /api/student/entries', () => {
   })
 
   it.each([[false, false], [true, false], [true, true]])('atomically creates the first autosaved log with its Pal fact (classroom %s, identity %s)', async (classroomRequested, identityEnabled) => {
+    await authenticateGuardedPalStudent()
     vi.stubEnv('PAL_CLASSROOM_ENABLED', String(classroomRequested))
     vi.stubEnv('PAL_MEMBERSHIP_IDENTITY_ENABLED', String(identityEnabled))
     vi.stubEnv('PAL_ENABLED', 'true')
@@ -1063,6 +1084,7 @@ describe('PATCH /api/student/entries', () => {
         ok: true,
         created: true,
         entry: {
+          ...guardedPalEntry,
           id: '33333333-3333-4333-8333-333333333333',
           version: 1,
           text: 'First autosaved log',
@@ -1116,25 +1138,33 @@ describe('PATCH /api/student/entries', () => {
       pal_delivery: 'delivered',
     })
     expect(mockRpc).toHaveBeenCalledWith(
-      'upsert_student_entry_with_pal_event_atomic',
+      'save_daily_log_for_member_v1',
       expect.objectContaining({
-        p_student_id: 'student-1',
+        p_actor_id: guardedPalEntry.student_id,
         p_classroom_id: '22222222-2222-4222-8222-222222222222',
         p_date: '2024-10-15',
-        p_pal_event: classroomRequested ? null : expect.objectContaining({
-          event_type: 'daily_log.completed',
-          metadata: expect.objectContaining({ activity_day: '2024-10-15' }),
-        }),
       }),
     )
+    const [, payload] = mockRpc.mock.calls[0]
+    expect(payload).not.toHaveProperty('p_expected_version')
+    expect(payload).not.toHaveProperty('p_expected_entry_id')
+    if (classroomRequested) {
+      expect(payload).not.toHaveProperty('p_pal_event')
+    } else {
+      expect(payload.p_pal_event).toEqual(expect.objectContaining({
+          event_type: 'daily_log.completed',
+          metadata: expect.objectContaining({ activity_day: '2024-10-15' }),
+      }))
+    }
     expect(mockAttemptImmediatePalEventDelivery).toHaveBeenCalledWith({
-      membership: { studentId: 'student-1', classroomId: '22222222-2222-4222-8222-222222222222' },
+      membership: { studentId: guardedPalEntry.student_id, classroomId: '22222222-2222-4222-8222-222222222222' },
       event: classroomRequested ? null : expect.objectContaining({ event_type: 'daily_log.completed' }),
       supabase: mockSupabaseClient,
     })
   })
 
   it('atomically saves an empty autosave without emitting a completion fact', async () => {
+    await authenticateGuardedPalStudent()
     vi.stubEnv('PAL_ENABLED', 'true')
     vi.stubEnv('PAL_API_URL', 'https://pal.example.test')
     vi.stubEnv('PAL_INTEGRATION_SECRET', 'integration-secret-32-characters-long')
@@ -1148,7 +1178,7 @@ describe('PATCH /api/student/entries', () => {
       data: {
         ok: true,
         created: true,
-        entry: { id: '33333333-3333-4333-8333-333333333336', version: 1, text: '', rich_content: content },
+        entry: { ...guardedPalEntry, id: '33333333-3333-4333-8333-333333333336', version: 1, text: '', rich_content: content },
       },
       error: null,
     })
@@ -1193,11 +1223,12 @@ describe('PATCH /api/student/entries', () => {
 
     expect(response.status).toBe(200)
     expect(mockRpc).toHaveBeenCalledWith(
-      'upsert_student_entry_with_pal_event_atomic',
+      'save_daily_log_for_member_v1',
       expect.objectContaining({
-        p_pal_event: null,
+        p_actor_id: guardedPalEntry.student_id,
       }),
     )
+    expect(mockRpc.mock.calls[0][1]).not.toHaveProperty('p_pal_event')
     expect(mockRpc.mock.calls[0][1]).not.toHaveProperty('p_expected_version')
   })
 

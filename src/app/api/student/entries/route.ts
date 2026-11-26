@@ -290,45 +290,34 @@ export const POST = withErrorHandler('PostStudentEntry', async (request, context
   const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
   const palEvent = pal.event
   if (pal.enabled) {
-    const preservedMinutes = minutes_reported === undefined
-      ? existing?.minutes_reported
-      : minutes_reported
-    const preservedMood = mood === undefined ? existing?.mood : mood
-
-    try {
-      const result = await upsertStudentEntryWithPalEvent({
-        supabase,
-        studentId: user.id,
-        classroomId: classroom_id,
-        date,
-        text: entryText,
-        richContent: content,
-        minutesReported: preservedMinutes,
-        mood: preservedMood,
-        onTime,
-        expectedVersion: existing?.version ?? null,
-        event: palEvent,
-      })
-      if (!result.ok) {
-        return NextResponse.json(
-          { error: result.error, entry: result.entry },
-          { status: result.status },
-        )
-      }
-      entry = result.entry
-      if (palEvent || isClassroomPalRequested()) {
-        palDelivery = await deliverDailyLogPal({
-          membership: { studentId: user.id, classroomId: classroom_id },
-          event: palEvent,
-          supabase,
-        })
-      }
-    } catch (error) {
-      console.error('Error saving entry with Pal outbox:', error)
+    // Check that the row still matches the preimage inside the outbox transaction.
+    const result = await saveContextualDailyLog({
+      supabase,
+      actorId: user.id,
+      classroomId: classroom_id,
+      date,
+      text: entryText,
+      richContent: content,
+      minutesReported: minutes_reported === undefined ? existing?.minutes_reported : minutes_reported,
+      mood: mood === undefined ? existing?.mood : mood,
+      onTime,
+      expectedVersion: existing ? existing.version ?? 1 : null,
+      expectedEntryId: existing?.id ?? null,
+      palEvent,
+    })
+    if (!result.ok) {
       return NextResponse.json(
-        { error: existing ? 'Failed to update entry' : 'Failed to create entry' },
-        { status: 500 }
+        { error: result.error, entry: result.entry },
+        { status: result.status },
       )
+    }
+    entry = result.entry
+    if (palEvent || isClassroomPalRequested()) {
+      palDelivery = await deliverDailyLogPal({
+        membership: { studentId: user.id, classroomId: classroom_id },
+        event: palEvent,
+        supabase,
+      })
     }
   } else if (existing) {
     const nextVersion = (existing.version ?? 1) + 1
@@ -566,35 +555,28 @@ export const PATCH = withErrorHandler('PatchStudentEntry', async (request, conte
     const pal = prepareDailyLogPal({ learnerId: user.id, activityDay: date, occurredAt: now, text: entryText })
     const palEvent = pal.event
     if (pal.enabled) {
-      try {
-        const result = await upsertStudentEntryWithPalEvent({
-          supabase,
-          studentId: user.id,
-          classroomId: classroom_id,
-          date,
-          text: entryText,
-          richContent: content,
-          onTime,
-          expectedVersion: null,
-          event: palEvent,
-        })
-        if (!result.ok) {
-          return NextResponse.json(
-            { error: result.error, entry: result.entry },
-            { status: result.status },
-          )
-        }
-        const palDelivery = palEvent || isClassroomPalRequested()
-          ? await deliverDailyLogPal({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
-          : undefined
-        return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
-      } catch (error) {
-        console.error('Error creating entry with Pal outbox:', error)
+      const result = await saveContextualDailyLog({
+        supabase,
+        actorId: user.id,
+        classroomId: classroom_id,
+        date,
+        text: entryText,
+        richContent: content,
+        onTime,
+        expectedVersion: null,
+        expectedEntryId: null,
+        palEvent,
+      })
+      if (!result.ok) {
         return NextResponse.json(
-          { error: 'Failed to create entry' },
-          { status: 500 }
+          { error: result.error, entry: result.entry },
+          { status: result.status },
         )
       }
+      const palDelivery = palEvent || isClassroomPalRequested()
+        ? await deliverDailyLogPal({ event: palEvent, supabase, membership: { studentId: user.id, classroomId: classroom_id } })
+        : undefined
+      return NextResponse.json({ entry: result.entry, pal_delivery: palDelivery })
     }
 
     const { data, error } = await supabase

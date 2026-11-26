@@ -62,6 +62,22 @@ describe('Daily Log write preconditions and expansion bounds', () => {
     state.mode = mode
     expect((await POST(request('POST', { version: 0, rich_content: content }))).status).toBe(200)
   })
+  it('returns the winning entry when a Pal-backed first save conflicts', async () => {
+    state.mode = 'pal'
+    const winner = { ...entry(), text: 'Saved in another tab' }
+    state.rpcSave.mockResolvedValueOnce({ ok: false, status: 409, error: 'Entry has been updated elsewhere', entry: winner })
+
+    const response = await POST(request('POST', { version: 0, text: 'New reflection' }))
+
+    expect(response.status).toBe(409)
+    expect(await response.json()).toEqual({ error: 'Entry has been updated elsewhere', entry: winner })
+    expect(state.rpcSave).toHaveBeenCalledWith(expect.objectContaining({
+      actorId: studentId, classroomId, expectedVersion: null, expectedEntryId: null,
+    }))
+    expect(state.palSave).not.toHaveBeenCalled()
+    expect(state.insert).not.toHaveBeenCalled()
+    expect(state.update).not.toHaveBeenCalled()
+  })
   it.each(['legacy', 'contextual'] as const)('rejects an expanding patch before %s persistence', async mode => {
     state.mode = mode; state.exists = true
     const patch = [{ op: 'add', path: '/attrs', value: { x: 'x'.repeat(59_000) } },
