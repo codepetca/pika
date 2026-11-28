@@ -17,6 +17,7 @@ describe('contextual session read SQL source invariants', () => {
       "pika.identity_mapping", 'pika.classroom_purge_finalize', 'pika.course_blueprint_purge_finalize', 'pika.student_purge_finalize'])
       expect(body).toContain(required)
     expect(body).not.toMatch(/\.role\s*=/)
+    expect(body).toMatch(/when exists\(select 1 from public\.classroom_purge_fences[\s\S]*?public\.attendance_decommission_operations[\s\S]*?then 'unavailable'/)
   })
   it('projects only compact status and preserves existing contextual response predicate', () => {
     expect(body).toContain('r.selected_option is not null')
@@ -26,11 +27,13 @@ describe('contextual session read SQL source invariants', () => {
     expect(sql).toContain('to service_role;')
     expect(sql).toContain("set search_path = ''")
     expect(sql).toContain("set statement_timeout = '8s'")
+    expect(body).toContain("least(p_deadline, b.started_at + interval '8 seconds')")
   })
   it('provides a rollback matrix against original contextual session behavior', () => {
     const contracts = readFileSync('scripts/check-contextual-test-session-read.sql', 'utf8')
     expect(contracts).toContain("public.test_learner_workflow_v1(actor,tid,cid,'session'")
     expect(contracts).toContain('count_cases <> 144')
+    expect(contracts).toContain("fresh->'projection' is distinct from jsonb_build_object")
     expect(contracts).toContain('rollback;')
   })
 })

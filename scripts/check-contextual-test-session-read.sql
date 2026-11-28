@@ -60,23 +60,23 @@ declare result jsonb;
 begin
   result := public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
     'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds');
-  if result->>'outcome' <> 'ok' or result#>>'{projection,has_submitted}' <> 'false'
-    or result#>'{projection,returned_at}' <> 'null'::jsonb
-    or result->>'classroom_id' <> 'd3330000-0000-4000-8000-000000000010'
+  if result->>'outcome' is distinct from 'ok' or result#>>'{projection,has_submitted}' is distinct from 'false'
+    or result#>'{projection,returned_at}' is distinct from 'null'::jsonb
+    or result->>'classroom_id' is distinct from 'd3330000-0000-4000-8000-000000000010'
     or result::text like '%private%' or octet_length(result::text) > 4096 then
     raise exception 'Compact role-neutral own-session snapshot changed';
   end if;
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000001',
-    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' <> 'forbidden'
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' is distinct from 'forbidden'
     then raise exception 'Self-enrolled owner acquired learner session authority'; end if;
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000003',
-    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' <> 'forbidden'
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' is distinct from 'forbidden'
     then raise exception 'Nonmember acquired session authority'; end if;
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
-    'd3330000-0000-4000-8000-000000000099',clock_timestamp()+interval '25 seconds')->>'outcome' <> 'not_found'
+    'd3330000-0000-4000-8000-000000000099',clock_timestamp()+interval '25 seconds')->>'outcome' is distinct from 'not_found'
     then raise exception 'Missing Test response changed'; end if;
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
-    'd3330000-0000-4000-8000-000000000011',clock_timestamp()-interval '1 second')->>'outcome' <> 'unavailable'
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()-interval '1 second')->>'outcome' is distinct from 'unavailable'
     then raise exception 'Expired session accepted'; end if;
 end;
 $initial$;
@@ -114,9 +114,9 @@ begin
       old := public.test_learner_workflow_v1(actor,tid,cid,'session','{}',clock_timestamp()+interval '25 seconds');
     exception when sqlstate 'PT404' then old_not_found := true; end;
     if old_not_found then
-      if fresh->>'outcome' <> 'not_found' or fresh->'projection' <> 'null'::jsonb
+      if fresh->>'outcome' is distinct from 'not_found' or fresh->'projection' is distinct from 'null'::jsonb
         then raise exception 'Contextual closed/draft 404 parity changed'; end if;
-    elsif fresh->>'outcome' <> 'ok' or fresh->'projection' <> jsonb_build_object(
+    elsif fresh->>'outcome' is distinct from 'ok' or fresh->'projection' is distinct from jsonb_build_object(
       'test_status',old#>'{result,state,test,status}','is_submitted',old#>'{result,state,attempt,is_submitted}',
       'returned_at',old#>'{result,state,attempt,returned_at}','closed_for_grading_at',old#>'{result,state,attempt,closed_for_grading_at}',
       'access_state',old#>'{result,state,access_state}','has_submitted',old#>'{result,state,has_submitted}') then
@@ -136,17 +136,30 @@ begin
     perform set_config(setting,'on',true);
     result := public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
       'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds');
-    if result->>'outcome' <> 'forbidden' or result->'projection' <> 'null'::jsonb
+    if result->>'outcome' is distinct from 'forbidden' or result->'projection' is distinct from 'null'::jsonb
       then raise exception 'Maintenance-fenced session exposed facts'; end if;
     perform set_config(setting,'off',true);
   end loop;
 end;
 $fences$;
+insert into public.attendance_decommission_operations(id,classroom_id,teacher_id,installation_ref,roster_ref,actor_principal_ref)
+ values('d3330000-0000-4000-8000-000000000120','d3330000-0000-4000-8000-000000000010',
+  'd3330000-0000-4000-8000-000000000001','session333-install','session333-roster','session333-owner');
+do $classroom_fence$
+declare result jsonb;
+begin
+  result := public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds');
+  if result->>'outcome' is distinct from 'unavailable' or result->'projection' is distinct from 'null'::jsonb
+    then raise exception 'Classroom-wide maintenance must report temporary unavailability'; end if;
+end;
+$classroom_fence$;
+delete from public.attendance_decommission_operations where id = 'd3330000-0000-4000-8000-000000000120';
 update public.classrooms set feature_visibility = '{"tests":false}' where id = 'd3330000-0000-4000-8000-000000000010';
 do $hidden$
 begin
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
-    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' <> 'forbidden'
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' is distinct from 'forbidden'
     then raise exception 'Hidden Tests exposed session'; end if;
 end;
 $hidden$;
@@ -154,7 +167,7 @@ update public.classrooms set feature_visibility = '{}', archived_at = clock_time
 do $archive$
 begin
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
-    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' <> 'forbidden'
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' is distinct from 'forbidden'
     then raise exception 'Archived Classroom exposed session'; end if;
 end;
 $archive$;
@@ -164,7 +177,7 @@ delete from public.classroom_enrollments where classroom_id = 'd3330000-0000-400
 do $revoked$
 begin
   if public.read_test_session_for_member_v1('d3330000-0000-4000-8000-000000000002',
-    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' <> 'forbidden'
+    'd3330000-0000-4000-8000-000000000011',clock_timestamp()+interval '25 seconds')->>'outcome' is distinct from 'forbidden'
     then raise exception 'Removed member exposed session'; end if;
 end;
 $revoked$;
