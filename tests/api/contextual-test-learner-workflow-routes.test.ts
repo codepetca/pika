@@ -86,7 +86,8 @@ describe('contextual learner Test route group', () => {
     }
     expect(requireRole).not.toHaveBeenCalled()
     const expectedRpc = _name === 'session' ? 'read_test_session_for_member_v1'
-      : ['start', 'save', 'submit', 'focus'].includes(_name) ? 'test_learner_self_mutation_v1' : 'test_learner_workflow_v1'
+      : _name === 'save' || _name === 'submit' ? 'test_learner_save_with_history_v1'
+        : ['start', 'focus'].includes(_name) ? 'test_learner_self_mutation_v1' : 'test_learner_workflow_v1'
     expect(rpc).toHaveBeenCalledTimes(2)
     expect(rpc).toHaveBeenCalledWith(expectedRpc, expect.objectContaining({ p_actor_id: actor, p_test_id: testId }))
   })

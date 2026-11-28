@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 RepoLight assignment timeline
-
-Added matched student assignment-period timeline with explicit evidence limits; focused tests passed. Visual fixture checked at desktop/mobile light; authenticated report and full theme matrix remain for review.
-
 ## 2026-11-11 Closed hosted billing verification
 
 Live Stripe delivered a nonpayment canary event to Pika with HTTP 200 and an unbound live receipt. Hosted trial recovery sent one eligible reminder through the production outbox to the approved canary inbox. The synthetic records were cleaned up and admission stayed closed. Paid recovery rejected the configured Stripe key because it included surrounding whitespace. A private hosted read authenticated to the pinned account after trimming. The runtime now trims the key before strict live-mode validation and still rejects a bearer equal to the normalized key.
@@ -205,3 +201,7 @@ Migration 334 adds an invoker RPC for own Start, save, submit and focus events. 
 ## 2026-11-28 Disposable local migration authority
 
 Recorded standing authority for verified, owned disposable local migration replays, with target, inventory, dry-run and post-apply checks. Shared and hosted targets retain explicit approval requirements. No database operations were performed.
+
+## 2026-11-28 — Inline contextual Test history plan
+
+Risk profile exam-mode and runtime-platform. Migration 335 reuses the authoritative save and submit transaction for the optional history plan. The existing history write still checks the exact attempt revision and latest entry. Browser responses keep the current shape. The owned 001–335 replay passed native ACL, stale revision, peer isolation, optional history failure, and stored submission checks. The 40-learner runner verifies that no separate history plan runs and checks the final saved answers and submit snapshot.

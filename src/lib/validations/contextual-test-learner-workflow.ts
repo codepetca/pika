@@ -46,6 +46,14 @@ export const testLearnerHistoryEntrySchema = history
 const subject = { requested_student_id: uuid.optional() }
 const revision = z.number().int().positive().max(Number.MAX_SAFE_INTEGER)
 const responses = z.record(z.string(), json).refine(value => Object.keys(value).length <= TEST_LEARNER_COLLECTION_LIMIT, 'Too many Test responses')
+export const testLearnerInlineHistorySchema = z.object({
+  attempt_id: uuid,
+  draft_revision: revision,
+  last_history: history.nullable(),
+  responses: responses.optional(),
+}).strict()
+export const testLearnerMutationWithHistorySchema = z.object({ mutation: z.unknown(), history: z.unknown() }).strict()
+  .refine(value => Object.hasOwn(value, 'mutation') && Object.hasOwn(value, 'history'))
 const metric = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 const historyMetric = metric.max(2147483647)
 const emptyPayload = z.object(subject).strict()

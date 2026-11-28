@@ -105,14 +105,14 @@ export function createOwnedGateway(rpcCounts = new Map<string, number>(), port =
     const rpc = req.url!.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)(?:\?|$)/)?.[1]
     if (rpc) rpcCounts.set(rpc, (rpcCounts.get(rpc) ?? 0) + 1)
     let operationPrefix = ''
-    if (rpc === 'test_learner_workflow_v1' || rpc === 'test_learner_self_mutation_v1') {
+    if (rpc === 'test_learner_workflow_v1' || rpc === 'test_learner_self_mutation_v1' || rpc === 'test_learner_save_with_history_v1') {
       // Only the fixed operation value is counted. Never retain or print the body.
       req.on('data', (chunk: Buffer) => {
         if (operationPrefix.length < 512) operationPrefix += chunk.toString('utf8', 0, 512 - operationPrefix.length)
       })
     }
     const upstream = httpRequest({ hostname: '127.0.0.1', port, path: useKong ? req.url! : req.url!.slice('/rest/v1'.length), method: req.method, headers: { ...req.headers, host: `127.0.0.1:${port}` }, timeout: 20000 }, incoming => {
-      if (rpc === 'test_learner_workflow_v1' || rpc === 'test_learner_self_mutation_v1') {
+      if (rpc === 'test_learner_workflow_v1' || rpc === 'test_learner_self_mutation_v1' || rpc === 'test_learner_save_with_history_v1') {
         const operation = operationPrefix.match(/"p_operation"\s*:\s*"(inspect|detail|start|save|submit|recover|session|history|focus|results|document|history-plan|history-write)"/)?.[1] ?? 'unknown'
         operationPrefix = ''
         const key = `${operation}:${incoming.statusCode ?? 500}`
@@ -140,12 +140,25 @@ export function createOwnedGateway(rpcCounts = new Map<string, number>(), port =
   })
 }
 /** Direct-path evidence is required only when migration 334 is present. */
-export function attestDirectMutations(count: number, operations: Map<string, number>, errors: Map<string, number>) {
-  const direct = 'test_learner_self_mutation_v1', legacy = 'test_learner_workflow_v1'
+export function attestDirectMutations(count: number, operations: Map<string, number>, errors: Map<string, number>, inlineHistory = false) {
+  const direct = 'test_learner_self_mutation_v1', legacy = 'test_learner_workflow_v1', inline = 'test_learner_save_with_history_v1'
   for (const [operation, expected] of [['start', count], ['save', count * 2], ['submit', count], ['focus', count]] as const) {
-    assert.equal(operations.get(`${direct}:${operation}:200`) ?? 0, expected, `Direct ${operation} count mismatch`)
+    const rpc = inlineHistory && (operation === 'save' || operation === 'submit') ? inline : direct
+    assert.equal(operations.get(`${rpc}:${operation}:200`) ?? 0, expected, `Direct ${operation} count mismatch`)
+    if (inlineHistory) {
+      const successes = [...operations].filter(([key]) => new RegExp(`^${rpc}:${operation}:2[0-9][0-9]$`).test(key)).reduce((sum, [, n]) => sum + n, 0)
+      assert.equal(successes, expected, `Direct ${operation} success count mismatch`)
+    }
+    if (inlineHistory && rpc === inline) {
+      assert(![...operations.keys()].some(key => key.startsWith(`${direct}:${operation}:`)), `Direct ${operation} fallback dispatched`)
+      assert(![...operations.keys()].some(key => key.startsWith(`${legacy}:${operation}:`)), `Legacy ${operation} fallback dispatched`)
+    }
     const legacySuccesses = [...operations].filter(([key]) => new RegExp(`^${legacy}:${operation}:2[0-9][0-9]$`).test(key)).reduce((sum, [, n]) => sum + n, 0)
     assert.equal(legacySuccesses, 0, `Legacy ${operation} fallback succeeded`)
+  }
+  if (inlineHistory) {
+    assert(![...operations.keys()].some(key => key.includes(':history-plan:')), 'Unexpected separate history plan')
+    assert(![...errors.keys()].some(key => key.startsWith(`${inline}:`) && (key.includes(':PGRST202') || key.includes(':404:'))), 'Inline history RPC missing')
   }
   assert.equal([...operations].filter(([key]) => /:inspect:/.test(key)).reduce((sum, [, n]) => sum + n, 0), 0, 'Unexpected inspect')
   assert(![...operations.keys()].some(key => key.includes(':unknown:')), 'Unclassified learner RPC operation')
@@ -265,7 +278,9 @@ values ${learners.map(id => `(${q(tests[0])},${q(id)},'open',${q(teacher)})`).jo
     assert(result.expected, 'HTTP workload failed')
     assert((rpcCounts.get('test_learner_workflow_v1') ?? 0) >= count, 'Contextual learner path was not exercised')
     const directMutation = sql(selected, "select (to_regprocedure('public.test_learner_self_mutation_v1(uuid,uuid,text,jsonb,timestamp with time zone)') is not null)::text;") === 'true'
-    if (directMutation) attestDirectMutations(count, learnerOperationsByRpc, rpcErrors)
+    const inlineHistory = sql(selected, "select (to_regprocedure('public.test_learner_save_with_history_v1(uuid,uuid,text,jsonb,timestamp with time zone)') is not null)::text;") === 'true'
+    assert(!inlineHistory || directMutation, 'Inline history requires direct mutations')
+    if (directMutation) attestDirectMutations(count, learnerOperationsByRpc, rpcErrors, inlineHistory)
     const compact = sql(selected, "select (to_regprocedure('public.read_test_session_for_member_v1(uuid,uuid,timestamp with time zone)') is not null)::text;")
     if (compact === 'true') {
       assert.equal(rpcCounts.get('read_test_session_for_member_v1'), count, 'Compact session path was not exercised')

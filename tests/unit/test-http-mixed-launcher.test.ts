@@ -47,6 +47,28 @@ describe('direct mutation attestation', () => {
     ['test_learner_self_mutation_v1:focus:200', 2],
     ['test_learner_workflow_v1:history-write:200', 2],
   ])
+  it('attests inline save and submit while rejecting fallbacks and separate plans', () => {
+    const inlineOperations = () => new Map([
+      ['test_learner_self_mutation_v1:start:200', 2],
+      ['test_learner_self_mutation_v1:focus:200', 2],
+      ['test_learner_save_with_history_v1:save:200', 4],
+      ['test_learner_save_with_history_v1:submit:200', 2],
+      ['test_learner_workflow_v1:history-write:200', 2],
+    ])
+    expect(() => attestDirectMutations(2, inlineOperations(), new Map(), true)).not.toThrow()
+    for (const [key, value] of [
+      ['test_learner_save_with_history_v1:save:200', 3],
+      ['test_learner_save_with_history_v1:submit:201', 1],
+      ['test_learner_self_mutation_v1:save:404', 1],
+      ['test_learner_workflow_v1:submit:500', 1],
+      ['test_learner_workflow_v1:history-plan:200', 1],
+      ['test_learner_workflow_v1:inspect:200', 1],
+    ] as const) {
+      const counts = inlineOperations(); counts.set(key, value)
+      expect(() => attestDirectMutations(2, counts, new Map(), true)).toThrow()
+    }
+    expect(() => attestDirectMutations(2, inlineOperations(), new Map([['test_learner_save_with_history_v1:404:PGRST202', 1]]), true)).toThrow()
+  })
   it('requires the complete direct path and rejects fallback, inspect and missing RPC', () => {
     expect(() => attestDirectMutations(2, operations(), new Map())).not.toThrow()
     for (const [key, value] of [
@@ -62,7 +84,7 @@ describe('direct mutation attestation', () => {
 })
 
 describe('learner operation gateway counters', () => {
-  it('counts both RPCs by allowlisted operation without retaining payloads', async () => {
+  it('counts learner RPCs by allowlisted operation without retaining payloads', async () => {
     const { createServer } = await import('node:http')
     const { createOwnedGateway } = await import('../../scripts/test-http-mixed-launcher')
     const upstream = createServer((req, res) => { req.resume(); req.on('end', () => res.writeHead(200).end('{}')) })
@@ -75,13 +97,13 @@ describe('learner operation gateway counters', () => {
     const address = gateway.address()
     if (!address || typeof address === 'string') throw new Error('missing gateway address')
     try {
-      for (const rpc of ['test_learner_workflow_v1', 'test_learner_self_mutation_v1']) {
+      for (const rpc of ['test_learner_workflow_v1', 'test_learner_self_mutation_v1', 'test_learner_save_with_history_v1']) {
         const response = await fetch(`http://127.0.0.1:${address.port}/rest/v1/rpc/${rpc}`, { method: 'POST', body: JSON.stringify({ p_operation: 'save', p_payload: 'private' }) })
         expect(response.status).toBe(200)
         await response.text()
       }
-      expect(Object.fromEntries(aggregate)).toEqual({ 'save:200': 2 })
-      expect(Object.fromEntries(byRpc)).toEqual({ 'test_learner_workflow_v1:save:200': 1, 'test_learner_self_mutation_v1:save:200': 1 })
+      expect(Object.fromEntries(aggregate)).toEqual({ 'save:200': 3 })
+      expect(Object.fromEntries(byRpc)).toEqual({ 'test_learner_workflow_v1:save:200': 1, 'test_learner_self_mutation_v1:save:200': 1, 'test_learner_save_with_history_v1:save:200': 1 })
     } finally {
       await Promise.all([new Promise<void>(resolve => gateway.close(() => resolve())), new Promise<void>(resolve => upstream.close(() => resolve()))])
     }

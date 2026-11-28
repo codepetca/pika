@@ -54640,3 +54640,8 @@ Set the classroom grading default to GPT-6.1 Sol after the owner's model compari
 ## 2026-11-10 Pika recovery alerts Worker
 
 Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
+
+<!-- pika-session-log-archive-batch:2b50679ade2356b23403118d82c671fe6e52b5fcfb421c350d514502d4ec813a -->
+## 2026-11-10 RepoLight assignment timeline
+
+Added matched student assignment-period timeline with explicit evidence limits; focused tests passed. Visual fixture checked at desktop/mobile light; authenticated report and full theme matrix remain for review.
