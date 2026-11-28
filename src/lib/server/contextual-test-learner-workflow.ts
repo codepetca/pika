@@ -197,9 +197,19 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
         unwrap(raw) {
           const envelope = testLearnerMutationWithHistorySchema.safeParse(raw)
           if (!envelope.success) throw unavailable()
-          const plan = testLearnerInlineHistorySchema.safeParse(envelope.data.history)
-          // The optional witness cannot override or replay an authoritative write.
-          history = plan.success ? plan.data : null
+          // A JSON text field keeps optional history depth out of the transport
+          // bound on the authoritative, already committed mutation witness.
+          if (typeof envelope.data.history === 'string') {
+            try {
+              const optional: unknown = JSON.parse(envelope.data.history)
+              if (boundedAssignmentListJson(optional, TEST_LEARNER_REPLY_BYTES)) {
+                const plan = testLearnerInlineHistorySchema.safeParse(optional)
+                history = plan.success ? plan.data : null
+              }
+            } catch {
+              history = null
+            }
+          }
           return envelope.data.mutation
         },
       })

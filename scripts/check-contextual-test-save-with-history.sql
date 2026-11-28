@@ -61,7 +61,7 @@ declare
   outsider_id uuid := 'd3350000-0000-4000-8000-000000000004';
   tid uuid := 'd3350000-0000-4000-8000-000000000011';
   answers jsonb := '{"d3350000-0000-4000-8000-000000000101":{"question_type":"open_response","response_text":"saved335"}}';
-  saved jsonb; result jsonb; revision bigint; operation text;
+  saved jsonb; result jsonb; plan jsonb; revision bigint; operation text;
 begin
   foreach operation in array array['start','focus','history-plan','history-write','recover','inspect'] loop
     begin
@@ -92,7 +92,9 @@ begin
   revision := (result#>>'{result,attempt,draft_revision}')::bigint;
   result := public.test_learner_save_with_history_v1(member_id,tid,'save',jsonb_build_object('responses',answers,'expected_revision',revision),clock_timestamp()+interval '25 seconds');
   saved := result#>'{mutation,result,attempt}';
-  if result - array['mutation','history'] <> '{}'::jsonb
+  plan := (result->>'history')::jsonb;
+  if jsonb_typeof(result->'history') is distinct from 'string'
+    or result - array['mutation','history'] <> '{}'::jsonb
     or result#>>'{mutation,version}' is distinct from '1'
     or result#>>'{mutation,actor_id}' is distinct from member_id::text
     or result#>>'{mutation,subject_id}' is distinct from member_id::text
@@ -100,10 +102,10 @@ begin
     or result#>>'{mutation,classroom_id}' is distinct from 'd3350000-0000-4000-8000-000000000010'
     or result#>>'{mutation,operation}' is distinct from 'save'
     or saved->'responses' is distinct from answers
-    or result#>>'{history,attempt_id}' is distinct from saved->>'id'
-    or result#>'{history,draft_revision}' is distinct from saved->'draft_revision'
-    or result#>'{history,last_history}' is distinct from 'null'::jsonb
-    or (result->'history') ? 'responses'
+    or plan#>>'{attempt_id}' is distinct from saved->>'id'
+    or plan#>'{draft_revision}' is distinct from saved->'draft_revision'
+    or plan#>'{last_history}' is distinct from 'null'::jsonb
+    or plan ? 'responses'
     or (result#>'{mutation,result}') - array['created','previous_responses','attempt'] <> '{}'::jsonb then
     raise exception 'Save witness or empty-history seed changed';
   end if;
@@ -140,7 +142,7 @@ declare
   member_id uuid := 'd3350000-0000-4000-8000-000000000002';
   tid uuid := 'd3350000-0000-4000-8000-000000000011';
   class_id uuid := 'd3350000-0000-4000-8000-000000000010';
-  attempt public.test_attempts%rowtype; result jsonb; written jsonb;
+  attempt public.test_attempts%rowtype; result jsonb; plan jsonb; written jsonb;
 begin
   select * into strict attempt from public.test_attempts where test_id=tid and student_id=member_id;
   result := public.test_learner_save_with_history_v1(member_id,tid,'save',jsonb_build_object('responses',attempt.responses,'expected_revision',attempt.draft_revision),clock_timestamp()+interval '25 seconds');
@@ -150,21 +152,52 @@ begin
   end if;
   attempt.responses := jsonb_set(attempt.responses,'{d3350000-0000-4000-8000-000000000101,response_text}','"changed335"');
   result := public.test_learner_save_with_history_v1(member_id,tid,'save',jsonb_build_object('responses',attempt.responses,'expected_revision',attempt.draft_revision),clock_timestamp()+interval '25 seconds');
-  if result#>>'{history,last_history,id}' is distinct from 'd3350000-0000-4000-8000-000000000502'
-    or result#>'{history,last_history,snapshot}' is distinct from '{"exact":"latest"}'::jsonb
-    or result#>'{history,last_history,patch}' is distinct from 'null'::jsonb then
+  plan := (result->>'history')::jsonb;
+  if jsonb_typeof(result->'history') is distinct from 'string'
+    or plan#>>'{last_history,id}' is distinct from 'd3350000-0000-4000-8000-000000000502'
+    or plan#>'{last_history,snapshot}' is distinct from '{"exact":"latest"}'::jsonb
+    or plan#>'{last_history,patch}' is distinct from 'null'::jsonb then
     raise exception 'Combined seed did not select actual latest own history';
   end if;
   -- Passing this exact seed into the unchanged CAS compares it with the private
   -- helper projection, proving every field and JSON null representation agrees.
   written := public.test_learner_workflow_v1(member_id,tid,class_id,'history-write',jsonb_build_object(
-    'attempt_id',result#>'{history,attempt_id}','draft_revision',result#>'{history,draft_revision}',
-    'expected_last',result#>'{history,last_history}','collapse',false,'patch',null,'snapshot',attempt.responses,
+    'attempt_id',plan#>'{attempt_id}','draft_revision',plan#>'{draft_revision}',
+    'expected_last',plan#>'{last_history}','collapse',false,'patch',null,'snapshot',attempt.responses,
     'trigger','baseline','word_count',1,'char_count',8,'paste_word_count',0,'keystroke_count',0),clock_timestamp()+interval '25 seconds');
   if written#>>'{result,historyEntry,id}' is null then raise exception 'Existing history CAS rejected inline seed'; end if;
 end;
 $latest$;
 reset role;
+
+-- Nested optional payload remains a separate text value in the outer JSON;
+-- reading the mandatory acknowledgment never traverses this history snapshot.
+insert into public.test_attempt_history(id,test_attempt_id,snapshot,word_count,char_count,paste_word_count,keystroke_count,trigger,created_at)
+ select 'd3350000-0000-4000-8000-000000000506',id,(repeat('[',128)||'0'||repeat(']',128))::jsonb,0,0,0,0,'baseline',clock_timestamp()+interval '1 second'
+ from public.test_attempts where test_id='d3350000-0000-4000-8000-000000000011' and student_id='d3350000-0000-4000-8000-000000000002';
+set local role service_role;
+do $optional_text$
+declare
+  member_id uuid := 'd3350000-0000-4000-8000-000000000002';
+  tid uuid := 'd3350000-0000-4000-8000-000000000011';
+  attempt public.test_attempts%rowtype; result jsonb; plan jsonb;
+begin
+  select * into strict attempt from public.test_attempts where test_id=tid and student_id=member_id;
+  attempt.responses := jsonb_set(attempt.responses,'{d3350000-0000-4000-8000-000000000101,response_text}','"nested335"');
+  result := public.test_learner_save_with_history_v1(member_id,tid,'save',jsonb_build_object('responses',attempt.responses,'expected_revision',attempt.draft_revision),clock_timestamp()+interval '25 seconds');
+  plan := (result->>'history')::jsonb;
+  if jsonb_typeof(result->'history') is distinct from 'string'
+    or result#>'{history,last_history}' is not null
+    or plan#>'{last_history,snapshot}' is distinct from (repeat('[',128)||'0'||repeat(']',128))::jsonb
+    or result#>'{mutation,result,attempt,responses}' is distinct from attempt.responses
+    or (result#>>'{mutation,result,attempt,draft_revision}')::bigint <= attempt.draft_revision
+    or octet_length(result::text)>8388608 then
+    raise exception 'Nested optional history was not separately encoded beside the core acknowledgment';
+  end if;
+end;
+$optional_text$;
+reset role;
+delete from public.test_attempt_history where id='d3350000-0000-4000-8000-000000000506';
 
 -- Optional source bounds must also preserve the already successful save.
 insert into public.test_attempt_history(id,test_attempt_id,snapshot,word_count,char_count,paste_word_count,keystroke_count,trigger,created_at)
@@ -222,20 +255,21 @@ do $submit$
 declare
   member_id uuid := 'd3350000-0000-4000-8000-000000000002';
   tid uuid := 'd3350000-0000-4000-8000-000000000011';
-  attempt public.test_attempts%rowtype; stored public.test_attempts%rowtype; result jsonb; operation text;
+  attempt public.test_attempts%rowtype; stored public.test_attempts%rowtype; result jsonb; plan jsonb; operation text;
 begin
   select * into strict attempt from public.test_attempts where test_id=tid and student_id=member_id;
   result := public.test_learner_save_with_history_v1(member_id,tid,'submit',jsonb_build_object('responses',attempt.responses,'expected_revision',attempt.draft_revision),clock_timestamp()+interval '25 seconds');
   select * into strict stored from public.test_attempts where id=attempt.id;
-  if not stored.is_submitted or stored.draft_revision <= attempt.draft_revision
+  plan := (result->>'history')::jsonb;
+  if jsonb_typeof(result->'history') is distinct from 'string' or not stored.is_submitted or stored.draft_revision <= attempt.draft_revision
     or result#>>'{mutation,operation}' is distinct from 'submit'
     or result#>>'{mutation,result,attempt_id}' is distinct from stored.id::text
     or result#>>'{mutation,result,inserted_responses}' is distinct from '1'
     or result#>'{mutation,result,draft_revision}' is distinct from to_jsonb(stored.draft_revision)
-    or result#>'{history,draft_revision}' is distinct from to_jsonb(stored.draft_revision)
-    or result#>>'{history,attempt_id}' is distinct from stored.id::text
-    or result#>'{history,responses}' is distinct from stored.responses
-    or result#>>'{history,last_history,trigger}' is distinct from 'baseline'
+    or plan#>'{draft_revision}' is distinct from to_jsonb(stored.draft_revision)
+    or plan#>>'{attempt_id}' is distinct from stored.id::text
+    or plan#>'{responses}' is distinct from stored.responses
+    or plan#>>'{last_history,trigger}' is distinct from 'baseline'
     or (result#>'{mutation,result}') - array['attempt_id','submitted_at','inserted_responses','draft_revision'] <> '{}'::jsonb then
     raise exception 'Submit witness/seed differs from the exact stored attempt';
   end if;

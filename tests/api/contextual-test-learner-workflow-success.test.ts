@@ -83,8 +83,10 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
       // SDK replies are JSON-decoded trees, not aliased fixture object graphs.
       const witness = { version: 1, actor_id: actor, classroom_id: classroom, test_id: testId, subject_id: actor,
         operation: args.p_operation, result: resultFor(args) }
+      const plan = withHistory ? inlineHistoryFor?.(args) : null
+      const history = typeof plan === 'string' ? plan : plan == null ? null : JSON.stringify(plan)
       return code ? { data: null, error: { code, message: 'private failure' } } : JSON.parse(JSON.stringify({ error: null,
-        data: withHistory ? { mutation: witness, history: inlineHistoryFor?.(args) } : witness }))
+        data: withHistory ? { mutation: witness, history } : witness }))
     } }))
   })
   afterEach(() => vi.unstubAllEnvs())
@@ -164,7 +166,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     expect(await response.json()).not.toHaveProperty('history')
   })
   it.each([
-    null, {}, { attempt_id: objectId, draft_revision: 12, last_history: null },
+    null, 'invalid JSON text', {}, { attempt_id: objectId, draft_revision: 12, last_history: null },
     { attempt_id: attemptId, draft_revision: 11, last_history: null },
     { attempt_id: attemptId, draft_revision: 12, last_history: { ...historyEntry, test_attempt_id: objectId } },
   ])('acknowledges a committed save without guessing, repeating, or using an invalid inline plan %#', async plan => {
@@ -178,6 +180,17 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     inlineHistoryFor = () => ({ attempt_id: attemptId, draft_revision: 12, last_history: null, responses: {} })
     const response = await submit(req('POST',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(201)
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1'])
+  })
+  it.each(['save','submit'] as const)('acknowledges %s with deeply nested persisted history and omits the history write', async operation => {
+    const snapshot = '{"child":'.repeat(12_000) + 'true' + '}'.repeat(12_000)
+    const submitted = operation === 'submit'
+    inlineHistoryFor = () => JSON.stringify({ attempt_id: attemptId, draft_revision: 12,
+      last_history: { ...historyEntry, snapshot: null }, ...(submitted ? { responses: answers } : {}) })
+      .replace('"snapshot":null', `"snapshot":${snapshot}`)
+    const response = await (submitted ? submit : save)(req(submitted ? 'POST' : 'PATCH', { responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(submitted ? 201 : 200)
+    expect(await response.json()).toEqual(submitted ? { success: true, draft_revision: 12 } : { attempt, historyEntry: null })
     expect(rpcNames()).toEqual(['test_learner_save_with_history_v1'])
   })
   it('retries an inline-history mutation only after the exact rolled-back Busy response', async () => {

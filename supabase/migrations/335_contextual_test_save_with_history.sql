@@ -74,8 +74,10 @@ begin
       v_plan := v_plan || pg_catalog.jsonb_build_object('responses',v_attempt.responses);
     end if;
     -- Save already carries the exact responses in its unchanged mutation witness.
-    -- Respect 257's complete-result wire cap, including this envelope's overhead.
-    v_plan := pg_catalog.jsonb_build_object('mutation',v_mutation,'history',v_plan);
+    -- Encode optional JSON separately so arbitrarily deep history cannot break
+    -- application validation/re-encoding of the mandatory mutation witness.
+    -- Respect 257's complete-result wire cap, including string escaping overhead.
+    v_plan := pg_catalog.jsonb_build_object('mutation',v_mutation,'history',v_plan::text);
     if pg_catalog.octet_length(v_plan::text) <= 8388608
       and pg_catalog.clock_timestamp() < v_deadline then
       v_result := v_plan;
