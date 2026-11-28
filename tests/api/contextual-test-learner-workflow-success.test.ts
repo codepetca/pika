@@ -51,12 +51,20 @@ const req = (method = 'GET', body?: unknown) => new NextRequest(`http://localhos
 type Args = { p_operation: TestLearnerOperation; p_payload: Record<string, unknown> }
 let resultFor: (args: Args) => unknown
 let errorFor: (args: Args) => string | undefined
-const calls = () => rpc.mock.calls.map(([,args]) => args.p_operation)
+let inlineHistoryFor: ((args: Args) => unknown) | undefined
+// Legacy flow assertions exclude the definitively missing 335 capability probe.
+const calls = () => rpc.mock.calls.filter(([name]) => inlineHistoryFor || name !== 'test_learner_save_with_history_v1').map(([,args]) => args.p_operation)
+const rpcNames = () => rpc.mock.calls.map(([name]) => name)
+const missingMutation = { data: null, status: 404, error: { code: 'PGRST202',
+  message: 'Could not find the function public.test_learner_self_mutation_v1(p_actor_id, p_deadline, p_operation, p_payload, p_test_id) in the schema cache' } }
+const missingWithHistory = { ...missingMutation, error: { ...missingMutation.error,
+  message: missingMutation.error.message.replace('test_learner_self_mutation_v1', 'test_learner_save_with_history_v1') } }
 describe('contextual learner Test positive dispatcher and dependent boundaries', () => {
   beforeEach(() => {
     vi.clearAllMocks(); vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actor] }))
     vi.mocked(requireAuth).mockResolvedValue({ id: actor, role: 'teacher', email: 'free-member@example.test' })
     errorFor = () => undefined
+    inlineHistoryFor = undefined
     resultFor = ({ p_operation }) => ({
       inspect: { access_mode: 'member' }, start: { questions: [question], attempt }, recover: { attempt },
       detail: { state, attempt, questions: [question], submitted_responses: {}, focus_events: [] }, session: { state },
@@ -67,10 +75,18 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
         results: [], my_responses: {}, question_results: [], summary: { earned_points: 0, possible_points: 0, percent: 0 } },
     }[p_operation])
     rpc.mockImplementation((_name, args: Args) => ({ abortSignal: async () => {
+      if (_name === 'read_test_session_for_member_v1') return { data: null, status: 404,
+        error: { code: 'PGRST202', message: 'Could not find the function public.read_test_session_for_member_v1' } }
+      const withHistory = _name === 'test_learner_save_with_history_v1'
+      if (withHistory && !inlineHistoryFor) return missingWithHistory
       const code = errorFor(args)
       // SDK replies are JSON-decoded trees, not aliased fixture object graphs.
-      return code ? { data: null, error: { code, message: 'private failure' } } : JSON.parse(JSON.stringify({ error: null, data: { version: 1, actor_id: actor,
-        classroom_id: classroom, test_id: testId, subject_id: actor, operation: args.p_operation, result: resultFor(args) } }))
+      const witness = { version: 1, actor_id: actor, classroom_id: classroom, test_id: testId, subject_id: actor,
+        operation: args.p_operation, result: resultFor(args) }
+      const plan = withHistory ? inlineHistoryFor?.(args) : null
+      const history = typeof plan === 'string' ? plan : plan == null ? null : JSON.stringify(plan)
+      return code ? { data: null, error: { code, message: 'private failure' } } : JSON.parse(JSON.stringify({ error: null,
+        data: withHistory ? { mutation: witness, history } : witness }))
     } }))
   })
   afterEach(() => vi.unstubAllEnvs())
@@ -128,9 +144,95 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
   it('separately CAS-writes successful save history at the exact post-save revision', async () => {
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ attempt, historyEntry })
-    expect(calls()).toEqual(['inspect','save','history-plan','history-write'])
-    expect(rpc).toHaveBeenLastCalledWith('test_learner_workflow_v1', expect.objectContaining({ p_payload: expect.objectContaining({
+    expect(calls()).toEqual(['save','history-plan','history-write'])
+    expect(rpcNames().slice(0,2)).toEqual(['test_learner_save_with_history_v1','test_learner_self_mutation_v1'])
+    expect(rpc.mock.calls[1][1]).not.toHaveProperty('p_classroom_id')
+    expect(rpc.mock.calls[0][1]).toEqual(rpc.mock.calls[1][1])
+    expect(rpc).toHaveBeenLastCalledWith('test_learner_workflow_v1', expect.objectContaining({ p_classroom_id: classroom, p_payload: expect.objectContaining({
       attempt_id: attemptId, draft_revision: 12, expected_last: null, collapse: false, patch: null, snapshot: answers, trigger: 'baseline' }) }))
+  })
+  it.each(['save','submit'] as const)('uses the in-transaction history plan for %s without a separate read', async operation => {
+    const prior = { ...historyEntry, created_at: new Date().toISOString() }
+    const submitted = operation === 'submit'
+    inlineHistoryFor = () => ({ attempt_id: attemptId, draft_revision: 12, last_history: prior, ...(submitted ? { responses: answers } : {}) })
+    const response = await (submitted ? submit : save)(req(submitted ? 'POST' : 'PATCH', { responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(submitted ? 201 : 200)
+    expect(calls()).toEqual([operation,'history-write'])
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1','test_learner_workflow_v1'])
+    expect(rpc.mock.lastCall?.[1]).toMatchObject({ p_classroom_id: classroom, p_payload: {
+      attempt_id: attemptId, draft_revision: 12, expected_last: prior, collapse: !submitted, snapshot: answers,
+      trigger: submitted ? 'submit' : 'autosave',
+    } })
+    expect(await response.json()).not.toHaveProperty('history')
+  })
+  it.each([
+    null, 'invalid JSON text', {}, { attempt_id: objectId, draft_revision: 12, last_history: null },
+    { attempt_id: attemptId, draft_revision: 11, last_history: null },
+    { attempt_id: attemptId, draft_revision: 12, last_history: { ...historyEntry, test_attempt_id: objectId } },
+  ])('acknowledges a committed save without guessing, repeating, or using an invalid inline plan %#', async plan => {
+    inlineHistoryFor = () => plan
+    const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ attempt, historyEntry: null })
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1'])
+  })
+  it('does not attach history to a submit that lacks matching stored answers', async () => {
+    inlineHistoryFor = () => ({ attempt_id: attemptId, draft_revision: 12, last_history: null, responses: {} })
+    const response = await submit(req('POST',{ responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(201)
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1'])
+  })
+  it.each(['save','submit'] as const)('acknowledges %s with deeply nested persisted history and omits the history write', async operation => {
+    const snapshot = '{"child":'.repeat(12_000) + 'true' + '}'.repeat(12_000)
+    const submitted = operation === 'submit'
+    inlineHistoryFor = () => JSON.stringify({ attempt_id: attemptId, draft_revision: 12,
+      last_history: { ...historyEntry, snapshot: null }, ...(submitted ? { responses: answers } : {}) })
+      .replace('"snapshot":null', `"snapshot":${snapshot}`)
+    const response = await (submitted ? submit : save)(req(submitted ? 'POST' : 'PATCH', { responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(submitted ? 201 : 200)
+    expect(await response.json()).toEqual(submitted ? { success: true, draft_revision: 12 } : { attempt, historyEntry: null })
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1'])
+  })
+  it('retries an inline-history mutation only after the exact rolled-back Busy response', async () => {
+    inlineHistoryFor = () => null
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => ({ data: null, status: 409,
+      error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(200)
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1','test_learner_save_with_history_v1'])
+    expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1])
+  })
+  it('returns an inline stale-revision conflict without reading or writing history', async () => {
+    inlineHistoryFor = () => null
+    resultFor = () => ({ conflict: true, attempt })
+    const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
+    expect(response.status).toBe(409)
+    expect(await response.json()).toMatchObject({ error_code: 'test_attempt_revision_conflict', attempt })
+    expect(rpcNames()).toEqual(['test_learner_save_with_history_v1'])
+  })
+  it('uses the previous protected path only when the new mutation RPC is definitively missing', async () => {
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => missingMutation }))
+    expect((await start(req('POST'),ctx)).status).toBe(200)
+    expect(calls()).toEqual(['start','inspect','start'])
+    expect(rpc.mock.calls[2][1]).toMatchObject({ p_classroom_id: classroom, p_deadline: rpc.mock.calls[0][1].p_deadline })
+  })
+  it.each([
+    { ...missingWithHistory, status: 503 },
+    { ...missingWithHistory, data: {} },
+    { ...missingWithHistory, error: { ...missingWithHistory.error, message: 'Could not find the function public.test_learner_save_with_history_v1_other()' } },
+    missingMutation,
+    { data: null, status: 503, error: { code: '57014', message: 'unknown commit outcome' } },
+  ])('does not redispatch a write after an ambiguous gateway reply %#', async reply => {
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => reply }))
+    expect((await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)).status).toBe(503)
+    expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('retries a confirmed rolled-back Busy on the direct path with the exact same request', async () => {
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => ({ data: null, status: 409,
+      error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    expect((await start(req('POST'),ctx)).status).toBe(200)
+    expect(calls()).toEqual(['start','start'])
+    expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1])
   })
   it('stores a compact patch after the collapse window when unchanged content makes a snapshot larger', async () => {
     const previous = { [questionId]: { question_type: 'multiple_choice', selected_option: 0 },
@@ -161,7 +263,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
   it('does not append autosave history when normalized answers did not change', async () => {
     const base = resultFor; resultFor = args => args.p_operation === 'save' ? { created: false, previous_responses: answers, attempt } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
-    expect(await response.json()).toEqual({ attempt, historyEntry: null }); expect(calls()).toEqual(['inspect','save','history-plan'])
+    expect(await response.json()).toEqual({ attempt, historyEntry: null }); expect(calls()).toEqual(['save'])
   })
   it.each(['attempt','revision','responses','last-entry-attempt'])('skips history without rolling back answers after a %s plan mismatch', async mismatch => {
     const base = resultFor; resultFor = args => args.p_operation === 'history-plan' ? { attempt: { ...attempt,
@@ -169,7 +271,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     last_history: mismatch === 'last-entry-attempt' ? { ...historyEntry, test_attempt_id: objectId } : null } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ attempt, historyEntry: null })
-    expect(calls()).toEqual(['inspect','save','history-plan'])
+    expect(calls()).toEqual(['save','history-plan'])
   })
   it.each(['history-plan','history-write'])('preserves successful answers/submission when best-effort %s fails', async failed => {
     errorFor = ({ p_operation }) => p_operation === failed ? 'PT409' : undefined
@@ -182,7 +284,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     const base = resultFor; resultFor = args => args.p_operation === 'save' ? { conflict: true, attempt } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ error_code: 'test_attempt_revision_conflict', attempt })
-    expect(calls()).toEqual(['inspect','save'])
+    expect(calls()).toEqual(['save'])
   })
   it('delivers an exact private file only after the protected post-Storage tuple recheck', async () => {
     const response = await file(req(),ctx)

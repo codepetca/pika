@@ -411,6 +411,95 @@ describe('StudentTestForm', () => {
     )
   })
 
+  it('attempts a save after 20 seconds of uninterrupted editing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-28T12:00:00Z'))
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockResolvedValueOnce(Response.json({ attempt: { draft_revision: 2 } }))
+    render(
+      <StudentTestForm
+        testId="continuous-draft"
+        initialDraftRevision={1}
+        questions={[createMockTestQuestion({ id: 'q1', question_type: 'open_response' })]}
+        enableDraftAutosave
+        onSubmitted={vi.fn()}
+      />
+    )
+    const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+    for (const value of ['First', 'Still', 'Writing', 'My', 'Answer']) {
+      expect(fetchMock).not.toHaveBeenCalled()
+      fireEvent.change(textbox, { target: { value } })
+      await act(async () => { await vi.advanceTimersByTimeAsync(4_000) })
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toMatchObject({
+      expected_revision: 1, responses: { q1: { response_text: 'Answer' } },
+    })
+    expect(screen.getByTestId('student-test-autosave-status')).toHaveTextContent('Saved')
+  })
+
+  it('checks a lost save receipt and submits the confirmed draft without another PATCH', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-28T12:00:00Z'))
+    const fetchMock = vi.mocked(fetch)
+    const answers = { q1: { question_type: 'open_response', response_text: 'Saved on the server.' } }
+    fetchMock
+      .mockRejectedValueOnce(new TypeError('Connection interrupted'))
+      .mockResolvedValueOnce(Response.json({ attempt: {
+        draft_revision: 2, responses: answers, is_submitted: false,
+      } }))
+      .mockResolvedValueOnce(Response.json({ success: true }, { status: 201 }))
+    const submitted = vi.fn()
+    render(
+      <StudentTestForm
+        testId="lost-save-receipt"
+        initialDraftRevision={1}
+        questions={[createMockTestQuestion({ id: 'q1', question_type: 'open_response' })]}
+        enableDraftAutosave
+        onSubmitted={submitted}
+      />
+    )
+    fireEvent.change(screen.getByRole('textbox', { name: 'Response for question 1' }), {
+      target: { value: answers.q1.response_text },
+    })
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/student/tests/lost-save-receipt/attempt', expect.objectContaining({ cache: 'no-store' }))
+    expect(screen.getByTestId('student-test-autosave-status')).toHaveTextContent('Saved')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+    await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
+
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock.mock.calls[2][0]).toBe('/api/student/tests/lost-save-receipt/respond')
+    expect(JSON.parse(String(fetchMock.mock.calls[2][1]?.body))).toEqual({ expected_revision: 2, responses: answers })
+    expect(submitted).toHaveBeenCalledOnce()
+  })
+
+  it('retries a transient busy autosave once after the student stops typing', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-28T12:00:00Z'))
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementation(async () => Response.json({ error: 'Test is busy. Try again.' }, { status: 409 }))
+    render(
+      <StudentTestForm
+        testId="busy-autosave"
+        initialDraftRevision={1}
+        questions={[createMockTestQuestion({ id: 'q1', question_type: 'open_response' })]}
+        enableDraftAutosave
+        onSubmitted={vi.fn()}
+      />
+    )
+    const textbox = screen.getByRole('textbox', { name: 'Response for question 1' })
+    fireEvent.change(textbox, { target: { value: 'Keep this draft.' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await act(async () => { await vi.advanceTimersByTimeAsync(60_000) })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1][1]?.body).toEqual(fetchMock.mock.calls[0][1]?.body)
+    expect(textbox).toHaveValue('Keep this draft.')
+    expect(screen.getByTestId('student-test-autosave-status')).toHaveTextContent('Unsaved changes')
+  })
+
   it('does not render autosave status in preview mode', () => {
     render(
       <StudentTestForm

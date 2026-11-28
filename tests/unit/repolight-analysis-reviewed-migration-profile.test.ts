@@ -5,6 +5,7 @@ import { validateTestMemberListReviewedMigrations } from '../../scripts/check-co
 import { validateTestOwnerReorderReviewedMigrations } from '../../scripts/check-contextual-test-owner-reorder-lifecycle'
 import { classroomTestQuotaProofCatalog } from '../../scripts/classroom-test-quota-proof-catalog'
 import { validateDisposableBillingReplayMigrations, validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
+import { historicalReviewed332 } from '../helpers/historical-reviewed-332'
 
 // Source admission only: this does not authorize migration or native proof execution.
 describe('RepoLight 298–301 closed source profile', () => {
@@ -78,7 +79,8 @@ describe('RepoLight 298–301 closed source profile', () => {
 })
 
 describe('Billing and Test 302–332 disposable replay source profile', () => {
-  const chain = loadAssignmentListReviewedMigrations(process.cwd())
+  const actual = loadAssignmentListReviewedMigrations(process.cwd())
+  const chain = historicalReviewed332(actual)
   const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 
   it('accepts the exact complete billing suffix for disposable replay only', () => {
@@ -87,6 +89,8 @@ describe('Billing and Test 302–332 disposable replay source profile', () => {
     expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, 301))).not.toThrow()
     for (const count of [303, 304, 307, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332]) expect(() => validateDisposableBillingReplayMigrations(chain.slice(0, count))).not.toThrow()
     expect(() => validateLifecycleServicesReviewedMigrations(chain)).toThrow()
+    expect(actual.length).toBeGreaterThan(332)
+    expect(() => validateDisposableBillingReplayMigrations(actual)).toThrow()
   })
 
   it.each([302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 326, 327, 328, 329, 330, 331, 332])('rejects self-hashed changes to migration %i', version => {

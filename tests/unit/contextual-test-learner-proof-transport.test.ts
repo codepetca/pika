@@ -242,7 +242,9 @@ describe('exact learner installed-SDK source transport (offline, no native accep
   ])('derives or refuses exact fixed application history $name', async ({profile,guardDelay,offset,expiry}) => {
     let now=Date.now(),guards=0;const initial=now,clock=vi.spyOn(Date,'now').mockImplementation(()=>now)
     try {
-    const deadline=new Date(initial+30000).toISOString(),next={ [f.questions[0].id]:{question_type:'open_response',response_text:'x'.repeat(1800)},
+    // Keep this exact synthetic wire context below the helper's PostgreSQL
+    // clock-skew headroom, while retaining all simulated guard/expiry cases.
+    const deadline=new Date(initial+29000).toISOString(),next={ [f.questions[0].id]:{question_type:'open_response',response_text:'x'.repeat(1800)},
       [f.questions[1].id]:{question_type:'multiple_choice',selected_option:profile==='collapse'?1:0} }
     const previous=profile==='baseline'?{}:profile==='no-op'?next:{...next,[f.questions[1].id]:{question_type:'multiple_choice',selected_option:profile==='collapse'?0:1}}
     const current={...attempt,responses:next,draft_revision:2},last=profile==='baseline'?null:{id:f.materials[0].objectId,test_attempt_id:f.attemptId,

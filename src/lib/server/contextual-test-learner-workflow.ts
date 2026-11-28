@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/auth'
+import { readContextualTestSession, presentContextualTestSession } from '@/lib/server/contextual-test-session-read'
+import { formatTestWorkflowDeadline } from '@/lib/validations/contextual-test-owner-workflow'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
@@ -18,10 +20,11 @@ import { resolveTestDocumentUploadContentTypes } from '@/lib/server/test-documen
 import { buildPrivateStorageRedirect, buildPublicStorageCompatibilityRedirect, getPrivateStorageContentType } from '@/lib/server/direct-storage-delivery'
 import {
   testLearnerIdentitySchema, testLearnerParamsSchema, testLearnerHistoryQuerySchema, testLearnerWitnessSchema, testLearnerResultSchemas, testLearnerPayloadSchemas, testLearnerQuestionSchema,
+  testLearnerInlineHistorySchema, testLearnerMutationWithHistorySchema,
   TEST_LEARNER_DEADLINE_MS, TEST_LEARNER_REPLY_BYTES, TEST_LEARNER_TOTAL_BYTES, TEST_LEARNER_RPC_LIMIT,
   resolveTestLearnerParams, readTestLearnerBody, parseTestLearnerPayload, type TestLearnerOperation,
 } from '@/lib/validations/contextual-test-learner-workflow'
-import type { Json } from '@/types/database.generated'
+import type { Database, Json } from '@/types/database.generated'
 
 /** Temporary exact application-owned signature until genuine CLI metadata is
  * supplied. Only this new RPC is adapted; the central Database is not widened. */
@@ -32,15 +35,29 @@ export type TestLearnerRpcClient = { rpc(name: 'test_learner_workflow_v1', args:
 const unavailable = () => new ApiError(503, 'Unable to verify test operation')
 const busy = () => new ApiError(409, 'Test is busy. Try again.')
 class LearnerBusy extends Error {}
+class SelfMutationRpcMissing extends Error {}
 const BUSY_RETRIES = 10
 const DETAIL_ATTEMPTS = 3
 type Result<K extends TestLearnerOperation> = z.output<typeof testLearnerResultSchemas[K]>
+type SelfMutation = 'start' | 'save' | 'submit' | 'focus'
+type ResponseMutation = 'save' | 'submit'
+type InlineHistory = z.output<typeof testLearnerInlineHistorySchema>
+type SelfMutationArgs = Database['public']['Functions']['test_learner_self_mutation_v1']['Args']
+type SelfMutationRpc = (args: SelfMutationArgs & { p_operation: SelfMutation }) => {
+  abortSignal(signal: AbortSignal): PromiseLike<unknown>
+}
+type DispatchSelfMutation = {
+  name: 'test_learner_self_mutation_v1' | 'test_learner_save_with_history_v1';
+  dispatch(payload: Json): ReturnType<SelfMutationRpc>;
+  unwrap?: (data: unknown) => unknown;
+}
 
 export function createContextualTestLearnerWorkflow(input: { supabase: TestLearnerRpcClient; actorId: string; testId: string;
   requestedStudentId?: string; deadline?: number; signal?: AbortSignal }) {
   const identity = testLearnerIdentitySchema.parse({ actorId: input.actorId, testId: input.testId })
   // Parse only the actual identity fields, never trust extra transport fields.
-  const deadline = Math.min(input.deadline ?? Infinity, Date.now() + TEST_LEARNER_DEADLINE_MS)
+  const startedAt = Date.now()
+  const deadline = Math.min(input.deadline ?? Infinity, startedAt + TEST_LEARNER_DEADLINE_MS)
   let classroomId: string | null = null; let subjectId: string | null = null; let statements = 0; let bytes = 0
   const query = testLearnerHistoryQuerySchema.parse(input.requestedStudentId ? { requested_student_id: input.requestedStudentId } : {})
   async function within<T>(operation: () => PromiseLike<T>) {
@@ -52,22 +69,27 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
       timer = setTimeout(abort, Math.max(0, deadline - Date.now())); if (input.signal?.aborted) abort()
     })]) } finally { clearTimeout(timer); if (abort) input.signal?.removeEventListener('abort', abort) }
   }
-  async function runOnce<K extends TestLearnerOperation>(operation: K, payload: Json): Promise<Result<K>> {
-    if (operation !== 'inspect' && classroomId === null) throw unavailable()
+  async function runOnce<K extends TestLearnerOperation>(operation: K, payload: Json,
+    selfMutation?: DispatchSelfMutation): Promise<Result<K>> {
+    if (!selfMutation && operation !== 'inspect' && classroomId === null) throw unavailable()
     if (++statements > TEST_LEARNER_RPC_LIMIT) throw unavailable()
     const controller = new AbortController(); const abort = () => controller.abort()
     input.signal?.addEventListener('abort', abort, { once: true }); const timer = setTimeout(abort, Math.max(0, deadline - Date.now()))
     try {
       if (!boundedAssignmentListJson(payload, 2 * 1024 * 1024)) throw unavailable()
-      const args = testLearnerPayloadSchemas[operation].parse({ ...z.record(z.string(), z.json()).parse(payload), ...query })
-      const raw = await within(() => input.supabase.rpc('test_learner_workflow_v1', {
+      const args = z.json().parse(testLearnerPayloadSchemas[operation].parse({ ...z.record(z.string(), z.json()).parse(payload), ...query }))
+      const raw = await within(() => (selfMutation ? selfMutation.dispatch(args) : input.supabase.rpc('test_learner_workflow_v1', {
         p_actor_id: identity.actorId, p_test_id: identity.testId, p_classroom_id: classroomId,
-        p_operation: operation, p_payload: z.json().parse(args), p_deadline: new Date(deadline).toISOString(),
-      }).abortSignal(controller.signal))
+        p_operation: operation, p_payload: args, p_deadline: formatTestWorkflowDeadline(deadline, startedAt),
+      })).abortSignal(controller.signal))
       if (controller.signal.aborted || Date.now() >= deadline || !boundedAssignmentListJson(raw, TEST_LEARNER_REPLY_BYTES)) throw unavailable()
       bytes += Buffer.byteLength(JSON.stringify(raw), 'utf8'); if (bytes > TEST_LEARNER_TOTAL_BYTES) throw unavailable()
       const envelope = contextualTestDraftGetRpcEnvelopeSchema.safeParse(raw); if (!envelope.success) throw unavailable()
       if (envelope.data.error) {
+        if (selfMutation && envelope.data.data === null && envelope.data.status === 404 && envelope.data.error.code === 'PGRST202'
+          && envelope.data.error.message.startsWith(`Could not find the function public.${selfMutation.name}(`)) {
+          throw new SelfMutationRpcMissing()
+        }
         // This exact database exception certifies the transaction rolled back.
         if (envelope.data.data === null && envelope.data.status === 409 && envelope.data.error.code === 'PT409' && envelope.data.error.message === 'test_learner_busy') throw new LearnerBusy()
         const statuses: Record<string, number> = { PT400: 400, PT403: 403, PT404: 404, PT409: 409 }
@@ -76,7 +98,8 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
         throw new ApiError(status, { 400: 'Invalid test operation', 403: 'Forbidden', 404: 'Test not found', 409: 'Test access changed; reload and retry' }[status] ?? 'Unable to verify test operation')
       }
       if (envelope.data.status !== undefined && (envelope.data.status < 200 || envelope.data.status >= 300)) throw unavailable()
-      const witness = testLearnerWitnessSchema.safeParse(envelope.data.data); if (!witness.success) throw unavailable()
+      const data = selfMutation?.unwrap ? selfMutation.unwrap(envelope.data.data) : envelope.data.data
+      const witness = testLearnerWitnessSchema.safeParse(data); if (!witness.success) throw unavailable()
       const value = witness.data
       if (value.actor_id !== identity.actorId || value.test_id !== identity.testId || value.operation !== operation
         || (classroomId !== null && value.classroom_id !== classroomId)
@@ -121,12 +144,13 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
       if ('historyEntry' in result && result.historyEntry && typeof payload === 'object' && payload !== null && !Array.isArray(payload)
         && result.historyEntry.test_attempt_id !== payload.attempt_id) throw unavailable()
       return result as Result<K>
-    } catch (error) { if (error instanceof ApiError || error instanceof LearnerBusy) throw error; throw unavailable() }
+    } catch (error) { if (error instanceof ApiError || error instanceof LearnerBusy || error instanceof SelfMutationRpcMissing) throw error; throw unavailable() }
     finally { clearTimeout(timer); input.signal?.removeEventListener('abort', abort); controller.abort() }
   }
-  async function run<K extends TestLearnerOperation>(operation: K, payload: Json = {}): Promise<Result<K>> {
+  async function execute<K extends TestLearnerOperation>(operation: K, payload: Json,
+    selfMutation?: DispatchSelfMutation): Promise<Result<K>> {
     for (let retry = 0; ; retry++) {
-      try { return await runOnce(operation, payload) } catch (error) {
+      try { return await runOnce(operation, payload, selfMutation) } catch (error) {
         if (!(error instanceof LearnerBusy)) throw error
         // Preserve room after discovery for a detail read and its post-enrichment
         // recheck; a detail read itself retains room for one subsequent check.
@@ -145,7 +169,57 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
       }
     }
   }
-  return { deadline, within, run, inspect: () => run('inspect'), get classroomId() { return classroomId } }
+  const run = <K extends TestLearnerOperation>(operation: K, payload: Json = {}) => execute(operation, payload)
+  function directDispatch(operation: SelfMutation, rpc: SelfMutationRpc) {
+    return (p_payload: Json) => rpc({ p_actor_id: identity.actorId, p_test_id: identity.testId,
+      p_operation: operation, p_payload, p_deadline: formatTestWorkflowDeadline(deadline, startedAt) })
+  }
+  async function mutateSelf<K extends SelfMutation>(operation: K, payload: Json, rpc: SelfMutationRpc): Promise<Result<K>> {
+    if (classroomId !== null || query.requested_student_id !== undefined) throw unavailable()
+    try {
+      return await execute(operation, payload, { name: 'test_learner_self_mutation_v1', dispatch: directDispatch(operation, rpc) })
+    } catch (error) {
+      // A missing RPC certifies no mutation ran. All other failures stay on
+      // the direct path, including rolled-back Busy retries and unknown outcomes.
+      if (!(error instanceof SelfMutationRpcMissing)) throw error
+      await run('inspect')
+      return run(operation, payload)
+    }
+  }
+  async function mutateWithHistory<K extends ResponseMutation>(operation: K, payload: Json, rpc: SelfMutationRpc,
+    fallback: SelfMutationRpc): Promise<{ result: Result<K>; history: InlineHistory | null | undefined }> {
+    if (classroomId !== null || query.requested_student_id !== undefined) throw unavailable()
+    let history: InlineHistory | null = null
+    try {
+      const result = await execute(operation, payload, {
+        name: 'test_learner_save_with_history_v1',
+        dispatch: directDispatch(operation, rpc),
+        unwrap(raw) {
+          const envelope = testLearnerMutationWithHistorySchema.safeParse(raw)
+          if (!envelope.success) throw unavailable()
+          // A JSON text field keeps optional history depth out of the transport
+          // bound on the authoritative, already committed mutation witness.
+          if (typeof envelope.data.history === 'string') {
+            try {
+              const optional: unknown = JSON.parse(envelope.data.history)
+              if (boundedAssignmentListJson(optional, TEST_LEARNER_REPLY_BYTES)) {
+                const plan = testLearnerInlineHistorySchema.safeParse(optional)
+                history = plan.success ? plan.data : null
+              }
+            } catch {
+              history = null
+            }
+          }
+          return envelope.data.mutation
+        },
+      })
+      return { result, history }
+    } catch (error) {
+      if (!(error instanceof SelfMutationRpcMissing)) throw error
+      return { result: await mutateSelf(operation, payload, fallback), history: undefined }
+    }
+  }
+  return { deadline, within, run, mutateSelf, mutateWithHistory, inspect: () => run('inspect'), get classroomId() { return classroomId } }
 }
 
 function statePresentation(state: Result<'session'>['state']) {
@@ -157,13 +231,23 @@ function statePresentation(state: Result<'session'>['state']) {
 }
 type Flow = ReturnType<typeof createContextualTestLearnerWorkflow>
 async function bestEffortHistory(flow: Flow, input: { attemptId: string; revision: number; responses: unknown;
+  inlineHistory?: InlineHistory | null; savedResponses?: unknown;
   previousResponses?: unknown; created?: boolean; trigger: 'autosave' | 'blur' | 'submit'; paste: number; keystrokes: number }) {
   try {
-    const plan = await flow.run('history-plan', { attempt_id: input.attemptId, draft_revision: input.revision })
-    if (plan.attempt.id !== input.attemptId || plan.attempt.draft_revision !== input.revision
-      || !isDeepStrictEqual(normalizeTestResponses(plan.attempt.responses), normalizeTestResponses(input.responses))) throw unavailable()
-    const next = normalizeTestResponses(input.responses); const patch = createJsonPatch(normalizeTestResponses(input.previousResponses), next)
+    const next = normalizeTestResponses(input.responses)
+    const patch = createJsonPatch(normalizeTestResponses(input.previousResponses), next)
     if (input.trigger !== 'submit' && input.created !== true && patch.length === 0) return null
+    let plan = input.inlineHistory
+    if (plan === undefined) {
+      const previous = await flow.run('history-plan', { attempt_id: input.attemptId, draft_revision: input.revision })
+      plan = { attempt_id: previous.attempt.id, draft_revision: previous.attempt.draft_revision,
+        last_history: previous.last_history, responses: previous.attempt.responses }
+    }
+    if (!plan) return null
+    const saved = input.inlineHistory === undefined || input.trigger === 'submit' ? plan.responses : input.savedResponses
+    if (plan.attempt_id !== input.attemptId || plan.draft_revision !== input.revision || saved === undefined
+      || (plan.last_history && plan.last_history.test_attempt_id !== input.attemptId)
+      || !isDeepStrictEqual(normalizeTestResponses(saved), next)) return null
     const last = plan.last_history; const collapse = input.trigger !== 'submit' && last !== null && last.trigger !== 'submit'
       && Date.now() - Date.parse(last.created_at) < 10000
     const baseline = input.created === true || !last || input.trigger === 'submit'
@@ -188,11 +272,20 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
   const rawSubject = operation === 'history' ? new URL(request.url).searchParams.get('student_id') : null
   const query = testLearnerHistoryQuerySchema.parse(rawSubject === null ? {} : { requested_student_id: rawSubject })
   const client = getServiceRoleClient()
+  if (operation === 'session') {
+    const session = await readContextualTestSession({ supabase: client,
+      actorId: actor.id, testId: parsedParams.id, deadline, signal: request.signal })
+    if (session) return NextResponse.json(presentContextualTestSession(session))
+    // Only an exactly absent additive RPC retains the original contextual
+    // inspect/session path below. No contextual error enters the legacy route.
+  }
   const flow = createContextualTestLearnerWorkflow({ supabase: client as unknown as TestLearnerRpcClient, actorId: actor.id,
     testId: parsedParams.id, requestedStudentId: query.requested_student_id, deadline, signal: request.signal })
   const payload = ['save','submit','focus'].includes(operation)
     ? z.json().parse(parseTestLearnerPayload(operation, await readTestLearnerBody(request, deadline))) : {}
-  await flow.inspect()
+  const selfMutationRpc: SelfMutationRpc = args => client.rpc('test_learner_self_mutation_v1', args)
+  const mutateSelf = <K extends SelfMutation>(op: K) => flow.mutateSelf(op, payload, selfMutationRpc)
+  if (operation !== 'start' && operation !== 'save' && operation !== 'submit' && operation !== 'focus') await flow.inspect()
   if (operation === 'document') {
     if (!parsedParams.docId || !source) throw new ApiError(400, 'Invalid document request')
     const documentPayload = { document_id: parsedParams.docId, source }
@@ -222,24 +315,26 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
     if (!isDeepStrictEqual(before, after)) throw new ApiError(409, 'Test document changed; reload and retry')
     return response
   }
-  if (operation === 'start') return NextResponse.json({ started: true, ...await flow.run('start', payload) })
+  if (operation === 'start') return NextResponse.json({ started: true, ...await mutateSelf('start') })
   if (operation === 'recover') return NextResponse.json(await flow.run('recover'))
   if (operation === 'history') return NextResponse.json(await flow.run('history'))
   if (operation === 'save' || operation === 'submit') {
-    const result = await flow.run(operation, payload)
+    const { result, history } = await flow.mutateWithHistory(operation, payload,
+      args => client.rpc('test_learner_save_with_history_v1', args), selfMutationRpc)
     if ('conflict' in result) return NextResponse.json({ error: 'Test answers changed. Reload or reconcile your answers before saving again.',
       error_code: 'test_attempt_revision_conflict', attempt: result.attempt }, { status: 409 })
     const submitted = 'attempt_id' in result
     const body = z.record(z.string(), z.json()).parse(payload)
     const historyEntry = await bestEffortHistory(flow, { attemptId: submitted ? result.attempt_id : result.attempt.id,
       revision: 'draft_revision' in result ? result.draft_revision : result.attempt.draft_revision, responses: body.responses,
+      inlineHistory: history, savedResponses: submitted ? undefined : result.attempt.responses,
       previousResponses: 'previous_responses' in result ? result.previous_responses : undefined, created: 'created' in result ? result.created : undefined,
       trigger: submitted ? 'submit' : body.trigger === 'blur' ? 'blur' : 'autosave', paste: Number(body.paste_word_count ?? 0), keystrokes: Number(body.keystroke_count ?? 0) })
     return submitted ? NextResponse.json({ success: true, draft_revision: result.draft_revision }, { status: 201 })
       : NextResponse.json({ attempt: result.attempt, historyEntry })
   }
   if (operation === 'focus') {
-    const result = await flow.run('focus', payload)
+    const result = await mutateSelf('focus')
     return NextResponse.json({ success: true, focus_summary: summarizeTestFocusEvents(result.focus_events) })
   }
   if (operation === 'detail') {

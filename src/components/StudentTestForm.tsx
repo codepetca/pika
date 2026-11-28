@@ -18,6 +18,32 @@ import {
 } from '@/lib/flag-questions'
 import type { TestAssessmentQuestion, TestResponseDraftValue } from '@/types'
 
+const AUTOSAVE_DEBOUNCE_MS = 5_000
+const AUTOSAVE_MIN_INTERVAL_MS = 15_000
+const AUTOSAVE_MAX_DIRTY_MS = 20_000
+const AUTOSAVE_REQUEST_TIMEOUT_MS = 35_000
+const AUTOSAVE_RECOVERY_TIMEOUT_MS = 10_000
+
+interface DraftScope {
+  testId: string
+  revision: number | null | undefined
+  conflicted: boolean
+  autosaveQueued: boolean
+  retriedAutosave: boolean
+  unconfirmedSave: { revision: number; responses: TestResponses } | null
+  tail: Promise<boolean>
+}
+
+function createDraftScope(testId: string, revision: DraftScope['revision']): DraftScope {
+  return { testId, revision, conflicted: false, autosaveQueued: false, retriedAutosave: false, unconfirmedSave: null, tail: Promise.resolve(true) }
+}
+
+function matchesResponses(first: TestResponses, second: TestResponses) {
+  const keys = Object.keys(first)
+  return keys.length === Object.keys(second).length
+    && keys.every(key => JSON.stringify(first[key]) === JSON.stringify(second[key]))
+}
+
 interface Props {
   testId: string
   questions: TestAssessmentQuestion[]
@@ -63,8 +89,6 @@ export function StudentTestForm({
 
   const OPEN_RESPONSE_TAB_INDENT = '\t'
   const OPEN_RESPONSE_TAB_SIZE = 4
-  const AUTOSAVE_DEBOUNCE_MS = 5000
-  const AUTOSAVE_MIN_INTERVAL_MS = 15000
   const [responses, setResponses] = useState<TestResponses>(
     normalizeTestResponses(initialResponses)
   )
@@ -95,12 +119,12 @@ export function StudentTestForm({
   }, [])
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const throttledSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const pendingResponsesRef = useRef<TestResponses | null>(null)
+  const dirtySinceRef = useRef<number | null>(null)
   const lastSavedResponsesRef = useRef('')
   const lastSaveAttemptAtRef = useRef(0)
   const initializedTestIdRef = useRef<string | null>(null)
-  const draftScopeRef = useRef({ testId, revision: initialDraftRevision, conflicted: false, tail: Promise.resolve(true) })
+  const draftScopeRef = useRef<DraftScope>(createDraftScope(testId, initialDraftRevision))
 
   const allAnswered = questions.every((question) =>
     isCompleteTestResponseForQuestion(question, responses[question.id])
@@ -166,12 +190,14 @@ export function StudentTestForm({
     if (initializedTestIdRef.current === testId) return
     initializedTestIdRef.current = testId
     const normalized = normalizeTestResponses(initialResponses)
-    draftScopeRef.current = { testId, revision: initialDraftRevision, conflicted: false, tail: Promise.resolve(true) }
+    draftScopeRef.current = createDraftScope(testId, initialDraftRevision)
     setRevisionConflict(false)
     setShowLoadSaved(false)
     setError('')
     setResponses(normalized)
     pendingResponsesRef.current = normalized
+    dirtySinceRef.current = null
+    lastSaveAttemptAtRef.current = 0
     lastSavedResponsesRef.current = JSON.stringify(normalized)
     setSaveStatus('saved')
     setAutosaveAnnouncement('')
@@ -199,51 +225,124 @@ export function StudentTestForm({
 
   const saveDraft = useCallback((
     draftResponses: TestResponses,
-    options?: { trigger?: 'autosave' | 'blur'; force?: boolean }
+    trigger: 'autosave' | 'blur'
   ): Promise<boolean> => {
     if (!shouldAutosave) return Promise.resolve(true)
     const scope = draftScopeRef.current
     if (scope.testId !== testId || scope.conflicted) return Promise.resolve(false)
-    const next = normalizeTestResponses(draftResponses)
-    const serialized = JSON.stringify(next)
+    if (trigger === 'autosave') {
+      if (scope.autosaveQueued) return scope.tail
+      scope.autosaveQueued = true
+    }
     const queued = scope.tail.then(async () => {
+      if (trigger === 'autosave') scope.autosaveQueued = false
       if (draftScopeRef.current !== scope || scope.conflicted) return false
-      if (!options?.force && serialized === lastSavedResponsesRef.current) return true
+      const next = normalizeTestResponses(trigger === 'autosave'
+        ? pendingResponsesRef.current ?? draftResponses
+        : draftResponses)
+      const serialized = JSON.stringify(next)
       const isLatestPendingDraft = () => serialized === JSON.stringify(pendingResponsesRef.current)
-      setError('')
-      setSaveStatus('saving')
-      setAutosaveAnnouncement('Saving')
-      lastSaveAttemptAtRef.current = Date.now()
+      if (isLatestPendingDraft()) dirtySinceRef.current = null
+      const announceSaved = () => {
+        if (!isLatestPendingDraft()) return
+        setError('')
+        setSaveStatus('saved')
+        setAutosaveAnnouncement('Saved')
+      }
+      const showRevisionConflict = () => {
+        scope.conflicted = true
+        setRevisionConflict(true)
+        setError('Saved answers changed in another tab. Your answers are still here. Load saved answers to continue.')
+        setSaveStatus('unsaved')
+        setAutosaveAnnouncement('Save conflict. Your answers are still here.')
+      }
+      const reconcile = async () => {
+        const unconfirmed = scope.unconfirmedSave
+        if (!unconfirmed) return true
+        // Recovery must inspect the latest committed revision before a resend.
+        const res = await fetch(`${apiBasePath}/${testId}/attempt`, {
+          method: 'GET',
+          cache: 'no-store',
+          signal: AbortSignal.timeout(AUTOSAVE_RECOVERY_TIMEOUT_MS),
+        })
+        const data = await res.json()
+        if (draftScopeRef.current !== scope) return false
+        const attempt = data.attempt
+        const revision = attempt?.draft_revision
+        if (!res.ok || !Number.isSafeInteger(revision) || revision < unconfirmed.revision
+          || !attempt.responses || typeof attempt.is_submitted !== 'boolean') {
+          throw new Error(data.error || 'Unable to confirm the save. Your answers are still here.')
+        }
+        const matches = matchesResponses(normalizeTestResponses(attempt.responses), unconfirmed.responses)
+        scope.unconfirmedSave = null
+        if (attempt.is_submitted || (revision > unconfirmed.revision && !matches)) {
+          showRevisionConflict()
+          return false
+        }
+        if (matches) {
+          scope.revision = revision
+          lastSavedResponsesRef.current = JSON.stringify(unconfirmed.responses)
+        }
+        return true
+      }
+      let sent = false
+      let retryable = false
       try {
-        if (!Number.isSafeInteger(scope.revision) || Number(scope.revision) < 1) {
+        if (scope.unconfirmedSave && !(await reconcile())) return false
+        if (draftScopeRef.current !== scope) return false
+        if (serialized === lastSavedResponsesRef.current) {
+          announceSaved()
+          return true
+        }
+        const expectedRevision = scope.revision
+        if (typeof expectedRevision !== 'number' || !Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
           throw new Error('Reload the test before saving. Your answers are still here.')
         }
+        setError('')
+        setSaveStatus('saving')
+        setAutosaveAnnouncement('Saving')
+        lastSaveAttemptAtRef.current = Date.now()
+        scope.unconfirmedSave = { revision: expectedRevision, responses: next }
+        sent = true
         const res = await fetch(`${apiBasePath}/${testId}/attempt`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ responses: next, expected_revision: scope.revision, trigger: options?.trigger ?? 'autosave' }),
+          body: JSON.stringify({ responses: next, expected_revision: expectedRevision, trigger }),
+          signal: AbortSignal.timeout(AUTOSAVE_REQUEST_TIMEOUT_MS),
         })
         const data = await res.json()
         if (draftScopeRef.current !== scope) return false
         if (data.error_code === 'test_attempt_revision_conflict') {
-          scope.conflicted = true
-          setRevisionConflict(true)
-          setError('Saved answers changed in another tab. Your answers are still here. Load saved answers to continue.')
-          setSaveStatus('unsaved')
-          setAutosaveAnnouncement('Save conflict. Your answers are still here.')
+          scope.unconfirmedSave = null
+          showRevisionConflict()
           return false
         }
-        if (!res.ok) throw new Error(data.error || 'Failed to save draft')
+        if (!res.ok) {
+          if (!(res.status >= 500 || res.status === 408)) scope.unconfirmedSave = null
+          retryable = res.status === 409 && data.error === 'Test is busy. Try again.'
+          throw new Error(data.error || 'Failed to save draft')
+        }
         const revision = data.attempt?.draft_revision
-        if (!Number.isSafeInteger(revision) || revision < 1) throw new Error('Unable to confirm the save. Reload the test before continuing.')
+        if (!Number.isSafeInteger(revision) || revision < expectedRevision) throw new Error('Unable to confirm the save.')
+        scope.unconfirmedSave = null
         scope.revision = revision
         lastSavedResponsesRef.current = serialized
-        if (isLatestPendingDraft()) {
-          setSaveStatus('saved')
-          setAutosaveAnnouncement('Saved')
-        }
+        announceSaved()
         return true
       } catch (saveError) {
+        if (draftScopeRef.current !== scope) return false
+        if (sent && scope.unconfirmedSave) {
+          try {
+            if (!(await reconcile())) return false
+            if (serialized === lastSavedResponsesRef.current) {
+              announceSaved()
+              return true
+            }
+            // The same revision is still current. Retrying uses its CAS, so a
+            // first request that commits late cannot overwrite newer work.
+            retryable = true
+          } catch { /* Keep the unconfirmed revision for the next recovery check. */ }
+        }
         if (draftScopeRef.current !== scope) return false
         const message = saveError instanceof Error ? saveError.message : 'Failed to save draft'
         if (isAssessmentAvailabilityError(message)) onAvailabilityLoss?.()
@@ -251,6 +350,14 @@ export function StudentTestForm({
           setError(message)
           setSaveStatus('unsaved')
           setAutosaveAnnouncement('Unsaved changes')
+          if (trigger === 'autosave' && retryable && !scope.retriedAutosave && mountedRef.current && !saveTimeoutRef.current) {
+            scope.retriedAutosave = true
+            saveTimeoutRef.current = setTimeout(() => {
+              saveTimeoutRef.current = null
+              const pending = pendingResponsesRef.current
+              if (draftScopeRef.current === scope && pending) void saveDraft(pending, 'autosave')
+            }, AUTOSAVE_MIN_INTERVAL_MS)
+          }
         }
         return false
       }
@@ -272,10 +379,11 @@ export function StudentTestForm({
       }
       const saved = normalizeTestResponses(data.attempt.responses)
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
       scope.revision = revision
       scope.conflicted = false
+      scope.unconfirmedSave = null
       pendingResponsesRef.current = saved
+      dirtySinceRef.current = null
       lastSavedResponsesRef.current = JSON.stringify(saved)
       setResponses(saved)
       setRevisionConflict(false)
@@ -293,41 +401,29 @@ export function StudentTestForm({
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
       if (!shouldAutosave || !pendingResponsesRef.current) return
-      void saveDraft(pendingResponsesRef.current, { trigger: 'blur' })
+      void saveDraft(pendingResponsesRef.current, 'blur')
     }
   }, [saveDraft, shouldAutosave])
 
-  const scheduleSave = useCallback((
-    draftResponses: TestResponses,
-    options?: { force?: boolean; trigger?: 'autosave' | 'blur' }
-  ) => {
-    if (!shouldAutosave) return
-
-    pendingResponsesRef.current = draftResponses
-
-    if (throttledSaveTimeoutRef.current) {
-      clearTimeout(throttledSaveTimeoutRef.current)
-      throttledSaveTimeoutRef.current = null
-    }
+  function scheduleAutosave(next: TestResponses) {
+    setSaveStatus('unsaved')
+    setAutosaveAnnouncement('Unsaved changes')
+    pendingResponsesRef.current = next
+    draftScopeRef.current.retriedAutosave = false
 
     const now = Date.now()
-    const msSinceLastAttempt = now - lastSaveAttemptAtRef.current
-    if (options?.force || msSinceLastAttempt >= AUTOSAVE_MIN_INTERVAL_MS) {
-      void saveDraft(draftResponses, { trigger: options?.trigger, force: options?.force })
-      return
-    }
-
-    const waitMs = AUTOSAVE_MIN_INTERVAL_MS - msSinceLastAttempt
-    throttledSaveTimeoutRef.current = setTimeout(() => {
-      throttledSaveTimeoutRef.current = null
-      const latest = pendingResponsesRef.current
-      if (latest) {
-        void saveDraft(latest, { trigger: options?.trigger, force: options?.force })
-      }
-    }, waitMs)
-  }, [AUTOSAVE_MIN_INTERVAL_MS, saveDraft, shouldAutosave])
+    dirtySinceRef.current ??= now
+    const debounceAt = Math.min(now + AUTOSAVE_DEBOUNCE_MS, dirtySinceRef.current + AUTOSAVE_MAX_DIRTY_MS)
+    const saveAt = Math.max(debounceAt, lastSaveAttemptAtRef.current + AUTOSAVE_MIN_INTERVAL_MS)
+    const scope = draftScopeRef.current
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => {
+      saveTimeoutRef.current = null
+      const pending = pendingResponsesRef.current
+      if (draftScopeRef.current === scope && pending) void saveDraft(pending, 'autosave')
+    }, Math.max(0, saveAt - now))
+  }
 
   function handleOptionSelect(questionId: string, optionIndex: number) {
     if (isInteractionLocked || submitting || loadingSaved) return
@@ -339,17 +435,7 @@ export function StudentTestForm({
           selected_option: optionIndex,
         },
       })
-      if (shouldAutosave) {
-        setSaveStatus('unsaved')
-        setAutosaveAnnouncement('Unsaved changes')
-        pendingResponsesRef.current = next
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current)
-        }
-        saveTimeoutRef.current = setTimeout(() => {
-          scheduleSave(next, { trigger: 'autosave' })
-        }, AUTOSAVE_DEBOUNCE_MS)
-      }
+      if (shouldAutosave) scheduleAutosave(next)
       return next
     })
   }
@@ -365,17 +451,7 @@ export function StudentTestForm({
           response_text: limited,
         },
       })
-      if (shouldAutosave) {
-        setSaveStatus('unsaved')
-        setAutosaveAnnouncement('Unsaved changes')
-        pendingResponsesRef.current = next
-        if (saveTimeoutRef.current) {
-          clearTimeout(saveTimeoutRef.current)
-        }
-        saveTimeoutRef.current = setTimeout(() => {
-          scheduleSave(next, { trigger: 'autosave' })
-        }, AUTOSAVE_DEBOUNCE_MS)
-      }
+      if (shouldAutosave) scheduleAutosave(next)
       return next
     })
   }
@@ -483,8 +559,8 @@ export function StudentTestForm({
     submissionUncertainRef.current = false
     onSubmissionStateChange?.(false)
     pendingResponsesRef.current = null
+    dirtySinceRef.current = null
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
     clearFlaggedQuestions(testId)
     setFlaggedQuestions([])
     onSubmitted()
@@ -504,10 +580,7 @@ export function StudentTestForm({
       if (response.ok && data.attempt && typeof data.attempt.is_submitted === 'boolean' && data.attempt.responses && typeof data.attempt.responses === 'object') {
         const saved = normalizeTestResponses(data.attempt.responses)
         const shown = normalizeTestResponses(responses)
-        const savedKeys = Object.keys(saved).sort()
-        const shownKeys = Object.keys(shown).sort()
-        const matches = JSON.stringify(savedKeys) === JSON.stringify(shownKeys)
-          && shownKeys.every(key => JSON.stringify(saved[key]) === JSON.stringify(shown[key]))
+        const matches = matchesResponses(saved, shown)
         if (matches && data.attempt.is_submitted) {
           setSubmissionUncertain(false)
           finishSubmission()
@@ -577,8 +650,7 @@ export function StudentTestForm({
 
       if (shouldAutosave) {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-        if (throttledSaveTimeoutRef.current) clearTimeout(throttledSaveTimeoutRef.current)
-        const saved = await saveDraft(responses, { trigger: 'blur', force: true })
+        const saved = await saveDraft(responses, 'blur')
         if (!saved) return
       }
       if (!mountedRef.current || draftScopeRef.current !== scope) return

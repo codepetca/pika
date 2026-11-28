@@ -12,6 +12,7 @@ import { TEST_OWNER_PRISTINE_DISCARD_SNAPSHOT_TABLES } from '../../scripts/conte
 import { validateTestOwnerCreateSnapshotCatalog, verifyTestOwnerCreatePrivilegeRestoration } from '../../scripts/check-contextual-test-owner-create-lifecycle'
 import { validateTestOwnerPublicationSnapshotCatalog, verifyTestOwnerPublicationPrivilegeRestoration } from '../../scripts/check-contextual-test-owner-publication-lifecycle'
 import { validateTestOwnerPristineDiscardSnapshotCatalog, verifyTestOwnerPristineDiscardPrivilegeRestoration } from '../../scripts/check-contextual-test-owner-pristine-discard-lifecycle'
+import { historicalReviewed332 } from '../helpers/historical-reviewed-332'
 
 const name = '253_classroom_test_tier_caps.sql'
 const sql = readFileSync(resolve(process.cwd(), 'supabase/migrations', name), 'utf8')
@@ -31,13 +32,16 @@ const profiles = [
 
 describe('externally sealed Test quota proof table addition', () => {
   it('admits only the exact complete billing tail in disposable quota proof catalogs', () => {
-    const current = loadAssignmentListReviewedMigrations(process.cwd())
+    const actual = loadAssignmentListReviewedMigrations(process.cwd())
+    const current = historicalReviewed332(actual)
     const canonical = ['public.tests']
     const at301 = classroomTestQuotaProofCatalog(canonical, current.slice(0, 301))
     expect(disposableClassroomTestQuotaProofCatalog(canonical, current)).toEqual([...at301, 'private.billing_scheduled_plan_changes', 'private.billing_classroom_restrictions', 'private.billing_assignment_release_intents', 'private.billing_live_trial_sources', 'private.billing_live_payment_target', 'private.billing_live_scheduled_cancellations', 'private.billing_live_email_notices', 'private.billing_live_full_refunds'].sort())
     expect(disposableClassroomTestQuotaProofCatalog(canonical, current.slice(0, 303))).toEqual(at301)
     expect(disposableClassroomTestQuotaProofCatalog(canonical, current.slice(0, 307))).toEqual([...at301, 'private.billing_scheduled_plan_changes'].sort())
     expect(() => classroomTestQuotaProofCatalog(canonical, current)).toThrow()
+    expect(actual.length).toBeGreaterThan(332)
+    expect(() => disposableClassroomTestQuotaProofCatalog(canonical, actual)).toThrow()
     const changed = current.map(row => ({ ...row }))
     changed[301].sql += '\n'
     changed[301].sha256 = createHash('sha256').update(changed[301].sql).digest('hex')

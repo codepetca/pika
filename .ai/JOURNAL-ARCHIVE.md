@@ -54631,3 +54631,17 @@ Set OpenAI GPT-6.1 Terra as the shared grading default for assignments, open res
 ## 2026-11-10 Closed Stripe setup and refund PR sync
 
 Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.
+
+<!-- pika-session-log-archive-batch:8fcbb48f7250a3583561b706b31d81703b572ac22dde9e72b4f6e18aac36441d -->
+## 2026-11-10 Sol assignment and test default
+
+Set the classroom grading default to GPT-6.1 Sol after the owner's model comparison. Assignment and test requests fall back to DeepSeek Flash on OpenAI's exact exhausted-credit code as well as the existing hard spend-limit codes. Repository review routing retains its previous default and fallback scope. Explicit provider/model overrides still apply. Regression coverage includes assignment and test/reference provenance, bounded error classification, and repository compatibility.
+
+## 2026-11-10 Pika recovery alerts Worker
+
+Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
+
+<!-- pika-session-log-archive-batch:2b50679ade2356b23403118d82c671fe6e52b5fcfb421c350d514502d4ec813a -->
+## 2026-11-10 RepoLight assignment timeline
+
+Added matched student assignment-period timeline with explicit evidence limits; focused tests passed. Visual fixture checked at desktop/mobile light; authenticated report and full theme matrix remain for review.

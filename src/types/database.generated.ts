@@ -13709,6 +13709,10 @@ export type Database = {
         Args: { p_actor_id: string; p_classroom_id: string }
         Returns: Json
       }
+      read_test_session_for_member_v1: {
+        Args: { p_actor_id: string; p_deadline: string; p_test_id: string }
+        Returns: Json
+      }
       read_verified_classroom_auto_admission_eligibility_v1: {
         Args: { p_actor_id: string; p_bootstrap_manifest_sha256: string }
         Returns: Json
@@ -15205,6 +15209,26 @@ export type Database = {
       test_document_snapshot_path_is_referenced: {
         Args: { p_storage_path: string }
         Returns: boolean
+      }
+      test_learner_save_with_history_v1: {
+        Args: {
+          p_actor_id: string
+          p_deadline: string
+          p_operation: string
+          p_payload: Json
+          p_test_id: string
+        }
+        Returns: Json
+      }
+      test_learner_self_mutation_v1: {
+        Args: {
+          p_actor_id: string
+          p_deadline: string
+          p_operation: string
+          p_payload: Json
+          p_test_id: string
+        }
+        Returns: Json
       }
       test_learner_workflow_v1: {
         Args: {

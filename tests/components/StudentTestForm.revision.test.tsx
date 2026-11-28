@@ -72,14 +72,18 @@ it('does not discard local answers or adopt a refreshed revision during an activ
 })
 
 it('does not submit after the required final draft save fails', async () => {
-  fetchMock.mockResolvedValueOnce({ ok:false, status:500, json:async () => ({error:'Save unavailable'}) })
+  fetchMock
+    .mockResolvedValueOnce({ ok:false, status:500, json:async () => ({error:'Save unavailable'}) })
+    .mockResolvedValueOnce(Response.json({ attempt: { draft_revision: 41, responses: {}, is_submitted: false } }))
   const onSubmitted = vi.fn()
   render(<StudentTestForm testId="revision-submit-failure" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
   fireEvent.change(screen.getByRole('textbox'), { target:{value:'Final answer'} })
   fireEvent.click(screen.getByRole('button', {name:'Submit'}))
   await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button',{name:'Submit'})) })
-  expect(fetchMock).toHaveBeenCalledTimes(1)
-  expect(fetchMock.mock.calls[0][0]).toContain('/attempt')
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[0][1].method).toBe('PATCH')
+  expect(fetchMock.mock.calls[1][0]).toContain('/attempt')
+  expect(fetchMock.mock.calls[1][1]).toMatchObject({ cache: 'no-store' })
   expect(onSubmitted).not.toHaveBeenCalled()
   expect(screen.getByRole('textbox')).toHaveValue('Final answer')
   expect(screen.getByRole('alert')).toHaveTextContent('Save unavailable')
@@ -97,19 +101,18 @@ it('flushes the latest pending draft with a blur save on genuine unmount', async
   expect(fetchMock).toHaveBeenCalledTimes(1)
 })
 
-it('forces a final draft save before submission even when the answer was already autosaved', async () => {
-  fetchMock.mockResolvedValueOnce(response(42)).mockResolvedValueOnce(response(43)).mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
+it('submits an already acknowledged draft without another save', async () => {
+  fetchMock.mockResolvedValueOnce(response(42)).mockResolvedValueOnce({ ok: true, json: async () => ({ success: true }) })
   const onSubmitted = vi.fn()
   render(<StudentTestForm testId="revision-submit-success" questions={questions} initialDraftRevision={41} enableDraftAutosave onSubmitted={onSubmitted} />)
   fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Final answer' } })
   await act(async () => { await vi.advanceTimersByTimeAsync(5000) })
   fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
   await act(async () => { fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Submit' })) })
-  expect(fetchMock).toHaveBeenCalledTimes(3)
-  expect(fetchMock.mock.calls[1][0]).toContain('/attempt')
-  expect(bodyAt(fetchMock, 1)).toMatchObject({ trigger: 'blur', expected_revision: 42 })
-  expect(fetchMock.mock.calls[2][0]).toContain('/respond')
-  expect(bodyAt(fetchMock, 2)).toMatchObject({ expected_revision: 43 })
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(fetchMock.mock.calls[0][0]).toContain('/attempt')
+  expect(fetchMock.mock.calls[1][0]).toContain('/respond')
+  expect(bodyAt(fetchMock, 1)).toMatchObject({ expected_revision: 42 })
   expect(onSubmitted).toHaveBeenCalledTimes(1)
 })
 
