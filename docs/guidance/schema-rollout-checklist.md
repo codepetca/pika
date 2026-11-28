@@ -72,33 +72,45 @@ and the separate RESPMax/HQ findings.
 
 ## AI Migration Application Authorization
 
-Migration application is human-controlled by default. An AI agent may execute it only when the user
-gives a direct, one-time instruction in the current task that names both the target environment
-(`local` or `production`) and the exact migration number(s) or filename(s). Broad requests
-such as "apply migrations", "continue", or approval from an earlier task are not authorization.
-Permission expires after one attempted non-dry-run application command and cannot be reused for a
-retry or a different target.
+Migration application is human-controlled by default. The owner granted standing authorization on
+2026-11-28 for an AI agent to replay reviewed migrations on a fresh, isolated local database that
+it owns and has verified contains no existing or real data. Before applying, verify the target is
+loopback and belongs to that disposable instance. Verify the complete migration inventory and
+numbering against the checkout and `origin/main`, confirm the historical files match their reviewed
+versions, and review the source of new migrations in the replay.
+Run the explicit `--local` dry-run and ensure it matches that inventory; after application, confirm
+the applied history matches the expected set. Stop on any target mismatch, drift, unexpected prompt,
+or partial failure; do not retry a partial application under this standing authorization.
+
+This authorization does not cover shared or canonical local databases, hosted or production targets,
+destructive operations on real state, migration history repair, or reset. Those operations retain
+their separate approval requirements. Subsection-specific restrictions also remain authoritative.
+For all other migration applications, the user must give a direct, one-time instruction in the current
+task naming the target and exact migration number(s) or filename(s). Broad requests such as "apply
+migrations", "continue", or approval from an earlier task are not authorization. Permission expires
+after one attempted non-dry-run application command and cannot be reused for a retry or a different
+target.
 
 Before applying an authorized migration:
 
-1. Resolve the repository root and verify the checkout containing the approved migration.
+1. Resolve the repository root and verify the checkout containing the reviewed migration.
 2. Verify the Supabase target binding without printing credentials or secrets.
 3. Run `supabase migration list` and then `supabase db push --dry-run` with the explicit `--local` or
-   `--linked` target. Stop if the preview includes any unapproved migration or history drift.
-4. Confirm applicable tests and migration replay checks passed. If the migration contains destructive
-   or irreversible SQL, the permission must explicitly acknowledge that impact.
+   `--linked` target. Stop if the preview includes any migration outside the authorized set or history drift.
+4. Confirm applicable tests and migration replay checks passed. For targets requiring one-time
+   permission, explicitly acknowledge the impact of any destructive or irreversible SQL.
 
 During and after application:
 
 - Apply reviewed migration files through `supabase db push` with the verified target flag. Do not
   paste migration SQL into the Dashboard SQL editor or `psql` unless separately authorized.
-- Apply only the approved migration set to the approved target. Do not add `--include-all`,
+- Apply only the authorized migration set to the verified target. Do not add `--include-all`,
   `--include-roles`, `--include-seed`, change the linked project, or use an alternate `--db-url`
   without separate permission.
 - Migration approval never authorizes `supabase db reset`, migration history repair, rollback/down
   operations, seeding, data cleanup, or Storage deletion. Each requires separate explicit approval.
 - Stop on unexpected prompts, target mismatches, extra migrations, or partial failure. Report the
-  durable state and obtain new permission before retrying.
+  durable state; obtain new permission before retrying a partial application.
 - Re-run `supabase migration list`, verify the relevant database contract with read-only checks, and
   report the target, applied migration numbers, and verification result without exposing secrets.
 
