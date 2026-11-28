@@ -85,7 +85,10 @@ describe('contextual learner Test route group', () => {
       expect(await response.json()).not.toMatchObject({ error: 'private' })
     }
     expect(requireRole).not.toHaveBeenCalled()
-    expect(rpc).toHaveBeenCalledWith(_name === 'session' ? 'read_test_session_for_member_v1' : 'test_learner_workflow_v1', expect.objectContaining({ p_actor_id: actor, p_test_id: testId }))
+    const expectedRpc = _name === 'session' ? 'read_test_session_for_member_v1'
+      : ['start', 'save', 'submit', 'focus'].includes(_name) ? 'test_learner_self_mutation_v1' : 'test_learner_workflow_v1'
+    expect(rpc).toHaveBeenCalledTimes(2)
+    expect(rpc).toHaveBeenCalledWith(expectedRpc, expect.objectContaining({ p_actor_id: actor, p_test_id: testId }))
   })
   it.each(cases)('rejects malformed admission before pending params/data for %s', async (_name, handler, method, body) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')

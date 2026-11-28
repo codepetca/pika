@@ -98,24 +98,27 @@ export function isAllowedAppPath(path: string) {
   return /^\/api\/(?:student|teacher)\/tests\/[a-f0-9-]+(?:\/[a-z-]+)?$/.test(path)
 }
 export function createOwnedGateway(rpcCounts = new Map<string, number>(), port = 54331, useKong = false,
-  rpcErrors = new Map<string, number>(), learnerOperations = new Map<string, number>()) {
+  rpcErrors = new Map<string, number>(), learnerOperations = new Map<string, number>(),
+  learnerOperationsByRpc = new Map<string, number>()) {
   return createServer((req, res) => {
     if (!isOwnedRestPath(req.url)) { res.writeHead(404).end(); return }
     const rpc = req.url!.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)(?:\?|$)/)?.[1]
     if (rpc) rpcCounts.set(rpc, (rpcCounts.get(rpc) ?? 0) + 1)
     let operationPrefix = ''
-    if (rpc === 'test_learner_workflow_v1') {
+    if (rpc === 'test_learner_workflow_v1' || rpc === 'test_learner_self_mutation_v1') {
       // Only the fixed operation value is counted. Never retain or print the body.
       req.on('data', (chunk: Buffer) => {
         if (operationPrefix.length < 512) operationPrefix += chunk.toString('utf8', 0, 512 - operationPrefix.length)
       })
     }
     const upstream = httpRequest({ hostname: '127.0.0.1', port, path: useKong ? req.url! : req.url!.slice('/rest/v1'.length), method: req.method, headers: { ...req.headers, host: `127.0.0.1:${port}` }, timeout: 20000 }, incoming => {
-      if (rpc === 'test_learner_workflow_v1') {
+      if (rpc === 'test_learner_workflow_v1' || rpc === 'test_learner_self_mutation_v1') {
         const operation = operationPrefix.match(/"p_operation"\s*:\s*"(inspect|detail|start|save|submit|recover|session|history|focus|results|document|history-plan|history-write)"/)?.[1] ?? 'unknown'
         operationPrefix = ''
         const key = `${operation}:${incoming.statusCode ?? 500}`
         learnerOperations.set(key, (learnerOperations.get(key) ?? 0) + 1)
+        const rpcKey = `${rpc}:${key}`
+        learnerOperationsByRpc.set(rpcKey, (learnerOperationsByRpc.get(rpcKey) ?? 0) + 1)
       }
       if ((incoming.statusCode ?? 500) >= 300 && (incoming.statusCode ?? 500) < 400) { incoming.resume(); res.writeHead(502).end(); return }
       if (rpc && (incoming.statusCode ?? 500) >= 400) {
@@ -135,6 +138,18 @@ export function createOwnedGateway(rpcCounts = new Map<string, number>(), port =
     upstream.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end() })
     req.pipe(upstream)
   })
+}
+/** Direct-path evidence is required only when migration 334 is present. */
+export function attestDirectMutations(count: number, operations: Map<string, number>, errors: Map<string, number>) {
+  const direct = 'test_learner_self_mutation_v1', legacy = 'test_learner_workflow_v1'
+  for (const [operation, expected] of [['start', count], ['save', count * 2], ['submit', count], ['focus', count]] as const) {
+    assert.equal(operations.get(`${direct}:${operation}:200`) ?? 0, expected, `Direct ${operation} count mismatch`)
+    const legacySuccesses = [...operations].filter(([key]) => new RegExp(`^${legacy}:${operation}:2[0-9][0-9]$`).test(key)).reduce((sum, [, n]) => sum + n, 0)
+    assert.equal(legacySuccesses, 0, `Legacy ${operation} fallback succeeded`)
+  }
+  assert.equal([...operations].filter(([key]) => /:inspect:/.test(key)).reduce((sum, [, n]) => sum + n, 0), 0, 'Unexpected inspect')
+  assert(![...operations.keys()].some(key => key.includes(':unknown:')), 'Unclassified learner RPC operation')
+  assert(![...errors.keys()].some(key => key.startsWith(`${direct}:`) && (key.includes(':PGRST202') || key.includes(':404:'))), 'Direct mutation RPC missing')
 }
 async function stopApp(child: ChildProcess) {
   if (!child.pid) return
@@ -177,7 +192,8 @@ async function main() {
   const rpcCounts = new Map<string, number>()
   const rpcErrors = new Map<string, number>()
   const learnerOperations = new Map<string, number>()
-  const gateway = createOwnedGateway(rpcCounts, selected.mode === 'supabase' ? selected.port : 54331, selected.mode === 'supabase', rpcErrors, learnerOperations); let gatewayOpen = false, app: ChildProcess | undefined, fixtureAttempted = false, completed = false, cleanupVerified = false
+  const learnerOperationsByRpc = new Map<string, number>()
+  const gateway = createOwnedGateway(rpcCounts, selected.mode === 'supabase' ? selected.port : 54331, selected.mode === 'supabase', rpcErrors, learnerOperations, learnerOperationsByRpc); let gatewayOpen = false, app: ChildProcess | undefined, fixtureAttempted = false, completed = false, cleanupVerified = false
   const marker = randomUUID(), teacher = randomUUID(), classrooms = [randomUUID(), randomUUID()]
   const tests = [randomUUID(), randomUUID(), randomUUID()], question = randomUUID()
   const learners = Array.from({ length: count }, () => randomUUID()), users = [teacher, ...learners]
@@ -245,12 +261,16 @@ values ${learners.map(id => `(${q(tests[0])},${q(id)},'open',${q(teacher)})`).jo
     }
     stage = 'http-workload'
     const result = await runMixedHttpLoad({ learners: learners.map((studentId, i) => ({ studentId, cookie: cookies[i + 1] })), teacherCookie: cookies[0], testId: tests[0], questionId: question, sameClassTestId: tests[1], otherClassTestId: tests[2] }, dispatch)
-    process.stdout.write(`${JSON.stringify({ phase: 'http', warmRoutes, summaries: result.summaries, rpcs: Object.fromEntries(rpcCounts), rpcErrors: Object.fromEntries(rpcErrors), learnerOperations: Object.fromEntries(learnerOperations) })}\n`)
+    process.stdout.write(`${JSON.stringify({ phase: 'http', warmRoutes, summaries: result.summaries, rpcs: Object.fromEntries(rpcCounts), rpcErrors: Object.fromEntries(rpcErrors), learnerOperations: Object.fromEntries(learnerOperations), learnerOperationsByRpc: Object.fromEntries(learnerOperationsByRpc) })}\n`)
     assert(result.expected, 'HTTP workload failed')
     assert((rpcCounts.get('test_learner_workflow_v1') ?? 0) >= count, 'Contextual learner path was not exercised')
+    const directMutation = sql(selected, "select (to_regprocedure('public.test_learner_self_mutation_v1(uuid,uuid,text,jsonb,timestamp with time zone)') is not null)::text;") === 'true'
+    if (directMutation) attestDirectMutations(count, learnerOperationsByRpc, rpcErrors)
     const compact = sql(selected, "select (to_regprocedure('public.read_test_session_for_member_v1(uuid,uuid,timestamp with time zone)') is not null)::text;")
     if (compact === 'true') {
       assert.equal(rpcCounts.get('read_test_session_for_member_v1'), count, 'Compact session path was not exercised')
+      assert(![...rpcErrors.keys()].some(key => key.startsWith('read_test_session_for_member_v1:')) &&
+        ![...learnerOperations.keys()].some(key => key.startsWith('session:')), 'Compact session failed or fell back')
     }
     stage = 'final-verification'
     const actual = JSON.parse(sql(selected, `select json_build_object('attempts',(select coalesce(json_agg(json_build_object('student',student_id,'responses',responses,'submitted',is_submitted) order by student_id),'[]') from public.test_attempts where test_id=${q(tests[0])}),'responses',(select coalesce(json_agg(json_build_object('student',student_id,'question',question_id,'text',response_text,'selected',selected_option) order by student_id),'[]') from public.test_responses where test_id=${q(tests[0])}),'focus',(select coalesce(json_agg(json_build_object('student',student_id,'event',event_type) order by student_id),'[]') from public.test_focus_events where test_id=${q(tests[0])}));`))
@@ -259,6 +279,15 @@ values ${learners.map(id => `(${q(tests[0])},${q(id)},'open',${q(teacher)})`).jo
     assert.deepEqual(actual.responses, ordered.map(e => ({ student: e.studentId, question, text: e.responses[question].response_text, selected: null })))
     assert.deepEqual(actual.focus, ordered.map(e => ({ student: e.studentId, event: 'away_start' })))
     process.stdout.write(`${JSON.stringify({ phase: 'final-rows', verified: count })}\n`)
+    if (directMutation) {
+      const history = JSON.parse(sql(selected, `select coalesce(json_agg(json_build_object('student',a.student_id,'trigger',h.trigger,'snapshot',h.snapshot) order by a.student_id),'[]') from public.test_attempts a join lateral (select trigger,snapshot from public.test_attempt_history where test_attempt_id=a.id order by created_at desc,id desc limit 1) h on true where a.test_id=${q(tests[0])} and h.trigger='submit';`))
+      if (history.length !== count) {
+        process.stdout.write(`${JSON.stringify({ phase: 'submit-history', result: 'missing', expected: count, found: history.length })}\n`)
+        assert.fail('Submit history missing')
+      }
+      assert.deepEqual(history, ordered.map(e => ({ student: e.studentId, trigger: 'submit', snapshot: e.responses })), 'Submit history differs from persisted answers')
+      process.stdout.write(`${JSON.stringify({ phase: 'submit-history', result: 'verified', count })}\n`)
+    }
     completed = true
   } finally {
     if (app) await stopApp(app)

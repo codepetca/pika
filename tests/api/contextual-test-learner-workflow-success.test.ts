@@ -52,6 +52,8 @@ type Args = { p_operation: TestLearnerOperation; p_payload: Record<string, unkno
 let resultFor: (args: Args) => unknown
 let errorFor: (args: Args) => string | undefined
 const calls = () => rpc.mock.calls.map(([,args]) => args.p_operation)
+const missingMutation = { data: null, status: 404, error: { code: 'PGRST202',
+  message: 'Could not find the function public.test_learner_self_mutation_v1(p_actor_id, p_deadline, p_operation, p_payload, p_test_id) in the schema cache' } }
 describe('contextual learner Test positive dispatcher and dependent boundaries', () => {
   beforeEach(() => {
     vi.clearAllMocks(); vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', JSON.stringify({ version: 1, admittedUserIds: [actor] }))
@@ -130,9 +132,34 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
   it('separately CAS-writes successful save history at the exact post-save revision', async () => {
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ attempt, historyEntry })
-    expect(calls()).toEqual(['inspect','save','history-plan','history-write'])
-    expect(rpc).toHaveBeenLastCalledWith('test_learner_workflow_v1', expect.objectContaining({ p_payload: expect.objectContaining({
+    expect(calls()).toEqual(['save','history-plan','history-write'])
+    expect(rpc.mock.calls[0][0]).toBe('test_learner_self_mutation_v1')
+    expect(rpc.mock.calls[0][1]).not.toHaveProperty('p_classroom_id')
+    expect(rpc).toHaveBeenLastCalledWith('test_learner_workflow_v1', expect.objectContaining({ p_classroom_id: classroom, p_payload: expect.objectContaining({
       attempt_id: attemptId, draft_revision: 12, expected_last: null, collapse: false, patch: null, snapshot: answers, trigger: 'baseline' }) }))
+  })
+  it('uses the previous protected path only when the new mutation RPC is definitively missing', async () => {
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => missingMutation }))
+    expect((await start(req('POST'),ctx)).status).toBe(200)
+    expect(calls()).toEqual(['start','inspect','start'])
+    expect(rpc.mock.calls[2][1]).toMatchObject({ p_classroom_id: classroom, p_deadline: rpc.mock.calls[0][1].p_deadline })
+  })
+  it.each([
+    { ...missingMutation, status: 503 },
+    { ...missingMutation, data: {} },
+    { ...missingMutation, error: { ...missingMutation.error, message: 'Could not find the function public.test_learner_self_mutation_v1_other()' } },
+    { data: null, status: 503, error: { code: '57014', message: 'unknown commit outcome' } },
+  ])('does not redispatch a write after an ambiguous gateway reply %#', async reply => {
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => reply }))
+    expect((await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)).status).toBe(503)
+    expect(rpc).toHaveBeenCalledOnce()
+  })
+  it('retries a confirmed rolled-back Busy on the direct path with the exact same request', async () => {
+    rpc.mockImplementationOnce(() => ({ abortSignal: async () => ({ data: null, status: 409,
+      error: { code: 'PT409', message: 'test_learner_busy' } }) }))
+    expect((await start(req('POST'),ctx)).status).toBe(200)
+    expect(calls()).toEqual(['start','start'])
+    expect(rpc.mock.calls[0]).toEqual(rpc.mock.calls[1])
   })
   it('stores a compact patch after the collapse window when unchanged content makes a snapshot larger', async () => {
     const previous = { [questionId]: { question_type: 'multiple_choice', selected_option: 0 },
@@ -163,7 +190,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
   it('does not append autosave history when normalized answers did not change', async () => {
     const base = resultFor; resultFor = args => args.p_operation === 'save' ? { created: false, previous_responses: answers, attempt } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
-    expect(await response.json()).toEqual({ attempt, historyEntry: null }); expect(calls()).toEqual(['inspect','save'])
+    expect(await response.json()).toEqual({ attempt, historyEntry: null }); expect(calls()).toEqual(['save'])
   })
   it.each(['attempt','revision','responses','last-entry-attempt'])('skips history without rolling back answers after a %s plan mismatch', async mismatch => {
     const base = resultFor; resultFor = args => args.p_operation === 'history-plan' ? { attempt: { ...attempt,
@@ -171,7 +198,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     last_history: mismatch === 'last-entry-attempt' ? { ...historyEntry, test_attempt_id: objectId } : null } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(200); expect(await response.json()).toEqual({ attempt, historyEntry: null })
-    expect(calls()).toEqual(['inspect','save','history-plan'])
+    expect(calls()).toEqual(['save','history-plan'])
   })
   it.each(['history-plan','history-write'])('preserves successful answers/submission when best-effort %s fails', async failed => {
     errorFor = ({ p_operation }) => p_operation === failed ? 'PT409' : undefined
@@ -184,7 +211,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
     const base = resultFor; resultFor = args => args.p_operation === 'save' ? { conflict: true, attempt } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
     expect(response.status).toBe(409); expect(await response.json()).toMatchObject({ error_code: 'test_attempt_revision_conflict', attempt })
-    expect(calls()).toEqual(['inspect','save'])
+    expect(calls()).toEqual(['save'])
   })
   it('delivers an exact private file only after the protected post-Storage tuple recheck', async () => {
     const response = await file(req(),ctx)

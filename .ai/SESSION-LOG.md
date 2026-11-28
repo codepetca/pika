@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 Sol assignment and test default
-
-Set the classroom grading default to GPT-6.1 Sol after the owner's model comparison. Assignment and test requests fall back to DeepSeek Flash on OpenAI's exact exhausted-credit code as well as the existing hard spend-limit codes. Repository review routing retains its previous default and fallback scope. Explicit provider/model overrides still apply. Regression coverage includes assignment and test/reference provenance, bounded error classification, and repository compatibility.
-
 ## 2026-11-10 Pika recovery alerts Worker
 
 Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
@@ -205,3 +201,7 @@ Risk: exam-mode, workspace-state, runtime-platform. Intent: continuous Student T
 Terra medium built the isolated HTTP runner. Sol high implemented compact session source and preserved the historical profile seals. Astra high reviewed access, deadlines and the next load reduction. Native checks passed on the authorized disposable candidate replay 001–333. The deployed baseline replay 001–332 reproduced Busy retries and database deadline rejection. The candidate caps its database deadline with 1 second of clock headroom.
 
 All four 30-learner runs verified submissions and exact rows. One of three 40-learner runs verified all submissions, while two stopped after an autosave 409. An instrumented warm run confirmed the 409 was Busy. Preflight `inspect` caused 185 of 429 busy RPC attempts at 30 and 290 of 662 in the successful warm 40 run. Test removing the redundant exclusive learner preflight while preserving the locked mutation’s authority and revision checks. Compact teacher polling remains a separate change. Keep production release on hold until repeated 40-learner runs meet both integrity and latency goals.
+
+## 2026-11-28 — Live Test single-call learner mutations
+
+Migration 334 adds an invoker RPC for own Start, save, submit and focus events. It discovers the Test parent and passes the exact parent to the existing locked write. Its confirmed-missing fallback retains the previous contextual transaction path. Independent Astra high authority review and Sol high compatibility review accompany the 40-learner comparison. The runner attests zero preflight `inspect` calls and checks final history alongside submitted answers. No production change was authorized.

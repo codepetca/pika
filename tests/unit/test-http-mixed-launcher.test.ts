@@ -36,3 +36,54 @@ describe('Supabase CLI target attestation', () => {
     expect(() => validateSupabaseTarget(db, { ...rest, Config: { ...rest.Config, Env: ['PGRST_DB_URI=postgres://authenticator:secret@elsewhere:5432/postgres'] } }, kong, project, 55421, config)).toThrow()
   })
 })
+
+import { attestDirectMutations } from '../../scripts/test-http-mixed-launcher'
+
+describe('direct mutation attestation', () => {
+  const operations = () => new Map([
+    ['test_learner_self_mutation_v1:start:200', 2],
+    ['test_learner_self_mutation_v1:save:200', 4],
+    ['test_learner_self_mutation_v1:submit:200', 2],
+    ['test_learner_self_mutation_v1:focus:200', 2],
+    ['test_learner_workflow_v1:history-write:200', 2],
+  ])
+  it('requires the complete direct path and rejects fallback, inspect and missing RPC', () => {
+    expect(() => attestDirectMutations(2, operations(), new Map())).not.toThrow()
+    for (const [key, value] of [
+      ['test_learner_self_mutation_v1:save:200', 3],
+      ['test_learner_workflow_v1:start:200', 1],
+      ['test_learner_workflow_v1:inspect:200', 1],
+    ] as const) {
+      const counts = operations(); counts.set(key, value)
+      expect(() => attestDirectMutations(2, counts, new Map())).toThrow()
+    }
+    expect(() => attestDirectMutations(2, operations(), new Map([['test_learner_self_mutation_v1:404:PGRST202', 1]]))).toThrow()
+  })
+})
+
+describe('learner operation gateway counters', () => {
+  it('counts both RPCs by allowlisted operation without retaining payloads', async () => {
+    const { createServer } = await import('node:http')
+    const { createOwnedGateway } = await import('../../scripts/test-http-mixed-launcher')
+    const upstream = createServer((req, res) => { req.resume(); req.on('end', () => res.writeHead(200).end('{}')) })
+    await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve))
+    const upstreamAddress = upstream.address()
+    if (!upstreamAddress || typeof upstreamAddress === 'string') throw new Error('missing upstream address')
+    const aggregate = new Map<string, number>(), byRpc = new Map<string, number>()
+    const gateway = createOwnedGateway(new Map(), upstreamAddress.port, false, new Map(), aggregate, byRpc)
+    await new Promise<void>(resolve => gateway.listen(0, '127.0.0.1', resolve))
+    const address = gateway.address()
+    if (!address || typeof address === 'string') throw new Error('missing gateway address')
+    try {
+      for (const rpc of ['test_learner_workflow_v1', 'test_learner_self_mutation_v1']) {
+        const response = await fetch(`http://127.0.0.1:${address.port}/rest/v1/rpc/${rpc}`, { method: 'POST', body: JSON.stringify({ p_operation: 'save', p_payload: 'private' }) })
+        expect(response.status).toBe(200)
+        await response.text()
+      }
+      expect(Object.fromEntries(aggregate)).toEqual({ 'save:200': 2 })
+      expect(Object.fromEntries(byRpc)).toEqual({ 'test_learner_workflow_v1:save:200': 1, 'test_learner_self_mutation_v1:save:200': 1 })
+    } finally {
+      await Promise.all([new Promise<void>(resolve => gateway.close(() => resolve())), new Promise<void>(resolve => upstream.close(() => resolve()))])
+    }
+  })
+})
