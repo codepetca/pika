@@ -4,12 +4,14 @@ import { getStudentTestStatus } from '@/lib/tests'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import { contextualTestDraftGetRpcEnvelopeSchema } from '@/lib/validations/contextual-test-draft-get'
 import { testLearnerIdentitySchema } from '@/lib/validations/contextual-test-learner-workflow'
+import { formatTestWorkflowDeadline } from '@/lib/validations/contextual-test-owner-workflow'
 import { TEST_SESSION_READ_BYTES, testSessionReadSnapshotSchema } from '@/lib/validations/contextual-test-session-read'
+import type { Database } from '@/types/database.generated'
 
-/** Exact source signature until the coordinator installs genuine CLI metadata. */
-export type TestSessionReadClient = { rpc(name: 'read_test_session_for_member_v1', args: {
-  p_actor_id: string; p_test_id: string; p_deadline: string;
-}): { abortSignal(signal: AbortSignal): PromiseLike<unknown> } }
+type SessionReadArgs = Database['public']['Functions']['read_test_session_for_member_v1']['Args']
+type TestSessionReadClient = { rpc(name: 'read_test_session_for_member_v1', args: SessionReadArgs): {
+  abortSignal(signal: AbortSignal): PromiseLike<unknown>
+} }
 const unavailable = () => new ApiError(503, 'Unable to verify test operation')
 
 export function presentContextualTestSession(projection: { testId: string; test_status: 'active' | 'closed';
@@ -41,7 +43,7 @@ export async function readContextualTestSession(input: { supabase: TestSessionRe
   try {
     const raw = await Promise.race([
       input.supabase.rpc('read_test_session_for_member_v1', { p_actor_id: identity.actorId,
-        p_test_id: identity.testId, p_deadline: new Date(input.deadline).toISOString() }).abortSignal(controller.signal),
+        p_test_id: identity.testId, p_deadline: formatTestWorkflowDeadline(input.deadline) }).abortSignal(controller.signal),
       new Promise<never>((_, reject) => {
         abort = () => { controller.abort(); reject(unavailable()) }
         input.signal?.addEventListener('abort', abort, { once: true })

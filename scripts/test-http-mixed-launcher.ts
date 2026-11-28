@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { createServer, request as httpRequest, type Server } from 'node:http'
-import { copyFileSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { appendFileSync, copyFileSync, cpSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { sealData } from 'iron-session'
@@ -97,13 +97,37 @@ export function isOwnedRestPath(path: string | undefined) {
 export function isAllowedAppPath(path: string) {
   return /^\/api\/(?:student|teacher)\/tests\/[a-f0-9-]+(?:\/[a-z-]+)?$/.test(path)
 }
-export function createOwnedGateway(rpcCounts = new Map<string, number>(), port = 54331, useKong = false) {
+export function createOwnedGateway(rpcCounts = new Map<string, number>(), port = 54331, useKong = false,
+  rpcErrors = new Map<string, number>(), learnerOperations = new Map<string, number>()) {
   return createServer((req, res) => {
     if (!isOwnedRestPath(req.url)) { res.writeHead(404).end(); return }
     const rpc = req.url!.match(/^\/rest\/v1\/rpc\/([a-z0-9_]+)(?:\?|$)/)?.[1]
     if (rpc) rpcCounts.set(rpc, (rpcCounts.get(rpc) ?? 0) + 1)
+    let operationPrefix = ''
+    if (rpc === 'test_learner_workflow_v1') {
+      // Only the fixed operation value is counted. Never retain or print the body.
+      req.on('data', (chunk: Buffer) => {
+        if (operationPrefix.length < 512) operationPrefix += chunk.toString('utf8', 0, 512 - operationPrefix.length)
+      })
+    }
     const upstream = httpRequest({ hostname: '127.0.0.1', port, path: useKong ? req.url! : req.url!.slice('/rest/v1'.length), method: req.method, headers: { ...req.headers, host: `127.0.0.1:${port}` }, timeout: 20000 }, incoming => {
+      if (rpc === 'test_learner_workflow_v1') {
+        const operation = operationPrefix.match(/"p_operation"\s*:\s*"(inspect|detail|start|save|submit|recover|session|history|focus|results|document|history-plan|history-write)"/)?.[1] ?? 'unknown'
+        operationPrefix = ''
+        const key = `${operation}:${incoming.statusCode ?? 500}`
+        learnerOperations.set(key, (learnerOperations.get(key) ?? 0) + 1)
+      }
       if ((incoming.statusCode ?? 500) >= 300 && (incoming.statusCode ?? 500) < 400) { incoming.resume(); res.writeHead(502).end(); return }
+      if (rpc && (incoming.statusCode ?? 500) >= 400) {
+        let sample = ''
+        incoming.on('data', (chunk: Buffer) => { if (sample.length < 1024) sample += chunk.toString('utf8', 0, 1024 - sample.length) })
+        incoming.on('end', () => {
+          const rpcCode = sample.match(/"code"\s*:\s*"((?:PT[0-9]{3}|PGRST[0-9]{3}|[0-9A-Z]{5}))"/)?.[1] ?? 'unknown'
+          const reason = sample.match(/"message"\s*:\s*"(test_(?:learner|owner)_(?:invalid_input|invalid_deadline|invalid_focus_event|busy|deadline))"/)?.[1]
+          const key = `${rpc}:${incoming.statusCode ?? 500}:${rpcCode}${reason ? `:${reason}` : ''}`
+          rpcErrors.set(key, (rpcErrors.get(key) ?? 0) + 1)
+        })
+      }
       res.writeHead(incoming.statusCode ?? 502, incoming.headers); incoming.pipe(res)
     })
     res.on('close', () => upstream.destroy())
@@ -124,6 +148,7 @@ async function stopApp(child: ChildProcess) {
   await exited
 }
 let stage = 'arguments'
+let diagnosticPath: string | undefined
 async function main() {
   const args = process.argv.slice(2)
   let selected: Target, countArg: string
@@ -141,17 +166,28 @@ async function main() {
   stage = 'target-attestation'
   target(selected)
   const root = resolve(process.cwd()), scratch = mkdtempSync(join(tmpdir(), 'pika-http-load-'))
+  const diagnosticDir = mkdtempSync(join(tmpdir(), 'pika-http-diagnostics-'))
+  diagnosticPath = join(diagnosticDir, 'app.log')
+  writeFileSync(diagnosticPath, '', { mode: 0o600 })
+  let diagnosticBytes = 0
+  const capture = (chunk: Buffer) => {
+    const remaining = 512 * 1024 - diagnosticBytes
+    if (remaining > 0) { const part = chunk.subarray(0, remaining); appendFileSync(diagnosticPath!, part); diagnosticBytes += part.length }
+  }
   const rpcCounts = new Map<string, number>()
-  const gateway = createOwnedGateway(rpcCounts, selected.mode === 'supabase' ? selected.port : 54331, selected.mode === 'supabase'); let gatewayOpen = false, app: ChildProcess | undefined, fixtureAttempted = false
+  const rpcErrors = new Map<string, number>()
+  const learnerOperations = new Map<string, number>()
+  const gateway = createOwnedGateway(rpcCounts, selected.mode === 'supabase' ? selected.port : 54331, selected.mode === 'supabase', rpcErrors, learnerOperations); let gatewayOpen = false, app: ChildProcess | undefined, fixtureAttempted = false, completed = false, cleanupVerified = false
   const marker = randomUUID(), teacher = randomUUID(), classrooms = [randomUUID(), randomUUID()]
   const tests = [randomUUID(), randomUUID(), randomUUID()], question = randomUUID()
   const learners = Array.from({ length: count }, () => randomUUID()), users = [teacher, ...learners]
   const tokens = users.map(() => randomBytes(32).toString('base64url'))
   const secret = randomBytes(32).toString('hex')
   try {
-    // A fresh directory contains no .env files; source and dependencies are the
-    // only links. The child gets an allowlisted environment, never the shell's.
-    for (const name of ['src', 'public', 'node_modules']) symlinkSync(join(root, name), join(scratch, name))
+    // Next route discovery does not traverse a symlinked src directory. Copy
+    // source into the env-free scratch project; link only public and dependencies.
+    cpSync(join(root, 'src'), join(scratch, 'src'), { recursive: true })
+    for (const name of ['public', 'node_modules']) symlinkSync(join(root, name), join(scratch, name))
     for (const name of ['package.json', 'next.config.js', 'tsconfig.json', 'postcss.config.js', 'tailwind.config.ts']) copyFileSync(join(root, name), join(scratch, name))
     stage = 'app-startup'
     const gatewayPort = await listen(gateway); gatewayOpen = true
@@ -166,8 +202,8 @@ async function main() {
       const timer = setTimeout(() => reject(new Error('owned app startup timeout')), 120000)
       const fail = () => { clearTimeout(timer); reject(new Error('owned app startup failed')) }
       app!.once('error', fail); app!.once('exit', fail)
-      app!.stdout!.on('data', chunk => { if (String(chunk).includes('Ready')) { clearTimeout(timer); app!.off('exit', fail); resolveReady() } })
-      app!.stderr!.resume()
+      app!.stdout!.on('data', (chunk: Buffer) => { capture(chunk); if (String(chunk).includes('Ready')) { clearTimeout(timer); app!.off('exit', fail); resolveReady() } })
+      app!.stderr!.on('data', capture)
     })
     stage = 'fixture-setup'
     assert.equal(sql(selected, `select (select count(*) from public.users where id in (${users.map(q).join(',')}))+(select count(*) from public.classrooms where id in (${classrooms.map(q).join(',')}))+(select count(*) from public.tests where id in (${tests.map(q).join(',')}));`), '0', 'fixture IDs unavailable')
@@ -188,11 +224,28 @@ values ${learners.map(id => `(${q(tests[0])},${q(id)},'open',${q(teacher)})`).jo
       assert(isAllowedAppPath(path))
       const response = await fetch(`http://127.0.0.1:${appPort}${path}`, { method, headers: { cookie, ...(body === undefined ? {} : { 'content-type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), redirect: 'manual', signal: AbortSignal.timeout(30000) })
       if (response.status >= 300 && response.status < 400) return { status: response.status, body: null }
-      return { status: response.status, body: await response.json() }
+      const text = await response.text()
+      let responseBody: unknown = null
+      try { responseBody = JSON.parse(text) } catch { /* retain the HTTP status, never log body */ }
+      return { status: response.status, body: responseBody }
+    }
+    const warmRoutes = process.env.TEST_LOAD_WARM_ROUTES === '1'
+    if (warmRoutes) {
+      stage = 'warm-routes'
+      const studentPath = `/api/student/tests/${tests[0]}`
+      for (const [method, path] of [
+        ['POST', `${studentPath}/start`], ['GET', `${studentPath}/session-status`],
+        ['POST', `${studentPath}/focus-events`], ['PATCH', `${studentPath}/attempt`],
+        ['POST', `${studentPath}/respond`], ['GET', `/api/teacher/tests/${tests[0]}/results`],
+      ] as const) {
+        const warm = await dispatch({ method, path, cookie: '' })
+        assert.equal(warm.status, 401, 'Warm-up must decline the unauthenticated request')
+      }
+      assert.equal(rpcCounts.size, 0, 'Warm-up must not access Test RPCs')
     }
     stage = 'http-workload'
     const result = await runMixedHttpLoad({ learners: learners.map((studentId, i) => ({ studentId, cookie: cookies[i + 1] })), teacherCookie: cookies[0], testId: tests[0], questionId: question, sameClassTestId: tests[1], otherClassTestId: tests[2] }, dispatch)
-    process.stdout.write(`${JSON.stringify({ phase: 'http', summaries: result.summaries, rpcs: Object.fromEntries(rpcCounts) })}\n`)
+    process.stdout.write(`${JSON.stringify({ phase: 'http', warmRoutes, summaries: result.summaries, rpcs: Object.fromEntries(rpcCounts), rpcErrors: Object.fromEntries(rpcErrors), learnerOperations: Object.fromEntries(learnerOperations) })}\n`)
     assert(result.expected, 'HTTP workload failed')
     assert((rpcCounts.get('test_learner_workflow_v1') ?? 0) >= count, 'Contextual learner path was not exercised')
     const compact = sql(selected, "select (to_regprocedure('public.read_test_session_for_member_v1(uuid,uuid,timestamp with time zone)') is not null)::text;")
@@ -206,6 +259,7 @@ values ${learners.map(id => `(${q(tests[0])},${q(id)},'open',${q(teacher)})`).jo
     assert.deepEqual(actual.responses, ordered.map(e => ({ student: e.studentId, question, text: e.responses[question].response_text, selected: null })))
     assert.deepEqual(actual.focus, ordered.map(e => ({ student: e.studentId, event: 'away_start' })))
     process.stdout.write(`${JSON.stringify({ phase: 'final-rows', verified: count })}\n`)
+    completed = true
   } finally {
     if (app) await stopApp(app)
     if (gatewayOpen) await close(gateway)
@@ -215,10 +269,14 @@ values ${learners.map(id => `(${q(tests[0])},${q(id)},'open',${q(teacher)})`).jo
         stage = 'cleanup'
         sql(selected, `begin;delete from public.classrooms where id in (${classrooms.map(q).join(',')}) and teacher_id=${q(teacher)};delete from public.users where ${users.map((id, i) => `(id=${q(id)} and email=${q(`load-${marker}-${i}@example.invalid`)})`).join(' or ')};commit;`)
         assert.equal(sql(selected, `select (select count(*) from public.users where id in (${users.map(q).join(',')}))+(select count(*) from public.classrooms where id in (${classrooms.map(q).join(',')}))+(select count(*) from public.tests where id in (${tests.map(q).join(',')}))+(select count(*) from public.test_attempts where test_id in (${tests.map(q).join(',')}))+(select count(*) from public.test_responses where test_id in (${tests.map(q).join(',')}))+(select count(*) from public.test_focus_events where test_id in (${tests.map(q).join(',')}));`), '0')
+        cleanupVerified = true
         process.stdout.write(`${JSON.stringify({ phase: 'cleanup', verified: true })}\n`)
         stage = previousStage
       }
-    } finally { rmSync(scratch, { recursive: true, force: true }) }
+    } finally {
+      rmSync(scratch, { recursive: true, force: true })
+      if (completed && cleanupVerified) { rmSync(diagnosticDir, { recursive: true, force: true }); diagnosticPath = undefined }
+    }
   }
 }
-if (process.argv[1]?.endsWith('/test-http-mixed-launcher.ts')) main().catch(() => { console.error(`Mixed HTTP rehearsal failed during ${stage}; destroy the disposable target if cleanup was not verified.`); process.exitCode = 1 })
+if (process.argv[1]?.endsWith('/test-http-mixed-launcher.ts')) main().catch(() => { console.error(`Mixed HTTP rehearsal failed during ${stage}; private app diagnostics: ${diagnosticPath ?? 'unavailable'}. Destroy the disposable target if cleanup was not verified.`); process.exitCode = 1 })

@@ -26,7 +26,7 @@ describe('installed SDK contextual whole-Test deletion', () => {
     const calls = network.mock.calls.map(call => JSON.parse(String(call[1]?.body)))
     expect(calls.map(call => call.p_operation)).toEqual(['inspect', 'delete'])
     expect(calls[1]).toEqual({ p_actor_id: actor, p_test_id: id, p_classroom_id: classroom, p_operation: 'delete', p_payload: {}, p_expected_test: test, p_deadline: calls[0].p_deadline })
-    expect(calls[0].p_deadline).toBe('2026-10-09T12:00:30.000Z')
+    expect(calls[0].p_deadline).toBe('2026-10-09T12:00:29.000Z')
   })
   it.each(['actor_id', 'test_id', 'classroom_id', 'operation', 'version', 'unknown', 'test_absent'])('rejects forged %s without retry', async field => {
     final = { ...(final as object), [field]: field === 'version' ? 2 : field === 'test_absent' ? false : field === 'classroom_id' ? actor : classroom }

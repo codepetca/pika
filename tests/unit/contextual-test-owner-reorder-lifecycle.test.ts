@@ -17,6 +17,7 @@ import { assignmentListExpectedResources, assignmentListRestorationPolicy, loadA
 import { assignmentListRevocationPlans } from '../../scripts/contextual-assignment-list-proof-revocations'
 import { assignmentListProofWorkdir } from '../../scripts/contextual-assignment-list-proof-path'
 import { CLASSROOM_HOME_VISIBILITY_REVIEWED_MIGRATION } from '../../scripts/classroom-home-visibility-reviewed-migration'
+import { createHistorical332PreflightRepository, historicalReviewed332 } from '../helpers/historical-reviewed-332'
 import {
   parseTestOwnerReorderLifecycleArgs, testOwnerReorderForcedReceipt, validateTestOwnerReorderGeneratedTypes,
   testOwnerReorderUnionManifest, testOwnerReorderMatrixCompletion, validateTestOwnerReorderSnapshotCatalog,
@@ -100,8 +101,11 @@ describe('closed reorder lifecycle exact actual-source profiles', () => {
 })
 
 describe('closed reorder lifecycle source contracts', () => {
-  it('binds the current fixture to dormant state and all four exact trigger bindings', () => {
-    const setup = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), process.cwd()).sql.setup
+  it('binds the explicit reviewed332 fixture to dormant state and all four exact trigger bindings', async () => {
+    const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
+    const offline = createHistorical332PreflightRepository(process.cwd(), actual.loadAssignmentListReviewedMigrations(process.cwd()))
+    try {
+    const setup = testOwnerReorderUnionManifest(original, fixture, 'a'.repeat(40), offline.repository).sql.setup
     for (const token of ['private.repolight_managed_connections', 'private.repolight_provision_outbox',
       'private.repolight_provision_control', 'epoch=1', 'not managed_provisioning_enabled',
       'not plan_enforcement_enabled', 'not legacy_plan_access_enabled', 'not billing_access_enabled',
@@ -112,6 +116,7 @@ describe('closed reorder lifecycle source contracts', () => {
     expect(setup).toContain(
       "array['live_payment_lifecycle_enabled','live_project_ref','live_stripe_account','live_trial_lifecycle_enabled','provider_mode','sandbox_enabled']::text[]",
     )
+    } finally { offline.dispose() }
   })
 
   it('validates four required RPC arguments and Json return as supplemental AST evidence', () => {
@@ -537,7 +542,11 @@ describe('reorder snapshot/completion admission', () => {
   })
   it('requires every added RepoLight, plan and billing whole-row fingerprint', async () => {
     const actual = await vi.importActual<typeof import('../../scripts/contextual-assignment-list-proof-platform')>('../../scripts/contextual-assignment-list-proof-platform')
-    const current = actual.loadAssignmentListReviewedMigrations(process.cwd())
+    const inventory = actual.loadAssignmentListReviewedMigrations(process.cwd())
+    const current = historicalReviewed332(inventory)
+    expect(inventory.length).toBeGreaterThan(332)
+    expect(() => validateTestOwnerReorderReviewedMigrations(inventory)).toThrow()
+    expect(() => testOwnerReorderTableCatalogFromCanonical(canonical, inventory)).toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(current)).not.toThrow()
     expect(() => validateTestOwnerReorderReviewedMigrations(current.slice(0, 303))).not.toThrow()
     const fullCatalog = testOwnerReorderTableCatalogFromCanonical(canonical, current)

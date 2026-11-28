@@ -4,7 +4,7 @@ import type { getServiceRoleClient } from '@/lib/supabase'
 import { boundedAssignmentListJson } from '@/lib/validations/contextual-assignment-list-read'
 import {
   contextualTestOwnerIdentitySchema, contextualTestOwnerWitnessSchema, contextualTestOwnerRpcEnvelopeSchema,
-  TEST_OWNER_WORKFLOW_DEADLINE_MS, TEST_OWNER_WORKFLOW_ROW_BYTES, type TestOwnerOperation,
+  TEST_OWNER_WORKFLOW_DEADLINE_MS, TEST_OWNER_WORKFLOW_ROW_BYTES, formatTestWorkflowDeadline, type TestOwnerOperation,
 } from '@/lib/validations/contextual-test-owner-workflow'
 import type { Json } from '@/types/database.generated'
 
@@ -16,7 +16,8 @@ export function createContextualTestOwnerWorkflow(input: {
   supabase: ReturnType<typeof getServiceRoleClient>; actorId: string; testId: string; deadline?: number; signal?: AbortSignal;
 }) {
   const { actorId, testId } = contextualTestOwnerIdentitySchema.parse({ actorId: input.actorId, testId: input.testId })
-  const deadline = Math.min(input.deadline ?? Infinity, Date.now() + TEST_OWNER_WORKFLOW_DEADLINE_MS)
+  const startedAt = Date.now()
+  const deadline = Math.min(input.deadline ?? Infinity, startedAt + TEST_OWNER_WORKFLOW_DEADLINE_MS)
   let captured: ReturnType<typeof contextualTestOwnerWitnessSchema.parse>['test'] | undefined
   let statements = 0; let bytes = 0
   async function within<T>(operation: () => PromiseLike<T>): Promise<T> {
@@ -41,7 +42,8 @@ export function createContextualTestOwnerWorkflow(input: {
     try {
       const pending = input.supabase.rpc('test_owner_workflow_v1', {
         p_actor_id: actorId, p_test_id: testId, p_classroom_id: captured?.classroom_id ?? null,
-        p_operation: operation, p_payload: payload, p_expected_test: captured ?? null, p_deadline: new Date(deadline).toISOString(),
+        p_operation: operation, p_payload: payload, p_expected_test: captured ?? null,
+        p_deadline: formatTestWorkflowDeadline(deadline, startedAt),
       }).abortSignal(controller.signal)
       const raw = await Promise.race([pending, new Promise<never>((_, reject) => {
         controller.signal.addEventListener('abort', () => reject(unavailable()), { once: true })

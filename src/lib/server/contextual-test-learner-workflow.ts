@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/auth'
-import { readContextualTestSession, presentContextualTestSession, type TestSessionReadClient } from '@/lib/server/contextual-test-session-read'
+import { readContextualTestSession, presentContextualTestSession } from '@/lib/server/contextual-test-session-read'
+import { formatTestWorkflowDeadline } from '@/lib/validations/contextual-test-owner-workflow'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
@@ -41,7 +42,8 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
   requestedStudentId?: string; deadline?: number; signal?: AbortSignal }) {
   const identity = testLearnerIdentitySchema.parse({ actorId: input.actorId, testId: input.testId })
   // Parse only the actual identity fields, never trust extra transport fields.
-  const deadline = Math.min(input.deadline ?? Infinity, Date.now() + TEST_LEARNER_DEADLINE_MS)
+  const startedAt = Date.now()
+  const deadline = Math.min(input.deadline ?? Infinity, startedAt + TEST_LEARNER_DEADLINE_MS)
   let classroomId: string | null = null; let subjectId: string | null = null; let statements = 0; let bytes = 0
   const query = testLearnerHistoryQuerySchema.parse(input.requestedStudentId ? { requested_student_id: input.requestedStudentId } : {})
   async function within<T>(operation: () => PromiseLike<T>) {
@@ -63,7 +65,7 @@ export function createContextualTestLearnerWorkflow(input: { supabase: TestLearn
       const args = testLearnerPayloadSchemas[operation].parse({ ...z.record(z.string(), z.json()).parse(payload), ...query })
       const raw = await within(() => input.supabase.rpc('test_learner_workflow_v1', {
         p_actor_id: identity.actorId, p_test_id: identity.testId, p_classroom_id: classroomId,
-        p_operation: operation, p_payload: z.json().parse(args), p_deadline: new Date(deadline).toISOString(),
+        p_operation: operation, p_payload: z.json().parse(args), p_deadline: formatTestWorkflowDeadline(deadline, startedAt),
       }).abortSignal(controller.signal))
       if (controller.signal.aborted || Date.now() >= deadline || !boundedAssignmentListJson(raw, TEST_LEARNER_REPLY_BYTES)) throw unavailable()
       bytes += Buffer.byteLength(JSON.stringify(raw), 'utf8'); if (bytes > TEST_LEARNER_TOTAL_BYTES) throw unavailable()
@@ -191,7 +193,7 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
   const query = testLearnerHistoryQuerySchema.parse(rawSubject === null ? {} : { requested_student_id: rawSubject })
   const client = getServiceRoleClient()
   if (operation === 'session') {
-    const session = await readContextualTestSession({ supabase: client as unknown as TestSessionReadClient,
+    const session = await readContextualTestSession({ supabase: client,
       actorId: actor.id, testId: parsedParams.id, deadline, signal: request.signal })
     if (session) return NextResponse.json(presentContextualTestSession(session))
     // Only an exactly absent additive RPC retains the original contextual

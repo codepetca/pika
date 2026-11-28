@@ -7,6 +7,13 @@ import { contextualTestDraftGetRpcEnvelopeSchema } from '@/lib/validations/conte
 import { isAllowedTestDocumentType, TEST_DOCUMENT_MAX_SIZE, validateTestDocumentsPayload } from '@/lib/test-documents'
 
 export const TEST_OWNER_WORKFLOW_DEADLINE_MS = 30000
+
+export function formatTestWorkflowDeadline(deadline: number, startedAt = Date.now()) {
+  // Postgres validates deadlines against its own wall clock. Leave headroom
+  // under its 30-second limit without extending a shorter caller budget.
+  return new Date(Math.min(deadline, startedAt + TEST_OWNER_WORKFLOW_DEADLINE_MS - 1000)).toISOString()
+}
+
 export const TEST_OWNER_WORKFLOW_BODY_BYTES = 2 * 1024 * 1024
 export const TEST_OWNER_WORKFLOW_ROW_BYTES = 4 * 1024 * 1024
 const inputUuid = z.string().uuid().transform(value => value.toLowerCase())

@@ -20,6 +20,15 @@ describe('contextual Test session snapshot transport', () => {
     expect(await read()).toEqual({ testId, ...projection })
     expect(rpc).toHaveBeenCalledExactlyOnceWith('read_test_session_for_member_v1', { p_actor_id: actor, p_test_id: testId, p_deadline: expect.any(String) })
   })
+  it('allows for database clock skew and preserves a shorter deadline', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(stamp))
+    await read()
+    expect(rpc.mock.calls[0][1].p_deadline).toBe('2026-11-28T12:00:29.000Z')
+
+    await read({ deadline: Date.now() + 8000 })
+    expect(rpc.mock.calls[1][1].p_deadline).toBe('2026-11-28T12:00:08.000Z')
+  })
   it.each(['actor_id', 'test_id', 'version'])('refuses forged %s', async key => {
     reply = { data: { ...witness(), [key]: key === 'version' ? 2 : classroom }, error: null }
     await expect(read()).rejects.toMatchObject({ statusCode: 503 }); expect(rpc).toHaveBeenCalledOnce()
