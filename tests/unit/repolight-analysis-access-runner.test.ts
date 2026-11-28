@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { loadAssignmentListReviewedMigrations } from '../../scripts/contextual-assignment-list-proof-platform'
 import { validateLifecycleServicesReviewedMigrations } from '../../scripts/lifecycle-services-reviewed-migrations'
+import { createHistorical332PreflightRepository } from '../helpers/historical-reviewed-332'
 
 const runner = readFileSync('scripts/check-repolight-analysis-access-database.sh', 'utf8')
 
@@ -21,11 +22,19 @@ describe('RepoLight offline replay source boundary', () => {
     },
   )
 
-  it('runs the actual preflight on the current inventory and gates billing proofs at their migrations', () => {
+  it('accepts historical332 preflight, rejects the longer actual inventory and gates billing proofs at their migrations', () => {
     const command = runner.match(/^pnpm --dir "\$root" exec tsx -e "([^"\n]+)"$/m)?.[1]
     expect(command).toBeDefined()
     const result = spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['-e', command!], { encoding: 'utf8' })
-    expect(result.status, result.stderr).toBe(0)
+    expect(result.status).not.toBe(0)
+    expect(result.stderr).toContain('RepoLight access proof target must end at')
+    const historical = createHistorical332PreflightRepository(process.cwd(), loadAssignmentListReviewedMigrations(process.cwd()))
+    try {
+      const accepted = spawnSync(join(process.cwd(), 'node_modules/.bin/tsx'), ['-e', command!], {
+        encoding: 'utf8', cwd: historical.repository,
+      })
+      expect(accepted.status, accepted.stderr).toBe(0)
+    } finally { historical.dispose() }
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 303\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-renewal-pending-database.sql"/)
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 304\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-expiry-conflicts-database.sql"/)
     expect(runner).toMatch(/if \(\(10#\$replay_version >= 307\)\); then\n  if ! sql < "\$root\/scripts\/check-billing-scheduled-plan-change-admission-database.sql"/)

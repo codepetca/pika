@@ -33,7 +33,9 @@ describe('contextual learner Test route group', () => {
   beforeEach(() => { vi.clearAllMocks(); vi.unstubAllEnvs(); delete process.env.PIKA_CLASSROOM_EXPERIENCE_ADMISSION
     vi.mocked(requireAuth).mockResolvedValue({ id: actor, role: 'teacher', email: 'member@example.test' })
     vi.mocked(requireRole).mockRejectedValue(new Error('Legacy role guard reached'))
-    rpc.mockImplementation(() => ({ abortSignal: () => Promise.resolve({ data: null, error: { code: 'PT403', message: 'private' } }) }))
+    rpc.mockImplementation((name) => ({ abortSignal: () => Promise.resolve(name === 'read_test_session_for_member_v1'
+      ? { data: { version: 1, actor_id: actor, test_id: testId, classroom_id: classroomId, outcome: 'forbidden', projection: null }, error: null }
+      : { data: null, error: { code: 'PT403', message: 'private' } }) }))
   })
   afterEach(() => vi.unstubAllEnvs())
   it.each([
@@ -83,7 +85,7 @@ describe('contextual learner Test route group', () => {
       expect(await response.json()).not.toMatchObject({ error: 'private' })
     }
     expect(requireRole).not.toHaveBeenCalled()
-    expect(rpc).toHaveBeenCalledWith('test_learner_workflow_v1', expect.objectContaining({ p_actor_id: actor, p_test_id: testId }))
+    expect(rpc).toHaveBeenCalledWith(_name === 'session' ? 'read_test_session_for_member_v1' : 'test_learner_workflow_v1', expect.objectContaining({ p_actor_id: actor, p_test_id: testId }))
   })
   it.each(cases)('rejects malformed admission before pending params/data for %s', async (_name, handler, method, body) => {
     vi.stubEnv('PIKA_CLASSROOM_EXPERIENCE_ADMISSION', '{}')

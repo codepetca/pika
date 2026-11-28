@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { isDeepStrictEqual } from 'node:util'
 import { z } from 'zod'
 import { requireAuth } from '@/lib/auth'
+import { readContextualTestSession, presentContextualTestSession, type TestSessionReadClient } from '@/lib/server/contextual-test-session-read'
 import { ApiError } from '@/lib/api-error'
 import { getServiceRoleClient } from '@/lib/supabase'
 import { isClassroomExperienceAdmissionConfigured, resolveClassroomExperienceAdmission } from '@/lib/server/classroom-experience-admission'
@@ -159,11 +160,12 @@ type Flow = ReturnType<typeof createContextualTestLearnerWorkflow>
 async function bestEffortHistory(flow: Flow, input: { attemptId: string; revision: number; responses: unknown;
   previousResponses?: unknown; created?: boolean; trigger: 'autosave' | 'blur' | 'submit'; paste: number; keystrokes: number }) {
   try {
+    const next = normalizeTestResponses(input.responses)
+    const patch = createJsonPatch(normalizeTestResponses(input.previousResponses), next)
+    if (input.trigger !== 'submit' && input.created !== true && patch.length === 0) return null
     const plan = await flow.run('history-plan', { attempt_id: input.attemptId, draft_revision: input.revision })
     if (plan.attempt.id !== input.attemptId || plan.attempt.draft_revision !== input.revision
-      || !isDeepStrictEqual(normalizeTestResponses(plan.attempt.responses), normalizeTestResponses(input.responses))) throw unavailable()
-    const next = normalizeTestResponses(input.responses); const patch = createJsonPatch(normalizeTestResponses(input.previousResponses), next)
-    if (input.trigger !== 'submit' && input.created !== true && patch.length === 0) return null
+      || !isDeepStrictEqual(normalizeTestResponses(plan.attempt.responses), next)) throw unavailable()
     const last = plan.last_history; const collapse = input.trigger !== 'submit' && last !== null && last.trigger !== 'submit'
       && Date.now() - Date.parse(last.created_at) < 10000
     const baseline = input.created === true || !last || input.trigger === 'submit'
@@ -188,6 +190,13 @@ export async function handleContextualTestLearnerRequest(operation: Exclude<Test
   const rawSubject = operation === 'history' ? new URL(request.url).searchParams.get('student_id') : null
   const query = testLearnerHistoryQuerySchema.parse(rawSubject === null ? {} : { requested_student_id: rawSubject })
   const client = getServiceRoleClient()
+  if (operation === 'session') {
+    const session = await readContextualTestSession({ supabase: client as unknown as TestSessionReadClient,
+      actorId: actor.id, testId: parsedParams.id, deadline, signal: request.signal })
+    if (session) return NextResponse.json(presentContextualTestSession(session))
+    // Only an exactly absent additive RPC retains the original contextual
+    // inspect/session path below. No contextual error enters the legacy route.
+  }
   const flow = createContextualTestLearnerWorkflow({ supabase: client as unknown as TestLearnerRpcClient, actorId: actor.id,
     testId: parsedParams.id, requestedStudentId: query.requested_student_id, deadline, signal: request.signal })
   const payload = ['save','submit','focus'].includes(operation)

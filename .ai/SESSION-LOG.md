@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 Closed Stripe setup and refund PR sync
-
-Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.
-
 ## 2026-11-10 Sol assignment and test default
 
 Set the classroom grading default to GPT-6.1 Sol after the owner's model comparison. Assignment and test requests fall back to DeepSeek Flash on OpenAI's exact exhausted-credit code as well as the existing hard spend-limit codes. Repository review routing retains its previous default and fallback scope. Explicit provider/model overrides still apply. Regression coverage includes assignment and test/reference provenance, bounded error classification, and repository compatibility.
@@ -201,3 +197,9 @@ Restore atomic title editing after Start with migration 332. Preserve the existi
 Rebased PR #1833 onto main b1ac2ed34. Preserved current main's continuity records and restored the November audit entries. The cumulative audit patch retains the shipped newest-first Student Classwork behavior alongside its reduced-motion changes. Risk profiles: async-grading and workspace-state. Rebased validation, independent review and PR Gate are tracked on #1833.
 
 Independent review found a competing first-save overwrite in legacy Pal writes. Legacy Pal POST and first-save PATCH now use the existing guarded member transaction. With Pal disabled, a competing first-save PATCH now returns the caller’s current entry with 409. All 107 affected API tests passed. The local database fixture confirmed one create succeeds and the competing create returns 409 with the winning entry intact. Teacher and student Classwork captures passed desktop and mobile in both themes.
+
+## 2026-11-28 — Live Test stability
+
+Risk: exam-mode, workspace-state, runtime-platform. Intent: continuous Student Test edits attempt a save within 20 seconds when no save is in flight. Keep the latest pending answers, verify lost receipts against the server revision, and skip a redundant final PATCH when the exact draft is confirmed. Contextual status reads use one service-only read snapshot when migration 333 is present. Missing RPC selects the previous contextual path. Pika UI reference is Pattern Lab Student Test Attempt; reuse SaveStatus, submit dialog and recovery controls. Student desktop/mobile and light/dark Playwright fixture check exercised edit, busy, saved and confirmed submit. Teacher visual changes are a separate slice.
+
+Terra medium built the isolated mixed HTTP runner. Sol high implemented compact session source and kept prior replay seals intact. Astra high designed the next teacher progress slice. Baseline deployed da328fde2 and candidate use exact separately approved disposable migration sets 001–332 and 001–333. Compare sustained overlap, exact persisted answers, expected authorization and request latency before changing teacher polling or writer locks. Production rollout retains separate approval.

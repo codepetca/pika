@@ -8,9 +8,11 @@ import { classroomHotLifecycleNativePlan } from '../../scripts/contextual-classr
 import { testMemberListReviewedIsolatedCatalog, validateTestMemberListReviewedMigrations } from '../../scripts/check-contextual-test-member-list-lifecycle'
 import { TEST_MEMBER_LIST_CANONICAL_TABLES_248 } from '../../scripts/contextual-test-member-list-proof-fixture'
 import { createOfflineTestLearnerRepository } from '../helpers/test-learner-native-repository'
+import { historicalReviewed332 } from '../helpers/historical-reviewed-332'
 
 const repository = process.cwd()
-const current = platform.loadAssignmentListReviewedMigrations(repository)
+const actual = platform.loadAssignmentListReviewedMigrations(repository)
+const current = historicalReviewed332(actual)
 const chain = current.slice(0, 301)
 const hash = (sql: string) => createHash('sha256').update(sql).digest('hex')
 const original = newAssignmentListProofFixture(new Date('2026-10-07T03:00:00Z'))
@@ -44,6 +46,10 @@ describe('sealed 300 native source profiles (offline only)', () => {
   it('keeps the complete billing replay tail out of the historical native plan and catalog', () => {
     expect(() => classroomHotLifecycleNativePlan(original, 'a'.repeat(40), repository)).toThrow()
     expect(() => classroomTestQuotaProofCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, current)).toThrow()
+    expect(actual.length).toBeGreaterThan(332)
+    expect(() => validateTestMemberListReviewedMigrations(actual)).toThrow()
+    expect(() => testMemberListReviewedIsolatedCatalog(TEST_MEMBER_LIST_CANONICAL_TABLES_248, actual)).toThrow()
+    expect(() => createOfflineTestLearnerRepository(repository)).toThrow()
   })
 
   it('admits the sealed billing suffix for member-list disposable replay and fingerprints its new table', () => {
@@ -97,13 +103,14 @@ describe('sealed 300 native source profiles (offline only)', () => {
     }
   }, 30_000)
 
-  it('copies only the historical learner prefix after validating the full current chain', () => {
+  it('copies only the historical learner prefix after validating the explicit reviewed332 fixture', () => {
+    const loader = vi.spyOn(platform, 'loadAssignmentListReviewedMigrations').mockReturnValue(current)
     const offline = createOfflineTestLearnerRepository(repository, 258)
     try {
       const names = readdirSync(`${offline.repository}/supabase/migrations`).sort()
       expect(names).toHaveLength(258)
       expect(names.at(-1)).toBe('258_student_test_session_status_projection.sql')
-    } finally { offline.dispose() }
+    } finally { offline.dispose(); loader.mockRestore() }
     expect(existsSync(offline.repository)).toBe(false)
   })
 

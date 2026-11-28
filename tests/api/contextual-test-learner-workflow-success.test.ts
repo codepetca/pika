@@ -67,6 +67,8 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
         results: [], my_responses: {}, question_results: [], summary: { earned_points: 0, possible_points: 0, percent: 0 } },
     }[p_operation])
     rpc.mockImplementation((_name, args: Args) => ({ abortSignal: async () => {
+      if (_name === 'read_test_session_for_member_v1') return { data: null, status: 404,
+        error: { code: 'PGRST202', message: 'Could not find the function public.read_test_session_for_member_v1' } }
       const code = errorFor(args)
       // SDK replies are JSON-decoded trees, not aliased fixture object graphs.
       return code ? { data: null, error: { code, message: 'private failure' } } : JSON.parse(JSON.stringify({ error: null, data: { version: 1, actor_id: actor,
@@ -161,7 +163,7 @@ describe('contextual learner Test positive dispatcher and dependent boundaries',
   it('does not append autosave history when normalized answers did not change', async () => {
     const base = resultFor; resultFor = args => args.p_operation === 'save' ? { created: false, previous_responses: answers, attempt } : base(args)
     const response = await save(req('PATCH',{ responses: answers, expected_revision: 11 }),ctx)
-    expect(await response.json()).toEqual({ attempt, historyEntry: null }); expect(calls()).toEqual(['inspect','save','history-plan'])
+    expect(await response.json()).toEqual({ attempt, historyEntry: null }); expect(calls()).toEqual(['inspect','save'])
   })
   it.each(['attempt','revision','responses','last-entry-attempt'])('skips history without rolling back answers after a %s plan mismatch', async mismatch => {
     const base = resultFor; resultFor = args => args.p_operation === 'history-plan' ? { attempt: { ...attempt,
