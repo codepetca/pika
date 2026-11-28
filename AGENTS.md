@@ -70,7 +70,7 @@ Use `docs/guides/ai-ui-testing.md` and `.codex/prompts/ui-verify.md` for the act
 - All deadline calculations use `America/Toronto` timezone.
 - Do not introduce new dependencies unless explicitly approved.
 - Do not commit secrets (`.env.local`, Supabase keys, session secrets).
-- Migration replays on verified, owned disposable local databases are standing-authorized; other
+- Standing approval covers migration replays on verified, owned disposable local databases. Other
   targets require one-time permission. Follow `docs/guidance/schema-rollout-checklist.md`.
 - For production migration operations, use `.codex/skills/pika-prod-migrations/SKILL.md`;
   the manual GitHub workflow is the default path. Local migrations and application promotion

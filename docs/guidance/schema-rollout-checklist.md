@@ -78,9 +78,9 @@ it owns and has verified contains no existing or real data. Before applying, ver
 loopback and belongs to that disposable instance. Verify the complete migration inventory and
 numbering against the checkout and `origin/main`, confirm the historical files match their reviewed
 versions, and review the source of new migrations in the replay.
-Run the explicit `--local` dry-run and ensure it matches that inventory; after application, confirm
+Run the explicit `--local` dry-run and ensure it matches that inventory. After application, confirm
 the applied history matches the expected set. Stop on any target mismatch, drift, unexpected prompt,
-or partial failure; do not retry a partial application under this standing authorization.
+or partial failure. Partial applications require fresh approval to retry.
 
 This authorization does not cover shared or canonical local databases, hosted or production targets,
 destructive operations on real state, migration history repair, or reset. Those operations retain
@@ -98,7 +98,8 @@ Before applying an authorized migration:
 3. Run `supabase migration list` and then `supabase db push --dry-run` with the explicit `--local` or
    `--linked` target. Stop if the preview includes any migration outside the authorized set or history drift.
 4. Confirm applicable tests and migration replay checks passed. For targets requiring one-time
-   permission, explicitly acknowledge the impact of any destructive or irreversible SQL.
+   permission, the owner's permission must explicitly acknowledge the impact of any destructive or
+   irreversible SQL.
 
 During and after application:
 
@@ -110,7 +111,7 @@ During and after application:
 - Migration approval never authorizes `supabase db reset`, migration history repair, rollback/down
   operations, seeding, data cleanup, or Storage deletion. Each requires separate explicit approval.
 - Stop on unexpected prompts, target mismatches, extra migrations, or partial failure. Report the
-  durable state; obtain new permission before retrying a partial application.
+  durable state and obtain new permission before retrying a partial application.
 - Re-run `supabase migration list`, verify the relevant database contract with read-only checks, and
   report the target, applied migration numbers, and verification result without exposing secrets.
 

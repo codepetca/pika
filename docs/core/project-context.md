@@ -59,11 +59,10 @@ Package manager: pnpm (recommended via Corepack; `package.json#packageManager`)
    - Collaborator default: `cp .env.example .env.local`, then fill in the required values
    - Exception-only: use a branch-specific env file when intentionally isolating backend state
 3. Ensure pending migrations have been applied before runtime work that depends on them.
-   - Migration application is human-controlled by default. Verified, owned disposable local replays
-     are standing-authorized; other targets require the one-time, exact target and migration
-     authorization defined in
-     [`docs/guidance/schema-rollout-checklist.md`](../guidance/schema-rollout-checklist.md); reset,
-     repair, rollback, seeding, and cleanup require separate approval.
+   - Standing approval covers verified, owned disposable local replays. Other targets require the
+     one-time, exact target and migration authorization in the
+     [schema rollout checklist](../guidance/schema-rollout-checklist.md). Reset, repair, rollback,
+     seeding, and cleanup require separate approval.
 4. `pnpm dev` and open http://localhost:3000
 5. Optional: `pnpm seed`
    - To wipe + reseed against a specific env file: `ENV_FILE=.env.custom.local ALLOW_DB_WIPE=true pnpm seed:fresh`
