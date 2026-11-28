@@ -54626,3 +54626,8 @@ The operator policy retains seven days for first-purchase refund requests and le
 ## 2026-11-10 Terra grading default
 
 Set OpenAI GPT-6.1 Terra as the shared grading default for assignments, open responses, and repository reviews. DeepSeek Flash remains the fallback for verified OpenAI hard spend-limit errors. The test reference cache uses the same fallback selection as the router. Existing explicit provider/model settings still take precedence, and archived test calibration retains its prior DeepSeek default. The production AI outbound gate remains independently controlled.
+
+<!-- pika-session-log-archive-batch:f8a9bfe544319071198f8f0cc2d2a03d622178b01bead733a1eb9730bdf3b529 -->
+## 2026-11-10 Closed Stripe setup and refund PR sync
+
+Production Pika is pinned to the authorized live Stripe account with classroom cutoff enabled. The individual teacher catalog has eight unavailable versions. Tax, portal, Prices, and the restricted runtime key passed provider reads. The webhook and admission remain closed. Synced the refund branch with main after resolving a duplicate archive marker and verified the refund code and migration diff stayed identical. Production migration 328 remains pending.
