@@ -25,7 +25,11 @@ begin
     raise exception using errcode = 'PT503', message = 'test_learner_deadline';
   end if;
 
-  select t.classroom_id into v_classroom_id from public.tests t where t.id = p_test_id;
+  begin
+    select t.classroom_id into v_classroom_id from public.tests t where t.id = p_test_id;
+  exception when lock_not_available or deadlock_detected or serialization_failure then
+    raise exception using errcode = 'PT409', message = 'test_learner_busy';
+  end;
   if not found then
     raise exception using errcode = 'PT404', message = 'test_learner_not_found';
   end if;
