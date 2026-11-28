@@ -11,10 +11,6 @@ Rolling recent session log for AI/human handoffs. Keep this file small; full his
 - The trim step appends removed entries to `.ai/JOURNAL-ARCHIVE.md`, so trimming never loses history.
 - Use `.ai/JOURNAL-ARCHIVE.md` only for historical investigation.
 
-## 2026-11-10 Pika recovery alerts Worker
-
-Codepet has zero Cloudflare custom analytics policy quota. A private observer uses the Analytics SQL binding to detect recovery errors and missing expected lane receipts. A Durable Object deduplicates notifications, and the existing Brevo integration sends alerts. An isolated canary reproduced the error and missing-trial signals from Cloudflare logs and delivered one message despite a repeated run. The checked-in deployment is dormant with both heartbeat expectations off.
-
 ## 2026-11-10 RepoLight assignment timeline
 
 Added matched student assignment-period timeline with explicit evidence limits; focused tests passed. Visual fixture checked at desktop/mobile light; authenticated report and full theme matrix remain for review.
@@ -205,3 +201,7 @@ All four 30-learner runs verified submissions and exact rows. One of three 40-le
 ## 2026-11-28 — Live Test single-call learner mutations
 
 Migration 334 adds an invoker RPC for own Start, save, submit and focus events. It discovers the Test parent and passes the exact parent to the existing locked write. Its confirmed-missing fallback retains the previous contextual transaction path. Independent Astra high authority review and Sol high compatibility review accompany the 40-learner comparison. The runner attests zero preflight `inspect` calls and checks final history alongside submitted answers. No production change was authorized.
+
+## 2026-11-28 Disposable local migration authority
+
+Recorded standing authority for verified, owned disposable local migration replays, with target, inventory, dry-run and post-apply checks. Shared and hosted targets retain explicit approval requirements. No database operations were performed.

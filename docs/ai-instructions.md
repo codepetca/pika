@@ -51,7 +51,7 @@ Read routed docs first.
 - Repeated client-side reads: use `fetchJSONWithCache` from `@/lib/request-cache`
 - Tiptap content parsing: import `parseContentField` from `@/lib/tiptap-content`
 - UI primitives: import from `@/ui`; use semantic tokens in app code instead of raw `dark:` classes
-- Migrations: require one-time permission naming target and migration; follow the schema rollout checklist
+- Migrations: follow the schema rollout checklist for authority and safeguards
 - Environments: local app/DB checks → main → production; staging retired. See [Workflow](./dev-workflow.md).
 - Workflow: use a worktree; automatic draft-first stable-SHA PRs per `docs/dev-workflow.md`; include `Model recommendation: <model> - <reason>`; append and trim the session log
 - Risk profile: declare `none`, `workspace-state`, `async-grading`, `exam-mode`, or `runtime-platform`
